@@ -303,12 +303,12 @@ so that the resulting file is directly runnable without additional
 compression:</p>
 
 <pre width=80>
-        <b>*=</b> <span>$0801</span>
+*       <b>=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<u>start</u><i>;will be sys 4096</i>
 +	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
 
 start	<b>rts</b>
 </pre>
@@ -321,7 +321,7 @@ is to not use an initial value by using <q><code>?</code></q> or not
 giving a fill byte value to <code>.fill</code>.</p>
 
 <pre width=80>
-        <b>*=</b> <span>$02</span>
+*       <b>=</b> <span>$02</span>
 p1	<b class="d">.word</b> <span>?</span>         <i>;a zero page pointer</i>
 temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
 </pre>
@@ -409,15 +409,6 @@ Other types can be converted to integer using the integer type
 <pre width=80>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
 
-        <b>lda</b> #&lt;<u>label</u>
-        <b>ldy</b> #&gt;<u>label</u>
-        <b>jsr</b> <span>$ab1e</span>
-
-        <b>ldx</b> #&lt;&gt;<u>source</u>   <i>; word extraction</i>
-        <b>ldy</b> #&lt;&gt;<u>dest</u>
-        <b>lda</b> #<span class="k">size</span>(<u>source</u>)-<span>1</span>
-        <b>mvn</b> #`<u>source</u>, #`<u>dest</u><i>; bank extraction</i>
-
         <b>lda</b> #((<u>bitmap</u> &gt;&gt; <span>10</span>) &amp; <span>$0f</span>) | ((<u>screen</u> &gt;&gt; <span>6</span>) &amp; <span>$f0</span>)
         <b>sta</b> <span>$d018</span>
 </pre>
@@ -503,7 +494,7 @@ and e is <code>exp(1)</code>.</p>
 <p>Floating point numbers are automatically truncated to integer as necessary.
 Other types can be converted to floating point by using the type <code>float</code>.</p>
 
-<p>Fixed point conversion can be done by using the shift operators for example
+<p>Fixed point conversion can be done by using the shift operators. For example
 a 8.16 fixed point number can be calculated as <code>(3.14 &lt;&lt; 16) &amp; $ffffff</code>.
 The binary operators operate like if the floating point number would be a fixed
 point one. This is the reason for the strange definition of inversion.</p>
@@ -520,7 +511,7 @@ point one. This is the reason for the strange definition of inversion.</p>
 character. Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside character strings escapes them and results in a single quote.</p>
+Doubling the quotes inside string literals escapes them and results in a single quote.</p>
 
 <div><table border="0">
 <caption>Character string operators and functions</caption>
@@ -862,7 +853,7 @@ create uninitialized memory, but filling, alignment or address manipulation as
 well.</p>
 
 <pre width=80>
-        <b>*=</b> <span>$200</span>         <i>;bytes as necessary</i>
+*       <b>=</b> <span>$200</span>          <i>;bytes as necessary</i>
 	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
 	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
 	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
@@ -1409,10 +1400,14 @@ opcodes.</p>
 </table></div>
 
 <pre width=80>
-        <b>lda</b> #&lt;<u>irq</u>+<span>1</span>     <i>; lower byte of irq+1</i>
-        <b>sta</b> <span>$314</span>
-        <b>lda</b> #&gt;<u>irq</u>+<span>1</span>     <i>; higher byte of irq+1</i>
-        <b>sta</b> <span>$315</span>
+        <b>lda</b> #&lt;<u>label</u>
+        <b>ldy</b> #&gt;<u>label</u>
+        <b>jsr</b> <span>$ab1e</span>
+
+        <b>ldx</b> #&lt;&gt;<u>source</u>   <i>; word extraction</i>
+        <b>ldy</b> #&lt;&gt;<u>dest</u>
+        <b>lda</b> #<span class="k">size</span>(<u>source</u>)-<span>1</span>
+        <b>mvn</b> #`<u>source</u>, #`<u>dest</u><i>; bank extraction</i>
 </pre>
 
 <h4>Conditional operators<a name="conditionals" href="#conditionals"></a></h4>
@@ -1522,7 +1517,7 @@ for code copied to it's proper location at runtime. Can be nested of course.
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 </dl>
 <pre width=80>
-        <b>*=</b> <span>$1000</span>        <i>;set program counter (and offset)</i>
+*       <b>=</b> <span>$1000</span>         <i>;set program counter (and offset)</i>
 
         <b class="k">.offs</b> <span>100</span>       <i>;gap of 100, PC still the same</i>
 
@@ -1540,9 +1535,9 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 </pre>
 <p>Here's an example how <code>.logical</code> and <code>&lowast;=</code> works together:</p>
 <pre width=80>
-        <b>*=</b> <span>$0800</span>       <i>;Compile: $0800, PC: $0800</i>
+*       <b>=</b> <span>$0800</span>        <i>;Compile: $0800, PC: $0800</i>
         <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, PC: $1000</i>
-        <b>*=</b> <span>$1200</span>       <i>;Compile: $0a00, PC: $1200</i>
+*       <b>=</b> <span>$1200</span>        <i>;Compile: $0a00, PC: $1200</i>
 	<b class="k">.here</b>          <i>;Compile: $0a00, PC: $0a00</i>
 </pre>
 
@@ -1603,12 +1598,12 @@ jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u><i>; but better u
 <dd>Create 16&nbsp;bit return address constants for addresses (in current program bank)
 <pre width=80>
 <i>;Computed jumps with jump table (65816, current bank)</i>
-        <b>*=</b> <span>$12000</span>
+*       <b>=</b> <span>$12000</span>
         <b>jmp</b> (<u>jumps</u>,x)
 jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
 
 <i>;Computed jumps by using stack (current bank)</i>
-        <b>*=</b> <span>$103000</span>
+*       <b>=</b> <span>$103000</span>
         <b>lda</b> <u>rets</u>+<span>1</span>,x
 	<b>pha</b>
         <b>lda</b> <u>rets</u>,x
@@ -1894,7 +1889,7 @@ for two separate parts of a bigger program. The common subroutine variables
 are assigned after in the <q>zp</q> section.</p>
 
 <pre width=80>
-        <b>*=</b> <span>$02</span>
+*       <b>=</b> <span>$02</span>
         <b class="k">.union</b>          <i>;spare some memory</i>
          <b class="k">.struct</b>
           <b class="d">.dsection</b> <u>zp1</u> <i>;declare zp1 section</i>
@@ -2194,7 +2189,7 @@ file separately, like bitmap and colors for example.
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>     <i>;skip start address</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>, <span>1000</span><i>;skip start address, 1000 bytes max</i>
 
-        <b>*=</b> <span>$1000</span>	            <i>;load music to $1000 and</i>
+*       <b>=</b> <span>$1000</span>                     <i>;load music to $1000 and</i>
         <b class="d">.binary</b> <span class="s">"music.sid"</span>, <span>$7e</span>    <i>;strip SID header</i>
 </pre>
 
@@ -2295,19 +2290,19 @@ to manipulate the compile offset in fragments, but putting code before the
 start of <code>.dsection</code> is not allowed.</p>
 
 <pre width=80>
-        <b>*=</b> <span>$02</span>
+*       <b>=</b> <span>$02</span>
         <b class="d">.dsection</b> <u>zp</u>   <i>;declare zeropage section</i>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$30</span>, <span class="s">"Too many zeropage variables"</span>
 
-        <b>*=</b> <span>$334</span>
+*       <b>=</b> <span>$334</span>
         <b class="d">.dsection</b> <u>bss</u>   <i>;declare uninitialized variable section</i>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$400</span>, <span class="s">"Too many variables"</span>
 
-        <b>*=</b> <span>$0801</span>
+*       <b>=</b> <span>$0801</span>
         <b class="d">.dsection</b> <u>code</u>   <i>;declare code section</i>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$1000</span>, <span class="s">"Program too long!"</span>
 
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b class="d">.dsection</b> <u>data</u>   <i>;declare data section</i>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$2000</span>, <span class="s">"Data too long!"</span>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;</i>
@@ -2373,7 +2368,7 @@ shared for all banks.</p>
 
 <pre width=80>
 <i>;First 8K bank at the beginning, PC at $8000</i>
-        <b>*=</b> <span>$0000</span>
+*       <b>=</b> <span>$0000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank1</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
@@ -2391,7 +2386,7 @@ bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
 	<b class="k">.bend</b>
 
 <i>;Second 8K bank at $2000, PC at $8000</i>
-        <b>*=</b> <span>$2000</span>
+*       <b>=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank2</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
@@ -2408,7 +2403,7 @@ bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
 	<b class="k">.bend</b>
 
 <i>;Common data, avoid initialized variables here!</i>
-        <b>*=</b> <span>$c000</span>
+*       <b>=</b> <span>$c000</span>
         <b class="d">.dsection</b> <u>bss</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$d000</span>, <span class="s">"Too much common data"</span>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus; The following is in "code.asm"</i>
@@ -2580,10 +2575,10 @@ is set to the value of expression or reference of variable.
 
 <pre width=80>
         <b class="k">.proff</b>           <i>;Don't put filler bytes into listing</i>
-        <b>*=</b> <span>$8000</span>
+*       <b>=</b> <span>$8000</span>
         <b class="d">.fill</b> <span>$2000</span>, <span>$ff</span> <i>;Pre-fill ROM area</i>
 	<b class="k">.pron</b>
-        <b>*=</b> <span>$8000</span>
+*       <b>=</b> <span>$8000</span>
         <b class="d">.word</b> <u>reset</u>, <u>restore</u>
         <b class="d">.text</b> <span class="s">"CBM80"</span>
 reset   <b>cld</b>
@@ -2755,9 +2750,9 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
 <p>Used for linkers.</p>
 <pre width=80>
 64tass --nonlinear a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b>lda</b> #<span>2</span>
-        <b>*=</b> <span>$2000</span>
+*       <b>=</b> <span>$2000</span>
 	<b>nop</b>
 </pre>
 <div><table border="0">
@@ -2786,9 +2781,9 @@ happens in the definition order without sorting, and uninitialized memory is
 skipped in the output.</p>
 <pre width=80>
 64tass --atari-xex a.asm
-        <b>*=</b> <span>$02e0</span>
+*       <b>=</b> <span>$02e0</span>
         <b class="d">.word</b> <u>start</u>      <i>;run address</i>
-        <b>*=</b> <span>$2000</span>
+*       <b>=</b> <span>$2000</span>
 start	<b>rts</b>
 </pre>
 <div><table border="0">
@@ -2810,7 +2805,7 @@ start	<b>rts</b>
 before the first and after the last valid bytes are not saved.</p>
 <pre width=80>
 64tass --apple-ii a.asm
-        <b>*=</b> <span>$0c00</span>
+*       <b>=</b> <span>$0c00</span>
         <b>rts</b>
 </pre>
 <div><table border="0">
@@ -2864,16 +2859,16 @@ sometimes, usually they'll need to be rewritten to <code>BXX &lowast;+5 JMP xxx<
 is not converted.
 <pre width=80>
 64tass a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;error...</i>
 
 64tass a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b>bcs</b> *+<span>5</span>		<i>;opposite condition</i>
         <b>jmp</b> <span>$1233</span>	<i>;as simple workaround</i>
 
 64tass --long-branch a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
@@ -3013,7 +3008,7 @@ for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
 <dd>List labels into &lt;file&gt;. List global used labels to a file.
 <pre width=80>
 64tass -l labels.txt a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
 label   <b>jmp</b> <u>label</u>
 
 result (labels.txt):
@@ -3024,7 +3019,7 @@ label           = $1000
 <dd>List labels in a VICE readable format.
 <pre width=80>
 64tass --vice-labels -l labels.txt a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
 label   <b>jmp</b> <u>label</u>
 
 result (labels.txt):
@@ -3037,7 +3032,7 @@ Useful for debugging, it's much easier to identify the code in memory within
 the source files.
 <pre width=80>
 64tass -L list.txt a.asm
-        <b>*=</b> <span>$1000</span>
+*       <b>=</b> <span>$1000</span>
         <b>ldx</b> #<span>0</span>
 loop	<b>dex</b>
         <b>bne</b> <u>loop</u>
