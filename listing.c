@@ -294,6 +294,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                     case ADR_REL: if (ln > 0) s = out_pb(s, ((int8_t)adr) + current_section->l_address.address); else s--; break;
                     case ADR_BIT_ZP_REL: 
                         s = out_bit(s, cod, adr);
+                        *s++ = ',';
                         s = out_pb(s, ((int8_t)(adr >> 8)) + current_section->l_address.address);
                         break;
                     case ADR_REL_L: s = out_pb(s, ((int16_t)adr) + current_section->l_address.address); break;
