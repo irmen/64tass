@@ -33,9 +33,10 @@
 #include "values.h"
 
 #define VERBOSE 0
-#define HEX_COLUMN 9
-#define MONITOR_COLUMN 24
-#define SOURCE_COLUMN 40
+#define LADDR_COLUMN 8
+#define HEX_COLUMN 17
+#define MONITOR_COLUMN 32
+#define SOURCE_COLUMN 48
 
 unsigned int nolisting;   /* listing */
 const uint8_t *llist = NULL;
@@ -159,7 +160,7 @@ void listing_equal(Obj *val) {
 
 static int printaddr(char pre, address_t addr) {
     char str[8], *s = str;
-    *s++ = pre;
+    if (pre) *s++ = pre;
     if (addr > 0xffffff) s = out_hex(s, addr >> 24);
     if (addr > 0xffff) s = out_hex(s, addr >> 16);
     s = out_hex(s, addr >> 8);
@@ -175,7 +176,14 @@ void listing_line(linecpos_t pos) {
             size_t i = 0;
             int l;
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
-            l = (i < pos) ? printaddr('.', current_section->address) : 0;
+            if (i < pos) {
+                address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                l = printaddr('.', current_section->address);
+                if (current_section->address != addr) {
+                    l = padding(l, LADDR_COLUMN);
+                    l += printaddr('\0', addr);
+                }
+            } else l = 0;
             if (VERBOSE) {
                 if (llist[i]) {
                     padding(l, SOURCE_COLUMN);
@@ -201,7 +209,12 @@ void listing_line_cut(linecpos_t pos) {
             size_t i = 0;
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
             if (i < pos) {
+                address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                 int l = printaddr('.', current_section->address);
+                if (current_section->address != addr) {
+                    l = padding(l, LADDR_COLUMN);
+                    l += printaddr('\0', addr);
+                }
                 while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
                 padding(l, SOURCE_COLUMN);
                 printable_print2(llist, flist, pos);
@@ -237,8 +250,14 @@ void listing_set_cpumode(const struct cpu_s *cpumode) {
 void listing_instr(uint8_t cod, uint32_t adr, int ln) {
     if (!nolisting && flist && !temporary_label_branch) {
         int i, l;
+        address_t addr = ((current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
+        address_t addr2 = (current_section->address - ln - 1) & all_mem2;
 
-        l = printaddr('.', (current_section->address - ln - 1) & all_mem2);
+        l = printaddr('.', addr2);
+        if (addr2 != addr) {
+            l = padding(l, LADDR_COLUMN);
+            l += printaddr('\0', addr);
+        }
         if (current_section->dooutput) {
             char str[32], *s;
             if (ln >= 0) {
@@ -314,7 +333,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
     }
 }
 
-void listing_mem(const uint8_t *data, size_t len, address_t myaddr) { 
+void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
     int print;
     int l;
     int lcol;
@@ -323,6 +342,10 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr) {
 
     print = 1;
     l = printaddr('>', myaddr);
+    if (myaddr != myaddr2) {
+        l = padding(l, LADDR_COLUMN);
+        l += printaddr('\0', myaddr2);
+    }
     if (len) {
         size_t p = 0;
         lcol = arguments.source ? 8 : 16;
@@ -339,12 +362,17 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr) {
                     print = 0;
                 } else putc('\n',flist);
                 l = printaddr('>', myaddr);
+                if (myaddr != myaddr2) {
+                    l = padding(l, LADDR_COLUMN);
+                    l += printaddr('\0', myaddr2);
+                }
                 l = padding(l, HEX_COLUMN);
                 lcol = 15;
             }
             *s++ = ' ';
             s = out_hex(s, data[p++]);
             myaddr = (myaddr + 1) & all_mem2;
+            myaddr2 = ((myaddr2 + 1) & 0xffff) | (myaddr2 & ~0xffff);
             len--;
         }
         *s = 0;

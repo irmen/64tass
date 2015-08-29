@@ -1129,52 +1129,66 @@ Compiler directives
 
 Controlling the compile offset and program counter
 
-Two counters are used while assembling. The compile offset is where the data
-and code ends up in memory, while the program counter is what labels will be
-set or what the special star label gets when referenced. Normally these two are
-the same (code compiled to the location it runs from) but it does not need to
-be.
+Two counters are used while assembling.
 
-The program counter wraps when the border of a 64 KiB program bank is crossed.
-The actual program bank is not incremented, just like on a real processor.
+The compile offset is where the data and code ends up in memory (or in image
+file).
+
+The program counter is what labels get set to and what the special star label
+refers to. It wraps when the border of a 64 KiB program bank is crossed. The
+actual program bank is not incremented, just like on a real processor.
+
+Normally both are the same (code is compiled to the location it runs from) but
+it does not need to be.
 
 *= <expression>
-    The compile offset is incremented/decremented so that the program counter
-    will match the address in the expression.
+    The compile offset is adjusted so that the program counter will match the
+    requested address in the expression.
+
+    ;Offset PC       Bytes          Disassembly     Source
+                                                    *       = $0800
+    >0800                                                   .byte
+                                                            .logical $1000
+    >0800   1000                                            .byte
+                                                    *       = $1200
+    >0a00   1200                                            .byte
+                                                            .here
+    >0a00                                                   .byte
+
 .offs <expression>
     Add an offset to the compile offset (create a gap). The program counter
     stays the same as before.
+
+    ;Offset PC       Bytes          Disassembly     Source
+                                                    *       = $1000
+    .1000                           nop                     .byte
+                                                            .offs 100
+    .1064   1000                    nop                     .byte
+
 .logical <expression>
 .here
     Changes the program counter only, the compile offset is not changed. Used
     for code copied to it's proper location at runtime. Can be nested of
     course.
+
+    ;Offset PC       Bytes          Disassembly     Source
+                                                    *       = $1000
+                                                            .logical $300
+    .1000   0300     a9 80          lda #$80        drive   lda #$80
+    .1002   0302     85 00          sta $00                 sta $00
+    .1004   0304     4c 00 03       jmp $0300               jmp drive
+                                                            .here
+
 .align <modulo>[, <fill>]
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
 
-*       = $1000         ;set program counter (and offset)
-
-        .offs 100       ;gap of 100, PC still the same
-
-        .logical $300   ;set PC to $300
-drive   lda #$80
-        sta $00
-        jmp drive       ;it's jmp $300
-        rts
-        .here
-
-        .align $100
-irq     inc $d019       ;this will be on a page boundary, after skipping bytes
-        .align 4, $ea
-loop    adc #1          ;padding with "nop" for DTV burst mode
-
-Here's an example how .logical and *= works together:
-
-*       = $0800        ;Compile: $0800, PC: $0800
-        .logical $1000 ;Compile: $0800, PC: $1000
-*       = $1200        ;Compile: $0a00, PC: $1200
-        .here          ;Compile: $0a00, PC: $0a00
+    ;Offset PC       Bytes          Disassembly     Source
+                                                    *       = $ffc
+    >0ffc                                                   .align $100
+    .1000            ee 19 d0       inc $d019       irq     inc $d019
+    >1003            ea                                     .align 4, $ea
+    .1004            69 01          adc #$01        loop    adc #1
 
 Dumping data
 
@@ -2641,10 +2655,10 @@ Source listing options
     ;done on Fri Dec  9 19:08:55 2005
 
 
-    .1000    a2 00          ldx #$00                ldx #0
-    .1002    ca             dex             loop    dex
-    .1003    d0 fd          bne $1002               bne loop
-    .1005    60             rts                     rts
+    .1000            a2 00          ldx #$00                ldx #0
+    .1002            ca             dex             loop    dex
+    .1003            d0 fd          bne $1002               bne loop
+    .1005            60             rts                     rts
 
     ;******  end of code
 
@@ -2660,10 +2674,10 @@ Source listing options
     ;done on Fri Dec  9 19:11:43 2005
 
 
-    .1000    a2 00                                  ldx #0
-    .1002    ca                             loop    dex
-    .1003    d0 fd                                  bne loop
-    .1005    60                                     rts
+    .1000            a2 00                                  ldx #0
+    .1002            ca                             loop    dex
+    .1003            d0 fd                                  bne loop
+    .1005            60                                     rts
 
     ;******  end of code
 
@@ -2679,10 +2693,10 @@ Source listing options
     ;done on Fri Dec  9 19:13:25 2005
 
 
-    .1000    a2 00          ldx #$00
-    .1002    ca             dex
-    .1003    d0 fd          bne $1002
-    .1005    60             rts
+    .1000            a2 00          ldx #$00
+    .1002            ca             dex
+    .1003            d0 fd          bne $1002
+    .1005            60             rts
 
     ;******  end of code
 
