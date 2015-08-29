@@ -31,6 +31,7 @@
 #include "registerobj.h"
 #include "codeobj.h"
 #include "typeobj.h"
+#include "longjump.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
@@ -404,11 +405,24 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                         ln = 2;
                     } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
+                            int exists;
+                            struct longjump_s *lj = new_longjump(uval, &exists);
+                            if (exists && lj->defpass == pass) {
+                                if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
+                                    uint16_t adrk = lj->dest - current_section->l_address.address - 2;
+                                    if (adrk >= 0xFF80 || adrk <= 0x007F) {
+                                        adr = adrk;
+                                        goto branchok;
+                                    }
+                                }
+                            }
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             ln = labelexists ? ((uint16_t)(s->addr - star - 2)) : 3;
                             pokeb(cod);
                             pokeb(ln);
                             listing_instr(cod, ln, 1);
+                            lj->dest = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                            lj->defpass = pass;
                             err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
                             if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -417,12 +431,25 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return err;
                         } else if (opr == ADR_BIT_ZP_REL) {
+                            int exists;
+                            struct longjump_s *lj = new_longjump(uval, &exists);
                             if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                            if (exists && lj->defpass == pass) {
+                                if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
+                                    uint16_t adrk = lj->dest - current_section->l_address.address - 3;
+                                    if (adrk >= 0xFF80 || adrk <= 0x007F) {
+                                        adr = adrk;
+                                        goto branchok;
+                                    }
+                                }
+                            }
                             cod = cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch;
                             pokeb(cod);
                             pokeb(xadr);
                             pokeb(3);
                             listing_instr(cod, xadr | 0x300, 2);
+                            lj->dest = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                            lj->defpass = pass;
                             adr = oadr; opr = ADR_ADDR; ln = 2;
                             prm = cpu->jmp; longbranch = 0;
                             cnmemonic = opcode_table[opcode[prm]];
@@ -490,6 +517,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                         }
                     }
                 }
+            branchok:
                 if (labelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                     fixeddig = 0;

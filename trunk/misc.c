@@ -27,6 +27,7 @@
 #include "opcodes.h"
 #include "getopt.h"
 #include "section.h"
+#include "longjump.h"
 #include "encoding.h"
 #include "file.h"
 #include "eval.h"
@@ -141,6 +142,7 @@ void tfree(void) {
     destroy_eval();
     destroy_variables();
     destroy_section();
+    destroy_longjump();
     destroy_file();
     err_destroy();
     destroy_encoding();

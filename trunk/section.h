@@ -60,6 +60,7 @@ struct section_s {
     struct file_list_s *file_list;
     struct linepos_s epoint;
     struct avltree members;
+    struct avltree longjump;
 };
 
 extern struct section_s *new_section(const str_t *);
