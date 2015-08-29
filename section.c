@@ -23,6 +23,7 @@
 #include "64tass.h"
 #include "values.h"
 #include "intobj.h"
+#include "longjump.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
@@ -102,6 +103,7 @@ struct section_s *new_section(const str_t *name) {
         prev_section = lastsc;
         init_memblocks(&lastsc->mem);
         avltree_init(&lastsc->members);
+        avltree_init(&lastsc->longjump);
 	tmp=lastsc;
 	lastsc=NULL;
 	return tmp;
@@ -132,6 +134,7 @@ void init_section2(struct section_s *section) {
     init_memblocks(&section->mem);
     section->l_address_val = NULL;
     avltree_init(&section->members);
+    avltree_init(&section->longjump);
 }
 
 void init_section(void) {
@@ -141,6 +144,7 @@ void init_section(void) {
 
 void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
+    longjump_destroy(&section->longjump);
     destroy_memblocks(&section->mem);
     if (section->l_address_val) {
         val_destroy(section->l_address_val);
