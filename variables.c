@@ -493,8 +493,8 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
     n = avltree_first(members);
     while (n) {
         l = find_strongest_label(&n, label_compare);            /* already exists */
-        if (!l) continue;
-        if (l->name.data && l->name.len > 1 && !l->name.data[1]) continue;
+        if (!l || !l->name.data) continue;
+        if (l->name.len > 1 && !l->name.data[1]) continue;
         switch (l->value->obj->type) {
         case T_LBL:
         case T_MACRO:

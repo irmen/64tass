@@ -144,6 +144,7 @@ static inline MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(ep
     Obj **val;
 
     switch (vals->len) {
+    default: end = 0; break; /* impossible */
     case 1: 
         err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
         break;
