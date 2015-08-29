@@ -724,11 +724,13 @@ myconsts.math.pi).
 
 Regular symbols
 
-Regular symbol names are starting with a letters and containing letters,
-numbers and underscores. There's no restriction on the length of symbol names.
+Regular symbol names are starting with a letter and containing letters, numbers
+and underscores. Unicode letters are allowed if the "-a" command line option
+was used. There's no restriction on the length of symbol names.
 
-Care must be taken to not use the duplicate names in the same scope when the
-symbol is used as a constant.
+Care must be taken to not use duplicate names in the same scope when the symbol
+is used as a constant. Case sensitivity can be enabled with the "-C" command
+line option, otherwise symbols are matched case insensitive.
 
 Duplicate names in parent scopes are never a problem, they'll just be
 `shadowed'. This could be either good by reducing collisions and gives the
@@ -2458,11 +2460,10 @@ Operation options
     Using this option will change the default `none' and `screen' encodings to
     map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and
     $C1-$DA, which is more suitable for an ASCII editor. It also adds
-    predefined petcat style PETSCII literals to the default encodings.
+    predefined petcat style PETSCII literals to the default encodings, and
+    enables Unicode letters in symbol names.
 
-    For writing sources in UTF-8/UTF-16 encodings this option is required! The
-    symbol names are still limited to ASCII, but custom string encodings can
-    take advantage of the full Unicode set.
+    For writing sources in UTF-8/UTF-16 encodings this option is required!
 
     64tass a.asm
 
@@ -2499,7 +2500,7 @@ Operation options
             bcc $1233       ;no error, automatically converted to the above one.
 
 -C, --case-sensitive
-    Case sensitive labels. Labels are non case sensitive by default, this
+    Case sensitive labels. Labels are not case sensitive by default, this
     option changes that.
 
     64tass a.asm
@@ -2591,7 +2592,7 @@ using the .cpu directive in the source.
 
 -x, --m65816
     W65C816. Enables extra opcodes, and full 16 MiB address space. Useful for
-    SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
+    SuperCPU projects.
 
     64tass --m65816 a.asm
             lda $123456,x

@@ -1,0 +1,175 @@
+.TH 64tass 1 "August 29 2015" "64tass 1.51" "64tass 1.51"
+.SH NAME
+64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
+.SH SYNOPSIS
+.B 64tass
+[\fIOPTION\fR]... [\fISOURCES\fR]...
+.SH DESCRIPTION
+.LP
+64tass is cross assembler targeting the 65xx series of micro processors. This manual is
+only describing the command line options. The many features are described in the HTML manual.
+.SH OPTIONS
+.sp 1
+.TP 0.5i
+\fB\-o\fR \fIfilename\fR
+Place output into \fIfilename\fR. The default output filename is "a.out",
+this option changes it.
+.TP 0.5i
+\fB\-b\fR, \fB\-\-nostart\fR
+Output data only without start address.
+Overlapping blocks are flattened and uninitialized memory is filled up
+with zeros. Uninitialized memory before the first and after the last
+valid bytes are not saved. Useful for small ROM files.
+.TP 0.5i
+\fB\-f\fR, \fB\-\-flat\fR
+Flat address space output mode.
+Overlapping blocks are flattened and uninitialized memory is filled up
+with zeros. Uninitialized memory after the last valid byte is not saved.
+Useful for creating huge multi bank ROM files (over 64K). See sections
+for an example.
+.TP 0.5i
+\fB\-n\fR, \fB\-\-nonlinear\fR
+Generate nonlinear output file.
+Overlapping blocks are flattened. Blocks are saved in sorted order
+and uninitialized memory is skipped.
+Used for linkers.
+.TP 0.5i
+\fB\-X\fR, \fB\-\-long\-address\fR
+Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
+.TP 0.5i
+\fB\-\-atari\-xex\fR
+Generate a Atari XEX output file.
+Overlapping blocks are kept, continuing blocks are concatenated. Saving
+happens in the definition order without sorting, and uninitialized memory
+is skipped in the output.
+.TP 0.5i
+\fB\-\-apple2\fR
+Generate a Apple II output file (DOS 3.3).
+Overlapping blocks are flattened and uninitialized memory is filled up
+with zeros. Uninitialized memory before the first and after the last
+valid bytes are not saved.
+.TP 0.5i
+\fB\-a\fR, \fB\-\-ascii\fR
+Use ASCII/Unicode text encoding instead of raw 8-bit.
+Normally no conversion takes place, this is for backwards compatibility with a
+DOS based Turbo Assembler editor, which could create PETSCII files for
+6502tass. (including control characters of course)
+Using this option will change the default "none" and "screen" encodings to map
+\'a\'\-\'z\' and \'A\'\-\'Z\' into the correct PETSCII range of $41\-$5A and $C1\-$DA,
+which is more suitable for an ASCII editor. It also adds predefined petcat
+style PETSCII literals to the default encodings, and enables Unicode letters in symbol names.
+For writing sources in UTF-8/UTF-16 encodings this option is required!
+.TP 0.5i
+\fB\-B\fR, \fB\-\-long\-branch\fR
+Automatic BXX *+5 JMP xxx. Branch too long messages can be annoying sometimes,
+usually they'll need to be rewritten to BXX *+5 JMP xxx. 64tass can do this
+automatically if this option is used. But BRA is not converted.
+.TP 0.5i
+\fB\-C\fR, \fB\-\-case\-sensitive\fR
+Case sensitive labels. Labels are not case sensitive by default, this
+option changes that.
+.TP 0.5i
+\fB\-D\fR \fIlabel\fR=\fIvalue\fR
+Defines a \fIlabel\fR to a \fIvalue\fR. Same syntax is
+allowed as in source files. Be careful with string quoting, the shell
+might eat some of the characters.
+.TP 0.5i
+\fB\-w\fR, \fB\-\-no\-warn\fR
+Suppress warnings. Disables warnings during compile.
+.TP 0.5i
+\fB\-\-no\-caret\-diag\fR
+Suppress displaying of faulty source line and fault position after fault
+messages.
+.TP 0.5i
+\fB\-q\fR, \fB\-\-quiet\fR
+Suppress messages. Disables header and summary messages.
+.TP 0.5i
+\fB\-T\fR, \fB\-\-tasm\-compatible\fR
+Enable TASM compatible operators and precedence
+Switches the expression evaluator into compatibility mode. This enables
+".", ":" and "!" operators and disables 64tass specific extensions,
+disables precedence handling and forces 16 bit unsigned evaluation (see
+"differences to original Turbo Assembler" below)
+.TP 0.5i
+\fB\-I\fR \fIpath\fR
+Specify include search \fIpath\fR.
+If an included source or binary file can't be found in the directory of
+the source file then this path is tried. More than one directories can be
+specified by repeating this option. If multiple matches exist the first
+one is used.
+.TP 0.5i
+\fB\-\-m65xx\fR
+Standard 65xx (default). For writing compatible code, no extra codes.
+This is the default.
+.TP 0.5i
+\fB\-c\fR, \fB\-\-m65c02\fR
+CMOS 65C02. Enables extra opcodes and addressing modes specific to this CPU.
+.TP 0.5i
+\fB\-c\fR, \fB\-\-m65ce02\fR
+CSG 65CE02. Enables extra opcodes and addressing modes specific to this CPU.
+.TP 0.5i
+\fB\-i\fR, \fB\-\-m6502\fR
+NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.
+.TP 0.5i
+\fB\-t\fR, \fB\-\-m65dtv02\fR
+65DTV02. Enables extra opcodes specific to DTV.
+.TP 0.5i
+\fB\-x\fR, \fB\-\-m65816\fR
+W65C816. Enables extra opcodes, and full 16 MiB address space. Useful for SuperCPU projects.
+.TP 0.5i
+\fB\-e\fR, \fB\-\-m65el02\fR
+65EL02. Enables extra opcodes, useful RedPower CPU projects. Probably you'll need "\-\-nostart" as well.
+.TP 0.5i
+\fB\-\-mr65c02\fR
+R65C02. Enables extra opcodes and addressing modes specific to this CPU.
+.TP 0.5i
+\fB\-\-mw65c02\fR
+W65C02. Enables extra opcodes and addressing modes specific to this CPU.
+.TP 0.5i
+\fB\-l\fR \fIfile\fR, \fR\-\-labels\fR=\fIfile\fR
+List labels into \fIfile\fR. List global used labels to a file.
+.TP 0.5i
+\fB\-\-vice\-labels\fR
+List labels in a VICE readable format.
+.TP 0.5i
+\fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR
+List into \fIfile\fR. Dumps source code and compiled code into file. Useful for
+debugging, it's much easier to identify the code in memory within the
+source files.
+.TP 0.5i
+\fB\-m\fR, \fB\-\-no\-monitor\fR
+Don't put monitor code into listing. There won't be any monitor listing
+in the list file.
+.TP 0.5i
+\fB\-s\fR, \fB\-\-no\-source\fR
+Don't put source code into listing. There won't be any source listing in
+the list file.
+.TP 0.5i
+\fB\-\-tab\-size\fR=\fInumber\fR
+By default the listing file is using a tab size of 8 to align the
+disassembly. This can be changed to other more favorable values like 4.
+Only spaces are used if 1 is selected. Please note that this has no
+effect on the source code on the right hand side.
+.TP 0.5i
+\fB\-?\fR, \fB\-\-help\fR
+Give this help list. Prints help about command line options.
+.TP 0.5i
+\fB\-\-usage\fR
+Give a short usage message. Prints short help about command line options.
+.TP 0.5i
+\fB\-V\fR, \fB\-\-version\fR
+Print program version.
+.SH "EXIT STATUS"
+Normally the exit status is 0 if no error occured.
+.SH AUTHOR
+Written by Zsolt Kajtar.
+.SH "REPORTING BUGS"
+Online bug tracker: <http://sourceforge.net/p/tass64/bugs/>
+.SH COPYRIGHT
+Copyright \(co 2015 Zsolt Kajtar.
+License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+.SH "SEE ALSO"
+Full documentation at: <http://tass64.sourceforge.net/>

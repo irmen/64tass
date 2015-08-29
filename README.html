@@ -941,11 +941,13 @@ by using the dot operator, which is applied between the name of the scope and th
 
 <h4>Regular symbols<a name="symbols-regular" href="#symbols-regular"></a></h4>
 
-<p>Regular symbol names are starting with a letters and containing letters,
-numbers and underscores. There's no restriction on the length of symbol names.</p>
+<p>Regular symbol names are starting with a letter and containing
+letters, numbers and underscores. Unicode letters are allowed if the "-a" command line option was used.
+There's no restriction on the length of symbol names.</p>
 
-<p>Care must be taken to not use the duplicate names in the same scope when the
-symbol is used as a constant.</p>
+<p>Care must be taken to not use duplicate names in the same scope when
+the symbol is used as a constant. Case sensitivity can be enabled with
+the "-C" command line option, otherwise symbols are matched case insensitive.</p>
 
 <p>Duplicate names in parent scopes are never a problem, they'll just be
 <q>shadowed</q>. This could be either good by reducing collisions and gives the
@@ -2901,11 +2903,9 @@ a DOS based Turbo Assembler editor, which could create PETSCII files for
 <p>Using this option will change the default <q>none</q> and <q>screen</q> encodings to
 map <code>'a'&ndash;'z'</code> and <code>'A'&ndash;'Z'</code> into the correct PETSCII range of <code>$41&ndash;$5A</code> and <code>$C1&ndash;$DA</code>,
 which is more suitable for an ASCII editor. It also adds predefined petcat style
-PETSCII literals to the default encodings.</p>
+PETSCII literals to the default encodings, and enables Unicode letters in symbol names.</p>
 
-<p><b>For writing sources in UTF-8/UTF-16 encodings this option is required!</b> The
-symbol names are still limited to ASCII, but custom string encodings can take
-advantage of the full Unicode set.</p>
+<p><b>For writing sources in UTF-8/UTF-16 encodings this option is required!</b></p>
 <pre width=80>
 64tass a.asm
 
@@ -2945,7 +2945,7 @@ is not converted.
 </pre>
 
 <dt><b>-C</b>, <b>--case-sensitive</b>
-<dd>Case sensitive labels. Labels are non case sensitive by default, this
+<dd>Case sensitive labels. Labels are not case sensitive by default, this
 option changes that.
 <pre>
 64tass a.asm
@@ -3044,8 +3044,7 @@ disk drive code, etc.
 
 <dt><b>-x</b>, <b>--m65816</b>
 <dd>W65C816. Enables extra opcodes, and full 16&nbsp;MiB address space. Useful
-for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
-;)
+for SuperCPU projects.
 <pre width=80>
 64tass --m65816 a.asm
         <b>lda</b> <span>$123456</span>,x
