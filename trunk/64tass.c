@@ -1715,7 +1715,7 @@ Obj *compile(struct file_list_s *cflist)
                     size_t uninit = 0;
                     size_t sum = 0;
 
-                    mark_mem(&current_section->mem, current_section->address);
+                    mark_mem(&current_section->mem, current_section->address, star);
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2=-1;
                         struct values_s *vs;
@@ -2000,7 +2000,7 @@ Obj *compile(struct file_list_s *cflist)
                         else if (uval > 1 && current_section->l_address.address % uval) db = uval - (current_section->l_address.address % uval);
                     } else db = uval;
                     if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);goto breakerr;}
-                    mark_mem(&current_section->mem, current_section->address);
+                    mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val())) {
                         val = vs->val;
                         if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db) memskip(db);}

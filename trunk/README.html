@@ -1497,54 +1497,67 @@ v       <b>+=</b> <span>1</span>            <i>; same as 'v .var v + 1'</i>
 
 <h3>Controlling the compile offset and program counter<a name="program-counter" href="#program-counter"></a></h3>
 
-<p>Two counters are used while assembling. The compile offset is where the data
-and code ends up in memory, while the program counter is what labels will be
-set or what the special star label gets when referenced. Normally these two are
-the same (code compiled to the location it runs from) but it does not need to
-be.</p>
+<p>Two counters are used while assembling.</p>
 
-<p>The program counter wraps when the border of a 64&nbsp;KiB program bank is
+<p>The compile offset is where the data and code ends up in memory (or in image file).</p>
+
+<p>The program counter is what labels get set to and what the special star
+label refers to. It wraps when the border of a 64&nbsp;KiB program bank is
 crossed. The actual program bank is not incremented, just like on a real
 processor.</p>
 
+<p>Normally both are the same (code is compiled to the location it runs from)
+but it does not need to be.</p>
+
 <dl class="dir">
 <dt><code><b>&lowast;=</b></code> &lt;expression&gt;
-<dd>The compile offset is incremented/decremented so that the program counter
-will match the address in the expression.
+<dd>The compile offset is adjusted so that the program counter
+will match the requested address in the expression.
+<pre width=80>
+<i>;Offset PC       Bytes          Disassembly     Source</i>
+						*	<b>=</b> <span>$0800</span>
+&gt;0800							<b class="d">.byte</b>
+							<b class="k">.logical</b> <span>$1000</span>
+&gt;0800	1000						<b class="d">.byte</b>
+						*	= <span>$1200</span>
+&gt;0a00	1200						<b class="d">.byte</b>
+							<b class="k">.here</b>
+&gt;0a00							<b class="d">.byte</b>
+</pre>
 <dt><code><b class="k"><a name="d_offs">.offs</a></b></code> &lt;expression&gt;
 <dd>Add an offset to the compile offset (create a gap). The program counter
 stays the same as before.
+<pre width=80>
+<i>;Offset PC       Bytes          Disassembly     Source</i>
+						*	<b>=</b> <span>$1000</span>
+.1000		 		nop			<b class="d">.byte</b>
+							<b class="k">.offs</b> <span>100</span>
+.1064	1000	 		nop			<b class="d">.byte</b>
+</pre>
 <dt><code><b class="k"><a name="d_logical">.logical</a></b></code> &lt;expression&gt;
 <dt><code><b class="k"><a name="d_here">.here</a></b></code>
 <dd>Changes the program counter only, the compile offset is not changed. Used
 for code copied to it's proper location at runtime. Can be nested of course.
+<pre width=80>
+<i>;Offset PC       Bytes          Disassembly     Source</i>
+						*	<b>=</b> <span>$1000</span>
+							<b class="k">.logical</b> <span>$300</span>
+.1000	0300	 a9 80		lda #$80	drive	<b>lda</b> #<span>$80</span>
+.1002	0302	 85 00		sta $00			<b>sta</b> <span>$00</span>
+.1004	0304	 4c 00 03	jmp $0300		<b>jmp</b> <u>drive</u>
+							<b class="k">.here</b>
+</pre>
 <dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;modulo&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
+<pre width=80>
+<i>;Offset PC       Bytes          Disassembly     Source</i>
+						*	<b>=</b> <span>$ffc</span>
+&gt;0ffc							<b class="k">.align</b> <span>$100</span>
+.1000		 ee 19 d0	inc $d019	irq	<b>inc</b> <span>$d019</span>
+&gt;1003		 ea					<b class="k">.align</b> <span>4</span>, <span>$ea</span>
+.1004		 69 01		adc #$01	loop	<b>adc</b> #1
+</pre>
 </dl>
-<pre width=80>
-*       <b>=</b> <span>$1000</span>         <i>;set program counter (and offset)</i>
-
-        <b class="k">.offs</b> <span>100</span>       <i>;gap of 100, PC still the same</i>
-
-        <b class="k">.logical</b> <span>$300</span>   <i>;set PC to $300</i>
-drive   <b>lda</b> #<span>$80</span>
-        <b>sta</b> <span>$00</span>
-        <b>jmp</b> <u>drive</u>       <i>;it's jmp $300</i>
-	<b>rts</b>
-	<b class="k">.here</b>
-
-        <b class="k">.align</b> <span>$100</span>
-irq     <b>inc</b> <span>$d019</span>       <i>;this will be on a page boundary, after skipping bytes</i>
-        <b class="k">.align</b> <span>4</span>, <span>$ea</span>
-loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst mode</i>
-</pre>
-<p>Here's an example how <code>.logical</code> and <code>&lowast;=</code> works together:</p>
-<pre width=80>
-*       <b>=</b> <span>$0800</span>        <i>;Compile: $0800, PC: $0800</i>
-        <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, PC: $1000</i>
-*       <b>=</b> <span>$1200</span>        <i>;Compile: $0a00, PC: $1200</i>
-	<b class="k">.here</b>          <i>;Compile: $0a00, PC: $0a00</i>
-</pre>
 
 <h3>Dumping data<a name="data-dumping" href="#data-dumping"></a></h3>
 <h4>Storing numeric values<a name="data-numeric" href="#data-numeric"></a></h4>
@@ -3103,10 +3116,10 @@ result (list.txt):
 ;done on Fri Dec  9 19:08:55 2005
 
 
-.1000	 a2 00		ldx #$00		ldx #0
-.1002	 ca		dex		loop	dex
-.1003	 d0 fd		bne $1002		bne loop
-.1005	 60		rts			rts
+.1000		 a2 00		ldx #$00		ldx #0
+.1002		 ca		dex		loop	dex
+.1003		 d0 fd		bne $1002		bne loop
+.1005		 60		rts			rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
@@ -3122,10 +3135,10 @@ result (list.txt):
 ;done on Fri Dec  9 19:11:43 2005
 
 
-.1000	 a2 00					ldx #0
-.1002	 ca				loop	dex
-.1003	 d0 fd					bne loop
-.1005	 60					rts
+.1000		 a2 00					ldx #0
+.1002		 ca				loop	dex
+.1003		 d0 fd					bne loop
+.1005		 60					rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
@@ -3141,10 +3154,10 @@ result (list.txt):
 ;done on Fri Dec  9 19:13:25 2005
 
 
-.1000	 a2 00		ldx #$00
-.1002	 ca		dex
-.1003	 d0 fd		bne $1002
-.1005	 60		rts
+.1000		 a2 00		ldx #$00
+.1002		 ca		dex
+.1003		 d0 fd		bne $1002
+.1005		 60		rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>

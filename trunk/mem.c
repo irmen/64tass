@@ -324,12 +324,13 @@ void write_mem(struct memblocks_s *memblocks, uint8_t c) {
 
 static unsigned int omemp;
 static size_t ptextaddr;
-static address_t oaddr;
+static address_t oaddr, oaddr2;
 
-void mark_mem(const struct memblocks_s *memblocks, address_t adr) {
+void mark_mem(const struct memblocks_s *memblocks, address_t adr, address_t adr2) {
     ptextaddr = memblocks->mem.p;
     omemp = memblocks->p;
     oaddr = adr;
+    oaddr2 = adr2;
 }
 
 void get_mem(const struct memblocks_s *memblocks, size_t *memp, size_t *membp) {
@@ -390,7 +391,7 @@ void list_mem(const struct memblocks_s *memblocks, int dooutput) {
                 }
             }
         }
-        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr);
+        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~0xffff));
         print = 0;
         ptextaddr += len;
     }
