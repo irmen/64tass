@@ -83,6 +83,9 @@ Table of Contents
       + Misc
       + Printer control
   * Pseudo instructions
+      + Aliases
+      + Always taken branches
+      + Long branches
   * Original turbo assembler compatibility
       + How to convert source code for use with 64tass
       + Differences to the original turbo ass macro on the C64
@@ -2161,11 +2164,46 @@ Printer control
 
 Pseudo instructions
 
+Aliases
+
+For better code readability BCC has an alias named BLT (Branch Less Than) and
+BCS one named BGE (Branch Greater Equal).
+
+        cmp #3
+        blt exit        ; less than 3?
+
+For similar reasons ASL has an alias named SHL (SHift Left) and LSR one named
+SHR (SHift Right). This naming however is not very common.
+
+The implied variants LSR, ROR, ASL and ROL are a shorthand for LSR A, ROR A,
+ASL A and ROL A. Using the implied form is considered poor coding style.
+
+For compatibility INA and DEA is a shorthand of INC A and DEC A. Therefore
+there's no `implied' variants like INC or DEC. The full form with the
+accumulator is preferred.
+
+The longer forms of INC X, DEC X, INC Y, DEC Y, INC Z and DEC Z are available
+for INX, DEX, INY, DEY, INZ and DEZ. For this to work care must be taken to not
+reuse the `x', `y' and `z' single letter register symbols for other purposes.
+Same goes for `a' of course.
+
+Load instructions with registers are translated to transfer instructions. For
+example LDA X becomes TXA.
+
+Store instructions with registers are translated to transfer instructions, but
+only if it involves the `s' or `b' registers. For example STX S becomes TXS.
+
+Many illegal opcodes have aliases for compatibility as there's no standard
+naming convention.
+
+Always taken branches
+
 For writing short code there are some special pseudo instructions for always
 taken branches. These are automatically compiled as relative branches when the
-jump distance is short enough and as JMP or BRL when longer. The names are
-derived from conditional branches and are: GEQ, GNE, GCC, GCS, GPL, GMI, GVC,
-and GVS.
+jump distance is short enough and as JMP or BRL when longer.
+
+The names are derived from conditional branches and are: GEQ, GNE, GCC, GCS,
+GPL, GMI, GVC, GVS, GLT and GGE.
 
 There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
 (if available) or JMP.
@@ -2193,7 +2231,9 @@ compiler can't figure out if it has to create no code at all, the 1 byte
 variant or the 2 byte one. Therefore use normal or anonymous labels defined
 after the jump instruction when jumping forward!
 
-To avoid branch too long errors the assembler also supports long branches, it
+Long branches
+
+To avoid branch too long errors the assembler also supports long branches. It
 can automatically convert conditional relative branches to it's opposite and a
 JMP or BRL. This can be enabled on the command line using the `--long-branch'
 option.
@@ -2214,6 +2254,11 @@ Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
 Of course these destinations can be used, but only with normal or anonymous
 labels defined after the jump instruction.
 
+In the above example extra JMP instructions are emitted for each long branch.
+This is suboptimal and wasting space if there are several long branches to the
+same location in close proximity. Therefore the assembler might decide to reuse
+a JMP for more than one long branch to save space.
+
 -------------------------------------------------------------------------------
 
 Original turbo assembler compatibility
@@ -2223,7 +2268,7 @@ How to convert source code for use with 64tass
 Currently there are two options, either use `TMPview' by Style to convert the
 sourcefile directly, or do the following:
 
-  * load turbo assembler, start (by SYS9*4096 or SYS8*4096 depending on
+  * load turbo assembler, start (by SYS 9*4096 or SYS 8*4096 depending on
     version)
   * <- then l to load a source file
   * <- then w to write a source file in PETSCII format
