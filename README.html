@@ -188,6 +188,11 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#listing-control">Printer control</a>
  </ul>
  <li><a href="#pseudo-instructions">Pseudo instructions</a>
+ <ul>
+  <li><a href="#aliases">Aliases</a>
+  <li><a href="#branch-always">Always taken branches</a>
+  <li><a href="#branch-long">Long branches</a>
+ </ul>
  <li><a href="#tasm-compatibility">Original turbo assembler compatibility</a>
  <ul>
   <li><a href="#tasm-convert">How to convert source code for use with 64tass</a>
@@ -2592,12 +2597,58 @@ reset   <b>cld</b>
 <hr>
 <h2>Pseudo instructions<a name="pseudo-instructions" href="#pseudo-instructions"></a></h2>
 
+<h3>Aliases<a name="aliases" href="#aliases"></a></h3>
+
+<p>For better code readability <code>BCC</code> has an alias named <code>BLT</code>
+(<b>B</b>ranch <b>L</b>ess <b>T</b>han) and <code>BCS</code> one named <code>BGE</code> (<b>B</b>ranch <b>G</b>reater <b>E</b>qual).</p>
+
+<pre>
+        <b>cmp</b> #<span>3</span>
+        <b>blt</b> <u>exit</u>        <i>; less than 3?</i>
+</pre>
+
+<p>For similar reasons <code>ASL</code> has an alias named <code>SHL</code>
+(<b>SH</b>ift <b>L</b>eft) and <code>LSR</code> one named <code>SHR</code>
+(<b>SH</b>ift <b>R</b>ight). This naming however is not very common.<p>
+
+<p>The implied variants <code>LSR</code>, <code>ROR</code>, <code>ASL</code> and <code>ROL</code> are a
+shorthand for <code>LSR A</code>, <code>ROR A</code>, <code>ASL A</code> and
+<code>ROL A</code>. Using the implied form is considered poor coding style.</p>
+
+<p>For compatibility <code>INA</code> and <code>DEA</code> is a shorthand of
+<code>INC A</code> and <code>DEC A</code>. Therefore there's no <q>implied</q>
+variants like <code>INC</code> or <code>DEC</code>. The full form with the
+accumulator is preferred.</p>
+
+<p>The longer forms of <code>INC X</code>, <code>DEC X</code>, <code>INC
+Y</code>, <code>DEC Y</code>, <code>INC Z</code> and <code>DEC Z</code> are
+available for <code>INX</code>, <code>DEX</code>, <code>INY</code>,
+<code>DEY</code>, <code>INZ</code> and <code>DEZ</code>. For this to work care
+must be taken to not reuse the <q>x</q>, <q>y</q> and
+<q>z</q> single letter register symbols for other purposes. Same goes for
+<q>a</q> of course.</p>
+
+<p>Load instructions with registers are translated to transfer instructions.
+For example <code>LDA X</code> becomes <code>TXA</code>.</p>
+
+<p>Store instructions with registers are translated to transfer instructions,
+but only if it involves the <q>s</q> or <q>b</q> registers. For example
+<code>STX S</code> becomes <code>TXS</code>.</p>
+
+<p>Many illegal opcodes have aliases for compatibility as there's no standard
+naming convention.</p>
+
+<h3>Always taken branches<a name="branch-always" href="#branch-always"></a></h3>
+
 <p>For writing short code there are some special pseudo instructions for always
 taken branches. These are automatically compiled as relative branches when the
 jump distance is short enough and as <code>JMP</code> or <code>BRL</code> when
-longer. The names are derived from conditional branches and are:
+longer.</p>
+
+<p>The names are derived from conditional branches and are:
 <code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>,
-<code>GPL</code>, <code>GMI</code>, <code>GVC</code>, and <code>GVS</code>.</p>
+<code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>,
+<code>GLT</code> and <code>GGE</code>.</p>
 
 <p>There's one more called <code>GRA</code> for CPUs supporting
 <code>BRA</code>, which is expanded to <code>BRL</code> (if available) or
@@ -2630,8 +2681,10 @@ relative distance byte after the opcode is the jumped over byte.</p>
 no code at all, the 1 byte variant or the 2 byte one. Therefore use normal or
 anonymous labels defined after the jump instruction when jumping forward!</p>
 
-<p>To avoid branch too long errors the assembler also supports long branches,
-it can automatically convert conditional relative branches to it's opposite and
+<h3>Long branches<a name="branch-long" href="#branch-long"></a></h3>
+
+<p>To avoid branch too long errors the assembler also supports long branches.
+It can automatically convert conditional relative branches to it's opposite and
 a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
 line using the <q>--long-branch</q> option.</p>
 
@@ -2654,13 +2707,19 @@ compiler can't decide between a short/long branch. Of course these destinations
 can be used, but only with normal or anonymous labels defined after the jump
 instruction.</p>
 
+<p>In the above example extra <code>JMP</code> instructions are emitted for
+each long branch. This is suboptimal and wasting space if there are several
+long branches to the same location in close proximity. Therefore the assembler
+might decide to reuse a <code>JMP</code> for more than one long branch to save
+space.</p>
+
 <hr>
 <h2>Original turbo assembler compatibility<a name="tasm-compatibility" href="#tasm-compatibility"></a></h2>
 <h3>How to convert source code for use with 64tass<a name="tasm-convert" href="#tasm-convert"></a></h3>
 <p>Currently there are two options, either use <q>TMPview</q> by Style to convert the
 sourcefile directly, or do the following:</p>
 <ul>
-<li>load turbo assembler, start (by <code>SYS9&lowast;4096</code> or <code>SYS8&lowast;4096</code> depending on version)
+<li>load turbo assembler, start (by <code>SYS 9&lowast;4096</code> or <code>SYS 8&lowast;4096</code> depending on version)
 <li>&larr; then l to load a source file
 <li>&larr; then w to write a source file in PETSCII format
 <li>convert the result to ASCII using petcat (from the vice package)
