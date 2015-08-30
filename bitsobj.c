@@ -360,7 +360,10 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
             if (c != ('_' ^ 0x30)) break;
             i++;
         }
-        while (k && s[k - 1] == '_') k--;
+        while (k && s[k - 1] == '_') {
+            k--;
+            i--;
+        }
     }
     *ln = k;
     i = k - i;
@@ -419,7 +422,10 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
             if (c != ('_' ^ 0x30)) break;
             i++;
         }
-        while (k && s[k - 1] == '_') k--;
+        while (k && s[k - 1] == '_') {
+            k--;
+            i--;
+        }
     }
     *ln = k;
     i = k - i;

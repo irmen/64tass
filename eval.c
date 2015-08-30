@@ -1750,10 +1750,17 @@ Obj *get_vals_tuple(void) {
     size_t i, len = get_val_remaining();
     Tuple *list;
 
-    if (len == 1) {
-        Obj *val = pull_val(NULL);
-        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
-        return val;
+    switch (len) {
+    case 0:
+        return (Obj *)ref_tuple(null_tuple);
+    case 1:
+        {
+            Obj *val = pull_val(NULL);
+            if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
+            return val;
+        }
+    default:
+        break;
     }
     list = new_tuple();
     list->len = len;
@@ -1771,10 +1778,17 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
     Addrlist *list;
     struct linepos_s epoint;
 
-    if (len == 1) {
-        Obj *val = pull_val(&epoints[0]);
-        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
-        return val;
+    switch (len) {
+    case 0: 
+        return (Obj *)ref_addrlist(null_addrlist);
+    case 1: 
+        {
+            Obj *val = pull_val(&epoints[0]);
+            if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
+            return val;
+        }
+    default:
+        break;
     }
     list = new_addrlist();
     list->data = list_create_elements(list, len);
