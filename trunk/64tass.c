@@ -552,6 +552,67 @@ static int instrecursion(List *val, int prm, int w, linepos_t epoint, struct lin
     return was;
 }
 
+static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
+    uval_t uval;
+    atype_t am;
+
+    current_section->wrapwarn = 0;
+    if (!current_section->moved) {
+        if (current_section->end < current_section->address) current_section->end = current_section->address;
+        current_section->moved = 1;
+    }
+    listing_line(epoint->pos);
+    do {
+        if (current_section->structrecursion && !current_section->dooutput) {
+            err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
+            break;
+        }
+        if (toaddress(val, &uval, 8*sizeof(uval_t), &am, epoint2)) {
+            break;
+        }
+        if (am != A_NONE && check_addr(am)) {
+            err_msg_output_and_destroy(err_addressing(am, epoint2));
+            break;
+        }
+        if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
+            if ((address_t)uval & ~all_mem2) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2);
+                break;
+            }
+            current_section->l_address.address = uval & 0xffff;
+            current_section->l_address.bank = uval & all_mem & ~0xffff;
+            if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+            current_section->l_address_val = val;
+            if (current_section->address != (address_t)uval) {
+                current_section->address = (address_t)uval;
+                memjmp(&current_section->mem, current_section->address);
+            }
+            return;
+        }
+        if ((uval_t)uval & ~(uval_t)all_mem) {
+            err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+            break;
+        }
+        address_t addr, laddr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        if (arguments.tasmcomp) addr = (uint16_t)uval;
+        else if ((address_t)uval > laddr) {
+            addr = (current_section->address + (uval - laddr)) & all_mem2;
+        } else {
+            addr = (current_section->address - (laddr - uval)) & all_mem2;
+        }
+        if (current_section->address != addr) {
+            current_section->address = addr;
+            memjmp(&current_section->mem, current_section->address);
+        }
+        current_section->l_address.address = uval & 0xffff;
+        current_section->l_address.bank = uval & all_mem & ~0xffff;
+        if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+        current_section->l_address_val = val;
+        return;
+    } while (0);
+    val_destroy(val);
+}
+
 Obj *compile(struct file_list_s *cflist)
 {
     int wht,w;
@@ -785,12 +846,11 @@ Obj *compile(struct file_list_s *cflist)
                             if (label->defpass != pass) label->ref = 0;
                             var_assign(label, result2, fixeddig);
                         }
+                        val_destroy(result2);
                     } else {
                         val_destroy(tmp.v1);
-                        val = result2;
-                        goto starhandle;
+                        starhandle(result2, &epoint, &epoint2);
                     }
-                    val_destroy(result2);
                     goto finish;
                 }
                 break;
@@ -804,9 +864,9 @@ Obj *compile(struct file_list_s *cflist)
                     oldreferenceit = referenceit;
                     label = (labelname.data[0] == '*') ? NULL : find_label3(&labelname, mycontext, strength);
                     lpoint.pos++; ignore();
+                    epoints[0] = lpoint; /* for no elements! */
                     if (!here() || here() == ';') {
                         val = (Obj *)ref_addrlist(null_addrlist);
-                        epoints[0] = lpoint;
                     } else {
                         referenceit &= label ? label->ref : 1;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
@@ -814,63 +874,7 @@ Obj *compile(struct file_list_s *cflist)
                         referenceit = oldreferenceit;
                     }
                     if (labelname.data[0] == '*') {
-                    starhandle:
-                        current_section->wrapwarn = 0;
-                        if (!current_section->moved) {
-                            if (current_section->end < current_section->address) current_section->end = current_section->address;
-                            current_section->moved = 1;
-                        }
-                        listing_line(epoint.pos);
-                        if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, "*=", &epoint);
-                        else {
-                            uval_t uval;
-                            atype_t am;
-                            if (toaddress(val, &uval, 8*sizeof(uval_t), &am, &epoints[0])) {
-                                val_destroy(val);
-                                goto finish;
-                            }
-                            if (am != A_NONE && check_addr(am)) {
-                                err_msg_output_and_destroy(err_addressing(am, &epoints[0]));
-                                val_destroy(val);
-                                goto finish;
-                            }
-                            if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
-                                if ((address_t)uval & ~all_mem2) {
-                                    err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoints[0]);
-                                    val_destroy(val);
-                                } else {
-                                    current_section->l_address.address = uval & 0xffff;
-                                    current_section->l_address.bank = uval & all_mem & ~0xffff;
-                                    if (current_section->l_address_val) val_destroy(current_section->l_address_val);
-                                    current_section->l_address_val = val;
-                                    if (current_section->address != (address_t)uval) {
-                                        current_section->address = (address_t)uval;
-                                        memjmp(&current_section->mem, current_section->address);
-                                    }
-                                }
-                            } else {
-                                if ((uval_t)uval & ~(uval_t)all_mem) {
-                                    err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoints[0]);
-                                    val_destroy(val);
-                                } else {
-                                    address_t addr, laddr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-                                    if (arguments.tasmcomp) addr = (uint16_t)uval;
-                                    else if ((address_t)uval > laddr) {
-                                        addr = (current_section->address + (uval - laddr)) & all_mem2;
-                                    } else {
-                                        addr = (current_section->address - (laddr - uval)) & all_mem2;
-                                    }
-                                    if (current_section->address != addr) {
-                                        current_section->address = addr;
-                                        memjmp(&current_section->mem, current_section->address);
-                                    }
-                                    current_section->l_address.address = uval & 0xffff;
-                                    current_section->l_address.bank = uval & all_mem & ~0xffff;
-                                    if (current_section->l_address_val) val_destroy(current_section->l_address_val);
-                                    current_section->l_address_val = val;
-                                }
-                            }
-                        }
+                        starhandle(val, &epoint, &epoints[0]);
                         goto finish;
                     }
                     if (label) labelexists = 1;
