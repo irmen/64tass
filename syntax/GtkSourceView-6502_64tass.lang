@@ -84,39 +84,39 @@
     </context>
 
     <context id="decimal" style-ref="decimal">
-      <match>(?&lt;![\w\.])([1-9][0-9]*|0)(?![\w\.])</match>
+      <match>(?&lt;![\w\.])(([0-9]_+)+[0-9]|[0-9])+(?![\w\.])</match>
     </context>
 
     <context id="hex" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])\$[0-9a-f]+(?![\w\.])</match>
+      <match>(?&lt;![\w\.])\$(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+(?![\w\.])</match>
     </context>
 
     <context id="binary" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])%[01]+(?![\w\.])</match>
+      <match>(?&lt;![\w\.])%(([01]_+)+[01]|[01])+(?![\w\.])</match>
     </context>
 
     <context id="float" style-ref="floating-point">
-      <match>(?&lt;![\w\.])((\.[0-9]+|[0-9]+\.[0-9]*)([ep][+-]?[0-9]*)?|([0-9]+[ep][+-]?[0-9]*))(?![\w\.])</match>
+      <match>(?&lt;![\w\.])((\.(([0-9]_+)+[0-9]|[0-9])+|(([0-9]_+)+[0-9]|[0-9])+\.(([0-9]_+)+[0-9]|[0-9])*)([ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)?|(([0-9]_+)+[0-9]|[0-9])+[ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)(?![\w\.])</match>
     </context>
 
     <context id="hfloat" style-ref="floating-point">
-      <match>(?&lt;![\w\.])\$((\.[0-9a-f]+|[0-9a-f]+\.[0-9a-f]*)(p[+-]?[0-9]*)?|([0-9a-f]+p[+-]?[0-9]*))(?![\w\.])</match>
+      <match>(?&lt;![\w\.])\$((\.(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+|(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+\.(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])*)(p[+-]?(([0-9]_+)+[0-9]|[0-9])+)?|(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+p[+-]?(([0-9]_+)+[0-9]|[0-9])+)(?![\w\.])</match>
     </context>
 
     <context id="bfloat" style-ref="floating-point">
-      <match>(?&lt;![\w\.])%((\.[01]+|[01]+\.[01]*)([ep][+-]?[0-9]*)?|([01]+[ep][+-]?[0-9]*))(?![\w\.])</match>
+      <match>(?&lt;![\w\.])%((\.(([01]_+)+[01]|[01])+|(([01]_+)+[01]|[01])+\.(([01]_+)+[01]|[01])*)([ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)?|(([01]_+)+[01]|[01])+[ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)(?![\w\.])</match>
     </context>
 
     <context id="identifier" style-ref="label">
-      <match>[a-z_][a-z_0-9]*</match>
+      <match>(?&lt;!\w)([[:alpha:]][[:alnum:]_]*|_[[:alnum:]][[:alnum:]_]*)</match>
     </context>
 
     <context id="preidentifier" style-ref="preprocessor">
-      <match>\\[a-z_][a-z_0-9]*|\\[1-9@]|\\\{[^}]*\}</match>
+      <match>\\[[:alpha:]][[:alnum:]_]*|\\[1-9@]|\\\{[^}]*\}</match>
     </context>
 
     <context id="label" end-at-line-end="true">
-      <start>[a-z_][a-z_0-9]*:?|\*</start>
+      <start>[[:alpha:]][[:alnum:]_]*:?|_[[:alnum:]][[:alnum:]_]*:?|\*</start>
       <include>
         <context ref="opcode"/>
         <context ref="illegal-opcode"/>
@@ -195,7 +195,7 @@
     </context>
 
     <context id="preprocessor-macro" end-at-line-end="true">
-      <start>\.(macro|segment|endm|function|endf)(\s|(?=;)|$)|[#.][a-z_][a-z_0-9]*(\s|(?=;)|$)</start>
+      <start>\.(macro|segment|endm|function|endf)(\s|(?=;)|$)|[#.]([[:alpha:]][[:alnum:]_]*|_[[:alnum:]][[:alnum:]_]*)(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>
