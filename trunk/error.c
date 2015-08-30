@@ -368,10 +368,15 @@ static const char *terr_fatal[]={
 };
 
 static void err_msg_variable(Obj *val, linepos_t epoint) {
-    Obj *err = val->obj->repr(val, epoint);
-    if (err->obj == STR_OBJ) adderror2(((Str *)err)->data, ((Str *)err)->len);
-    else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
-    val_destroy(err);
+    Obj *err = val->obj->repr(val, epoint, 40);
+    if (err) {
+        if (err->obj == STR_OBJ) {
+            adderror(" '");
+            adderror2(((Str *)err)->data, ((Str *)err)->len);
+            adderror("'");
+        } else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
+        val_destroy(err);
+    }
 }
 
 void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
@@ -442,12 +447,10 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR____NOT_DIRECT:
         case ERROR__NOT_DATABANK:
             adderror(terr_error[no - 0x40]);
-            adderror(" '");
             err_msg_variable((Obj *)prm, epoint);
-            adderror("'");
             break;
         case ERROR___UNKNOWN_CPU:
-            adderror("unknown processor ");
+            adderror("unknown processor");
             err_msg_variable((Obj *)prm, epoint);
             break;
         default:
@@ -504,9 +507,7 @@ static void err_msg_big_integer(const char *msg, const Error *val) {
     new_error_msg(SV_CONDERROR, current_file_list, &val->epoint);
     sprintf(msg2, msg, val->u.intconv.bits);
     adderror(msg2);
-    adderror(" '");
     err_msg_variable(val->u.intconv.val, &val->epoint);
-    adderror("'");
 }
 
 static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)

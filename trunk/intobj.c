@@ -144,7 +144,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Int *v1 = (Int *)o1;
     size_t len = intlen(v1);
     int neg = v1->len < 0;
@@ -152,12 +152,14 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
     digit_t ten, r, *out;
     size_t slen, i, j, sz, len2;
     Int tmp;
-    Str *v = new_str();
+    Str *v;
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
         if (len) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0]='0';len = 1;}
+        if (len > maxsize) return NULL;
+        v = new_str();
         s = str_create_elements(v, len);
         memcpy(s, tmp2, len);
         v->data = s;
@@ -166,8 +168,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
         return &v->v;
     }
 
-    sz = 1 + (len * SHIFT / (3 * DSHIFT));
+    sz = len * SHIFT / (3 * DSHIFT);
     if (len > SSIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
+    if (sz * DSHIFT > maxsize) return NULL;
+    sz++;
     out = inew(&tmp, sz);
 
     for (sz = 0, i = len; i--;) {
@@ -194,6 +198,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
     len2 = sz * DSHIFT;
     slen += len2;
     if (slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
+    if (slen > maxsize) {
+        if (tmp.val != out) free(out);
+        return NULL;
+    }
+    v = new_str();
     s = str_create_elements(v, slen);
     s += slen;
     for (i = 0; i < sz; i++) {
@@ -313,7 +322,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         return &v->v;
     case O_NEG: return (Obj *)negate(v1);
     case O_POS: return (Obj *)ref_int(v1);
-    case O_STRING: return (Obj *)repr(&v1->v, op->epoint);
+    case O_STRING: return (Obj *)repr(&v1->v, op->epoint, SIZE_MAX);
     default: break;
     }
     return obj_oper_error(op);

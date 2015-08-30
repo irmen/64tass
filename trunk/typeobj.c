@@ -53,7 +53,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Type *v1 = (Type *)o1;
     Str *v;
     uint8_t *s;
@@ -62,6 +62,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
     if (!epoint) return NULL;
     name = v1->name;
     ln = strlen(name);
+    if (ln + 9 > maxsize) return NULL;
     v = new_str();
     v->len = ln + 9;
     v->chars = v->len;

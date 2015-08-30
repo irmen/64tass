@@ -109,14 +109,15 @@ static int same(const Obj *o1, const Obj *o2) {
         && v1->strength == v2->strength;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     Label *v1 = (Label *)o1;
     size_t len;
     uint8_t *s;
     Str *v;
     if (!epoint) return NULL;
-    v = new_str();
     len = v1->name.len;
+    if (len + 8 > maxlen) return NULL;
+    v = new_str();
     s = str_create_elements(v, len + 8);
     memcpy(s, "<label ", 7);
     memcpy(s + 7, v1->name.data, len);
@@ -124,7 +125,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
     s[len++] = '>';
     v->data = s;
     v->len = len;
-    v->chars = len;
+    v->chars = len; /* UTF8! */
     return &v->v;
 }
 
@@ -524,7 +525,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                 }
             }
         } else {
-            Str *val = (Str *)l->value->obj->repr(l->value, NULL);
+            Str *val = (Str *)l->value->obj->repr(l->value, NULL, SIZE_MAX);
             size_t len;
             if (!val || val->v.obj != STR_OBJ) continue;
             len = printable_print2(l->name.data, flab, l->name.len);

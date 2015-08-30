@@ -114,10 +114,10 @@ static int same(const Obj *o1, const Obj *o2) {
     return n == n2;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     const Namespace *v1 = (const Namespace *)o1;
     const struct namespacekey_s *p;
-    size_t i = 0, j, ln = 2, chars = 0;
+    size_t i = 0, j, ln = 2, chars = 2;
     Obj **vals;
     Str *str;
     Tuple *tuple = NULL;
@@ -125,16 +125,18 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
 
     if (v1->len) {
         ln = v1->len;
+        chars = ln + 1;
+        if (chars < 1) err_msg_out_of_memory(); /* overflow */
+        if (chars > maxsize) return NULL;
         tuple = new_tuple();
         tuple->data = vals = list_create_elements(tuple, ln);
-        ln += 1;
-        if (ln < 1) err_msg_out_of_memory(); /* overflow */
+        ln = chars;
         if (v1->len) {
             const struct avltree_node *n = avltree_first(&v1->members);
             while (n) {
                 Obj *v;
                 p = cavltree_container_of(n, struct namespacekey_s, node);
-                v = ((Obj *)p->key)->obj->repr((Obj *)p->key, epoint);
+                v = ((Obj *)p->key)->obj->repr((Obj *)p->key, epoint, maxsize - chars);
                 if (!v || v->obj != STR_OBJ) {
                     tuple->len = i;
                     val_destroy(&tuple->v);
@@ -143,6 +145,13 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
                 str = (Str *)v;
                 ln += str->len;
                 if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+                chars += str->chars;
+                if (chars > maxsize) {
+                    tuple->len = i;
+                    val_destroy(&tuple->v);
+                    val_destroy(v);
+                    return NULL;
+                }
                 vals[i++] = &str->v;
                 n = avltree_next(n);
             }
@@ -158,13 +167,12 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
         if (j) s[ln++] = ',';
         memcpy(s + ln, str2->data, str2->len);
         ln += str2->len;
-        chars += str2->len - str2->chars;
     }
     s[ln++] = '}';
     if (tuple) val_destroy(&tuple->v);
     str->data = s;
     str->len = ln;
-    str->chars = ln - chars;
+    str->chars = chars;
     return &str->v;
 }
 

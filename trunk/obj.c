@@ -121,22 +121,26 @@ static MUST_CHECK Error *invalid_hash(Obj *v1, int *UNUSED(hash), linepos_t epoi
     return generic_invalid(v1, epoint, ERROR__NOT_HASHABLE);
 }
 
-static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint) {
+static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     Str *v;
     uint8_t *s;
     const char *name;
+    size_t len, len2;
     if (!epoint) return NULL;
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
     name = v1->obj->name;
+    len2 = strlen(name);
+    len = len2 + 2;
+    if (len > maxsize) return NULL;
     v = new_str();
-    v->len = strlen(name) + 2;
-    v->chars = v->len;
-    s = str_create_elements(v, v->len);
+    v->len = len;
+    v->chars = len;
+    s = str_create_elements(v, len);
     *s = '<';
-    memcpy(s + 1, name, v->len);
-    s[v->len - 1] = '>';
+    memcpy(s + 1, name, len2);
+    s[len - 1] = '>';
     v->data = s;
     return &v->v;
 }

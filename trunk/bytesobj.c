@@ -131,16 +131,18 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint
     }
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Bytes *v1 = (Bytes *)o1;
     static const char *hex = "0123456789abcdef";
     size_t i, len, len2, sz;
     uint8_t *s, b;
-    Str *v = new_str();
+    Str *v;
     sz = byteslen(v1);
     len2 = sz * 2;
     len = 8 + len2 + (v1->len < 0);
     if (len < len2 || sz > SIZE_MAX / 2) err_msg_out_of_memory(); /* overflow */
+    if (len > maxsize) return NULL;
+    v = new_str();
     s = str_create_elements(v, len);
 
     memcpy(s, "bytes(", 6);
