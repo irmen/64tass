@@ -650,7 +650,7 @@ Uninitialized memory holes without previous content are not saved unless it's
 really necessary for the output format, in that case it's replaced with zeros.
 
 It's not just data generation statements (e.g. .byte) that can create
-uninitialized memory, but filling, alignment or address manipulation as well.
+uninitialized memory, but .fill, .align, .offs or address manipulation as well.
 
 *       = $200          ;bytes as necessary
         .word ?         ;2 bytes
@@ -1181,7 +1181,7 @@ it does not need to be.
     .1004   0304     4c 00 03       jmp $0300               jmp drive
                                                             .here
 
-.align <modulo>[, <fill>]
+.align <expression>[, <fill>]
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
 
@@ -1318,8 +1318,7 @@ using the current encoding.
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
 
 .fill <length>[, <fill>]
-    Skip bytes (using uninitialized data), or fill with repeated bytes. For
-    complex multi byte patterns use .rept!
+    Skip bytes (using uninitialized data), or fill with repeated bytes.
 
             .fill $100      ;no fill, just reserve $100 bytes
             .fill $4000, 0  ;16384 bytes of 0
@@ -1709,8 +1708,8 @@ practice it's better to use comparison operators instead.
 
 Switch, case, default
 
-Similar to the .if/.elsif/.else construct, but the compared value needs to be
-written only once in the switch statement.
+Similar to the .if/.elsif/.else/.fi construct, but the compared value needs to
+be written only once in the switch statement.
 
 .switch <expression>
     Evaluate expression and remember it
@@ -1735,13 +1734,15 @@ written only once in the switch statement.
 
 Repetitions
 
-.for <variable>=<expression>, <expression>, <variable>=<expression>
+.for [<variable>=<expression>], [<condition expression>], [<variable>=
+    <expression>]
 .next
-    Compile loop, only anonymous references are allowed as labels inside
+    Loop while the condition is true. If there's no condition then it's an
+    infinite loop and .break must be used to terminate it.
 
             ldx #0
             lda #32
-    lp      .for ue = 0, ue < $400, ue = ue + $100
+    lp      .for ue = $400, ue < $800, ue = ue + $100
             sta ue,x
             .next
             dex
@@ -1749,7 +1750,7 @@ Repetitions
 
 .rept <expression>
 .next
-    Repeated compile, only anonymous references are allowed as labels inside
+    Repeat by expression number of times.
 
             .rept 100
             nop
@@ -2340,7 +2341,7 @@ Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.
 
 In some versions labels used in the first .block are globally available. If you
-get a related error move the respective label out of the .block
+get a related error move the respective label out of the .block.
 
 -------------------------------------------------------------------------------
 
@@ -2379,8 +2380,8 @@ no option
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory after the last valid byte is not saved.
 
-    Useful for creating huge multi bank ROM files (over 64K). See sections for
-    an example.
+    Useful for creating huge multi bank ROM files (over 64 KiB). See sections
+    for an example.
 
 -n, --nonlinear
     Generate nonlinear output file.

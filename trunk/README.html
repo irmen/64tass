@@ -320,10 +320,10 @@ start	<b>rts</b>
 
 <p>A frequently coming up question is, how to automatically allocate
 memory, without hacks like <code>&lowast;=&lowast;+1</code>? Sure
-there's <code>.byte</code> and friends for variables with initial values
+there's <a href="#d_byte"><code>.byte</code></a> and friends for variables with initial values
 but what about zero page, or RAM outside of program area? The solution
-is to not use an initial value by using <q><code>?</code></q> or not
-giving a fill byte value to <code>.fill</code>.</p>
+is to not use an initial value by using <q><a href="#uninitialized"><code>?</code></a></q> or not
+giving a fill byte value to <a href="#d_fill"><code>.fill</code></a>.</p>
 
 <pre width=80>
 *       <b>=</b> <span>$02</span>
@@ -569,8 +569,8 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
 <p>Byte strings are like character strings, but hold bytes instead of characters.</p>
 <p>Quoted character strings prefixing by <q>b</q>, <q>l</q>, <q>n</q>, <q>p</q>
 or <q>s</q> characters can be used to create byte strings. The resulting byte
-string contains what <code>.text</code>, <code>.shiftl</code>,
-<code>.null</code>, <code>.ptext</code> and <code>.shift</code> would
+string contains what <a href="#d_text"><code>.text</code></a>, <a href="#d_shiftl"><code>.shiftl</code></a>,
+<a href="#d_null"><code>.null</code></a>, <a href="#d_ptext"><code>.ptext</code></a> and <a href="#d_shift"><code>.shift</code></a> would
 create.</p>
 
 <div><table border="0">
@@ -813,16 +813,16 @@ modes of the supported CPUs.</b></p>
 
 <p>Direct page, data bank, program bank indexed and long addressing modes
 of instructions are inteligently chosen based on the instruction type,
-the address ranges set up by <code>.dpage</code>, <code>.databank</code>
+the address ranges set up by <a href="#d_dpage"><code>.dpage</code></a>, <a href="#d_databank"><code>.databank</code></a>
 and the current program counter address. Therefore the <q>,d</q>,
 <q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
 
 <p>The direct page indexed addressing mode is not affected by the
-<code>.dpage</code> directive and always forces the 8&nbsp;bit address as
+<a href="#d_dpage"><code>.dpage</code></a> directive and always forces the 8&nbsp;bit address as
 is. It's only usable for direct/zero page instructions.</p>
 
 <p>The data bank indexed addressing mode is not affected by the
-<code>.databank</code> directive and always forces the 16&nbsp;bit address
+<a href="#d_databank"><code>.databank</code></a> directive and always forces the 16&nbsp;bit address
 as is. It's only usable with data bank accessing instructions.</p>
 
 <p>The program bank indexed addressing mode is not affected by the
@@ -853,8 +853,8 @@ where the previous content of memory is visible.</p>
 it's really necessary for the output format, in that case it's replaced with
 zeros.</p>
 
-<p>It's not just data generation statements (e.g. <code>.byte</code>) that can
-create uninitialized memory, but filling, alignment or address manipulation as
+<p>It's not just data generation statements (e.g. <a href="#d_byte"><code>.byte</code></a>) that can
+create uninitialized memory, but <a href="#d_fill"><code>.fill</code></a>, <a href="#d_align"><code>.align</code></a>, <a href="#d_offs"><code>.offs</code></a> or address manipulation as
 well.</p>
 
 <pre width=80>
@@ -935,7 +935,7 @@ hard to come up with useful and easy to type names. That's why local and anonymo
 exists. And grouping certain related symbols into a scope makes sense sometimes
 too.</p>
 
-<p>Scopes are usually created by <code>.proc</code> and <code>.block</code>
+<p>Scopes are usually created by <a href="#d_proc"><code>.proc</code></a> and <a href="#d_block"><code>.block</code></a>
 directives, but there are a few other ways. Symbols in a scope can be accessed
 by using the dot operator, which is applied between the name of the scope and the symbol (e.g. <code>myconsts.math.pi</code>).</p>
 
@@ -979,7 +979,7 @@ and are assigned to the code symbol above them.</p>
 <p>Not all regularly named symbols can be scope boundaries just plain code symbol ones
 without anything or an opcode after them (no macros!). Symbols defined as procedures, blocks,
 macros, functions, structs and unions are ignored. Also symbols defined by
-<code>.var</code>, <code>:=</code> or <code>=</code> don't apply, and there are a few more
+<a href="#d_var"><code>.var</code></a>, <code>:=</code> or <code>=</code> don't apply, and there are a few more
 exceptions, so stick to using plain code labels.</p>
 
 <p>The name must start with an underscore (<tt>_</tt>), otherwise the same character
@@ -1051,7 +1051,7 @@ objects over compilation passes.</p>
 <p>Symbols in front of code or certain assembler directives are created as
 constant symbols too. They are binded to the object following them.</p>
 
-<p>Re-definable symbols can be created by the <code>.var</code> directive
+<p>Re-definable symbols can be created by the <a href="#d_var"><code>.var</code></a> directive
 or <code>:=</code> construct. These are also called as variables as they
 don't carry their content over from the previous pass. Therefore it's not
 possible to use them before their definition.</p>
@@ -1463,10 +1463,10 @@ directly with instructions.</p>
 
 <h4>Compound assignment<a name="compound" href="#compound"></a></h4>
 
-<p>These assignment operators are shorthands for common <code>.var</code> directive use.</p>
+<p>These assignment operators are shorthands for common <a href="#d_var"><code>.var</code></a> directive use.</p>
 
 <p>With the exception of <code>:=</code> the variables updated must be defined
-beforehand.  As with <code>.var</code> they can't update constants, only
+beforehand. As with <a href="#d_var"><code>.var</code></a> they can't update constants, only
 variables.</p>
 
 <div><table border="0">
@@ -1549,7 +1549,7 @@ for code copied to it's proper location at runtime. Can be nested of course.
 .1004	0304	 4c 00 03	jmp $0300		<b>jmp</b> <u>drive</u>
 							<b class="k">.here</b>
 </pre>
-<dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;modulo&gt;[, &lt;fill&gt;]
+<dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;expression&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 <pre width=80>
 <i>;Offset PC       Bytes          Disassembly     Source</i>
@@ -1567,11 +1567,11 @@ for code copied to it's proper location at runtime. Can be nested of course.
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.</p>
 <p>When using lists or tuples their content will be used one by one.
-Uninitialized data (<q>?</q>) creates holes of different sizes. Character string constants
+Uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>) creates holes of different sizes. Character string constants
 are converted using the current encoding.</p>
 <p>Please note that multi character strings usually don't fit into 8&nbsp;bits
-and therefore the <code>.byte</code> directive is not appropriate for them.
-Use <code>.text</code> instead which accepts strings of any length.</p>
+and therefore the <a href="#d_byte"><code>.byte</code></a> directive is not appropriate for them.
+Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of any length.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_byte">.byte</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit unsigned constants (0&ndash;255)
@@ -1671,7 +1671,7 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <p>The following directives store strings of characters, bytes or bits as bytes. Small
 numeric constants can be mixed in to represent single byte control characters.</p>
 <p>When using lists or tuples their content will be used one by one.
-Uninitialized data (<q>?</q>) creates byte sized holes. Character string constants
+Uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>) creates byte sized holes. Character string constants
 are converted using the current encoding.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_text">.text</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1686,7 +1686,7 @@ are converted using the current encoding.</p>
 </pre>
 
 <dt><code><b class="d"><a name="d_fill">.fill</a></b></code> &lt;length&gt;[, &lt;fill&gt;]
-<dd>Skip bytes (using uninitialized data), or fill with repeated bytes. For complex multi byte patterns use <code>.rept</code>!
+<dd>Skip bytes (using uninitialized data), or fill with repeated bytes.
 <pre width=80>
         <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
         <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
@@ -1694,7 +1694,7 @@ are converted using the current encoding.</p>
 </pre>
 
 <dt><code><b class="d"><a name="d_shift">.shift</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but the last byte will have the highest bit set.
+<dd>Same as <a href="#d_text"><code>.text</code></a>, but the last byte will have the highest bit set.
 Any byte which already has the most significant bit set will cause an error.
 The last byte can't be uninitialized or missing of course.
 <pre width=80>
@@ -1712,7 +1712,7 @@ txt	<b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <s
 </pre>
 
 <dt><code><b class="d"><a name="d_shiftl">.shiftl</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
+<dd>Same as <a href="#d_text"><code>.text</code></a>, but all bytes are shifted to left, and the last
 byte gets the lowest bit set. Any byte which already has the most significant
 bit set will cause an error as this is cut off on shifting.
 The last byte can't be uninitialized or missing of course.
@@ -1731,7 +1731,7 @@ txt	<b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <
 </pre>
 
 <dt><code><b class="d"><a name="d_null">.null</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but adds a zero byte to the end. An existing
+<dd>Same as <a href="#d_text"><code>.text</code></a>, but adds a zero byte to the end. An existing
 zero byte is an error as it'd cause a false end marker.
 <pre width=80>
         <b>lda</b> #&lt;<u>txt</u>
@@ -1742,7 +1742,7 @@ txt	<b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <sp
 </pre>
 
 <dt><code><b class="d"><a name="d_ptext">.ptext</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but prepend the number of bytes in front of the
+<dd>Same as <a href="#d_text"><code>.text</code></a>, but prepend the number of bytes in front of the
 string (pascal style string). Therefore it can't do more than 255 bytes.
 <pre width=80>
         <b>lda</b> #&lt;<u>txt</u>
@@ -1822,7 +1822,7 @@ offset of fields are available by using the definition's name. The fields
 themselves by using the instance name.</p>
 
 <p>The initialization method is very similar to macro parameters, the
-difference is that unset parameters always return uninitialized data (<q>?</q>)
+difference is that unset parameters always return uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>)
 instead of an error.</p>
 
 <h4>Structure<a name="structure" href="#structure"></a></h4>
@@ -2080,8 +2080,8 @@ compiled from the same source.</p>
 <dd>Compile, if value is less than zero
 </dl>
 
-<p>The <code>.ifne</code>, <code>.ifeq</code>, <code>.ifpl</code> and
-<code>.ifmi</code> directives exists for compatibility only, in practice it's
+<p>The <a href="#d_ifne"><code>.ifne</code></a>, <a href="#d_ifeq"><code>.ifeq</code></a>, <a href="#d_ifpl"><code>.ifpl</code></a> and
+<a href="#d_ifmi"><code>.ifmi</code></a> directives exists for compatibility only, in practice it's
 better to use comparison operators instead.</p>
 
 <pre width=80>
@@ -2097,7 +2097,7 @@ better to use comparison operators instead.</p>
 </pre>
 
 <h4>Switch, case, default<a name="conditional-switch" href="#conditional-switch"></a></h4>
-<p>Similar to the <code>.if</code>/<code>.elsif</code>/<code>.else</code>
+<p>Similar to the <a href="#d_if"><code>.if</code></a>/<a href="#d_elsif"><code>.elsif</code></a>/<a href="#d_else"><code>.else</code></a>/<a href="#d_fi"><code>.fi</code></a>
 construct, but the compared value needs to be written only once in the switch
 statement.</p>
 
@@ -2127,13 +2127,13 @@ statement.</p>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
 <dl class="dir">
-<dt><code><b class="k"><a name="d_for">.for</a></b></code> &lt;variable&gt;=&lt;expression&gt;, &lt;expression&gt;, &lt;variable&gt;=&lt;expression&gt;
+<dt><code><b class="k"><a name="d_for">.for</a></b></code> [&lt;variable&gt;=&lt;expression&gt;], [&lt;condition expression&gt;], [&lt;variable&gt;=&lt;expression&gt;]
 <dt><code><b class="k"><a name="d_next">.next</a></b></code>
-<dd>Compile loop, only anonymous references are allowed as labels inside
+<dd>Loop while the condition is true. If there's no condition then it's an infinite loop and <a href="#d_break"><code>.break</code></a> must be used to terminate it.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
         <b>lda</b> #<span>32</span>
-lp      <b class="k">.for</b> <u>ue</u> = <span>0</span>, <u>ue</u> &lt; <span>$400</span>, <u>ue</u> = <u>ue</u> + <span>$100</span>
+lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <span>$800</span>, <u>ue</u> = <u>ue</u> + <span>$100</span>
         <b>sta</b> <u>ue</u>,x
 	<b class="k">.next</b>
         <b>dex</b>
@@ -2142,7 +2142,7 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>0</span>, <u>ue</u> &lt; <span>$
 
 <dt><code><b class="k"><a name="d_rept">.rept</a></b></code> &lt;expression&gt;
 <dt><code><b class="k">.next</b></code>
-<dd>Repeated compile, only anonymous references are allowed as labels inside
+<dd>Repeat by expression number of times.
 <pre width=80>
         <b class="k">.rept</b> <span>100</span>
 	<b>nop</b>
@@ -2156,7 +2156,7 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>0</span>, <u>ue</u> &lt; <span>$
 <dd>Continue current loop's next iteration
 
 <dt><code><b class="k"><a name="d_lbl">.lbl</a></b></code>
-<dd>Creates a special jump label that can be referenced by <code>.goto</code>
+<dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
 <dt><code><b class="k"><a name="d_goto">.goto</a></b></code> &lt;labelname&gt;
 <dd>Causes assembler to continue assembling from the jump label. No
 forward references of course, handle with care. Typically used in
@@ -2226,7 +2226,7 @@ the direction of the global scope. This means that local variables will
 <dt><code><b class="k"><a name="d_pend">.pend</a></b></code>
 <dd>Procedure start and end of procedure.
 <p>If it's label is not used then the code won't be compiled at all. This is
-very useful to avoid a lot of <code>.if</code> blocks to exclude unused
+very useful to avoid a lot of <a href="#d_if"><code>.if</code></a> blocks to exclude unused
 sections of code.</p>
 <p>All labels inside are local enclosed in a scope and are accessible through
 the prefixed label. Useful for building libraries.</p>
@@ -2273,7 +2273,7 @@ symbol	<b>=</b> <span>0</span>            <i>;default value if the one above doe
 replace stub functions and data structures.</p>
 
 <p>If these stubs are defined using
-<code>.proc</code>/<code>.pend</code> then their default implementations will
+<a href="#d_proc"><code>.proc</code></a>/<a href="#d_pend"><code>.pend</code></a> then their default implementations will
 not even exists in the output at all when a stronger symbol overrides them.</p>
 
 <p>Multiple definition of a symbol with the same <q>strength</q> in the same
@@ -2299,15 +2299,15 @@ it's optional.
 <dd>Collect the section fragments here.
 </dl>
 
-<p>All <code>.section</code> fragments are compiled to the memory area
-allocated by the <code>.dsection</code> directive. Compilation happens as the
+<p>All <a href="#d_section"><code>.section</code></a> fragments are compiled to the memory area
+allocated by the <a href="#d_dsection"><code>.dsection</code></a> directive. Compilation happens as the
 code appears, this directive only assigns enough space to hold all the content
 in the section fragments.</p>
 
 <p>The space used by section fragments is calculated from the difference of
 starting compile offset and the maximum compile offset reached. It is possible
 to manipulate the compile offset in fragments, but putting code before the
-start of <code>.dsection</code> is not allowed.</p>
+start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.</p>
 
 <pre width=80>
 *       <b>=</b> <span>$02</span>
@@ -2377,7 +2377,7 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 &gt;0004					p2      .word ?         ;a pointer
 </pre>
 
-<p>Sections can form a hierarchy by nesting a <code>.dsection</code> into
+<p>Sections can form a hierarchy by nesting a <a href="#d_dsection"><code>.dsection</code></a> into
 another section. The section names must only be unique within a section but can
 be reused otherwise. Parent section names are visible for children, siblings can be
 reached through parents.</p>
@@ -2784,8 +2784,8 @@ need to make use of braces around arguments and/or references to fix this.</p>
 <h3>Bugs<a name="tasm-bugs" href="#tasm-bugs"></a></h3>
 <p>Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.</p>
-<p>In some versions labels used in the first <code>.block</code> are globally available. If
-you get a related error move the respective label out of the <code>.block</code></p>
+<p>In some versions labels used in the first <a href="#d_block"><code>.block</code></a> are globally available. If
+you get a related error move the respective label out of the <a href="#d_block"><code>.block</code></a>.</p>
 
 <hr>
 <h2>Command line options<a name="commandline-options" href="#commandline-options"></a></h2>
@@ -2816,7 +2816,7 @@ before the first and after the last valid bytes are not saved.</p>
 <dd>Flat address space output mode.
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with
 zeros. Uninitialized memory after the last valid byte is not saved.</p>
-<p>Useful for creating huge multi bank ROM files (over 64K). See sections for an example.</p>
+<p>Useful for creating huge multi bank ROM files (over 64&nbsp;KiB). See sections for an example.</p>
 
 <dt><b>-n</b>, <b>--nonlinear</b>
 <dd>Generate nonlinear output file.
@@ -3000,7 +3000,7 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 
 <h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>
 <p>These options will select the default architecture. It can be overridden by
-using the <code>.cpu</code> directive in the source.</p>
+using the <a href="#d_cpu"><code>.cpu</code></a> directive in the source.</p>
 
 <dl class="dir">
 <dt><b>--m65xx</b>
