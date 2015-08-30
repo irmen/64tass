@@ -44,7 +44,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_STR: return val_reference(v1);
-    default: return v1->obj->repr(v1, epoint); 
+    default: return v1->obj->repr(v1, epoint, SIZE_MAX); 
     }
 }
 
@@ -95,16 +95,19 @@ size_t str_quoting(const uint8_t *data, size_t ln, char *q) {
     return i;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v1 = (Str *)o1;
-    size_t i2, i;
+    size_t i2, i, chars;
     uint8_t *s, *s2;
     char q;
-    Str *v = new_str();
+    Str *v;
     i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + 2;
     if (i2 < 2) err_msg_out_of_memory(); /* overflow */
+    chars = i2 - (v1->len - v1->chars);
+    if (chars > maxsize) return NULL;
+    v = new_str();
     s2 = s = snew(v, i2);
 
     *s++ = q;
@@ -117,7 +120,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
     s[i] = q;
     v->data = s2;
     v->len = i2;
-    v->chars = i2 - (i - v1->chars);
+    v->chars = chars;
     return &v->v;
 }
 
@@ -144,6 +147,12 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
+    if (ret && ret->num == ERROR_____CANT_IVAL) {
+        val_destroy(&ret->v);
+        ret = new_error(ERROR_____CANT_IVAL, epoint);
+        ret->u.intconv.bits = bits;
+        ret->u.intconv.val = val_reference(o1);
+    }
     return ret;
 }
 
@@ -154,6 +163,12 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
     tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
+    if (ret && ret->num == ERROR_____CANT_UVAL) {
+        val_destroy(&ret->v);
+        ret = new_error(ERROR_____CANT_UVAL, epoint);
+        ret->u.intconv.bits = bits;
+        ret->u.intconv.val = val_reference(o1);
+    }
     return ret;
 }
 

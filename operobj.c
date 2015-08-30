@@ -89,22 +89,23 @@ Oper o_CONCAT;
 Oper o_X;
 Oper o_MEMBER;
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Oper *v1 = (Oper *)o1;
     const char *txt;
-    size_t len;
+    size_t len, len2;
     uint8_t *s;
     Str *v;
     if (!epoint) return NULL;
-    v = new_str();
     txt = v1->name;
-    len = strlen(txt);
-    s = str_create_elements(v, len + 8);
+    len2 = strlen(txt);
+    len = len2 + 8;
+    if (len > maxsize) return NULL;
+    v = new_str();
+    s = str_create_elements(v, len);
     memcpy(s, "<oper ", 6);
-    memcpy(s + 6, txt, len);
-    len += 6;
-    s[len++] = '\'';
-    s[len++] = '>';
+    memcpy(s + 6, txt, len2);
+    s[len - 2] = '\'';
+    s[len - 1] = '>';
     v->data = s;
     v->len = len;
     v->chars = len;

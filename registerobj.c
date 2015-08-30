@@ -95,18 +95,21 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Register *v1 = (Register *)o1;
     size_t i2, i;
     uint8_t *s, *s2;
     char q;
     const char *prefix = "register(";
-    size_t ln = strlen(prefix) + 3;
-    Str *v = new_str();
+    size_t ln = strlen(prefix) + 3, chars;
+    Str *v;
     i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + ln;
     if (i2 < ln) err_msg_out_of_memory(); /* overflow */
+    chars = i2 - (v1->len - v1->chars);
+    if (chars > maxsize) return NULL;
+    v = new_str();
     s2 = s = str_create_elements(v, i2);
 
     while (*prefix) *s++ = *prefix++;
@@ -121,7 +124,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
     s[i+1] = ')';
     v->data = s2;
     v->len = i2;
-    v->chars = i2 - (i - v1->chars);
+    v->chars = chars;
     return &v->v;
 }
 

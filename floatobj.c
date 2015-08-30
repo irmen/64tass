@@ -85,20 +85,22 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Float *v1 = (Float *)o1;
     Str *v;
     char line[100]; 
     int i = 0;
     uint8_t *s;
-    sprintf(line, "%.10g", v1->real);
+    size_t len;
+    len = sprintf(line, "%.10g", v1->real);
     while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
-    if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
+    if (!line[i]) {line[i++]='.';line[i++]='0';len += 2;}
+    if (len > maxsize) return NULL;
     v = new_str();
-    v->len = i + strlen(line + i);
-    v->chars = v->len;
-    s = str_create_elements(v, v->len);
-    memcpy(s, line, v->len);
+    v->len = len;
+    v->chars = len;
+    s = str_create_elements(v, len);
+    memcpy(s, line, len);
     v->data = s;
     return (Obj *)v;
 }
@@ -166,7 +168,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV: return (Obj *)float_from_double(-0.5/((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1, op->epoint);
     case O_NEG: return (Obj *)float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
-    case O_STRING: return repr(op->v1, op->epoint);
+    case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
     default: break;
     }
     return obj_oper_error(op);

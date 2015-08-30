@@ -111,7 +111,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     return v->obj->truth(v, type, epoint);
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Code *v1 = (Code *)o1;
     Obj *v;
     if (epoint) {
@@ -119,7 +119,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
         if (err) return &err->v;
     }
     v = v1->addr;
-    return v->obj->repr(v, epoint);
+    return v->obj->repr(v, epoint, maxsize);
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {

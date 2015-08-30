@@ -174,9 +174,9 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     }
 }
 
-static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize) {
     Tuple *v1 = (List *)o1;
-    size_t i, len = (o1->obj == ADDRLIST_OBJ || o1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
+    size_t i, len = (o1->obj == ADDRLIST_OBJ || o1->obj == COLONLIST_OBJ) ? 0 : 2, chars = len;
     List *list = NULL;
     Obj **vals = NULL, *val;
     Str *v;
@@ -185,24 +185,39 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint) {
     if (llen) {
         list = new_tuple();
         list->data = vals = lnew(list, llen);
+        i = llen;
+        if (i && (o1->obj != TUPLE_OBJ)) i--;
+        if (i) {
+            len += i;
+            if (len < i) err_msg_out_of_memory(); /* overflow */
+            chars += i;
+        }
+        if (chars > maxsize) {
+            list->len = 0;
+            val_destroy(&list->v);
+            return NULL;
+        }
         for (i = 0;i < llen; i++) {
-            val = v1->data[i]->obj->repr(v1->data[i], epoint);
+            val = v1->data[i]->obj->repr(v1->data[i], epoint, maxsize - chars);
             if (!val || val->obj != STR_OBJ) {
                 list->len = i;
                 val_destroy(&list->v);
                 return val;
             }
-            len += ((Str *)val)->len;
-            if (len < ((Str *)val)->len) err_msg_out_of_memory(); /* overflow */
+            v = (Str *)val;
+            len += v->len;
+            if (len < v->len) err_msg_out_of_memory(); /* overflow */
+            chars += v->chars;
+            if (chars > maxsize) {
+                list->len = i;
+                val_destroy(&list->v);
+                val_destroy(val);
+                return NULL;
+            }
             vals[i] = val;
         }
         list->len = i;
-        if (i && (o1->obj != TUPLE_OBJ)) i--;
-        if (i) {
-            len += i;
-            if (len < i) err_msg_out_of_memory(); /* overflow */
-        }
-    }
+    } else if (chars > maxsize) return NULL;
     v = new_str();
     s = str_create_elements(v, len);
     len = 0;
@@ -213,7 +228,6 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint) {
         if (str->len) {
             memcpy(s + len, str->data, str->len);
             len += str->len;
-            chars += str->len - str->chars;
         }
     }
     if (i == 1 && (o1->obj == TUPLE_OBJ)) s[len++] = ',';
@@ -221,7 +235,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint) {
     if (list) val_destroy(&list->v);
     v->data = s;
     v->len = len;
-    v->chars = len - chars;
+    v->chars = chars;
     return &v->v;
 }
 

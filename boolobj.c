@@ -60,14 +60,18 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Bool *v1 = (Bool *)o1;
-    Str *v = new_str();
-    uint8_t *s = str_create_elements(v, 4 + !v1->boolean);
+    Str *v;
+    size_t len = 4 + !v1->boolean;
+    uint8_t *s;
+    if (len > maxsize) return NULL;
+    v = new_str();
+    s = str_create_elements(v, len);
     v->data = s;
-    v->len = 4 + !v1->boolean;
-    v->chars = v->len;
-    memcpy(s, v1->boolean ? "true" : "false", v->len);
+    v->len = len;
+    v->chars =len;
+    memcpy(s, v1->boolean ? "true" : "false", len);
     return &v->v;
 }
 
