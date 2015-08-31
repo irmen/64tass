@@ -839,6 +839,7 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 tmp->val = &values[vsp-args];
                 tmp->len = args; /* assumes no referencing */
+                if (v1 == values) goto syntaxe;
                 v1--;
 
                 oper.op = op2;

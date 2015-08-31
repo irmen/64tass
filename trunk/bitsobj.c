@@ -85,9 +85,9 @@ static MUST_CHECK Bits *new_bits(size_t len) {
     if (len > sizeof(v->val)/sizeof(v->val[0])) {
         if (len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         v->data = (bdigit_t *)mallocx(len * sizeof(bdigit_t));
-    } else {
-        v->data = v->val;
-    }
+        return v;
+    } 
+    v->data = v->val;
     return v;
 }
 
@@ -603,7 +603,6 @@ static MUST_CHECK Obj *bits_from_int(const Int *v1) {
         for (; i < sz; i++) {
             d[i] = b[i];
         }
-        d[i] = c;
     } else memcpy(d, b, sz * sizeof(bdigit_t));
 
     d2 = d[sz - 1];
