@@ -19,7 +19,6 @@
 #ifndef _TYPEOBJ_H
 #define _TYPEOBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *TYPE_OBJ;
 

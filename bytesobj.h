@@ -19,7 +19,6 @@
 #ifndef _BYTESOBJ_H
 #define _BYTESOBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *BYTES_OBJ;
 

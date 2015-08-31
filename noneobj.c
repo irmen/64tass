@@ -19,8 +19,8 @@
 #include "noneobj.h"
 #include "error.h"
 #include "eval.h"
-
 #include "typeobj.h"
+#include "values.h"
 
 static Type obj;
 

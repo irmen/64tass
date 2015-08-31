@@ -32,16 +32,16 @@ addressobj.o: addressobj.c addressobj.h obj.h inttypes.h values.h error.h \
  errors_e.h libtree.h eval.h variables.h boolobj.h strobj.h intobj.h \
  operobj.h typeobj.h noneobj.h
 avl.o: avl.c libtree.h
-bitsobj.o: bitsobj.c bitsobj.h obj.h inttypes.h values.h eval.h \
- variables.h unicode.h unicodedata.h encoding.h libtree.h errors_e.h \
- boolobj.h floatobj.h codeobj.h error.h strobj.h bytesobj.h intobj.h \
+bitsobj.o: bitsobj.c bitsobj.h obj.h inttypes.h eval.h variables.h \
+ unicode.h unicodedata.h encoding.h libtree.h errors_e.h boolobj.h \
+ values.h floatobj.h codeobj.h error.h strobj.h bytesobj.h intobj.h \
  listobj.h operobj.h typeobj.h noneobj.h
 boolobj.o: boolobj.c eval.h obj.h inttypes.h boolobj.h values.h \
  floatobj.h strobj.h error.h errors_e.h libtree.h bytesobj.h bitsobj.h \
  intobj.h operobj.h typeobj.h variables.h
-bytesobj.o: bytesobj.c bytesobj.h obj.h inttypes.h values.h eval.h \
- unicode.h unicodedata.h encoding.h libtree.h errors_e.h variables.h \
- boolobj.h floatobj.h codeobj.h intobj.h strobj.h bitsobj.h listobj.h \
+bytesobj.o: bytesobj.c bytesobj.h obj.h inttypes.h eval.h unicode.h \
+ unicodedata.h encoding.h libtree.h errors_e.h variables.h boolobj.h \
+ values.h floatobj.h codeobj.h intobj.h strobj.h bitsobj.h listobj.h \
  operobj.h typeobj.h noneobj.h error.h
 codeobj.o: codeobj.c codeobj.h obj.h inttypes.h values.h eval.h mem.h \
  64tass.h wait_e.h section.h libtree.h variables.h error.h errors_e.h \
@@ -52,11 +52,11 @@ dictobj.o: dictobj.c dictobj.h obj.h inttypes.h values.h libtree.h eval.h \
  operobj.h typeobj.h noneobj.h
 encoding.o: encoding.c encoding.h libtree.h inttypes.h errors_e.h error.h \
  obj.h ternary.h misc.h 64tass.h wait_e.h unicode.h unicodedata.h \
- strobj.h values.h bytesobj.h typeobj.h
+ strobj.h bytesobj.h typeobj.h values.h
 error.o: error.c error.h inttypes.h errors_e.h libtree.h obj.h misc.h \
- file.h variables.h 64tass.h wait_e.h macro.h strobj.h values.h unicode.h \
- unicodedata.h addressobj.h registerobj.h namespaceobj.h operobj.h \
- typeobj.h eval.h
+ file.h variables.h 64tass.h wait_e.h macro.h strobj.h unicode.h \
+ unicodedata.h addressobj.h values.h registerobj.h namespaceobj.h \
+ operobj.h typeobj.h eval.h
 eval.o: eval.c eval.h obj.h inttypes.h file.h libtree.h section.h mem.h \
  encoding.h errors_e.h macro.h wait_e.h variables.h 64tass.h misc.h \
  unicode.h unicodedata.h listing.h error.h values.h floatobj.h boolobj.h \
@@ -64,7 +64,7 @@ eval.o: eval.c eval.h obj.h inttypes.h file.h libtree.h section.h mem.h \
  dictobj.h registerobj.h namespaceobj.h operobj.h gapobj.h typeobj.h \
  noneobj.h
 file.o: file.c file.h inttypes.h libtree.h misc.h 64tass.h wait_e.h \
- unicode.h unicodedata.h error.h errors_e.h obj.h strobj.h values.h
+ unicode.h unicodedata.h error.h errors_e.h obj.h strobj.h
 floatobj.o: floatobj.c floatobj.h obj.h inttypes.h values.h error.h \
  errors_e.h libtree.h eval.h variables.h boolobj.h codeobj.h strobj.h \
  bytesobj.h intobj.h bitsobj.h operobj.h typeobj.h noneobj.h
@@ -73,7 +73,7 @@ functionobj.o: functionobj.c isnprintf.h inttypes.h functionobj.h obj.h \
  errors_e.h libtree.h listobj.h intobj.h boolobj.h operobj.h typeobj.h \
  noneobj.h
 gapobj.o: gapobj.c gapobj.h obj.h inttypes.h error.h errors_e.h libtree.h \
- eval.h variables.h strobj.h values.h operobj.h intobj.h boolobj.h \
+ eval.h variables.h strobj.h operobj.h intobj.h values.h boolobj.h \
  typeobj.h noneobj.h
 instruction.o: instruction.c instruction.h inttypes.h opcodes.h obj.h \
  64tass.h wait_e.h misc.h section.h libtree.h mem.h file.h listing.h \
@@ -115,22 +115,21 @@ obj.o: obj.c variables.h inttypes.h obj.h misc.h section.h libtree.h \
  addressobj.h codeobj.h registerobj.h bytesobj.h bitsobj.h functionobj.h \
  dictobj.h operobj.h gapobj.h typeobj.h noneobj.h
 opcodes.o: opcodes.c opcodes.h
-operobj.o: operobj.c operobj.h obj.h inttypes.h strobj.h values.h \
- typeobj.h
+operobj.o: operobj.c operobj.h obj.h inttypes.h strobj.h typeobj.h
 registerobj.o: registerobj.c registerobj.h obj.h inttypes.h values.h \
  error.h errors_e.h libtree.h eval.h opcodes.h variables.h boolobj.h \
  strobj.h intobj.h operobj.h typeobj.h noneobj.h
 section.o: section.c unicode.h inttypes.h unicodedata.h section.h \
  libtree.h mem.h error.h errors_e.h obj.h misc.h 64tass.h wait_e.h \
  values.h intobj.h longjump.h
-strobj.o: strobj.c strobj.h obj.h inttypes.h values.h eval.h misc.h \
- unicode.h unicodedata.h error.h errors_e.h libtree.h variables.h \
- boolobj.h floatobj.h bytesobj.h intobj.h bitsobj.h listobj.h operobj.h \
+strobj.o: strobj.c strobj.h obj.h inttypes.h eval.h misc.h unicode.h \
+ unicodedata.h error.h errors_e.h libtree.h variables.h boolobj.h \
+ values.h floatobj.h bytesobj.h intobj.h bitsobj.h listobj.h operobj.h \
  typeobj.h noneobj.h
 ternary.o: ternary.c ternary.h unicode.h inttypes.h unicodedata.h error.h \
  errors_e.h libtree.h obj.h
-typeobj.o: typeobj.c typeobj.h obj.h inttypes.h values.h variables.h \
- eval.h error.h errors_e.h libtree.h strobj.h operobj.h intobj.h \
+typeobj.o: typeobj.c typeobj.h obj.h inttypes.h variables.h eval.h \
+ error.h errors_e.h libtree.h strobj.h operobj.h intobj.h values.h \
  boolobj.h listobj.h noneobj.h
 unicodedata.o: unicodedata.c unicodedata.h
 unicode.o: unicode.c unicode.h inttypes.h unicodedata.h error.h \

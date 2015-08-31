@@ -19,7 +19,6 @@
 #ifndef _STROBJ_H
 #define _STROBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *STR_OBJ;
 
