@@ -19,7 +19,6 @@
 #ifndef _BITSOBJ_H
 #define _BITSOBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *BITS_OBJ;
 
