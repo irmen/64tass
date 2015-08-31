@@ -90,19 +90,15 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
     char line[100]; 
     int i = 0;
-    uint8_t *s;
     size_t len;
     len = sprintf(line, "%.10g", v1->real);
     while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
     if (!line[i]) {line[i++]='.';line[i++]='0';len += 2;}
     if (len > maxsize) return NULL;
-    v = new_str();
-    v->len = len;
+    v = new_str(len);
     v->chars = len;
-    s = str_create_elements(v, len);
-    memcpy(s, line, len);
-    v->data = s;
-    return (Obj *)v;
+    memcpy(v->data, line, len);
+    return &v->v;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {

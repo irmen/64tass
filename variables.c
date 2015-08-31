@@ -111,21 +111,21 @@ static int same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     Label *v1 = (Label *)o1;
-    size_t len;
+    size_t len, len2;
     uint8_t *s;
     Str *v;
     if (!epoint) return NULL;
     len = v1->name.len;
-    if (len + 8 > maxlen) return NULL;
-    v = new_str();
-    s = str_create_elements(v, len + 8);
-    memcpy(s, "<label ", 7);
-    memcpy(s + 7, v1->name.data, len);
-    len += 7;
-    s[len++] = '>';
-    v->data = s;
-    v->len = len;
-    v->chars = len; /* UTF8! */
+    len2 = len + 10;
+    if (len2 > maxlen) return NULL;
+    v = new_str(len2);
+    v->chars = len2; /* UTF8! */
+    s = v->data;
+    memcpy(s, "<label '", 8);
+    s += 8;
+    memcpy(s, v1->name.data, len);
+    s[len] = '\'';
+    s[len+1] = '>';
     return &v->v;
 }
 

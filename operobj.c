@@ -97,19 +97,18 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     if (!epoint) return NULL;
     txt = v1->name;
-    len2 = strlen(txt);
-    len = len2 + 8;
-    if (len > maxsize) return NULL;
-    v = new_str();
-    s = str_create_elements(v, len);
+    len = strlen(txt);
+    len2 = len + 8;
+    if (len2 > maxsize) return NULL;
+    v = new_str(len2);
+    v->chars = len2;
+    s = v->data;
     memcpy(s, "<oper ", 6);
-    memcpy(s + 6, txt, len2);
-    s[len - 2] = '\'';
-    s[len - 1] = '>';
-    v->data = s;
-    v->len = len;
-    v->chars = len;
-    return (Obj *)v;
+    s += 6;
+    memcpy(s, txt, len);
+    s[len] = '\'';
+    s[len+1] = '>';
+    return &v->v;
 }
 
 static inline void oper_init(Oper *o, const char *name, enum oper_e op, int prio) {

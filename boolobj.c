@@ -64,14 +64,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Bool *v1 = (Bool *)o1;
     Str *v;
     size_t len = 4 + !v1->boolean;
-    uint8_t *s;
     if (len > maxsize) return NULL;
-    v = new_str();
-    s = str_create_elements(v, len);
-    v->data = s;
-    v->len = len;
+    v = new_str(len);
     v->chars =len;
-    memcpy(s, v1->boolean ? "true" : "false", len);
+    memcpy(v->data, v1->boolean ? "true" : "false", len);
     return &v->v;
 }
 
@@ -123,11 +119,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return (Obj *)int_from_int(-v1->boolean);
     case O_POS: return (Obj *)int_from_bool(v1);
     case O_STRING:
-        v = new_str();
-        v->data = v->val;
-        v->len = 1;
+        v = new_str(1);
         v->chars = 1;
-        v->val[0] = v1->boolean ? '1' : '0';
+        v->data[0] = v1->boolean ? '1' : '0';
         return &v->v;
     default: break;
     }

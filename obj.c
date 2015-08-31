@@ -134,14 +134,12 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     len2 = strlen(name);
     len = len2 + 2;
     if (len > maxsize) return NULL;
-    v = new_str();
-    v->len = len;
+    v = new_str(len);
     v->chars = len;
-    s = str_create_elements(v, len);
-    *s = '<';
-    memcpy(s + 1, name, len2);
-    s[len - 1] = '>';
-    v->data = s;
+    s = v->data;
+    *s++ = '<';
+    memcpy(s, name, len2);
+    s[len2] = '>';
     return &v->v;
 }
 

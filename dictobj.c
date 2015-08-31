@@ -156,7 +156,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         if (ln < v1->len) err_msg_out_of_memory(); /* overflow */
         ln += def;
         if (ln < def) err_msg_out_of_memory(); /* overflow */
-        chars += ln + 1 + def;
+        chars = ln + 1 + def;
         if (chars < ln) err_msg_out_of_memory(); /* overflow */
         if (chars > maxsize) return NULL;
         list = new_tuple();
@@ -210,36 +210,35 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 val_destroy(v);
                 return NULL;
             }
-            vals[i] = (Obj *)str;
+            vals[i] = v;
         }
         list->len = i + def;
     }
-    str = new_str();
-    s = str_create_elements(str, ln);
-    ln = 0;
-    s[ln++] = '{';
+    str = new_str(ln);
+    str->chars = chars;
+    s = str->data;
+    *s++ = '{';
     for (j = 0; j < i; j++) {
-        Str *str2;
-        if (vals[j]->obj != STR_OBJ) continue;
-        str2 = (Str *)vals[j];
-        if (j) s[ln++] = (j & 1) ? ':' : ',';
-        memcpy(s + ln, str2->data, str2->len);
-        ln += str2->len;
+        Str *str2 = (Str *)vals[j];
+        if (str2->v.obj != STR_OBJ) continue;
+        if (j) *s++ = (j & 1) ? ':' : ',';
+        if (str2->len) {
+            memcpy(s, str2->data, str2->len);
+            s += str2->len;
+        }
     }
     if (def) {
         Str *str2 = (Str *)vals[j];
-        if (j) s[ln++] = ',';
-        s[ln++] = ':';
-        memcpy(s + ln, str2->data, str2->len);
-        ln += str2->len;
-        j++;
+        if (j) *s++ = ',';
+        *s++ = ':';
+        if (str2->len) {
+            memcpy(s, str2->data, str2->len);
+            s += str2->len;
+        }
     }
-    s[ln++] = '}';
+    *s = '}';
     if (list) val_destroy(&list->v);
-    str->data = s;
-    str->len = ln;
-    str->chars = chars;
-    return (Obj *)str;
+    return &str->v;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {

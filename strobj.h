@@ -41,12 +41,8 @@ static inline Str *ref_str(Str *v1) {
     v1->v.refcount++; return v1;
 }
 
-static inline MUST_CHECK Str *new_str(void) {
-    return (Str *)val_alloc(STR_OBJ);
-}
-
+extern MUST_CHECK Str *new_str(size_t);
 extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *);
 extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
-extern uint8_t *str_create_elements(Str *, size_t);
 extern size_t str_quoting(const uint8_t *, size_t, char *);
 #endif

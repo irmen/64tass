@@ -76,16 +76,13 @@ static int same(const Obj *o1, const Obj *o2) {
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Address *v1 = (Address *)o1;
     uint8_t *s;
-    size_t len, len2;
-    char buffer[100], buffer2[100];
+    size_t len, chars;
+    char buffer[100], buffer2[100], *b2;
     atype_t addrtype;
     int ind, ind2;
     Obj *tmp;
-    Str *v, *tmp2;
+    Str *v, *str;
 
-    tmp = v1->val->obj->repr(v1->val, epoint, maxsize);
-    if (!tmp || tmp->obj != STR_OBJ) return tmp;
-    tmp2 = (Str *)tmp;
     ind2 = 0;
     addrtype = v1->type;
     ind = 99;
@@ -107,23 +104,34 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         }
         addrtype <<= 4;
     }
+    b2 = buffer2 + ind;
+    ind = 99 - ind;
 
-    len2 = 99 - ind + ind2;
-    len = len2 + tmp2->chars;
-    if (len > maxsize) {
+    chars = ind + ind2;
+    if (chars > maxsize) return NULL;
+    tmp = v1->val->obj->repr(v1->val, epoint, maxsize - chars);
+    if (!tmp || tmp->obj != STR_OBJ) return tmp;
+    str = (Str *)tmp;
+    len = chars + str->len;
+    if (len < chars) err_msg_out_of_memory(); /* overflow */
+    chars += str->chars;
+    if (chars > maxsize) {
         val_destroy(tmp);
         return NULL;
     }
 
-    v = new_str();
-    v->len = len2 + tmp2->len;
-    v->chars = len;
-    if (v->len < len2) err_msg_out_of_memory(); /* overflow */
-    s = str_create_elements(v, v->len);
-    memcpy(s, buffer2 + ind, 99 - ind);
-    memcpy(s + 99 - ind, tmp2->data, tmp2->len);
-    memcpy(s + 99 - ind + tmp2->len, buffer, ind2);
-    v->data = s;
+    v = new_str(len);
+    v->chars = chars;
+    s = v->data;
+    if (ind) {
+        memcpy(s, b2, ind);
+        s += ind;
+    }
+    if (str->len) {
+        memcpy(s, str->data, str->len);
+        s += str->len;
+    }
+    if (ind2) memcpy(s, buffer, ind2);
     val_destroy(tmp);
     return &v->v;
 }

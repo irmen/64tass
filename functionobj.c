@@ -58,24 +58,21 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     const Function *v1 = (const Function *)o1;
     uint8_t *s;
-    const char *prefix;
-    size_t len, len2;
+    size_t len;
     Str *v;
     if (!epoint) return NULL;
-    prefix = "<native_function '";
-    len2 = strlen(prefix);
-    len = v1->name.len + 2 + len2;
-    if (len < v1->name.len) err_msg_out_of_memory(); /* overflow */
+    len = v1->name.len + 20;
+    if (len < 20) err_msg_out_of_memory(); /* overflow */
     if (len > maxsize) return NULL;
-    v = new_str();
-    v->len = len;
+    v = new_str(len);
     v->chars = len;
-    s = str_create_elements(v, len);
-    memcpy(s, prefix, len2);
-    memcpy(s + len2, v1->name.data, v1->name.len);
-    s[len - 2] = '\'';
-    s[len - 1] = '>';
-    v->data = s;
+    s = v->data;
+    memcpy(s, "<native_function '", 18);
+    s += 18;
+    memcpy(s, v1->name.data, v1->name.len);
+    s += v1->name.len;
+    *s = '\'';
+    s[1] = '>';
     return &v->v;
 }
 

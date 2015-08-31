@@ -187,11 +187,9 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
         list->data = vals = lnew(list, llen);
         i = llen;
         if (i && (o1->obj != TUPLE_OBJ)) i--;
-        if (i) {
-            len += i;
-            if (len < i) err_msg_out_of_memory(); /* overflow */
-            chars += i;
-        }
+        len += i;
+        if (len < i) err_msg_out_of_memory(); /* overflow */
+        chars += i;
         if (chars > maxsize) {
             list->len = 0;
             val_destroy(&list->v);
@@ -218,24 +216,21 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
         }
         list->len = i;
     } else if (chars > maxsize) return NULL;
-    v = new_str();
-    s = str_create_elements(v, len);
-    len = 0;
-    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) s[len++] = (o1->obj == LIST_OBJ) ? '[' : '(';
-    for (i = 0;i < llen; i++) {
+    v = new_str(len);
+    v->chars = chars;
+    s = v->data;
+    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) *s++ = (o1->obj == LIST_OBJ) ? '[' : '(';
+    for (i = 0; i < llen; i++) {
         Str *str = (Str *)vals[i];
-        if (i) s[len++] = (o1->obj == COLONLIST_OBJ) ? ':' : ',';
+        if (i) *s++ = (o1->obj == COLONLIST_OBJ) ? ':' : ',';
         if (str->len) {
-            memcpy(s + len, str->data, str->len);
-            len += str->len;
+            memcpy(s, str->data, str->len);
+            s += str->len;
         }
     }
-    if (i == 1 && (o1->obj == TUPLE_OBJ)) s[len++] = ',';
-    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) s[len++] = (o1->obj == LIST_OBJ) ? ']' : ')';
+    if (i == 1 && (o1->obj == TUPLE_OBJ)) *s++ = ',';
+    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) *s = (o1->obj == LIST_OBJ) ? ']' : ')';
     if (list) val_destroy(&list->v);
-    v->data = s;
-    v->len = len;
-    v->chars = chars;
     return &v->v;
 }
 

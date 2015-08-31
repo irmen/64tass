@@ -162,37 +162,35 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         len += len2;
         if (len < len2) err_msg_out_of_memory(); /* overflow */
         if (len > maxsize) return NULL;
-        v = new_str();
-        s = str_create_elements(v, len);
+        v = new_str(len);
+        v->chars = len;
+        s = v->data;
 
-        len = 0;
-        if (inv) s[len++] = '~';
-        s[len++] = '%';
+        if (inv) *s++ = '~';
+        *s++ = '%';
         for (i = len2; i--;) {
             size_t j = i / SHIFT;
-            s[len++] = (j >= sz) ? 0x30 : 0x30 | ((v1->data[j] >> (i & (SHIFT - 1))) & 1);
+            *s++ = (j >= sz) ? 0x30 : 0x30 | ((v1->data[j] >> (i & (SHIFT - 1))) & 1);
         }
+        return &v->v;
     } else {
         static const char *hex = "0123456789abcdef";
         len2 /= 4;
         len += len2;
         if (len < len2) err_msg_out_of_memory(); /* overflow */
         if (len > maxsize) return NULL;
-        v = new_str();
-        s = str_create_elements(v, len);
+        v = new_str(len);
+        v->chars = len;
+        s = v->data;
 
-        len = 0;
-        if (inv) s[len++] = '~';
-        s[len++] = '$';
+        if (inv) *s++ = '~';
+        *s++ = '$';
         for (i = len2; i--;) {
             size_t j = i / (2 * sizeof(bdigit_t));
-            s[len++] = (j >= sz) ? 0x30 : (uint8_t)hex[(v1->data[j] >> ((i & (2 * sizeof(bdigit_t) - 1)) * 4)) & 15];
+            *s++ = (j >= sz) ? 0x30 : (uint8_t)hex[(v1->data[j] >> ((i & (2 * sizeof(bdigit_t) - 1)) * 4)) & 15];
         }
+        return &v->v;
     }
-    v->len = len;
-    v->chars = len;
-    v->data = s;
-    return &v->v;
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
