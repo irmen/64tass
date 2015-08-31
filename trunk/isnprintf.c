@@ -578,7 +578,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     } else if (none) {
         err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : epoint);
     }
-    str = new_str();
+    str = new_str(0);
     str->len = return_value.len;
     str->chars = return_value.chars;
     if (return_value.len > sizeof(str->val)) {

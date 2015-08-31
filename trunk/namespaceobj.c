@@ -152,27 +152,26 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                     val_destroy(v);
                     return NULL;
                 }
-                vals[i++] = &str->v;
+                vals[i++] = v;
                 n = avltree_next(n);
             }
         }
         tuple->len = i;
     }
-    str = new_str();
-    s = str_create_elements(str, ln);
-    ln = 0;
-    s[ln++] = '{';
+    str = new_str(ln);
+    str->chars = chars;
+    s = str->data;
+    *s++ = '{';
     for (j = 0; j < i; j++) {
         Str *str2 = (Str *)vals[j];
-        if (j) s[ln++] = ',';
-        memcpy(s + ln, str2->data, str2->len);
-        ln += str2->len;
+        if (j) *s++ = ',';
+        if (str2->len) {
+            memcpy(s, str2->data, str2->len);
+            s += str2->len;
+        }
     }
-    s[ln++] = '}';
+    *s = '}';
     if (tuple) val_destroy(&tuple->v);
-    str->data = s;
-    str->len = ln;
-    str->chars = chars;
     return &str->v;
 }
 

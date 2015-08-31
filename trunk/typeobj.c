@@ -58,20 +58,21 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     uint8_t *s;
     const char *name;
-    size_t ln;
+    size_t ln, ln2;
     if (!epoint) return NULL;
     name = v1->name;
     ln = strlen(name);
-    if (ln + 9 > maxsize) return NULL;
-    v = new_str();
-    v->len = ln + 9;
-    v->chars = v->len;
-    s = str_create_elements(v, v->len);
+    ln2 = ln + 9;
+    if (ln2 > maxsize) return NULL;
+    v = new_str(ln2);
+    v->chars = ln2;
+    s = v->data;
     memcpy(s, "<type '", 7);
-    memcpy(s + 7, name, ln);
-    memcpy(s + 7 + ln , "'>", 2);
-    v->data = s;
-    return (Obj *)v;
+    s += 7;
+    memcpy(s, name, ln);
+    s[ln] = '\'';
+    s[ln+1] = '>';
+    return &v->v;
 }
 
 static inline int tcmp(const Type *vv1, const Type *vv2) {

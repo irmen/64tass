@@ -100,31 +100,30 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     size_t i2, i;
     uint8_t *s, *s2;
     char q;
-    const char *prefix = "register(";
-    size_t ln = strlen(prefix) + 3, chars;
+    size_t chars;
     Str *v;
     i = str_quoting(v1->data, v1->len, &q);
 
-    i2 = i + ln;
-    if (i2 < ln) err_msg_out_of_memory(); /* overflow */
+    i2 = i + 12;
+    if (i2 < 12) err_msg_out_of_memory(); /* overflow */
     chars = i2 - (v1->len - v1->chars);
     if (chars > maxsize) return NULL;
-    v = new_str();
-    s2 = s = str_create_elements(v, i2);
+    v = new_str(i2);
+    v->chars = chars;
+    s = v->data;
 
-    while (*prefix) *s++ = *prefix++;
+    memcpy(s, "register(", 9);
+    s += 9;
     *s++ = q;
+    s2 = v1->data;
     for (i = 0; i < v1->len; i++) {
-        s[i] = v1->data[i];
+        s[i] = s2[i];
         if (s[i] == q) {
             s++; s[i] = q;
         }
     }
     s[i] = q;
     s[i+1] = ')';
-    v->data = s2;
-    v->len = i2;
-    v->chars = chars;
     return &v->v;
 }
 

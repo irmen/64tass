@@ -663,7 +663,7 @@ static void add_esc(const char *s, struct encoding_s *enc) {
     Str *tmp;
     Bytes *tmp2;
     struct linepos_s nopoint = {0, 0};
-    tmp = new_str();
+    tmp = new_str(0);
     tmp2 = new_bytes(1);
     tmp2->len = 1;
     while (s[1]) {

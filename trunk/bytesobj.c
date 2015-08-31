@@ -142,24 +142,20 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     len = 8 + len2 + (v1->len < 0);
     if (len < len2 || sz > SIZE_MAX / 2) err_msg_out_of_memory(); /* overflow */
     if (len > maxsize) return NULL;
-    v = new_str();
-    s = str_create_elements(v, len);
+    v = new_str(len);
+    v->chars = len;
+    s = v->data;
 
     memcpy(s, "bytes(", 6);
-    len = 6;
-    if (v1->len < 0) {
-        s[len++] = '~';
-    }
-    s[len++] = '$';
+    s += 6;
+    if (v1->len < 0) *s++ = '~';
+    *s++ = '$';
     for (i = 0;i < sz; i++) {
         b = v1->data[sz - i - 1];
-        s[len++] = hex[b >> 4];
-        s[len++] = hex[b & 0xf];
+        *s++ = hex[b >> 4];
+        *s++ = hex[b & 0xf];
     }
-    s[len++] = ')';
-    v->len = len;
-    v->chars = len;
-    v->data = s;
+    *s = ')';
     return &v->v;
 }
 

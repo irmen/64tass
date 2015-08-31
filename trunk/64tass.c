@@ -2114,7 +2114,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (tobool(vs, &writeit)) writeit = 0;
                     }
                     if (writeit) {
-                        size_t i, len = get_val_remaining(), len2 = 0;
+                        size_t i, len = get_val_remaining(), len2 = 0, chars = 0;
                         Str *v;
                         Obj **vals;
                         uint8_t *s;
@@ -2134,21 +2134,22 @@ Obj *compile(struct file_list_s *cflist)
                                     Str *str = (Str *)val;
                                     len2 += str->len;
                                     if (len2 < str->len) err_msg_out_of_memory(); /* overflow */
+                                    chars += str->chars;
                                 }
                             }
                             vals[i] = val;
                         }
                         tmp->len = i;
-                        v = new_str();
-                        v->data = s = str_create_elements(v, len2);
-                        len2 = 0;
+                        v = new_str(len2);
+                        v->chars = chars;
+                        s = v->data;
                         for (i = 0; i < len; i++) {
                             Str *str = (Str *)vals[i];
-                            memcpy(s + len2, str->data, str->len);
-                            len2 += str->len;
+                            if (str->len) {
+                                memcpy(s, str->data, str->len);
+                                s += str->len;
+                            }
                         }
-                        v->len = len2;
-                        v->chars = len2;
                         err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, v, &epoint);
                         val_destroy(&v->v);
                         val_destroy(&tmp->v);

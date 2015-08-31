@@ -159,12 +159,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         if (len) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0]='0';len = 1;}
         if (len > maxsize) return NULL;
-        v = new_str();
-        s = str_create_elements(v, len);
-        memcpy(s, tmp2, len);
-        v->data = s;
-        v->len = len;
+        v = new_str(len);
         v->chars = len;
+        memcpy(v->data, tmp2, len);
         return &v->v;
     }
 
@@ -202,9 +199,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         if (tmp.val != out) free(out);
         return NULL;
     }
-    v = new_str();
-    s = str_create_elements(v, slen);
-    s += slen;
+    v = new_str(slen);
+    v->chars = slen;
+    s = v->data + slen;
     for (i = 0; i < sz; i++) {
         r = out[i];
         for (j = 0; j < DSHIFT; j++) {
@@ -220,10 +217,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     if (neg) *--s = '-';
 
     if (tmp.val != out) free(out);
-
-    v->data = s;
-    v->len = slen;
-    v->chars = v->len;
     return &v->v;
 }
 

@@ -371,8 +371,9 @@ static void err_msg_variable(Obj *val, linepos_t epoint) {
     Obj *err = val->obj->repr(val, epoint, 40);
     if (err) {
         if (err->obj == STR_OBJ) {
+            Str *str = (Str *)err;
             adderror(" '");
-            adderror2(((Str *)err)->data, ((Str *)err)->len);
+            adderror2(str->data, str->len);
             adderror("'");
         } else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
         val_destroy(err);
