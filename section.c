@@ -44,6 +44,7 @@ static void section_free(struct avltree_node *aa)
     free((uint8_t *)a->name.data);
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, section_free);
+    longjump_destroy(&a->longjump);
     destroy_memblocks(&a->mem);
     if (a->l_address_val) val_destroy(a->l_address_val);
     free(a);
