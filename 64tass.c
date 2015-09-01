@@ -414,36 +414,85 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
     Obj *val2;
     uval_t uval;
     int warn = 0;
-    if (val->obj == STR_OBJ) {
-        Obj *tmp;
-        enum bytes_mode_e m;
-        switch (prm) {
-        case CMD_SHIFTL:
-        case CMD_SHIFT: m = BYTES_MODE_SHIFT_CHECK; break;
-        case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
-        default: m = BYTES_MODE_TEXT; break;
+    switch (val->obj->type) {
+    case T_STR:
+        {
+            Obj *tmp;
+            enum bytes_mode_e m;
+            switch (prm) {
+            case CMD_SHIFTL:
+            case CMD_SHIFT: m = BYTES_MODE_SHIFT_CHECK; break;
+            case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
+            default: m = BYTES_MODE_TEXT; break;
+            }
+            tmp = bytes_from_str((Str *)val, epoint2, m);
+            iter = tmp->obj->getiter(tmp);
+            val_destroy(tmp);
+            break;
         }
-        tmp = bytes_from_str((Str *)val, epoint2, m);
-        iter = tmp->obj->getiter(tmp);
-        val_destroy(tmp);
-    } else if (val->obj == BITS_OBJ) {
-        Obj *tmp = BYTES_OBJ->create(val, epoint2);
-        iter = tmp->obj->getiter(tmp);
-        val_destroy(tmp);
-    } else iter = val->obj->getiter(val);
+    case T_BITS:
+        {
+            Obj *tmp;
+            size_t bits = ((Bits *)val)->bits;
+            if (bits == 0) return warn;
+            if (bits <= 8) {
+                iter = NULL;
+                val2 = val;
+                goto doit;
+            }
+            tmp = BYTES_OBJ->create(val, epoint2);
+            iter = tmp->obj->getiter(tmp);
+            val_destroy(tmp);
+            break;
+        }
+    case T_BYTES: 
+        {
+            ssize_t len = ((Bytes *)val)->len;
+            if (len < 0) len = ~len;
+            if (len == 0) return warn;
+            if (len == 1) {
+                iter = NULL;
+                val2 = val;
+                goto doit;
+            }
+        }
+        /* fall through */
+    default:
+        iter = val->obj->getiter(val);
+    }
 
     while ((val2 = iter->v.obj->next(iter))) {
         switch (val2->obj->type) {
+        case T_BITS:
+            {
+                size_t bits = ((Bits *)val2)->bits;
+                if (bits == 0) break;
+                if (bits <= 8) goto doit;
+            }
+            /* fall through */
         case T_LIST:
         case T_TUPLE:
-        case T_STR: warn |= textrecursion(val2, prm, ch2, uninit, sum, epoint2); break;
+        case T_STR: 
+        rec:
+            warn |= textrecursion(val2, prm, ch2, uninit, sum, epoint2); 
+            break;
         case T_GAP:
             if (*ch2 >= 0) {
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
-            *ch2 = -1; (*uninit)++; break;
+            *ch2 = -1; (*uninit)++; 
+            break;
+        case T_BYTES:
+            {
+                ssize_t len = ((Bytes *)val2)->len;
+                if (len < 0) len = ~len;
+                if (len == 0) break;
+                if (len > 1) goto rec;
+            }
+            /* fall through */
         default:
+        doit:
             if (*ch2 >= 0) {
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
@@ -465,6 +514,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
                 *ch2 = uval & 0xff;
                 break;
             }
+            if (!iter) return warn;
             break;
         case T_NONE:
             warn = 1;

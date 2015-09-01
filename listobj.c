@@ -176,7 +176,8 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
 
 static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize) {
     Tuple *v1 = (List *)o1;
-    size_t i, len = (o1->obj == ADDRLIST_OBJ || o1->obj == COLONLIST_OBJ) ? 0 : 2, chars = len;
+    int tupleorlist = (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ);
+    size_t i, len = tupleorlist ? 2 : 0, chars = len;
     List *list = NULL;
     Obj **vals = NULL, *val;
     Str *v;
@@ -185,11 +186,10 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     if (llen) {
         list = new_tuple();
         list->data = vals = lnew(list, llen);
-        i = llen;
-        if (i && (o1->obj != TUPLE_OBJ)) i--;
+        i = llen - (llen != 1 || o1->obj != TUPLE_OBJ);
         len += i;
         if (len < i) err_msg_out_of_memory(); /* overflow */
-        chars += i;
+        chars = len;
         if (chars > maxsize) {
             list->len = 0;
             val_destroy(&list->v);
@@ -219,7 +219,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     v = new_str(len);
     v->chars = chars;
     s = v->data;
-    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) *s++ = (o1->obj == LIST_OBJ) ? '[' : '(';
+    if (tupleorlist) *s++ = (o1->obj == LIST_OBJ) ? '[' : '(';
     for (i = 0; i < llen; i++) {
         Str *str = (Str *)vals[i];
         if (i) *s++ = (o1->obj == COLONLIST_OBJ) ? ':' : ',';
@@ -228,8 +228,8 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
             s += str->len;
         }
     }
-    if (i == 1 && (o1->obj == TUPLE_OBJ)) *s++ = ',';
-    if (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ) *s = (o1->obj == LIST_OBJ) ? ']' : ')';
+    if (i == 1 && o1->obj == TUPLE_OBJ) *s++ = ',';
+    if (tupleorlist) *s = (o1->obj == LIST_OBJ) ? ']' : ')';
     if (list) val_destroy(&list->v);
     return &v->v;
 }
