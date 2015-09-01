@@ -430,11 +430,21 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
             val_destroy(tmp);
             break;
         }
+    case T_FLOAT:
+    case T_INT:
+    case T_BOOL:
+    case T_CODE:
+        iter = NULL;
+        val2 = val;
+        goto doit;
+    case T_GAP:
+        iter = NULL;
+        goto dogap;
     case T_BITS:
         {
             Obj *tmp;
             size_t bits = ((Bits *)val)->bits;
-            if (bits == 0) return warn;
+            if (bits == 0) return 0;
             if (bits <= 8) {
                 iter = NULL;
                 val2 = val;
@@ -445,11 +455,13 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
             val_destroy(tmp);
             break;
         }
-    case T_BYTES: 
+    case T_NONE:
+        return 1;
+    case T_BYTES:
         {
             ssize_t len = ((Bytes *)val)->len;
             if (len < 0) len = ~len;
-            if (len == 0) return warn;
+            if (len == 0) return 0;
             if (len == 1) {
                 iter = NULL;
                 val2 = val;
@@ -472,16 +484,18 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
             /* fall through */
         case T_LIST:
         case T_TUPLE:
-        case T_STR: 
+        case T_STR:
         rec:
             warn |= textrecursion(val2, prm, ch2, uninit, sum, epoint2); 
             break;
         case T_GAP:
+        dogap:
             if (*ch2 >= 0) {
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
             *ch2 = -1; (*uninit)++; 
+            if (!iter) return warn;
             break;
         case T_BYTES:
             {
@@ -532,14 +546,29 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
     uval_t uv;
     ival_t iv;
     int warn = 0;
-    if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) iter = val->obj->getiter(val);
-    else iter = invalid_getiter(val);
+    Type *type = val->obj;
+    if (type != LIST_OBJ && type != TUPLE_OBJ) {
+        if (type == GAP_OBJ) {
+            *uninit += abs(bits) / 8;
+            return 0;
+        }
+        iter = NULL;
+        if (type == NONE_OBJ) goto donone;
+        val2 = val;
+        goto doit;
+    }
+    iter = type->getiter(val);
     while ((val2 = iter->v.obj->next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
-        case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); val_destroy(val2); continue;
-        case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
+        case T_TUPLE:
+            warn |= byterecursion(val2, prm, uninit, bits, epoint); val_destroy(val2);
+            continue;
+        case T_GAP:
+            *uninit += abs(bits) / 8; val_destroy(val2);
+            continue;
         default:
+        doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am;
                 if (toaddress(val2, &uv, 24, &am, epoint)) ch2 = 0;
@@ -572,6 +601,7 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
             }
             break;
         case T_NONE:
+        donone:
             warn = 1;
             ch2 = 0;
         }
@@ -580,6 +610,7 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
         if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
         if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
         if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+        if (!iter) return warn;
         val_destroy(val2);
     }
     val_destroy(&iter->v);
