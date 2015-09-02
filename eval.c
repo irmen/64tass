@@ -1102,7 +1102,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
         case O_SPLAT:   /* *  */
-            {
+            if (i + 1 < ev->outp) {
                 Obj *o = ev->o_out[i + 1].val;
                 if (o != &o_PARENT.v && o != &o_BRACKET.v && o != &o_BRACE.v && o != &o_FUNC.v && o != &o_INDEX.v && o != &o_COMMA.v) {
                     err_msg2(ERROR_EXPRES_SYNTAX, NULL, &o_out->epoint);
