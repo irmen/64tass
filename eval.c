@@ -1380,8 +1380,9 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '"':
         case '\'': push_oper(get_string(), &epoint);goto other;
         case '?': 
-            if (operp) { 
-                if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
+            if (operp) {
+                const Oper *o = o_oper[operp - 1].val;
+                if (o == &o_SPLAT || o == &o_POS || o == &o_NEG) goto tryanon;
             }
             lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
         case '.': if ((pline[lpoint.pos+1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
