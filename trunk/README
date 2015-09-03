@@ -1,4 +1,4 @@
-64tass v1.51 r944 manual
+64tass v1.51 r992 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -46,6 +46,7 @@ Table of Contents
           o Local symbols
           o Anonymous symbols
           o Constant and re-definable symbols
+          o The star label
       + Built-in functions
           o Mathematical functions
           o Other functions
@@ -842,6 +843,12 @@ var2    := 1            ;another variable
         .byte variabl
 variabl .var variabl+1  ;increment it
         .next
+
+The star label
+
+The `*' symbol denotes the current program counter value. When accessed it's
+value is the program counter at the beginning of the line. Assigning to it
+changes the program counter and the compiling offset.
 
 Built-in functions
 
