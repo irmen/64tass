@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r944 manual</title>
+<title>64tass v1.51 r992 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -85,7 +85,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.51 r944 manual</h1>
+<h1>64tass v1.51 r992 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -135,6 +135,7 @@ Not everything is backwards compatible.</b></p>
    <li><a href="#symbols-local">Local symbols</a>
    <li><a href="#symbols-anonymous">Anonymous symbols</a>
    <li><a href="#symbols-constant">Constant and re-definable symbols</a>
+   <li><a href="#star">The star label</a>
   </ul>
   <li><a href="#builtin-functions">Built-in functions</a>
   <ul>
@@ -1067,6 +1068,13 @@ variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i
 	<b class="k">.next</b>
 </pre>
 
+<h4>The star label<a name="star" href="#star"></a></h4>
+
+<p>The <q><code>&lowast;</code></q> symbol denotes the current program
+counter value. When accessed it's value is the program counter at the
+beginning of the line. Assigning to it changes the program counter and
+the compiling offset.</p>
+
 <h3>Built-in functions<a name="builtin-functions" href="#builtin-functions"></a></h3>
 
 <p>Builting functions are assigned to the symbols listed below. If you reuse these
@@ -1512,7 +1520,7 @@ processor.</p>
 but it does not need to be.</p>
 
 <dl class="dir">
-<dt><code><b>&lowast;=</b></code> &lt;expression&gt;
+<dt><code><b><a name="d_star">&lowast;=</a></b></code> &lt;expression&gt;
 <dd>The compile offset is adjusted so that the program counter
 will match the requested address in the expression.
 <pre width=80>

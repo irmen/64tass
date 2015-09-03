@@ -409,11 +409,13 @@ void var_assign(Label *label, Obj *val, int fix) {
     fixeddig = fix;
 }
 
-static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, linepos_t epoint2) {
+static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max, linepos_t epoint2) {
     Iter *iter;
     Obj *val2;
     uval_t uval;
     int warn = 0;
+
+    if (*sum >= max) return 0;
     switch (val->obj->type) {
     case T_STR:
         {
@@ -486,7 +488,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
         case T_TUPLE:
         case T_STR:
         rec:
-            warn |= textrecursion(val2, prm, ch2, uninit, sum, epoint2); 
+            warn |= textrecursion(val2, prm, ch2, uninit, sum, max, epoint2);
             break;
         case T_GAP:
         dogap:
@@ -494,7 +496,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
-            *ch2 = -1; (*uninit)++; 
+            *ch2 = -1; (*uninit)++;
             if (!iter) return warn;
             break;
         case T_BYTES:
@@ -534,6 +536,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
             warn = 1;
         }
         val_destroy(val2);
+        if (*sum >= max) break;
     }
     val_destroy(&iter->v);
     return warn;
@@ -824,7 +827,7 @@ Obj *compile(struct file_list_s *cflist)
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
             switch (wht) {
             case ':':
-                if (pline[lpoint.pos+1] == '=') {
+                if (pline[lpoint.pos+1] == '=' && !arguments.tasmcomp) {
                     if (labelname.data[0] == '*') {
                         lpoint.pos++;
                         goto starassign;
@@ -836,17 +839,17 @@ Obj *compile(struct file_list_s *cflist)
                 break;
             case '>':
             case '<':
-                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=') {
+                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=' && !arguments.tasmcomp) {
                     goto shifting;
                 }
                 break;
             case 'X':
-                if (arguments.caseinsensitive && pline[lpoint.pos+1] == '=') {
+                if (arguments.caseinsensitive && pline[lpoint.pos+1] == '=' && !arguments.tasmcomp) {
                     goto reptop;
                 }
                 break;
             case '*':
-                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=') {
+                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=' && !arguments.tasmcomp) {
                     wht = '=';
                     goto shifting;
                 }
@@ -859,7 +862,7 @@ Obj *compile(struct file_list_s *cflist)
             case '|':
             case '&':
             case '^':
-                if (pline[lpoint.pos+1] == '=') {
+                if (pline[lpoint.pos+1] == '=' && !arguments.tasmcomp) {
                     Label *label;
                     int oldreferenceit;
                     struct oper_s tmp;
@@ -1434,11 +1437,19 @@ Obj *compile(struct file_list_s *cflist)
         case '>':
         case '<':
         case '*':
-            if (pline[lpoint.pos+1] != wht || pline[lpoint.pos+2] != '=') {
-                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+            if (waitfor->skip & 1) {
+                if (pline[lpoint.pos+1] != wht || pline[lpoint.pos+2] != '=' || arguments.tasmcomp) {
+                    if (arguments.tasmcomp && wht == '*') {
+                        lpoint.pos++;ignore();
+                        if (here() == '=') {
+                            labelname.data = (const uint8_t *)"*";labelname.len = 1;
+                            goto starassign;
+                        }
+                    }
+                    err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+                } else err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                 goto breakerr;
             }
-            if (waitfor->skip & 1) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
             break;
         case '+':
         case '-':
@@ -1448,9 +1459,11 @@ Obj *compile(struct file_list_s *cflist)
         case '&':
         case '^':
         case ':':
-            if (pline[lpoint.pos+1] != '=') {
-                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
-                goto breakerr;
+            if (waitfor->skip & 1) {
+                if (pline[lpoint.pos+1] != '=' || arguments.tasmcomp) {
+                    err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+                    goto breakerr;
+                }
             }
             /* fall through */
         case '=':
@@ -1814,7 +1827,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         i = get_val_remaining();
                         while ((vs = get_val())) {
-                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
+                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
                             if (!--i) epoint2 = vs->epoint;
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
@@ -2092,39 +2105,23 @@ Obj *compile(struct file_list_s *cflist)
                         if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db) memskip(db);}
                         else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); if (db) memskip(db);}
                         else {
-                            Iter *iter;
-                            Obj *val2;
                             size_t uninit = 0, sum = 0;
                             size_t memp, membp;
+                            int ch2=-1;
                             get_mem(&current_section->mem, &memp, &membp);
 
-                            if (val->obj == STR_OBJ) {
-                                Obj *tmp = bytes_from_str((Str *)val, &vs->epoint, BYTES_MODE_TEXT);
-                                iter = tmp->obj->getiter(tmp);
-                                val_destroy(tmp);
-                            } else iter = val->obj->getiter(val);
-
-                            while (db && ((val2 = iter->v.obj->next(iter)))) {
-                                db--;
-                                switch (val2->obj->type) {
-                                case T_GAP:uninit++; break;
-                                default:
-                                           if (touval(val2, &uval, 8, &vs->epoint)) uval = 0;
-                                           if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
-                                           pokeb(uval); sum++;
-                                           break;
-                                case T_NONE:
-                                           err_msg_still_none(NULL, &vs->epoint);
-                                           uninit++;
-                                }
-                                val_destroy(val2);
-                            }
-                            val_destroy(&iter->v);
+                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
                             sum += uninit;
+                            if (ch2 >= 0 && sum < db) {
+                                pokeb(ch2); sum++;
+                            }
+
+                            db -= sum;
                             if (db) {
                                 if (sum == 1 && uninit == 0) {
-                                    while (db--) pokeb(uval); /* single byte shortcut */
+                                    while (db--) pokeb(ch2); /* single byte shortcut */
                                 } else if (sum == uninit) {
+                                    if (!sum) err_msg2(ERROR__BYTES_NEEDED, NULL, &vs->epoint);
                                     uninit += db; /* gap shortcut */
                                 } else {
                                     size_t offs = 0;
