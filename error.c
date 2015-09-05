@@ -361,6 +361,7 @@ static const char *terr_fatal[]={
     "can't write object file ",
     "can't write listing file ",
     "can't write label file ",
+    "can't write make file ",
     "file recursion",
     "macro recursion too deep",
     "function recursion too deep",

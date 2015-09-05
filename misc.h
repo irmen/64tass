@@ -45,6 +45,7 @@ struct arguments_s {
     const struct cpu_s *cpumode;
     const char *label;
     const char *list;
+    const char *make;
     enum output_mode_e output_mode;
     uint8_t tab_size;
     enum label_mode_e label_mode;

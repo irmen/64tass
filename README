@@ -2559,6 +2559,12 @@ Operation options
     specified by repeating this option. If multiple matches exist the first one
     is used.
 
+-M <file>
+    Specify make rule output file
+
+    Writes a dependency rule suitable for `make' from the list of files used
+    during compilation.
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
