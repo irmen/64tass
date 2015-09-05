@@ -734,6 +734,12 @@ void err_msg_shadow_defined(Label *l, Label *l2) {
     err_msg_double_defined2("shadow definition", l->file_list, &l->epoint, l2->file_list, &l2->name, &l2->epoint);
 }
 
+void err_msg_shadow_defined2(Label *l) {
+    new_error_msg(SV_DOUBLEERROR, l->file_list, &l->epoint);
+    adderror("shadow definition of built-in");
+    str_name(l->name.data, l->name.len);
+}
+
 void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {
     if (v1->obj == ERROR_OBJ) {
         err_msg_output((Error *)v1);

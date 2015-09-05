@@ -100,8 +100,13 @@ one is used.
 .TP 0.5i
 \fB\-M\fR \fIfile\fR
 Specify make rule output \fIfile\fR.
-Writes a dependency rule suitable for `make' from the list of files
+Writes a dependency rule suitable for 'make' from the list of files
 used during compilation.
+.TP 0.5i
+\fB--shadow-check\fR
+Enable symbol shadowing check.
+Makes local variables 'shadowing' other variables in upper scopes an
+error if they are used in a way which is ambiguous.
 .TP 0.5i
 \fB\-\-m65xx\fR
 Standard 65xx (default). For writing compatible code, no extra codes.

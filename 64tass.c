@@ -3308,7 +3308,7 @@ static int main2(int argc, char *argv[]) {
             exitfile();
         }
         /*garbage_collect();*/
-        if (fixeddig && !constcreated) shadow_check(root_namespace);
+        if (arguments.shadow_check && fixeddig && !constcreated) shadow_check(root_namespace);
         if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
     } while (!fixeddig || constcreated);
 

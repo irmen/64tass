@@ -2565,6 +2565,19 @@ Operation options
     Writes a dependency rule suitable for `make' from the list of files used
     during compilation.
 
+--shadow-check
+    Enable symbol shadowing check
+
+    Makes local variables `shadowing' other variables in upper scopes an error
+    if they are used in a way which is ambiguous.
+
+    bl      .block
+    a       .byte 2         ;'a' is a built-in register
+    x       .byte 2         ;'x' is a built-in register
+            asl a           ; accumulator or the byte above?
+            .end
+            asl bl.x        ; not ambiguous
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
@@ -2886,6 +2899,8 @@ requirements not met
     Not all features are provided, at least one is missing
 reserved symbol name '?'
     do not use this symbol name
+shadow definition
+    symbol is defined in an upper scope and is used ambiguously
 square root of negative number
     can't calculate the square root of a negative number
 too early to reference
