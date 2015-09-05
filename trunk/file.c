@@ -301,7 +301,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 free((char *)path);
                 return NULL;
             }
-            if (ftype) {
+            if (ftype == 1) {
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
                     printf("Reading file:      ");
                     argv_print(tmp->realname, stdout);
@@ -587,7 +587,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     } else {
         free((char *)base2);
         tmp = avltree_container_of(b, struct file_s, node);
-        if (tmp->type != ftype) err_msg_file(ERROR__READING_FILE, name, epoint);
+        if ((tmp->type == 1) != (ftype == 1)) err_msg_file(ERROR__READING_FILE, name, epoint);
     }
     tmp->open++;
     return tmp;
@@ -655,3 +655,47 @@ void init_file(void) {
     lastst = &stars->stars[starsp];
 }
 
+void makefile(int argc, char *argv[]) {
+    FILE *f;
+    struct linepos_s nopoint = {0, 0};
+    struct avltree_node *n;
+    size_t len;
+    int i;
+
+    if (arguments.make[0] == '-' && !arguments.make[1]) {
+        f = stdout;
+    } else {
+        if (!(f = file_open(arguments.make, "wt"))) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+    }
+    clearerr(f);
+    len = argv_print(arguments.output + strlen(get_path(NULL, arguments.output)), f) + 1;
+    putc(':', f);
+
+    for (i = 0; i < argc; i++) {
+        if (len > 64) {
+            fputs(" \\\n", f);
+            len = 0;
+        }
+        putc(' ', f);
+        len += argv_print(argv[i], f) + 1;
+    }
+
+    n = avltree_first(&file_tree);
+    while (n) {
+        const struct file_s *a = cavltree_container_of(n, struct file_s, node);
+        if (a->type) {
+            if (len > 64) {
+                fputs(" \\\n", f);
+                len = 0;
+            }
+            putc(' ', f);
+            len += argv_print(a->realname, f) + 1;
+        }
+        n = avltree_next(n);
+    }
+    putc('\n', f);
+
+    if (f == stdout) fflush(f);
+    if (ferror(f) && errno) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+    if (f != stdout) fclose(f);
+}

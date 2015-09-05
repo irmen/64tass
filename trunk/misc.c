@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -166,7 +166,7 @@ void tinit(void) {
 }
 
 /* ------------------------------------------------------------------ */
-static const char *short_options= "wqnbfXaTCBicxtel:L:I:msV?o:D:";
+static const char *short_options= "wqnbfXaTCBicxtel:L:I:M:msV?o:D:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},
@@ -194,6 +194,7 @@ static const struct option long_options[]={
     {"vice-labels"      , no_argument      , 0,  0x10b},
     {"list"             , required_argument, 0, 'L'},
     {""                 , required_argument, 0, 'I'},
+    {""                 , required_argument, 0, 'M'},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
     {"no-caret-diag"    , no_argument      , 0,  0x10a},
@@ -256,6 +257,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'l': arguments.label = optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
             case 'L': arguments.list = optarg;break;
+            case 'M': arguments.make = optarg;break;
             case 'I': include_list_add(optarg);break;
             case 'm': arguments.monitor = 0;break;
             case 's': arguments.source = 0;break;
@@ -264,7 +266,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
-               "        [-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
+               "        [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii] [--nostart]\n"
                "        [--long-branch] [--case-sensitive] [--flat] [--atari-xex] [--apple-ii]\n"
                "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
@@ -285,6 +287,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -C, --case-sensitive  Case sensitive labels\n"
                "  -D <label>=<value>    Define <label> to <value>\n"
                "  -I <path>             Include search path\n"
+               "  -M <file>             Makefile dependencies to <file>\n"
                "  -q, --quiet           Display errors/warnings\n"
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"

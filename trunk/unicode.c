@@ -358,7 +358,8 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     s1->data = dd;
 }
 
-void argv_print(const char *line, FILE *f) {
+size_t argv_print(const char *line, FILE *f) {
+    size_t len = 0;
 #ifdef _WIN32
     size_t i = 0, back;
     int quote = 0, space = 0;
@@ -375,8 +376,8 @@ void argv_print(const char *line, FILE *f) {
     }
 
     if (space) {
-        if (quote) putc('^', f);
-        putc('"', f);
+        if (quote) {len++;putc('^', f);}
+        len++;putc('"', f);
     }
     i = 0; back = 0;
     for (;;) {
@@ -384,16 +385,19 @@ void argv_print(const char *line, FILE *f) {
         if (ch & 0x80) {
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch)) {
+                int ln2;
                 char tmp[64];
                 memcpy(tmp, line + i, ln);
                 tmp[ln] = 0;
-                if (fwprintf(f, L"%S", tmp) > 0) {
+                ln2 = fwprintf(f, L"%S", tmp);
+                if (ln2 > 0) {
                     i += ln;
+                    len += ln2;
                     continue;
                 }
             }
             i += ln;
-            putc('?', f);
+            len++;putc('?', f);
             continue;
         }
         if (ch == 0) break;
@@ -401,35 +405,35 @@ void argv_print(const char *line, FILE *f) {
         if (ch == '\\') {
             back++;
             i++;
-            putc('\\', f);
+            len++;putc('\\', f);
             continue;
         }
         if (!space || quote) {
             if (strchr("()%!^<>&|\"", ch)) {
                 if (ch == '"') {
-                    while (back--) putc('\\', f);
-                    putc('\\', f);
+                    while (back--) {len++;putc('\\', f);}
+                    len++;putc('\\', f);
                 }
-                putc('^', f);
+                len++;putc('^', f);
             }
         } else {
             if (ch == '%') {
-                putc('^', f);
+                len++;putc('^', f);
             }
         }
         back = 0;
 
         i++;
         if (!isprint(ch)) {
-            putc('?', f);
+            len++;putc('?', f);
             continue;
         }
-        putc(ch, f);
+        len++;putc(ch, f);
     }
     if (space) {
-        while (back--) putc('\\', f);
-        if (quote) putc('^', f);
-        putc('"', f);
+        while (back--) {len++;putc('\\', f);}
+        if (quote) {len++;putc('^', f);}
+        len++;putc('"', f);
     }
 #else
     size_t i;
@@ -440,17 +444,18 @@ void argv_print(const char *line, FILE *f) {
         else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]);
     }
     if (line[i]) quote = 0;
-    if (quote) putc('"', f);
+    if (quote) {len++;putc('"', f);}
     else {
         switch (line[0]) {
         case '~':
-        case '#': putc('\\', f); break;
+        case '#': len++;putc('\\', f); break;
         }
     }
     i = 0;
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
         if (ch & 0x80) {
+            int ln2;
             i += utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch)) {
                 mbstate_t ps;
@@ -459,32 +464,35 @@ void argv_print(const char *line, FILE *f) {
                 memset(&ps, 0, sizeof(ps));
                 ln = wcrtomb(temp, ch, &ps);
                 if (ln != (size_t)-1) {
-                    fwrite(temp, ln, 1, f);
+                    len += fwrite(temp, ln, 1, f);
                     continue;
                 }
             }
-            fprintf(f, ch < 0x10000 ? "$'\\u%" PRIx32 "'" : "$'\\U%" PRIx32 "'", ch);
+            ln2 = fprintf(f, ch < 0x10000 ? "$'\\u%" PRIx32 "'" : "$'\\U%" PRIx32 "'", ch);
+            if (ln2 > 0) len += ln2;
             continue;
         }
         if (ch == 0) break;
 
         if (quote) {
-            if (strchr("$`\"\\", ch)) putc('\\', f);
+            if (strchr("$`\"\\", ch)) {len++;putc('\\', f);}
         } else {
             if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch)) {
-                putc('\\', f);
+                len++;putc('\\', f);
             }
         }
 
         i++;
         if (!isprint(ch)) {
-            fprintf(f, "$'\\x%" PRIx32 "'", ch);
+            int ln = fprintf(f, "$'\\x%" PRIx32 "'", ch);
+            if (ln > 0) len += ln;
             continue;
         }
-        putc(ch, f);
+        len++;putc(ch, f);
     }
-    if (quote) putc('"', f);
+    if (quote) {len++;putc('"', f);}
 #endif
+    return len;
 }
 
 void printable_print(const uint8_t *line, FILE *f) {

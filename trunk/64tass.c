@@ -2518,7 +2518,7 @@ Obj *compile(struct file_list_s *cflist)
                     path = get_path((Str *)val, cfile->realname);
                     if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
-                    f = openfile(path, cfile->realname, 0, (Str *)val, &epoint);
+                    f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
                     free((char *)path);
                     if (f->open>1) {
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
@@ -3360,6 +3360,7 @@ static int main2(int argc, char *argv[]) {
     set_cpumode(arguments.cpumode);
 
     if (arguments.label) labelprint();
+    if (arguments.make) makefile(argc - opts, argv + opts);
 
     fixeddig = 1; constcreated = 0;
     if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
