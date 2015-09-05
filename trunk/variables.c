@@ -414,46 +414,60 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *e
 }
 
 void shadow_check(Namespace *members) {
-    const struct avltree_node *n, *b;
-    const struct namespacekey_s *l;
+    const struct avltree_node *n;
 
-    return; /* this works, but needs an option to enable */
+    for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
+        const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
+        Label *key2 = l->key;
+        Obj *o  = key2->value;
+        Namespace *ns;
 
-    n = avltree_first(&members->members);
-    while (n) {
-        l = cavltree_container_of(n, struct namespacekey_s, node);            /* already exists */
-        switch (l->key->value->obj->type) {
+        switch (o->obj->type) {
         case T_CODE:
-            push_context(((Code *)l->key->value)->names);
-            shadow_check(((Code *)l->key->value)->names);
-            pop_context();
+            ns = ((Code *)o)->names;
             break;
         case T_UNION:
         case T_STRUCT:
-            push_context(((Struct *)l->key->value)->names);
-            shadow_check(((Struct *)l->key->value)->names);
-            pop_context();
+            ns = ((Struct *)o)->names;
             break;
         case T_NAMESPACE:
-            push_context((Namespace *)l->key->value);
-            shadow_check((Namespace *)l->key->value);
-            pop_context();
+            ns = (Namespace *)o;
             break;
-        default: break;
+        default: 
+            ns = NULL;
+            break;
         }
-        n = avltree_next(n);
-        if (l->key->shadowcheck) {
+        if (ns && ns->len) {
+            size_t ln = ns->len;
+            ns->len = 0;
+            push_context(ns);
+            shadow_check(ns);
+            pop_context();
+            ns->len = ln;
+        }
+        if (key2->shadowcheck) {
+            const struct avltree_node *b;
             size_t p = context_stack.p;
+            Obj *o2 = key2->value;
             while (context_stack.bottom < p) {
                 b = avltree_lookup(&l->node, &context_stack.stack[--p].normal->members, label_compare);
                 if (b) {
-                    const struct namespacekey_s *l2, *v1, *v2;
-                    v1 = l2 = cavltree_container_of(b, struct namespacekey_s, node);
-                    v2 = l;
-                    if (v1->key->value != v2->key->value && !v1->key->value->obj->same(v1->key->value, v2->key->value)) {
-                        err_msg_shadow_defined(l2->key, l->key);
+                    const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
+                    Label *key1 = l2->key;
+                    Obj *o1 = key1->value;
+                    if (o1 != o2 && !o1->obj->same(o1, o2)) {
+                        err_msg_shadow_defined(key1, key2);
                         break;
                     }
+                }
+            }
+            b = avltree_lookup(&l->node, &builtin_namespace->members, label_compare);
+            if (b) {
+                const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
+                Label *key1 = l2->key;
+                Obj *o1 = key1->value;
+                if (o1 != o2 && !o1->obj->same(o1, o2)) {
+                    err_msg_shadow_defined2(key2);
                 }
             }
         }

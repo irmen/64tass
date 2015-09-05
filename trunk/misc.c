@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -192,6 +192,7 @@ static const struct option long_options[]={
     {"mw65c02"          , no_argument      , 0,  0x105},
     {"labels"           , required_argument, 0, 'l'},
     {"vice-labels"      , no_argument      , 0,  0x10b},
+    {"shadow-check"     , no_argument      , 0,  0x10c},
     {"list"             , required_argument, 0, 'L'},
     {""                 , required_argument, 0, 'I'},
     {""                 , required_argument, 0, 'M'},
@@ -256,6 +257,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x105: arguments.cpumode = &w65c02;break;
             case 'l': arguments.label = optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
+            case 0x10c: arguments.shadow_check = 1; break;
             case 'L': arguments.list = optarg;break;
             case 'M': arguments.make = optarg;break;
             case 'I': include_list_add(optarg);break;
@@ -271,8 +273,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
                "        [--mr65c02] [--mw65c02] [--m65ce02] [--labels=<file>] [--vice-labels]\n"
-               "        [--list=<file>] [--no-monitor] [--no-source] [--tab-size=<value>]\n"
-               "        [--help] [--usage] [--version] SOURCES");
+               "        [--shadow-check] [--list=<file>] [--no-monitor] [--no-source]\n"
+               "        [--tab-size=<value>] [--help] [--usage] [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -292,6 +294,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"
                "      --no-caret-diag   Suppress source line display\n"
+               "      --shadow-check    Check symbol shadowing\n"
                "\n"
                " Output selection:\n"
                "  -o <file>             Place output into <file>\n"

@@ -3008,6 +3008,20 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 <dt><b>-M</b> &lt;file&gt;
 <dd>Specify make rule output file
 <p>Writes a dependency rule suitable for <q>make</q> from the list of files used during compilation.</p>
+
+<dt><b>--shadow-check</b>
+<dd>Enable symbol shadowing check
+<p>Makes local variables <q>shadowing</q> other variables in upper scopes an
+error if they are used in a way which is ambiguous.</p>
+
+<pre width=80>
+bl      <b class="k">.block</b>
+a       <b class="d">.byte</b> <span>2</span>         <i>;'a' is a built-in register</i>
+x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in register</i>
+        <b>asl</b> <u>a</u>           <i>; accumulator or the byte above?</i>
+        <b class="k">.end</b>
+        <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
+</pre>
 </dl>
 
 <h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>
@@ -3284,6 +3298,7 @@ will display without them.</p>
 <dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
 <dt>requirements not met<dd>Not all features are provided, at least one is missing
 <dt>reserved symbol name '?'<dd>do not use this symbol name
+<dt>shadow definition<dd>symbol is defined in an upper scope and is used ambiguously
 <dt>square root of negative number<dd>can't calculate the square root of a negative number
 <dt>too early to reference<dd>processing still ongoing, can't access this yet
 <dt>unknown processor '?'<dd>unknown cpu name
