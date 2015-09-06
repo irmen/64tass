@@ -437,7 +437,7 @@ void shadow_check(Namespace *members) {
             ns = NULL;
             break;
         }
-        if (ns && ns->len) {
+        if (ns && ns->len && key2->owner) {
             size_t ln = ns->len;
             ns->len = 0;
             push_context(ns);
@@ -581,6 +581,7 @@ void new_builtin(const char *ident, Obj *val) {
     name.data = (const uint8_t *)ident;
     label = new_label(&name, builtin_namespace, 0, &label_exists);
     label->constant = 1;
+    label->owner = 1;
     label->value = val;
     label->file_list = NULL;
     label->epoint = nopoint;

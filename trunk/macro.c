@@ -394,10 +394,12 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
             if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
                 label->constant = 1;
+                label->owner = 0;
                 var_assign(label, val, 0);
             }
         } else {
             label->constant = 1;
+            label->owner = 0;
             label->value = val_reference(val);
             label->file_list = mfunc->file_list;
             label->epoint = mfunc->param[i].epoint;
@@ -639,10 +641,12 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
             if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint);
             else {
                 label->constant = 1;
+                label->owner = 0;
                 var_assign(label, val, 0);
             }
         } else {
             label->constant = 1;
+            label->owner = 0;
             label->value = val_reference(val);
             label->file_list = cflist;
             label->epoint = mfunc->param[i].epoint;

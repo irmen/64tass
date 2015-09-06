@@ -794,8 +794,9 @@ Obj *compile(struct file_list_s *cflist)
             while (here() == '.') {
                 if (waitfor->skip & 1) {
                     if (mycontext == current_context) {
-                        tmp2 = (labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname, NULL);
-                        if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
+                        int down = (labelname.data[0] != '_');
+                        tmp2 = down ? find_label(&labelname, NULL) : find_label2(&labelname, cheap_context);
+                        if (tmp2 && down) tmp2->shadowcheck = 1;
                     }
                     else tmp2 = find_label2(&labelname, mycontext);
                     if (!tmp2) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
@@ -971,6 +972,7 @@ Obj *compile(struct file_list_s *cflist)
                         else {
                             if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                             label->constant = 1;
+                            label->owner = 0;
                             label->file_list = cflist;
                             label->epoint = epoint;
                             var_assign(label, val, 0);
@@ -979,6 +981,7 @@ Obj *compile(struct file_list_s *cflist)
                     } else {
                         constcreated |= !temporary_label_branch;
                         label->constant = 1;
+                        label->owner = 0;
                         label->value = val;
                         label->file_list = cflist;
                         label->epoint = epoint;
@@ -1020,6 +1023,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
                             else {
+                                label->owner = 0;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 if (label->defpass != pass) label->ref = 0;
@@ -1028,6 +1032,7 @@ Obj *compile(struct file_list_s *cflist)
                             val_destroy(val);
                         } else {
                             label->constant = 0;
+                            label->owner = 0;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -1051,6 +1056,7 @@ Obj *compile(struct file_list_s *cflist)
                             else {
                                 if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
+                                label->owner = 1;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 var_assign(label, &lbl->v, 0);
@@ -1059,6 +1065,7 @@ Obj *compile(struct file_list_s *cflist)
                         } else {
                             constcreated |= !temporary_label_branch;
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = &lbl->v;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -1088,6 +1095,7 @@ Obj *compile(struct file_list_s *cflist)
                             } else {
                                 if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
+                                label->owner = 1;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 var_assign(label, &macro->v, 0);
@@ -1098,6 +1106,7 @@ Obj *compile(struct file_list_s *cflist)
                             macro->retval = 0;
                             constcreated |= !temporary_label_branch;
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = &macro->v;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -1127,6 +1136,7 @@ Obj *compile(struct file_list_s *cflist)
                             else {
                                 if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
+                                label->owner = 1;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 get_func_params(mfunc, cfile);
@@ -1137,6 +1147,7 @@ Obj *compile(struct file_list_s *cflist)
                         } else {
                             constcreated |= !temporary_label_branch;
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = &mfunc->v;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -1177,6 +1188,7 @@ Obj *compile(struct file_list_s *cflist)
                             } else {
                                 if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
+                                label->owner = 1;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 if (label->value->obj == obj) {
@@ -1194,6 +1206,7 @@ Obj *compile(struct file_list_s *cflist)
                         } else {
                             constcreated |= !temporary_label_branch;
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = &structure->v;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -1287,14 +1300,16 @@ Obj *compile(struct file_list_s *cflist)
                 }
                 if (!islabel) {
                     Namespace *parent;
-                    if (labelname.data[0] == '_') {
+                    int down = (labelname.data[0] != '_');
+                    if (down) tmp2 = find_label(&labelname, &parent);
+                    else {
                         parent = cheap_context;
                         tmp2 = find_label2(&labelname, cheap_context);
-                    } else tmp2 = find_label(&labelname, &parent);
+                    }
                     if (tmp2) {
                         Type *obj = tmp2->value->obj;
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
-                            tmp2->shadowcheck = 1;
+                            if (down) tmp2->shadowcheck = 1;
                             labelname.len = 0;val = tmp2->value; goto as_macro;
                         }
                         if (parent == mycontext && tmp2->strength == strength) {
@@ -1327,6 +1342,7 @@ Obj *compile(struct file_list_s *cflist)
                 if (labelexists) {
                     if (newlabel->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                     newlabel->constant = 1;
+                    newlabel->owner = 1;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
                     if (!newlabel->update_after) {
@@ -1356,6 +1372,7 @@ Obj *compile(struct file_list_s *cflist)
                     code = new_code();
                     constcreated |= !temporary_label_branch;
                     newlabel->constant = 1;
+                    newlabel->owner = 1;
                     newlabel->value = (Obj *)code;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
@@ -2024,6 +2041,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = 1;
+                            label->owner = 1;
                             label->defpass = pass;
                             if (label->value->obj != NAMESPACE_OBJ) {
                                 val_destroy(label->value);
@@ -2031,6 +2049,7 @@ Obj *compile(struct file_list_s *cflist)
                             }
                         } else {
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = (Obj *)new_namespace(cflist, &epoint);
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -2560,6 +2579,7 @@ Obj *compile(struct file_list_s *cflist)
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                                     label->constant = 1;
+                                    label->owner = 1;
                                     label->defpass = pass;
                                     if (label->value->obj != NAMESPACE_OBJ) {
                                         val_destroy(label->value);
@@ -2567,6 +2587,7 @@ Obj *compile(struct file_list_s *cflist)
                                     }
                                 } else {
                                     label->constant = 1;
+                                    label->owner = 1;
                                     label->value = (Obj *)new_namespace(cflist, &epoint);
                                     label->file_list = cflist;
                                     label->epoint = epoint;
@@ -2621,6 +2642,7 @@ Obj *compile(struct file_list_s *cflist)
                             if (labelexists) {
                                 if (label->constant) err_msg_double_defined(label, &varname, &epoint);
                                 else {
+                                    label->owner = 0;
                                     label->file_list = cflist;
                                     label->epoint = epoint;
                                     if (label->defpass != pass) label->ref = 0;
@@ -2628,6 +2650,7 @@ Obj *compile(struct file_list_s *cflist)
                                 }
                             } else {
                                 label->constant = 0;
+                                label->owner = 0;
                                 label->value = val_reference(val);
                                 label->file_list = cflist;
                                 label->epoint = epoint;
@@ -2679,11 +2702,13 @@ Obj *compile(struct file_list_s *cflist)
                                         err_msg_double_defined(label, &varname, &epoint);
                                         break;
                                     }
+                                    label->owner = 0;
                                     label->file_list = cflist;
                                     label->epoint = epoint;
                                     if (label->defpass != pass) label->ref = 0;
                                 } else {
                                     label->constant = 0;
+                                    label->owner = 0;
                                     label->value = (Obj *)ref_none();
                                     label->file_list = cflist;
                                     label->epoint = epoint;
@@ -3089,6 +3114,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = 1;
+                            label->owner = 1;
                             label->defpass = pass;
                             if (label->value->obj != NAMESPACE_OBJ) {
                                 val_destroy(label->value);
@@ -3096,6 +3122,7 @@ Obj *compile(struct file_list_s *cflist)
                             }
                         } else {
                             label->constant = 1;
+                            label->owner = 1;
                             label->value = (Obj *)new_namespace(cflist, &epoint);
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -3114,10 +3141,11 @@ Obj *compile(struct file_list_s *cflist)
                     anonident2.star_tree = star_tree;
                     anonident2.vline = vline;
                     tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
-                    label=new_label(&tmpname, mycontext, strength, &labelexists);
+                    label=new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                         label->constant = 1;
+                        label->owner = 1;
                         label->defpass = pass;
                         if (label->value->obj != NAMESPACE_OBJ) {
                             val_destroy(label->value);
@@ -3125,6 +3153,7 @@ Obj *compile(struct file_list_s *cflist)
                         }
                     } else {
                         label->constant = 1;
+                        label->owner = 1;
                         label->value = (Obj *)new_namespace(cflist, &epoint);
                         label->file_list = cflist;
                         label->epoint = epoint;
@@ -3150,6 +3179,7 @@ Obj *compile(struct file_list_s *cflist)
         default:
             if (waitfor->skip & 1) {
                 str_t opname;
+                int down;
 
                 opname.data = pline + lpoint.pos; opname.len = get_label();
                 if (opname.len == 3 && (prm=lookup_opcode((const char *)opname.data))>=0) {
@@ -3193,11 +3223,12 @@ Obj *compile(struct file_list_s *cflist)
                     err_msg_output_and_destroy(err);
                     break;
                 }
-                tmp2 = find_label(&opname, NULL);
+                down = (opname.data[0] != '_');
+                tmp2 = down ? find_label(&opname, NULL) : find_label2(&opname, cheap_context);
                 if (tmp2) {
                     Type *obj = tmp2->value->obj;
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
-                        tmp2->shadowcheck = 1;
+                        if (down) tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;
                     }
                 }

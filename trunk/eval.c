@@ -1447,7 +1447,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l) {
                     touch_label(l);
-                    l->shadowcheck = 1;
+                    if (down) l->shadowcheck = 1;
                     push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
