@@ -37,6 +37,7 @@ typedef struct Label {
     unsigned shadowcheck:1;
     unsigned update_after:1;
     unsigned constant:1;
+    unsigned owner:1;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;

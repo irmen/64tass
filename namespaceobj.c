@@ -116,7 +116,6 @@ static int same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     const Namespace *v1 = (const Namespace *)o1;
-    const struct namespacekey_s *p;
     size_t i = 0, j, ln = 2, chars = 2;
     Obj **vals;
     Str *str;
@@ -132,11 +131,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         tuple->data = vals = list_create_elements(tuple, ln);
         ln = chars;
         if (v1->len) {
-            const struct avltree_node *n = avltree_first(&v1->members);
-            while (n) {
-                Obj *v;
-                p = cavltree_container_of(n, struct namespacekey_s, node);
-                v = ((Obj *)p->key)->obj->repr((Obj *)p->key, epoint, maxsize - chars);
+            const struct avltree_node *n;
+            for (n = avltree_first(&v1->members); n != NULL; n = avltree_next(n)) {
+                const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
+                Obj *key = (Obj *)p->key;
+                Obj *v = key->obj->repr(key, epoint, maxsize - chars);
                 if (!v || v->obj != STR_OBJ) {
                     tuple->len = i;
                     val_destroy(&tuple->v);
@@ -153,7 +152,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                     return NULL;
                 }
                 vals[i++] = v;
-                n = avltree_next(n);
             }
         }
         tuple->len = i;
