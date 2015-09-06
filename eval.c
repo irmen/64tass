@@ -1133,7 +1133,7 @@ static int get_val2(struct eval_context_s *ev) {
             }
             if (v1->val->obj == DICT_OBJ) {
                 Dict *tmp = (Dict *)v1->val;
-                const struct avltree_node *n = avltree_first(&tmp->members);
+                const struct avltree_node *n;
                 v1->val = NULL;
                 vsp--;
                 if (vsp + tmp->len >= ev->values_size) {
@@ -1143,7 +1143,7 @@ static int get_val2(struct eval_context_s *ev) {
                     ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
                     for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                 }
-                while (n) {
+                for (n = avltree_first(&tmp->members); n != NULL; n = avltree_next(n)) {
                     const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
                     Colonlist *list = new_colonlist();
                     list->len = 2;
@@ -1154,7 +1154,6 @@ static int get_val2(struct eval_context_s *ev) {
                     if (values[vsp].val) val_destroy(values[vsp].val);
                     values[vsp].val = (Obj *)list;
                     values[vsp++].epoint = o_out->epoint;
-                    n = avltree_next(n);
                 }
                 if (tmp->def) {
                     Colonlist *list;

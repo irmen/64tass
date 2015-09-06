@@ -680,8 +680,7 @@ void makefile(int argc, char *argv[]) {
         len += argv_print(argv[i], f) + 1;
     }
 
-    n = avltree_first(&file_tree);
-    while (n) {
+    for (n = avltree_first(&file_tree); n != NULL; n = avltree_next(n)) {
         const struct file_s *a = cavltree_container_of(n, struct file_s, node);
         if (a->type) {
             if (len > 64) {
@@ -691,7 +690,6 @@ void makefile(int argc, char *argv[]) {
             putc(' ', f);
             len += argv_print(a->realname, f) + 1;
         }
-        n = avltree_next(n);
     }
     putc('\n', f);
 
