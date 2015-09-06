@@ -391,7 +391,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         return;
     }
 
-    if (no < 0x80) {
+    if (no < 0xc0) {
         char line[1024];
         switch (no) {
         case ERROR____PAGE_ERROR:
