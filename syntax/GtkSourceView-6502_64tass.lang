@@ -219,7 +219,7 @@
     </context>
 
     <context id="preprocessor-misc" end-at-line-end="true">
-      <start>\.(struct|union|page|end[usp]|d?section|block|proc|[sbp]end|logical|here|[ax][ls]|autsiz|mansiz|pron|proff|weak|endweak|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|break|continue)(\s|(?=;)|$)</start>
+      <start>\.(struct|union|page|end[usp]|d?section|block|proc|[sbp]end|logical|here|[ax][ls]|autsiz|mansiz|pron|proff|weak|endweak|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|break|continue|virtual|endv)(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>

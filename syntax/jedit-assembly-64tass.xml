@@ -70,6 +70,7 @@
                         <KEYWORD3>.ends</KEYWORD3>
                         <KEYWORD3>.endswitch</KEYWORD3>
                         <KEYWORD3>.endu</KEYWORD3>
+                        <KEYWORD3>.endv</KEYWORD3>
                         <KEYWORD3>.endweak</KEYWORD3>
                         <KEYWORD3>.eor</KEYWORD3>
                         <KEYWORD3>.error</KEYWORD3>
@@ -107,6 +108,7 @@
                         <KEYWORD3>.switch</KEYWORD3>
                         <KEYWORD3>.union</KEYWORD3>
                         <KEYWORD3>.var</KEYWORD3>
+                        <KEYWORD3>.virtual</KEYWORD3>
                         <KEYWORD3>.warn</KEYWORD3>
                         <KEYWORD3>.weak</KEYWORD3>
                         <KEYWORD3>.xl</KEYWORD3>
