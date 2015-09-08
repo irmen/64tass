@@ -411,7 +411,7 @@ void var_assign(Label *label, Obj *val, int fix) {
 
 static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max, linepos_t epoint2) {
     Iter *iter;
-    Obj *val2;
+    Obj *val2 = NULL;
     uval_t uval;
     int warn = 0;
 
