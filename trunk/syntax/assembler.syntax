@@ -142,6 +142,7 @@ context default lightgray
     keyword whole .ends brightcyan
     keyword whole .endswitch brightcyan
     keyword whole .endu brightcyan
+    keyword whole .endv brightcyan
     keyword whole .endweak brightcyan
     keyword whole .eor brightcyan
     keyword whole .error brightcyan
@@ -178,6 +179,7 @@ context default lightgray
     keyword whole .switch brightcyan
     keyword whole .union brightcyan
     keyword whole .var brightcyan
+    keyword whole .virtual brightcyan
     keyword whole .warn brightcyan
     keyword whole .weak brightcyan
     keyword whole .xl brightcyan
