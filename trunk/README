@@ -1188,6 +1188,31 @@ it does not need to be.
     .1004   0304     4c 00 03       jmp $0300               jmp drive
                                                             .here
 
+.virtual <expression>
+.endv
+    Changes the program counter to the given address, and discard the output of
+    assembly. When finished all continues as it was left off before.
+
+    This is useful to define structures to given addresses.
+
+            .virtual $d400  ; base address
+    sid     .block
+    freq    .word ?         ; frequency
+    pulsew  .word ?         ; pulse width
+    control .byte ?         ; control
+    ad      .byte ?         ; attack/decay
+    sr      .byte ?         ; sustain/release
+            .bend
+            .endv
+
+    Or to define stack "allocated" variables on 65816.
+
+            .virtual 1,s
+    p1      .word ?         ; at 1,s
+    tmp     .byte ?         ; at 3,s
+            .endv
+            lda (p1),y      ; lda ($01,s),y
+
 .align <expression>[, <fill>]
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
@@ -3416,12 +3441,12 @@ Assembler directives
 .addr .al .align .as .assert .autsiz .bend .binary .binclude .block .break
 .byte .case .cdef .cerror .char .check .comment .continue .cpu .cwarn .databank
 .default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
-.end .endc .endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error
-.fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl
-.include .int .lbl .lint .logical .long .macro .mansiz .next .null .offs
+.end .endc .endf .endif .endm .endp .ends .endswitch .endu .endv .endweak .eor
+.error .fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne
+.ifpl .include .int .lbl .lint .logical .long .macro .mansiz .next .null .offs
 .option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
-.segment .send .shift .shiftl .showmac .struct .switch .text .union .var .warn
-.weak .word .xl .xs
+.segment .send .shift .shiftl .showmac .struct .switch .text .union .var
+.virtual .warn .weak .word .xl .xs
 
 -------------------------------------------------------------------------------
 
