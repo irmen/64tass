@@ -22,10 +22,10 @@
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION
-#define REVISION "992?"
+#define REVISION "1000?"
 #endif
 #undef VERSION
-#define VERSION "1.51." REVISION
+#define VERSION "1.52." REVISION
 #define MAX_PASS 20
 
 struct file_list_s;
