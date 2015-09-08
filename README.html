@@ -1557,6 +1557,30 @@ for code copied to it's proper location at runtime. Can be nested of course.
 .1004	0304	 4c 00 03	jmp $0300		<b>jmp</b> <u>drive</u>
 							<b class="k">.here</b>
 </pre>
+<dt><code><b class="k"><a name="d_virtual">.virtual</a></b></code> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_endv">.endv</a></b></code>
+<dd>Changes the program counter to the given address, and discard the output of assembly. When finished all continues as it was left off before.
+<p>This is useful to define structures to given addresses.</p>
+<pre width=80>
+	<b class="k">.virtual</b> <span>$d400</span>	<i>; base address</i>
+sid     <b class="k">.block</b>
+freq    <b class="d">.word</b> <span>?</span>	        <i>; frequency</i>
+pulsew  <b class="d">.word</b> <span>?</span>	        <i>; pulse width</i>
+control <b class="d">.byte</b> <span>?</span>	        <i>; control</i>
+ad      <b class="d">.byte</b> <span>?</span>	        <i>; attack/decay</i>
+sr      <b class="d">.byte</b> <span>?</span>	        <i>; sustain/release</i>
+	<b class="k">.bend</b>
+	<b class="k">.endv</b>
+</pre>
+<p>Or to define stack "allocated" variables on 65816.</p>
+<pre width=80>
+	<b class="k">.virtual</b> <span>1</span>,s
+p1      <b class="d">.word</b> <span>?</span>	        <i>; at 1,s</i>
+tmp     <b class="d">.byte</b> <span>?</span>	        <i>; at 3,s</i>
+	<b class="k">.endv</b>
+        <b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
+</pre>
+
 <dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;expression&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 <pre width=80>
@@ -4320,6 +4344,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_ends">.ends</a>
 <a href="#d_endswitch">.endswitch</a>
 <a href="#d_endu">.endu</a>
+<a href="#d_endv">.endv</a>
 <a href="#d_endweak">.endweak</a>
 <a href="#d_eor">.eor</a>
 <a href="#d_error">.error</a>
@@ -4367,6 +4392,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_text">.text</a>
 <a href="#d_union">.union</a>
 <a href="#d_var">.var</a>
+<a href="#d_virtual">.virtual</a>
 <a href="#d_warn">.warn</a>
 <a href="#d_weak">.weak</a>
 <a href="#d_word">.word</a>
