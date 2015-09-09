@@ -35,10 +35,10 @@ enum oper_e {
     O_LXOR,          /* ^^    */
     O_LAND,          /* &&    */
 
-    O_HASH,          /* #     */
-    O_COMMAX,        /* ,x    */
-    O_COMMAY,        /* ,y    */
-    O_COMMAZ,        /* ,z    */
+    O_HASH,          /* #     */ /* NOTE:                */
+    O_COMMAX,        /* ,x    */ /* there's a check for  */
+    O_COMMAY,        /* ,y    */ /* O_COMMAX to O_COMMAK */
+    O_COMMAZ,        /* ,z    */ /* in eval.c            */
     O_COMMAR,        /* ,r    */
     O_COMMAS,        /* ,s    */
     O_COMMAD,        /* ,d    */
