@@ -873,18 +873,20 @@ static int get_val2(struct eval_context_s *ev) {
                     if (stop && !expc) {
                         size_t j = i + 1;
                         vsp--;
-                        if (tup && j < ev->outp && (ev->o_out[j].val->obj != OPER_OBJ || (
-                                        ev->o_out[j].val != &o_RPARENT.v &&   /* ((3)) */
-                                        ev->o_out[j].val != &o_RBRACKET.v &&  /* [(3)] */
-                                        ev->o_out[j].val != &o_FUNC.v &&      /* f((3)) */
-                                        ev->o_out[j].val != &o_LIST.v &&      /* [(3),] */
-                                        ev->o_out[j].val != &o_COMMA.v &&     /* [(3),(3)] */
-                                        ev->o_out[j].val != &o_COMMAY.v &&    /* (3),y */
-                                        ev->o_out[j].val != &o_COMMAZ.v       /* (3),z */
-                                        ))) {
-                            v1->val = values[vsp].val; 
-                            values[vsp].val = NULL;
-                            continue;
+                        if (tup && j < ev->outp) {
+                            Obj *obj = ev->o_out[j].val;
+                            if (obj->obj != OPER_OBJ ||
+                                    (obj != &o_RPARENT.v &&   /* ((3)) */
+                                     obj != &o_RBRACKET.v &&  /* [(3)] */
+                                     obj != &o_FUNC.v &&      /* f((3)) */
+                                     obj != &o_LIST.v &&      /* [(3),] */
+                                     obj != &o_COMMA.v &&     /* [(3),(3)] */
+                                     !(((Oper *)obj)->op >= O_COMMAX && ((Oper *)obj)->op <= O_COMMAK) /* (3),y */
+                                    )) {
+                                v1->val = values[vsp].val; 
+                                values[vsp].val = NULL;
+                                continue;
+                            }
                         }
                         am = (op == O_BRACKET) ? A_LI : A_I;
                         v1->val = apply_addressing(values[vsp].val, am);
