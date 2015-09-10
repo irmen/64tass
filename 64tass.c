@@ -69,6 +69,7 @@
 #include "gapobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "registerobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
@@ -400,6 +401,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
     select_opcodes(cpumode);
     listing_set_cpumode(cpumode);
+    constcreated |= registerobj_createnames(cpumode->registers);
 }
 
 void var_assign(Label *label, Obj *val, int fix) {
@@ -3399,7 +3401,7 @@ static int main2(int argc, char *argv[]) {
         fixeddig=1;constcreated=0;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
-            set_cpumode(arguments.cpumode);
+            set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = 0;
             star=databank=dpage=strength=longaccu=longindex=autosize=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;

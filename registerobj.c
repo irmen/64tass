@@ -197,18 +197,27 @@ void registerobj_init(void) {
 }
 
 void registerobj_names(void) {
-    int i;
     new_builtin("register", val_reference(&REGISTER_OBJ->v));
+}
 
-    for (i = 0; reg_names[i]; i++) {
-        char name[2];
+static uint32_t register_names;
+
+int registerobj_createnames(uint32_t registers) {
+    uint32_t regs = registers & ~register_names;
+    char name[2];
+
+    if (!regs) return 0;
+    register_names |= regs;
+
+    name[0] = 'a';
+    name[1] = 0;
+    for (; regs; regs >>= 1, name[0]++) if (regs & 1) {
         Register *reg = new_register();
-        name[0] = reg_names[i];
-        name[1] = 0;
         reg->val[0] = name[0];
         reg->data = reg->val;
         reg->len = 1;
         reg->chars = 1;
         new_builtin(name, &reg->v);
     }
+    return 1;
 }
