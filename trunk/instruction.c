@@ -31,6 +31,7 @@
 #include "registerobj.h"
 #include "codeobj.h"
 #include "typeobj.h"
+#include "noneobj.h"
 #include "longjump.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
@@ -546,6 +547,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                 break;
             }
+            if (val->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, epoint2);
+            }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
             err->u.opers = 1;
             return err;
@@ -583,6 +587,12 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 opr = ADR_BIT_ZP;
                 break;
             }
+            if (addrlist->data[0]->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, epoint2);
+            }
+            if (addrlist->data[1]->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, &epoints[1]);
+            }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
             err->u.opers = 2;
             return err;
@@ -619,6 +629,24 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             }
             /* fall through */
         default: 
+            addrlist = (Addrlist *)vals;
+            if (addrlist->data[0]->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, epoint2);
+            }
+            if (addrlist->data[1]->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, &epoints[1]);
+            }
+            if (addrlist->data[2]->obj == NONE_OBJ) {
+                return new_error(ERROR____STILL_NONE, &epoints[2]);
+            }
+            {
+                size_t i;
+                for (i = 3; i < addrlist->len; i++) {
+                    if (addrlist->data[i]->obj == NONE_OBJ) {
+                        return new_error(ERROR____STILL_NONE, epoint);
+                    }
+                }
+            }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
             err->u.opers = ((Addrlist *)vals)->len;
             return err;
