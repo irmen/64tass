@@ -1821,7 +1821,6 @@ Obj *compile(struct file_list_s *cflist)
             case CMD_HERE: /* .here */
                 if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_HERE)) {
-                    current_section->logicalrecursion--;
                 } else if (waitfor->what==W_HERE2) {
                     current_section->l_address.address = (waitfor->laddr.address + current_section->address - waitfor->addr) & 0xffff;
                     if (current_section->address > waitfor->addr) {
