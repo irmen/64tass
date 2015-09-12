@@ -1262,7 +1262,7 @@ Obj *compile(struct file_list_s *cflist)
                         uval_t uval;
                         struct section_s *tmp;
                         str_t sectionname;
-                        new_waitfor(W_ENDV, &cmdpoint);waitfor->section=current_section;
+                        new_waitfor(W_ENDV2, &cmdpoint);waitfor->section=current_section;
                         if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
                         else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                         anonident2.type = '.';
@@ -1270,12 +1270,23 @@ Obj *compile(struct file_list_s *cflist)
                         anonident2.vline = vline;
                         sectionname.data = (const uint8_t *)&anonident2; sectionname.len = sizeof(anonident2);
                         tmp=find_new_section(&sectionname);
+                        tmp->provides = ~(uval_t)0;tmp->requires = tmp->conflicts = 0;
+                        tmp->dooutput = current_section->dooutput;
+                        tmp->unionmode = current_section->unionmode;
+                        tmp->unionstart = current_section->unionstart;
+                        tmp->unionend = current_section->unionend;
+                        tmp->l_unionstart = current_section->l_unionstart;
+                        tmp->l_unionend = current_section->l_unionend;
+                        tmp->structrecursion = current_section->structrecursion;
+                        tmp->logicalrecursion = current_section->logicalrecursion;
+                        tmp->file_list = cflist;
+                        tmp->epoint = epoint;
                         tmp->end = tmp->start = tmp->restart = tmp->address = 0;
                         tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
                         tmp->usepass = tmp->defpass = 0;
-                        tmp->wrapwarn = 0;
+                        tmp->wrapwarn = tmp->moved = 0; star = 0;
                         restart_memblocks(&tmp->mem, tmp->address);
-                        current_section = tmp; star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                        current_section = tmp;
                         if (!get_exp(&w, 0, cfile, 1, 1, &cmdpoint)) goto breakerr;
                         vs = get_val();
                         if (toaddress(vs->val, &uval, 24, &am, &vs->epoint)) break;
@@ -1290,6 +1301,7 @@ Obj *compile(struct file_list_s *cflist)
                             current_section->l_address.bank = uval & ~0xffff;
                             if (current_section->l_address_val) val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
+                            star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                         }
                         break;
                     }
@@ -1760,10 +1772,11 @@ Obj *compile(struct file_list_s *cflist)
                 break;
             case CMD_ENDV: /* .endv */
                 if (waitfor->skip & 1) listing_line(epoint.pos);
-                if (waitfor->what==W_ENDV) {
+                if (close_waitfor(W_ENDV)) {
+                } else if (waitfor->what==W_ENDV2) {
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     current_section = waitfor->section;
-                    close_waitfor(W_ENDV);
+                    close_waitfor(W_ENDV2);
                 } else {err_msg2(ERROR______EXPECTED,".VIRTUAL", &epoint);goto breakerr;}
                 break;
             case CMD_SEND: /* .send */
@@ -2871,6 +2884,7 @@ Obj *compile(struct file_list_s *cflist)
                             case W_BEND: msg = ".BEND"; break;
                             case W_ENDS2:
                             case W_ENDS: msg = ".ENDS"; break;
+                            case W_ENDV2:
                             case W_ENDV: msg = ".ENDV"; break;
                             case W_SEND2:
                             case W_SEND: msg = ".SEND"; break;
@@ -3095,7 +3109,7 @@ Obj *compile(struct file_list_s *cflist)
                     struct section_s *tmp;
                     str_t sectionname;
                     listing_line(0);
-                    new_waitfor(W_ENDV, &epoint);waitfor->section=current_section;
+                    new_waitfor(W_ENDV2, &epoint);waitfor->section=current_section;
                     if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
                     else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                     anonident2.type = '.';
@@ -3103,10 +3117,21 @@ Obj *compile(struct file_list_s *cflist)
                     anonident2.vline = vline;
                     sectionname.data = (const uint8_t *)&anonident2; sectionname.len = sizeof(anonident2);
                     tmp=find_new_section(&sectionname);
+                    tmp->provides = ~(uval_t)0;tmp->requires = tmp->conflicts = 0;
+                    tmp->dooutput = current_section->dooutput;
+                    tmp->unionmode = current_section->unionmode;
+                    tmp->unionstart = current_section->unionstart;
+                    tmp->unionend = current_section->unionend;
+                    tmp->l_unionstart = current_section->l_unionstart;
+                    tmp->l_unionend = current_section->l_unionend;
+                    tmp->structrecursion = current_section->structrecursion;
+                    tmp->logicalrecursion = current_section->logicalrecursion;
+                    tmp->file_list = cflist;
+                    tmp->epoint = epoint;
                     tmp->end = tmp->start = tmp->restart = tmp->address = 0;
                     tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
                     tmp->usepass = tmp->defpass = 0;
-                    tmp->wrapwarn = 0;
+                    tmp->wrapwarn = tmp->moved = 0;
                     restart_memblocks(&tmp->mem, tmp->address);
                     current_section = tmp;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
@@ -3352,6 +3377,7 @@ Obj *compile(struct file_list_s *cflist)
         case W_BEND2:
         case W_BEND: msg = ".BEND"; break;
         case W_ENDC: msg = ".ENDC"; break;
+        case W_ENDV2:
         case W_ENDV: msg = ".ENDV"; break;
         case W_ENDS2:
         case W_ENDS: msg = ".ENDS"; break;

@@ -55,7 +55,8 @@ struct section_s *find_new_section(const str_t *name) {
     struct section_s *context = current_section;
     struct section_s tmp, *tmp2 = NULL;
 
-    str_cfcpy(&tmp.cfname, name);
+    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
+    else str_cfcpy(&tmp.cfname, name);
     tmp.name_hash = str_hash(&tmp.cfname);
 
     while (context) {
@@ -80,7 +81,8 @@ struct section_s *new_section(const str_t *name) {
     if (!lastsc) {
 	lastsc = (struct section_s *)mallocx(sizeof(struct section_s));
     }
-    str_cfcpy(&lastsc->cfname, name);
+    if (name->len > 1 && !name->data[1]) lastsc->cfname = *name;
+    else str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);
     b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
     if (!b) { /* new section */
