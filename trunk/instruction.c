@@ -648,7 +648,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 }
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
-            err->u.opers = ((Addrlist *)vals)->len;
+            err->u.opers = addrlist->len;
             return err;
         }
     } 
