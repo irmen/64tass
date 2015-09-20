@@ -107,7 +107,10 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     if (filename[0] == '-' && !filename[1]) {
         flist = stdout;
     } else {
-        if (!(flist=file_open(filename,"wt"))) err_msg_file(ERROR_CANT_DUMP_LST, filename, &nopoint);
+        if (!(flist=file_open(filename,"wt"))) {
+            err_msg_file(ERROR_CANT_DUMP_LST, filename, &nopoint);
+            return;
+        }
     }
     fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
     prgname = *argv;
@@ -128,9 +131,11 @@ void listing_open(const char *filename, int argc, char *argv[]) {
 }
 
 void listing_close(void) {
-    fputs("\n;******  End of listing\n", flist);
-    if (flist != stdout) fclose(flist);
-    else fflush(flist);
+    if (flist) {
+        fputs("\n;******  End of listing\n", flist);
+        if (flist != stdout) fclose(flist);
+        else fflush(flist);
+    }
     flist = NULL;
 }
 

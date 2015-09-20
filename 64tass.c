@@ -219,7 +219,7 @@ enum command_e {
 
 /* --------------------------------------------------------------------------- */
 
-void status(int anyerr) {
+static void status(int anyerr) {
     int errors = error_print(fixeddig, constcreated, anyerr);
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
         error_status();
@@ -2602,6 +2602,7 @@ Obj *compile(struct file_list_s *cflist)
 
                     f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
                     free((char *)path);
+                    if (!f) goto breakerr;
                     if (f->open>1) {
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
                     } else {
@@ -2664,11 +2665,10 @@ Obj *compile(struct file_list_s *cflist)
                         star_tree = stree_old;
                         backr = old_backr; forwr = old_forwr;
                         exitfile();
+                        reffile=cfile->uid;
+                        listing_file("\n;******  Return to file: ", cfile->realname);
                     }
                     closefile(f);
-                    reffile=cfile->uid;
-
-                    listing_file("\n;******  Return to file: ", cfile->realname);
                     goto breakerr;
                 }
                 break;
@@ -3445,28 +3445,31 @@ static int main2(int argc, char *argv[]) {
                 continue;
             }
             cfile = openfile(argv[i], "", 0, NULL, &nopoint);
-            cflist = enterfile(cfile, &nopoint);
             if (cfile) {
+                cflist = enterfile(cfile, &nopoint);
                 star_tree = &cfile->star;
                 reffile=cfile->uid;
                 compile(cflist);
                 closefile(cfile);
+                exitfile();
             }
-            exitfile();
         }
         /*garbage_collect();*/
         if (arguments.shadow_check && fixeddig && !constcreated) shadow_check(root_namespace);
-        if (error_serious(fixeddig, constcreated)) {status(1);return EXIT_FAILURE;}
+        {
+            int e = error_serious(fixeddig, constcreated);
+            if (e) {status(e);return EXIT_FAILURE;}
+        }
     } while (!fixeddig || constcreated);
 
     /* assemble again to create listing */
     if (arguments.list) {
         nolisting = 0;
-        listing_open(arguments.list, argc, argv);
 
         max_pass = pass; pass++;
         fixeddig=1;constcreated=0;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
+        listing_open(arguments.list, argc, argv);
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {
                 listing_file("\n;******  Processing input file: ", argv[i]);
@@ -3491,14 +3494,14 @@ static int main2(int argc, char *argv[]) {
             }
 
             cfile = openfile(argv[i], "", 0, NULL, &nopoint);
-            cflist = enterfile(cfile, &nopoint);
             if (cfile) {
+                cflist = enterfile(cfile, &nopoint);
                 star_tree = &cfile->star;
                 reffile=cfile->uid;
                 compile(cflist);
                 closefile(cfile);
+                exitfile();
             }
-            exitfile();
         }
         /*garbage_collect();*/
         listing_close();
@@ -3510,7 +3513,10 @@ static int main2(int argc, char *argv[]) {
     if (arguments.make) makefile(argc - opts, argv + opts);
 
     fixeddig = 1; constcreated = 0;
-    if (error_serious(fixeddig, constcreated)) {status(1);return EXIT_FAILURE;}
+    {
+        int e = error_serious(fixeddig, constcreated);
+        if (e) {status(e);return EXIT_FAILURE;}
+    }
 
     output_mem(&root_section.mem);
     status(0);

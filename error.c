@@ -471,7 +471,6 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     default:
         adderror(terr_fatal[no - 0xc0]);
     }
-    status(1);exit(EXIT_FAILURE);
 }
 
 void err_msg(enum errors_e no, const void* prm) {
@@ -879,6 +878,7 @@ int error_print(int fix, int newvar, int anyerr) {
 
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
+        if (anyerr > 1 && err->severity != SV_FATAL) continue;
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
@@ -916,7 +916,9 @@ int error_print(int fix, int newvar, int anyerr) {
         case SV_CONDERROR: if (!fix) continue; errors++; break;
         case SV_NOTDEFERROR: if (newvar) continue; errors++; break;
         case SV_NONEERROR: if (noneerr) continue; errors++; break;
-        default: errors++; break;
+        case SV_DOUBLEERROR:
+        case SV_ERROR:
+        case SV_FATAL: errors++; break;
         }
         print_error(stderr, err);
     }
@@ -992,7 +994,6 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
 #ifdef _WIN32
     setlocale(LC_ALL, "C");
 #endif
-    status(1);exit(EXIT_FAILURE);
 }
 
 void error_status(void) {
@@ -1029,6 +1030,7 @@ linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i)
 int error_serious(int fix, int newvar) {
     const struct errorentry_s *err;
     size_t pos;
+    int m = 0;
     close_error();
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
@@ -1038,12 +1040,14 @@ int error_serious(int fix, int newvar) {
         case SV_DOUBLENOTE:
         case SV_WARNING: break;
         case SV_NONEERROR:
-        case SV_CONDERROR: if (fix && !newvar) return 1; break;
-        case SV_NOTDEFERROR: if (!newvar) return 1; break;
-        default: return 1;
+        case SV_CONDERROR: if (fix && !newvar) m = 1; break;
+        case SV_NOTDEFERROR: if (!newvar) m = 1; break;
+        case SV_DOUBLEERROR:
+        case SV_ERROR: m = 1; break;
+        case SV_FATAL: return 2;
         }
     }
-    return 0;
+    return m;
 }
 
 MUST_CHECK Error *new_error(enum errors_e num, linepos_t epoint) {

@@ -665,7 +665,10 @@ void makefile(int argc, char *argv[]) {
     if (arguments.make[0] == '-' && !arguments.make[1]) {
         f = stdout;
     } else {
-        if (!(f = file_open(arguments.make, "wt"))) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+        if (!(f = file_open(arguments.make, "wt"))) {
+            err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+            return;
+        }
     }
     clearerr(f);
     len = argv_print(arguments.output + strlen(get_path(NULL, arguments.output)), f) + 1;

@@ -561,7 +561,10 @@ void labelprint(void) {
     if (arguments.label[0] == '-' && !arguments.label[1]) {
         flab = stdout;
     } else {
-        if (!(flab = file_open(arguments.label, "wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+        if (!(flab = file_open(arguments.label, "wt"))) {
+            err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+            return;
+        }
     }
     clearerr(flab);
     referenceit = 0;
