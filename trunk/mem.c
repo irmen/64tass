@@ -302,7 +302,10 @@ void output_mem(struct memblocks_s *memblocks) {
 #endif
             fout = stdout;
         } else {
-            if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+            if (!(fout=file_open(arguments.output,"wb"))) {
+                err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+                return;
+            }
         }
         clearerr(fout);
         switch (arguments.output_mode) {
