@@ -3411,7 +3411,7 @@ static int main2(int argc, char *argv[]) {
         tfree();
         free_macro();
         free(waitfors);
-        return -opts;
+        return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     init_encoding(arguments.toascii);
 
@@ -3456,7 +3456,7 @@ static int main2(int argc, char *argv[]) {
         }
         /*garbage_collect();*/
         if (arguments.shadow_check && fixeddig && !constcreated) shadow_check(root_namespace);
-        if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
+        if (error_serious(fixeddig, constcreated)) {status(1);return EXIT_FAILURE;}
     } while (!fixeddig || constcreated);
 
     /* assemble again to create listing */
@@ -3510,11 +3510,11 @@ static int main2(int argc, char *argv[]) {
     if (arguments.make) makefile(argc - opts, argv + opts);
 
     fixeddig = 1; constcreated = 0;
-    if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
+    if (error_serious(fixeddig, constcreated)) {status(1);return EXIT_FAILURE;}
 
     output_mem(&root_section.mem);
     status(0);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 #ifdef _WIN32
@@ -3638,7 +3638,7 @@ int main(void)
   int argcw = 0;
   LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
   if (!argvw)
-    return 127;
+    return EXIT_FAILURE;
 
   int result = wmain(argcw, argvw);
   LocalFree(argvw);
