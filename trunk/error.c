@@ -471,7 +471,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     default:
         adderror(terr_fatal[no - 0xc0]);
     }
-    status(1);exit(1);
+    status(1);exit(EXIT_FAILURE);
 }
 
 void err_msg(enum errors_e no, const void* prm) {
@@ -949,7 +949,7 @@ void err_destroy(void) {
 void err_msg_out_of_memory2(void)
 {
     fputs("Out of memory error\n", stderr);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 void err_msg_out_of_memory(void)
@@ -992,7 +992,7 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
 #ifdef _WIN32
     setlocale(LC_ALL, "C");
 #endif
-    status(1);exit(1);
+    status(1);exit(EXIT_FAILURE);
 }
 
 void error_status(void) {
