@@ -225,12 +225,16 @@ static int new_error_msg(enum severity_e severity, const struct file_list_s *fli
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
     }
     error_list.header_pos = ALIGN(error_list.len);
-    if (error_list.header_pos + sizeof(struct errorentry_s) + line_len > error_list.max) {
-        error_list.max += (sizeof(struct errorentry_s) > 0x200) ? sizeof(struct errorentry_s) : 0x200;
+    error_list.len = error_list.header_pos + sizeof(struct errorentry_s);
+    if (error_list.len < sizeof(struct errorentry_s)) err_msg_out_of_memory2(); /* overflow */
+    error_list.len += line_len;
+    if (error_list.len < line_len) err_msg_out_of_memory2(); /* overflow */
+    if (error_list.len > error_list.max) {
+        error_list.max = error_list.len + 0x200;
+        if (error_list.max < 0x200) err_msg_out_of_memory2(); /* overflow */
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
         if (!error_list.data) err_msg_out_of_memory2();
     }
-    error_list.len = error_list.header_pos + sizeof(struct errorentry_s) + line_len;
     err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
     err->severity = severity;
     err->error_len = 0;
