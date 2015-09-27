@@ -612,9 +612,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     if (am != A_NONE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else if (toaddress(val, &uval, 24, NULL, epoint2)) {}
                     else {
-                        if (uval <= 0xffff && dpage <= 0xffff) {
+                        if (uval <= 0xffff) {
                             adr = (uint16_t)(uval - dpage);
-                            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                            if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                     }
                 }
@@ -656,9 +656,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     case AG_ZP: /* zero page address only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-        else if (uval <= 0xffff && dpage <= 0xffff) {
+        else if (uval <= 0xffff) {
             adr = (uint16_t)(uval - dpage);
-            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+            if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
         ln = 1;
         break;
@@ -713,9 +713,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             case 0:
                 if (cnmemonic[opr] == ____) return new_error(ERROR__NO_BYTE_ADDR, epoint);
                 if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-                else if (uval <= 0xffff && dpage <= 0xffff) {
+                else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
-                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                    if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                 break;
             case 1:
@@ -750,9 +750,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             case 0:
                 if (cnmemonic[opr] == ____) return new_error(ERROR__NO_BYTE_ADDR, epoint);
                 if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-                else if (uval <= 0xffff && dpage <= 0xffff) {
+                else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
-                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                    if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                 break;
             case 1:
