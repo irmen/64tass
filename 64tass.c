@@ -974,7 +974,10 @@ Obj *compile(struct file_list_s *cflist)
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                         else {
-                            if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                            if (!constcreated && !temporary_label_branch && label->defpass != pass - 1) {
+                                if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                constcreated = 1;
+                            }
                             label->constant = 1;
                             label->owner = 0;
                             label->file_list = cflist;
@@ -983,7 +986,10 @@ Obj *compile(struct file_list_s *cflist)
                         }
                         val_destroy(val);
                     } else {
-                        constcreated |= !temporary_label_branch;
+                        if (!constcreated && !temporary_label_branch) {
+                            if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                            constcreated = 1;
+                        }
                         label->constant = 1;
                         label->owner = 0;
                         label->value = val;
@@ -1058,7 +1064,10 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
-                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                                if (!constcreated && !temporary_label_branch && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = 1;
+                                }
                                 label->constant = 1;
                                 label->owner = 1;
                                 label->file_list = cflist;
@@ -1067,7 +1076,10 @@ Obj *compile(struct file_list_s *cflist)
                             }
                             val_destroy(&lbl->v);
                         } else {
-                            constcreated |= !temporary_label_branch;
+                            if (!constcreated && !temporary_label_branch) {
+                                if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                constcreated = 1;
+                            }
                             label->constant = 1;
                             label->owner = 1;
                             label->value = &lbl->v;
@@ -1097,7 +1109,10 @@ Obj *compile(struct file_list_s *cflist)
                                 err_msg_double_defined(label, &labelname, &epoint);
                                 waitfor->val = &macro->v;
                             } else {
-                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                                if (!constcreated && !temporary_label_branch && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = 1;
+                                }
                                 label->constant = 1;
                                 label->owner = 1;
                                 label->file_list = cflist;
@@ -1108,7 +1123,10 @@ Obj *compile(struct file_list_s *cflist)
                             }
                         } else {
                             macro->retval = 0;
-                            constcreated |= !temporary_label_branch;
+                            if (!constcreated && !temporary_label_branch) {
+                                if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                constcreated = 1;
+                            }
                             label->constant = 1;
                             label->owner = 1;
                             label->value = &macro->v;
@@ -1138,7 +1156,10 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
-                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                                if (!constcreated && !temporary_label_branch && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = 1;
+                                }
                                 label->constant = 1;
                                 label->owner = 1;
                                 label->file_list = cflist;
@@ -1149,7 +1170,10 @@ Obj *compile(struct file_list_s *cflist)
                             }
                             val_destroy(&mfunc->v);
                         } else {
-                            constcreated |= !temporary_label_branch;
+                            if (!constcreated && !temporary_label_branch) {
+                                if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                constcreated = 1;
+                            }
                             label->constant = 1;
                             label->owner = 1;
                             label->value = &mfunc->v;
@@ -1190,7 +1214,10 @@ Obj *compile(struct file_list_s *cflist)
                                 structure->names = new_namespace(cflist, &epoint);
                                 err_msg_double_defined(label, &labelname, &epoint);
                             } else {
-                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                                if (!constcreated && !temporary_label_branch && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = 1;
+                                }
                                 label->constant = 1;
                                 label->owner = 1;
                                 label->file_list = cflist;
@@ -1208,7 +1235,10 @@ Obj *compile(struct file_list_s *cflist)
                                 structure = (Struct *)label->value;
                             }
                         } else {
-                            constcreated |= !temporary_label_branch;
+                            if (!constcreated && !temporary_label_branch) {
+                                if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                constcreated = 1;
+                            }
                             label->constant = 1;
                             label->owner = 1;
                             label->value = &structure->v;
@@ -1394,7 +1424,10 @@ Obj *compile(struct file_list_s *cflist)
                     }
                 }
                 if (labelexists) {
-                    if (newlabel->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                    if (!constcreated && !temporary_label_branch && newlabel->defpass != pass - 1) {
+                        if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
+                        constcreated = 1;
+                    }
                     newlabel->constant = 1;
                     newlabel->owner = 1;
                     newlabel->file_list = cflist;
@@ -1424,7 +1457,10 @@ Obj *compile(struct file_list_s *cflist)
                     }
                 } else {
                     code = new_code();
-                    constcreated |= !temporary_label_branch;
+                    if (!constcreated && !temporary_label_branch) {
+                        if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
+                        constcreated = 1;
+                    }
                     newlabel->constant = 1;
                     newlabel->owner = 1;
                     newlabel->value = (Obj *)code;
