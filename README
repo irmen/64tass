@@ -1,4 +1,4 @@
-64tass v1.52 r1000 reference manual
+64tass v1.52 r1013 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -852,9 +852,9 @@ changes the program counter and the compiling offset.
 
 Built-in functions
 
-Builting functions are assigned to the symbols listed below. If you reuse these
-symbols in a scope for other purposes then they become inaccessible, or can
-perform a different function.
+Built-in functions are pre-assigned to the symbols listed below. If you reuse
+these symbols in a scope for other purposes then they become inaccessible, or
+can perform a different function.
 
 Built-in functions can be assigned to symbols (e.g. sinus = sin), and the new
 name can be used as the original function. They can even be passed as
@@ -1168,6 +1168,10 @@ it does not need to be.
     Add an offset to the compile offset (create a gap). The program counter
     stays the same as before.
 
+    Popular in old TASM code where this was the only way to create relocated
+    code, otherwise it's use is not recommended as there are easier to use
+    alternatives below.
+
     ;Offset PC       Bytes          Disassembly     Source
                                                     *       = $1000
     .1000                           nop                     .byte
@@ -1176,9 +1180,14 @@ it does not need to be.
 
 .logical <expression>
 .here
-    Changes the program counter only, the compile offset is not changed. Used
-    for code copied to it's proper location at runtime. Can be nested of
-    course.
+    Changes the program counter only, the compile offset is not changed. When
+    finished all continues where it was left off before.
+
+    The naming is not logical at all for relocated code, but that's how it was
+    named in old 6502tass.
+
+    It's used for code copied to it's proper location at runtime. Can be nested
+    of course.
 
     ;Offset PC       Bytes          Disassembly     Source
                                                     *       = $1000
@@ -1191,7 +1200,7 @@ it does not need to be.
 .virtual <expression>
 .endv
     Changes the program counter to the given address, and discard the output of
-    assembly. When finished all continues as it was left off before.
+    assembly. When finished all continues where it was left off before.
 
     This is useful to define structures to given addresses.
 
@@ -1216,6 +1225,9 @@ it does not need to be.
 .align <expression>[, <fill>]
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
+
+    Usually used to page align data or code to avoid penalty cycles when
+    indexing or branching.
 
     ;Offset PC       Bytes          Disassembly     Source
                                                     *       = $ffc
@@ -1245,37 +1257,33 @@ which accepts strings of any length.
 .char <expression>[, <expression>, ...]
     Create bytes from 8 bit signed constants (-128-127)
 
-            .byte 255       ; $ff
-            .byte "a"       ; single character
-            .byte ?         ; reserve 1 byte of space
-            .char -3        ; $fd
+    >1000  ff 03                             .byte 255, $03
+    >1002  41                                .byte "a"
+    >1003                                    .byte ?        ; reserve 1 byte
+    >1004  fd                                .char -3
     ;Store 4.4 signed fixed point constants
-            .byte (-3.5, 3.25, 3.125) * 1p4
-
+    >1005  c8 34 32                          .char (-3.5, 3.25, 3.125) * 1p4
     ;Compact computed jumps using self modifying code
-            lda jumps,x
-            sta smod+1
-    smod    bne *
-    jumps   .char (routine1, routine2)-smod-2 ;Routines nearby (-128-127 bytes)
+    .1008  bd 0f 10  lda $1010,x             lda jumps,x
+    .100b  8d 0e 10  sta $100f               sta smod+1
+    .100e  d0 fe     bne $100e       smod    bne *
+    ;Routines nearby (-128-127 bytes)
+    >1010  23 49                     jumps   .char (routine1, routine2)-smod-2
 
 .word <expression>[, <expression>, ...]
     Create bytes from 16 bit unsigned constants (0-65535)
 .int <expression>[, <expression>, ...]
     Create bytes from 16 bit signed constants (-32768-32767)
 
-            .word $2342, $4555; $42 $23 $55 $45
-            .word ?         ; reserve 2 bytes of space
-            .int -533, 4433 ; $eb $fd $51 $11
+    >1000  42 23 55 45                       .word $2342, $4555
+    >1004                                    .word ?        ; reserve 2 bytes
+    >1006  eb fd 51 11                       .int -533, 4433
     ;Store 8.8 signed fixed point constants
-            .int (-3.5, 3.25, 3.125) * 1p8
-
-    ;Computed jumps with jump table (bank zero or non-65816)
-            lda jumps,x
-            sta ind
-            lda jumps+1,x
-            sta ind+1
-            jmp (ind)
-    jumps   .word routine1, routine2; but better use .addr instead
+    >100a  80 fc 40 03 20 03                 .int (-3.5, 3.25, 3.125) * 1p8
+    .1010  bd 19 10  lda $1019,x             lda texts,x
+    .1013  bc 1a 10  ldy $101a,x             ldy texts+1,x
+    .1016  4c 1e ab  jmp $ab1e               jmp $ab1e
+    >1019  33 10 59 10               texts   .word text1, text2
 
 .addr <expression>[, <expression>, ...]
     Create 16 bit address constants for addresses (in current program bank)
@@ -1283,51 +1291,50 @@ which accepts strings of any length.
     Create 16 bit return address constants for addresses (in current program
     bank)
 
-    ;Computed jumps with jump table (65816, current bank)
-    *       = $12000
-            jmp (jumps,x)
-    jumps   .addr $12050, routine1, routine2
-
+                                            *       = $12000
+    .012000  7c 03 20       jmp ($012003,x)         jmp (jumps,x)
+    >012003  50 20 32 03 92 15              jumps   .addr $12050, routine1, routine2
     ;Computed jumps by using stack (current bank)
-    *       = $103000
-            lda rets+1,x
-            pha
-            lda rets,x
-            pha
-            rts
-    rets    .rta $10f000, routine1, routine2
+                                            *       = $103000
+    .103000  bf 0c 30 10    lda $10300c,x           lda rets+1,x
+    .103004  48             pha                     pha
+    .103005  bf 0b 30 10    lda $10300b,x           lda rets,x
+    .103009  48             pha                     pha
+    .10300a  60             rts                     rts
+    >10300b  ff ef a1 36 f3 42              rets    .rta $10f000, routine1, routine2
 
 .long <expression>[, <expression>, ...]
     Create bytes from 24 bit unsigned constants (0-16777215)
 .lint <expression>[, <expression>, ...]
     Create bytes from 24 bit signed constants (-8388608-8388607)
 
-            .long $123456   ; $56 $34 $12
-            .long ?         ; reserve 3 bytes of space
-            .lint -533, 4433; $eb $fd $ff $51 $11 $00
+    >1000  56 34 12                          .long $123456
+    >1003                                    .long ?                ; reserve 3 bytes
+    >1006  eb fd ff 51 11 00                 .lint -533, 4433
     ;Store 8.16 signed fixed point constants
-            .lint (-3.44, 3.4, 3.52) * 1p16
-
+    >100c  5d 8f fc 66 66 03 1e 85           .lint (-3.44, 3.4, 3.52) * 1p16
+    >1014  03
     ;Computed long jumps with jump table (65816)
-            lda jumps,x
-            sta ind
-            lda jumps+1,x
-            sta ind+1
-            lda jumps+2,x
-            sta ind+2
-            jmp [ind]
-    jumps   .long routine1, routine2
+    .1015  bd 2a 10  lda $102a,x             lda jumps,x
+    .1018  8d 11 03  sta $0311               sta ind
+    .101b  bd 2b 10  lda $102b,x             lda jumps+1,x
+    .101e  8d 12 03  sta $0312               sta ind+1
+    .1021  bd 2c 10  lda $102c,x             lda jumps+2,x
+    .1024  8d 13 03  sta $0313               sta ind+2
+    .1027  dc 11 03  jmp [$0311]             jmp [ind]
+    >102a  32 03 01 92 05 02         jumps   .long routine1, routine2
 
 .dword <expression>[, <expression>, ...]
     Create bytes from 32 bit constants (0-4294967295)
 .dint <expression>[, <expression>, ...]
     Create bytes from 32 bit signed constants (-2147483648-2147483647)
 
-            .dword $12345678; $78 $56 $34 $12
-            .dword ?        ; reserve 4 bytes of space
-            .dint -411469219; $5d $7a $79 $e7
+    >1000  78 56 34 12              .dword $12345678
+    >1004                           .dword ?        ; reserve 4 bytes
+    >1008  5d 7a 79 e7              .dint -411469219
     ;Store 16.16 signed fixed point constants
-            .dint (-3.44, 3.4, 3.52) * 1p16
+    >100c  5d 8f fc ff 66 66 03 00  .dint (-3.44, 3.4, 3.52) * 1p16
+    >1014  1e 85 03 00
 
 Storing string values
 
@@ -1340,90 +1347,100 @@ data (`?') creates byte sized holes. Character string constants are converted
 using the current encoding.
 
 .text <expression>[, <expression>, ...]
-    Assemble strings without conversion into bytes.
+    Assemble strings into 8 bit bytes.
 
-            .text "oeU"     ; text, "" means $22
-            .text 'oeU'     ; text, '' means $27
-            .text 23, $33   ; bytes
-            .text $0a0d     ; $0d, $0a, little endian!
-            .text %00011111 ; more bytes
-            .text ^OEU      ; the decimal value as string (^23 is $32,$33)
+    >1000  4f 45 d5  .text "oeU"
+    >1003  4f 45 d5  .text 'oeU'
+    >1006  17 33     .text 23, $33  ; bytes
+    >1008  0d 0a     .text $0a0d    ; $0d, $0a, little endian!
+    >100a  1f        .text %00011111; more bytes
+    >100b  32 33     .text ^OEU     ; the decimal value as string (^23 is $32,$33)
 
 .fill <length>[, <fill>]
-    Skip bytes (using uninitialized data), or fill with repeated bytes.
+    Reserve space (using uninitialized data), or fill with repeated bytes.
 
-            .fill $100      ;no fill, just reserve $100 bytes
-            .fill $4000, 0  ;16384 bytes of 0
-            .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
+    >1000            .fill $100      ;no fill, just reserve $100 bytes
+    >1100  00 00 00  .fill $4000, 0  ;16384 bytes of 0
+    ...
+    >5100  55 aa 55  .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
+    ...
 
 .shift <expression>[, <expression>, ...]
-    Same as .text, but the last byte will have the highest bit set. Any byte
-    which already has the most significant bit set will cause an error. The
-    last byte can't be uninitialized or missing of course.
+    Assemble strings of 7 bit bytes and mark the last byte by setting it's most
+    significiant bit.
 
-            ldx #0
-    loop    lda txt,x
-            php
-            and #$7f
-            jsr $ffd2
-            inx
-            plp
-            bpl loop
-            rts
-    txt     .shift "single", 32, "string"
-            .text s"first", s"second"
+    Any byte which already has the most significant bit set will cause an
+    error. The last byte can't be uninitialized or missing of course.
+
+    The naming comes from old TASM and is a reference to setting the high bit
+    of alphabetic letters which results in it's uppercase version in PETSCII.
+
+    .1000  a2 00          ldx #$00                ldx #0
+    .1002  bd 10 10       lda $1010,x     loop    lda txt,x
+    .1005  08             php                     php
+    .1006  29 7f          and #$7f                and #$7f
+    .1008  20 d2 ff       jsr $ffd2               jsr $ffd2
+    .100b  e8             inx                     inx
+    .100c  28             plp                     plp
+    .100d  10 f3          bpl $1002               bpl loop
+    .100f  60             rts                     rts
+    >1010  53 49 4e 47 4c 45 20 53        txt     .shift "single", 32, "string"
+    >1018  54 52 49 4e c7
 
 .shiftl <expression>[, <expression>, ...]
-    Same as .text, but all bytes are shifted to left, and the last byte gets
-    the lowest bit set. Any byte which already has the most significant bit set
-    will cause an error as this is cut off on shifting. The last byte can't be
-    uninitialized or missing of course.
+    Assemble strings of 7 bit bytes shifted to the left once with the last
+    byte's least significiant bit set.
 
-            ldx #0
-    loop    lda txt,x
-            lsr
-            sta $400,x      ;screen memory
-            inx
-            bcc loop
-            rts
-            .enc screen
-    txt     .shiftl "single", 32, "string"
-            .text l"first", l"second"
-            .enc none
+    Any byte which already has the most significant bit set will cause an error
+    as this is cut off on shifting. The last byte can't be uninitialized or
+    missing of course.
+
+    The naming is a reference to left shifting.
+
+    .1000  a2 00          ldx #$00                ldx #0
+    .1002  bd 0d 10       lda $100d,x     loop    lda txt,x
+    .1005  4a             lsr a                   lsr
+    .1006  9d 00 04       sta $0400,x             sta $400,x      ;screen memory
+    .1009  e8             inx                     inx
+    .100a  90 f6          bcc $1002               bcc loop
+    .100c  60             rts                     rts
+                                                  .enc screen
+    >100d  a6 92 9c 8e 98 8a 40 a6                .shiftl "single", 32, "string"
+    >1015  a8 a4 92 9c 8f                 txt     .enc none
 
 .null <expression>[, <expression>, ...]
     Same as .text, but adds a zero byte to the end. An existing zero byte is an
     error as it'd cause a false end marker.
 
-            lda #<txt
-            ldy #>txt
-            jsr $ab1e
-    txt     .null "single", 32, "string"
-            .text n"first", n"second"
+    .1000  a9 07          lda #$07                lda #<txt
+    .1002  a0 10          ldy #$10                ldy #>txt
+    .1004  20 1e ab       jsr $ab1e               jsr $ab1e
+    >1007  53 49 4e 47 4c 45 20 53        txt     .null "single", 32, "string"
+    >100f  54 52 49 4e 47 00
 
 .ptext <expression>[, <expression>, ...]
     Same as .text, but prepend the number of bytes in front of the string
     (pascal style string). Therefore it can't do more than 255 bytes.
 
-            lda #<txt
-            ldx #>txt
-            jsr print
-            rts
+    .1000  a9 1d          lda #$1d                lda #<txt
+    .1002  a2 10          ldx #$10                ldx #>txt
+    .1004  20 08 10       jsr $1008               jsr print
+    .1007  60             rts                     rts
 
-    print   sta $fb
-            stx $fc
-            ldy #0
-            lda ($fb),y
-            beq null
-            tax
-    -       iny
-            lda ($fb),y
-            jsr $ffd2
-            dex
-            bne -
-    null    rts
-    txt     .ptext "single", 32, "string"
-            .text p"first", p"second"
+    .1008  85 fb          sta $fb         print   sta $fb
+    .100a  86 fc          stx $fc                 stx $fc
+    .100c  a0 00          ldy #$00                ldy #0
+    .100e  b1 fb          lda ($fb),y             lda ($fb),y
+    .1010  f0 0a          beq $101c               beq null
+    .1012  aa             tax                     tax
+    .1013  c8             iny             -       iny
+    .1014  b1 fb          lda ($fb),y             lda ($fb),y
+    .1016  20 d2 ff       jsr $ffd2               jsr $ffd2
+    .1019  ca             dex                     dex
+    .101a  d0 f7          bne $1013               bne -
+    .101c  60             rts             null    rts
+    >101d  0d 53 49 4e 47 4c 45 20        txt     .ptext "single", 32, "string"
+    >1025  53 54 52 49 4e 47
 
 Text encoding
 
@@ -1436,11 +1453,12 @@ to map Unicode characters to 8 bit values in strings.
     code), anything else is user defined. All user encodings start without any
     character or escape definitions, add some as required.
 
-            .enc screen     ;screen code mode
-            .text "text with screen codes"
-            cmp #"u"        ;compare screen code
-            .enc none       ;normal mode again
-            cmp #"u"        ;compare ASCII
+                                    .enc screen ;screen code mode
+    >1000  13 03 12 05 05 0e 20 03  .text "screen codes"
+    >1008  0f 04 05 13
+    .100c  c9 15     cmp #$15       cmp #"u"    ;compare screen code
+                                    .enc none   ;normal mode again
+    .100e  c9 55     cmp #$55       cmp #"u"    ;compare PETSCII
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
@@ -1474,7 +1492,8 @@ to map Unicode characters to 8 bit values in strings.
         .edef "{crlf}", [13, 10];two byte control code
         .edef "<nothing>", [];replace with no bytes
 
-        .text "{clr}Text in PETSCII\n"
+>1000  93 d4 45 58 54 20 49 4e     .text "{clr}Text in PETSCII\n"
+>1008  20 d0 c5 d4 d3 c3 c9 c9 0d
 
 Structured data
 
@@ -1805,7 +1824,7 @@ Repetitions
     i       .var i - 1
             .ifne i
             .goto loop       ;generates 100 nops
-            .fi
+            .fi              ;the hard way ;)
 
 Including files
 
@@ -2622,7 +2641,7 @@ using the .cpu directive in the source.
     64tass --m65c02 a.asm
             stz $d020       ;65c02 instruction
 
--c, --m65ce02
+--m65ce02
     CSG 65CE02. Enables extra opcodes and addressing modes specific to this
     CPU.
 
