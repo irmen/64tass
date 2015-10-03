@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.52 r1000 reference manual</title>
+<title>64tass v1.52 r1013 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -76,16 +76,16 @@ h3:before { content: counter(counth2) "." counter(counth3) " "; counter-incremen
 h3 { counter-reset: counth4; }
 h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 45pt;display:inline-block;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
-h2 a:after, h3 a:after, h4 a:after {content: "¶"}
-h2 a, h3 a, h4 a {color:blue;visibility:hidden;text-decoration:none;}
-h2:hover a, h3:hover a, h4:hover a {visibility:visible;}
+h2 a:after, h3 a:after, h4 a:after, dt a[name][href]:after {content: "¶"}
+h2 a, h3 a, h4 a, dt a[name][href] {color:blue;visibility:hidden;text-decoration:none;}
+h2:hover a, h3:hover a, h4:hover a, dt:hover a[name][href] {visibility:visible;}
 
 q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body>
 <div>
-<h1>64tass v1.52 r1000 reference manual</h1>
+<h1>64tass v1.52 r1013 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -1077,7 +1077,7 @@ the compiling offset.</p>
 
 <h3>Built-in functions<a name="builtin-functions" href="#builtin-functions"></a></h3>
 
-<p>Builting functions are assigned to the symbols listed below. If you reuse these
+<p>Built-in functions are pre-assigned to the symbols listed below. If you reuse these
 symbols in a scope for other purposes then they become inaccessible, or can
 perform a different function.</p>
 
@@ -1537,6 +1537,9 @@ will match the requested address in the expression.
 <dt><code><b class="k"><a name="d_offs">.offs</a></b></code> &lt;expression&gt;
 <dd>Add an offset to the compile offset (create a gap). The program counter
 stays the same as before.
+<p>Popular in old TASM code where this was the only way to create
+relocated code, otherwise it's use is not recommended as there are easier
+to use alternatives below.</p>
 <pre width=80>
 <i>;Offset PC       Bytes          Disassembly     Source</i>
 						*	<b>=</b> <span>$1000</span>
@@ -1546,8 +1549,9 @@ stays the same as before.
 </pre>
 <dt><code><b class="k"><a name="d_logical">.logical</a></b></code> &lt;expression&gt;
 <dt><code><b class="k"><a name="d_here">.here</a></b></code>
-<dd>Changes the program counter only, the compile offset is not changed. Used
-for code copied to it's proper location at runtime. Can be nested of course.
+<dd>Changes the program counter only, the compile offset is not changed. When finished all continues where it was left off before.
+<p>The naming is not logical at all for relocated code, but that's how it was named in old 6502tass.</p>
+<p>It's used for code copied to it's proper location at runtime. Can be nested of course.</p>
 <pre width=80>
 <i>;Offset PC       Bytes          Disassembly     Source</i>
 						*	<b>=</b> <span>$1000</span>
@@ -1559,7 +1563,7 @@ for code copied to it's proper location at runtime. Can be nested of course.
 </pre>
 <dt><code><b class="k"><a name="d_virtual">.virtual</a></b></code> &lt;expression&gt;
 <dt><code><b class="k"><a name="d_endv">.endv</a></b></code>
-<dd>Changes the program counter to the given address, and discard the output of assembly. When finished all continues as it was left off before.
+<dd>Changes the program counter to the given address, and discard the output of assembly. When finished all continues where it was left off before.
 <p>This is useful to define structures to given addresses.</p>
 <pre width=80>
 	<b class="k">.virtual</b> <span>$d400</span>	<i>; base address</i>
@@ -1583,6 +1587,7 @@ tmp     <b class="d">.byte</b> <span>?</span>	        <i>; at 3,s</i>
 
 <dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;expression&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
+<p>Usually used to page align data or code to avoid penalty cycles when indexing or branching.</p>
 <pre width=80>
 <i>;Offset PC       Bytes          Disassembly     Source</i>
 						*	<b>=</b> <span>$ffc</span>
@@ -1610,18 +1615,18 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 <dt><code><b class="d"><a name="d_char">.char</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit signed constants (&minus;128&ndash;127)
 <pre width=80>
-        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
-        <b class="d">.byte</b> <span class="s">"a"</span>	<i>; single character</i>
-        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
-        <b class="d">.char</b> <span>-3</span>	<i>; $fd</i>
+&gt;1000  ff 03                             <b class="d">.byte</b> <span>255</span>, <span>$03</span>
+&gt;1002  41                                <b class="d">.byte</b> <span class="s">"a"</span>
+&gt;1003                                    <b class="d">.byte</b> <span>?</span>        <i>; reserve 1 byte</i>
+&gt;1004  fd                                <b class="d">.char</b> <span>-3</span>
 <i>;Store 4.4 signed fixed point constants</i>
-        <b class="d">.byte</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p4</span>
-
+&gt;1005  c8 34 32                          <b class="d">.char</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p4</span>
 <i>;Compact computed jumps using self modifying code</i>
-        <b>lda</b> <u>jumps</u>,x
-        <b>sta</b> <u>smod</u>+<span>1</span>
-smod    <b>bne</b> <u>*</u>
-jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span> <i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
+.1008  bd 0f 10  lda $1010,x             <b>lda</b> <u>jumps</u>,x
+.100b  8d 0e 10  sta $100f               <b>sta</b> <u>smod</u>+<span>1</span>
+.100e  d0 fe     bne $100e       smod    <b>bne</b> <u>*</u>
+<i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
+&gt;1010  23 49                     jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span>
 </pre>
 
 <dt><code><b class="d"><a name="d_word">.word</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1629,19 +1634,15 @@ jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<s
 <dt><code><b class="d"><a name="d_int">.int</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 16&nbsp;bit signed constants (&minus;32768&ndash;32767)
 <pre width=80>
-        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span><i>; $42 $23 $55 $45</i>
-        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
-        <b class="d">.int</b> <span>-533</span>, <span>4433</span> <i>; $eb $fd $51 $11</i>
+&gt;1000  42 23 55 45                       <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
+&gt;1004                                    <b class="d">.word</b> <span>?</span>        <i>; reserve 2 bytes</i>
+&gt;1006  eb fd 51 11                       <b class="d">.int</b> <span>-533</span>, <span>4433</span>
 <i>;Store 8.8 signed fixed point constants</i>
-        <b class="d">.int</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p8</span>
-
-<i>;Computed jumps with jump table (bank zero or non-65816)</i>
-        <b>lda</b> <u>jumps</u>,x
-        <b>sta</b> <u>ind</u>
-        <b>lda</b> <u>jumps</u>+<span>1</span>,x
-        <b>sta</b> <u>ind</u>+<span>1</span>
-        <b>jmp</b> (<u>ind</u>)
-jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u><i>; but better use .addr instead</i>
+&gt;100a  80 fc 40 03 20 03                 <b class="d">.int</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p8</span>
+.1010  bd 19 10  lda $1019,x             <b>lda</b> <u>texts</u>,x
+.1013  bc 1a 10  ldy $101a,x             <b>ldy</b> <u>texts</u>+<span>1</span>,x
+.1016  4c 1e ab  jmp $ab1e               <b>jmp</b> <span>$ab1e</span>
+&gt;1019  33 10 59 10               texts   <b class="d">.word</b> <u>text1</u>, <u>text2</u>
 </pre>
 
 <dt><code><b class="d"><a name="d_addr">.addr</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1649,19 +1650,17 @@ jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u><i>; but better u
 <dt><code><b class="d"><a name="d_rta">.rta</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create 16&nbsp;bit return address constants for addresses (in current program bank)
 <pre width=80>
-<i>;Computed jumps with jump table (65816, current bank)</i>
-*       <b>=</b> <span>$12000</span>
-        <b>jmp</b> (<u>jumps</u>,x)
-jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
-
+                                        *       <b>=</b> <span>$12000</span>
+.012000  7c 03 20       jmp ($012003,x)         <b>jmp</b> (<u>jumps</u>,x)
+&gt;012003  50 20 32 03 92 15              jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
 <i>;Computed jumps by using stack (current bank)</i>
-*       <b>=</b> <span>$103000</span>
-        <b>lda</b> <u>rets</u>+<span>1</span>,x
-	<b>pha</b>
-        <b>lda</b> <u>rets</u>,x
-	<b>pha</b>
-	<b>rts</b>
-rets	<b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
+                                        *       <b>=</b> <span>$103000</span>
+.103000  bf 0c 30 10    lda $10300c,x           <b>lda</b> <u>rets</u>+<span>1</span>,x
+.103004  48             pha                     <b>pha</b>
+.103005  bf 0b 30 10    lda $10300b,x           <b>lda</b> <u>rets</u>,x
+.103009  48             pha                     <b>pha</b>
+.10300a  60             rts                     <b>rts</b>
+&gt;10300b  ff ef a1 36 f3 42              rets    <b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
 </pre>
 
 <dt><code><b class="d"><a name="d_long">.long</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1669,21 +1668,21 @@ rets	<b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u
 <dt><code><b class="d"><a name="d_lint">.lint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 24&nbsp;bit signed constants (&minus;8388608&ndash;8388607)
 <pre width=80>
-        <b class="d">.long</b> <span>$123456</span>   <i>; $56 $34 $12</i>
-        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
-        <b class="d">.lint</b> <span>-533</span>, <span>4433</span><i>; $eb $fd $ff $51 $11 $00</i>
+&gt;1000  56 34 12                          <b class="d">.long</b> <span>$123456</span>
+&gt;1003                                    <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes</i>
+&gt;1006  eb fd ff 51 11 00                 <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
 <i>;Store 8.16 signed fixed point constants</i>
-        <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
-
+&gt;100c  5d 8f fc 66 66 03 1e 85           <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
+&gt;1014  03
 <i>;Computed long jumps with jump table (65816)</i>
-        <b>lda</b> <u>jumps</u>,x
-        <b>sta</b> <u>ind</u>
-        <b>lda</b> <u>jumps</u>+<span>1</span>,x
-        <b>sta</b> <u>ind</u>+<span>1</span>
-        <b>lda</b> <u>jumps</u>+<span>2</span>,x
-        <b>sta</b> <u>ind</u>+<span>2</span>
-        <b>jmp</b> [<u>ind</u>]
-jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
+.1015  bd 2a 10  lda $102a,x             <b>lda</b> <u>jumps</u>,x
+.1018  8d 11 03  sta $0311               <b>sta</b> <u>ind</u>
+.101b  bd 2b 10  lda $102b,x             <b>lda</b> <u>jumps</u>+<span>1</span>,x
+.101e  8d 12 03  sta $0312               <b>sta</b> <u>ind</u>+<span>1</span>
+.1021  bd 2c 10  lda $102c,x             <b>lda</b> <u>jumps</u>+<span>2</span>,x
+.1024  8d 13 03  sta $0313               <b>sta</b> <u>ind</u>+<span>2</span>
+.1027  dc 11 03  jmp [$0311]             <b>jmp</b> [<u>ind</u>]
+&gt;102a  32 03 01 92 05 02         jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 </pre>
 
 <dt><code><b class="d"><a name="d_dword">.dword</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1691,11 +1690,12 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <dt><code><b class="d"><a name="d_dint">.dint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 <pre width=80>
-        <b class="d">.dword</b> <span>$12345678</span><i>; $78 $56 $34 $12</i>
-        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
-        <b class="d">.dint</b> <span>-411469219</span><i>; $5d $7a $79 $e7</i>
+&gt;1000  78 56 34 12              <b class="d">.dword</b> <span>$12345678</span>
+&gt;1004                           <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes</i>
+&gt;1008  5d 7a 79 e7              <b class="d">.dint</b> <span>-411469219</span>
 <i>;Store 16.16 signed fixed point constants</i>
-        <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
+&gt;100c  5d 8f fc ff 66 66 03 00  <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
+&gt;1014  1e 85 03 00
 </pre>
 </dl>
 
@@ -1707,95 +1707,99 @@ Uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>) creates 
 are converted using the current encoding.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_text">.text</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Assemble strings without conversion into bytes.
+<dd>Assemble strings into 8&nbsp;bit bytes.
 <pre width=80>
-        <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
-        <b class="d">.text</b> <span class="s">'oeU'</span>	<i>; text, '' means $27</i>
-        <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
-        <b class="d">.text</b> <span>$0a0d</span>	<i>; $0d, $0a, little endian!</i>
-        <b class="d">.text</b> <span>%00011111</span>	<i>; more bytes</i>
-        <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
+&gt;1000  4f 45 d5  <b class="d">.text</b> <span class="s">"oeU"</span>
+&gt;1003  4f 45 d5  <b class="d">.text</b> <span class="s">'oeU'</span>
+&gt;1006  17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
+&gt;1008  0d 0a     <b class="d">.text</b> <span>$0a0d</span>	<i>; $0d, $0a, little endian!</i>
+&gt;100a  1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
+&gt;100b  32 33     <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
 <dt><code><b class="d"><a name="d_fill">.fill</a></b></code> &lt;length&gt;[, &lt;fill&gt;]
-<dd>Skip bytes (using uninitialized data), or fill with repeated bytes.
+<dd>Reserve space (using uninitialized data), or fill with repeated bytes.
 <pre width=80>
-        <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
-        <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
-        <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
+&gt;1000            <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
+&gt;1100  00 00 00  <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
+...
+&gt;5100  55 aa 55  <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
+...
 </pre>
 
 <dt><code><b class="d"><a name="d_shift">.shift</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <a href="#d_text"><code>.text</code></a>, but the last byte will have the highest bit set.
-Any byte which already has the most significant bit set will cause an error.
-The last byte can't be uninitialized or missing of course.
+<dd>Assemble strings of 7&nbsp;bit bytes and mark the last byte by setting it's most significiant bit.
+<p>Any byte which already has the most significant bit set will cause an error.
+The last byte can't be uninitialized or missing of course.</p>
+<p>The naming comes from old TASM and is a reference to setting the high bit of alphabetic letters which results in it's uppercase version in PETSCII.</p>
 <pre width=80>
-        <b>ldx</b> #<span>0</span>
-loop	<b>lda</b> <u>txt</u>,x
-	<b>php</b>
-        <b>and</b> #<span>$7f</span>
-        <b>jsr</b> <span>$ffd2</span>
-	<b>inx</b>
-	<b>plp</b>
-        <b>bpl</b> <u>loop</u>
-	<b>rts</b>
-txt	<b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-	<b class="d">.text</b> <span class="s">s"first"</span>, <span class="s">s"second"</span>
+.1000  a2 00          ldx #$00                <b>ldx</b> #<span>0</span>
+.1002  bd 10 10       lda $1010,x     loop    <b>lda</b> <u>txt</u>,x
+.1005  08             php                     <b>php</b>
+.1006  29 7f          and #$7f                <b>and</b> #<span>$7f</span>
+.1008  20 d2 ff       jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
+.100b  e8             inx                     <b>inx</b>
+.100c  28             plp                     <b>plp</b>
+.100d  10 f3          bpl $1002               <b>bpl</b> <u>loop</u>
+.100f  60             rts                     <b>rts</b>
+&gt;1010  53 49 4e 47 4c 45 20 53        txt     <b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span> 
+&gt;1018  54 52 49 4e c7
 </pre>
 
 <dt><code><b class="d"><a name="d_shiftl">.shiftl</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <a href="#d_text"><code>.text</code></a>, but all bytes are shifted to left, and the last
-byte gets the lowest bit set. Any byte which already has the most significant
+<dd>Assemble strings of 7&nbsp;bit bytes shifted to the left once with the last byte's least significiant bit set.
+<p>Any byte which already has the most significant
 bit set will cause an error as this is cut off on shifting.
-The last byte can't be uninitialized or missing of course.
+The last byte can't be uninitialized or missing of course.</p>
+<p>The naming is a reference to left shifting.</p>
+
 <pre width=80>
-        <b>ldx</b> #<span>0</span>
-loop	<b>lda</b> <u>txt</u>,x
-	<b>lsr</b>
-        <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
-	<b>inx</b>
-        <b>bcc</b> <u>loop</u>
-	<b>rts</b>
-	<b class="k">.enc</b> screen
-txt	<b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-	<b class="d">.text</b> <span class="s">l"first"</span>, <span class="s">l"second"</span>
-	<b class="k">.enc</b> none
+.1000  a2 00          ldx #$00                <b>ldx</b> #<span>0</span>
+.1002  bd 0d 10       lda $100d,x     loop    <b>lda</b> <u>txt</u>,x
+.1005  4a             lsr a                   <b>lsr</b>
+.1006  9d 00 04       sta $0400,x             <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
+.1009  e8             inx                     <b>inx</b>
+.100a  90 f6          bcc $1002               <b>bcc</b> <u>loop</u>
+.100c  60             rts                     <b>rts</b>
+                                              <b class="k">.enc</b> screen
+&gt;100d  a6 92 9c 8e 98 8a 40 a6                <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span> 
+&gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> none
 </pre>
 
 <dt><code><b class="d"><a name="d_null">.null</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <a href="#d_text"><code>.text</code></a>, but adds a zero byte to the end. An existing
 zero byte is an error as it'd cause a false end marker.
 <pre width=80>
-        <b>lda</b> #&lt;<u>txt</u>
-        <b>ldy</b> #&gt;<u>txt</u>
-        <b>jsr</b> <span>$ab1e</span>
-txt	<b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-	<b class="d">.text</b> <span class="s">n"first"</span>, <span class="s">n"second"</span>
+.1000  a9 07          lda #$07                <b>lda</b> #&lt;<u>txt</u>
+.1002  a0 10          ldy #$10                <b>ldy</b> #&gt;<u>txt</u>
+.1004  20 1e ab       jsr $ab1e               <b>jsr</b> <span>$ab1e</span>
+&gt;1007  53 49 4e 47 4c 45 20 53        txt     <b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;100f  54 52 49 4e 47 00
 </pre>
 
 <dt><code><b class="d"><a name="d_ptext">.ptext</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <a href="#d_text"><code>.text</code></a>, but prepend the number of bytes in front of the
 string (pascal style string). Therefore it can't do more than 255 bytes.
 <pre width=80>
-        <b>lda</b> #&lt;<u>txt</u>
-        <b>ldx</b> #&gt;<u>txt</u>
-        <b>jsr</b> <u>print</u>
-	<b>rts</b>
+.1000  a9 1d          lda #$1d                <b>lda</b> #&lt;<u>txt</u>
+.1002  a2 10          ldx #$10                <b>ldx</b> #&gt;<u>txt</u>
+.1004  20 08 10       jsr $1008               <b>jsr</b> <u>print</u>
+.1007  60             rts                     <b>rts</b>
 
-print	<b>sta</b> <span>$fb</span>
-        <b>stx</b> <span>$fc</span>
-        <b>ldy</b> #<span>0</span>
-        <b>lda</b> (<span>$fb</span>),y
-        <b>beq</b> <u>null</u>
-	<b>tax</b>
--	<b>iny</b>
-        <b>lda</b> (<span>$fb</span>),y
-        <b>jsr</b> <span>$ffd2</span>
-	<b>dex</b>
-	<b>bne</b> <u>-</u>
-null	<b>rts</b>
-txt	<b class="d">.ptext</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-	<b class="d">.text</b> <span class="s">p"first"</span>, <span class="s">p"second"</span>
+.1008  85 fb          sta $fb         print   <b>sta</b> <span>$fb</span>
+.100a  86 fc          stx $fc                 <b>stx</b> <span>$fc</span>
+.100c  a0 00          ldy #$00                <b>ldy</b> #<span>0</span>
+.100e  b1 fb          lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
+.1010  f0 0a          beq $101c               <b>beq</b> <u>null</u>
+.1012  aa             tax                     <b>tax</b>
+.1013  c8             iny             -       <b>iny</b>
+.1014  b1 fb          lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
+.1016  20 d2 ff       jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
+.1019  ca             dex                     <b>dex</b>
+.101a  d0 f7          bne $1013               <b>bne</b> <u>-</u>
+.101c  60             rts             null    <b>rts</b>
+&gt;101d  0d 53 49 4e 47 4c 45 20        txt     <b class="d">.ptext</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;1025  53 54 52 49 4e 47
 </pre>
 </dl>
 
@@ -1809,11 +1813,12 @@ to 8&nbsp;bit values in strings.</p>
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
 <pre width=80>
-	<b class="k">.enc</b> screen	<i>;screen code mode</i>
-        <b class="d">.text</b> <span class="s">"text with screen codes"</span>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare screen code</i>
-	<b class="k">.enc</b> none	<i>;normal mode again</i>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ASCII</i>
+                                <b class="k">.enc</b> screen <i>;screen code mode</i>
+&gt;1000  13 03 12 05 05 0e 20 03  <b class="d">.text</b> <span class="s">"screen codes"</span>
+&gt;1008  0f 04 05 13
+.100c  c9 15     cmp #$15       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare screen code</i>
+                                <b class="k">.enc</b> none   <i>;normal mode again</i>
+.100e  c9 55     cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
 </pre>
 <dt><code><b class="k"><a name="d_cdef">.cdef</a></b></code> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]
 <dt><code><b class="k">.cdef</b></code> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
@@ -1844,7 +1849,8 @@ non-typeable control code aliases, or as a simple tokenizer.</p>
         <b class="k">.edef</b> <span class="s">"{crlf}"</span>, [<span>13</span>, <span>10</span>]<i>;two byte control code</i>
         <b class="k">.edef</b> <span class="s">"&lt;nothing&gt;"</span>, []<i>;replace with no bytes</i>
 
-        <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
+>1000  93 d4 45 58 54 20 49 4e     <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
+>1008  20 d0 c5 d4 d3 c3 c9 c9 0d
 </pre>
 
 <h3>Structured data<a name="structures" href="#structures"></a></h3>
@@ -2201,7 +2207,7 @@ loop	<b class="k">.lbl</b>
 i       <b class="k">.var</b> <u>i</u> - <span>1</span>
         <b class="k">.ifne</b> <u>i</u>
         <b class="k">.goto</b> <u>loop</u>       <i>;generates 100 nops</i>
-        <b class="k">.fi</b>
+        <b class="k">.fi</b>              <i>;the hard way ;)</i>
 </pre>
 
 </dl>
@@ -2388,25 +2394,25 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 </pre>
 <p>The compiled code will look like:</p>
 <pre width=80>
-&gt;0801	 0b 08 d5 07			        .word ss, 2005
-&gt;0805	 9e 32 30 36 31 00		        .null $9e, ^start
-&gt;080b	 00 00				ss      .word 0
+&gt;0801	 0b 08 d5 07			        <b class="d">.word</b> <u>ss</u>, <span>2005</span>
+&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, ^<u>start</u>
+&gt;080b	 00 00				ss      <b class="d">.word</b> <span>0</span>
 
-.080d	 78				start   sei
+.080d	 78				start   <b>sei</b>
 
-&gt;0002					p2      .word ?         ;a pointer
-&gt;0334					buffer  .fill 10        ;temporary area
+&gt;0002					p2      <b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
+&gt;0334					buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
 
-.080e	 b1 02				        lda (p2),y
-.0810	 a9 00				        lda #&lt;label
-.0812	 a0 10				        ldy #&gt;label
-.0814	 20 1e ab			        jsr print
+.080e	 b1 02				        <b>lda</b> (<u>p2</u>),y
+.0810	 a9 00				        <b>lda</b> #&lt;<u>label</u>
+.0812	 a0 10				        <b>ldy</b> #&gt;<u>label</u>
+.0814	 20 1e ab			        <b>jsr</b> <u>print</u>
 
-&gt;1000	 6d 65 73 73 61 67 65 00	label   .null "message"
+&gt;1000	 6d 65 73 73 61 67 65 00	label   <b class="d">.null</b> <span class="s">"message"</span>
 
-.0817	 4c e2 fc			        jmp error
+.0817	 4c e2 fc			        <b>jmp</b> <u>error</u>
 
-&gt;0004					p2      .word ?         ;a pointer
+&gt;0004					p2      <b class="d">.word</b> ?         <i>;a pointer</i>
 </pre>
 
 <p>Sections can form a hierarchy by nesting a <a href="#d_dsection"><code>.dsection</code></a> into
@@ -2825,7 +2831,7 @@ you get a related error move the respective label out of the <a href="#d_block">
 <h3>Output options<a name="commandline-output" href="#commandline-output"></a></h3>
 
 <dl class="dir">
-<dt><b>-o</b> &lt;filename&gt;
+<dt><b>-o</b> &lt;filename&gt;<a name="o_o" href="#o_o"></a>
 <dd>Place output into &lt;filename&gt;. The default output filename is <q>a.out</q>. This option changes it.
 <pre width=80>
 64tass a.asm -o a.prg
@@ -2838,19 +2844,19 @@ address). Overlapping blocks are flattened and uninitialized memory is filled up
 Uninitialized memory before the first and after the last valid bytes are not saved.</p>
 <p>Used for C64 binaries.</p>
 
-<dt><b>-b</b>, <b>--nostart</b>
+<dt><b>-b</b>, <b>--nostart</b><a name="o_nostart" href="#o_nostart"></a>
 <dd>Output data only without start address
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
 before the first and after the last valid bytes are not saved.</p>
 <p>Useful for small ROM files.</p>
 
-<dt><b>-f</b>, <b>--flat</b>
+<dt><b>-f</b><a name="o_f"></a>, <b>--flat</b><a name="o_flat" href="#o_flat"></a>
 <dd>Flat address space output mode.
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with
 zeros. Uninitialized memory after the last valid byte is not saved.</p>
 <p>Useful for creating huge multi bank ROM files (over 64&nbsp;KiB). See sections for an example.</p>
 
-<dt><b>-n</b>, <b>--nonlinear</b>
+<dt><b>-n</b><a name="o_n"></a>, <b>--nonlinear</b><a name="o_nonlinear" href="#o_nonlinear"></a>
 <dd>Generate nonlinear output file.
 <p>Overlapping blocks are flattened. Blocks are saved in sorted order and uninitialized memory is skipped.</p>
 <p>Used for linkers.</p>
@@ -2874,13 +2880,13 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
 </tbody>
 </table></div>
 
-<dt><b>-X</b>, <b>--long-address</b>
+<dt><b>-X</b>, <b>--long-address</b><a name="o_long-address" href="#o_long-address"></a>
 <dd>Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
 <pre width=80>
 64tass --long-address --m65816 a.asm
 </pre>
 
-<dt><b>--atari-xex</b>
+<dt><b>--atari-xex</b><a name="o_atari-xex" href="#o_atari-xex"></a>
 <dd>Generate a Atari XEX output file.
 <p>Overlapping blocks are kept, continuing blocks are concatenated. Saving
 happens in the definition order without sorting, and uninitialized memory is
@@ -2905,7 +2911,7 @@ start	<b>rts</b>
 </tbody>
 </table></div>
 
-<dt><b>--apple2</b>
+<dt><b>--apple2</b><a name="o_apple2" href="#o_apple2"></a>
 <dd>Generate a Apple II output file (DOS 3.3).
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
 before the first and after the last valid bytes are not saved.</p>
@@ -2927,7 +2933,7 @@ before the first and after the last valid bytes are not saved.</p>
 <h3>Operation options<a name="commandline-operation" href="#commandline-operation"></a></h3>
 
 <dl class="dir">
-<dt><b>-a</b>, <b>--ascii</b>
+<dt><b>-a</b><a name="o_a"></a>, <b>--ascii</b><a name="o_ascii" href="#o_ascii"></a>
 <dd>Use ASCII/Unicode text encoding instead of raw 8-bit
 <p>Normally no conversion takes place, this is for backwards compatibility with
 a DOS based Turbo Assembler editor, which could create PETSCII files for
@@ -2956,7 +2962,7 @@ PETSCII literals to the default encodings, and enables Unicode letters in symbol
 &gt;000e    52 45
 </pre>
 
-<dt><b>-B</b>, <b>--long-branch</b>
+<dt><b>-B</b>, <b>--long-branch</b><a name="o_long-branch" href="#o_long-branch"></a>
 <dd>Automatic <code>BXX &lowast;+5 JMP xxx</code>. Branch too long messages can be annoying
 sometimes, usually they'll need to be rewritten to <code>BXX &lowast;+5 JMP xxx</code>.
 64tass can do this automatically if this option is used. But <code>BRA</code>
@@ -2976,7 +2982,7 @@ is not converted.
         <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
-<dt><b>-C</b>, <b>--case-sensitive</b>
+<dt><b>-C</b>, <b>--case-sensitive</b><a name="o_case-sensitive" href="#o_case-sensitive"></a>
 <dd>Case sensitive labels. Labels are not case sensitive by default, this
 option changes that.
 <pre>
@@ -2989,7 +2995,7 @@ label   <b>nop</b>
 Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 
-<dt><b>-D</b> &lt;label&gt;=&lt;value&gt;
+<dt><b>-D</b> &lt;label&gt;=&lt;value&gt;<a name="o_D" href="#o_D"></a>
 <dd>Define &lt;label&gt; to &lt;value&gt;. Defines a label to a value. Same
 syntax is allowed as in source files. Be careful with string quoting, the shell
 might eat some of the characters.
@@ -2998,42 +3004,42 @@ might eat some of the characters.
         <b>lda</b> #<u>ii</u> <i>;result: $a9, $02</i>
 </pre>
 
-<dt><b>-w</b>, <b>--no-warn</b>
+<dt><b>-w</b><a name="o_w"></a>, <b>--no-warn</b><a name="o_no-warn" href="#o_no-warn"></a>
 <dd>Suppress warnings. Disables warnings during compile.
 <pre width=80>
 64tass --no-warn a.asm
 </pre>
 
-<dt><b>--no-caret-diag</b>
+<dt><b>--no-caret-diag</b><a name="o_no-caret-diag" href="#o_no-caret-diag"></a>
 <dd>Suppress displaying of faulty source line and fault position after
 fault messages.
 <pre width=80>
 64tass --no-caret-diag a.asm
 </pre>
 
-<dt><b>-q</b>, <b>--quiet</b>
+<dt><b>-q</b><a name="o_q"></a>, <b>--quiet</b><a name="o_quiet" href="#o_quiet"></a>
 <dd>Suppress messages. Disables header and summary messages.
 <pre width=80>
 64tass --quiet a.asm
 </pre>
 
-<dt><b>-T</b>, <b>--tasm-compatible</b>
+<dt><b>-T</b>, <b>--tasm-compatible</b><a name="o_tasm-compatible" href="#o_tasm-compatible"></a>
 <dd>Enable TASM compatible operators and precedence
 <p>Switches the expression evaluator into compatibility mode. This
 enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
 and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo Assembler</q> below)</p>
 
-<dt><b>-I</b> &lt;path&gt;
+<dt><b>-I</b> &lt;path&gt;<a name="o_I" href="#o_I"></a>
 <dd>Specify include search path
 <p>If an included source or binary file can't be found in the directory of the
 source file then this path is tried. More than one directories can be specified
 by repeating this option. If multiple matches exist the first one is used.</p>
 
-<dt><b>-M</b> &lt;file&gt;
+<dt><b>-M</b> &lt;file&gt;<a name="o_M" href="#o_M"></a>
 <dd>Specify make rule output file
 <p>Writes a dependency rule suitable for <q>make</q> from the list of files used during compilation.</p>
 
-<dt><b>--shadow-check</b>
+<dt><b>--shadow-check</b><a name="o_shadow-check" href="#o_shadow-check"></a>
 <dd>Enable symbol shadowing check
 <p>Makes local variables <q>shadowing</q> other variables in upper scopes an
 error if they are used in a way which is ambiguous.</p>
@@ -3053,7 +3059,7 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
 using the <a href="#d_cpu"><code>.cpu</code></a> directive in the source.</p>
 
 <dl class="dir">
-<dt><b>--m65xx</b>
+<dt><b>--m65xx</b><a name="o_m65xx" href="#o_m65xx"></a>
 <dd>Standard 65xx (default). For writing compatible code, no extra codes. This
 is the default.
 <pre width=80>
@@ -3061,7 +3067,7 @@ is the default.
         <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
 </pre>
 
-<dt><b>-c</b>, <b>--m65c02</b>
+<dt><b>-c</b>, <b>--m65c02</b><a name="o_m65c02" href="#o_m65c02"></a>
 <dd>CMOS 65C02. Enables extra opcodes and addressing modes specific to this
 CPU.
 <pre width=80>
@@ -3069,7 +3075,7 @@ CPU.
         <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
 </pre>
 
-<dt><b>-c</b>, <b>--m65ce02</b>
+<dt><b>--m65ce02</b><a name="o_m65ce02" href="#o_m65ce02"></a>
 <dd>CSG 65CE02. Enables extra opcodes and addressing modes specific to this
 CPU.
 <pre width=80>
@@ -3077,7 +3083,7 @@ CPU.
         <b>inz</b>
 </pre>
 
-<dt><b>-i</b>, <b>--m6502</b>
+<dt><b>-i</b>, <b>--m6502</b><a name="o_m6502" href="#o_m6502"></a>
 <dd>NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64,
 disk drive code, etc.
 <pre width=80>
@@ -3085,14 +3091,14 @@ disk drive code, etc.
         <b>lax</b> <span>$14</span>		<i>;illegal instruction</i>
 </pre>
 
-<dt><b>-t</b>, <b>--m65dtv02</b>
+<dt><b>-t</b>, <b>--m65dtv02</b><a name="o_m65dtv02" href="#o_m65dtv02"></a>
 <dd>65DTV02. Enables extra opcodes specific to DTV.
 <pre width=80>
 64tass --m65dtv02 a.asm
         <b>sac</b> #<span>$00</span>
 </pre>
 
-<dt><b>-x</b>, <b>--m65816</b>
+<dt><b>-x</b>, <b>--m65816</b><a name="o_m65816" href="#o_m65816"></a>
 <dd>W65C816. Enables extra opcodes, and full 16&nbsp;MiB address space. Useful
 for SuperCPU projects.
 <pre width=80>
@@ -3100,21 +3106,21 @@ for SuperCPU projects.
         <b>lda</b> <span>$123456</span>,x
 </pre>
 
-<dt><b>-e</b>, <b>--m65el02</b>
+<dt><b>-e</b><a name="o_e"></a>, <b>--m65el02</b><a name="o_m65el02" href="#o_m65el02"></a>
 <dd>65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.
 <pre width=80>
 64tass --m65el02 a.asm
         <b>lda</b> <span>0</span>,r
 </pre>
 
-<dt><b>--mr65c02</b>
+<dt><b>--mr65c02</b><a name="o_mr65c02" href="#o_mr65c02"></a>
 <dd>R65C02. Enables extra opcodes and addressing modes specific to this CPU.
 <pre width=80>
 64tass --mr65c02 a.asm
         <b>rmb</b> <span>7</span>,<span>$20</span>
 </pre>
 
-<dt><b>--mw65c02</b>
+<dt><b>--mw65c02</b><a name="o_mw65c02" href="#o_mw65c02"></a>
 <dd>W65C02. Enables extra opcodes and addressing modes specific to this CPU.
 <pre width=80>
 64tass --mw65c02 a.asm
@@ -3125,7 +3131,7 @@ for SuperCPU projects.
 <h3>Source listing options<a name="commandline-listing" href="#commandline-listing"></a></h3>
 
 <dl class="dir">
-<dt><b>-l</b> &lt;file&gt;, <b>--labels</b>=&lt;file&gt;
+<dt><b>-l</b> &lt;file&gt;, <b>--labels</b>=&lt;file&gt;<a name="o_labels" href="#o_labels"></a>
 <dd>List labels into &lt;file&gt;. List global used labels to a file.
 <pre width=80>
 64tass -l labels.txt a.asm
@@ -3136,7 +3142,7 @@ result (labels.txt):
 label           = $1000
 </pre>
 
-<dt><b>--vice-labels</b>
+<dt><b>--vice-labels</b><a name="o_vice-labels" href="#o_vice-labels"></a>
 <dd>List labels in a VICE readable format.
 <pre width=80>
 64tass --vice-labels -l labels.txt a.asm
@@ -3147,7 +3153,7 @@ result (labels.txt):
 al 1000 .label
 </pre>
 
-<dt><b>-L</b> &lt;file&gt;, <b>--list</b>=&lt;file&gt;
+<dt><b>-L</b> &lt;file&gt;, <b>--list</b>=&lt;file&gt;<a name="o_list" href="#o_list"></a>
 <dd>List into &lt;file&gt;. Dumps source code and compiled code into file.
 Useful for debugging, it's much easier to identify the code in memory within
 the source files.
@@ -3173,7 +3179,7 @@ result (list.txt):
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
 
-<dt><b>-m</b>, <b>--no-monitor</b>
+<dt><b>-m</b>, <b>--no-monitor</b><a name="o_no-monitor" href="#o_no-monitor"></a>
 <dd>Don't put monitor code into listing. There won't be any monitor listing in the list file.
 <pre width=80>
 64tass --no-monitor -L list.txt a.asm
@@ -3192,7 +3198,7 @@ result (list.txt):
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
 
-<dt><b>-s</b>, <b>--no-source</b>
+<dt><b>-s</b><a name="o_s"></a>, <b>--no-source</b><a name="o_no-source" href="#o_no-source"></a>
 <dd>Don't put source code into listing. There won't be any source listing in the list file.
 <pre width=80>
 64tass --no-source -L list.txt a.asm
@@ -3211,7 +3217,7 @@ result (list.txt):
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
 
-<dt><b>--tab-size</b>=&lt;number&gt;
+<dt><b>--tab-size</b>=&lt;number&gt;<a name="o_tab-size" href="#o_tab-size"></a>
 
 <dd>By default the listing file is using a tab size of 8 to align the
 disassembly. This can be changed to other more favorable values like 4.
@@ -3222,13 +3228,13 @@ no effect on the source code on the right hand side.
 <h3>Other options<a name="commandline-other" href="#commandline-other"></a></h3>
 
 <dl class="dir">
-<dt><b>-?</b>, <b>--help</b>
+<dt><b>-?</b>, <b>--help</b><a name="o_help" href="#o_help"></a>
 <dd>Give this help list. Prints help about command line options.
 
-<dt><b>--usage</b>
+<dt><b>--usage</b><a name="o_usage" href="#o_usage"></a>
 <dd>Give a short usage message. Prints short help about command line options.
 
-<dt><b>-V</b>, <b>--version</b>
+<dt><b>-V</b><a name="o_V"></a>, <b>--version</b><a name="o_version" href="#o_version"></a>
 <dd>Print program version
 </dl>
 
