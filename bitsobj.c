@@ -658,6 +658,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         val_destroy(tmp);
         op->v1 = &v1->v;
         return v;
+    case O_LNOT: return truth_reference(!v1->len);
     default:
         break;
     }

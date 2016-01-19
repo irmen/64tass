@@ -281,6 +281,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Str *v1 = (Str *)op->v1;
     Obj *v, *tmp;
     switch (op->op->op) {
+    case O_LNOT:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
