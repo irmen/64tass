@@ -134,7 +134,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
 }
 
 /* range([start],end,[step]) */
-static inline MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) {
     struct values_s *v = vals->val;
     List *new_value;
     Error *err = NULL;
@@ -222,7 +222,7 @@ void random_reseed(Obj *o1, linepos_t epoint) {
 }
 
 /* random() */
-static inline MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
+static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
     struct values_s *v = vals->val;
     Error *err = NULL;
     ival_t start = 0, end, step = 1;
@@ -304,10 +304,14 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     case F_REPR: return o1->obj->repr(o1, epoint, SIZE_MAX);
     default: break;
     }
-    err = FLOAT_OBJ->create(o1, epoint);
-    if (err->obj != FLOAT_OBJ) return err;
-    real = ((Float *)err)->real;
-    val_destroy(err);
+    if (o1->obj == FLOAT_OBJ) {
+        real = ((Float *)o1)->real;
+    } else {
+        err = FLOAT_OBJ->create(o1, epoint);
+        if (err->obj != FLOAT_OBJ) return err;
+        real = ((Float *)err)->real;
+        val_destroy(err);
+    }
     switch (func) {
     case F_FLOOR: real = floor(real);break;
     case F_CEIL: real = ceil(real);break;
@@ -360,115 +364,58 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     return float_from_double(real, epoint);
 }
 
-static MUST_CHECK Obj *apply_func2(oper_t op, enum func_e func) {
-    Obj *o1 = op->v1, *o2 = op->v2, *val, **vals;
-    Error *err;
+static MUST_CHECK Obj *to_real(struct values_s *v, double *r) {
+    if (v->val->obj == FLOAT_OBJ) {
+        *r = ((Float *)v->val)->real;
+    } else {
+        Obj *val = FLOAT_OBJ->create(v->val, &v->epoint);
+        if (val->obj != FLOAT_OBJ) return val;
+        *r = ((Float *)val)->real;
+        val_destroy(val);
+    }
+    return NULL;
+}
+
+static MUST_CHECK Obj *function_hypot(Funcargs *vals, linepos_t epoint) {
+    struct values_s *v = vals->val;
+    Obj *val;
     double real, real2;
 
-    if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
-        List *v1 = (List *)o1;
-        size_t i;
-        if (o1->obj == o2->obj) {
-            List *v2 = (List *)o2;
-            if (v1->len == v2->len) {
-                if (v1->len) {
-                    int error = 1;
-                    List *v = (List *)val_alloc(o1->obj);
-                    vals = list_create_elements(v, v1->len);
-                    for (i = 0; i < v1->len; i++) {
-                        op->v1 = v1->data[i];
-                        op->v2 = v2->data[i];
-                        val = apply_func2(op, func);
-                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
-                        vals[i] = val;
-                    }
-                    op->v1 = (Obj *)v1;
-                    op->v2 = (Obj *)v2;
-                    v->len = i;
-                    v->data = vals;
-                    return (Obj *)v;
-                } 
-                return val_reference(&v1->v);
-            } 
-            if (v1->len == 1) {
-                Obj *v;
-                op->v1 = v1->data[0];
-                v = apply_func2(op, func);
-                op->v1 = (Obj *)v1;
-                return v;
-            } 
-            if (v2->len == 1) {
-                Obj *v;
-                op->v2 = v2->data[0];
-                v = apply_func2(op, func);
-                op->v2 = (Obj *)v2;
-                return v;
-            } 
-            err = new_error(ERROR_CANT_BROADCAS, op->epoint3);
-            err->u.broadcast.v1 = v1->len;
-            err->u.broadcast.v2 = v2->len;
-            return &err->v;
-        }
-        if (v1->len) {
-            int error = 1;
-            List *v = (List *)val_alloc(o1->obj);
-            vals = list_create_elements(v, v1->len);
-            for (i = 0; i < v1->len; i++) {
-                op->v1 = v1->data[i];
-                val = apply_func2(op, func);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
-                vals[i] = val;
-            }
-            op->v1 = (Obj *)v1;
-            v->len = i;
-            v->data = vals;
-            return &v->v;
-        }
-        return val_reference(&v1->v);
+    val = to_real(&v[0], &real);
+    if (val) return val;
+    val = to_real(&v[1], &real2);
+    if (val) return val;
+    return float_from_double(hypot(real, real2), epoint);
+}
+
+static MUST_CHECK Obj *function_atan2(Funcargs *vals, linepos_t epoint) {
+    struct values_s *v = vals->val;
+    Obj *val;
+    double real, real2;
+
+    val = to_real(&v[0], &real);
+    if (val) return val;
+    val = to_real(&v[1], &real2);
+    if (val) return val;
+    return float_from_double(atan2(real, real2), epoint);
+}
+
+static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
+    struct values_s *v = vals->val;
+    Obj *val;
+    double real, real2;
+
+    val = to_real(&v[0], &real);
+    if (val) return val;
+    val = to_real(&v[1], &real2);
+    if (val) return val;
+    if (real2 < 0.0 && !real) {
+        return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
     }
-    if (o2->obj == TUPLE_OBJ || o2->obj == LIST_OBJ) {
-        List *v2 = (List *)o2;
-        if (v2->len) {
-            int  error = 1;
-            size_t i;
-            List *v = (List *)val_alloc(o2->obj);
-            vals = list_create_elements(v, v2->len);
-            for (i = 0; i < v2->len; i++) {
-                op->v2 = v2->data[i];
-                val = apply_func2(op, func);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
-                vals[i] = val;
-            }
-            op->v2 = (Obj *)v2;
-            v->len = i;
-            v->data = vals;
-            return &v->v;
-        }
-        return val_reference(&v2->v);
+    if (real < 0.0 && (double)((int)real2) != real2) {
+        return (Obj *)new_error(ERROR_NEGFRAC_POWER, epoint);
     }
-    val = FLOAT_OBJ->create(o1, op->epoint);
-    if (val->obj != FLOAT_OBJ) return val;
-    real = ((Float *)val)->real;
-    val_destroy(val);
-    val = FLOAT_OBJ->create(o2, op->epoint2);
-    if (val->obj != FLOAT_OBJ) return val;
-    real2 = ((Float *)val)->real;
-    val_destroy(val);
-    switch (func) {
-    case F_HYPOT: real = hypot(real, real2); break;
-    case F_ATAN2: real = atan2(real, real2);break;
-    case F_POW:
-        if (real2 < 0.0 && !real) {
-            return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
-        }
-        if (real < 0.0 && (double)((int)real2) != real2) {
-            return (Obj *)new_error(ERROR_NEGFRAC_POWER, op->epoint3);
-        }
-        real = pow(real, real2);
-        break;
-    default: real = HUGE_VAL; break;
-    }
-    return float_from_double(real, op->epoint3);
+    return float_from_double(atan2(real, real2), epoint);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -477,7 +424,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     enum func_e func;
     struct values_s *v;
     size_t args;
-    struct oper_s oper;
     switch (o2->obj->type) {
     case T_FUNCTION:
         {
@@ -506,24 +452,29 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 func = v1->func;
                 switch (func) {
                 case F_HYPOT:
+                    if (args != 2) {
+                        err_msg_argnum(args, 2, 2, op->epoint2);
+                        return (Obj *)ref_none();
+                    }
+                    return gen_broadcast(v2, op->epoint, function_hypot);
                 case F_ATAN2:
+                    if (args != 2) {
+                        err_msg_argnum(args, 2, 2, op->epoint2);
+                        return (Obj *)ref_none();
+                    }
+                    return gen_broadcast(v2, op->epoint, function_atan2);
                 case F_POW: 
                     if (args != 2) {
                         err_msg_argnum(args, 2, 2, op->epoint2);
                         return (Obj *)ref_none();
                     }
-                    oper.v1 = v[0].val;
-                    oper.v2 = v[1].val;
-                    oper.epoint = &v[0].epoint;
-                    oper.epoint2 = &v[1].epoint;
-                    oper.epoint3 = op->epoint;
-                    return apply_func2(&oper, func);
+                    return gen_broadcast(v2, op->epoint, function_pow);
                 case F_RANGE: 
                     if (args < 1 || args > 3) {
                         err_msg_argnum(args, 1, 3, op->epoint2);
                         return (Obj *)ref_none();
                     }
-                    return gen_broadcast(v2, op->epoint2, function_range);
+                    return gen_broadcast(v2, op->epoint, function_range);
                 case F_FORMAT: 
                     return isnprintf(v2, op->epoint);
                 case F_RANDOM: 
@@ -531,13 +482,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         err_msg_argnum(args, 0, 3, op->epoint2);
                         return (Obj *)ref_none();
                     }
-                    return gen_broadcast(v2, op->epoint2, function_random);
+                    return gen_broadcast(v2, op->epoint, function_random);
                 default:
-                               if (args != 1) {
-                                   err_msg_argnum(args, 1, 1, op->epoint2);
-                                   return (Obj *)ref_none();
-                               }
-                               return apply_func(v[0].val, func, &v[0].epoint);
+                    if (args != 1) {
+                        err_msg_argnum(args, 1, 1, op->epoint2);
+                        return (Obj *)ref_none();
+                    }
+                    return apply_func(v[0].val, func, &v[0].epoint);
                 }
             default: break;
             }
