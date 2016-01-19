@@ -123,6 +123,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         v->chars = 1;
         v->data[0] = v1->boolean ? '1' : '0';
         return &v->v;
+    case O_LNOT: return truth_reference(!v1->boolean);
     default: break;
     }
     return obj_oper_error(op);

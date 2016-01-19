@@ -165,6 +165,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return (Obj *)float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
     case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
+    case O_LNOT: return truth_reference(!v1);
     default: break;
     }
     return obj_oper_error(op);

@@ -403,6 +403,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD:
     case O_BSWORD:
     case O_STRING:
+    case O_LNOT:
         op->v1 = v1->addr;
         v = (Code *)op->v1->obj->calc1(op);
         op->v1 = &v1->v;

@@ -1080,6 +1080,7 @@ static int get_val2(struct eval_context_s *ev) {
         case O_INV:     /* ~  */
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
+        case O_LNOT:    /* !  */
             oper.op = op2;
             oper.v1 = v1->val;
             oper.v2 = NULL;
@@ -1180,15 +1181,6 @@ static int get_val2(struct eval_context_s *ev) {
                 continue;
             }
             v1->epoint = o_out->epoint;
-            continue;
-        case O_LNOT: /* ! */
-            val = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
-            if (val->obj != BOOL_OBJ) {
-                val_destroy(v1->val); v1->val = val;
-                continue;
-            }
-            val_replace(&v1->val, (Obj *)bool_value[!((Bool *)val)->boolean]);
-            val_destroy(val);
             continue;
         case O_LAND: /* && */
         case O_LOR:  /* || */

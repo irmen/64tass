@@ -659,6 +659,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Bytes *v1 = (Bytes *)op->v1;
     Obj *v;
     Obj *tmp;
+    size_t sz, i;
     switch (op->op->op) {
     case O_BANK: 
         if (v1->len > 2) return (Obj *)bytes_from_u8(v1->data[2]);
@@ -694,6 +695,13 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
     case O_POS:
     case O_STRING: tmp = (Obj *)int_from_bytes(v1);break;
+    case O_LNOT:
+        if (v1->len < 0) return (Obj *)ref_bool(false_value);
+        sz = byteslen(v1);
+        for (i = 0; i < sz; i++) {
+            if (v1->data[i]) return (Obj *)ref_bool(false_value);
+        }
+        return (Obj *)ref_bool(true_value);
     default: return obj_oper_error(op);
     }
     op->v1 = tmp;

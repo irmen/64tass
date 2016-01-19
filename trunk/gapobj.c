@@ -71,6 +71,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
     case O_POS:
     case O_STRING:
+    case O_LNOT:
         return (Obj *)ref_gap();
     default: break;
     }
