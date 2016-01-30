@@ -1202,6 +1202,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->l_restart.address = current_section->l_restart.bank = 0;
                         current_section->l_address.address = current_section->l_address.bank = 0;
                         current_section->dooutput = 0;memjmp(&current_section->mem, 0);
+                        current_section->l_address_val = (Obj *)ref_int(int_value[0]);
 
                         structure = (Struct *)val_alloc(obj);
                         structure->file_list = cflist;
@@ -1279,6 +1280,8 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->end = olds.end;current_section->start = olds.start;current_section->restart = olds.restart;
                         current_section->l_restart = olds.l_restart;current_section->address = olds.address;current_section->l_address = olds.l_address;
                         current_section->dooutput = olds.dooutput;memjmp(&current_section->mem, current_section->address);
+                        val_destroy(current_section->l_address_val);
+                        current_section->l_address_val = olds.l_address_val;
                         if (current_section->l_address.bank > all_mem) {
                             current_section->l_address.bank &= all_mem;
                             err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
