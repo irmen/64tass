@@ -138,6 +138,18 @@ void str_cpy(str_t *s1, const str_t *s2) {
     } else s1->data = NULL;
 }
 
+linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
+    size_t s, l;
+    if (utf8) return pos + 1;
+    s = l = 0;
+    while (s < pos) {
+        if (!line[s]) break;
+        s += utf8len(line[s]);
+        l++;
+    }
+    return l + 1;
+}
+
 void tfree(void) {
     destroy_eval();
     destroy_variables();
@@ -192,6 +204,7 @@ static const struct option long_options[]={
     {"mw65c02"          , no_argument      , 0,  0x105},
     {"labels"           , required_argument, 0, 'l'},
     {"vice-labels"      , no_argument      , 0,  0x10b},
+    {"dump-labels"      , no_argument      , 0,  0x10d},
     {"shadow-check"     , no_argument      , 0,  0x10c},
     {"list"             , required_argument, 0, 'L'},
     {""                 , required_argument, 0, 'I'},
@@ -258,6 +271,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'l': arguments.label = optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
             case 0x10c: arguments.shadow_check = 1; break;
+            case 0x10d: arguments.label_mode = LABEL_DUMP; break;
             case 'L': arguments.list = optarg;break;
             case 'M': arguments.make = optarg;break;
             case 'I': include_list_add(optarg);break;
@@ -273,8 +287,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
                "        [--mr65c02] [--mw65c02] [--m65ce02] [--labels=<file>] [--vice-labels]\n"
-               "        [--shadow-check] [--list=<file>] [--no-monitor] [--no-source]\n"
-               "        [--tab-size=<value>] [--help] [--usage] [--version] SOURCES");
+               "        [--dump-labels] [--shadow-check] [--list=<file>] [--no-monitor]\n"
+               "        [--no-source] [--tab-size=<value>] [--help] [--usage] [--version]\n"
+               "        SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -319,6 +334,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                " Source listing:\n"
                "  -l, --labels=<file>   List labels into <file>\n"
                "      --vice-labels     Labels in VICE format\n"
+               "      --dump-labels     Dump for debugging\n"
                "  -L, --list=<file>     List into <file>\n"
                "  -m, --no-monitor      Don't put monitor code into listing\n"
                "  -s, --no-source       Don't put source code into listing\n"

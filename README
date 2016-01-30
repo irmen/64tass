@@ -2710,6 +2710,8 @@ Source listing options
     result (labels.txt):
     al 1000 .label
 
+--dump-labels
+    List labels for debugging.
 -L <file>, --list=<file>
     List into <file>. Dumps source code and compiled code into file. Useful for
     debugging, it's much easier to identify the code in memory within the

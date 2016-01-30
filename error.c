@@ -792,18 +792,6 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     return;
 }
 
-static linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
-    size_t s, l;
-    if (utf8) return pos + 1;
-    s = l = 0;
-    while (s < pos) {
-        if (!line[s]) break;
-        s += utf8len(line[s]);
-        l++;
-    }
-    return l + 1;
-}
-
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
     return &file->data[file->line[line - 1]];
 }

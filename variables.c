@@ -545,10 +545,84 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
             len = printable_print2(l->name.data, flab, l->name.len);
             padding(len, EQUAL_COLUMN, flab);
             if (l->constant) fputs("= ", flab);
-            else fputs(&" .var "[len < EQUAL_COLUMN], flab);
+            else fputs(&" := "[len < EQUAL_COLUMN], flab);
             printable_print2(val->data, flab, val->len);
             putc('\n', flab);
             val_destroy(&val->v);
+        }
+    }
+}
+
+static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
+    return &file->data[file->line[line - 1]];
+}
+
+static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
+    const struct avltree_node *n;
+
+    for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
+        const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
+        Label *l2 = l->key;
+        Obj *o  = l2->value;
+        Namespace *ns;
+
+        if (l2->name.len < 2 || l2->name.data[1]) {
+            Str *val = (Str *)l2->value->obj->repr(l2->value, NULL, SIZE_MAX);
+            if (val) {
+                if (val->v.obj == STR_OBJ) {
+                    const struct file_s *file = l2->file_list->file;
+                    linepos_t epoint = &l2->epoint;
+                    printable_print((uint8_t *)file->realname, flab);
+                    fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(get_line(file, epoint->line), epoint->pos, file->coding == E_UTF8));
+                    if (prefix->len) {
+                        printable_print2(prefix->data, flab, prefix->len);
+                        putc('.', flab);
+                    }
+                    printable_print2(l2->name.data, flab, l2->name.len);
+                    fputs(l2->constant ? " = " : " := ", flab);
+                    printable_print2(val->data, flab, val->len);
+                    putc('\n', flab);
+                }
+                val_destroy(&val->v);
+            }
+        }
+
+        switch (o->obj->type) {
+        case T_CODE:
+            ns = ((Code *)o)->names;
+            break;
+        case T_UNION:
+        case T_STRUCT:
+            ns = ((Struct *)o)->names;
+            break;
+        case T_NAMESPACE:
+            ns = (Namespace *)o;
+            break;
+        default: 
+            ns = NULL;
+            break;
+        }
+
+        if (ns && ns->len && l2->owner) {
+            if (l2->name.len < 2 || l2->name.data[1]) {
+                str_t newprefix;
+                uint8_t *s;
+                size_t ln = ns->len;
+                ns->len = 0;
+                newprefix.len = prefix->len + l2->name.len;
+                newprefix.len += !!prefix->len;
+                s = (uint8_t *)mallocx(newprefix.len);
+                newprefix.data = s;
+                if (prefix->len) {
+                    memcpy(s, prefix->data, prefix->len);
+                    s += prefix->len;
+                    *s++ = '.';
+                }
+                memcpy(s, l2->name.data, l2->name.len);
+                labeldump(ns, &newprefix, flab);
+                free((uint8_t *)newprefix.data);
+                ns->len = ln;
+            }
         }
     }
 }
@@ -568,7 +642,12 @@ void labelprint(void) {
     }
     clearerr(flab);
     referenceit = 0;
-    labelprint2(&root_namespace->members, flab, arguments.label_mode);
+    if (arguments.label_mode == LABEL_DUMP) {
+        str_t root = {0, NULL};
+        labeldump(root_namespace, &root, flab);
+    } else {
+        labelprint2(&root_namespace->members, flab, arguments.label_mode);
+    }
     referenceit = oldreferenceit;
     if (flab == stdout) fflush(flab);
     if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);

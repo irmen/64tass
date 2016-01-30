@@ -25,7 +25,7 @@ enum output_mode_e {
 };
 
 enum label_mode_e {
-    LABEL_64TASS, LABEL_VICE
+    LABEL_64TASS, LABEL_VICE, LABEL_DUMP
 };
 
 struct file_s;
@@ -63,5 +63,6 @@ extern int str_hash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);
 extern void str_cfcpy(str_t *, const str_t *);
 extern void str_cpy(str_t *, const str_t *);
+extern linecpos_t calcpos(const uint8_t *, size_t, int);
 
 #endif
