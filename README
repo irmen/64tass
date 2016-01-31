@@ -352,7 +352,7 @@ This is the reason for the strange definition of inversion.
 
         .byte 3.66e1       ; 36.6, truncated to 36
         .byte $1.8p4       ; 4:4 fixed point number (1.5)
-        .int 12.2p8        ; 8:8 fixed point number (12.2)
+        .sint 12.2p8       ; 8:8 fixed point number (12.2)
 
 Character string constants
 
@@ -1273,14 +1273,14 @@ which accepts strings of any length.
 
 .word <expression>[, <expression>, ...]
     Create bytes from 16 bit unsigned constants (0-65535)
-.int <expression>[, <expression>, ...]
+.sint <expression>[, <expression>, ...]
     Create bytes from 16 bit signed constants (-32768-32767)
 
     >1000  42 23 55 45                       .word $2342, $4555
     >1004                                    .word ?        ; reserve 2 bytes
-    >1006  eb fd 51 11                       .int -533, 4433
+    >1006  eb fd 51 11                       .sint -533, 4433
     ;Store 8.8 signed fixed point constants
-    >100a  80 fc 40 03 20 03                 .int (-3.5, 3.25, 3.125) * 1p8
+    >100a  80 fc 40 03 20 03                 .sint (-3.5, 3.25, 3.125) * 1p8
     .1010  bd 19 10  lda $1019,x             lda texts,x
     .1013  bc 1a 10  ldy $101a,x             ldy texts+1,x
     .1016  4c 1e ab  jmp $ab1e               jmp $ab1e
@@ -3465,9 +3465,9 @@ Assembler directives
 .default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
 .end .endc .endf .endif .endm .endp .ends .endswitch .endu .endv .endweak .eor
 .error .fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne
-.ifpl .include .int .lbl .lint .logical .long .macro .mansiz .next .null .offs
+.ifpl .include .lbl .lint .logical .long .macro .mansiz .next .null .offs
 .option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
-.segment .send .shift .shiftl .showmac .struct .switch .text .union .var
+.segment .send .shift .shiftl .showmac .sint .struct .switch .text .union .var
 .virtual .warn .weak .word .xl .xs
 
 -------------------------------------------------------------------------------

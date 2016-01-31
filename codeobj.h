@@ -26,7 +26,7 @@ extern struct Type *CODE_OBJ;
 enum dtype_e {
     D_DINT = -4,
     D_LINT = -3,
-    D_INT = -2,
+    D_SINT = -2,
     D_CHAR = -1,
     D_NONE = 0,
     D_BYTE = 1,
