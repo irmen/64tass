@@ -160,7 +160,6 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x2e" "ifne",
     "\x30" "ifpl",
     "\x19" "include",
-    "\x09" "int",
     "\x43" "lbl",
     "\x0b" "lint",
     "\x1f" "logical",
@@ -186,6 +185,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x02" "shift",
     "\x03" "shiftl",
     "\x3d" "showmac",
+    "\x09" "sint",
     "\x45" "struct",
     "\x53" "switch",
     "\x00" "text",
@@ -201,7 +201,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
 
 enum command_e {
     CMD_TEXT=0, CMD_PTEXT, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_BYTE, CMD_CHAR,
-    CMD_RTA, CMD_ADDR, CMD_INT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT,
+    CMD_RTA, CMD_ADDR, CMD_SINT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT,
     CMD_DWORD, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY,
     CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS,
@@ -1922,7 +1922,7 @@ Obj *compile(struct file_list_s *cflist)
             case CMD_CHAR: /* .char */
             case CMD_RTA: /* .rta */
             case CMD_ADDR: /* .addr */
-            case CMD_INT: /* .int */
+            case CMD_SINT: /* .sint */
             case CMD_WORD: /* .word */
             case CMD_LINT: /* .lint */
             case CMD_LONG: /* .long */
@@ -1975,7 +1975,7 @@ Obj *compile(struct file_list_s *cflist)
                             switch (prm) {
                             case CMD_DINT: dtype = D_DINT;break;
                             case CMD_LINT: dtype = D_LINT;break;
-                            case CMD_INT: dtype = D_INT;break;
+                            case CMD_SINT: dtype = D_SINT;break;
                             case CMD_CHAR: dtype = D_CHAR;break;
                             default:
                             case CMD_BYTE: dtype = D_BYTE;break;
@@ -1989,7 +1989,7 @@ Obj *compile(struct file_list_s *cflist)
                         }
                         switch (prm) {
                         case CMD_CHAR: bits = -8; break;
-                        case CMD_INT: bits = -16; break;
+                        case CMD_SINT: bits = -16; break;
                         case CMD_LINT: bits = -24; break;
                         case CMD_DINT: bits = -32; break;
                         case CMD_BYTE: bits = 8; break;

@@ -508,7 +508,7 @@ point one. This is the reason for the strange definition of inversion.</p>
 <pre width=80>
         <b class="d">.byte</b> <span>3.66e1</span>       <i>; 36.6, truncated to 36</i>
         <b class="d">.byte</b> <span>$1.8p4</span>       <i>; 4:4 fixed point number (1.5)</i>
-        <b class="d">.int</b> <span>12.2p8</span>        <i>; 8:8 fixed point number (12.2)</i>
+        <b class="d">.sint</b> <span>12.2p8</span>       <i>; 8:8 fixed point number (12.2)</i>
 </pre>
 
 <h3>Character string constants<a name="character-string" href="#character-string"></a></h3>
@@ -1631,14 +1631,14 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 
 <dt><code><b class="d">.word</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_word" href="#d_word"></a>
 <dd>Create bytes from 16&nbsp;bit unsigned constants (0&ndash;65535)
-<dt><code><b class="d">.int</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_int" href="#d_int"></a>
+<dt><code><b class="d">.sint</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_int" href="#d_int"></a>
 <dd>Create bytes from 16&nbsp;bit signed constants (&minus;32768&ndash;32767)
 <pre width=80>
 &gt;1000  42 23 55 45                       <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
 &gt;1004                                    <b class="d">.word</b> <span>?</span>        <i>; reserve 2 bytes</i>
-&gt;1006  eb fd 51 11                       <b class="d">.int</b> <span>-533</span>, <span>4433</span>
+&gt;1006  eb fd 51 11                       <b class="d">.sint</b> <span>-533</span>, <span>4433</span>
 <i>;Store 8.8 signed fixed point constants</i>
-&gt;100a  80 fc 40 03 20 03                 <b class="d">.int</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p8</span>
+&gt;100a  80 fc 40 03 20 03                 <b class="d">.sint</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p8</span>
 .1010  bd 19 10  lda $1019,x             <b>lda</b> <u>texts</u>,x
 .1013  bc 1a 10  ldy $101a,x             <b>ldy</b> <u>texts</u>+<span>1</span>,x
 .1016  4c 1e ab  jmp $ab1e               <b>jmp</b> <span>$ab1e</span>
@@ -4370,7 +4370,6 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_ifne">.ifne</a>
 <a href="#d_ifpl">.ifpl</a>
 <a href="#d_include">.include</a>
-<a href="#d_int">.int</a>
 <a href="#d_lbl">.lbl</a>
 <a href="#d_lint">.lint</a>
 <a href="#d_logical">.logical</a>
@@ -4396,6 +4395,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_shift">.shift</a>
 <a href="#d_shiftl">.shiftl</a>
 <a href="#d_showmac">.showmac</a>
+<a href="#d_sint">.sint</a>
 <a href="#d_struct">.struct</a>
 <a href="#d_switch">.switch</a>
 <a href="#d_text">.text</a>
