@@ -331,6 +331,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
     switch (v1->len) {
     case -1:
         if (v1->data[0] == 1) return ref_bytes(inv_bytes);
+        break;
     case 0:
         return ref_bytes(null_bytes);
     case 1:
