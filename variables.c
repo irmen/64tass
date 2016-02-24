@@ -170,11 +170,10 @@ int pop_context(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
-        val_destroy(&c->cheap->v);
+        val_destroy(&cheap_context->v); 
+        cheap_context = c->cheap;
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
-        val_destroy(&cheap_context->v); 
-        cheap_context = ref_namespace(c->cheap);
         return 0;
     }
     return 1;
