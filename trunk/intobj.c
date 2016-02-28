@@ -1520,10 +1520,12 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
     case O_LSHIFT:
         err = ival((Obj *)v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return &err->v;
+        if (!shift) return val_reference(&v1->v);
         return (shift < 0) ? (Obj *)irshift(v1, -shift) : (Obj *)ilshift(v1, shift);
     case O_RSHIFT:
         err = ival((Obj *)v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return &err->v;
+        if (!shift) return val_reference(&v1->v);
         return (shift < 0) ? (Obj *)ilshift(v1, -shift) : (Obj *)irshift(v1, shift);
     case O_AND: return (Obj *)iand(v1, v2);
     case O_OR: return (Obj *)ior(v1, v2);
