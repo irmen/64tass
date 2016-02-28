@@ -1213,10 +1213,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_LSHIFT:
             err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
             if (err) return &err->v;
+            if (!shift) return val_reference(&v1->v);
             return (shift < 0) ? rshift(v1, -shift) : lshift(v1, shift);
         case O_RSHIFT:
             err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
             if (err) return &err->v;
+            if (!shift) return val_reference(&v1->v);
             return (shift < 0) ? lshift(v1, -shift) : rshift(v1, shift);
         default: break;
         }
