@@ -879,7 +879,7 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
             v[i++] = uv | (v1[j] << bits);
             uv = v1[j] >> (SHIFT - bits);
         }
-        if (j < vv1->bits / SHIFT) v[i++] = uv;
+        if (i < sz) v[i++] = uv;
     } else {
         for (j = 0; j < l; j++) v[i++] = v1[j];
     }
