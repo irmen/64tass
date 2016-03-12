@@ -855,6 +855,9 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
     if (blen < vv2->bits) err_msg_out_of_memory(); /* overflow */
     sz = blen / SHIFT;
     if (blen % SHIFT) sz++;
+    i = vv2->bits / SHIFT + bitslen(vv1);
+    if (vv2->bits % SHIFT) i++;
+    if (i < sz) sz = i;
     vv = new_bits(sz);
     v = vv->data;
     inv = -((vv2->len ^ vv1->len) < 0);
@@ -868,7 +871,6 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
     if (i < l) uv = v1[i] ^ inv; else uv = inv;
     if (inv) uv &= (1 << bits) - 1;
 
-    rbits = vv1->bits / SHIFT;
     v1 = vv1->data;
 
     l = bitslen(vv1);
@@ -877,16 +879,13 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
             v[i++] = uv | (v1[j] << bits);
             uv = v1[j] >> (SHIFT - bits);
         }
-        if (j < rbits) { v[i++] = uv; uv = 0; j++;}
-        for (; j < rbits; j++) v[i++] = 0;
-        if (i < sz) v[i] = uv;
+        if (j < vv1->bits / SHIFT) v[i++] = uv;
     } else {
         for (j = 0; j < l; j++) v[i++] = v1[j];
-        for (; j < rbits; j++) v[i++] = 0;
     }
 
     vv->bits = blen;
-    return normalize(vv, sz, vv1->len < 0);
+    return normalize(vv, i, vv1->len < 0);
 }
 
 static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
