@@ -194,7 +194,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];
             size = block->addr - pos;
-            if (size && fseek(fout, size, SEEK_CUR)) {
+            if (size && ((long)size < 256 || fseek(fout, (long)size, SEEK_CUR))) {
                 while (size--) putc(0, fout);
             }
             fwrite(memblocks->mem.data + block->p, block->len, 1, fout);
@@ -250,7 +250,7 @@ static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
     for (pos = i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
         size = block->addr - pos;
-        if (size && fseek(fout, size, SEEK_CUR)) {
+        if (size && ((long)size < 256 || fseek(fout, (long)size, SEEK_CUR))) {
             while (size--) putc(0, fout);
         }
         fwrite(memblocks->mem.data + block->p, block->len, 1, fout);
