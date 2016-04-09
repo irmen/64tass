@@ -166,7 +166,14 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    const Bool *v1 = (Bool *)op->v1;
+    Bool *v1 = (Bool *)op->v1;
+
+    if (op->op == &o_LAND) {
+        return val_reference(v1->boolean ? op->v2 : &v1->v);
+    }
+    if (op->op == &o_LOR) {
+        return val_reference(v1->boolean ? &v1->v : op->v2);
+    }
     switch (op->v2->obj->type) {
     case T_BOOL: return calc2_bool(op, v1->boolean, ((Bool *)op->v2)->boolean);
     default: 

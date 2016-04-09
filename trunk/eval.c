@@ -1182,8 +1182,6 @@ static int get_val2(struct eval_context_s *ev) {
             }
             v1->epoint = o_out->epoint;
             continue;
-        case O_LAND: /* && */
-        case O_LOR:  /* || */
         case O_LXOR: /* ^^ */
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
@@ -1192,14 +1190,7 @@ static int get_val2(struct eval_context_s *ev) {
                 val_destroy(v1->val); v1->val = val;
                 continue;
             }
-            if (op != O_LXOR) { 
-                if (((Bool *)val)->boolean != (op == O_LOR)) {
-                    Obj *tmp = v1->val;
-                    v1->val = v2->val;
-                    v2->val = tmp;
-                    v1->epoint = v2->epoint;
-                }
-            } else {
+            {
                 Obj *val2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
                 if (val2->obj != BOOL_OBJ) {
                     val_destroy(v1->val); v1->val = val2;

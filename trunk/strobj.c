@@ -642,6 +642,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (op->op == &o_X) {
         return repeat(op); 
     }
+    if (op->op == &o_LAND || op->op == &o_LOR) {
+        Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
+        int i;
+        if (result->obj != BOOL_OBJ) return result;
+        i = ((Bool *)result)->boolean ^ (op->op == &o_LOR);
+        val_destroy(result);
+        return val_reference(i ? v2 : &v1->v);
+    }
     switch (v2->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
