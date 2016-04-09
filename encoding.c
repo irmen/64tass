@@ -759,7 +759,7 @@ next:
         encode_state.err = 1;
     }
     encode_state.i += ln;
-    return 256;
+    return 256 + '?';
 }
 
 void init_encoding(int toascii)
