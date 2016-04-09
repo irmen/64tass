@@ -2501,6 +2501,12 @@ no option
     $01, $00 little endian length $0001
     $60      code
 
+--intel-hex
+    Generate an Intel HEX output file.
+
+    Overlapping blocks are kept, data is stored in the definition order, and
+    uninitialized memory is skipped.
+
 Operation options
 
 -a, --ascii
