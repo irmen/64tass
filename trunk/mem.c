@@ -75,7 +75,7 @@ static void memcomp(struct memblocks_s *memblocks) {
         }
     }
     if (memblocks->p < 2) return;
-    if (arguments.output_mode == OUTPUT_XEX) return;
+    if (arguments.output_mode == OUTPUT_XEX || arguments.output_mode == OUTPUT_HEX) return;
 
     for (k = j = 0; j < memblocks->p; j++) {
         struct memblock_s *bj = &memblocks->data[j];
@@ -293,6 +293,93 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
     }
 }
 
+static void hexput(FILE *fout, uint8_t b) {
+    const char *hex = "0123456789ABCDEF";
+    putc(hex[b >> 4], fout);
+    putc(hex[b & 0xf], fout);
+}
+
+static void output_mem_hex_data(FILE *fout, uint8_t length, address_t address, uint8_t type, uint8_t *data, uint16_t *segment) {
+    unsigned int i;
+    uint8_t sum = length + address + (address >> 8) + type;
+    if (type == 0) {
+        if ((address & 0xffff) + length > 0x10000) {
+            uint16_t bc2 = -address;
+            output_mem_hex_data(fout, bc2, address, type, data, segment);
+            length -= bc2;
+            data += bc2;
+            address += bc2;
+        }
+        if (address >> 16 != *segment) {
+            uint8_t ez[2] = {address >> 24, address >> 16};
+            output_mem_hex_data(fout, sizeof(ez), 0, 4, ez, NULL);
+            *segment = address >> 16;
+        }
+    }
+    putc(':', fout);
+    hexput(fout, length);
+    hexput(fout, address >> 8);
+    hexput(fout, address);
+    hexput(fout, type);
+    for (i = 0; i < length; i++) {
+        hexput(fout, data[i]);
+        sum += data[i];
+    }
+    hexput(fout, (-sum) & 0xff);
+    putc('\n', fout);
+}
+
+static void output_mem_hex_block(FILE *fout, const struct memblocks_s *memblocks, unsigned int i, unsigned int last, address_t start, uint16_t *segment) {
+    uint8_t bytes[16];
+    unsigned int bc = 0;
+
+    while (last < i) {
+        const struct memblock_s *b = &memblocks->data[last++];
+        const uint8_t *d = memblocks->mem.data + b->p;
+        size_t blen = b->len;
+        while (blen) {
+            size_t left = sizeof(bytes) - bc;
+            size_t copy = blen > left ? left : blen;
+            memcpy(bytes + bc, d, copy); 
+            bc += copy; 
+            d += copy;
+            blen -= copy;
+            if (bc == sizeof(bytes)) {
+                output_mem_hex_data(fout, bc, start, 0, bytes, segment);
+                start += sizeof(bytes);
+                bc = 0;
+            }
+        }
+    }
+    if (bc) output_mem_hex_data(fout, bc, start, 0, bytes, segment);
+}
+
+static void output_mem_hex(FILE *fout, const struct memblocks_s *memblocks) {
+    address_t start;
+    size_t size;
+    unsigned int i, last;
+    uint16_t segment = 0;
+
+    if (memblocks->p) {
+        i = 0;
+        start = memblocks->data[i].addr;
+        size = memblocks->data[i].len;
+        last = i;
+        for (i++; i < memblocks->p; i++) {
+            const struct memblock_s *block = &memblocks->data[i];
+            if (block->addr != start + size) {
+                output_mem_hex_block(fout, memblocks, i, last, start, &segment);
+                last = i;
+                start = block->addr;
+                size = 0;
+            }
+            size += block->len;
+        }
+        output_mem_hex_block(fout, memblocks, i, last, start, &segment);
+    }
+    output_mem_hex_data(fout, 0, 0, 1, NULL, NULL);
+}
+
 void output_mem(struct memblocks_s *memblocks) {
     FILE* fout;
     struct linepos_s nopoint = {0, 0};
@@ -319,6 +406,7 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_RAW: 
         case OUTPUT_APPLE: 
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
+        case OUTPUT_HEX: output_mem_hex(fout, memblocks); break;
         }
         if (fout == stdout) fflush(fout);
         if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);

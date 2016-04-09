@@ -189,6 +189,7 @@ static const struct option long_options[]={
     {"long-address"     , no_argument      , 0, 'X'},
     {"atari-xex"        , no_argument      , 0,  0x107},
     {"apple-ii"         , no_argument      , 0,  0x108},
+    {"intel-hex"        , no_argument      , 0,  0x10e},
     {"ascii"            , no_argument      , 0, 'a'},
     {"tasm-compatible"  , no_argument      , 0, 'T'},
     {"case-sensitive"   , no_argument      , 0, 'C'},
@@ -231,6 +232,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
             case 0x107:arguments.output_mode = OUTPUT_XEX;break;
             case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
+            case 0x10e:arguments.output_mode = OUTPUT_HEX;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii=1;break;
@@ -319,6 +321,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -X, --long-address    Use 3 byte start/len address\n"
                "      --atari-xex       Output Atari XEX file\n"
                "      --apple-ii        Output Apple II file\n"
+               "      --intel-hex       Output Intel HEX file\n"
                "\n"
                " Target selection:\n"
                "  -c, --m65c02          CMOS 65C02\n"
