@@ -208,7 +208,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
                 }
                 switch (mode) {
                 case BYTES_MODE_SHIFT_CHECK:
-                case BYTES_MODE_SHIFT: if (ch & 0x80) {encode_error(ERROR___NO_HIGH_BIT); ch &= 0x7f;} s[len2] = ch; break;
+                case BYTES_MODE_SHIFT: if (ch & 0x80) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
                 case BYTES_MODE_SHIFTL: if (ch & 0x80) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch << 1; break;
                 case BYTES_MODE_NULL_CHECK:if (!ch) {encode_error(ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = ch; break;
                 case BYTES_MODE_NULL: if (!ch) encode_error(ERROR_NO_ZERO_VALUE); s[len2 - 1] = ch; break;

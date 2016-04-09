@@ -517,7 +517,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
-            if (touval(val2, &uval, 8, epoint2)) uval = 256;
+            if (touval(val2, &uval, 8, epoint2)) uval = 256 + '?';
             switch (prm) {
             case CMD_SHIFT:
                 if (uval & 0x80) err_msg2(ERROR___NO_HIGH_BIT, NULL, epoint2);
