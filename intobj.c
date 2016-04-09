@@ -1537,6 +1537,13 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp, *ret, *v2 = op->v2;
+
+    if (op->op == &o_LAND) {
+        return val_reference(((Int *)(op->v1))->len ? v2 : op->v1);
+    }
+    if (op->op == &o_LOR) {
+        return val_reference(((Int *)(op->v1))->len ? op->v1 : v2);
+    }
     switch (v2->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:

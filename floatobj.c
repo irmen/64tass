@@ -252,6 +252,12 @@ MUST_CHECK Obj *float_from_double(double d, linepos_t epoint) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     double d;
     Obj *err;
+    if (op->op == &o_LAND) {
+        return val_reference(((Float *)(op->v1))->real ? op->v2 : op->v1);
+    }
+    if (op->op == &o_LOR) {
+        return val_reference(((Float *)(op->v1))->real ? op->v1 : op->v2);
+    }
     switch (op->v2->obj->type) {
     case T_FLOAT: return calc2_double(op, ((Float *)op->v1)->real, ((Float *)op->v2)->real);
     case T_BOOL:

@@ -108,6 +108,16 @@ static int same(const Obj *o1, const Obj *o2) {
             !memcmp(v1->data, v2->data, byteslen(v2)));
 }
 
+static int to_bool(const Bytes *v1) {
+    size_t i, sz;
+    if (v1->len < 0) return 1;
+    sz = byteslen(v1);
+    for (i = 0; i < sz; i++) {
+        if (v1->data[i]) return 1;
+    }
+    return 0;
+}
+
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
     const Bytes *v1 = (const Bytes *)o1;
     size_t i, sz;
@@ -122,12 +132,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint
         return (Obj *)ref_bool(true_value);
     case TRUTH_ANY:
     default:
-        if (v1->len < 0) return (Obj *)ref_bool(true_value);
-        sz = byteslen(v1);
-        for (i = 0; i < sz; i++) {
-            if (v1->data[i]) return (Obj *)ref_bool(true_value);
-        }
-        return (Obj *)ref_bool(false_value);
+        return truth_reference(to_bool(v1));
     }
 }
 
@@ -660,7 +665,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Bytes *v1 = (Bytes *)op->v1;
     Obj *v;
     Obj *tmp;
-    size_t sz, i;
     switch (op->op->op) {
     case O_BANK: 
         if (v1->len > 2) return (Obj *)bytes_from_u8(v1->data[2]);
@@ -696,13 +700,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
     case O_POS:
     case O_STRING: tmp = (Obj *)int_from_bytes(v1);break;
-    case O_LNOT:
-        if (v1->len < 0) return (Obj *)ref_bool(false_value);
-        sz = byteslen(v1);
-        for (i = 0; i < sz; i++) {
-            if (v1->data[i]) return (Obj *)ref_bool(false_value);
-        }
-        return (Obj *)ref_bool(true_value);
+    case O_LNOT: return truth_reference(!to_bool(v1));
     default: return obj_oper_error(op);
     }
     op->v1 = tmp;
@@ -916,6 +914,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     }
     if (op->op == &o_X) {
         return repeat(op); 
+    }
+    if (op->op == &o_LAND) {
+        return val_reference(to_bool(v1) ? o2 : &v1->v);
+    }
+    if (op->op == &o_LOR) {
+        return val_reference(to_bool(v1) ? &v1->v : o2);
     }
     switch (o2->obj->type) {
     case T_BYTES: return calc2_bytes(op);
