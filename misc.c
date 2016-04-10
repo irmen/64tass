@@ -233,7 +233,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
             case 0x107:arguments.output_mode = OUTPUT_XEX;break;
             case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
-            case 0x10e:arguments.output_mode = OUTPUT_HEX;break;
+            case 0x10e:arguments.output_mode = OUTPUT_IHEX;break;
             case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;

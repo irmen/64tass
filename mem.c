@@ -76,7 +76,7 @@ static void memcomp(struct memblocks_s *memblocks) {
     }
     if (memblocks->p < 2) return;
     if (arguments.output_mode == OUTPUT_XEX ||
-            arguments.output_mode == OUTPUT_HEX || 
+            arguments.output_mode == OUTPUT_IHEX ||
             arguments.output_mode == OUTPUT_SREC) return;
 
     for (k = j = 0; j < memblocks->p; j++) {
@@ -456,13 +456,14 @@ void output_mem(struct memblocks_s *memblocks) {
     memcomp(memblocks);
 
     if (memblocks->mem.p) {
+        int binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
         if (arguments.output[0] == '-' && !arguments.output[1]) {
 #ifdef _WIN32
-            setmode(fileno(stdout), O_BINARY);
+            if (binary) setmode(fileno(stdout), O_BINARY);
 #endif
             fout = stdout;
         } else {
-            if (!(fout=file_open(arguments.output,"wb"))) {
+            if (!(fout=file_open(arguments.output, binary ? "wb" : "wt"))) {
                 err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
                 return;
             }
@@ -472,10 +473,10 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
         case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks); break;
         case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
-        case OUTPUT_RAW: 
-        case OUTPUT_APPLE: 
+        case OUTPUT_RAW:
+        case OUTPUT_APPLE:
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
-        case OUTPUT_HEX: output_mem_ihex(fout, memblocks); break;
+        case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
         case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
         }
         if (fout == stdout) fflush(fout);
