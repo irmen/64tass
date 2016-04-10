@@ -288,12 +288,12 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii] [--nostart]\n"
                "        [--long-branch] [--case-sensitive] [--flat] [--atari-xex] [--apple-ii]\n"
-               "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
-               "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
-               "        [--mr65c02] [--mw65c02] [--m65ce02] [--labels=<file>] [--vice-labels]\n"
-               "        [--dump-labels] [--shadow-check] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--tab-size=<value>] [--help] [--usage] [--version]\n"
-               "        SOURCES");
+               "        [--intel-hex] [--s-record] [--nonlinear] [--tasm-compatible] [--quiet]\n"
+               "        [--no-warn] [--long-address] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
+               "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02]\n"
+               "        [--labels=<file>] [--vice-labels] [--dump-labels] [--shadow-check]\n"
+               "        [--list=<file>] [--no-monitor] [--no-source] [--tab-size=<value>]\n"
+               "        [--help] [--usage] [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
