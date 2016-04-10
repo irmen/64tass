@@ -2502,10 +2502,34 @@ no option
     $60      code
 
 --intel-hex
-    Generate an Intel HEX output file.
+    Use Intel HEX output file format.
 
     Overlapping blocks are kept, data is stored in the definition order, and
     uninitialized memory is skipped.
+
+    64tass --intel-hex a.asm
+    *       = $0c00
+            rts
+
+    Result of compilation:
+
+    :010C00006093
+    :00000001FF
+
+--s-record
+    Use Motorola S-record output file format.
+
+    Overlapping blocks are kept, data is stored in the definition order, and
+    uninitialized memory is skipped.
+
+    64tass --s-record a.asm
+    *       = $0c00
+            rts
+
+    Result of compilation:
+
+    S1040C00608F
+    S9030C00F0
 
 Operation options
 

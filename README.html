@@ -2930,9 +2930,34 @@ before the first and after the last valid bytes are not saved.</p>
 </table></div>
 
 <dt><b>--intel-hex</b><a name="o_intel-hex" href="#o_intel-hex"></a>
-<dd>Generate an Intel HEX output file.
+<dd>Use Intel HEX output file format.
 <p>Overlapping blocks are kept, data is stored in the definition order,
 and uninitialized memory is skipped.</p>
+<pre width=80>
+64tass --intel-hex a.asm
+*       <b>=</b> <span>$0c00</span>
+        <b>rts</b>
+</pre>
+Result of compilation:
+<pre width=80>
+:010C00006093
+:00000001FF
+</pre>
+
+<dt><b>--s-record</b><a name="o_s-record" href="#o_s-record"></a>
+<dd>Use Motorola S-record output file format.
+<p>Overlapping blocks are kept, data is stored in the definition order,
+and uninitialized memory is skipped.</p>
+<pre width=80>
+64tass --s-record a.asm
+*       <b>=</b> <span>$0c00</span>
+        <b>rts</b>
+</pre>
+Result of compilation:
+<pre width=80>
+S1040C00608F
+S9030C00F0
+</pre>
 </dl>
 
 <h3>Operation options<a name="commandline-operation" href="#commandline-operation"></a></h3>

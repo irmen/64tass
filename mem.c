@@ -75,7 +75,9 @@ static void memcomp(struct memblocks_s *memblocks) {
         }
     }
     if (memblocks->p < 2) return;
-    if (arguments.output_mode == OUTPUT_XEX || arguments.output_mode == OUTPUT_HEX) return;
+    if (arguments.output_mode == OUTPUT_XEX ||
+            arguments.output_mode == OUTPUT_HEX || 
+            arguments.output_mode == OUTPUT_SREC) return;
 
     for (k = j = 0; j < memblocks->p; j++) {
         struct memblock_s *bj = &memblocks->data[j];
@@ -299,7 +301,7 @@ static void hexput(FILE *fout, uint8_t b) {
     putc(hex[b & 0xf], fout);
 }
 
-static void output_mem_hex_data(FILE *fout, uint8_t length, address_t address, uint8_t type, uint8_t *data, uint16_t *segment) {
+static void output_mem_hex_data(FILE *fout, uint8_t length, address_t address, uint8_t type, const uint8_t *data, uint16_t *segment) {
     unsigned int i;
     uint8_t sum = length + address + (address >> 8) + type;
     if (type == 0) {
@@ -330,7 +332,7 @@ static void output_mem_hex_data(FILE *fout, uint8_t length, address_t address, u
 }
 
 static void output_mem_hex_block(FILE *fout, const struct memblocks_s *memblocks, unsigned int i, unsigned int last, address_t start, uint16_t *segment) {
-    uint8_t bytes[16];
+    uint8_t bytes[32];
     unsigned int bc = 0;
 
     while (last < i) {
@@ -380,6 +382,77 @@ static void output_mem_hex(FILE *fout, const struct memblocks_s *memblocks) {
     output_mem_hex_data(fout, 0, 0, 1, NULL, NULL);
 }
 
+struct srecord_s {
+    FILE *file;
+    int type;
+    address_t address;
+    uint8_t data[32];
+    unsigned int length;
+};
+
+static void output_mem_srec_line(struct srecord_s *srec) {
+    unsigned int i;
+    uint8_t sum = srec->length + srec->address + (srec->address >> 8) + (srec->address >> 16) + (srec->address >> 24);
+    putc('S', srec->file);
+    putc(srec->length ? ('1' + srec->type) : ('9' - srec->type), srec->file);
+    sum += srec->type + 3;
+    hexput(srec->file, srec->length + srec->type + 3);
+    if (srec->type > 1) hexput(srec->file, srec->address >> 24);
+    if (srec->type > 0) hexput(srec->file, srec->address >> 16);
+    hexput(srec->file, srec->address >> 8);
+    hexput(srec->file, srec->address);
+    for (i = 0; i < srec->length; i++) {
+        hexput(srec->file, srec->data[i]);
+        sum += srec->data[i];
+    }
+    hexput(srec->file, (~sum) & 0xff);
+    putc('\n', srec->file);
+    srec->address += srec->length;
+    srec->length = 0;
+}
+
+static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
+    struct srecord_s srec;
+    size_t i;
+
+    if (memblocks->p) {
+        srec.file = fout;
+        srec.type = 0;
+        srec.address = 0;
+        srec.length = 0;
+        for (i = 0; i < memblocks->p; i++) {
+            const struct memblock_s *b = &memblocks->data[i];
+            size_t end = b->addr + b->len - 1;
+            if (end >= 0x10000 && srec.type < 1) srec.type = 1;
+            if (end >= 0x1000000 && srec.type < 2) srec.type = 2;
+        }
+        for (i = 0; i < memblocks->p; i++) {
+            const struct memblock_s *b = &memblocks->data[i];
+            const uint8_t *d = memblocks->mem.data + b->p;
+            address_t addr = b->addr;
+            size_t blen = b->len;
+            if (blen && srec.address + srec.length != addr) {
+                if (srec.length) output_mem_srec_line(&srec);
+                srec.address = addr;
+            }
+            while (blen) {
+                size_t left = sizeof(srec.data) - srec.length;
+                size_t copy = blen > left ? left : blen;
+                memcpy(srec.data + srec.length, d, copy); 
+                srec.length += copy; 
+                d += copy;
+                blen -= copy;
+                if (srec.length == sizeof(srec.data)) {
+                    output_mem_srec_line(&srec);
+                }
+            }
+        }
+        if (srec.length) output_mem_srec_line(&srec);
+        srec.address = memblocks->data[0].addr;
+        output_mem_srec_line(&srec);
+    }
+}
+
 void output_mem(struct memblocks_s *memblocks) {
     FILE* fout;
     struct linepos_s nopoint = {0, 0};
@@ -407,6 +480,7 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_APPLE: 
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
         case OUTPUT_HEX: output_mem_hex(fout, memblocks); break;
+        case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
         }
         if (fout == stdout) fflush(fout);
         if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
