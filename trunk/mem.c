@@ -35,7 +35,9 @@ struct memblock_s { /* starts and sizes */
 static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa=(const struct memblock_s *)a;
     const struct memblock_s *bb=(const struct memblock_s *)b;
-    return aa->addr - bb->addr;
+    address_t ad = aa->addr, bd = bb->addr;
+    int comp = ad > bd;
+    return comp ? comp : -(ad < bd);
 }
 
 static void memcomp(struct memblocks_s *memblocks) {
@@ -148,7 +150,7 @@ void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
 
 void memprint(struct memblocks_s *memblocks) {
     char temp[10];
-    unsigned int i;
+    unsigned int i, over;
     address_t start, end;
 
     memcomp(memblocks);
@@ -157,17 +159,19 @@ void memprint(struct memblocks_s *memblocks) {
         i = 0;
         start = memblocks->data[i].addr;
         end = memblocks->data[i].addr + memblocks->data[i].len;
+        over = end < start;
         for (i++; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];
-            if (block->addr != end) {
+            if (block->addr != end || over) {
                 sprintf(temp, "$%04" PRIaddress, start);
-                printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
+                printf("Memory range:  %9s-$%04" PRIaddress "\n", temp, end-1);
                 start = block->addr;
             }
             end = block->addr + block->len;
+            over = end < block->addr;
         }
         sprintf(temp, "$%04" PRIaddress, start);
-        printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
+        printf("Memory range:  %9s-$%04" PRIaddress "\n", temp, end-1);
     }
 }
 
@@ -195,13 +199,13 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
         pos = memblocks->data[0].addr;
         if (arguments.output_mode == OUTPUT_CBM || arguments.output_mode == OUTPUT_APPLE) {
             putlw(pos, fout);
-            if (arguments.longaddr) putc(pos >> 16,fout);
         }
         if (arguments.output_mode == OUTPUT_APPLE) {
             end = memblocks->data[memblocks->p - 1].addr + memblocks->data[memblocks->p - 1].len;
             end -= pos;
             putlw(end, fout);
-            if (arguments.longaddr) putc(end >> 16,fout);
+        } else if (arguments.output_mode == OUTPUT_CBM) {
+            if (arguments.longaddr) putc(pos >> 16,fout);
         }
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];

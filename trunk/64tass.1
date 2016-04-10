@@ -1,4 +1,4 @@
-.TH 64tass 1 "September 08 2015" "64tass 1.52" "64tass 1.52"
+.TH 64tass 1 "April 10 2016" "64tass 1.52" "64tass 1.52"
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -15,49 +15,50 @@ only describing the command line options. The many features are described in the
 Place output into \fIfilename\fR. The default output filename is "a.out",
 this option changes it.
 .TP 0.5i
+\fB\-X\fR, \fB\-\-long\-address\fR
+Use 3 byte address/length for CBM and nonlinear output instead of 2
+bytes. Also increases the size of raw output to 16 MiB.
+.TP 0.5i
 \fB\-b\fR, \fB\-\-nostart\fR
-Output data only without start address.
+Output raw data only without start address.
 Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory before the first and after the last
-valid bytes are not saved. Useful for small ROM files.
+valid bytes are not saved. Up to 64 KiB or 16 MiB with long address.
 .TP 0.5i
 \fB\-f\fR, \fB\-\-flat\fR
 Flat address space output mode.
 Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory after the last valid byte is not saved.
-Useful for creating huge multi bank ROM files (over 64K). See sections
-for an example.
+Up to 4 GiB.
 .TP 0.5i
 \fB\-n\fR, \fB\-\-nonlinear\fR
 Generate nonlinear output file.
-Overlapping blocks are flattened. Blocks are saved in sorted order
-and uninitialized memory is skipped.
-Used for linkers.
-.TP 0.5i
-\fB\-X\fR, \fB\-\-long\-address\fR
-Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
+Overlapping blocks are flattened. Blocks are saved in sorted order and
+uninitialized memory is skipped. Up to 64 KiB or 16 MiB with long
+address.
 .TP 0.5i
 \fB\-\-atari\-xex\fR
 Generate a Atari XEX output file.
 Overlapping blocks are kept, continuing blocks are concatenated. Saving
 happens in the definition order without sorting, and uninitialized memory
-is skipped in the output.
+is skipped in the output. Up to 64 KiB.
 .TP 0.5i
 \fB\-\-apple2\fR
 Generate a Apple II output file (DOS 3.3).
 Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory before the first and after the last
-valid bytes are not saved.
+valid bytes are not saved. Up to 64 KiB.
 .TP 0.5i
 \fB\-\-intel-hex\fR
 Use Intel HEX output file format.
 Overlapping blocks are kept, data is stored in the definition order, and
-uninitialized memory is skipped.
+uninitialized areas are skipped. I8HEX up to 64 KiB, I32HEX up to 4 GiB.
 .TP 0.5i
 \fB\-\-s-record\fR
 Use Motorola S-record output file format.
 Overlapping blocks are kept, data is stored in the definition order, and
-uninitialized memory is skipped.
+uninitialized memory areas are skipped. S19 up to 64 KiB, S28 up to 16
+MiB and S37 up to 4 GiB.
 .TP 0.5i
 \fB\-a\fR, \fB\-\-ascii\fR
 Use ASCII/Unicode text encoding instead of raw 8-bit.
@@ -152,6 +153,9 @@ List labels into \fIfile\fR. List global used labels to a file.
 \fB\-\-vice\-labels\fR
 List labels in a VICE readable format.
 .TP 0.5i
+\fB\-\-dump\-labels\fR
+List labels for debugging.
+.TP 0.5i
 \fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR
 List into \fIfile\fR. Dumps source code and compiled code into file. Useful for
 debugging, it's much easier to identify the code in memory within the
@@ -186,7 +190,7 @@ Written by Zsolt Kajtar.
 .SH "REPORTING BUGS"
 Online bug tracker: <http://sourceforge.net/p/tass64/bugs/>
 .SH COPYRIGHT
-Copyright \(co 2015 Zsolt Kajtar.
+Copyright \(co 2016 Zsolt Kajtar.
 License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>.
 .br
 This is free software: you are free to change and redistribute it.

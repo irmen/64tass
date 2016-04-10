@@ -361,6 +361,17 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                     return -1;
         }
     }
+
+    switch (arguments.output_mode) {
+    case OUTPUT_RAW:
+    case OUTPUT_NONLINEAR:
+    case OUTPUT_CBM: all_mem2 = arguments.longaddr ? 0xffffff : 0xffff; break;
+    case OUTPUT_IHEX:
+    case OUTPUT_SREC:
+    case OUTPUT_FLAT: all_mem2 = 0xffffffff; break;
+    case OUTPUT_APPLE: 
+    case OUTPUT_XEX: all_mem2 = 0xffff; break;
+    }
     if (fin->lines != max_lines) {
         fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof(fin->line[0]));
     }

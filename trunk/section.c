@@ -176,7 +176,7 @@ void sectionprint(void) {
     if (l->size) {
         sprintf(temp, "$%04" PRIaddress, l->start);
         sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
-        printf("Section:         %7s-%-7s\n", temp, temp2);
+        printf("Section:       %9s-%-7s\n", temp, temp2);
     }
     memprint(&l->mem);
     l = root_section.next;
@@ -185,7 +185,7 @@ void sectionprint(void) {
             if (l->size) {
                 sprintf(temp, "$%04" PRIaddress, l->start);
                 sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
-                printf("Section:         %7s-%-7s ", temp, temp2);
+                printf("Section:       %9s-%-7s ", temp, temp2);
             } else {
                 printf("Section:                         ");
             }
