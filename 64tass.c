@@ -352,7 +352,7 @@ void pokeb(uint8_t byte)
     }
     if (current_section->dooutput) write_mem(&current_section->mem, byte ^ outputeor);
     current_section->address++;current_section->l_address.address++;
-    if (current_section->address & ~all_mem2) {
+    if ((current_section->address & ~all_mem2) || !current_section->address) {
         current_section->wrapwarn = current_section->moved = 1;
         if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
         current_section->address = 0;
@@ -398,7 +398,6 @@ static int get_command(void) {
 
 static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
-    all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
     select_opcodes(cpumode);
     listing_set_cpumode(cpumode);
     constcreated |= registerobj_createnames(cpumode->registers);
@@ -662,7 +661,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
         }
-        if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
+        if (!current_section->logicalrecursion) {
             if ((address_t)uval & ~all_mem2) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2);
                 break;
@@ -1878,7 +1877,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (current_section->address > waitfor->addr) {
                         if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
                     }
-                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->l_address.bank - waitfor->laddr.bank) & ~0xffff)) & all_mem;
+                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~0xffff)) & all_mem;
                     if (current_section->l_address.bank > all_mem) {
                         current_section->l_address.bank &= all_mem;
                         err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
@@ -2530,12 +2529,6 @@ Obj *compile(struct file_list_s *cflist)
                                 if (current_section->l_address.bank > cpumode->max_address) {
                                     current_section->l_address.bank &= cpumode->max_address;
                                     err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                                }
-                                if (arguments.output_mode != OUTPUT_FLAT) {
-                                    if (current_section->address & ~cpumode->max_address) {
-                                        current_section->address &= cpumode->max_address;
-                                        memjmp(&current_section->mem, current_section->address);
-                                    }
                                 }
                                 set_cpumode(cpumode);
                                 break;
@@ -3454,10 +3447,11 @@ static int main2(int argc, char *argv[]) {
     }
     init_encoding(arguments.toascii);
 
-    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
+    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"
              "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
              "are welcome to redistribute it under certain conditions; See LICENSE!\n");
+    }
 
     /* assemble the input file(s) */
     do {

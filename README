@@ -2407,22 +2407,29 @@ Output options
 
     64tass a.asm -o a.prg
 
+-X, --long-address
+    Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
+    Also increases the size of raw output to 16 MiB.
+
+    64tass --long-address --m65816 a.asm
+
 no option
     Outputs CBM format binaries
 
     The first 2 bytes are the little endian address of the first valid byte
     (start address). Overlapping blocks are flattened and uninitialized memory
     is filled up with zeros. Uninitialized memory before the first and after
-    the last valid bytes are not saved.
+    the last valid bytes are not saved. Up to 64 KiB or 16 MiB with long
+    address.
 
     Used for C64 binaries.
 
 -b, --nostart
-    Output data only without start address
+    Output raw data without start address.
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
-    are not saved.
+    are not saved. Up to 64 KiB or 16 MiB with long address.
 
     Useful for small ROM files.
 
@@ -2430,18 +2437,18 @@ no option
     Flat address space output mode.
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
-    zeros. Uninitialized memory after the last valid byte is not saved.
+    zeros. Uninitialized memory after the last valid byte is not saved. Up to
+    4 GiB.
 
-    Useful for creating huge multi bank ROM files (over 64 KiB). See sections
-    for an example.
+    Useful for creating huge multi bank ROM files. See sections for an example.
 
 -n, --nonlinear
     Generate nonlinear output file.
 
     Overlapping blocks are flattened. Blocks are saved in sorted order and
-    uninitialized memory is skipped.
+    uninitialized memory is skipped. Up to 64 KiB or 16 MiB with long address.
 
-    Used for linkers.
+    Used for linkers and downloading.
 
     64tass --nonlinear a.asm
     *       = $1000
@@ -2458,17 +2465,14 @@ no option
     $ea      code
     $00, $00 end marker (length=0)
 
--X, --long-address
-    Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
-
-    64tass --long-address --m65816 a.asm
-
 --atari-xex
     Generate a Atari XEX output file.
 
     Overlapping blocks are kept, continuing blocks are concatenated. Saving
     happens in the definition order without sorting, and uninitialized memory
-    is skipped in the output.
+    is skipped in the output. Up to 64 KiB.
+
+    Used for Atari executables.
 
     64tass --atari-xex a.asm
     *       = $02e0
@@ -2490,7 +2494,9 @@ no option
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
-    are not saved.
+    are not saved. Up to 64 KiB.
+
+    Used for Apple II executables.
 
     64tass --apple-ii a.asm
     *       = $0c00
@@ -2505,7 +2511,9 @@ no option
     Use Intel HEX output file format.
 
     Overlapping blocks are kept, data is stored in the definition order, and
-    uninitialized memory is skipped.
+    uninitialized areas are skipped. I8HEX up to 64 KiB, I32HEX up to 4 GiB.
+
+    Used for EPROM programming or downloading.
 
     64tass --intel-hex a.asm
     *       = $0c00
@@ -2520,7 +2528,10 @@ no option
     Use Motorola S-record output file format.
 
     Overlapping blocks are kept, data is stored in the definition order, and
-    uninitialized memory is skipped.
+    uninitialized memory areas are skipped. S19 up to 64 KiB, S28 up to 16 MiB
+    and S37 up to 4 GiB.
+
+    Used for EPROM programming or downloading.
 
     64tass --s-record a.asm
     *       = $0c00

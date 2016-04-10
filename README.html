@@ -2837,29 +2837,36 @@ you get a related error move the respective label out of the <a href="#d_block">
 64tass a.asm -o a.prg
 </pre>
 
+<dt><b>-X</b>, <b>--long-address</b><a name="o_long-address" href="#o_long-address"></a>
+<dd>Use 3 byte address/length for CBM and nonlinear output instead of 2
+bytes. Also increases the size of raw output to 16&nbsp;MiB.
+<pre width=80>
+64tass --long-address --m65816 a.asm
+</pre>
+
 <dt>no option
 <dd>Outputs CBM format binaries
 <p>The first 2 bytes are the little endian address of the first valid byte (start
 address). Overlapping blocks are flattened and uninitialized memory is filled up with zeros.
-Uninitialized memory before the first and after the last valid bytes are not saved.</p>
+Uninitialized memory before the first and after the last valid bytes are not saved. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.</p>
 <p>Used for C64 binaries.</p>
 
 <dt><b>-b</b>, <b>--nostart</b><a name="o_nostart" href="#o_nostart"></a>
-<dd>Output data only without start address
+<dd>Output raw data without start address.
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
-before the first and after the last valid bytes are not saved.</p>
+before the first and after the last valid bytes are not saved. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.</p>
 <p>Useful for small ROM files.</p>
 
 <dt><b>-f</b><a name="o_f"></a>, <b>--flat</b><a name="o_flat" href="#o_flat"></a>
 <dd>Flat address space output mode.
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with
-zeros. Uninitialized memory after the last valid byte is not saved.</p>
-<p>Useful for creating huge multi bank ROM files (over 64&nbsp;KiB). See sections for an example.</p>
+zeros. Uninitialized memory after the last valid byte is not saved. Up to 4&nbsp;GiB.</p>
+<p>Useful for creating huge multi bank ROM files. See sections for an example.</p>
 
 <dt><b>-n</b><a name="o_n"></a>, <b>--nonlinear</b><a name="o_nonlinear" href="#o_nonlinear"></a>
 <dd>Generate nonlinear output file.
-<p>Overlapping blocks are flattened. Blocks are saved in sorted order and uninitialized memory is skipped.</p>
-<p>Used for linkers.</p>
+<p>Overlapping blocks are flattened. Blocks are saved in sorted order and uninitialized memory is skipped. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.</p>
+<p>Used for linkers and downloading.</p>
 <pre width=80>
 64tass --nonlinear a.asm
 *       <b>=</b> <span>$1000</span>
@@ -2880,17 +2887,12 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
 </tbody>
 </table></div>
 
-<dt><b>-X</b>, <b>--long-address</b><a name="o_long-address" href="#o_long-address"></a>
-<dd>Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
-<pre width=80>
-64tass --long-address --m65816 a.asm
-</pre>
-
 <dt><b>--atari-xex</b><a name="o_atari-xex" href="#o_atari-xex"></a>
 <dd>Generate a Atari XEX output file.
 <p>Overlapping blocks are kept, continuing blocks are concatenated. Saving
 happens in the definition order without sorting, and uninitialized memory is
-skipped in the output.</p>
+skipped in the output. Up to 64&nbsp;KiB.</p>
+<p>Used for Atari executables.</p>
 <pre width=80>
 64tass --atari-xex a.asm
 *       <b>=</b> <span>$02e0</span>
@@ -2914,7 +2916,8 @@ start	<b>rts</b>
 <dt><b>--apple2</b><a name="o_apple2" href="#o_apple2"></a>
 <dd>Generate a Apple II output file (DOS 3.3).
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
-before the first and after the last valid bytes are not saved.</p>
+before the first and after the last valid bytes are not saved. Up to 64&nbsp;KiB.</p>
+<p>Used for Apple II executables.</p>
 <pre width=80>
 64tass --apple-ii a.asm
 *       <b>=</b> <span>$0c00</span>
@@ -2932,7 +2935,8 @@ before the first and after the last valid bytes are not saved.</p>
 <dt><b>--intel-hex</b><a name="o_intel-hex" href="#o_intel-hex"></a>
 <dd>Use Intel HEX output file format.
 <p>Overlapping blocks are kept, data is stored in the definition order,
-and uninitialized memory is skipped.</p>
+and uninitialized areas are skipped. I8HEX up to 64&nbsp;KiB, I32HEX up to 4&nbsp;GiB.</p>
+<p>Used for EPROM programming or downloading.</p>
 <pre width=80>
 64tass --intel-hex a.asm
 *       <b>=</b> <span>$0c00</span>
@@ -2947,7 +2951,9 @@ Result of compilation:
 <dt><b>--s-record</b><a name="o_s-record" href="#o_s-record"></a>
 <dd>Use Motorola S-record output file format.
 <p>Overlapping blocks are kept, data is stored in the definition order,
-and uninitialized memory is skipped.</p>
+and uninitialized memory areas are skipped. S19 up to 64&nbsp;KiB, S28 up to 16&nbsp;MiB
+and S37 up to 4&nbsp;GiB.</p>
+<p>Used for EPROM programming or downloading.</p>
 <pre width=80>
 64tass --s-record a.asm
 *       <b>=</b> <span>$0c00</span>
