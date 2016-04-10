@@ -49,6 +49,16 @@ Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory before the first and after the last
 valid bytes are not saved.
 .TP 0.5i
+\fB\-\-intel-hex\fR
+Use Intel HEX output file format.
+Overlapping blocks are kept, data is stored in the definition order, and
+uninitialized memory is skipped.
+.TP 0.5i
+\fB\-\-s-record\fR
+Use Motorola S-record output file format.
+Overlapping blocks are kept, data is stored in the definition order, and
+uninitialized memory is skipped.
+.TP 0.5i
 \fB\-a\fR, \fB\-\-ascii\fR
 Use ASCII/Unicode text encoding instead of raw 8-bit.
 Normally no conversion takes place, this is for backwards compatibility with a
