@@ -176,9 +176,19 @@ static void putlw(int w, FILE *f) {
     putc(w >> 8, f);
 }
 
+static void padding(size_t size, FILE *f) {
+    while (size >= 0x80000000) {
+        if (fseek(f, 0x40000000, SEEK_CUR)) goto err;
+        size -= 0x40000000;
+    }
+    if ((long)size > 256 && !fseek(f, size, SEEK_CUR)) {
+        return;
+    }
+err:while (size--) if (putc(0, f) == EOF) break;
+}
+
 static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
     address_t pos, end;
-    size_t size;
     unsigned int i;
 
     if (memblocks->p) {
@@ -195,11 +205,8 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
         }
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];
-            size = block->addr - pos;
-            if (size && ((long)size < 256 || fseek(fout, (long)size, SEEK_CUR))) {
-                while (size--) putc(0, fout);
-            }
-            fwrite(memblocks->mem.data + block->p, block->len, 1, fout);
+            padding(block->addr - pos, fout);
+            if (!fwrite(memblocks->mem.data + block->p, block->len, 1, fout)) return;
             pos = block->addr + block->len;
         }
     }
@@ -224,7 +231,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
                 if (arguments.longaddr) putc(start >> 16,fout);
                 while (last < i) {
                     const struct memblock_s *b = &memblocks->data[last++];
-                    fwrite(memblocks->mem.data + b->p, b->len, 1, fout);
+                    if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
                 }
                 start = block->addr;
                 size = 0;
@@ -237,7 +244,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
         if (arguments.longaddr) putc(start >> 16,fout);
         while (last < i) {
             const struct memblock_s *b = &memblocks->data[last++];
-            fwrite(memblocks->mem.data + b->p, b->len, 1, fout);
+            if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
         }
     }
     putlw(0, fout);
@@ -246,16 +253,12 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
 
 static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
     address_t pos;
-    size_t size;
     unsigned int i;
 
     for (pos = i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
-        size = block->addr - pos;
-        if (size && ((long)size < 256 || fseek(fout, (long)size, SEEK_CUR))) {
-            while (size--) putc(0, fout);
-        }
-        fwrite(memblocks->mem.data + block->p, block->len, 1, fout);
+        padding(block->addr - pos, fout);
+        if (!fwrite(memblocks->mem.data + block->p, block->len, 1, fout)) return;
         pos = block->addr + block->len;
     }
 }
@@ -278,7 +281,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
                 putlw(start + size - 1, fout);
                 while (last < i) {
                     const struct memblock_s *b = &memblocks->data[last++];
-                    fwrite(memblocks->mem.data + b->p, b->len, 1, fout);
+                    if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
                 }
                 start = block->addr;
                 size = 0;
@@ -290,7 +293,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
         putlw(start + size - 1, fout);
         while (last < i) {
             const struct memblock_s *b = &memblocks->data[last++];
-            fwrite(memblocks->mem.data + b->p, b->len, 1, fout);
+            if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
         }
     }
 }
@@ -479,9 +482,9 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
         case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
         }
-        if (fout == stdout) fflush(fout);
-        if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
         if (fout != stdout) fclose(fout);
+        else fflush(fout);
+        if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif
