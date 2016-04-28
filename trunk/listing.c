@@ -32,7 +32,6 @@
 #include "mem.h"
 #include "values.h"
 
-#define VERBOSE 0
 #define LADDR_COLUMN 8
 #define HEX_COLUMN 17
 #define MONITOR_COLUMN 32
@@ -189,7 +188,7 @@ void listing_line(linecpos_t pos) {
                     l += printaddr('\0', addr);
                 }
             } else l = 0;
-            if (VERBOSE) {
+            if (arguments.verbose) {
                 if (llist[i]) {
                     padding(l, SOURCE_COLUMN);
                     printable_print(llist, flist);
@@ -231,7 +230,7 @@ void listing_line_cut(linecpos_t pos) {
 }
 
 void listing_line_cut2(linecpos_t pos) {
-    if (VERBOSE) {
+    if (arguments.verbose) {
         if (!nolisting && flist && arguments.source && !temporary_label_branch) {
             if (llist) {
                 padding(0, SOURCE_COLUMN);
