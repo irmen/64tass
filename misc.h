@@ -42,6 +42,7 @@ struct arguments_s {
     unsigned longaddr:1;
     unsigned tasmcomp:1;
     unsigned shadow_check:1;
+    unsigned verbose:1;
     uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;

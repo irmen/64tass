@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -211,6 +211,7 @@ static const struct option long_options[]={
     {"list"             , required_argument, 0, 'L'},
     {""                 , required_argument, 0, 'I'},
     {""                 , required_argument, 0, 'M'},
+    {"verbose-list"     , no_argument      , 0,  0x110},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
     {"no-caret-diag"    , no_argument      , 0,  0x10a},
@@ -282,6 +283,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'm': arguments.monitor = 0;break;
             case 's': arguments.source = 0;break;
             case 'C': arguments.caseinsensitive = 0;break;
+            case 0x110: arguments.verbose = 1;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
@@ -293,7 +295,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02]\n"
                "        [--labels=<file>] [--vice-labels] [--dump-labels] [--shadow-check]\n"
                "        [--list=<file>] [--no-monitor] [--no-source] [--tab-size=<value>]\n"
-               "        [--help] [--usage] [--version] SOURCES");
+               "        [--verbose-list] [--help] [--usage] [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -345,6 +347,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -m, --no-monitor      Don't put monitor code into listing\n"
                "  -s, --no-source       Don't put source code into listing\n"
                "      --tab-size=<n>    Override the default tab size (8)\n"
+               "      --verbose-list    List unused lines as well\n"
                "\n"
                " Misc:\n"
                "  -?, --help            Give this help list\n"
