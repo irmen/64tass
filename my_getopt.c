@@ -67,8 +67,8 @@ int my_getopt(int argc, char *argv[], const char *opts)
           charind = 0;
           if(++my_optind >= argc) {
             if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
-                            fputs(": option requires an argument -- ", stderr);
-                            putc(my_optopt, stderr); putc('\n', stderr);}
+                            fputs(": option requires an argument -- '", stderr);
+                            putc(my_optopt, stderr); fputs("'\n", stderr);}
             opt = (colon_mode == ':') ? ':' : '?';
             goto my_getopt_ok;
           }
@@ -79,9 +79,9 @@ int my_getopt(int argc, char *argv[], const char *opts)
       goto my_getopt_ok;
     }
     if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
-                    fputs(": illegal option -- ", stderr);
+                    fputs(": illegal option -- '", stderr);
                     printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, (my_optopt & 0x80) ? utf8len(my_optopt) : 1);
-                    putc('\n', stderr);}
+                    fputs("'\n", stderr);}
     opt = '?';
     if(argv[my_optind][++charind] == '\0') {
       my_optind++;
@@ -222,7 +222,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
         if(longopts[found].has_arg == 0) {
           opt = '?';
           if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                         fputs(": option `--", stderr);
+                         fputs(": option '--", stderr);
                          printable_print((const uint8_t *)longopts[found].name, stderr);
                          fputs("' doesn't allow an argument\n", stderr); }
         } else {
@@ -233,7 +233,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
         if(++my_optind >= argc) {
           opt = (colon_mode == ':') ? ':' : '?';
           if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                         fputs(": option `--", stderr);
+                         fputs(": option '--", stderr);
                          printable_print((const uint8_t *)longopts[found].name, stderr);
                          fputs("' requires an argument\n", stderr); }
         } else my_optarg = argv[my_optind];
@@ -249,14 +249,14 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
       else {
         opt = '?';
         if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                       fputs(": unrecognized option `", stderr);
+                       fputs(": unrecognized option '", stderr);
                        printable_print((const uint8_t *)argv[my_optind++], stderr);
                        fputs("'\n", stderr); }
       }
     } else {
       opt = '?';
       if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                     fputs(": option `", stderr);
+                     fputs(": option '", stderr);
                      printable_print((const uint8_t *)argv[my_optind++], stderr);
                      fputs("' is ambiguous\n", stderr); }
     }
