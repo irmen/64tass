@@ -144,6 +144,7 @@ static unsigned int errors = 0, warnings = 0;
 static struct file_list_s file_list;
 static const struct file_list_s *included_from = &file_list;
 static struct file_list_s *current_file_list = &file_list;
+static const char *prgname;
 
 struct errorbuffer_s {
     size_t max;
@@ -820,7 +821,8 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
         printable_print((uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
-        fputs("<command line>:0:0: ", f);
+        printable_print((uint8_t *)prgname, f);
+        fputs(": ", f);
     }
     switch (err->severity) {
     case SV_NOTDEFGNOTE:
@@ -939,7 +941,8 @@ void error_reset(void) {
     included_from = &file_list;
 }
 
-void err_init(void) {
+void err_init(const char *name) {
+    prgname = name;
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
     error_list.data = NULL;

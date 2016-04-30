@@ -95,7 +95,7 @@ extern void error_reset(void);
 extern int error_print(int, int, int);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
-extern void err_init(void);
+extern void err_init(const char *);
 extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);

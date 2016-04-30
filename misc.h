@@ -59,7 +59,7 @@ struct arguments_s {
 #define here() pline[lpoint.pos]
 
 extern void tfree(void);
-extern void tinit(void);
+extern void tinit(const char *);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern int str_hash(const str_t *);
