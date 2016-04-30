@@ -25,7 +25,7 @@ struct Obj;
 extern unsigned int nolisting;
 extern const uint8_t *llist;
 extern void listing_open(const char *, int, char *[]);
-extern void listing_close(void);
+extern void listing_close(const char *);
 extern void listing_equal(struct Obj *);
 extern void listing_line(linecpos_t);
 extern void listing_line_cut(linecpos_t);

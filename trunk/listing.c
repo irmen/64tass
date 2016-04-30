@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 #include "file.h"
 #include "error.h"
 #include "64tass.h"
@@ -129,11 +130,14 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     time(&t); fputs(ctime(&t), flist);
 }
 
-void listing_close(void) {
+void listing_close(const char *filename) {
+    struct linepos_s nopoint = {0, 0};
     if (flist) {
+        int err;
         fputs("\n;******  End of listing\n", flist);
-        if (flist != stdout) fclose(flist);
-        else fflush(flist);
+        err = ferror(flist);
+        err |= (flist != stdout) ? fclose(flist) : fflush(flist);
+        if (err && errno) err_msg_file(ERROR_CANT_DUMP_LST, filename, &nopoint);
     }
     flist = NULL;
 }

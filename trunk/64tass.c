@@ -3537,7 +3537,7 @@ static int main2(int argc, char *argv[]) {
             }
         }
         /*garbage_collect();*/
-        listing_close();
+        listing_close(arguments.list);
     }
 
     set_cpumode(arguments.cpumode);
