@@ -49,6 +49,7 @@ struct arguments_s {
     const char *label;
     const char *list;
     const char *make;
+    const char *error;
     enum output_mode_e output_mode;
     uint8_t tab_size;
     enum label_mode_e label_mode;

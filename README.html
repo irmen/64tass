@@ -2831,7 +2831,7 @@ you get a related error move the respective label out of the <a href="#d_block">
 <h3>Output options<a name="commandline-output" href="#commandline-output"></a></h3>
 
 <dl class="dir">
-<dt><b>-o</b> &lt;filename&gt;<a name="o_o" href="#o_o"></a>
+<dt><b>-o</b> &lt;filename&gt;, <b>--output</b> &lt;filename&gt;<a name="o_output" href="#o_output"></a>
 <dd>Place output into &lt;filename&gt;. The default output filename is <q>a.out</q>. This option changes it.
 <pre width=80>
 64tass a.asm -o a.prg
@@ -3075,6 +3075,12 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 <dd>Specify make rule output file
 <p>Writes a dependency rule suitable for <q>make</q> from the list of files used during compilation.</p>
 
+<dt><b>-E</b> &lt;file&gt;, <b>--error</b> &lt;file&gt;<a name="o_error" href="#o_error"></a>
+<dd>Specify error output file
+<p>Normally compilation errors a written to the standard error output.
+It's possible to redirect them to a file or to the standard output by
+using <q>-</q> as the file name.</p>
+
 <dt><b>--shadow-check</b><a name="o_shadow-check" href="#o_shadow-check"></a>
 <dd>Enable symbol shadowing check
 <p>Makes local variables <q>shadowing</q> other variables in upper scopes an
@@ -3288,8 +3294,9 @@ including comments and empty lines.
 <h2>Messages<a name="messages" href="#messages"></a></h2>
 
 <p>Faults and warnings encountered are sent to standard error for logging. To
-redirect them into a file append <q>2&gt;filename.log</q> after the command. The format of
-messages is the following:</p>
+redirect them into a file append <q>2&gt;filename.log</q> after the
+command, or use the <q><a href="#o_error"><tt>-E</tt></a></q> command
+line option. The message format is the following:</p>
 <p>&lt;filename&gt;:&lt;line&gt;:&lt;character&gt;: &lt;severity&gt;: &lt;message&gt;</p>
 <ul>
 <li>filename: The name and path of source file where the error happened.
@@ -3385,9 +3392,11 @@ will display without them.</p>
 <h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
 <dl class="errorlist">
 <dt>can't open file<dd>cannot open file
+<dt>can't write error file<dd>cannot write the error file
 <dt>can't write label file<dd>cannot write the label file
 <dt>can't write listing file<dd>cannot write the list file
 <dt>can't write object file<dd>cannot write the result
+<dt>can't write make file<dd>cannot write the make rule file
 <dt>error reading file<dd>error while reading
 <dt>file recursion<dd>wrong use of .include
 <dt>macro recursion too deep<dd>wrong use of nested macros

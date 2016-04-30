@@ -2401,7 +2401,7 @@ Command line options
 
 Output options
 
--o <filename>
+-o <filename>, --output <filename>
     Place output into <filename>. The default output filename is `a.out'. This
     option changes it.
 
@@ -2651,6 +2651,13 @@ Operation options
     Writes a dependency rule suitable for `make' from the list of files used
     during compilation.
 
+-E <file>, --error <file>
+    Specify error output file
+
+    Normally compilation errors a written to the standard error output. It's
+    possible to redirect them to a file or to the standard output by using `-'
+    as the file name.
+
 --shadow-check
     Enable symbol shadowing check
 
@@ -2840,8 +2847,8 @@ Other options
 Messages
 
 Faults and warnings encountered are sent to standard error for logging. To
-redirect them into a file append `2>filename.log' after the command. The format
-of messages is the following:
+redirect them into a file append `2>filename.log' after the command, or use the
+`-E' command line option. The message format is the following:
 
 <filename>:<line>:<character>: <severity>: <message>
 
@@ -3008,12 +3015,16 @@ Fatal errors
 
 can't open file
     cannot open file
+can't write error file
+    cannot write the error file
 can't write label file
     cannot write the label file
 can't write listing file
     cannot write the list file
 can't write object file
     cannot write the result
+can't write make file
+    cannot write the make rule file
 error reading file
     error while reading
 file recursion

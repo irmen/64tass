@@ -366,6 +366,7 @@ static const char *terr_fatal[]={
     "can't write listing file ",
     "can't write label file ",
     "can't write make file ",
+    "can't write error file ",
     "file recursion",
     "macro recursion too deep",
     "function recursion too deep",
@@ -850,6 +851,20 @@ int error_print(int fix, int newvar, int anyerr) {
     const struct errorentry_s *err, *err2;
     size_t pos, pos2;
     int noneerr = 0;
+    FILE *ferr;
+
+    if (arguments.error) {
+        if (arguments.error[0] == '-' && !arguments.error[1]) {
+            ferr = stdout;
+        } else {
+            if (!(ferr=file_open(arguments.error, "wt"))) {
+                struct linepos_s nopoint = {0, 0};
+                ferr = stderr;
+                err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);
+            }
+        }
+    } else ferr = stderr;
+
     warnings = errors = 0;
     close_error();
 
@@ -912,8 +927,9 @@ int error_print(int fix, int newvar, int anyerr) {
         case SV_ERROR:
         case SV_FATAL: errors++; break;
         }
-        print_error(stderr, err);
+        print_error(ferr, err);
     }
+    if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors;
 }
 

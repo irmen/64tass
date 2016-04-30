@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -178,7 +178,7 @@ void tinit(void) {
 }
 
 /* ------------------------------------------------------------------ */
-static const char *short_options= "wqnbfXaTCBicxtel:L:I:M:msV?o:D:";
+static const char *short_options= "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},
@@ -205,6 +205,8 @@ static const struct option long_options[]={
     {"mr65c02"          , no_argument      , 0,  0x104},
     {"mw65c02"          , no_argument      , 0,  0x105},
     {"labels"           , required_argument, 0, 'l'},
+    {"output"           , required_argument, 0, 'o'},
+    {"error"            , required_argument, 0, 'E'},
     {"vice-labels"      , no_argument      , 0,  0x10b},
     {"dump-labels"      , no_argument      , 0,  0x10d},
     {"shadow-check"     , no_argument      , 0,  0x10c},
@@ -277,6 +279,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
             case 0x10c: arguments.shadow_check = 1; break;
             case 0x10d: arguments.label_mode = LABEL_DUMP; break;
+            case 'E': arguments.error = optarg;break;
             case 'L': arguments.list = optarg;break;
             case 'M': arguments.make = optarg;break;
             case 'I': include_list_add(optarg);break;
