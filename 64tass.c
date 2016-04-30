@@ -221,7 +221,7 @@ enum command_e {
 
 static void status(int anyerr) {
     int errors = error_print(fixeddig, constcreated, anyerr);
-    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+    if (arguments.quiet) {
         error_status();
         printf("Passes:            %u\n",pass);
         if (!errors) sectionprint();
@@ -3447,7 +3447,7 @@ static int main2(int argc, char *argv[]) {
     }
     init_encoding(arguments.toascii);
 
-    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+    if (arguments.quiet) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"
              "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
              "are welcome to redistribute it under certain conditions; See LICENSE!\n");
