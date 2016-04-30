@@ -636,7 +636,7 @@ void labelprint(void) {
         flab = stdout;
     } else {
         if (!(flab = file_open(arguments.label, "wt"))) {
-            err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+            err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
             return;
         }
     }
@@ -651,7 +651,7 @@ void labelprint(void) {
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
-    if (err && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+    if (err && errno) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
 }
 
 void new_builtin(const char *ident, Obj *val) {

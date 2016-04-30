@@ -108,7 +108,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
         flist = stdout;
     } else {
         if (!(flist=file_open(filename,"wt"))) {
-            err_msg_file(ERROR_CANT_DUMP_LST, filename, &nopoint);
+            err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
             return;
         }
     }
@@ -137,7 +137,7 @@ void listing_close(const char *filename) {
         fputs("\n;******  End of listing\n", flist);
         err = ferror(flist);
         err |= (flist != stdout) ? fclose(flist) : fflush(flist);
-        if (err && errno) err_msg_file(ERROR_CANT_DUMP_LST, filename, &nopoint);
+        if (err && errno) err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
     }
     flist = NULL;
 }

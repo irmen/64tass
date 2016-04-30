@@ -668,7 +668,7 @@ void makefile(int argc, char *argv[]) {
         f = stdout;
     } else {
         if (!(f = file_open(arguments.make, "wt"))) {
-            err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+            err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
             return;
         }
     }
@@ -700,5 +700,5 @@ void makefile(int argc, char *argv[]) {
 
     err = ferror(f);
     err |= (f != stdout) ? fclose(f) : fflush(f);
-    if (err && errno) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
+    if (err && errno) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
 }

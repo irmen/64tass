@@ -11,7 +11,7 @@ only describing the command line options. The many features are described in the
 .SH OPTIONS
 .sp 1
 .TP 0.5i
-\fB\-o\fR \fIfilename\fR
+\fB\-o\fR \fIfilename\fR, \fB\--output\fR \fIfilename\fR
 Place output into \fIfilename\fR. The default output filename is "a.out",
 this option changes it.
 .TP 0.5i
@@ -113,6 +113,12 @@ one is used.
 Specify make rule output \fIfile\fR.
 Writes a dependency rule suitable for 'make' from the list of files
 used during compilation.
+.TP 0.5i
+\fB\-E\fR \fIfile\fR, \fB\-\-error\fR \fIfile\fR
+Specify error output \fIfile\fR.
+Normally compilation errors a written to the standard error output. It's
+possible to redirect them to a file or to the standard output by using '-'
+as the file name.
 .TP 0.5i
 \fB--shadow-check\fR
 Enable symbol shadowing check.
