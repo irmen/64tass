@@ -363,7 +363,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "Report bugs to <soci" "\x40" "c64.rulez.org>.");
                return 0;
             }
-            default:fputs("Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
+            default:fputs("Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
                     return -1;
         }
     }
@@ -391,7 +391,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     fin->coding = E_UTF8;
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
-              "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
+              "Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
         return -1;
     }
     return optind;
