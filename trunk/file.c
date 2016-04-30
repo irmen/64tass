@@ -303,7 +303,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 return NULL;
             }
             if (ftype == 1) {
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+                if (arguments.quiet) {
                     printf("Reading file:      ");
                     argv_print(tmp->realname, stdout);
                     putchar('\n');
@@ -329,7 +329,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 size_t max_lines = 0;
                 uint8_t buffer[BUFSIZ * 2];
                 size_t bp = 0, bl, qr = 1;
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+                if (arguments.quiet) {
                     printf("Assembling file:   ");
                     argv_print(tmp->realname, stdout);
                     putchar('\n');

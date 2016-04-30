@@ -228,9 +228,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
         switch (opt) {
-            case 'w':arguments.warning=0;break;
-            case 'q':arguments.quiet=0;break;
-            case 'X':arguments.longaddr=1;break;
+            case 'w':arguments.warning = 0;break;
+            case 'q':arguments.quiet = 0;break;
+            case 'X':arguments.longaddr = 1;break;
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
             case 0x107:arguments.output_mode = OUTPUT_XEX;break;
             case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
@@ -238,9 +238,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
-            case 'a':arguments.toascii=1;break;
-            case 'T':arguments.tasmcomp=1;break;
-            case 'o':arguments.output=optarg;break;
+            case 'a':arguments.toascii = 1;break;
+            case 'T':arguments.tasmcomp = 1;break;
+            case 'o':arguments.output = optarg;break;
             case 0x10a:arguments.caret = 0;break;
             case 'D':
                 {
@@ -378,6 +378,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     case OUTPUT_APPLE: 
     case OUTPUT_XEX: all_mem2 = 0xffff; break;
     }
+    if (arguments.output[0] == '-' && !arguments.output[1]) arguments.quiet = 0;
     if (fin->lines != max_lines) {
         fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof(fin->line[0]));
     }
