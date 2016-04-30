@@ -427,7 +427,10 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
             const struct memblock_s *b = &memblocks->data[i];
             size_t end = b->addr + b->len - 1;
             if (end >= 0x10000 && srec.type < 1) srec.type = 1;
-            if (end >= 0x1000000 && srec.type < 2) srec.type = 2;
+            if (end >= 0x1000000 && srec.type < 2) {
+                srec.type = 2;
+                break;
+            }
         }
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *b = &memblocks->data[i];
