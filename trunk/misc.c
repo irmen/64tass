@@ -166,10 +166,10 @@ void tfree(void) {
     str_cfcpy(NULL, NULL);
 }
 
-void tinit(void) {
+void tinit(const char *prgname) {
     init_values();
     objects_init();
-    err_init();
+    err_init(prgname);
     init_section();
     init_file();
     init_variables();

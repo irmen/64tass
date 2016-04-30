@@ -3435,7 +3435,7 @@ static int main2(int argc, char *argv[]) {
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     struct linepos_s nopoint = {0, 0};
 
-    tinit();
+    tinit(argc ? argv[0] : "<command line>");
 
     fin = openfile(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc,argv, fin);
