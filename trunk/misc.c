@@ -211,8 +211,6 @@ static const struct option long_options[]={
     {"dump-labels"      , no_argument      , 0,  0x10d},
     {"shadow-check"     , no_argument      , 0,  0x10c},
     {"list"             , required_argument, 0, 'L'},
-    {""                 , required_argument, 0, 'I'},
-    {""                 , required_argument, 0, 'M'},
     {"verbose-list"     , no_argument      , 0,  0x110},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
