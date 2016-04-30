@@ -1403,7 +1403,6 @@ Obj *compile(struct file_list_s *cflist)
                             labelexists = 1;
                         }
                     }
-                    if (epoint.pos) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
                 }
                 if (!labelexists) newlabel=new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
@@ -1539,6 +1538,7 @@ Obj *compile(struct file_list_s *cflist)
                 newlabel->ref = 0;
                 goto as_command;
             }
+            if (!newlabel->ref && epoint.pos) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
             epoint = lpoint;
             newlabel->ref = 0;
         }
