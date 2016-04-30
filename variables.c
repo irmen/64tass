@@ -630,6 +630,7 @@ void labelprint(void) {
     int oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
+    int err;
 
     if (arguments.label[0] == '-' && !arguments.label[1]) {
         flab = stdout;
@@ -648,9 +649,9 @@ void labelprint(void) {
         labelprint2(&root_namespace->members, flab, arguments.label_mode);
     }
     referenceit = oldreferenceit;
-    if (flab == stdout) fflush(flab);
-    if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
-    if (flab != stdout) fclose(flab);
+    err = ferror(flab);
+    err |= (flab != stdout) ? fclose(flab) : fflush(flab);
+    if (err && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
 }
 
 void new_builtin(const char *ident, Obj *val) {

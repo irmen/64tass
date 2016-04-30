@@ -464,6 +464,7 @@ void output_mem(struct memblocks_s *memblocks) {
 
     if (memblocks->mem.p) {
         int binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
+        int err;
         if (arguments.output[0] == '-' && !arguments.output[1]) {
 #ifdef _WIN32
             if (binary) setmode(fileno(stdout), O_BINARY);
@@ -486,9 +487,9 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
         case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
         }
-        if (fout != stdout) fclose(fout);
-        else fflush(fout);
-        if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+        err = ferror(fout);
+        err |= (fout != stdout) ? fclose(fout) : fflush(fout);
+        if (err && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif

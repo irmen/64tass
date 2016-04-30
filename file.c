@@ -273,6 +273,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         tmp = lastfi;
         lastfi=NULL;
         if (name) {
+            int err;
             const char *path = NULL;
             s = (char *)mallocx(strlen(name) + 1);
             strcpy(s, name); tmp->name = s;
@@ -569,8 +570,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     tmp->line = (size_t *)reallocx(tmp->line, tmp->lines * sizeof(tmp->line[0]));
                 }
             }
-            if (ferror(f) && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
-            if (f != stdin) fclose(f);
+            err = ferror(f);
+            if (f != stdin) err |= fclose(f);
+            if (err && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
             tmp->len = fp;
             tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
             tmp->coding = type;
@@ -660,7 +662,7 @@ void makefile(int argc, char *argv[]) {
     struct linepos_s nopoint = {0, 0};
     struct avltree_node *n;
     size_t len;
-    int i;
+    int i, err;
 
     if (arguments.make[0] == '-' && !arguments.make[1]) {
         f = stdout;
@@ -696,7 +698,7 @@ void makefile(int argc, char *argv[]) {
     }
     putc('\n', f);
 
-    if (f == stdout) fflush(f);
-    if (ferror(f) && errno) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
-    if (f != stdout) fclose(f);
+    err = ferror(f);
+    err |= (f != stdout) ? fclose(f) : fflush(f);
+    if (err && errno) err_msg_file(ERROR_CANT_DUMP_MAK, arguments.make, &nopoint);
 }
