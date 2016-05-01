@@ -187,7 +187,7 @@ context default lightgray
     keyword whole .dint yellow
     keyword whole .dword yellow
     keyword whole .fill yellow
-    keyword whole .int yellow
+    keyword whole .sint yellow
     keyword whole .lint yellow
     keyword whole .long yellow
     keyword whole .null yellow
