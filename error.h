@@ -20,7 +20,7 @@
 #define _ERROR_H_
 #include "inttypes.h"
 #include "errors_e.h"
-#include "libtree.h"
+#include "avl.h"
 #include "obj.h"
 
 struct file_s;

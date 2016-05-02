@@ -1,5 +1,5 @@
 /*
- * libtree.h - this file is part of Libtree.
+ * avl.h - this file is part of Libtree.
  * $Id$
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301 USA.
  */
-#ifndef _LIBTREE_H
-#define _LIBTREE_H
+#ifndef _AVL_H
+#define _AVL_H
 
 #include <stddef.h>
 

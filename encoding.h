@@ -18,7 +18,7 @@
 */
 #ifndef _ENCODING_H_
 #define _ENCODING_H_
-#include "libtree.h"
+#include "avl.h"
 #include "inttypes.h"
 #include "errors_e.h"
 

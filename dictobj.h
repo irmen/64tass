@@ -20,7 +20,7 @@
 #define _DICTOBJ_H
 #include "obj.h"
 #include "values.h"
-#include "libtree.h"
+#include "avl.h"
 
 extern struct Type *DICT_OBJ;
 

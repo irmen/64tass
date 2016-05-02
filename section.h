@@ -18,7 +18,7 @@
 */
 #ifndef _SECTION_H_
 #define _SECTION_H_
-#include "libtree.h"
+#include "avl.h"
 #include "inttypes.h"
 #include "mem.h"
 

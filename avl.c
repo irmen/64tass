@@ -20,7 +20,7 @@
  * 02110-1301 USA.
  */
 
-#include "libtree.h"
+#include "avl.h"
 
 
 static avltree_cmp_fn_t cmp_fn;
