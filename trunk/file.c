@@ -56,7 +56,7 @@ void include_list_add(const char *path)
     if (i != j) strcat(include_list_last->path, "/");
 }
 
-const char *get_path(const Str *v, const char *base) {
+char *get_path(const Str *v, const char *base) {
     char *path;
     size_t i, len;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
@@ -241,7 +241,7 @@ static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const Str *val, linepos_t epoint) {
-    const char *base2;
+    char *base2;
     struct avltree_node *b;
     struct file_s *tmp;
     char *s;
@@ -274,14 +274,14 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         lastfi=NULL;
         if (name) {
             int err;
-            const char *path = NULL;
+            char *path = NULL;
             s = (char *)mallocx(strlen(name) + 1);
             strcpy(s, name); tmp->name = s;
             if (val) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
                 while (!f && i) {
-                    free((char *)path);
+                    free(path);
                     path = get_path(val, i->path);
                     f = file_open(path, "rb");
                     i = i->next;
@@ -299,7 +299,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             if (!f) {
                 path = val ? get_path(val, "") : NULL;
                 err_msg_file(ERROR_CANT_FINDFILE, val ? path : name, epoint);
-                free((char *)path);
+                free(path);
                 return NULL;
             }
             if (ftype == 1) {
@@ -587,7 +587,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
 
         tmp->uid=curfnum++;
     } else {
-        free((char *)base2);
+        free(base2);
         tmp = avltree_container_of(b, struct file_s, node);
         if ((tmp->type == 1) != (ftype == 1)) err_msg_file(ERROR__READING_FILE, name, epoint);
     }
@@ -659,6 +659,7 @@ void init_file(void) {
 
 void makefile(int argc, char *argv[]) {
     FILE *f;
+    char *path;
     struct linepos_s nopoint = {0, 0};
     struct avltree_node *n;
     size_t len;
@@ -673,7 +674,9 @@ void makefile(int argc, char *argv[]) {
         }
     }
     clearerr(f);
-    len = argv_print(arguments.output + strlen(get_path(NULL, arguments.output)), f) + 1;
+    path = get_path(NULL, arguments.output);
+    len = argv_print(arguments.output + strlen(path), f) + 1;
+    free(path);
     putc(':', f);
 
     for (i = 0; i < argc; i++) {
