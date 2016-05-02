@@ -110,7 +110,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     chars = ind + ind2;
     if (chars > maxsize) return NULL;
     tmp = v1->val->obj->repr(v1->val, epoint, maxsize - chars);
-    if (!tmp || tmp->obj != STR_OBJ) return tmp;
+    if (tmp == NULL || tmp->obj != STR_OBJ) return tmp;
     str = (Str *)tmp;
     len = chars + str->len;
     if (len < chars) err_msg_out_of_memory(); /* overflow */
@@ -183,7 +183,7 @@ static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, li
     Obj *v = v1->val;
     Error *err;
     err = v->obj->address(v1->val, uv, bits, am, epoint);
-    if (am) {
+    if (am != NULL) {
         atype_t type = v1->type;
         while (type) {
             *am <<= 4;

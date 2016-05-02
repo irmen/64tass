@@ -3380,7 +3380,7 @@ static int main2(int argc, char *argv[]) {
     } while (!fixeddig || constcreated);
 
     /* assemble again to create listing */
-    if (arguments.list) {
+    if (arguments.list != NULL) {
         nolisting = 0;
 
         max_pass = pass; pass++;

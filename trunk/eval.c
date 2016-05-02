@@ -169,7 +169,7 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
             err = v->obj->ival(v, &expo, 8*sizeof(uval_t), &lpoint);
             val_destroy(v);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             lpoint.pos += len;
 
             if (neg) expo = -expo;
@@ -287,7 +287,7 @@ void touch_label(Label *tmp) {
 }
 
 MUST_CHECK Obj *get_star_value(Obj *val) {
-    if (!val) {
+    if (val == NULL) {
         return (Obj *)int_from_uval(star);
     }
     switch (val->obj->type) {
@@ -337,7 +337,7 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
         if (/*eval->out_size < 64 ||*/ eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
         eval->o_out = (struct values_s *)reallocx(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
         for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = NULL;
-    } else if (eval->o_out[eval->outp].val) val_destroy(eval->o_out[eval->outp].val);
+    } else if (eval->o_out[eval->outp].val != NULL) val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
     eval->o_out[eval->outp++].epoint = *epoint;
 }
@@ -397,7 +397,7 @@ rest:
         ident.data = pline + epoint.pos;
         ident.len = lpoint.pos - epoint.pos;
         l = find_label(&ident, NULL);
-        if (l) {
+        if (l != NULL) {
             touch_label(l);
             l->shadowcheck = 1;
             push_oper(val_reference(l->value), &epoint);
@@ -427,8 +427,8 @@ rest:
                 default: break;
                 }
             }
-            if (conv) push_oper(conv, &cpoint);
-            if (conv2) push_oper(conv2, &cpoint);
+            if (conv != NULL) push_oper(conv, &cpoint);
+            if (conv2 != NULL) push_oper(conv2, &cpoint);
             if (stop == 1) {lpoint = epoint;break;}
             if (llen) {
                 epoint.pos++;
@@ -455,8 +455,8 @@ rest:
         case ';':
         case '\t':
         case ' ':
-            if (conv) push_oper(conv, &cpoint);
-            if (conv2) push_oper(conv2, &cpoint);
+            if (conv != NULL) push_oper(conv, &cpoint);
+            if (conv2 != NULL) push_oper(conv2, &cpoint);
             break;
         default: goto syntaxe;
         }
@@ -542,7 +542,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     uint16_t val1;
                     uval_t uval;
                     Error *err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
-                    if (err) {
+                    if (err != NULL) {
                         val_destroy(v1->val);
                         v1->val = &err->v;
                         break;
@@ -618,14 +618,14 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     uint16_t val1, val2;
                     uval_t uval;
                     Error *err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
-                    if (err) {
+                    if (err != NULL) {
                         val_destroy(v1->val);
                         v1->val = &err->v;
                         continue;
                     }
                     val1 = uval;
                     err = v2->val->obj->uval(v2->val, &uval, 8*sizeof(uval_t), &v2->epoint);
-                    if (err) {
+                    if (err != NULL) {
                         val_destroy(v1->val);
                         v1->val = &err->v;
                         continue;
@@ -672,7 +672,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
 MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint) {
     ival_t ival;
     Error *err = v1->obj->ival(v1, &ival, 8*sizeof(ival_t), epoint);
-    if (err) return err;
+    if (err != NULL) return err;
 
     if (ival >= 0) {
         if ((size_t)ival < len) {
@@ -699,7 +699,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
     if (v2->len > 2) {
         if (v2->data[2]->obj != DEFAULT_OBJ) {
             err = v2->data[2]->obj->ival(v2->data[2], &step, 8*sizeof(ival_t), epoint);
-            if (err) return (Obj *)err;
+            if (err != NULL) return (Obj *)err;
             if (step == 0) {
                 return (Obj *)new_error(ERROR_NO_ZERO_VALUE, epoint);
             }
@@ -709,7 +709,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
         if (v2->data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
         else {
             err = v2->data[1]->obj->ival(v2->data[1], &end, 8*sizeof(ival_t), epoint);
-            if (err) return (Obj *)err;
+            if (err != NULL) return (Obj *)err;
             if (end >= 0) {
                 if (end > (ival_t)len) end = len;
             } else {
@@ -721,7 +721,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
     if (v2->data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
         err = v2->data[0]->obj->ival(v2->data[0], &offs, 8*sizeof(ival_t), epoint);
-        if (err) return (Obj *)err;
+        if (err != NULL) return (Obj *)err;
         if (offs >= 0) {
             if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
         } else {
@@ -943,19 +943,19 @@ static int get_val2(struct eval_context_s *ev) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
                             if (key->obj == DEFAULT_OBJ) {
-                                if (dict->def) val_destroy(dict->def);
+                                if (dict->def != NULL) val_destroy(dict->def);
                                 dict->def = val_reference(list->data[1]);
                             } else {
                                 p = (struct pair_s *)mallocx(sizeof(struct pair_s));
                                 err = key->obj->hash(key, &p->hash, &v2->epoint);
-                                if (err) {
+                                if (err != NULL) {
                                     free(p);
                                     val_destroy(v1->val); v1->val = &err->v;
                                     break;
                                 }
                                 p->key = key;
                                 b = avltree_insert(&p->node, &dict->members, pair_compare);
-                                if (b) {
+                                if (b != NULL) {
                                     p2 = avltree_container_of(b, struct pair_s, node);
                                     val_replace(&p2->data, list->data[1]);
                                     free(p);
@@ -1126,7 +1126,7 @@ static int get_val2(struct eval_context_s *ev) {
                     for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                 }
                 for (k = 0; k < len; k++) {
-                    if (values[vsp].val) val_destroy(values[vsp].val);
+                    if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = (tmp->v.refcount == 1) ? tmp->data[k] : val_reference(tmp->data[k]);
                     values[vsp++].epoint = o_out->epoint;
                 }
@@ -1154,11 +1154,11 @@ static int get_val2(struct eval_context_s *ev) {
                     list->data[0] = val_reference(p->key);
                     list->data[1] = val_reference(p->data);
 
-                    if (values[vsp].val) val_destroy(values[vsp].val);
+                    if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = (Obj *)list;
                     values[vsp++].epoint = o_out->epoint;
                 }
-                if (tmp->def) {
+                if (tmp->def != NULL) {
                     Colonlist *list;
                     if (vsp >= ev->values_size) {
                         size_t j = ev->values_size;
@@ -1173,7 +1173,7 @@ static int get_val2(struct eval_context_s *ev) {
                     list->data[0] = (Obj *)ref_default();
                     list->data[1] = val_reference(tmp->def);
 
-                    if (values[vsp].val) val_destroy(values[vsp].val);
+                    if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = (Obj *)list;
                     values[vsp++].epoint = o_out->epoint;
                 }
@@ -1243,7 +1243,7 @@ Obj *pull_val(struct linepos_s *epoint) {
     if (eval->values_p >= eval->values_len) return NULL;
 
     value = &eval->values[eval->values_p];
-    if (epoint) *epoint = value->epoint;
+    if (epoint != NULL) *epoint = value->epoint;
     val = value->val;
     eval->values[eval->values_p++].val = NULL;
     return val;
@@ -1429,7 +1429,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 ident.len = lpoint.pos - epoint.pos;
                 down = (ident.data[0] != '_');
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
-                if (l) {
+                if (l != NULL) {
                     touch_label(l);
                     if (down) l->shadowcheck = 1;
                     push_oper(val_reference(l->value), &epoint);
@@ -1456,7 +1456,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     goto other;
                 }
                 l = find_anonlabel(db - operp -1);
-                if (l) {
+                if (l != NULL) {
                     touch_label(l);
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
@@ -1481,7 +1481,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     goto other;
                 }
                 l = find_anonlabel(operp - db);
-                if (l) {
+                if (l != NULL) {
                     touch_label(l);
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
@@ -1856,13 +1856,13 @@ void destroy_eval(void) {
         eval = evx[evxnum];
         v = eval->o_out;
         while (eval->out_size--) {
-            if (v->val) val_destroy(v->val);
+            if (v->val != NULL) val_destroy(v->val);
             v++;
         }
         free(eval->o_out);
         v = eval->values;
         while (eval->values_size--) {
-            if (v->val) val_destroy(v->val);
+            if (v->val != NULL) val_destroy(v->val);
             v++;
         }
         free(eval->values);

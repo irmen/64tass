@@ -548,12 +548,12 @@ struct encoding_s *new_encoding(const str_t *name)
     struct avltree_node *b;
     struct encoding_s *tmp;
 
-    if (!lasten) {
+    if (lasten == NULL) {
         lasten = (struct encoding_s *)mallocx(sizeof(struct encoding_s));
     }
     str_cfcpy(&lasten->cfname, name);
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
-    if (!b) { /* new encoding */
+    if (b == NULL) { /* new encoding */
         if (lasten->cfname.data == name->data) str_cpy(&lasten->cfname, name);
         else str_cfcpy(&lasten->cfname, NULL);
         lasten->escape=NULL;
@@ -570,14 +570,14 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 {
     struct avltree_node *b;
     struct trans_s *tmp;
-    if (!lasttr) {
+    if (lasttr == NULL) {
         lasttr = (struct trans_s *)mallocx(sizeof(struct trans_s));
     }
     lasttr->start = trans->start;
     lasttr->end = trans->end;
     lasttr->offset = trans->offset;
     b = avltree_insert(&lasttr->node, &enc->trans, trans_compare);
-    if (!b) { /* new encoding */
+    if (b == NULL) { /* new encoding */
         tmp = lasttr;
         lasttr = NULL;
         return tmp;
@@ -596,11 +596,11 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
     uint8_t *odata = NULL, *d;
     int foundold;
 
-    if (!lastes) {
+    if (lastes == NULL) {
         lastes = (struct escape_s *)mallocx(sizeof(struct escape_s));
     }
     b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, 0);
-    if (!b) err_msg_out_of_memory();
+    if (b == NULL) err_msg_out_of_memory();
     foundold = (b != lastes);
     if (foundold) {
         odata = b->data;
@@ -618,9 +618,9 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
 
-    while ((val2 = iter->v.obj->next(iter))) {
+    while ((val2 = iter->v.obj->next(iter)) != NULL) {
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
-        if (err) {
+        if (err != NULL) {
             err_msg_output_and_destroy(err);
             uval = 0;
         }
@@ -732,7 +732,7 @@ next:
     if (encode_state.i >= encode_state.len) return EOF;
     encode_state.i2 = encode_state.i;
     e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
-    if (e && e->data) {
+    if (e != NULL && e->data != NULL) {
         encode_state.i += e->strlen;
         encode_state.data2 = e->data;
         encode_state.len2 = e->len;
@@ -745,7 +745,7 @@ next:
     tmp.start = tmp.end = ch;
 
     c = avltree_lookup(&tmp.node, &actual_encoding->trans, trans_compare);
-    if (c) {
+    if (c != NULL) {
         t = cavltree_container_of(c, struct trans_s, node);
         if (tmp.start >= t->start && tmp.end <= t->end) {
             encode_state.i += ln;
@@ -772,26 +772,26 @@ void init_encoding(int toascii)
 
     if (!toascii) {
         tmp = new_encoding(&none_enc);
-        if (!tmp) {
+        if (tmp == NULL) {
             return;
         }
         add_trans(no_trans, sizeof(no_trans), tmp);
 
         tmp = new_encoding(&screen_enc);
-        if (!tmp) {
+        if (tmp == NULL) {
             return;
         }
         add_trans(no_screen_trans, sizeof(no_screen_trans), tmp);
     } else {
         tmp = new_encoding(&none_enc);
-        if (!tmp) {
+        if (tmp == NULL) {
             return;
         }
         add_esc(petscii_esc, tmp);
         add_trans(petscii_trans, sizeof(petscii_trans), tmp);
 
         tmp = new_encoding(&screen_enc);
-        if (!tmp) {
+        if (tmp == NULL) {
             return;
         }
         add_esc(petscii_screen_esc, tmp);
