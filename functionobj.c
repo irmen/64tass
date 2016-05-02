@@ -63,7 +63,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     uint8_t *s;
     size_t len;
     Str *v;
-    if (!epoint) return NULL;
+    if (epoint == NULL) return NULL;
     len = v1->name.len + 20;
     if (len < 20) err_msg_out_of_memory(); /* overflow */
     if (len > maxsize) return NULL;
@@ -152,14 +152,14 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
         break;
     case 3: 
         err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
-        if (err) return &err->v; 
+        if (err != NULL) return &err->v; 
     case 2: 
         err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
-        if (err) return &err->v; 
+        if (err != NULL) return &err->v; 
         err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
         break;
     }
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     if (step == 0) {
         return (Obj *)new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint);
     }
@@ -239,14 +239,14 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
         break;
     case 3: 
         err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
-        if (err) return &err->v; 
+        if (err != NULL) return &err->v; 
     case 2: 
         err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
-        if (err) return &err->v; 
+        if (err != NULL) return &err->v; 
         err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
         break;
     }
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     if (step == 0) {
         return (Obj *)new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint);
     }
@@ -385,9 +385,9 @@ static MUST_CHECK Obj *function_hypot(Funcargs *vals, linepos_t epoint) {
     double real, real2;
 
     val = to_real(&v[0], &real);
-    if (val) return val;
+    if (val != NULL) return val;
     val = to_real(&v[1], &real2);
-    if (val) return val;
+    if (val != NULL) return val;
     return float_from_double(hypot(real, real2), epoint);
 }
 
@@ -397,9 +397,9 @@ static MUST_CHECK Obj *function_atan2(Funcargs *vals, linepos_t epoint) {
     double real, real2;
 
     val = to_real(&v[0], &real);
-    if (val) return val;
+    if (val != NULL) return val;
     val = to_real(&v[1], &real2);
-    if (val) return val;
+    if (val != NULL) return val;
     return float_from_double(atan2(real, real2), epoint);
 }
 
@@ -409,10 +409,10 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
     double real, real2;
 
     val = to_real(&v[0], &real);
-    if (val) return val;
+    if (val != NULL) return val;
     val = to_real(&v[1], &real2);
-    if (val) return val;
-    if (real2 < 0.0 && !real) {
+    if (val != NULL) return val;
+    if (real2 < 0.0 && real == 0.0) {
         return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
     }
     if (real < 0.0 && (double)((int)real2) != real2) {
@@ -565,7 +565,7 @@ static struct builtin_functions_s builtin_functions[] = {
 void functionobj_names(void) {
     int i;
 
-    for (i = 0; builtin_functions[i].name; i++) {
+    for (i = 0; builtin_functions[i].name != NULL; i++) {
         Function *func = new_function();
         func->name.data = (const uint8_t *)builtin_functions[i].name;
         func->name.len = strlen(builtin_functions[i].name);

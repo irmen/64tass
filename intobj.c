@@ -1262,7 +1262,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     int ch;
     Int *v;
 
-    if (actual_encoding) {
+    if (actual_encoding != NULL) {
         digit_t uv;
         int bits;
         size_t i, j, sz, osz;
@@ -1519,13 +1519,13 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         return (Obj *)power(v1, v2);
     case O_LSHIFT:
         err = ival((Obj *)v2, &shift, 8*sizeof(ival_t), op->epoint2);
-        if (err) return &err->v;
-        if (!shift) return val_reference(&v1->v);
+        if (err != NULL) return &err->v;
+        if (shift == 0) return val_reference(&v1->v);
         return (shift < 0) ? (Obj *)irshift(v1, -shift) : (Obj *)ilshift(v1, shift);
     case O_RSHIFT:
         err = ival((Obj *)v2, &shift, 8*sizeof(ival_t), op->epoint2);
-        if (err) return &err->v;
-        if (!shift) return val_reference(&v1->v);
+        if (err != NULL) return &err->v;
+        if (shift == 0) return val_reference(&v1->v);
         return (shift < 0) ? (Obj *)ilshift(v1, -shift) : (Obj *)irshift(v1, shift);
     case O_AND: return (Obj *)iand(v1, v2);
     case O_OR: return (Obj *)ior(v1, v2);

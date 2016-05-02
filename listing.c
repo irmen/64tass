@@ -107,16 +107,16 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     if (filename[0] == '-' && !filename[1]) {
         flist = stdout;
     } else {
-        if (!(flist=file_open(filename,"wt"))) {
+        if ((flist=file_open(filename,"wt")) == NULL) {
             err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
             return;
         }
     }
     fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
     prgname = *argv;
-    if (prgname) {
+    if (prgname != NULL) {
         const char *newp = strrchr(prgname, '/');
-        if (newp) prgname = newp + 1;
+        if (newp != NULL) prgname = newp + 1;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
         newp = strrchr(prgname, '\\');
         if (newp) prgname = newp + 1;
@@ -132,7 +132,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
 
 void listing_close(const char *filename) {
     struct linepos_s nopoint = {0, 0};
-    if (flist) {
+    if (flist != NULL) {
         int err;
         fputs("\n;******  End of listing\n", flist);
         err = ferror(flist);
@@ -143,8 +143,8 @@ void listing_close(const char *filename) {
 }
 
 static void printllist(int l) {
-    if (!nolisting && flist && arguments.source && !temporary_label_branch) {
-        if (llist) {
+    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
+        if (llist != NULL) {
             const uint8_t *c = llist;
             while (*c == 0x20 || *c == 0x09) c++;
             if (*c) {
@@ -158,7 +158,7 @@ static void printllist(int l) {
 }
 
 void listing_equal(Obj *val) {
-    if (!nolisting && flist && arguments.source && !temporary_label_branch) {
+    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
         int l;
         putc('=', flist);
         l = val_print(val, flist) + 1;
@@ -179,8 +179,8 @@ static int printaddr(char pre, address_t addr) {
 }
 
 void listing_line(linecpos_t pos) {
-    if (!nolisting && flist && arguments.source && !temporary_label_branch) {
-        if (llist) {
+    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
+        if (llist != NULL) {
             size_t i = 0;
             int l;
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
@@ -212,7 +212,7 @@ void listing_line(linecpos_t pos) {
 }
 
 void listing_line_cut(linecpos_t pos) {
-    if (!nolisting && flist && arguments.source && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && arguments.source && !temporary_label_branch) {
         if (llist) {
             size_t i = 0;
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
@@ -235,8 +235,8 @@ void listing_line_cut(linecpos_t pos) {
 
 void listing_line_cut2(linecpos_t pos) {
     if (arguments.verbose) {
-        if (!nolisting && flist && arguments.source && !temporary_label_branch) {
-            if (llist) {
+        if (nolisting == 0 && flist != NULL && arguments.source && !temporary_label_branch) {
+            if (llist != NULL) {
                 padding(0, SOURCE_COLUMN);
                 caret_print(llist, flist, pos);
                 printable_print(llist + pos, flist);
@@ -256,7 +256,7 @@ void listing_set_cpumode(const struct cpu_s *cpumode) {
 }
 
 void listing_instr(uint8_t cod, uint32_t adr, int ln) {
-    if (!nolisting && flist && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && !temporary_label_branch) {
         int i, l;
         address_t addr = ((current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
         address_t addr2 = (current_section->address - ln - 1) & all_mem2;
@@ -346,7 +346,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
     int l;
     int lcol;
     char str[3*16+1], *s;
-    if (nolisting || !flist || temporary_label_branch) return;
+    if (nolisting != 0 || flist == NULL || temporary_label_branch != 0) return;
 
     print = 1;
     l = printaddr('>', myaddr);
@@ -394,7 +394,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
 }
 
 void listing_file(const char *txt, const char *name) {
-    if (flist) {
+    if (flist != NULL) {
         fputs(txt, flist);
         argv_print(name, flist);
         fputs("\n\n", flist);
