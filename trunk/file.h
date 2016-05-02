@@ -20,7 +20,7 @@
 #define _FILE_H_
 #include <stdio.h>
 #include "inttypes.h"
-#include "libtree.h"
+#include "avl.h"
 
 enum filecoding_e {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO

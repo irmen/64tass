@@ -18,7 +18,7 @@
 */
 #ifndef _LONGJUMP_H_
 #define _LONGJUMP_H_
-#include "libtree.h"
+#include "avl.h"
 #include "inttypes.h"
 
 struct longjump_s {

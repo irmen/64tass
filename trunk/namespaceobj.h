@@ -19,7 +19,7 @@
 #ifndef _NAMESPACEOBJ_H
 #define _NAMESPACEOBJ_H
 #include "obj.h"
-#include "libtree.h"
+#include "avl.h"
 
 extern struct Type *NAMESPACE_OBJ;
 
