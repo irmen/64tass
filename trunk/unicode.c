@@ -242,7 +242,8 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             if (d->p >= d->len) extbuff(d);
             d->data[d->p++] = prop->casefold;
             return;
-        } else if (prop->casefold > -16384) {
+        }
+        if (prop->casefold > -16384) {
             const int16_t *p = &usequences[-prop->casefold];
             for (;;) {
                 if (d->p >= d->len) extbuff(d);
@@ -265,7 +266,8 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             if (prop->decompose > 0) {
                 udecompose(prop->decompose, d, options);
                 return;
-            } else if (prop->decompose > -16384) {
+            } 
+            if (prop->decompose > -16384) {
                 const int16_t *p = &usequences[-prop->decompose];
                 for (;;) {
                     udecompose(abs(*p), d, options);

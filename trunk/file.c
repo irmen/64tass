@@ -52,8 +52,8 @@ void include_list_add(const char *path)
     include_list_last->next = (struct include_list_s *)mallocx(len);
     include_list_last = include_list_last->next;
     include_list_last->next = NULL;
-    strcpy(include_list_last->path, path);
-    if (i != j) strcat(include_list_last->path, "/");
+    memcpy(include_list_last->path, path, i + 1);
+    if (i != j) memcpy(include_list_last->path + i, "/", 2);
 }
 
 char *get_path(const Str *v, const char *base) {
@@ -275,8 +275,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         if (name) {
             int err;
             char *path = NULL;
-            s = (char *)mallocx(strlen(name) + 1);
-            strcpy(s, name); tmp->name = s;
+            size_t namelen = strlen(name) + 1;
+            s = (char *)mallocx(namelen);
+            memcpy(s, name, namelen); tmp->name = s;
             if (val) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
@@ -291,8 +292,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 else f=file_open(name, "rb");
             }
             if (!path) {
-                s = (char *)mallocx(strlen(name) + 1);
-                strcpy(s, name);
+                s = (char *)mallocx(namelen);
+                memcpy(s, name, namelen);
                 path = s;
             }
             tmp->realname = path;
@@ -578,10 +579,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             tmp->coding = type;
         } else {
             const char *cmd_name = "<command line>";
+            size_t cmdlen = strlen(cmd_name) + 1;
             s = (char *)mallocx(1);
             s[0] = 0; tmp->name = s;
-            s = (char *)mallocx(strlen(cmd_name) + 1);
-            strcpy(s, cmd_name); tmp->realname = s;
+            s = (char *)mallocx(cmdlen);
+            memcpy(s, cmd_name, cmdlen); tmp->realname = s;
             tmp->coding = E_UNKNOWN;
         }
 

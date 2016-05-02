@@ -431,7 +431,8 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             }
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return err;
-                        } else if (opr == ADR_BIT_ZP_REL) {
+                        }
+                        if (opr == ADR_BIT_ZP_REL) {
                             int exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
                             if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -505,7 +506,8 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             }
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return NULL;
-                        } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
+                        } 
+                        if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             pokeb(cod);
                             listing_instr(cod, 0, 0);
