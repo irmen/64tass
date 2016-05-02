@@ -45,8 +45,8 @@ static void destroy(Obj *o1) {
     Error *v1 = (Error *)o1;
     switch (v1->num) {
     case ERROR__INVALID_OPER:
-        if (v1->u.invoper.v1) val_destroy(v1->u.invoper.v1);
-        if (v1->u.invoper.v2) val_destroy(v1->u.invoper.v2);
+        if (v1->u.invoper.v1 != NULL) val_destroy(v1->u.invoper.v1);
+        if (v1->u.invoper.v2 != NULL) val_destroy(v1->u.invoper.v2);
         return;
     case ERROR___NO_REGISTER: 
         val_destroy(&v1->u.reg->v);
@@ -67,7 +67,7 @@ static void garbage(Obj *o1, int i) {
     switch (v1->num) {
     case ERROR__INVALID_OPER:
         v = v1->u.invoper.v1;
-        if (v) {
+        if (v != NULL) {
             switch (i) {
             case -1:
                 v->refcount--;
@@ -83,7 +83,7 @@ static void garbage(Obj *o1, int i) {
             }
         }
         v = v1->u.invoper.v2;
-        if (!v) return;
+        if (v == NULL) return;
         break;
     case ERROR___NO_REGISTER: 
         v = &v1->u.reg->v;
@@ -234,7 +234,7 @@ static int new_error_msg(enum severity_e severity, const struct file_list_s *fli
         error_list.max = error_list.len + 0x200;
         if (error_list.max < 0x200) err_msg_out_of_memory2(); /* overflow */
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
-        if (!error_list.data) err_msg_out_of_memory2();
+        if (error_list.data == NULL) err_msg_out_of_memory2();
     }
     err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
     err->severity = severity;
@@ -265,14 +265,14 @@ static void file_list_free(struct avltree_node *aa)
 static struct file_list_s *lastfl = NULL;
 struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
-    if (!lastfl) {
+    if (lastfl == NULL) {
         lastfl = (struct file_list_s *)mallocx(sizeof(struct file_list_s));
     }
     lastfl->file = file;
     lastfl->epoint = *epoint;
 
     b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
-    if (!b) {
+    if (b == NULL) {
         lastfl->parent = current_file_list;
         avltree_init(&lastfl->members);
         current_file_list = lastfl;
@@ -284,14 +284,14 @@ struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
 }
 
 void exitfile(void) {
-    if (current_file_list->parent) current_file_list = current_file_list->parent;
+    if (current_file_list->parent != NULL) current_file_list = current_file_list->parent;
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
     if (len + error_list.len > error_list.max) {
         error_list.max += (len > 0x200) ? len : 0x200;
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
-        if (!error_list.data) err_msg_out_of_memory2();
+        if (error_list.data == NULL) err_msg_out_of_memory2();
     }
     memcpy(error_list.data + error_list.len, s, len);
     error_list.len += len;
@@ -376,7 +376,7 @@ static const char *terr_fatal[]={
 
 static void err_msg_variable(Obj *val, linepos_t epoint) {
     Obj *err = val->obj->repr(val, epoint, 40);
-    if (err) {
+    if (err != NULL) {
         if (err->obj == STR_OBJ) {
             Str *str = (Str *)err;
             adderror(" '");
@@ -500,7 +500,7 @@ static void str_name(const uint8_t *data, size_t len) {
 static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror(msg);
-    if (name) str_name(name->data, name->len);
+    if (name != NULL) str_name(name->data, name->len);
 }
 
 static void err_msg_char_name(const char *msg, const char *name, linepos_t epoint) {
@@ -543,17 +543,17 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int dow
 
     if (constcreated && pass < max_pass) return;
 
-    if (!lastnd) {
+    if (lastnd == NULL) {
         lastnd = (struct notdefines_s *)mallocx(sizeof(struct notdefines_s));
     }
 
-    if (name->data) {
+    if (name->data != NULL) {
         str_cfcpy(&lastnd->cfname, name);
         lastnd->file_list = l->file_list;
         lastnd->epoint = l->epoint;
         lastnd->pass = pass;
         b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
-        if (b) {
+        if (b != NULL) {
             tmp2 = avltree_container_of(b, struct notdefines_s, node);
             if (tmp2->pass == pass) {
                 return;
@@ -568,7 +568,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int dow
 
     new_error_msg(SV_NOTDEFERROR, current_file_list, epoint);
     adderror("not defined");
-    if (name->data) {
+    if (name->data != NULL) {
         str_name(name->data, name->len);
     } else {
         ssize_t count = name->len;
@@ -580,7 +580,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int dow
         adderror("'");
     }
 
-    if (!l->file_list) {
+    if (l->file_list == NULL) {
         if (new_error_msg(SV_NOTDEFGNOTE, current_file_list, epoint)) return;
         adderror("searched in the global scope");
     } else {
@@ -689,7 +689,7 @@ void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
     adderror("wrong type '");
     adderror(val->obj->name);
-    if (expected) {
+    if (expected != NULL) {
         adderror("', expected '");
         adderror(expected->name);
     }
@@ -704,7 +704,7 @@ void err_msg_still_none(const str_t *name, linepos_t epoint) {
     if ((constcreated || !fixeddig) && pass < max_pass) return;
     new_error_msg(SV_NONEERROR, current_file_list, epoint);
     adderror("can't calculate this");
-    if (name) str_name(name->data, name->len);
+    if (name != NULL) str_name(name->data, name->len);
 }
 
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
@@ -714,7 +714,7 @@ void err_msg_not_defined(const str_t *name, linepos_t epoint) {
 void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     new_error_msg(SV_NOTDEFERROR, current_file_list, epoint);
     adderror("not defined");
-    if (name) str_name(name->data, name->len);
+    if (name != NULL) str_name(name->data, name->len);
 }
 
 static void err_msg_double_defined2(const char *msg, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
@@ -750,17 +750,17 @@ void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_
         err_msg_output((Error *)v1);
         return;
     }
-    if (v2 && v2->obj == ERROR_OBJ) {
+    if (v2 != NULL && v2->obj == ERROR_OBJ) {
         err_msg_output((Error *)v2);
         return;
     }
 
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
 
-    adderror(v2 ? "invalid operands to " : "invalid type argument to ");
+    adderror((v2 != NULL) ? "invalid operands to " : "invalid type argument to ");
     adderror(op->name);
 
-    if (v2) {
+    if (v2 != NULL) {
         adderror("' '");
         adderror(v1->obj->name);
         adderror("' and '");
@@ -855,11 +855,11 @@ int error_print(int fix, int newvar, int anyerr) {
     int noneerr = 0;
     FILE *ferr;
 
-    if (arguments.error) {
+    if (arguments.error != NULL) {
         if (arguments.error[0] == '-' && !arguments.error[1]) {
             ferr = stdout;
         } else {
-            if (!(ferr=file_open(arguments.error, "wt"))) {
+            if ((ferr=file_open(arguments.error, "wt")) == NULL) {
                 struct linepos_s nopoint = {0, 0};
                 ferr = stderr;
                 err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);

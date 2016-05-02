@@ -38,7 +38,7 @@ static void dict_free(struct avltree_node *aa)
 {
     struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
     val_destroy(a->key);
-    if (a->data) val_destroy(a->data);
+    if (a->data != NULL) val_destroy(a->data);
     free(a);
 }
 
@@ -52,7 +52,7 @@ static void dict_garbage1(struct avltree_node *aa)
 {
     struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
     a->key->refcount--;
-    if (a->data) a->data->refcount--;
+    if (a->data != NULL) a->data->refcount--;
 }
 
 static void dict_garbage2(struct avltree_node *aa)
@@ -60,7 +60,7 @@ static void dict_garbage2(struct avltree_node *aa)
     struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
     Obj *v;
     v = a->data;
-    if (v) {
+    if (v != NULL) {
         if (v->refcount & SIZE_MSB) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
@@ -87,7 +87,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 static void destroy(Obj *o1) {
     Dict *v1 = (Dict *)o1;
     avltree_destroy(&v1->members, dict_free);
-    if (v1->def) val_destroy(v1->def);
+    if (v1->def != NULL) val_destroy(v1->def);
 }
 
 static void garbage(Obj *o1, int i) {
@@ -97,7 +97,7 @@ static void garbage(Obj *o1, int i) {
     case -1:
         avltree_destroy(&v1->members, dict_garbage1);
         v = v1->def;
-        if (v) v->refcount--;
+        if (v != NULL) v->refcount--;
         return;
     case 0:
         avltree_destroy(&v1->members, dict_free2);
@@ -105,7 +105,7 @@ static void garbage(Obj *o1, int i) {
     case 1:
         avltree_destroy(&v1->members, dict_garbage2);
         v = v1->def;
-        if (!v) return;
+        if (v == NULL) return;
         if (v->refcount & SIZE_MSB) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
@@ -120,16 +120,16 @@ static int same(const Obj *o1, const Obj *o2) {
     const struct avltree_node *n2;
     if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
     if (!v1->def ^ !v2->def) return 0;
-    if (v1->def && v2->def && !v1->def->obj->same(v1->def, v2->def)) return 0;
+    if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return 0;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
-    while (n && n2) {
+    while (n != NULL && n2 != NULL) {
         const struct pair_s *p, *p2;
         if (pair_compare(n, n2)) return 0;
         p = cavltree_container_of(n, struct pair_s, node);
         p2 = cavltree_container_of(n2, struct pair_s, node);
         if (!p->data ^ !p2->data) return 0;
-        if (p->data && p2->data && !p->data->obj->same(p->data, p2->data)) return 0;
+        if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
@@ -164,19 +164,19 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         ln = chars;
         if (v1->len) {
             const struct avltree_node *n = avltree_first(&v1->members);
-            while (n) {
+            while (n != NULL) {
                 p = cavltree_container_of(n, struct pair_s, node);
                 v = p->key->obj->repr(p->key, epoint, maxsize - chars);
-                if (!v || v->obj != STR_OBJ) goto error;
+                if (v == NULL || v->obj != STR_OBJ) goto error;
                 str = (Str *)v;
                 ln += str->len;
                 if (ln < str->len) err_msg_out_of_memory(); /* overflow */
                 chars += str->chars;
                 if (chars > maxsize) goto error2;
                 vals[i++] = v;
-                if (p->data) {
+                if (p->data != NULL) {
                     v = p->data->obj->repr(p->data, epoint, maxsize - chars);
-                    if (!v || v->obj != STR_OBJ) goto error;
+                    if (v == NULL || v->obj != STR_OBJ) goto error;
                     str = (Str *)v;
                     ln += str->len;
                     if (ln < str->len) err_msg_out_of_memory(); /* overflow */
@@ -237,7 +237,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         }
     }
     *s = '}';
-    if (list) val_destroy(&list->v);
+    if (list != NULL) val_destroy(&list->v);
     return &str->v;
 }
 
@@ -258,13 +258,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
         pair.key = o2;
         err = pair.key->obj->hash(pair.key, &pair.hash, op->epoint2);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
         b = avltree_lookup(&pair.node, &v1->members, pair_compare);
-        if (b) {
+        if (b != NULL) {
             const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
             return val_reference(p->data);
         }
-        if (v1->def) {
+        if (v1->def != NULL) {
             return val_reference(v1->def);
         }
         return (Obj *)new_error(ERROR_____KEY_ERROR, op->epoint2);
@@ -292,7 +292,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
         p.key = o1;
         err = p.key->obj->hash(p.key, &p.hash, op->epoint);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
         b = avltree_lookup(&p.node, &v2->members, pair_compare);
         return truth_reference(b != NULL);
     }

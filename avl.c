@@ -29,14 +29,14 @@ static avltree_cmp_fn_t cmp_fn;
  */
 static inline struct avltree_node *get_first(struct avltree_node *node)
 {
-	while (node->left)
+	while (node->left != NULL)
 		node = node->left;
 	return node;
 }
 
 static inline struct avltree_node *get_last(struct avltree_node *node)
 {
-	while (node->right)
+	while (node->right != NULL)
 		node = node->right;
 	return node;
 }
@@ -50,10 +50,10 @@ struct avltree_node *avltree_next(const struct avltree_node *node)
 {
 	struct avltree_node *parent;
 
-	if (node->right)
+	if (node->right != NULL)
 		return get_first(node->right);
 
-	while ((parent = node->parent) && parent->right == node)
+	while ((parent = node->parent) != NULL && parent->right == node)
 		node = parent;
 	return parent;
 }
@@ -62,10 +62,10 @@ struct avltree_node *avltree_prev(const struct avltree_node *node)
 {
 	struct avltree_node *parent;
 
-	if (node->left)
+	if (node->left != NULL)
 		return get_last(node->left);
 
-	while ((parent = node->parent) && parent->left == node)
+	while ((parent = node->parent) != NULL && parent->left == node)
 		node = parent;
 	return parent;
 }
@@ -82,7 +82,7 @@ static void rotate_left(struct avltree_node *node, struct avltree *tree)
 	struct avltree_node *q = node->right; /* can't be NULL */
 	struct avltree_node *parent = p->parent;
 
-	if (parent) {
+	if (parent != NULL) {
 		if (parent->left == p)
 			parent->left = q;
 		else
@@ -93,7 +93,7 @@ static void rotate_left(struct avltree_node *node, struct avltree *tree)
 	p->parent = q;
 
 	p->right = q->left;
-	if (p->right)
+	if (p->right != NULL)
 		p->right->parent = p;
 	q->left = p;
 }
@@ -104,7 +104,7 @@ static void rotate_right(struct avltree_node *node, struct avltree *tree)
 	struct avltree_node *q = node->left; /* can't be NULL */
 	struct avltree_node *parent = p->parent;
 
-	if (parent) {
+	if (parent != NULL) {
 		if (parent->left == p)
 			parent->left = q;
 		else
@@ -115,7 +115,7 @@ static void rotate_right(struct avltree_node *node, struct avltree *tree)
 	p->parent = q;
 
 	p->left = q->right;
-	if (p->left)
+	if (p->left != NULL)
 		p->left->parent = p;
 	q->right = p;
 }
@@ -138,7 +138,7 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 	*unbalanced = node;
 	*is_left = 0;
 
-	while (node) {
+	while (node != NULL) {
 		if (node->balance != 0)
 			*unbalanced = node;
 
@@ -146,7 +146,7 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 		if (res == 0)
 			return node;
 		*pparent = node;
-		if ((*is_left = res > 0))
+		if ((*is_left = (res > 0)))
 			node = node->left;
 		else
 			node = node->right;
@@ -182,7 +182,7 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
         cmp_fn = cmp;
 
 	key = do_lookup(node, tree, &parent, &unbalanced, &is_left);
-	if (key)
+	if (key != NULL)
 		return key;
 
 	node->left = NULL;
@@ -190,7 +190,7 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	node->parent = NULL;
 	node->balance = 0;
 
-	if (!parent) {
+	if (parent == NULL) {
 		tree->root = node;
 		tree->first = tree->last = node;
 		tree->height++;
@@ -295,7 +295,7 @@ void avltree_init(struct avltree *tree)
 static void destroy(struct avltree *tree, struct avltree_node *node, avltree_free_fn_t free_fn)
 {
         struct avltree_node *tmp;
-	while (node) {
+	while (node != NULL) {
 		destroy(tree, node->left, free_fn);
 		tmp = node;
 		node = node->right;

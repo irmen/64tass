@@ -106,7 +106,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     v = v1->addr;
     return v->obj->truth(v, type, epoint);
 }
@@ -114,9 +114,9 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Code *v1 = (Code *)o1;
     Obj *v;
-    if (epoint) {
+    if (epoint != NULL) {
         Error *err = access_check(v1, epoint);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
     }
     v = v1->addr;
     return v->obj->repr(v, epoint, maxsize);
@@ -126,7 +126,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
-    if (err) return err;
+    if (err != NULL) return err;
     v = v1->addr;
     return v->obj->ival(v, iv, bits, epoint);
 }
@@ -135,7 +135,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
-    if (err) return err;
+    if (err != NULL) return err;
     v = v1->addr;
     return v->obj->uval(v, uv, bits, epoint);
 }
@@ -143,9 +143,9 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
 static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
-    if (uv) {
+    if (uv != NULL) {
         Error *err = access_check(v1, epoint);
-        if (err) return err;
+        if (err != NULL) return err;
     }
     v = v1->addr;
     return v->obj->address(v, uv, bits, am, epoint);
@@ -153,7 +153,7 @@ static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, li
 
 MUST_CHECK Obj *float_from_code(Code *v1, linepos_t epoint) {
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     return FLOAT_OBJ->create(v1->addr, epoint);
 }
 
@@ -161,7 +161,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     v = v1->addr;
     return v->obj->sign(v, epoint);
 }
@@ -170,14 +170,14 @@ static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     v = v1->addr;
     return v->obj->abs(v, epoint);
 }
 
 MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     return INT_OBJ->create(v1->addr, epoint);
 }
 
@@ -199,13 +199,13 @@ static MUST_CHECK Obj *size(Obj *o1, linepos_t UNUSED(epoint)) {
 
 MUST_CHECK Obj *bits_from_code(Code *v1, linepos_t epoint) {
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     return BITS_OBJ->create(v1->addr, epoint);
 }
 
 MUST_CHECK Obj *bytes_from_code(Code *v1, linepos_t epoint) {
     Error *err = access_check(v1, epoint);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     return BYTES_OBJ->create(v1->addr, epoint);
 }
 
@@ -268,7 +268,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
     Obj *err;
 
     err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err) return err;
+    if (err != NULL) return err;
 
     if (!length) {
         return (Obj *)ref_tuple(null_tuple);
@@ -343,7 +343,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         error = 1;
         for (i = 0; i < list->len; i++) {
             err = indexoffs(list->data[i], ln, &offs, op->epoint2);
-            if (err) {
+            if (err != NULL) {
                 if (error) {err_msg_output(err); error = 0;} 
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
@@ -373,7 +373,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return slice((Colonlist *)o2, op, ln);
     }
     err = indexoffs(o2, ln, &offs, op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
 
     offs2 = offs * ln2;
     val = 0;
@@ -450,9 +450,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         {
             Code *v2 = (Code *)o2;
             err = access_check(v1, op->epoint);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             err = access_check(v2, op->epoint2);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
             v = (Code *)op->v1->obj->calc2(op);
@@ -467,7 +467,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_STR:
     case T_BYTES:
         err = access_check(v1, op->epoint);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
         op->v1 = v1->addr;
         switch (op->op->op) {
         case O_ADD:
@@ -539,9 +539,9 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         {
             Code *v1 = (Code *)o1;
             err = access_check(v1, op->epoint);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             err = access_check(v2, op->epoint2);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
             v = (Code *)op->v1->obj->calc2(op);
@@ -554,7 +554,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
         err = access_check(v2, op->epoint2);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
         op->v2 = v2->addr;
         switch (op->op->op) {
         case O_ADD:

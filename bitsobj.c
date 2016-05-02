@@ -468,7 +468,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     int ch;
     Bits *v;
 
-    if (actual_encoding) {
+    if (actual_encoding != NULL) {
         unsigned int bits;
         size_t j, sz, osz;
         bdigit_t *d, uv;
@@ -957,7 +957,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     Error *err;
 
     err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
 
     if (!rep || !blen) {
         return (Obj *)ref_bits((vv1->len < 0) ? inv_bits : null_bits);
@@ -1022,7 +1022,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
     Obj *err;
 
     err = sliceparams(vv2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err) return err;
+    if (err != NULL) return err;
 
     if (!length) {
         return (Obj *)ref_bits(null_bits);
@@ -1123,7 +1123,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         bits = sz = 0;
         for (i = 0; i < list->len; i++) {
             err = indexoffs(list->data[i], ln, &offs, op->epoint2);
-            if (err) {
+            if (err != NULL) {
                 val_destroy(&vv->v);
                 return &err->v;
             }
@@ -1147,7 +1147,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return slice((Colonlist *)vv2, op, ln);
     }
     err = indexoffs(vv2, ln, &offs, op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
 
     uv = inv;
     o = offs / SHIFT;
@@ -1215,12 +1215,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         switch (op->op->op) {
         case O_LSHIFT:
             err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             if (!shift) return val_reference(&v1->v);
             return (shift < 0) ? rshift(v1, -shift) : lshift(v1, shift);
         case O_RSHIFT:
             err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             if (!shift) return val_reference(&v1->v);
             return (shift < 0) ? lshift(v1, -shift) : rshift(v1, shift);
         default: break;
