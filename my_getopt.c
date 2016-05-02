@@ -165,7 +165,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
 
     opt = -1;
     if(mode == '+') return -1;
-    else if(mode == '-') {
+    if(mode == '-') {
       my_optarg = argv[my_optind++];
       return 1;
     }

@@ -2655,6 +2655,7 @@ Obj *compile(struct file_list_s *cflist)
                     int truth;
                     line_t ovline, lvline;
                     int starexists;
+                    size_t lentmp;
 
                     listing_line(epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
@@ -2703,8 +2704,9 @@ Obj *compile(struct file_list_s *cflist)
                     s->addr = star;
                     star_tree = &s->tree; lvline = vline = 0;
                     xlin=lin=lpoint.line; apoint = lpoint;
-                    expr = (uint8_t *)mallocx(strlen((char *)pline) + 1);
-                    strcpy((char *)expr, (char *)pline); label = NULL;
+                    lentmp = strlen((char *)pline) + 1;
+                    expr = (uint8_t *)mallocx(lentmp);
+                    memcpy(expr, pline, lentmp); label = NULL;
                     new_waitfor(W_NEXT2, &epoint);
                     waitfor->breakout = 0;
                     for (;;) {
