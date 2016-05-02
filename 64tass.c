@@ -1940,7 +1940,7 @@ Obj *compile(struct file_list_s *cflist)
                         }
                         if (uninit) memskip(uninit);
                     } else if (prm==CMD_BINARY) { /* .binary */
-                        const char *path = NULL;
+                        char *path = NULL;
                         size_t foffset = 0;
                         Str *val2 = NULL;
                         size_t fsize = all_mem2 + 1;
@@ -1978,7 +1978,7 @@ Obj *compile(struct file_list_s *cflist)
                                 }
                             }
                         }
-                        free((char *)path);
+                        free(path);
                     }
 
                     if (!nolisting) {
@@ -2560,7 +2560,7 @@ Obj *compile(struct file_list_s *cflist)
                 { /* .include, .binclude */
                     struct file_s *f;
                     struct values_s *vs;
-                    const char *path;
+                    char *path;
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
@@ -2571,7 +2571,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
                     f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
-                    free((char *)path);
+                    free(path);
                     if (!f) goto breakerr;
                     if (f->open>1) {
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
