@@ -153,7 +153,7 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return int_from_bool2(0);
-    case O_EXP: return int_from_bool2(v1 | !v1);
+    case O_EXP: return int_from_bool2(v1 | !v2);
     case O_AND: return truth_reference(v1 & v2);
     case O_OR: return truth_reference(v1 | v2);
     case O_XOR: return truth_reference(v1 ^ v2);
