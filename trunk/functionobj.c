@@ -34,6 +34,9 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 extern double round(double);
