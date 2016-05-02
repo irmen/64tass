@@ -29,7 +29,7 @@
 #ifdef __DJGPP__
 #include <dpmi.h>
 #include <go32.h>
-#include "codepages.c"
+#include "codepages.h"
 
 static const wchar_t *cp;
 static uint32_t revcp[128];
