@@ -72,28 +72,24 @@ void select_opcodes(const struct cpu_s *cpumode) {
 
 MUST_CHECK int touval(Obj *v1, uval_t *uv, int bits, linepos_t epoint) {
     Error *err = v1->obj->uval(v1, uv, bits, epoint);
-    if (err) {
-        err_msg_output_and_destroy(err);
-        return 1;
-    }
-    return 0;
+    if (err == NULL) return 0;
+    err_msg_output_and_destroy(err);
+    return 1;
 }
 
 MUST_CHECK int toaddress(Obj *v1, uval_t *uv, int bits, atype_t *am, linepos_t epoint) {
     Error *err;
-    if (am) *am = A_NONE;
+    if (am != NULL) *am = A_NONE;
     err = v1->obj->address(v1, uv, bits, am, epoint);
-    if (err) {
-        err_msg_output_and_destroy(err);
-        return 1;
-    }
-    return 0;
+    if (err == NULL) return 0;
+    err_msg_output_and_destroy(err);
+    return 1;
 }
 
 static atype_t get_address_mode(Obj *v1, linepos_t epoint) {
     atype_t am = A_NONE; 
     Error *err = v1->obj->address(v1, NULL, 0, &am, epoint);
-    if (err) {
+    if (err != NULL) {
         err_msg_output_and_destroy(err);
     }
     return am;
@@ -354,7 +350,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 cod = cnmemonic[(opr = ADR_REG)];
                 if (cod && cpureg->len == 1) {
                     const char *ind = strchr(reg_names, cpureg->data[0]);
-                    if (ind) {
+                    if (ind != NULL) {
                         reg = (enum reg_e)(ind - reg_names);
                         if (regopcode_table[cod][reg] != ____) {
                             adrgen = AG_IMP;

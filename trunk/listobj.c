@@ -197,7 +197,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
         }
         for (i = 0;i < llen; i++) {
             val = v1->data[i]->obj->repr(v1->data[i], epoint, maxsize - chars);
-            if (!val || val->obj != STR_OBJ) {
+            if (val == NULL || val->obj != STR_OBJ) {
                 list->len = i;
                 val_destroy(&list->v);
                 return val;
@@ -230,7 +230,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     }
     if (i == 1 && o1->obj == TUPLE_OBJ) *s++ = ',';
     if (tupleorlist) *s = (o1->obj == LIST_OBJ) ? ']' : ')';
-    if (list) val_destroy(&list->v);
+    if (list != NULL) val_destroy(&list->v);
     return &v->v;
 }
 
@@ -357,10 +357,10 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             size_t ln;
             List *v;
 
-            if (!v1->len) {
+            if (v1->len == 0) {
                 return val_reference(o2);
             }
-            if (!v2->len) {
+            if (v2->len == 0) {
                 return val_reference(o1);
             }
             ln = v1->len + v2->len;
@@ -389,7 +389,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     Error *err;
 
     err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
 
     if (v1->len && rep) {
         size_t i = 0, j, ln;
@@ -420,9 +420,9 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
     Obj *err;
 
     err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err) return err;
+    if (err != NULL) return err;
 
-    if (!length) {
+    if (length == 0) {
         return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
     }
 
@@ -466,7 +466,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         v->data = vals = lnew(v, v2->len);
         for (i = 0; i < v2->len; i++) {
             err = indexoffs(v2->data[i], ln, &offs, op->epoint2);
-            if (err) {
+            if (err != NULL) {
                 if (error) {err_msg_output(err); error = 0;} 
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
@@ -481,7 +481,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return slice((Colonlist *)o2, op, ln);
     }
     err = indexoffs(o2, ln, &offs, op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
     return val_reference(v1->data[offs]);
 }
 

@@ -38,12 +38,12 @@ struct longjump_s *new_longjump(address_t address, int *exists) {
     struct avltree_node *b;
     struct longjump_s *tmp;
 
-    if (!lastlj) {
+    if (lastlj == NULL) {
 	lastlj = (struct longjump_s *)mallocx(sizeof(struct longjump_s));
     }
     lastlj->address = address;
     b = avltree_insert(&lastlj->node, &current_section->longjump, longjump_compare);
-    if (!b) { /* new longjump */
+    if (b == NULL) { /* new longjump */
         lastlj->defpass = 0;
         *exists = 0;
 	tmp = lastlj;

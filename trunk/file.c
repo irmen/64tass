@@ -71,10 +71,10 @@ char *get_path(const Str *v, const char *base) {
 #else
     const char *c;
     c = strrchr(base, '/');
-    i = c ? (c - base + 1) : 0;
+    i = (c != NULL) ? (c - base + 1) : 0;
 #endif
 
-    if (!v) {
+    if (v == NULL) {
         len = i + 1;
         if (len < 1) err_msg_out_of_memory(); /* overflow */
         path = (char *)mallocx(len);
@@ -245,19 +245,19 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     struct avltree_node *b;
     struct file_s *tmp;
     char *s;
-    if (!lastfi) {
+    if (lastfi == NULL) {
         lastfi = (struct file_s *)mallocx(sizeof(struct file_s));
     }
     base2 = get_path(NULL, base);
     lastfi->base = base2;
-    if (name) {
-        lastfi->name=name;
+    if (name != NULL) {
+        lastfi->name = name;
         b=avltree_insert(&lastfi->node, &file_tree, file_compare);
     } else {
-        b = command_line ? &command_line->node : NULL;
-        if (!command_line) command_line = lastfi;
+        b = (command_line != NULL) ? &command_line->node : NULL;
+        if (command_line == NULL) command_line = lastfi;
     }
-    if (!b) { /* new file */
+    if (b == NULL) { /* new file */
 	enum filecoding_e type = E_UNKNOWN;
         FILE *f;
         uint32_t c = 0;
@@ -272,16 +272,16 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi=NULL;
-        if (name) {
+        if (name != NULL) {
             int err;
             char *path = NULL;
             size_t namelen = strlen(name) + 1;
             s = (char *)mallocx(namelen);
             memcpy(s, name, namelen); tmp->name = s;
-            if (val) {
+            if (val != NULL) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
-                while (!f && i) {
+                while (f == NULL && i) {
                     free(path);
                     path = get_path(val, i->path);
                     f = file_open(path, "rb");
@@ -291,15 +291,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 if (name[0]=='-' && !name[1]) f=stdin;
                 else f=file_open(name, "rb");
             }
-            if (!path) {
+            if (path == NULL) {
                 s = (char *)mallocx(namelen);
                 memcpy(s, name, namelen);
                 path = s;
             }
             tmp->realname = path;
-            if (!f) {
-                path = val ? get_path(val, "") : NULL;
-                err_msg_file(ERROR_CANT_FINDFILE, val ? path : name, epoint);
+            if (f == NULL) {
+                path = (val != NULL) ? get_path(val, "") : NULL;
+                err_msg_file(ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
                 free(path);
                 return NULL;
             }
@@ -613,8 +613,8 @@ struct star_s *new_star(line_t line, int *exists) {
     struct star_s *tmp;
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree, star_compare);
-    if (!b) { /* new label */
-	*exists=0;
+    if (b == NULL) { /* new label */
+	*exists = 0;
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
@@ -626,7 +626,7 @@ struct star_s *new_star(line_t line, int *exists) {
         lastst = &stars->stars[starsp];
 	return tmp;
     }
-    *exists=1;
+    *exists = 1;
     return avltree_container_of(b, struct star_s, node);            /* already exists */
 }
 
@@ -635,16 +635,16 @@ void destroy_file(void) {
 
     avltree_destroy(&file_tree, file_free);
     free(lastfi);
-    if (command_line) file_free(&command_line->node);
+    if (command_line != NULL) file_free(&command_line->node);
 
     include_list_last = include_list.next;
-    while (include_list_last) {
+    while (include_list_last != NULL) {
         struct include_list_s *tmp = include_list_last;
         include_list_last = tmp->next;
         free(tmp);
     }
 
-    while (stars) {
+    while (stars != NULL) {
         old = stars;
         stars = stars->next;
         free(old);
@@ -670,7 +670,7 @@ void makefile(int argc, char *argv[]) {
     if (arguments.make[0] == '-' && !arguments.make[1]) {
         f = stdout;
     } else {
-        if (!(f = file_open(arguments.make, "wt"))) {
+        if ((f = file_open(arguments.make, "wt")) == NULL) {
             err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
             return;
         }

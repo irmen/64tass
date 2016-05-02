@@ -83,7 +83,7 @@ struct DATA {
  */
 #define RIGHT 1
 #define LEFT  0
-#define NOT_FOUND -1
+#define NOT_FOUND (-1)
 #define FOUND 1
 #define MAX_FIELD 15
 
@@ -160,7 +160,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
         if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             p->width = uval;
         }
     }
@@ -170,7 +170,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
         if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
-            if (err) return &err->v;
+            if (err != NULL) return &err->v;
             p->precision = uval;
         }
     }
@@ -316,7 +316,7 @@ static inline MUST_CHECK Obj *chars(const struct values_s *v)
         uval = 0;
     } else {
         err = val->obj->uval(val, &uval, 24, &v->epoint);
-        if (err) return &err->v;
+        if (err != NULL) return &err->v;
     }
 
     PUT_CHAR(uval);
@@ -414,7 +414,7 @@ static void conv_flag(char *s, struct DATA *p)
     p->justify = NOT_FOUND;
     p->pad = ' ';
 
-    for(;s && *s ;s++) {
+    for(;s != NULL && *s; s++) {
         switch(*s) {
         case ' ': p->space = FOUND; break;
         case '#': p->square = FOUND; break;
@@ -493,44 +493,44 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 case 'g':
                 case 'G':
                     err = star_args(&data);
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     err = floating(&data, next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case 'd':  /* decimal */
                     err = star_args(&data);
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     err = decimal(&data, next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case 'x':
                 case 'X':  /* hexadecimal */
                     err = star_args(&data);
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     err = hexa(&data, next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case 'b':  /* binary */
                     err = star_args(&data);
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     err = bin(&data, next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case 'c': /* character */
                     err = chars(next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case 'r':  /* repr */
                 case 's':  /* string */
                     err = star_args(&data);
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     err = strings(&data, next_arg());
-                    if (err) goto error;
+                    if (err != NULL) goto error;
                     state = 0;
                     break;
                 case '%':  /* nothing just % */
@@ -560,7 +560,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                         if (ch & 0x80) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
                         err_msg_not_defined(&msg, &epoint2);
                         err = star_args(&data);
-                        if (err) goto error;
+                        if (err != NULL) goto error;
                         next_arg();
                         PUT_CHAR('%');
                         PUT_CHAR(ch);
