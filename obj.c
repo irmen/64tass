@@ -80,8 +80,8 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
     v1 = op->v1;
     err = new_error(ERROR__INVALID_OPER, op->epoint3);
     err->u.invoper.op = op->op;
-    err->u.invoper.v1 = v1 ? (v1->refcount ? val_reference(v1) : v1) : NULL;
-    err->u.invoper.v2 = v2 ? (v2->refcount ? val_reference(v2) : v2) : NULL;
+    err->u.invoper.v1 = (v1 != NULL) ? ((v1->refcount != 0) ? val_reference(v1) : v1) : NULL;
+    err->u.invoper.v2 = (v2 != NULL) ? ((v2->refcount != 0) ? val_reference(v2) : v2) : NULL;
     return &err->v;
 }
 
@@ -126,7 +126,7 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     uint8_t *s;
     const char *name;
     size_t len, len2;
-    if (!epoint) return NULL;
+    if (epoint == NULL) return NULL;
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
@@ -170,7 +170,7 @@ static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), int UNUSED(bi
 }
 
 static MUST_CHECK Error *invalid_address(Obj *v1, uval_t *uv, int bits, uint32_t *UNUSED(am), linepos_t epoint) {
-    return uv ? v1->obj->uval(v1, uv, bits, epoint) : NULL;
+    return (uv != NULL) ? v1->obj->uval(v1, uv, bits, epoint) : NULL;
 }
 
 static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
@@ -198,7 +198,7 @@ MUST_CHECK Iter *invalid_getiter(Obj *v1) {
 }
 
 static MUST_CHECK Obj *invalid_next(Iter *v1) {
-    if (v1->val) {
+    if (v1->val != 0) {
         v1->val = 0;
         return val_reference(v1->data);
     }
@@ -223,7 +223,7 @@ static void iter_garbage(Obj *o1, int i) {
         return;
     case 1:
         v = v1->data;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -232,20 +232,20 @@ static void iter_garbage(Obj *o1, int i) {
 }
 
 static MUST_CHECK Obj *iter_next(Iter *v1) {
-    if (!v1->iter) return invalid_next(v1);
+    if (v1->iter == NULL) return invalid_next(v1);
     return v1->data->obj->next(v1);
 }
 
 static void mfunc_destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
-    while (i--) {
+    while ((i--) != 0) {
         free((char *)v1->param[i].name.data);
         if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
-        if (v1->param[i].init) val_destroy(v1->param[i].init);
+        if (v1->param[i].init != NULL) val_destroy(v1->param[i].init);
     }
     i = v1->nslen;
-    while (i--) {
+    while ((i--) != 0) {
         val_destroy(&v1->namespaces[i]->v);
     }
     free(v1->namespaces);
@@ -258,18 +258,18 @@ static void mfunc_garbage(Obj *o1, int j) {
     Obj *v ;
     switch (j) {
     case -1:
-        while (i--) {
+        while ((i--) != 0) {
             v = v1->param[i].init;
-            if (v) v->refcount--;
+            if (v != NULL) v->refcount--;
         }
         i = v1->nslen;
-        while (i--) {
+        while ((i--) != 0) {
             v = &v1->namespaces[i]->v;
             v->refcount--;
         }
         return;
     case 0:
-        while (i--) {
+        while ((i--) != 0) {
             free((char *)v1->param[i].name.data);
             if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
         }
@@ -277,19 +277,19 @@ static void mfunc_garbage(Obj *o1, int j) {
         free(v1->namespaces);
         return;
     case 1:
-        while (i--) {
+        while ((i--) != 0) {
             v = v1->param[i].init;
-            if (v) {
-                if (v->refcount & SIZE_MSB) {
+            if (v != NULL) {
+                if ((v->refcount & SIZE_MSB) != 0) {
                     v->refcount -= SIZE_MSB - 1;
                     v->obj->garbage(v, 1);
                 } else v->refcount++;
             }
         }
         i = v1->nslen;
-        while (i--) {
+        while ((i--) != 0) {
             v = &v1->namespaces[i]->v;
-            if (v->refcount & SIZE_MSB) {
+            if ((v->refcount & SIZE_MSB) != 0) {
                 v->refcount -= SIZE_MSB - 1;
                 v->obj->garbage(v, 1);
             } else v->refcount++;
@@ -303,9 +303,9 @@ static int mfunc_same(const Obj *o1, const Obj *o2) {
     size_t i;
     if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return 0;
     for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].name, &v2->param[i].name)) return 0;
-        if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
-        if (v1->param[i].init != v2->param[i].init && (!v1->param[i].init || !v2->param[i].init || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return 0;
+        if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return 0;
+        if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return 0;
+        if (v1->param[i].init != v2->param[i].init && (v1->param[i].init == NULL || v2->param[i].init == NULL || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return 0;
         if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return 0;
     }
     for (i = 0; i < v1->nslen; i++) {
@@ -330,15 +330,15 @@ static MUST_CHECK Obj *mfunc_calc2(oper_t op) {
                 }
             }
             for (; i < v1->argc; i++) {
-                if (!v1->param[i].init) {
+                if (v1->param[i].init == NULL) {
                     max = i + 1;
                 }
             }
-            if (max) err_msg_argnum(args, max, v1->argc, op->epoint2);
+            if (max != 0) err_msg_argnum(args, max, v1->argc, op->epoint2);
             eval_enter();
             val = mfunc2_recurse(v1, v2->val, args, op->epoint);
             eval_leave();
-            return val ? val : (Obj *)ref_tuple(null_tuple);
+            return (val != NULL) ? val : (Obj *)ref_tuple(null_tuple);
         }
         default: break;
         }
@@ -407,7 +407,7 @@ static void struct_garbage(Obj *o1, int i) {
         return;
     case 1:
         v = (Obj *)v1->names;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;

@@ -74,17 +74,17 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
     ternary_tree curr, *pcurr;
     if (s == end) return NULL;
     spchar = *s;
-    if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
+    if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
 
     /* Start at the root. */
     pcurr = root;
     /* Loop until we find the right position */
-    while ((curr = *pcurr))
+    while ((curr = *pcurr) != 0)
     {
         /* Handle current char equal to node splitchar */
         if (spchar == curr->splitchar) {
             /* Handle the case of a string we already have */
-            if (!~spchar)
+            if ((~spchar) == 0)
             {
                 if (replace)
                     curr->eqkid = (ternary_tree) data;
@@ -93,7 +93,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
             if (s == end) spchar = ~0;
             else {
                 spchar = *s;
-                if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
+                if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
             }
             pcurr = &(curr->eqkid);
         } else pcurr = (spchar < curr->splitchar) ? &(curr->lokid) : &(curr->hikid);
@@ -112,14 +112,14 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
            When we hit it, place the data in the right place, and
            return.
            */
-        if (!~spchar) {
+        if ((~spchar) == 0) {
             curr->eqkid = (ternary_tree) data;
             return data;
         }
         if (s == end) spchar = ~0;
         else {
             spchar = *s;
-            if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
+            if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
         }
         pcurr = &(curr->eqkid);
     }
@@ -130,7 +130,7 @@ void ternary_cleanup(ternary_tree p, ternary_free_fn_t f)
 {
     if (p != NULL) {
         ternary_cleanup(p->lokid, f);
-        if (~p->splitchar) {
+        if ((~p->splitchar) != 0) {
             ternary_cleanup(p->eqkid, f);
         } else f(p->eqkid);
         ternary_cleanup(p->hikid, f);
@@ -146,24 +146,24 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     const ternary_node *last = NULL;
     if (s == end) return NULL;
     spchar = *s;
-    if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
+    if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
     curr = p;
     while (curr != NULL) {
         if (spchar == curr->splitchar) {
-            if (!~spchar) return (void *)curr->eqkid;
+            if ((~spchar) == 0) return (void *)curr->eqkid;
             if (s == end) spchar = ~0;
             else {
                 spchar = *s;
-                if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
+                if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
             }
             curr = curr->eqkid;
             last = curr;
         } else curr = (spchar < curr->splitchar) ? curr->lokid : curr->hikid;
     }
-    while (last != NULL && ~last->splitchar) {
+    while (last != NULL && (~last->splitchar) != 0) {
         last = last->hikid;
     }
-    return last ? (void *)last->eqkid : NULL;
+    return (last != NULL) ? (void *)last->eqkid : NULL;
 }
 
 void init_ternary(void)

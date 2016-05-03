@@ -55,7 +55,7 @@ static void garbage2(struct avltree_node *aa)
 {
     struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
     Obj *v = &a->key->v;
-    if (v->refcount & SIZE_MSB) {
+    if ((v->refcount & SIZE_MSB) != 0) {
         v->refcount -= SIZE_MSB - 1;
         v->obj->garbage(v, 1);
     } else v->refcount++;

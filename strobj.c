@@ -126,7 +126,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
         return NULL;
     }
     h = *s2 << 7;
-    while (l--) h = (1000003 * h) ^ *s2++;
+    while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
     *hs = h & ((~(unsigned int)0) >> 1);
     return NULL;
@@ -229,7 +229,7 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln) {
             *ln = i;
             return (Obj *)ref_none();
         }
-        if (ch2 & 0x80) i += utf8len(ch2); else i++;
+        if ((ch2 & 0x80) != 0) i += utf8len(ch2); else i++;
         if (ch2 == ch) {
             if (s[i] == ch && !arguments.tasmcomp) {i++;r++;} /* handle 'it''s' */
             else break; /* end of string; */
@@ -409,7 +409,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     Error *err;
 
     err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
-    if (err) return &err->v;
+    if (err != NULL) return &err->v;
 
     if (v1->len != 0 && rep != 0) {
         uint8_t *s;
@@ -422,7 +422,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
         v = new_str(ln * rep);
         v->chars = v1->chars * rep;
         s = v->data;
-        while (rep--) {
+        while ((rep--) != 0) {
             memcpy(s, v1->data, ln);
             s += ln;
         }
@@ -623,7 +623,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return &v->v;
     } 
     p = v1->data;
-    while (offs--) p += utf8len(*p);
+    while ((offs--) != 0) p += utf8len(*p);
     len1 = utf8len(*p);
     v = new_str(len1);
     v->chars = 1;
