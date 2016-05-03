@@ -89,9 +89,9 @@ static void set_cp(void) {
 int iswprint(wint_t wc) {
     uint32_t *ch, c;
     if (wc < 0x80) return isprint(wc);
-    if (!cp) set_cp();
+    if (cp == NULL) set_cp();
     c = wc << 8;
-    ch = bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
+    ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
     return ch != NULL;
 }
 
@@ -102,7 +102,7 @@ size_t mbrtowc(wchar_t *wc, const char *s, size_t UNUSED(n), mbstate_t *UNUSED(p
         *wc = ch;
         return 1;
     }
-    if (!cp) set_cp();
+    if (cp == NULL) set_cp();
     *wc = cp[ch - 0x80];
     return 1;
 }
@@ -113,10 +113,10 @@ size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
         *s = wc;
         return 1;
     }
-    if (!cp) set_cp();
+    if (cp == NULL) set_cp();
     c = wc << 8;
-    ch = bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
-    if (!ch) return ~(size_t)0;
+    ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
+    if (ch == NULL) return ~(size_t)0;
     *s = *ch;
     return 1;
 }
@@ -230,14 +230,14 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
         if (d->p >= d->len) extbuff(d);
         d->data[d->p++] = 0x1161 + (hs % 588) / 28;
         ht = hs % 28;
-        if (ht) {
+        if (ht != 0) {
             if (d->p >= d->len) extbuff(d);
             d->data[d->p++] = 0x11a7 + ht;
         }
         return;
     }
     prop = uget_property(ch);
-    if ((options & U_CASEFOLD) && prop->casefold) {
+    if ((options & U_CASEFOLD) != 0 && prop->casefold != 0) {
         if (prop->casefold > 0) {
             if (d->p >= d->len) extbuff(d);
             d->data[d->p++] = prop->casefold;
@@ -261,8 +261,8 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             }
         }
     }
-    if (prop->decompose) {
-        if (!(prop->property & pr_compat) || (options & U_COMPAT)) {
+    if (prop->decompose != 0) {
+        if ((prop->property & pr_compat) == 0 || (options & U_COMPAT) != 0) {
             if (prop->decompose > 0) {
                 udecompose(prop->decompose, d, options);
                 return;
@@ -298,13 +298,13 @@ static void unormalize(struct ubuff_s *d) {
         uint8_t cc1, cc2;
         ch2 = d->data[pos + 1];
         cc2 = uget_property(ch2)->combclass;
-        if (cc2) {
+        if (cc2 != 0) {
             ch1 = d->data[pos];
             cc1 = uget_property(ch1)->combclass;
             if (cc1 > cc2) {
                 d->data[pos] = ch2;
                 d->data[pos + 1] = ch1;
-                if (pos) {
+                if (pos != 0) {
                     pos--;
                     continue;
                 }
@@ -339,17 +339,17 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
                 sprop = NULL;
                 continue;
             }
-            if (!sprop) sprop = uget_property(sc);
+            if (sprop == NULL) sprop = uget_property(sc);
             if (sprop->base >= 0 && prop->diar >= 0) {
                 int16_t comp = ucomposing[sprop->base + prop->diar];
-                if (comp) {
+                if (comp != 0) {
                     d->data[sp] = (comp > 0) ? (uint16_t)comp : ucomposed[-comp];
                     sprop = NULL;
                     continue;
                 }
             }
         }
-        if (prop->combclass) {
+        if (prop->combclass != 0) {
             if (prop->combclass > mclass) {
                 mclass = prop->combclass;
             }
@@ -366,7 +366,7 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
 void unfc(struct ubuff_s *b) {
     size_t i;
     static struct ubuff_s dbuf;
-    if (!b) {
+    if (b == NULL) {
         free(dbuf.data);
         return;
     }
@@ -382,12 +382,12 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     uint8_t *s, *dd;
     size_t i, l;
     static struct ubuff_s dbuf, dbuf2;
-    if (!s2) {
+    if (s2 == NULL) {
         free(dbuf.data);
         free(dbuf2.data);
         return;
     }
-    mode = (mode ? U_CASEFOLD : 0) | U_COMPAT;
+    mode = ((mode != 0) ? U_CASEFOLD : 0) | U_COMPAT;
     d = s2->data;
     for (dbuf.p = i = 0; i < s2->len;) {
         uint32_t ch;
@@ -397,7 +397,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
             udecompose(ch, &dbuf, mode);
             continue;
         }
-        if ((mode & U_CASEFOLD) && ch >= 'A' && ch <= 'Z') ch |= 0x20;
+        if ((mode & U_CASEFOLD) != 0 && ch >= 'A' && ch <= 'Z') ch |= 0x20;
         if (dbuf.p >= dbuf.len) extbuff(&dbuf);
         dbuf.data[dbuf.p++] = ch;
         i++;
@@ -413,7 +413,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     for (i = 0; i < dbuf2.p; i++) {
         uint32_t ch;
         ch = dbuf2.data[i];
-        if (ch && ch < 0x80) {
+        if (ch != 0 && ch < 0x80) {
             if (s >= m) {
                 size_t o = s - dd;
                 l += 16;
@@ -465,7 +465,7 @@ size_t argv_print(const char *line, FILE *f) {
         uint32_t ch = (uint8_t)line[i];
         if (ch & 0x80) {
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 int ln2;
                 char tmp[64];
                 memcpy(tmp, line + i, ln);
@@ -490,7 +490,7 @@ size_t argv_print(const char *line, FILE *f) {
             continue;
         }
         if (!space || quote) {
-            if (strchr("()%!^<>&|\"", ch)) {
+            if (strchr("()%!^<>&|\"", ch) != NULL) {
                 if (ch == '"') {
                     while (back--) {len++;putc('\\', f);}
                     len++;putc('\\', f);
@@ -505,7 +505,7 @@ size_t argv_print(const char *line, FILE *f) {
         back = 0;
 
         i++;
-        if (!isprint(ch)) {
+        if (isprint(ch) == 0) {
             len++;putc('?', f);
             continue;
         }
@@ -524,7 +524,7 @@ size_t argv_print(const char *line, FILE *f) {
         if (line[i] == '!') break;
         else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]);
     }
-    if (line[i]) quote = 0;
+    if (line[i] != 0) quote = 0;
     if (quote) {len++;putc('"', f);}
     else {
         switch (line[0]) {
@@ -538,7 +538,7 @@ size_t argv_print(const char *line, FILE *f) {
         if (ch & 0x80) {
             int ln2;
             i += utf8in((const uint8_t *)line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
@@ -556,15 +556,15 @@ size_t argv_print(const char *line, FILE *f) {
         if (ch == 0) break;
 
         if (quote) {
-            if (strchr("$`\"\\", ch)) {len++;putc('\\', f);}
+            if (strchr("$`\"\\", ch) != NULL) {len++;putc('\\', f);}
         } else {
-            if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch)) {
+            if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch) != NULL) {
                 len++;putc('\\', f);
             }
         }
 
         i++;
-        if (!isprint(ch)) {
+        if (isprint(ch) == 0) {
             int ln = fprintf(f, "$'\\x%" PRIx32 "'", ch);
             if (ln > 0) len += ln;
             continue;
@@ -585,7 +585,7 @@ void printable_print(const uint8_t *line, FILE *f) {
             unsigned int ln;
             if (l != i) fwrite(line + l, 1, i - l, f);
             ln = utf8in(line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 char tmp[64];
                 memcpy(tmp, line + i, ln);
                 tmp[ln] = 0;
@@ -619,7 +619,7 @@ void printable_print(const uint8_t *line, FILE *f) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             l = i;
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
@@ -657,7 +657,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             unsigned int ln;
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             ln = utf8in(line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 char tmp[64];
                 memcpy(tmp, line + i, ln);
                 tmp[ln] = 0;
@@ -695,7 +695,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             l = i;
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
@@ -733,7 +733,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         if (ch & 0x80) {
 #ifdef _WIN32
             unsigned int ln = utf8in(line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 char tmp[64];
                 wchar_t tmp2[64];
                 memcpy(tmp, line + i, ln);
@@ -747,7 +747,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
             i += ln;
 #else
             i += utf8in(line + i, &ch);
-            if (iswprint(ch)) {
+            if (iswprint(ch) != 0) {
                 mbstate_t ps;
                 memset(&ps, 0, sizeof(ps));
                 if (wcrtomb(temp, ch, &ps) != (size_t)-1) {
@@ -761,7 +761,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         }
         if (ch == 0) break;
         if (ch == '\t') {
-            while (l) { 
+            while (l != 0) { 
                 putc(' ', f); 
                 l--; 
             }
@@ -772,7 +772,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         if (ch < 0x20 || ch > 0x7e) l += sprintf(temp, "{$%" PRIx32 "}", ch); else l++;
         i++;
     }
-    while (l) { 
+    while (l != 0) { 
         putc(' ', f); 
         l--; 
     }

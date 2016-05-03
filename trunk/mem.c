@@ -48,7 +48,7 @@ static void memcomp(struct memblocks_s *memblocks) {
 
     for (j = 0; j < memblocks->p; j++) { /* replace references with real copies */
         struct memblocks_s *b = memblocks->data[j].ref;
-        if (b) {
+        if (b != NULL) {
             size_t rest;
             memcomp(b);
             rest = memblocks->p - j - 1;
@@ -83,8 +83,8 @@ static void memcomp(struct memblocks_s *memblocks) {
 
     for (k = j = 0; j < memblocks->p; j++) {
         struct memblock_s *bj = &memblocks->data[j];
-        if (bj->len) {
-            for (i = j + 1; i < memblocks->p; i++) if (memblocks->data[i].len) {
+        if (bj->len != 0) {
+            for (i = j + 1; i < memblocks->p; i++) if (memblocks->data[i].len != 0) {
                 struct memblock_s *bi = &memblocks->data[i];
                 if (bj->addr <= bi->addr && (bj->addr + bj->len) > bi->addr) {
                     size_t overlap = (bj->addr + bj->len) - bi->addr;
@@ -101,10 +101,10 @@ static void memcomp(struct memblocks_s *memblocks) {
                     bj->addr += overlap;
                     bj->p += overlap;
                     bj->len -= overlap;
-                    if (!bj->len) break;
+                    if (bj->len == 0) break;
                 }
             }
-            if (bj->len) {
+            if (bj->len != 0) {
                 if (j != k) memblocks->data[k] = *bj;
                 k++;
             }
@@ -155,7 +155,7 @@ void memprint(struct memblocks_s *memblocks) {
 
     memcomp(memblocks);
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         i = 0;
         start = memblocks->data[i].addr;
         end = memblocks->data[i].addr + memblocks->data[i].len;
@@ -185,7 +185,7 @@ static void padding(size_t size, FILE *f) {
         if (fseek(f, 0x40000000, SEEK_CUR)) goto err;
         size -= 0x40000000;
     }
-    if ((long)size > 256 && !fseek(f, size, SEEK_CUR)) {
+    if ((long)size > 256 && fseek(f, size, SEEK_CUR) == 0) {
         return;
     }
 err:while (size--) if (putc(0, f) == EOF) break;
@@ -195,7 +195,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
     address_t pos, end;
     unsigned int i;
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         pos = memblocks->data[0].addr;
         if (arguments.output_mode == OUTPUT_CBM || arguments.output_mode == OUTPUT_APPLE) {
             putlw(pos, fout);
@@ -210,7 +210,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];
             padding(block->addr - pos, fout);
-            if (!fwrite(memblocks->mem.data + block->p, block->len, 1, fout)) return;
+            if (fwrite(memblocks->mem.data + block->p, block->len, 1, fout) == 0) return;
             pos = block->addr + block->len;
         }
     }
@@ -221,7 +221,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
     size_t size;
     unsigned int i, last;
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         i = 0;
         start = memblocks->data[i].addr;
         size = memblocks->data[i].len;
@@ -235,7 +235,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
                 if (arguments.longaddr) putc(start >> 16,fout);
                 while (last < i) {
                     const struct memblock_s *b = &memblocks->data[last++];
-                    if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
+                    if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
                 }
                 start = block->addr;
                 size = 0;
@@ -248,7 +248,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
         if (arguments.longaddr) putc(start >> 16,fout);
         while (last < i) {
             const struct memblock_s *b = &memblocks->data[last++];
-            if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
+            if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
         }
     }
     putlw(0, fout);
@@ -262,7 +262,7 @@ static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
     for (pos = i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
         padding(block->addr - pos, fout);
-        if (!fwrite(memblocks->mem.data + block->p, block->len, 1, fout)) return;
+        if (fwrite(memblocks->mem.data + block->p, block->len, 1, fout) == 0) return;
         pos = block->addr + block->len;
     }
 }
@@ -272,7 +272,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
     size_t size;
     unsigned int i, last;
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         i = 0;
         start = memblocks->data[i].addr;
         size = memblocks->data[i].len;
@@ -285,7 +285,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
                 putlw(start + size - 1, fout);
                 while (last < i) {
                     const struct memblock_s *b = &memblocks->data[last++];
-                    if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
+                    if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
                 }
                 start = block->addr;
                 size = 0;
@@ -297,7 +297,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
         putlw(start + size - 1, fout);
         while (last < i) {
             const struct memblock_s *b = &memblocks->data[last++];
-            if (!fwrite(memblocks->mem.data + b->p, b->len, 1, fout)) return;
+            if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
         }
     }
 }
@@ -354,7 +354,7 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
     struct ihex_s ihex;
     size_t i;
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         ihex.file = fout;
         ihex.address = 0;
         ihex.segment = 0;
@@ -364,11 +364,11 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
             const uint8_t *d = memblocks->mem.data + b->p;
             address_t addr = b->addr;
             size_t blen = b->len;
-            if (blen && ihex.address + ihex.length != addr) {
-                if (ihex.length) output_mem_ihex_data(&ihex);
+            if (blen != 0 && ihex.address + ihex.length != addr) {
+                if (ihex.length != 0) output_mem_ihex_data(&ihex);
                 ihex.address = addr;
             }
-            while (blen) {
+            while (blen != 0) {
                 size_t left = sizeof(ihex.data) - ihex.length;
                 size_t copy = blen > left ? left : blen;
                 memcpy(ihex.data + ihex.length, d, copy); 
@@ -380,7 +380,7 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
                 }
             }
         }
-        if (ihex.length) output_mem_ihex_data(&ihex);
+        if (ihex.length != 0) output_mem_ihex_data(&ihex);
         output_mem_ihex_line(fout, 0, 0, 1, NULL);
     }
 }
@@ -418,7 +418,7 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
     struct srecord_s srec;
     size_t i;
 
-    if (memblocks->p) {
+    if (memblocks->p != 0) {
         srec.file = fout;
         srec.type = 0;
         srec.address = 0;
@@ -437,11 +437,11 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
             const uint8_t *d = memblocks->mem.data + b->p;
             address_t addr = b->addr;
             size_t blen = b->len;
-            if (blen && srec.address + srec.length != addr) {
-                if (srec.length) output_mem_srec_line(&srec);
+            if (blen != 0 && srec.address + srec.length != addr) {
+                if (srec.length != 0) output_mem_srec_line(&srec);
                 srec.address = addr;
             }
-            while (blen) {
+            while (blen != 0) {
                 size_t left = sizeof(srec.data) - srec.length;
                 size_t copy = blen > left ? left : blen;
                 memcpy(srec.data + srec.length, d, copy); 
@@ -453,7 +453,7 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
                 }
             }
         }
-        if (srec.length) output_mem_srec_line(&srec);
+        if (srec.length != 0) output_mem_srec_line(&srec);
         srec.address = memblocks->data[0].addr;
         output_mem_srec_line(&srec);
     }
@@ -465,16 +465,16 @@ void output_mem(struct memblocks_s *memblocks) {
 
     memcomp(memblocks);
 
-    if (memblocks->mem.p) {
+    if (memblocks->mem.p != 0) {
         int binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
         int err;
-        if (arguments.output[0] == '-' && !arguments.output[1]) {
+        if (arguments.output[0] == '-' && arguments.output[1] == 0) {
 #ifdef _WIN32
             if (binary) setmode(fileno(stdout), O_BINARY);
 #endif
             fout = stdout;
         } else {
-            if (!(fout=file_open(arguments.output, binary ? "wb" : "wt"))) {
+            if ((fout=file_open(arguments.output, binary ? "wb" : "wt")) == NULL) {
                 err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
                 return;
             }
@@ -492,7 +492,7 @@ void output_mem(struct memblocks_s *memblocks) {
         }
         err = ferror(fout);
         err |= (fout != stdout) ? fclose(fout) : fflush(fout);
-        if (err && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+        if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif
@@ -570,7 +570,7 @@ void list_mem(const struct memblocks_s *memblocks, int dooutput) {
             } else {
                 myaddr = memblocks->lastaddr + (ptextaddr - memblocks->lastp);
                 len = memblocks->mem.p - ptextaddr;
-                if (!len) {
+                if (len == 0) {
                     if (!print) continue;
                     if (first) myaddr = oaddr;
                     else myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;

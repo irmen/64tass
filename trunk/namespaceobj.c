@@ -89,7 +89,7 @@ static int namespacekey_compare(const struct avltree_node *aa, const struct avlt
     Obj *result;
     int h = a->hash - b->hash;
 
-    if (h) return h;
+    if (h != 0) return h;
     pair_oper.v1 = (Obj *)a->key;
     pair_oper.v2 = (Obj *)b->key;
     result = pair_oper.v1->obj->calc2(&pair_oper);
@@ -106,8 +106,8 @@ static int same(const Obj *o1, const Obj *o2) {
     if (o2->obj != NAMESPACE_OBJ) return 0;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
-    while (n && n2) {
-        if (namespacekey_compare(n, n2)) return 0;
+    while (n != NULL && n2 != NULL) {
+        if (namespacekey_compare(n, n2) != 0) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
@@ -122,7 +122,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Tuple *tuple = NULL;
     uint8_t *s;
 
-    if (v1->len) {
+    if (v1->len != 0) {
         ln = v1->len;
         chars = ln + 1;
         if (chars < 1) err_msg_out_of_memory(); /* overflow */
@@ -130,13 +130,13 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         tuple = new_tuple();
         tuple->data = vals = list_create_elements(tuple, ln);
         ln = chars;
-        if (v1->len) {
+        if (v1->len != 0) {
             const struct avltree_node *n;
             for (n = avltree_first(&v1->members); n != NULL; n = avltree_next(n)) {
                 const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
                 Obj *key = (Obj *)p->key;
                 Obj *v = key->obj->repr(key, epoint, maxsize - chars);
-                if (!v || v->obj != STR_OBJ) {
+                if (v == NULL || v->obj != STR_OBJ) {
                     tuple->len = i;
                     val_destroy(&tuple->v);
                     return v;
@@ -162,14 +162,14 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     *s++ = '{';
     for (j = 0; j < i; j++) {
         Str *str2 = (Str *)vals[j];
-        if (j) *s++ = ',';
-        if (str2->len) {
+        if (j != 0) *s++ = ',';
+        if (str2->len != 0) {
             memcpy(s, str2->data, str2->len);
             s += str2->len;
         }
     }
     *s = '}';
-    if (tuple) val_destroy(&tuple->v);
+    if (tuple != NULL) val_destroy(&tuple->v);
     return &str->v;
 }
 
@@ -182,7 +182,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
         {
             Ident *v2 = (Ident *)o2;
             l = find_label2(&v2->name, v1);
-            if (l) {
+            if (l != NULL) {
                 touch_label(l);
                 return val_reference(l->value);
             }
@@ -200,7 +200,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             Anonident *v2 = (Anonident *)o2;
             ssize_t count;
             l = find_anonlabel2(v2->count, v1);
-            if (l) {
+            if (l != NULL) {
                 touch_label(l);
                 return val_reference(l->value);
             }
@@ -267,7 +267,7 @@ struct namespacekey_s *namespacekey_alloc(void) {
     struct namespacekey_s *val = (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
 #else
     struct namespacekey_s *val = (struct namespacekey_s *)namespacekey_next;
-    if (!val) {
+    if (val == NULL) {
         size_t i;
         uint8_t *n = (uint8_t *)mallocx(sizeof(void *) + sizeof(struct namespacekey_s) * SLOTS);
         *((void **)n) = namespacekeys;
@@ -286,7 +286,7 @@ struct namespacekey_s *namespacekey_alloc(void) {
 
 void destroy_namespacekeys(void) {
     void *n = namespacekeys, *n2;
-    while (n) {
+    while (n != NULL) {
         n2 = *((void **)n);
         free(n);
         n = n2;

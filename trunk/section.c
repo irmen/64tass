@@ -34,7 +34,7 @@ static int section_compare(const struct avltree_node *aa, const struct avltree_n
     const struct section_s *a = cavltree_container_of(aa, struct section_s, node);
     const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
     int h = a->name_hash - b->name_hash;
-    if (h) return h; 
+    if (h != 0) return h; 
     return str_cmp(&a->cfname, &b->cfname);
 }
 
@@ -46,7 +46,7 @@ static void section_free(struct avltree_node *aa)
     avltree_destroy(&a->members, section_free);
     longjump_destroy(&a->longjump);
     destroy_memblocks(&a->mem);
-    if (a->l_address_val) val_destroy(a->l_address_val);
+    if (a->l_address_val != NULL) val_destroy(a->l_address_val);
     free(a);
 }
 
@@ -55,13 +55,13 @@ struct section_s *find_new_section(const str_t *name) {
     struct section_s *context = current_section;
     struct section_s tmp, *tmp2 = NULL;
 
-    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) tmp.cfname = *name;
     else str_cfcpy(&tmp.cfname, name);
     tmp.name_hash = str_hash(&tmp.cfname);
 
-    while (context) {
+    while (context != NULL) {
         b=avltree_lookup(&tmp.node, &context->members, section_compare);
-        if (b) {
+        if (b != NULL) {
             tmp2 = avltree_container_of(b, struct section_s, node);
             if (tmp2->defpass >= pass - 1) {
                 return tmp2;
@@ -69,7 +69,7 @@ struct section_s *find_new_section(const str_t *name) {
         }
         context = context->parent;
     }
-    if (tmp2) return tmp2;
+    if (tmp2 != NULL) return tmp2;
     return new_section(name);
 }
 
@@ -78,14 +78,14 @@ struct section_s *new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *tmp;
 
-    if (!lastsc) {
+    if (lastsc == NULL) {
 	lastsc = (struct section_s *)mallocx(sizeof(struct section_s));
     }
-    if (name->len > 1 && !name->data[1]) lastsc->cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) lastsc->cfname = *name;
     else str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);
     b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
-    if (!b) { /* new section */
+    if (b == NULL) { /* new section */
         str_cpy(&lastsc->name, name);
         if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
         else str_cfcpy(&lastsc->cfname, NULL);
@@ -117,7 +117,7 @@ struct section_s *new_section(const str_t *name) {
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
     section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
-    if (section->l_address_val) val_destroy(section->l_address_val);
+    if (section->l_address_val != NULL) val_destroy(section->l_address_val);
     section->l_address_val = (Obj *)ref_int(int_value[0]);
     section->dooutput = 1;
     section->structrecursion = 0;
@@ -149,7 +149,7 @@ void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
     longjump_destroy(&section->longjump);
     destroy_memblocks(&section->mem);
-    if (section->l_address_val) {
+    if (section->l_address_val != NULL) {
         val_destroy(section->l_address_val);
         section->l_address_val = NULL;
     }
@@ -161,7 +161,7 @@ void destroy_section(void) {
 }
 
 static void sectionprint2(const struct section_s *l) {
-    if (l->name.data) {
+    if (l->name.data != NULL) {
         sectionprint2(l->parent);
         printable_print2(l->name.data, stdout, l->name.len);
         putchar('.');
@@ -173,16 +173,16 @@ void sectionprint(void) {
     char temp[10], temp2[10];
 
     l = &root_section;
-    if (l->size) {
+    if (l->size != 0) {
         sprintf(temp, "$%04" PRIaddress, l->start);
         sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
         printf("Section:       %9s-%-7s\n", temp, temp2);
     }
     memprint(&l->mem);
     l = root_section.next;
-    while (l) {
+    while (l != NULL) {
         if (l->defpass == pass) {
-            if (l->size) {
+            if (l->size != 0) {
                 sprintf(temp, "$%04" PRIaddress, l->start);
                 sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
                 printf("Section:       %9s-%-7s ", temp, temp2);
