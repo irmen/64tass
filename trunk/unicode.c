@@ -92,7 +92,7 @@ int iswprint(wint_t wc) {
     if (cp == NULL) set_cp();
     c = wc << 8;
     ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
-    return ch != NULL;
+    return (ch != NULL);
 }
 
 size_t mbrtowc(wchar_t *wc, const char *s, size_t UNUSED(n), mbstate_t *UNUSED(ps)) {
@@ -197,7 +197,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
-    if (i & ~0x7fffffff) return c;
+    if ((i & ~0x7fffffff) != 0) return c;
     *c++=0xfc | (i >> 30);
     *c++=0x80 | ((i >> 24) & 0x3f);
     *c++=0x80 | ((i >> 18) & 0x3f);
@@ -392,7 +392,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     for (dbuf.p = i = 0; i < s2->len;) {
         uint32_t ch;
         ch = d[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             i += utf8in(d + i, &ch);
             udecompose(ch, &dbuf, mode);
             continue;
@@ -463,7 +463,7 @@ size_t argv_print(const char *line, FILE *f) {
     i = 0; back = 0;
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch) != 0) {
                 int ln2;
@@ -492,7 +492,7 @@ size_t argv_print(const char *line, FILE *f) {
         if (!space || quote) {
             if (strchr("()%!^<>&|\"", ch) != NULL) {
                 if (ch == '"') {
-                    while (back--) {len++;putc('\\', f);}
+                    while ((back--) != 0) {len++;putc('\\', f);}
                     len++;putc('\\', f);
                 }
                 len++;putc('^', f);
@@ -512,7 +512,7 @@ size_t argv_print(const char *line, FILE *f) {
         len++;putc(ch, f);
     }
     if (space) {
-        while (back--) {len++;putc('\\', f);}
+        while ((back--) != 0) {len++;putc('\\', f);}
         if (quote) {len++;putc('^', f);}
         len++;putc('"', f);
     }
@@ -520,9 +520,9 @@ size_t argv_print(const char *line, FILE *f) {
     size_t i;
     int quote = 0;
 
-    for (i = 0;line[i];i++) {
+    for (i = 0;line[i] != 0;i++) {
         if (line[i] == '!') break;
-        else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]);
+        else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]) != NULL;
     }
     if (line[i] != 0) quote = 0;
     if (quote) {len++;putc('"', f);}
@@ -535,7 +535,7 @@ size_t argv_print(const char *line, FILE *f) {
     i = 0;
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             int ln2;
             i += utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch) != 0) {
@@ -581,7 +581,7 @@ void printable_print(const uint8_t *line, FILE *f) {
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             unsigned int ln;
             if (l != i) fwrite(line + l, 1, i - l, f);
             ln = utf8in(line + i, &ch);
@@ -615,7 +615,7 @@ void printable_print(const uint8_t *line, FILE *f) {
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             l = i;
@@ -653,7 +653,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     int err;
     for (i = 0; i < max;) {
         uint32_t ch = line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             unsigned int ln;
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             ln = utf8in(line + i, &ch);
@@ -691,7 +691,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     int err;
     for (i = 0; i < max;) {
         uint32_t ch = line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             l = i;
@@ -730,7 +730,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
     for (i = 0; i < max;) {
         char temp[64];
         uint32_t ch = line[i];
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
 #ifdef _WIN32
             unsigned int ln = utf8in(line + i, &ch);
             if (iswprint(ch) != 0) {
