@@ -56,14 +56,14 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSE
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     Bool *v1 = (Bool *)o1;
-    *hs = v1->boolean;
+    *hs = v1->boolean ? 1 : 0;
     return NULL;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Bool *v1 = (Bool *)o1;
     Str *v;
-    size_t len = 4 + !v1->boolean;
+    size_t len = v1->boolean ? 4 : 5;
     if (len > maxsize) return NULL;
     v = new_str(len);
     v->chars =len;
@@ -73,18 +73,18 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     Bool *v1 = (Bool *)o1;
-    *iv = v1->boolean;
+    *iv = v1->boolean ? 1 : 0;
     return NULL;
 }
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     Bool *v1 = (Bool *)o1;
-    *uv = v1->boolean;
+    *uv = v1->boolean ? 1 : 0;
     return NULL;
 }
 
 MUST_CHECK Float *float_from_bool(const Bool *v1) {
-    return new_float(v1->boolean);
+    return new_float(v1->boolean ? 1.0 : 0.0);
 }
 
 MUST_CHECK Int *int_from_bool(const Bool *v1) {
@@ -92,7 +92,7 @@ MUST_CHECK Int *int_from_bool(const Bool *v1) {
 }
 
 static inline MUST_CHECK Obj *int_from_bool2(int i) {
-    return (Obj *)ref_int(int_value[i]);
+    return (Obj *)ref_int(int_value[i ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
