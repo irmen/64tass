@@ -51,7 +51,7 @@ static ternary_node *tern_alloc(void) {
     size_t i;
     tern = (ternary_node *)terns_free;
     terns_free = terns_free->next;
-    if (!terns_free) {
+    if (terns_free == NULL) {
         struct terns_s *old = terns;
         terns = (struct terns_s *)mallocx(sizeof(struct terns_s));
         for (i = 0; i < 254; i++) {
@@ -103,7 +103,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
     for (;;) {
         /* Allocate the memory for the node, and fill it in */
         *pcurr = tern_alloc();
-        if (!pcurr) return NULL;
+        if (pcurr == NULL) return NULL;
         curr = *pcurr;
         curr->splitchar = spchar;
         curr->lokid = curr->hikid = curr->eqkid = NULL;
@@ -128,7 +128,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
 /* Free the ternary search tree rooted at p. */
 void ternary_cleanup(ternary_tree p, ternary_free_fn_t f)
 {
-    if (p) {
+    if (p != NULL) {
         ternary_cleanup(p->lokid, f);
         if (~p->splitchar) {
             ternary_cleanup(p->eqkid, f);
@@ -148,7 +148,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     spchar = *s;
     if (spchar & 0x80) s += utf8in(s, &spchar); else s++;
     curr = p;
-    while (curr) {
+    while (curr != NULL) {
         if (spchar == curr->splitchar) {
             if (!~spchar) return (void *)curr->eqkid;
             if (s == end) spchar = ~0;
@@ -160,7 +160,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
             last = curr;
         } else curr = (spchar < curr->splitchar) ? curr->lokid : curr->hikid;
     }
-    while (last && ~last->splitchar) {
+    while (last != NULL && ~last->splitchar) {
         last = last->hikid;
     }
     return last ? (void *)last->eqkid : NULL;
@@ -183,7 +183,7 @@ void destroy_ternary(void)
 {
     struct terns_s *old;
 
-    while (terns) {
+    while (terns != NULL) {
         old = terns;
         terns = terns->next;
         free(old);

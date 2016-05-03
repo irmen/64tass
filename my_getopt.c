@@ -45,7 +45,7 @@ int my_getopt(int argc, char *argv[], const char *opts)
   char mode, colon_mode;
   int off = 0, opt = -1;
 
-  if(getenv("POSIXLY_CORRECT")) colon_mode = mode = '+';
+  if(getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
     if((colon_mode = *opts) == ':') off ++;
     if(((mode = opts[off]) == '+') || (mode == '-')) {
@@ -54,13 +54,13 @@ int my_getopt(int argc, char *argv[], const char *opts)
         off ++;
     }
   }
-  my_optarg = 0;
-  if(charind) {
+  my_optarg = NULL;
+  if(charind != 0) {
     my_optopt = argv[my_optind][charind];
-    for(s=opts+off; *s; s++) if(my_optopt == *s) {
+    for(s=opts+off; *s != 0; s++) if(my_optopt == *s) {
       charind++;
       if((*(++s) == ':') || ((my_optopt == 'W') && (*s == ';'))) {
-        if(argv[my_optind][charind]) {
+        if(argv[my_optind][charind] != 0) {
           my_optarg = &(argv[my_optind++][charind]);
           charind = 0;
         } else if(*(++s) != ':') {
@@ -88,7 +88,7 @@ int my_getopt(int argc, char *argv[], const char *opts)
       charind = 0;
     }
   my_getopt_ok:
-    if(charind && ! argv[my_optind][charind]) {
+    if(charind != 0 && argv[my_optind][charind] == 0) {
       my_optind++;
       charind = 0;
     }
@@ -142,7 +142,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
   char mode, colon_mode;
   int shortoff = 0, opt = -1;
 
-  if(getenv("POSIXLY_CORRECT")) colon_mode = mode = '+';
+  if(getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
     if((colon_mode = *shortopts) == ':') shortoff ++;
     if(((mode = shortopts[shortoff]) == '+') || (mode == '-')) {
@@ -151,7 +151,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
         shortoff ++;
     }
   }
-  my_optarg = 0;
+  my_optarg = NULL;
   if((my_optind >= argc) ||
       ((argv[my_optind][0] == '-') &&
        (argv[my_optind][1] == '-') &&
@@ -193,7 +193,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
       int c;
       
       ind = shortoff;
-      while((c = shortopts[ind++])) {
+      while((c = shortopts[ind++]) != 0) {
         if(((shortopts[ind] == ':') ||
             ((c == 'W') && (shortopts[ind] == ';'))) &&
            (shortopts[++ind] == ':'))
@@ -206,12 +206,12 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
         (argv[my_optind][charind] != '\0') &&
           (argv[my_optind][charind] != '=');
         charind++);
-    for(ind = 0; longopts[ind].name && !hits; ind++)
+    for(ind = 0; longopts[ind].name != NULL && hits == 0; ind++)
       if((strlen(longopts[ind].name) == (size_t) (charind - offset)) &&
          (strncmp(longopts[ind].name,
                   argv[my_optind] + offset, charind - offset) == 0))
         found = ind, hits++;
-    if(!hits) for(ind = 0; longopts[ind].name; ind++)
+    if(hits == 0) for(ind = 0; longopts[ind].name != NULL; ind++)
       if(strncmp(longopts[ind].name,
                  argv[my_optind] + offset, charind - offset) == 0)
         found = ind, hits++;
@@ -238,13 +238,13 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
                          fputs("' requires an argument\n", stderr); }
         } else my_optarg = argv[my_optind];
       }
-      if(!opt) {
-        if (longind) *longind = found;
-        if(!longopts[found].flag) opt = longopts[found].val;
+      if(opt == 0) {
+        if (longind != NULL) *longind = found;
+        if(longopts[found].flag == 0) opt = longopts[found].val;
         else *(longopts[found].flag) = longopts[found].val;
       }
       my_optind++;
-    } else if(!hits) {
+    } else if(hits == 0) {
       if(offset == 1) opt = my_getopt(argc, argv, shortopts);
       else {
         opt = '?';

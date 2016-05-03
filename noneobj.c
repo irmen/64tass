@@ -36,7 +36,7 @@ static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint)
 }
 
 static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t epoint, size_t UNUSED(maxsize)) {
-    if (!epoint) return NULL;
+    if (epoint == NULL) return NULL;
     return (Obj *)ref_none();
 }
 

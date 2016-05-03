@@ -101,8 +101,8 @@ static int same(const Obj *o1, const Obj *o2) {
     return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
         && v1->name.len == v2->name.len
         && v1->cfname.len == v2->cfname.len
-        && (v1->name.data == v2->name.data || !memcmp(v1->name.data, v2->name.data, v1->name.len))
-        && (v1->cfname.data == v2->cfname.data || !memcmp(v1->cfname.data, v2->cfname.data, v1->cfname.len))
+        && (v1->name.data == v2->name.data || memcmp(v1->name.data, v2->name.data, v1->name.len) == 0)
+        && (v1->cfname.data == v2->cfname.data || memcmp(v1->cfname.data, v2->cfname.data, v1->cfname.len) == 0)
         && v1->file_list == v2->file_list
         && v1->epoint.pos == v2->epoint.pos
         && v1->epoint.line == v2->epoint.line
@@ -114,7 +114,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     size_t len, len2;
     uint8_t *s;
     Str *v;
-    if (!epoint) return NULL;
+    if (epoint == NULL) return NULL;
     len = v1->name.len;
     len2 = len + 10;
     if (len2 > maxlen) return NULL;
@@ -218,7 +218,7 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
     const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
     const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
     int h = a->hash - b->hash;
-    if (h) return h; 
+    if (h != 0) return h; 
     return str_cmp(&a->key->cfname, &b->key->cfname);
 }
 
@@ -227,9 +227,9 @@ static int label_compare2(const struct avltree_node *aa, const struct avltree_no
     const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
     const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
     int h = a->hash - b->hash;
-    if (h) return h; 
+    if (h != 0) return h; 
     h = str_cmp(&a->key->cfname, &b->key->cfname);
-    if (h) return h;
+    if (h != 0) return h;
     return b->key->strength - a->key->strength;
 }
 
@@ -241,10 +241,10 @@ static struct namespacekey_s *strongest_label(struct avltree_node *b) {
         c = avltree_container_of(n, struct namespacekey_s, node);
         if (c->key->defpass == pass || (c->key->constant && (!fixeddig || c->key->defpass == pass - 1))) a = c;
         n = avltree_next(n);
-    } while (n && !label_compare(n, b));
-    if (a) return a;
+    } while (n != NULL && label_compare(n, b) == 0);
+    if (a != NULL) return a;
     n = avltree_prev(b);
-    while (n && !label_compare(n, b)) {
+    while (n != NULL && label_compare(n, b) == 0) {
         c = avltree_container_of(n, struct namespacekey_s, node);
         if (c->key->defpass == pass || (c->key->constant && (!fixeddig || c->key->defpass == pass - 1))) a = c;
         n = avltree_prev(n);
@@ -259,27 +259,27 @@ Label *find_label(const str_t *name, Namespace **here) {
     Label label;
 
     tmp.key = &label;
-    if (name->len > 1 && !name->data[1]) tmp.key->cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) tmp.key->cfname = *name;
     else str_cfcpy(&tmp.key->cfname, name);
     tmp.hash = str_hash(&tmp.key->cfname);
 
     while (context_stack.bottom < p) {
         Namespace *context = context_stack.stack[--p].normal;
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
-        if (b) {
+        if (b != NULL) {
             c = strongest_label(b);
-            if (c) {
-                if (here) *here = context;
+            if (c != NULL) {
+                if (here != NULL) *here = context;
                 return c->key;
             }
         }
     }
     b = avltree_lookup(&tmp.node, &builtin_namespace->members, label_compare);
-    if (b) {
-        if (here) *here = builtin_namespace;
+    if (b != NULL) {
+        if (here != NULL) *here = builtin_namespace;
         return avltree_container_of(b, struct namespacekey_s, node)->key;
     }
-    if (here) *here = NULL;
+    if (here != NULL) *here = NULL;
     return NULL;
 }
 
@@ -289,14 +289,14 @@ Label *find_label2(const str_t *name, Namespace *context) {
     Label label;
 
     tmp.key = &label;
-    if (name->len > 1 && !name->data[1]) tmp.key->cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) tmp.key->cfname = *name;
     else str_cfcpy(&tmp.key->cfname, name);
     tmp.hash = str_hash(&tmp.key->cfname);
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare);
-    if (!b) return NULL;
+    if (b == NULL) return NULL;
     c = strongest_label(b);
-    return c ? c->key : NULL;
+    return (c != NULL) ? c->key : NULL;
 }
 
 static struct {
@@ -312,15 +312,15 @@ Label *find_label3(const str_t *name, Namespace *context, uint8_t strength) {
     Label label;
 
     tmp.key = &label;
-    if (name->len > 1 && !name->data[1]) tmp.key->cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) tmp.key->cfname = *name;
     else str_cfcpy(&tmp.key->cfname, name);
     tmp.hash = str_hash(&tmp.key->cfname);
     tmp.key->strength = strength;
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare2);
-    if (!b) return NULL;
+    if (b == NULL) return NULL;
     c = avltree_container_of(b, struct namespacekey_s, node);
-    return c ? c->key : NULL;
+    return (c != NULL) ? c->key : NULL;
 }
 
 Label *find_anonlabel(int32_t count) {
@@ -342,15 +342,15 @@ Label *find_anonlabel(int32_t count) {
     while (context_stack.bottom < p) {
         context = context_stack.stack[--p].normal;
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
-        if (b) {
+        if (b != NULL) {
             c = strongest_label(b);
-            if (c) return c->key;
+            if (c != NULL) return c->key;
         }
     }
     b = avltree_lookup(&tmp.node, &builtin_namespace->members, label_compare);
     if (b) {
         c = avltree_container_of(b, struct namespacekey_s, node);
-        return c ? c->key : NULL;
+        return (c != NULL) ? c->key : NULL;
     }
     return NULL;
 }
@@ -370,21 +370,21 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
     tmp.hash = str_hash(&tmp.key->cfname);
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare);
-    if (!b) return NULL;
+    if (b == NULL) return NULL;
     c = strongest_label(b);
-    return c ? c->key : NULL;
+    return (c != NULL) ? c->key : NULL;
 }
 
 /* --------------------------------------------------------------------------- */
 Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *exists) {
     struct avltree_node *b;
     Label *tmp;
-    if (!lastlb2) {
+    if (lastlb2 == NULL) {
         lastlb2 = namespacekey_alloc();
     }
-    if (!lastlb) lastlb = (Label *)val_alloc(LABEL_OBJ);
+    if (lastlb == NULL) lastlb = (Label *)val_alloc(LABEL_OBJ);
 
-    if (name->len > 1 && !name->data[1]) lastlb->cfname = *name;
+    if (name->len > 1 && name->data[1] == 0) lastlb->cfname = *name;
     else str_cfcpy(&lastlb->cfname, name);
     lastlb2->hash = str_hash(&lastlb->cfname);
     lastlb2->key = lastlb;
@@ -392,7 +392,7 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *e
 
     b = avltree_insert(&lastlb2->node, &context->members, label_compare2);
     
-    if (!b) { /* new label */
+    if (b == NULL) { /* new label */
         str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
         else str_cfcpy(&lastlb->cfname, NULL);
@@ -436,7 +436,7 @@ void shadow_check(Namespace *members) {
             ns = NULL;
             break;
         }
-        if (ns && ns->len && key2->owner) {
+        if (ns != NULL && ns->len != 0 && key2->owner) {
             size_t ln = ns->len;
             ns->len = 0;
             push_context(ns);
@@ -450,7 +450,7 @@ void shadow_check(Namespace *members) {
             Obj *o2 = key2->value;
             while (context_stack.bottom < p) {
                 b = avltree_lookup(&l->node, &context_stack.stack[--p].normal->members, label_compare);
-                if (b) {
+                if (b != NULL) {
                     const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
                     Label *key1 = l2->key;
                     Obj *o1 = key1->value;
@@ -461,7 +461,7 @@ void shadow_check(Namespace *members) {
                 }
             }
             b = avltree_lookup(&l->node, &builtin_namespace->members, label_compare);
-            if (b) {
+            if (b != NULL) {
                 const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
                 Label *key1 = l2->key;
                 Obj *o1 = key1->value;
@@ -480,11 +480,11 @@ static Label *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp
         c = avltree_container_of(n, struct namespacekey_s, node);
         if (c->key->defpass == pass) a = c;
         n = avltree_next(n);
-    } while (n && !cmp(n, b));
+    } while (n != NULL && cmp(n, b) == 0);
     *x = n;
-    if (a) return a->key;
+    if (a != NULL) return a->key;
     n = avltree_prev(b);
-    while (n && !cmp(n, b)) {
+    while (n != NULL && cmp(n, b) == 0) {
         c = avltree_container_of(n, struct namespacekey_s, node);
         if (c->key->defpass == pass) return c->key;
         n = avltree_prev(n);
@@ -505,10 +505,10 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
     Label *l;
 
     n = avltree_first(members);
-    while (n) {
+    while (n != NULL) {
         l = find_strongest_label(&n, label_compare);            /* already exists */
-        if (!l || !l->name.data) continue;
-        if (l->name.len > 1 && !l->name.data[1]) continue;
+        if (l == NULL || l->name.data == NULL) continue;
+        if (l->name.len > 1 && l->name.data[1] == 0) continue;
         switch (l->value->obj->type) {
         case T_LBL:
         case T_MACRO:
@@ -523,7 +523,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                 uval_t uv;
                 struct linepos_s epoint;
                 err = l->value->obj->uval(l->value, &uv, 24, &epoint);
-                if (err) val_destroy(&err->v);
+                if (err != NULL) val_destroy(&err->v);
                 else {
                     size_t i, j = l->name.len;
                     const uint8_t *d = l->name.data;
@@ -540,7 +540,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         } else {
             Str *val = (Str *)l->value->obj->repr(l->value, NULL, SIZE_MAX);
             size_t len;
-            if (!val || val->v.obj != STR_OBJ) continue;
+            if (val == NULL || val->v.obj != STR_OBJ) continue;
             len = printable_print2(l->name.data, flab, l->name.len);
             padding(len, EQUAL_COLUMN, flab);
             if (l->constant) fputs("= ", flab);
@@ -565,15 +565,15 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
         Obj *o  = l2->value;
         Namespace *ns;
 
-        if (l2->name.len < 2 || l2->name.data[1]) {
+        if (l2->name.len < 2 || l2->name.data[1] != 0) {
             Str *val = (Str *)l2->value->obj->repr(l2->value, NULL, SIZE_MAX);
-            if (val) {
+            if (val != NULL) {
                 if (val->v.obj == STR_OBJ) {
                     const struct file_s *file = l2->file_list->file;
                     linepos_t epoint = &l2->epoint;
                     printable_print((uint8_t *)file->realname, flab);
                     fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(get_line(file, epoint->line), epoint->pos, file->coding == E_UTF8));
-                    if (prefix->len) {
+                    if (prefix->len != 0) {
                         printable_print2(prefix->data, flab, prefix->len);
                         putc('.', flab);
                     }
@@ -602,8 +602,8 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
             break;
         }
 
-        if (ns && ns->len && l2->owner) {
-            if (l2->name.len < 2 || l2->name.data[1]) {
+        if (ns != NULL && ns->len != 0 && l2->owner) {
+            if (l2->name.len < 2 || l2->name.data[1] != 0) {
                 str_t newprefix;
                 uint8_t *s;
                 size_t ln = ns->len;
@@ -612,7 +612,7 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
                 newprefix.len += !!prefix->len;
                 s = (uint8_t *)mallocx(newprefix.len);
                 newprefix.data = s;
-                if (prefix->len) {
+                if (prefix->len != 0) {
                     memcpy(s, prefix->data, prefix->len);
                     s += prefix->len;
                     *s++ = '.';
@@ -632,10 +632,10 @@ void labelprint(void) {
     struct linepos_s nopoint = {0, 0};
     int err;
 
-    if (arguments.label[0] == '-' && !arguments.label[1]) {
+    if (arguments.label[0] == '-' && arguments.label[1] == 0) {
         flab = stdout;
     } else {
-        if (!(flab = file_open(arguments.label, "wt"))) {
+        if ((flab = file_open(arguments.label, "wt")) == NULL) {
             err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
             return;
         }
@@ -651,7 +651,7 @@ void labelprint(void) {
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
-    if (err && errno) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
+    if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
 }
 
 void new_builtin(const char *ident, Obj *val) {
@@ -697,7 +697,7 @@ void init_variables(void)
 }
 
 void destroy_lastlb(void) {
-    if (lastlb) {
+    if (lastlb != NULL) {
         lastlb->name.data = NULL;
         lastlb->cfname.data = NULL;
         lastlb->value = (Obj *)ref_none();
@@ -712,8 +712,8 @@ void destroy_variables(void)
     val_destroy(&root_namespace->v);
     val_destroy(&cheap_context->v);
     destroy_lastlb();
-    if (lastlb2) namespacekey_free(lastlb2);
-    while (context_stack.p) {
+    if (lastlb2 != NULL) namespacekey_free(lastlb2);
+    while (context_stack.p != 0) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
         val_destroy(&c->cheap->v);

@@ -381,7 +381,7 @@ static int funcargs_same(const Obj *o1, const Obj *o2) {
 
 static void struct_destroy(Obj *o1) {
     Struct *v1 = (Struct *)o1;
-    while (v1->argc) {
+    while (v1->argc != 0) {
         --v1->argc;
         free((char *)v1->param[v1->argc].cfname.data);
         free((char *)v1->param[v1->argc].init.data);
@@ -398,7 +398,7 @@ static void struct_garbage(Obj *o1, int i) {
         ((Obj *)v1->names)->refcount--;
         return;
     case 0:
-        while (v1->argc) {
+        while (v1->argc != 0) {
             --v1->argc;
             free((char *)v1->param[v1->argc].cfname.data);
             free((char *)v1->param[v1->argc].init.data);
@@ -421,8 +421,8 @@ static int struct_same(const Obj *o1, const Obj *o2) {
     if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc) return 0;
     if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return 0;
     for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init)) return 0;
+        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return 0;
+        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return 0;
     }
     return 1;
 }

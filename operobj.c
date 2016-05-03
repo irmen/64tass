@@ -95,7 +95,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     size_t len, len2;
     uint8_t *s;
     Str *v;
-    if (!epoint) return NULL;
+    if (epoint == NULL) return NULL;
     txt = v1->name;
     len = strlen(txt);
     len2 = len + 8;

@@ -55,7 +55,7 @@ Obj *val_alloc(Type *obj) {
     size_t p = (obj->length + (ALIGN - 1)) / ALIGN;
     Slot **c = &values_free[p];
     Obj *val = (Obj *)*c;
-    if (!val) {
+    if (val == NULL) {
         size_t i, size = p * ALIGN;
         Slot *slot;
         Slotcoll **s = &slotcoll[p];
@@ -88,10 +88,10 @@ void garbage_collect(void) {
 
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
-        for (vals = slotcoll[j]; vals; vals = vals->next) {
+        for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
             for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
-                if (val->obj->garbage) {
+                if (val->obj->garbage != NULL) {
                     val->obj->garbage(val, -1);
                     val->refcount |= SIZE_MSB;
                 }
@@ -101,10 +101,10 @@ void garbage_collect(void) {
 
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
-        for (vals = slotcoll[j]; vals; vals = vals->next) {
+        for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
             for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
-                if (val->obj->garbage) {
+                if (val->obj->garbage != NULL) {
                     if (val->refcount > SIZE_MSB) {
                         val->refcount -= SIZE_MSB;
                         val->obj->garbage(val, 1);
@@ -116,12 +116,12 @@ void garbage_collect(void) {
 
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
-        for (vals = slotcoll[j]; vals; vals = vals->next) {
+        for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
             for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
-                if (!(val->refcount & ~SIZE_MSB)) {
+                if ((val->refcount & ~SIZE_MSB) == 0) {
                     val->refcount = 1;
-                    if (val->obj->garbage) val->obj->garbage(val, 0);
+                    if (val->obj->garbage != NULL) val->obj->garbage(val, 0);
                     else obj_destroy(val);
                     value_free(val);
                 }
@@ -131,7 +131,7 @@ void garbage_collect(void) {
 }
 
 void val_destroy(Obj *val) {
-    if (!val->refcount) {
+    if (val->refcount == 0) {
         obj_destroy(val);
         return;
     }
@@ -154,7 +154,7 @@ int val_print(Obj *v1, FILE *f) {
     int len;
     referenceit = 0;
     err = v1->obj->repr(v1, &nopoint, SIZE_MAX);
-    if (err) {
+    if (err != NULL) {
         if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);
         else len = printable_print2((uint8_t *)err->obj->name, f, strlen(err->obj->name));
         val_destroy(err);
@@ -194,7 +194,7 @@ void destroy_values(void)
 
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         Slotcoll *s = slotcoll[j];
-        while (s) {
+        while (s != NULL) {
             Slotcoll *old = s;
             s = s->next;
             free(old);
