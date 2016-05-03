@@ -182,13 +182,13 @@ static void putlw(int w, FILE *f) {
 
 static void padding(size_t size, FILE *f) {
     while (size >= 0x80000000) {
-        if (fseek(f, 0x40000000, SEEK_CUR)) goto err;
+        if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
         size -= 0x40000000;
     }
     if ((long)size > 256 && fseek(f, size, SEEK_CUR) == 0) {
         return;
     }
-err:while (size--) if (putc(0, f) == EOF) break;
+err:while ((size--) != 0) if (putc(0, f) == EOF) break;
 }
 
 static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {

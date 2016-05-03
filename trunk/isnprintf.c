@@ -355,7 +355,7 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
     p->width -= i;
     PAD_RIGHT(p);
     while (i-- > 0) { /* put the string */
-        if (*tmp & 0x80) tmp += utf8in(tmp, &ch); else ch = *tmp++;
+        if ((*tmp & 0x80) != 0) tmp += utf8in(tmp, &ch); else ch = *tmp++;
         PUT_CHAR(ch);
     }
     PAD_LEFT(p);
@@ -557,7 +557,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                         epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, data.pf - (char *)((Str *)v[0].val)->data - 1);
                         msg.data = (uint8_t *)data.pf - 1;
                         ch = (uint8_t)*data.pf;
-                        if (ch & 0x80) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
+                        if ((ch & 0x80) != 0) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
                         err_msg_not_defined(&msg, &epoint2);
                         err = star_args(&data);
                         if (err != NULL) goto error;

@@ -49,7 +49,7 @@ int str_hash(const str_t *s) {
     unsigned int h;
     if (l == 0) return 0;
     h = *s2 << 7;
-    while (l--) h = (1000003 * h) ^ *s2++;
+    while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= s->len;
     return h & ((~(unsigned int)0) >> 1);
 }
@@ -74,9 +74,9 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
         return;
     }
     l = s2->len; d = s2->data;
-    if (!arguments.caseinsensitive) {
+    if (!arguments.caseinsensitive != 0) {
         for (i = 0; i < l; i++) {
-            if (d[i] & 0x80) {
+            if ((d[i] & 0x80) != 0) {
                 unfkc(&cache, s2, 0);
                 s1->len = cache.len;
                 s1->data = cache.data;
@@ -90,7 +90,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     for (i = 0; i < l; i++) {
         uint8_t *s, ch = d[i];
         if (ch < 'A' || (ch > 'Z' && ch < 0x80)) continue;
-        if (ch & 0x80) {
+        if ((ch & 0x80) != 0) {
             unfkc(&cache, s2, 1);
             s1->len = cache.len;
             s1->data = cache.data;
@@ -113,7 +113,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
                 s[i] = ch | 0x20;
                 continue;
             }
-            if (ch & 0x80) {
+            if ((ch & 0x80) != 0) {
                 unfkc(&cache, s2, 1);
                 s1->len = cache.len;
                 s1->data = cache.data;
@@ -143,7 +143,7 @@ linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
     if (utf8) return pos + 1;
     s = l = 0;
     while (s < pos) {
-        if (!line[s]) break;
+        if (line[s] == 0) break;
         s += utf8len(line[s]);
         l++;
     }
@@ -385,7 +385,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     closefile(fin);
     if (fp != fin->len) {
         fin->len = fp;
-        if (fin->len) {
+        if (fin->len != 0) {
             fin->data = (uint8_t*)reallocx(fin->data, fin->len);
         }
     }

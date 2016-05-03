@@ -189,7 +189,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
     int charind, offset;
     int found = 0, ind, hits = 0;
 
-    if(((my_optopt = argv[my_optind][1]) != '-') && ! argv[my_optind][2]) {
+    if(((my_optopt = argv[my_optind][1]) != '-') && argv[my_optind][2] == 0) {
       int c;
       
       ind = shortoff;

@@ -360,7 +360,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
         s = str;
         l = padding(l, HEX_COLUMN);
         while (len != 0) {
-            if (!lcol--) {
+            if ((lcol--) == 0) {
                 *s = 0;
                 fputs(str + 1, flist);
                 l += s - str - 1;

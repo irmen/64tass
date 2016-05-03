@@ -111,7 +111,7 @@ int mtranslate(struct file_s *cfile)
     mline = &macro_parameters.current->pline;
 
     q=p=0;
-    for (; (ch = here()); lpoint.pos++) {
+    for (; (ch = here()) != 0; lpoint.pos++) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
         else if ((ch == ';') && q == 0) { q = 4; }
@@ -576,7 +576,7 @@ void get_macro_params(Obj *v) {
         lpoint.pos++;
     }
     if (i != len) {
-        if (i) {
+        if (i != 0) {
             if (i > SIZE_MAX / sizeof(new_macro.param[0])) err_msg_out_of_memory(); /* overflow */
             new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, i * sizeof(new_macro.param[0]));
         } else {
@@ -668,7 +668,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
-            fixeddig=0;
+            fixeddig = 0;
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;

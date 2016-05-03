@@ -211,7 +211,7 @@ int registerobj_createnames(uint32_t registers) {
 
     name[0] = 'a';
     name[1] = 0;
-    for (; regs != 0; regs >>= 1, name[0]++) if (regs & 1) {
+    for (; regs != 0; regs >>= 1, name[0]++) if ((regs & 1) != 0) {
         Register *reg = new_register();
         reg->val[0] = name[0];
         reg->data = reg->val;
