@@ -185,7 +185,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     }
     if (sz == 0) out[sz] = 0;
     else sz--;
-    slen = 1 + neg;
+    slen = neg ? 2 : 1;
     ten = 10;
     r = out[sz];
     while (r >= ten) {
@@ -325,21 +325,22 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
     size_t i, len1, len2;
     digit_t *v1, *v2, *v;
-    digit_t c;
+    digit_t d;
+    int c;
     len1 = intlen(vv1);
     len2 = intlen(vv2);
     if (len1 <= 1 && len2 <= 1) {
-        c = vv1->val[0] + vv2->val[0];
+        d = vv1->val[0] + vv2->val[0];
         v = vv->val;
         vv->data = v;
-        if (c < vv1->val[0]) {
-            v[0] = c;
+        if (d < vv1->val[0]) {
+            v[0] = d;
             v[1] = 1;
             vv->len = 2;
             return;
         }
-        v[0] = c;
-        vv->len = (v[0] != 0);
+        v[0] = d;
+        vv->len = (v[0] != 0) ? 1 : 0;
         return;
     }
     if (len1 < len2) {
@@ -351,18 +352,18 @@ static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
     v1 = vv1->data; v2 = vv2->data;
     for (c = i = 0; i < len2; i++) {
         if (c) {
-            c = v1[i];
-            c = (v[i] = c + v2[i] + 1) <= c;
+            d = v1[i];
+            c = ((v[i] = d + v2[i] + 1) <= d);
             continue;
         }
-        c = v1[i];
-        c = (v[i] = c + v2[i]) < c;
+        d = v1[i];
+        c = ((v[i] = d + v2[i]) < d);
     }
     for (;c && i < len1; i++) {
-        c = (v[i] = v1[i] + 1) < 1;
+        c = ((v[i] = v1[i] + 1) < 1);
     }
     for (;i < len1; i++) v[i] = v1[i];
-    if (c) v[i++] = c;
+    if (c) v[i++] = 1;
     while (i != 0 && v[i - 1] == 0) i--;
     if (v != vv->val && i <= sizeof(vv->val)/sizeof(vv->val[0])) {
         memcpy(vv->val, v, i * sizeof(digit_t));
@@ -377,7 +378,7 @@ static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
 static void isub(const Int *vv1, const Int *vv2, Int *vv) {
     size_t i, len1, len2;
     digit_t *v1, *v2, *v;
-    digit_t c;
+    int c;
     int neg;
     len1 = intlen(vv1);
     len2 = intlen(vv2);
@@ -391,7 +392,7 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
             return;
         }
         v[0] = d1 - d2;
-        vv->len = (v[0] != 0);
+        vv->len = (v[0] != 0) ? 1 : 0;
         return;
     }
     if (len1 < len2) {
@@ -422,15 +423,15 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
     v1 = vv1->data; v2 = vv2->data;
     for (c = i = 0; i < len2; i++) {
         if (c) {
-            c = v1[i] <= v2[i];
+            c = (v1[i] <= v2[i]);
             v[i] = v1[i] - v2[i] - 1;
             continue;
         } 
-        c = v1[i] < v2[i];
+        c = (v1[i] < v2[i]);
         v[i] = v1[i] - v2[i];
     }
     for (;c && i < len1; i++) {
-        c = v1[i] == 0;
+        c = (v1[i] == 0);
         v[i] = v1[i] - 1;
     }
     for (;i < len1; i++) v[i] = v1[i];
@@ -464,7 +465,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
             return;
         }
         v[0] = c;
-        vv->len = (v[0] != 0);
+        vv->len = (v[0] != 0) ? 1 : 0;
         return;
     }
     v = inew(&tmp, sz);
@@ -541,7 +542,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
     } else {
         size_t i;
         int k, d;
-        digit_t wm1, wm2, c, *v0, *vk, *w0, *ak, *a;
+        digit_t wm1, wm2, *v0, *vk, *w0, *ak, *a;
         Int tmp1, tmp2, tmp3;
 
         if (len1 + 1 < 1) err_msg_out_of_memory(); /* overflow */
@@ -569,6 +570,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
 
         wm1 = w0[len2 - 1]; wm2 = w0[len2 - 2];
         for (vk = v0 + k, ak = a + k; vk-- > v0;) {
+            int c = 0;
             digit_t vtop = vk[len2];
             twodigits_t vvv = ((twodigits_t)vtop << SHIFT) | vk[len2 - 1];
             digit_t q = (digit_t)(vvv / wm1);
@@ -579,12 +581,12 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
                 r += wm1;
                 if (r < wm1) break;
             }
-            for (e = c = i = 0; i < len2; i++) {
+            for (e = i = 0; i < len2; i++) {
                 digit_t t;
                 e += (twodigits_t)q * w0[i];
                 t = e; e >>= SHIFT;
                 if (c) {
-                    c = vk[i] <= t;
+                    c = (vk[i] <= t);
                     vk[i] = vk[i] - t - 1;
                     continue;
                 } 
@@ -592,14 +594,14 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
                 vk[i] -= t;
             }
             if (c ? (vtop <= e) : (vtop < e)) {
-                for (c = i = 0; i < len2; i++) {
+                c = 0;
+                for (i = 0; i < len2; i++) {
+                    digit_t t = vk[i];
                     if (c) {
-                        c = vk[i];
-                        c = (vk[i] = c + w0[i] + 1) <= c;
+                        c = ((vk[i] = t + w0[i] + 1) <= t);
                         continue;
                     }
-                    c = vk[i];
-                    c = (vk[i] = c + w0[i]) < c;
+                    c = ((vk[i] = t + w0[i]) < t);
                 }
                 --q;
             }
@@ -668,7 +670,8 @@ static MUST_CHECK Int *ilshift(const Int *vv1, uval_t s) {
     bit = s % SHIFT;
     v1 = vv1->data;
     len1 = intlen(vv1);
-    sz = len1 + word + (bit > 0);
+    sz = len1 + word;
+    if (bit > 0) sz++;
     vv = new_int();
     v = inew(vv, sz);
     v2 = v + word;
@@ -731,21 +734,23 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
-    digit_t c;
     Int *vv = new_int();
     len1 = intlen(vv1);
     len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
+        digit_t c;
+        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c &= neg2 ? -vv2->val[0] : vv2->val[0];
-        neg1 &= neg2;
+        if (!neg2) neg1 = 0;
         if (neg1) c = -c;
         v = vv->val;
         vv->data = v;
         v[0] = c;
-        vv->len = neg1 ? -(v[0] != 0) : (v[0] != 0);
+        l = (c != 0) ? 1 : 0;
+        vv->len = neg1 ? -l : l;
         return vv;
     }
     if (len1 < len2) {
@@ -755,28 +760,29 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
     v1 = vv1->data; v2 = vv2->data;
     neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
 
-    sz = (neg2 ? len1 : len2) + (neg1 & neg2);
+    sz = neg2 ? len1 : len2;
+    if (neg1 && neg2) sz++;
     v = inew(vv, sz);
 
     if (neg1) {
         if (neg2) {
-            int c1 = 1, c2 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            int c1 = 1, c2 = 1, c = 1;
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c1) {
-                    c1 = e == 0;
+                    c1 = (e == 0);
                     if (c2) {
-                        c2 = f == 0;
+                        c2 = (f == 0);
                         g = (~e + 1) & (~f + 1);
                     } else g = (~e + 1) & ~f;
                 } else {
                     if (c2) {
-                        c2 = f == 0;
+                        c2 = (f == 0);
                         g = ~e & (~f + 1);
                     } else g = ~e & ~f;
                 }
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
@@ -789,24 +795,24 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
                 for (; i < len1; i++) {
                     digit_t e = v1[i], g;
                     if (c1) {
-                        c1 = e == 0;
+                        c1 = (e == 0);
                         g = ~e + 1;
                     } else g = ~e;
                     if (c) {
-                        c = g == 0;
+                        c = (g == 0);
                         v[i] = ~g + 1;
                         continue;
                     }
                     v[i] = ~g;
                 }
             }
-            v[i] = c;
+            v[i] = c ? 1 : 0;
         } else {
             int c1 = 1;
             for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i];
                 if (c1) {
-                    c1 = e == 0;
+                    c1 = (e == 0);
                     v[i] = (~e + 1) & f;
                     continue;
                 }
@@ -838,21 +844,23 @@ static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
-    digit_t c;
     Int *vv = new_int();
     len1 = intlen(vv1);
     len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
+        digit_t c;
+        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c |= neg2 ? -vv2->val[0] : vv2->val[0];
-        neg1 |= neg2;
+        if (neg2) neg1 = 1;
         if (neg1) c = -c;
         v = vv->val;
         vv->data = v;
         v[0] = c;
-        vv->len = neg1 ? -(v[0] != 0) : (v[0] != 0);
+        l = (c != 0) ? 1 : 0;
+        vv->len = neg1 ? -l : l;
         return vv;
     }
     if (len1 < len2) {
@@ -862,13 +870,15 @@ static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {
     v1 = vv1->data; v2 = vv2->data;
     neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
 
-    sz = (neg2 ? len2 : len1) + (neg1 | neg2);
+    sz = neg2 ? len2 : len1;
+    if (neg1 || neg2) sz++;
     v = inew(vv, sz);
 
     if (neg1) {
+        int c = 1;
         if (neg2) {
             int c1 = 1, c2 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c1) {
                     c1 = e == 0;
@@ -891,7 +901,7 @@ static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {
             }
         } else {
             int c1 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c1) {
                     c1 = e == 0;
@@ -918,51 +928,53 @@ static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {
                 v[i] = ~g;
             }
         }
-        v[i] = c;
+        v[i] = c ? 1 : 0;
     } else {
         if (neg2) {
-            int c2 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            int c2 = 1, c = 1;
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c2) {
-                    c2 = f == 0;
+                    c2 = (f == 0);
                     g = e | (~f + 1);
                 } else g = e | ~f;
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
                 v[i] = ~g;
             }
-            v[i] = c;
+            v[i] = c ? 1 : 0;
         } else {
             for (i = 0; i < len2; i++) v[i] = v1[i] | v2[i];
             for (; i < len1; i++) v[i] = v1[i];
         }
     }
-    return (Int *)normalize(vv, v, sz, neg1 | neg2);
+    return (Int *)normalize(vv, v, sz, neg1 || neg2);
 }
 
 static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
-    digit_t c;
     Int *vv = new_int();
     len1 = intlen(vv1);
     len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
+        digit_t c;
+        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c ^= neg2 ? -vv2->val[0] : vv2->val[0];
-        neg1 ^= neg2;
+        if (neg2) neg1 = !neg1;
         if (neg1) c = -c;
         v = vv->val;
         vv->data = v;
         v[0] = c;
-        vv->len = neg1 ? -(v[0] != 0) : (v[0] != 0);
+        l = (c != 0) ? 1 : 0;
+        vv->len = neg1 ? -l : l;
         return vv;
     }
     if (len1 < len2) {
@@ -972,7 +984,7 @@ static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
     v1 = vv1->data; v2 = vv2->data;
     neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
 
-    sz = len1 + (neg1 ^ neg2);
+    sz = (neg1 != neg2) ? (len1 + 1) : len1;
     v = inew(vv, sz);
 
     if (neg1) {
@@ -1003,15 +1015,15 @@ static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
                 v[i] = c2 ? g : ~g;
             }
         } else {
-            int c1 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            int c1 = 1, c = 1;
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c1) {
-                    c1 = e == 0;
+                    c1 = (e == 0);
                     g = (~e + 1) ^ f;
                 } else g = ~e ^ f;
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
@@ -1020,29 +1032,29 @@ static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
             for (; i < len1; i++) {
                 digit_t e = v1[i], g;
                 if (c1) {
-                    c1 = e == 0;
+                    c1 = (e == 0);
                     g = ~e + 1;
                 } else g = ~e;
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
                 v[i] = ~g;
             }
-            v[i] = c;
+            v[i] = c ? 1 : 0;
         }
     } else {
         if (neg2) {
-            int c2 = 1;
-            for (c = 1, i = 0; i < len2; i++) {
+            int c2 = 1, c = 1;
+            for (i = 0; i < len2; i++) {
                 digit_t e = v1[i], f = v2[i], g;
                 if (c2) {
-                    c2 = f == 0;
+                    c2 = (f == 0);
                     g = e ^ (~f + 1);
                 } else g = e ^ ~f;
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
@@ -1052,19 +1064,19 @@ static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
                 digit_t e = v1[i], g;
                 g = c2 ? e : ~e;
                 if (c) {
-                    c = g == 0;
+                    c = (g == 0);
                     v[i] = ~g + 1;
                     continue;
                 }
                 v[i] = ~g;
             }
-            v[i] = c;
+            v[i] = c ? 1 : 0;
         } else {
             for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
             for (; i < len1; i++) v[i] = v1[i];
         }
     }
-    return (Int *)normalize(vv, v, sz, neg1 ^ neg2);
+    return (Int *)normalize(vv, v, sz, neg1 != neg2);
 }
 
 static ssize_t icmp(const Int *vv1, const Int *vv2) {
@@ -1091,7 +1103,7 @@ MUST_CHECK Int *int_from_int(int i) {
         return v;
     }
     v->val[0] = i;
-    v->len = (i != 0);
+    v->len = (i != 0) ? 1 : 0;
     return v;
 }
 
@@ -1116,7 +1128,7 @@ MUST_CHECK Int *int_from_uval(uval_t i) {
     Int *v = new_int();
     v->data = v->val;
     v->val[0] = i;
-    v->len = (i != 0);
+    v->len = (i != 0) ? 1 : 0;
     return v;
 }
 
@@ -1129,7 +1141,7 @@ MUST_CHECK Int *int_from_ival(ival_t i) {
         return v;
     }
     v->val[0] = i;
-    v->len = (i != 0);
+    v->len = (i != 0) ? 1 : 0;
     return v;
 }
 
@@ -1209,7 +1221,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
                 bits = uv = 0;
             } else bits += 8;
         }
-        uv |= (c == 0xff) << bits;
+        if (c == 0xff) uv |= 1 << bits;
         d[j] = uv;
     } else {
         for (;i < len1; i++) {
@@ -1226,7 +1238,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
 }
 
 MUST_CHECK Int *int_from_bits(const Bits *v1) {
-    unsigned int inv;
+    int inv;
     size_t i, sz;
     digit_t *d;
     const bdigit_t *b;
@@ -1239,7 +1251,7 @@ MUST_CHECK Int *int_from_bits(const Bits *v1) {
 
     inv = v1->len < 0;
     sz = inv ? -v1->len : v1->len; /* it's - for the additional length  */
-    if (sz < inv) err_msg_out_of_memory(); /* overflow */
+    if (sz == 0 && inv) err_msg_out_of_memory(); /* overflow */
     v = new_int();
     d = inew(v, sz);
 
@@ -1252,7 +1264,7 @@ MUST_CHECK Int *int_from_bits(const Bits *v1) {
         for (; i < sz - 1; i++) {
             d[i] = b[i];
         }
-        d[i] = c;
+        d[i] = c ? 1 : 0;
     } else memcpy(d, b, sz * sizeof(digit_t));
 
     return (Int *)normalize(v, d, sz, inv);
@@ -1426,7 +1438,6 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
     Error *err;
     Obj *val;
     ival_t shift;
-    int i;
     ssize_t cmp;
     switch (op->op->op) {
     case O_CMP:
@@ -1470,11 +1481,10 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         } else imul(v1, v2, v);
         return (Obj *)v;
     case O_DIV:
-        i = (v2->len < 0);
         val = idivrem(v1, v2, 1, op->epoint3);
         if (val->obj != INT_OBJ) return val;
         v = (Int *)val;
-        if ((v1->len < 0) ^ i) {
+        if ((v1->len < 0) != (v2->len < 0)) {
             Int *vv = new_int();
             if (v->len < 0) {
                 iadd(v, int_value[1], vv);
@@ -1488,7 +1498,7 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         val = idivrem(v1, v2, 0, op->epoint3);
         if (val->obj != INT_OBJ) return val;
         v = (Int *)val;
-        if ((v->len < 0) ^ (v2->len < 0)) {
+        if ((v->len < 0) != (v2->len < 0)) {
             Int *vv = new_int();
             if (v->len < 0) {
                 if (v2->len < 0) {
