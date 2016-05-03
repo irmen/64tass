@@ -88,7 +88,7 @@ static void garbage(Obj *o1, int i) {
         return;
     case 1:
         v = v1->value;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -181,7 +181,7 @@ int pop_context(void) {
 
 void reset_context(void) {
     context_stack.bottom = 0;
-    while (context_stack.p) {
+    while (context_stack.p != 0) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
         val_destroy(&c->cheap->v);
@@ -348,7 +348,7 @@ Label *find_anonlabel(int32_t count) {
         }
     }
     b = avltree_lookup(&tmp.node, &builtin_namespace->members, label_compare);
-    if (b) {
+    if (b != NULL) {
         c = avltree_container_of(b, struct namespacekey_s, node);
         return (c != NULL) ? c->key : NULL;
     }
@@ -528,7 +528,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                     size_t i, j = l->name.len;
                     const uint8_t *d = l->name.data;
                     for (i = 0; i < j; i++) {
-                        if (d[i] & 0x80) break;
+                        if ((d[i] & 0x80) != 0) break;
                     }
                     if (i == j) {
                         fprintf(flab, "al %" PRIx32 " .", uv);
