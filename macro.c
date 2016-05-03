@@ -40,7 +40,7 @@ Type *SEGMENT_OBJ = &segment_obj;
 
 static void destroy(Obj *o1) {
     Macro *v1 = (Macro *)o1;
-    while (v1->argc) {
+    while (v1->argc != 0) {
         --v1->argc;
         free((char *)v1->param[v1->argc].cfname.data);
         free((char *)v1->param[v1->argc].init.data);
@@ -53,8 +53,8 @@ static int same(const Obj *o1, const Obj *o2) {
     size_t i;
     if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return 0;
     for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init)) return 0;
+        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return 0;
+        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return 0;
     }
     return 1;
 }
@@ -93,7 +93,7 @@ static struct {
 } macro_parameters = {0, 0, NULL, NULL};
 
 int in_macro(void) {
-    return !!macro_parameters.p;
+    return macro_parameters.p != 0;
 }
 
 /* ------------------------------------------------------------------------------ */
@@ -107,15 +107,15 @@ int mtranslate(struct file_s *cfile)
 
     if (lpoint.line >= cfile->lines) return 1;
     llist = pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
-    if (!macro_parameters.p) return 0;
+    if (macro_parameters.p == 0) return 0;
     mline = &macro_parameters.current->pline;
 
     q=p=0;
     for (; (ch = here()); lpoint.pos++) {
-        if (ch == '"'  && !(q & 2)) { q^=1; }
-        else if (ch == '\'' && !(q & 1)) { q^=2; }
-        else if ((ch == ';') && (!q)) { q=4; }
-        else if ((ch=='\\') && (!q)) {
+        if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
+        else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
+        else if ((ch == ';') && q == 0) { q = 4; }
+        else if ((ch=='\\') && q == 0) {
             /* normal parameter reference */
             if ((ch=pline[lpoint.pos+1]) >= '1' && ch <= '9') {
                 str_t *param = macro_parameters.current->param;
@@ -161,14 +161,14 @@ int mtranslate(struct file_s *cfile)
                     if (pline[lpoint.pos] == '}') lpoint.pos++;
                     else label.len = 0;
                 } else label.len = get_label();
-                if (label.len) {
+                if (label.len != 0) {
                     str_t *param = macro_parameters.current->param;
                     Macro *macro = (Macro *)macro_parameters.current->macro;
                     str_t cf;
                     str_cfcpy(&cf, &label);
                     for (j = 0; j < macro->argc; j++) {
                         if (macro->param[j].cfname.data == NULL) continue;
-                        if (str_cmp(&macro->param[j].cfname, &cf)) continue;
+                        if (str_cmp(&macro->param[j].cfname, &cf) != 0) continue;
                         if (param[j].data == NULL) {
                             Type *obj = macro->v.obj;
                             if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
@@ -230,7 +230,7 @@ int mtranslate(struct file_s *cfile)
         if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
         mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
     }
-    while (p && (mline->data[p-1] == ' ' || mline->data[p-1] == ' ')) p--;
+    while (p != 0 && (mline->data[p-1] == ' ' || mline->data[p-1] == ' ')) p--;
     mline->data[p]=0;
     llist = pline = mline->data; lpoint.pos = 0;
     return 0;
@@ -243,12 +243,12 @@ static size_t macro_param_find(void) {
 
     struct linepos_s opoint2, npoint2;
     opoint2.pos = lpoint.pos;
-    while ((ch=here()) && (q || (ch!=';' && (ch!=',' || pp)))) {
-        if (ch == '"'  && !(q & 2)) { q^=1; }
-        else if (ch == '\'' && !(q & 1)) { q^=2; }
-        if (!q) {
+    while ((ch=here()) != 0 && (q != 0 || (ch!=';' && (ch!=',' || pp != 0)))) {
+        if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
+        else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
+        if (q == 0) {
             if (ch == '(' || ch == '[' || ch == '{') par[pp++]=ch;
-            else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
+            else if (pp != 0 && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
         }
         lpoint.pos++;
     }
@@ -298,7 +298,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
             }
             param[p].data = pline + lpoint.pos;
             param[p].len = macro_param_find();
-            if (!param[p].len) {
+            if (param[p].len == 0) {
                 if (p < macro->argc) {
                     param[p] = macro->param[p].init;
                 } else param[p].data = NULL;
@@ -350,7 +350,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
     }
     val_destroy(macro_parameters.current->macro);
     macro_parameters.p--;
-    if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
+    if (macro_parameters.p != 0) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
     return val;
 }
 
@@ -407,7 +407,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
     }
     if (tuple != NULL) val_destroy(&tuple->v);
     else if (i < args) err_msg_argnum(args, i, i, epoint);
-    if (max) err_msg_argnum(args, max, mfunc->argc, epoint);
+    if (max != 0) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
         line_t lin = lpoint.line;
         int labelexists;
@@ -469,7 +469,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
         new_mfunc.param[i].epoint = lpoint;
         label.data = pline + lpoint.pos;
         label.len = get_label();
-        if (label.len) {
+        if (label.len != 0) {
             str_t cf;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_mfunc.param[i].epoint);break;}
             str_cpy(&new_mfunc.param[i].name, &label);
@@ -477,7 +477,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
             if (cf.data != new_mfunc.param[i].name.data) str_cfcpy(&cf, NULL);
             new_mfunc.param[i].cfname = cf;
             for (j = 0; j < i; j++) if (new_mfunc.param[j].name.data != NULL) {
-                if (!str_cmp(&new_mfunc.param[j].cfname, &cf)) break;
+                if (str_cmp(&new_mfunc.param[j].cfname, &cf) == 0) break;
             }
             if (j != i) {
                 err_msg_double_definedo(v->file_list, &new_mfunc.param[j].epoint, &label, &new_mfunc.param[i].epoint);
@@ -512,7 +512,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
         lpoint.pos++;
     }
     if (i != len) {
-        if (i) {
+        if (i != 0) {
             if (i > SIZE_MAX / sizeof(new_mfunc.param[0])) err_msg_out_of_memory(); /* overflow */
             new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, i * sizeof(new_mfunc.param[0]));
         } else {
@@ -543,14 +543,14 @@ void get_macro_params(Obj *v) {
         epoints[i] = lpoint;
         label.data = pline + lpoint.pos;
         label.len = get_label();
-        if (label.len) {
+        if (label.len != 0) {
             str_t cf;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
             str_cfcpy(&cf, &label);
             if (cf.data == label.data) str_cpy(&new_macro.param[i].cfname, &label);
             else {str_cfcpy(&cf, NULL); new_macro.param[i].cfname = cf;}
             for (j = 0; j < i; j++) if (new_macro.param[j].cfname.data != NULL) {
-                if (!str_cmp(&new_macro.param[j].cfname, &cf)) break;
+                if (str_cmp(&new_macro.param[j].cfname, &cf) == 0) break;
             }
             if (j != i) {
                 err_msg_double_definedo(macro->file_list, &epoints[j], &label, &epoints[i]);

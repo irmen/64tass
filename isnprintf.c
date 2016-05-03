@@ -99,7 +99,7 @@ static size_t largs;
 static struct values_s dummy = {NULL, {0, 0}};
 
 static inline const struct values_s *next_arg(void) {
-    if (!none && largs > listp) return &list[listp++];
+    if (none == 0 && largs > listp) return &list[listp++];
     listp++;
     dummy.val = &none_value->v;
     return &dummy;
@@ -113,7 +113,7 @@ static inline void PUT_CHAR(uint32_t c) {
         p = (uint8_t *)reallocx(p, returnsize);
         return_value.data = p;
     }
-    if (c && c < 0x80) p[return_value.len++] = c; else {
+    if (c != 0 && c < 0x80) p[return_value.len++] = c; else {
         p = utf8out(c, p + return_value.len);
         return_value.len = p - return_value.data;
     }
@@ -131,12 +131,12 @@ static inline void PAD_RIGHT(struct DATA *p)
 static inline void PAD_RIGHT2(struct DATA *p, char c, int minus)
 {
     if (minus || p->justify == RIGHT || p->space == FOUND) p->width--;
-    if (c && p->square == FOUND) p->width--;
+    if (c != 0 && p->square == FOUND) p->width--;
     if (p->pad != '0') PAD_RIGHT(p);
     if (minus) PUT_CHAR('-');
     else if (p->justify == RIGHT) PUT_CHAR('+');
     else if (p->space == FOUND) PUT_CHAR(' ');
-    if (c && p->square == FOUND) PUT_CHAR(c);
+    if (c != 0 && p->square == FOUND) PUT_CHAR(c);
     if (p->pad == '0') PAD_RIGHT(p);
 }
 
@@ -232,20 +232,20 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
     bp2 = minus ? -integer->len : integer->len;
     bp = b = 0;
     do {
-        if (!bp) {
-            if (!bp2) break;
+        if (bp == 0) {
+            if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 4;
         } else bp -= 4;
         b = (integer->data[bp2] >> bp) & 0xf;
-    } while (!b);
+    } while (b == 0);
 
     p->width -= bp / 4 + bp2 * (sizeof(digit_t) * 2) + 1;
     PAD_RIGHT2(p, '$', minus);
     PUT_CHAR(hex[b]);
     do {
-        if (!bp) {
-            if (!bp2) break;
+        if (bp == 0) {
+            if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 4;
         } else bp -= 4;
@@ -279,20 +279,20 @@ static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
     bp2 = minus ? -integer->len : integer->len;
     bp = b = 0;
     do {
-        if (!bp) {
-            if (!bp2) break;
+        if (bp == 0) {
+            if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 1;
         } else bp--;
         b = (integer->data[bp2] >> bp) & 1;
-    } while (!b);
+    } while (b == 0);
 
     p->width -= bp + bp2 * (sizeof(digit_t) * 8) + 1;
     PAD_RIGHT2(p, '%', minus);
     PUT_CHAR('0' + b);
     do {
-        if (!bp) {
-            if (!bp2) break;
+        if (bp == 0) {
+            if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 1;
         } else bp--;
@@ -394,7 +394,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
 
     p->width -= strlen(tmp);
     PAD_RIGHT2(p, 0, minus);
-    while (*t) { /* the integral */
+    while (*t != 0) { /* the integral */
         PUT_CHAR(*t);
         t++;
     }
@@ -414,7 +414,7 @@ static void conv_flag(char *s, struct DATA *p)
     p->justify = NOT_FOUND;
     p->pad = ' ';
 
-    for(;s != NULL && *s; s++) {
+    for(;s != NULL && *s != 0; s++) {
         switch(*s) {
         case ' ': p->space = FOUND; break;
         case '#': p->square = FOUND; break;
@@ -482,7 +482,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     for (; data.pf < data.pfend; data.pf++) {
         if ( *data.pf == '%' ) { /* we got a magic % cookie */
             conv_flag((char *)0, &data); /* initialise format flags */
-            for (state = 1; data.pf < data.pfend - 1 && state;) {
+            for (state = 1; data.pf < data.pfend - 1 && state != 0;) {
                 switch (*(++data.pf)) {
                 case 'e':
                 case 'E':  /* Exponent double */
@@ -575,7 +575,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     }
     if (listp != largs) {
         err_msg_argnum(args, listp + 1, listp + 1, epoint);
-    } else if (none) {
+    } else if (none != 0) {
         err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : epoint);
     }
     str = new_str(0);
