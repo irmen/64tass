@@ -62,7 +62,7 @@ static int same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     Float *v1 = (Float *)o1;
-    return truth_reference(!!v1->real);
+    return truth_reference(v1->real != 0.0);
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
@@ -92,8 +92,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     int i = 0;
     size_t len;
     len = sprintf(line, "%.10g", v1->real);
-    while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
-    if (!line[i]) {line[i++]='.';line[i++]='0';len += 2;}
+    while (line[i] != 0 && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
+    if (line[i] == 0) {line[i++]='.';line[i++]='0';len += 2;}
     if (len > maxsize) return NULL;
     v = new_str(len);
     v->chars = len;
@@ -112,7 +112,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
         return v;
     }
     *iv = v1->real;
-    if (((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) {
+    if ((((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) != 0) {
         v = new_error(ERROR_____CANT_IVAL, epoint);
         v->u.intconv.bits = bits;
         v->u.intconv.val = val_reference(o1);
@@ -131,7 +131,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
         return v;
     }
     *uv = v1->real;
-    if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
+    if (bits < 8*(int)sizeof(uval_t) && (*uv >> bits) != 0) {
         v = new_error(ERROR_____CANT_UVAL, epoint);
         v->u.intconv.bits = bits;
         v->u.intconv.val = val_reference(o1);
@@ -165,7 +165,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return (Obj *)float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
     case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
-    case O_LNOT: return truth_reference(!v1);
+    case O_LNOT: return truth_reference(v1 == 0.0);
     default: break;
     }
     return obj_oper_error(op);
@@ -202,7 +202,7 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3); 
         }
         r = fmod(v1, v2); 
-        if (r && ((v2 < 0.0) != (r < 0))) r += v2;
+        if (r != 0.0 && ((v2 < 0.0) != (r < 0))) r += v2;
         return (Obj *)new_float(r);
     case O_AND:
         r = (ival_t)floor(v1) & (ival_t)floor(v2);
@@ -225,11 +225,11 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2), op->epoint3);
     case O_RSHIFT: return (Obj *)new_float(v1 * pow(2.0, -v2));
     case O_EXP: 
-        if (!v1) {
+        if (v1 == 0.0) {
             if (v2 < 0.0) {
                 return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
             }
-            if (v2) {
+            if (v2 != 0.0) {
                 return (Obj *)new_float(0.0);
             }
             return (Obj *)new_float(1.0);
@@ -254,10 +254,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     double d;
     Obj *err;
     if (op->op == &o_LAND) {
-        return val_reference(((Float *)(op->v1))->real ? op->v2 : op->v1);
+        return val_reference((((Float *)(op->v1))->real != 0.0) ? op->v2 : op->v1);
     }
     if (op->op == &o_LOR) {
-        return val_reference(((Float *)(op->v1))->real ? op->v1 : op->v2);
+        return val_reference((((Float *)(op->v1))->real != 0.0) ? op->v1 : op->v2);
     }
     switch (op->v2->obj->type) {
     case T_FLOAT: return calc2_double(op, ((Float *)op->v1)->real, ((Float *)op->v2)->real);

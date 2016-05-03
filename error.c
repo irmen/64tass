@@ -75,7 +75,7 @@ static void garbage(Obj *o1, int i) {
             case 0:
                 break;
             case 1:
-                if (v->refcount & SIZE_MSB) {
+                if ((v->refcount & SIZE_MSB) != 0) {
                     v->refcount -= SIZE_MSB - 1;
                     v->obj->garbage(v, 1);
                 } else v->refcount++;
@@ -104,7 +104,7 @@ static void garbage(Obj *o1, int i) {
     case 0:
         return;
     case 1:
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -214,8 +214,7 @@ static int close_error(void) {
 static int new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct errorentry_s *err;
     size_t line_len;
-    int dupl;
-    dupl = close_error();
+    int dupl = close_error();
     switch (severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
@@ -242,7 +241,7 @@ static int new_error_msg(enum severity_e severity, const struct file_list_s *fli
     err->line_len = line_len;
     err->file_list = flist;
     err->epoint = *epoint;
-    if (line_len) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
+    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
     return 0;
 }
 
@@ -485,7 +484,7 @@ void err_msg(enum errors_e no, const void* prm) {
 
 static void str_name(const uint8_t *data, size_t len) {
     adderror(" '");
-    if (len) {
+    if (len != 0) {
         if (data[0] == '-') {
             adderror("-");
         } else if (data[0] == '+') {
@@ -522,11 +521,11 @@ static int notdefines_compare(const struct avltree_node *aa, const struct avltre
     const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
     int h = a->file_list - b->file_list;
-    if (h) return h;
+    if (h != 0) return h;
     h = a->epoint.line - b->epoint.line;
-    if (h) return h;
+    if (h != 0) return h;
     h = a->epoint.pos - b->epoint.pos;
-    if (h) return h;
+    if (h != 0) return h;
     return str_cmp(&a->cfname, &b->cfname);
 }
 
@@ -573,7 +572,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int dow
     } else {
         ssize_t count = name->len;
         adderror(" '");
-        while (count) {
+        while (count != 0) {
             adderror((count > 0) ? "+" : "-");
             count += (count > 0) ? -1 : 1;
         }
@@ -594,7 +593,7 @@ static void err_msg_no_addressing(atype_t addrtype, linepos_t epoint) {
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
-    for (;addrtype & 0xfff; addrtype <<= 4) {
+    for (; (addrtype & 0xfff) != 0; addrtype <<= 4) {
         const char *txt = "?";
         switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
         case A_NONE: continue;
@@ -787,7 +786,7 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     case 1: adderror("one argument"); break;
     default: sprintf(line, "%u arguments", n); adderror(line); break;
     }
-    if (num) {
+    if (num != 0) {
         sprintf(line, ", got %u", num);
         adderror(line);
     }
@@ -817,7 +816,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
             }
             included_from = cflist;
         }
-        line = err->line_len ? (((uint8_t *)err) + sizeof(struct errorentry_s)) : get_line(cflist->file, epoint->line);
+        line = (err->line_len != 0) ? (((uint8_t *)err) + sizeof(struct errorentry_s)) : get_line(cflist->file, epoint->line);
         printable_print((uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
@@ -856,7 +855,7 @@ int error_print(int fix, int newvar, int anyerr) {
     FILE *ferr;
 
     if (arguments.error != NULL) {
-        if (arguments.error[0] == '-' && !arguments.error[1]) {
+        if (arguments.error[0] == '-' && arguments.error[1] == 0) {
             ferr = stdout;
         } else {
             if ((ferr=file_open(arguments.error, "wt")) == NULL) {
@@ -921,7 +920,7 @@ int error_print(int fix, int newvar, int anyerr) {
             if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
-        case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
+        case SV_WARNING: warnings++; if (!arguments.warning || anyerr != 0) continue; break;
         case SV_CONDERROR: if (!fix) continue; errors++; break;
         case SV_NOTDEFERROR: if (newvar) continue; errors++; break;
         case SV_NONEERROR: if (noneerr) continue; errors++; break;
@@ -991,7 +990,7 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     adderror(": ");
     memset(&ps, 0, sizeof(ps));
     while (i < n) {
-        if (s[i] && !(s[i] & 0x80)) {
+        if (s[i] != 0 && (s[i] & 0x80) == 0) {
             adderror2((uint8_t *)s + i, 1);
             i++;
             continue;
@@ -1009,9 +1008,9 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
 
 void error_status(void) {
     printf("Error messages:    ");
-    if (errors) printf("%u\n", errors); else puts("None");
+    if (errors != 0) printf("%u\n", errors); else puts("None");
     printf("Warning messages:  ");
-    if (warnings) printf("%u\n", warnings); else puts("None");
+    if (warnings != 0) printf("%u\n", warnings); else puts("None");
 }
 
 linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i) {
@@ -1020,14 +1019,14 @@ linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i)
         if (q == '"' || q == '\'') {
             linecpos_t pos = epoint->pos + 1;
             size_t pp = 0;
-            while (pp < i && pline[pos]) {
+            while (pp < i && pline[pos] != 0) {
                 unsigned int ln2;
                 if (pline[pos] == q) {
                     if (pline[pos + 1] != q) break;
                     pos++;
                 }
                 ln2 = utf8len(pline[pos]);
-                if (memcmp(pline + pos, data + pp, ln2)) break;
+                if (memcmp(pline + pos, data + pp, ln2) != 0) break;
                 pos += ln2; pp += ln2;
             }
             if (pp == i) {

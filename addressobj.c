@@ -60,7 +60,7 @@ static void garbage(Obj *o1, int i) {
         return;
     case 1:
         v = v1->val;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -87,7 +87,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     addrtype = v1->type;
     ind = 99;
     buffer2[ind] = '\0';
-    while (addrtype & 0xfff) {
+    while ((addrtype & 0xfff) != 0) {
         switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
         case A_NONE:break;
         case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
@@ -123,22 +123,22 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     v = new_str(len);
     v->chars = chars;
     s = v->data;
-    if (ind) {
+    if (ind != 0) {
         memcpy(s, b2, ind);
         s += ind;
     }
-    if (str->len) {
+    if (str->len != 0) {
         memcpy(s, str->data, str->len);
         s += str->len;
     }
-    if (ind2) memcpy(s, buffer, ind2);
+    if (ind2 != 0) memcpy(s, buffer, ind2);
     val_destroy(tmp);
     return &v->v;
 }
 
 int check_addr(atype_t type) {
-    while (type) {
-        switch ((enum atype_e)(type & 15)) {
+    while (type != A_NONE) {
+        switch ((enum atype_e)(type & 0xf)) {
         case A_I:
         case A_LI: return 1;
         case A_IMMEDIATE:
@@ -158,8 +158,8 @@ int check_addr(atype_t type) {
 }
 
 static inline int check_addr2(atype_t type) {
-    while (type) {
-        switch ((enum atype_e)(type & 15)) {
+    while (type != A_NONE) {
+        switch ((enum atype_e)(type & 0xf)) {
         case A_KR:
         case A_DR:
         case A_BR:
@@ -185,7 +185,7 @@ static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, li
     err = v->obj->address(v1->val, uv, bits, am, epoint);
     if (am != NULL) {
         atype_t type = v1->type;
-        while (type) {
+        while (type != A_NONE) {
             *am <<= 4;
             type >>= 4;
         }
@@ -267,7 +267,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
                 v = new_address(result, am);
                 am = v2->type;
-                while (am & 0xf) { v->type <<= 4; am >>= 4; }
+                while ((enum atype_e)(am & 0xf) != A_NONE) { v->type <<= 4; am >>= 4; }
                 v->type |= v2->type;
                 return &v->v;
             case O_SUB:
