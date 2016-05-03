@@ -103,7 +103,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
                    }
                 }
             }
-            if (v1->len) {
+            if (v1->len != 0) {
                 int error = 1;
                 size_t i;
                 Obj **vals2, *o1 = v[j].val;
@@ -172,7 +172,7 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     }
     new_value = new_list();
     val = list_create_elements(new_value, len2);
-    if (len2) {
+    if (len2 != 0) {
         size_t i = 0;
         while ((end > start && step > 0) || (end < start && step < 0)) {
             val[i] = (Obj *)int_from_ival(start);
@@ -257,8 +257,8 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
         if (end > start) end = start;
         len2 = (start - end - step - 1) / -step;
     }
-    if (len2) {
-        if (step != 1 || (len2 & (len2 - 1))) {
+    if (len2 != 0) {
+        if (step != 1 || (len2 & (len2 - 1)) != 0) {
             uval_t a = (~(uval_t)0) / len2;
             uval_t b = a * len2;
             uval_t r;
@@ -283,7 +283,7 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     }
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
         List *v1 = (List *)o1, *v;
-        if (v1->len) {
+        if (v1->len != 0) {
             int error = 1;
             size_t i;
             Obj **vals;

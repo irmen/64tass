@@ -720,14 +720,16 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
     } else end = len;
     if (v2->data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
+        ival_t minus;
         err = v2->data[0]->obj->ival(v2->data[0], &offs, 8*sizeof(ival_t), epoint);
         if (err != NULL) return &err->v;
+        minus = (step < 0) ? -1 : 0;
         if (offs >= 0) {
-            if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
+            if (offs > (ival_t)len + minus) offs = len + minus;
         } else {
             if (offs < 0) offs += len;
         }
-        if (offs < - (step < 0)) offs = - (step < 0);
+        if (offs < minus) offs = minus;
     }
 
     if (step > 0) {
@@ -861,7 +863,7 @@ static int get_val2(struct eval_context_s *ev) {
         case O_LIST:
             {
                 List *list;
-                unsigned int tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
+                int tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
                 size_t args = 0;
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != op) {

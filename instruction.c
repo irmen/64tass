@@ -698,12 +698,12 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         break;
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
-            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____);
+            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
             else {
-                w = (cnmemonic[opr - 1] != ____);
+                w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                 err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
             }
         } else {
@@ -736,11 +736,11 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         break;
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
-            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____);
+            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else {
-                w = (cnmemonic[opr - 1] != ____);
+                w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                 err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
             }
         } else {
@@ -787,7 +787,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         break;
     case AG_PB2:
         if (w == 3) {/* auto length */
-            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) + 1;
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) ? 2 : 1;
             else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address.bank ^ uval) <= 0xffff) {adr = uval; w = 1;}
             else {adr = uval; w = 2;}
         } else {

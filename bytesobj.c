@@ -532,7 +532,7 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len1 : len2;
-    if (sz == 0) return ref_bytes((neg1 & neg2) ? inv_bytes : null_bytes);
+    if (sz == 0) return ref_bytes((neg1 && neg2) ? inv_bytes : null_bytes);
     vv = new_bytes(sz);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
@@ -553,7 +553,7 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
         }
     }
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
-    vv->len = (neg1 & neg2) ? ~sz : sz;
+    vv->len = (neg1 && neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
 }
@@ -572,7 +572,7 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len2 : len1;
-    if (sz == 0) return ref_bytes((neg1 | neg2) ? inv_bytes : null_bytes);
+    if (sz == 0) return ref_bytes((neg1 || neg2) ? inv_bytes : null_bytes);
     vv = new_bytes(sz);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
@@ -594,7 +594,7 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
     }
 
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
-    vv->len = (neg1 | neg2) ? ~sz : sz;
+    vv->len = (neg1 || neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
 }
@@ -613,7 +613,7 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = len1;
-    if (sz == 0) return ref_bytes((neg1 ^ neg2) ? inv_bytes : null_bytes);
+    if (sz == 0) return ref_bytes((neg1 != neg2) ? inv_bytes : null_bytes);
     vv = new_bytes(sz);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
@@ -622,7 +622,7 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     for (; i < len1; i++) v[i] = v1[i];
 
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
-    vv->len = (neg1 ^ neg2) ? ~sz : sz;
+    vv->len = (neg1 != neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
 }

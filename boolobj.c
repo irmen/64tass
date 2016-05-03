@@ -111,12 +111,12 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     switch (op->op->op) {
     case O_BANK:
     case O_HIGHER: return (Obj *)bytes_from_u8(0);
-    case O_LOWER: return (Obj *)bytes_from_u8(v1->boolean);
+    case O_LOWER: return (Obj *)bytes_from_u8(v1->boolean ? 1 : 0);
     case O_HWORD: return (Obj *)bytes_from_u16(0);
-    case O_WORD: return (Obj *)bytes_from_u16(v1->boolean);
-    case O_BSWORD: return (Obj *)bytes_from_u16(v1->boolean << 8);
+    case O_WORD: return (Obj *)bytes_from_u16(v1->boolean ? 1 : 0);
+    case O_BSWORD: return (Obj *)bytes_from_u16(v1->boolean ? 0x100 : 0);
     case O_INV: return (Obj *)ibits_from_bool(v1->boolean);
-    case O_NEG: return (Obj *)int_from_int(-v1->boolean);
+    case O_NEG: return (Obj *)int_from_int(v1->boolean ? -1 : 0);
     case O_POS: return (Obj *)int_from_bool(v1);
     case O_STRING:
         v = new_str(1);
@@ -133,16 +133,15 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
     switch (op->op->op) {
     case O_CMP: 
         if (!v1 && v2) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[v1 - v2]);
+        return (Obj *)ref_int(int_value[(v1 != v2) ? 1 : 0]);
     case O_EQ: return truth_reference(v1 == v2);
     case O_NE: return truth_reference(v1 != v2);
-    case O_LT: return truth_reference(v1 < v2);
-    case O_LE: return truth_reference(v1 <= v2);
-    case O_GT: return truth_reference(v1 > v2);
-    case O_GE: return truth_reference(v1 >= v2);
-    case O_ADD: return (Obj *)int_from_int(v1 + v2);
-    case O_SUB: return (Obj *)int_from_int(v1 - v2);
-    case O_MUL: return int_from_bool2(v1 & v2);
+    case O_LT: return truth_reference(!v1 && v2);
+    case O_LE: return truth_reference(!v1 || v2);
+    case O_GT: return truth_reference(v1 && !v2);
+    case O_GE: return truth_reference(v1 || !v2);
+    case O_ADD: return (Obj *)int_from_int((v1 ? 1 : 0) + (v2 ? 1 : 0));
+    case O_MUL: return int_from_bool2(v1 && v2);
     case O_DIV:
         if (!v2) { 
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3); 
@@ -153,12 +152,12 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return int_from_bool2(0);
-    case O_EXP: return int_from_bool2(v1 | !v2);
-    case O_AND: return truth_reference(v1 & v2);
-    case O_OR: return truth_reference(v1 | v2);
-    case O_XOR: return truth_reference(v1 ^ v2);
-    case O_LSHIFT: return v2 ? (Obj *)bits_from_bools(v1, 0) : (Obj *)ref_bits(bits_value[v1]);
-    case O_RSHIFT: return v2 ? (Obj *)ref_bits(null_bits) : (Obj *)ref_bits(bits_value[v1]);
+    case O_EXP: return int_from_bool2(v1 || !v2);
+    case O_AND: return truth_reference(v1 && v2);
+    case O_OR: return truth_reference(v1 || v2);
+    case O_XOR: return truth_reference(v1 != v2);
+    case O_LSHIFT: return v2 ? (Obj *)bits_from_bools(v1, 0) : (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
+    case O_RSHIFT: return v2 ? (Obj *)ref_bits(null_bits) : (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
     case O_CONCAT: return (Obj *)bits_from_bools(v1, v2);
     default: break;
     }
