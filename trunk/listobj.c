@@ -554,7 +554,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     if (o1->obj == NONE_OBJ || o1->obj == ERROR_OBJ) {
         return o1->obj->calc2(op);
     }
-    if (v2->len) {
+    if (v2->len != 0) {
         int error = 1;
         List *v = (List *)val_alloc(o2->obj);
         v->data = vals = lnew(v, v2->len);

@@ -81,14 +81,14 @@ static char *out_zp(char *s, unsigned int c) {
 
 static char *out_db(char *s, unsigned int adr) {
     *s++ = '$';
-    if (databank) s = out_hex(s, databank);
+    if (databank != 0) s = out_hex(s, databank);
     s = out_hex(s, adr >> 8);
     return out_hex(s, adr);
 }
 
 static char *out_pb(char *s, unsigned int adr) {
     *s++ = '$';
-    if (current_section->l_address.bank) s = out_hex(s, current_section->l_address.bank >> 16);
+    if (current_section->l_address.bank != 0) s = out_hex(s, current_section->l_address.bank >> 16);
     s = out_hex(s, adr >> 8);
     return out_hex(s, adr);
 }
@@ -104,7 +104,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     time_t t;
     const char *prgname;
     int i;
-    if (filename[0] == '-' && !filename[1]) {
+    if (filename[0] == '-' && filename[1] == 0) {
         flist = stdout;
     } else {
         if ((flist=file_open(filename,"wt")) == NULL) {
@@ -124,7 +124,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     }
     for (i = 0; i < argc; i++) {
         putc(' ', flist);
-        argv_print(i ? argv[i] : prgname, flist);
+        argv_print((i != 0) ? argv[i] : prgname, flist);
     }
     fputs("\n; ", flist);
     time(&t); fputs(ctime(&t), flist);
@@ -137,17 +137,17 @@ void listing_close(const char *filename) {
         fputs("\n;******  End of listing\n", flist);
         err = ferror(flist);
         err |= (flist != stdout) ? fclose(flist) : fflush(flist);
-        if (err && errno) err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
+        if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
     }
     flist = NULL;
 }
 
 static void printllist(int l) {
-    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
         if (llist != NULL) {
             const uint8_t *c = llist;
             while (*c == 0x20 || *c == 0x09) c++;
-            if (*c) {
+            if (*c != 0) {
                 padding(l, SOURCE_COLUMN);
                 printable_print(llist, flist);
             }
@@ -158,7 +158,7 @@ static void printllist(int l) {
 }
 
 void listing_equal(Obj *val) {
-    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
         int l;
         putc('=', flist);
         l = val_print(val, flist) + 1;
@@ -168,7 +168,7 @@ void listing_equal(Obj *val) {
 
 static int printaddr(char pre, address_t addr) {
     char str[8], *s = str;
-    if (pre) *s++ = pre;
+    if (pre != 0) *s++ = pre;
     if (addr > 0xffffff) s = out_hex(s, addr >> 24);
     if (addr > 0xffff) s = out_hex(s, addr >> 16);
     s = out_hex(s, addr >> 8);
@@ -179,7 +179,7 @@ static int printaddr(char pre, address_t addr) {
 }
 
 void listing_line(linecpos_t pos) {
-    if (!nolisting && flist != NULL && arguments.source && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
         if (llist != NULL) {
             size_t i = 0;
             int l;
@@ -193,13 +193,13 @@ void listing_line(linecpos_t pos) {
                 }
             } else l = 0;
             if (arguments.verbose) {
-                if (llist[i]) {
+                if (llist[i] != 0) {
                     padding(l, SOURCE_COLUMN);
                     printable_print(llist, flist);
                 }
                 putc('\n', flist);
             } else {
-                if (l) {
+                if (l != 0) {
                     while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
                     padding(l, SOURCE_COLUMN);
                     printable_print2(llist, flist, pos);
@@ -212,8 +212,8 @@ void listing_line(linecpos_t pos) {
 }
 
 void listing_line_cut(linecpos_t pos) {
-    if (nolisting == 0 && flist != NULL && arguments.source && !temporary_label_branch) {
-        if (llist) {
+    if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
+        if (llist != NULL) {
             size_t i = 0;
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
             if (i < pos) {
@@ -235,7 +235,7 @@ void listing_line_cut(linecpos_t pos) {
 
 void listing_line_cut2(linecpos_t pos) {
     if (arguments.verbose) {
-        if (nolisting == 0 && flist != NULL && arguments.source && !temporary_label_branch) {
+        if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
             if (llist != NULL) {
                 padding(0, SOURCE_COLUMN);
                 caret_print(llist, flist, pos);
@@ -256,7 +256,7 @@ void listing_set_cpumode(const struct cpu_s *cpumode) {
 }
 
 void listing_instr(uint8_t cod, uint32_t adr, int ln) {
-    if (nolisting == 0 && flist != NULL && !temporary_label_branch) {
+    if (nolisting == 0 && flist != NULL && temporary_label_branch == 0) {
         int i, l;
         address_t addr = ((current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
         address_t addr2 = (current_section->address - ln - 1) & all_mem2;
@@ -328,7 +328,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                     case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr);
                     case ADR_LEN: break;/* not an addressing mode */
                     }
-                    while (*post) *s++ = *post++;
+                    while (*post != 0) *s++ = *post++;
                     *s = 0;
                     fputs(str, flist);
                     l += s - str;
@@ -354,12 +354,12 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
         l = padding(l, LADDR_COLUMN);
         l += printaddr('\0', myaddr2);
     }
-    if (len) {
+    if (len != 0) {
         size_t p = 0;
         lcol = arguments.source ? 8 : 16;
         s = str;
         l = padding(l, HEX_COLUMN);
-        while (len) {
+        while (len != 0) {
             if (!lcol--) {
                 *s = 0;
                 fputs(str + 1, flist);
