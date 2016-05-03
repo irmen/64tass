@@ -595,6 +595,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
     size_t i, len;
     uint8_t *odata = NULL, *d;
     int foundold;
+    int ret;
 
     if (lastes == NULL) {
         lastes = (struct escape_s *)mallocx(sizeof(struct escape_s));
@@ -654,9 +655,9 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         return 0;
     }
     b->data = odata; /* unlock old */
-    i = (i != b->len || memcmp(d, b->data, i) != 0);
+    ret = (i != b->len || memcmp(d, b->data, i) != 0);
     if (tmp.val != d) free(d);
-    return i;            /* already exists */
+    return ret;            /* already exists */
 }
 
 static void add_esc(const char *s, struct encoding_s *enc) {

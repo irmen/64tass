@@ -119,7 +119,7 @@ static int same(const Obj *o1, const Obj *o2) {
     const struct avltree_node *n;
     const struct avltree_node *n2;
     if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
-    if ((v1->def == NULL) ^ (v2->def == NULL)) return 0;
+    if ((v1->def == NULL) != (v2->def == NULL)) return 0;
     if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return 0;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
@@ -128,7 +128,7 @@ static int same(const Obj *o1, const Obj *o2) {
         if (pair_compare(n, n2) != 0) return 0;
         p = cavltree_container_of(n, struct pair_s, node);
         p2 = cavltree_container_of(n2, struct pair_s, node);
-        if ((p->data == NULL) ^ (p2->data == NULL)) return 0;
+        if ((p->data == NULL) != (p2->data == NULL)) return 0;
         if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
@@ -150,7 +150,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Obj *v;
     Str *str;
     uint8_t *s;
-    unsigned int def = (v1->def != NULL);
+    unsigned int def = (v1->def != NULL) ? 1 : 0;
     if (v1->len != 0 || def != 0) {
         ln = v1->len * 2;
         if (ln < v1->len) err_msg_out_of_memory(); /* overflow */
