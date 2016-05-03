@@ -85,7 +85,7 @@ static digit_t *inew(Int *v, size_t len) {
 static MUST_CHECK Int *negate(const Int *v1) {
     Int *v = new_int();
     v->len = -v1->len;
-    if (v1->len) {
+    if (v1->len != 0) {
         size_t ln = intlen(v1);
         v->data = inew(v, ln);
         memcpy(v->data, v1->data, ln * sizeof(digit_t));
@@ -97,7 +97,7 @@ static MUST_CHECK Int *negate(const Int *v1) {
 }
 
 static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, int neg) {
-    while (sz && !d[sz - 1]) sz--;
+    while (sz != 0 && d[sz - 1] == 0) sz--;
     if (v->val != d && sz <= (ssize_t)sizeof(v->val)/(ssize_t)sizeof(v->val[0])) {
         memcpy(v->val, d, sz * sizeof(digit_t));
         free(d);
@@ -112,12 +112,12 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, int neg) {
 static int same(const Obj *o1, const Obj *o2) {
     const Int *v1 = (const Int *)o1, *v2 = (const Int *)o2;
     if (o2->obj != INT_OBJ || v1->len != v2->len) return 0;
-    return !memcmp(v1->data, v2->data, intlen(v1) * sizeof(digit_t));
+    return memcmp(v1->data, v2->data, intlen(v1) * sizeof(digit_t)) == 0;
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     const Int *v1 = (const Int *)o1;
-    return truth_reference(!!v1->len);
+    return truth_reference(v1->len != 0);
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
@@ -132,11 +132,11 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     }
     h = 0;
     if (l > 0) {
-        while (l--) {
+        while ((l--) != 0) {
             h += v1->val[l];
         }
     } else {
-        while (l++) {
+        while ((l++) != 0) {
             h -= v1->val[-l];
         }
     }
@@ -156,7 +156,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
-        if (len) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
+        if (len != 0) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0]='0';len = 1;}
         if (len > maxsize) return NULL;
         v = new_str(len);
@@ -171,19 +171,19 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     sz++;
     out = inew(&tmp, sz);
 
-    for (sz = 0, i = len; i--;) {
+    for (sz = 0, i = len; (i--) != 0;) {
         digit_t h = v1->data[i];
         for (j = 0; j < sz; j++) {
             twodigits_t tm = ((twodigits_t)out[j] << SHIFT) | h;
             h = (digit_t)(tm / DMUL);
             out[j] = (digit_t)(tm - (twodigits_t)h * DMUL);
         }
-        while (h) {
+        while (h != 0) {
             out[sz++] = h % DMUL;
             h /= DMUL;
         }
     }
-    if (!sz) out[sz] = 0;
+    if (sz == 0) out[sz] = 0;
     else sz--;
     slen = 1 + neg;
     ten = 10;
@@ -213,7 +213,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     do {
         *--s = 0x30 | (r % 10);
         r /= 10;
-    } while (r);
+    } while (r != 0);
     if (neg) *--s = '-';
 
     if (tmp.val != out) free(out);
@@ -225,11 +225,11 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     Error *v;
     switch (v1->len) {
     case 1: *iv = v1->data[0];
-            if (bits < (int)(SHIFT-1) && (uval_t)*iv >> (bits-1)) break;
+            if (bits < (int)(SHIFT-1) && ((uval_t)*iv >> (bits-1)) != 0) break;
             return NULL;
     case 0: *iv = 0; return NULL;
     case -1: *iv = -v1->data[0];
-             if (bits < (int)(SHIFT-1) && (uval_t)~*iv >> (bits-1)) break;
+             if (bits < (int)(SHIFT-1) && ((uval_t)~*iv >> (bits-1)) != 0) break;
              return NULL;
     default: break;
     }
@@ -244,7 +244,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
     Error *v;
     switch (v1->len) {
     case 1: *uv = v1->data[0];
-            if (bits < (int)SHIFT && *uv >> bits) break;
+            if (bits < (int)SHIFT && (*uv >> bits) != 0) break;
             return NULL;
     case 0: *uv = 0; return NULL;
     default: break;
@@ -290,7 +290,7 @@ static void isub(const Int *, const Int *, Int *);
 static digit_t ldigit(const Int *v1) {
     ssize_t len = v1->len;
     if (len < 0) return -v1->data[0];
-    return len ? v1->data[0] : 0;
+    return (len != 0) ? v1->data[0] : 0;
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -316,7 +316,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return (Obj *)negate(v1);
     case O_POS: return (Obj *)ref_int(v1);
     case O_STRING: return (Obj *)repr(&v1->v, op->epoint, SIZE_MAX);
-    case O_LNOT: return truth_reference(!v1->len);
+    case O_LNOT: return truth_reference(v1->len == 0);
     default: break;
     }
     return obj_oper_error(op);
@@ -363,7 +363,7 @@ static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
     }
     for (;i < len1; i++) v[i] = v1[i];
     if (c) v[i++] = c;
-    while (i && !v[i - 1]) i--;
+    while (i != 0 && v[i - 1] == 0) i--;
     if (v != vv->val && i <= sizeof(vv->val)/sizeof(vv->val[0])) {
         memcpy(vv->val, v, i * sizeof(digit_t));
         free(v);
@@ -403,8 +403,8 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
         if (len1 == len2) {
             i = len1;
             v1 = vv1->data; v2 = vv2->data;
-            while (i && v1[i - 1] == v2[i - 1]) i--;
-            if (!i) {
+            while (i != 0 && v1[i - 1] == v2[i - 1]) i--;
+            if (i == 0) {
                 if (vv == vv1 || vv == vv2) destroy(&vv->v);
                 vv->len = 0;
                 vv->val[0] = 0;
@@ -434,7 +434,7 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
         v[i] = v1[i] - 1;
     }
     for (;i < len1; i++) v[i] = v1[i];
-    while (i && !v[i - 1]) i--;
+    while (i != 0 && v[i - 1] == 0) i--;
     if (v != vv->val && i <= sizeof(vv->val)/sizeof(vv->val[0])) {
         memcpy(vv->val, v, i * sizeof(digit_t));
         free(v);
@@ -478,10 +478,10 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
             o[j] = (digit_t)c;
             c >>= SHIFT;
         }
-        if (c) o[j] += (digit_t)c;
+        if (c != 0) o[j] += (digit_t)c;
     }
     i = sz;
-    while (i && !v[i - 1]) i--;
+    while (i != 0 && v[i - 1] == 0) i--;
     if (vv == vv1 || vv == vv2) destroy(&vv->v);
     if (i <= sizeof(vv->val)/sizeof(vv->val[0])) {
         memcpy(vv->val, v, i * sizeof(digit_t));
@@ -499,7 +499,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
     Int *vv;
 
     len2 = intlen(vv2);
-    if (!len2) { 
+    if (len2 == 0) { 
         return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
     }
     len1 = intlen(vv1);
@@ -517,7 +517,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
         if (divrem) {
             vv = new_int();
             v = inew(vv, len1);
-            for (i = len1; i--;) {
+            for (i = len1; (i--) != 0;) {
                 digit_t h;
                 r = (r << SHIFT) | v1[i];
                 h = (digit_t)(r / n);
@@ -526,13 +526,13 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
             }
             return normalize(vv, v, len1, neg);
         }
-        for (i = len1; i--;) {
+        for (i = len1; (i--) != 0;) {
             digit_t h;
             r = (r << SHIFT) | v1[i];
             h = (digit_t)(r / n);
             r -= (twodigits_t)h * n;
         }
-        if (!r) return (Obj *)ref_int(int_value[0]);
+        if (r == 0) return (Obj *)ref_int(int_value[0]);
         vv = new_int();
         vv->val[0] = r;
         vv->data = vv->val;
@@ -551,7 +551,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
         d = 0;
         while ((v2[len2 - 1] << d) <= MASK / 2) d++;
 
-        if (d) {
+        if (d != 0) {
             w0[0] = v2[0] << d;
             for (i = 1; i < len2; i++) w0[i] = (v2[i] << d) | (v2[i - 1] >> (SHIFT - d));
             v0[0] = v1[0] << d;
@@ -562,7 +562,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
             v0[len1] = 0;
             memcpy(v0, v1, len1 * sizeof(digit_t));
         }
-        if (v0[len1] || v0[len1 - 1] >= w0[len2 - 1]) len1++;
+        if (v0[len1] != 0 || v0[len1 - 1] >= w0[len2 - 1]) len1++;
    
         k = len1 - len2;
         a = inew(&tmp3, k);
@@ -610,7 +610,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
         vv = new_int();
         if (divrem) {
             if (v0 != tmp1.val) free(v0);
-            while (k && !a[k - 1]) k--;
+            while (k != 0 && a[k - 1] == 0) k--;
             if (k <= (ssize_t)sizeof(vv->val)/(ssize_t)sizeof(vv->val[0])) {
                 memcpy(vv->val, a, k * sizeof(digit_t));
                 if (a != tmp3.val) free(a);
@@ -621,13 +621,13 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, int divrem, linepos_t e
             return (Obj *)vv;
         }
 
-        if (d) {
+        if (d != 0) {
             for (i = 0; i < len2 - 1; i++) v0[i] = (v0[i] >> d) | (v0[i + 1] << (SHIFT - d));
             v0[i] >>= d;
         } 
 
         if (a != tmp3.val) free(a);
-        while (len2 && !v0[len2 - 1]) len2--;
+        while (len2 != 0 && v0[len2 - 1] == 0) len2--;
         if (len2 <= sizeof(vv->val)/sizeof(vv->val[0])) {
             memcpy(vv->val, v0, len2 * sizeof(digit_t));
             if (v0 != tmp1.val) free(v0);
@@ -644,11 +644,11 @@ static MUST_CHECK Int *power(const Int *vv1, const Int *vv2) {
     size_t i;
     Int *v = int_from_int(1);
 
-    for (i = vv2->len; i--;) {
+    for (i = vv2->len; (i--) != 0;) {
         digit_t d = vv2->data[i];
         for (j = SHIFT - 1; j >= 0; j--) {
             imul(v, v, v);
-            if (d & (1 << j)) {
+            if ((d & (1 << j)) != 0) {
                 imul(v, vv1, v);
                 neg = 1;
             } else neg = 0;
@@ -672,14 +672,14 @@ static MUST_CHECK Int *ilshift(const Int *vv1, uval_t s) {
     vv = new_int();
     v = inew(vv, sz);
     v2 = v + word;
-    if (bit) {
+    if (bit != 0) {
         v2[len1] = 0;
-        for (i = len1; i--;) {
+        for (i = len1; (i--) != 0;) {
             v2[i + 1] |= v1[i] >> (SHIFT - bit);
             v2[i] = (digit_t)(v1[i] << bit);
         }
-    } else if (len1) memcpy(v2, v1, len1 * sizeof(digit_t));
-    if (word) memset(v, 0, word * sizeof(digit_t));
+    } else if (len1 != 0) memcpy(v2, v1, len1 * sizeof(digit_t));
+    if (word != 0) memset(v, 0, word * sizeof(digit_t));
 
     return (Int *)normalize(vv, v, sz, vv1->len < 0);
 }
@@ -709,13 +709,13 @@ static MUST_CHECK Int *irshift(Int *vv1, uval_t s) {
     }
     v = inew(vv, sz);
     v1 = vv1->data + word;
-    if (bit) {
+    if (bit != 0) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;
             v[i] |= (digit_t)(v1[i + 1] << (SHIFT - bit));
         }
         v[i] = v1[i] >> bit;
-    } else if (sz) memcpy(v, v1, sz * sizeof(digit_t));
+    } else if (sz != 0) memcpy(v, v1, sz * sizeof(digit_t));
 
     if (neg) {
         vv->data = v;
@@ -1072,9 +1072,9 @@ static ssize_t icmp(const Int *vv1, const Int *vv2) {
     size_t j;
     digit_t a, b;
     i = vv1->len - vv2->len;
-    if (i) return i;
+    if (i != 0) return i;
     j = intlen(vv1);
-    while (j--) {
+    while ((j--) != 0) {
         a = vv1->data[j]; b = vv2->data[j];
         if (a > b) return (vv1->len < 0) ? -1 : 1;
         if (a < b) return (vv1->len < 0) ? 1 : -1;
@@ -1105,7 +1105,7 @@ MUST_CHECK Int *int_from_size(size_t i) {
     for (j = 1; j < sizeof(size_t) / sizeof(digit_t); j++) {
         i >>= 4 * sizeof(digit_t);
         i >>= 4 * sizeof(digit_t);
-        if (!i) break;
+        if (i == 0) break;
         v->val[j] = i;
     }
     v->len = j;
@@ -1154,7 +1154,7 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
 
         frac = ldexp(frac, (expo - 1) % SHIFT + 1);
 
-        while (sz--) {
+        while ((sz--) != 0) {
             digit_t dg = (digit_t)frac;
             d[sz] = dg;
             frac = ldexp(frac - (double)dg, SHIFT);
@@ -1186,7 +1186,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
     inv = v1->len < 0;
     len1 = inv ? -v1->len : v1->len; /* it's - for the additional length  */
     sz = len1 / sizeof(digit_t);
-    if (len1 % sizeof(digit_t)) sz++;
+    if ((len1 % sizeof(digit_t)) != 0) sz++;
 
     v = new_int();
     d = inew(v, sz);
@@ -1219,7 +1219,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
                 bits = uv = 0;
             } else bits += 8;
         }
-        if (bits) d[j] = uv;
+        if (bits != 0) d[j] = uv;
     }
 
     return (Int *)normalize(v, d, sz, inv);
@@ -1269,12 +1269,12 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
         digit_t *d;
 
         i = v1->len;
-        if (!i) {
+        if (i == 0) {
             return (Obj *)ref_int(int_value[0]);
         }
 
         sz = i / sizeof(digit_t);
-        if (i % sizeof(digit_t)) sz++;
+        if ((i % sizeof(digit_t)) != 0) sz++;
         v = new_int();
         d = inew(v, sz);
 
@@ -1298,7 +1298,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
                 bits = uv = 0;
             } else bits += 8;
         }
-        if (bits) {
+        if (bits != 0) {
             if (j >= sz) {
                 sz++;
                 if (v->val == d) {
@@ -1313,7 +1313,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
             osz = j + 1;
         } else osz = j;
 
-        while (osz && !d[osz - 1]) osz--;
+        while (osz != 0 && d[osz - 1] == 0) osz--;
         if (v->val != d) {
             if (osz <= sizeof(v->val)/sizeof(v->val[0])) {
                 memcpy(v->val, d, osz * sizeof(digit_t));
@@ -1329,7 +1329,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     } 
     if (v1->chars == 1) {
         uint32_t ch2 = v1->data[0];
-        if (ch2 & 0x80) utf8in(v1->data, &ch2);
+        if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
         return (Obj *)int_from_uval(ch2);
     } 
     return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
@@ -1352,7 +1352,7 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
             if (c != ('_' ^ 0x30)) break;
             i++;
         }
-        while (k && s[k - 1] == '_') {
+        while (k != 0 && s[k - 1] == '_') {
             k--;
             i--;
         }
@@ -1391,7 +1391,7 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
         if (j == 9) mul = 1000000000;
         else {
             mul = 10;
-            while (--j) mul *= 10;
+            while ((--j) != 0) mul *= 10;
         }
         while (d2 < end2) {
             twodigits_t m = *d2 * mul;
@@ -1399,7 +1399,7 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
             *d2++ = (digit_t)a;
             a >>= SHIFT;
         }
-        if (a) {
+        if (a != 0) {
             if (end2 >= &d[sz]) {
                 sz++;
                 if (sz > sizeof(v->val)/sizeof(v->val[0])) {
@@ -1539,10 +1539,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp, *ret, *v2 = op->v2;
 
     if (op->op == &o_LAND) {
-        return val_reference(((Int *)(op->v1))->len ? v2 : op->v1);
+        return val_reference((((Int *)(op->v1))->len != 0) ? v2 : op->v1);
     }
     if (op->op == &o_LOR) {
-        return val_reference(((Int *)(op->v1))->len ? op->v1 : v2);
+        return val_reference((((Int *)(op->v1))->len != 0) ? op->v1 : v2);
     }
     switch (v2->obj->type) {
     case T_INT: return calc2_int(op);

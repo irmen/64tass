@@ -71,12 +71,12 @@ static void garbage(Obj *o1, int i) {
         return;
     case 1:
         v = v1->addr;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
         v = &v1->names->v;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -85,10 +85,10 @@ static void garbage(Obj *o1, int i) {
 }
 
 static MUST_CHECK Error *access_check(const Code *v1, linepos_t epoint) {
-    if (v1->requires & ~current_section->provides) {
+    if ((v1->requires & ~current_section->provides) != 0) {
         return new_error(ERROR_REQUIREMENTS_, epoint);
     }
-    if (v1->conflicts & current_section->provides) {
+    if ((v1->conflicts & current_section->provides) != 0) {
         return new_error(ERROR______CONFLICT, epoint);
     }
     return NULL;
@@ -183,7 +183,7 @@ MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     Code *v1 = (Code *)o1;
-    if (!v1->pass) {
+    if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
     return (Obj *)int_from_size(v1->size / (abs(v1->dtype) + !v1->dtype));
@@ -191,7 +191,7 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK Obj *size(Obj *o1, linepos_t UNUSED(epoint)) {
     Code *v1 = (Code *)o1;
-    if (!v1->pass) {
+    if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
     return (Obj *)int_from_size(v1->size);
@@ -224,7 +224,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
     ln2 = ln2 + !ln2;
     ln = v1->size / ln2;
 
-    if (!ln) {
+    if (ln == 0) {
         return val_reference(typ == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
     }
 
@@ -241,7 +241,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
             if (r < 0) break;
             val |= r << (i2 * 8);
         }
-        if (v1->dtype < 0 && (r & 0x80)) {
+        if (v1->dtype < 0 && (r & 0x80) != 0) {
             for (; i2 < sizeof(val); i2++) {
                 val |= 0xff << (i2 * 8);
             }
@@ -270,7 +270,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
     err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
     if (err != NULL) return err;
 
-    if (!length) {
+    if (length == 0) {
         return (Obj *)ref_tuple(null_tuple);
     }
     if (v1->pass != pass) {
@@ -290,7 +290,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
             if (r < 0) break;
             val |= r << (i2 * 8);
         }
-        if (v1->dtype < 0 && (r & 0x80)) {
+        if (v1->dtype < 0 && (r & 0x80) != 0) {
             for (; i2 < sizeof(val); i2++) {
                 val |= 0xff << (i2 * 8);
             }
@@ -335,7 +335,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         List *list = (List *)o2;
         Tuple *v;
         int error;
-        if (!list->len) {
+        if (list->len == 0) {
             return (Obj *)ref_tuple(null_tuple);
         }
         v = new_tuple();
@@ -357,7 +357,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
                 if (r < 0) break;
                 val |= r << (i2 * 8);
             }
-            if (v1->dtype < 0 && (r & 0x80)) {
+            if (v1->dtype < 0 && (r & 0x80) != 0) {
                 for (; i2 < sizeof(val); i2++) {
                     val |= 0xff << (i2 * 8);
                 }
@@ -383,7 +383,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         if (r < 0) break;
         val |= r << (i2 * 8);
     }
-    if (v1->dtype < 0 && (r & 0x80)) {
+    if (v1->dtype < 0 && (r & 0x80) != 0) {
         for (; i2 < sizeof(val); i2++) {
             val |= 0xff << (i2 * 8);
         }
@@ -518,7 +518,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
                 if (r < 0) break;
                 uv |= r << (i * 8);
             }
-            if (v2->dtype < 0 && (r & 0x80)) {
+            if (v2->dtype < 0 && (r & 0x80) != 0) {
                 for (; i < sizeof(uv); i++) {
                     uv |= 0xff << (i * 8);
                 }

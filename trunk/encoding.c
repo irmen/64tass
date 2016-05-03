@@ -654,7 +654,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         return 0;
     }
     b->data = odata; /* unlock old */
-    i = (i != b->len || !!memcmp(d, b->data, i));
+    i = (i != b->len || memcmp(d, b->data, i) != 0);
     if (tmp.val != d) free(d);
     return i;            /* already exists */
 }
@@ -666,7 +666,7 @@ static void add_esc(const char *s, struct encoding_s *enc) {
     tmp = new_str(0);
     tmp2 = new_bytes(1);
     tmp2->len = 1;
-    while (s[1]) {
+    while (s[1] != 0) {
         tmp->data = (uint8_t *)s + 1;
         tmp->len = strlen(s + 1);
         tmp->chars = tmp->len;
@@ -741,7 +741,7 @@ next:
         return e->data[0];
     }
     ch = encode_state.data[encode_state.i];
-    if (ch & 0x80) ln = utf8in(encode_state.data + encode_state.i, &ch); else ln = 1;
+    if ((ch & 0x80) != 0) ln = utf8in(encode_state.data + encode_state.i, &ch); else ln = 1;
     tmp.start = tmp.end = ch;
 
     c = avltree_lookup(&tmp.node, &actual_encoding->trans, trans_compare);

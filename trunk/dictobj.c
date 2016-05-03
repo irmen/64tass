@@ -61,13 +61,13 @@ static void dict_garbage2(struct avltree_node *aa)
     Obj *v;
     v = a->data;
     if (v != NULL) {
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
     }
     v = a->key;
-    if (v->refcount & SIZE_MSB) {
+    if ((v->refcount & SIZE_MSB) != 0) {
         v->refcount -= SIZE_MSB - 1;
         v->obj->garbage(v, 1);
     } else v->refcount++;
@@ -106,7 +106,7 @@ static void garbage(Obj *o1, int i) {
         avltree_destroy(&v1->members, dict_garbage2);
         v = v1->def;
         if (v == NULL) return;
-        if (v->refcount & SIZE_MSB) {
+        if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
@@ -119,16 +119,16 @@ static int same(const Obj *o1, const Obj *o2) {
     const struct avltree_node *n;
     const struct avltree_node *n2;
     if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
-    if (!v1->def ^ !v2->def) return 0;
+    if ((v1->def == NULL) ^ (v2->def == NULL)) return 0;
     if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return 0;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n != NULL && n2 != NULL) {
         const struct pair_s *p, *p2;
-        if (pair_compare(n, n2)) return 0;
+        if (pair_compare(n, n2) != 0) return 0;
         p = cavltree_container_of(n, struct pair_s, node);
         p2 = cavltree_container_of(n2, struct pair_s, node);
-        if (!p->data ^ !p2->data) return 0;
+        if ((p->data == NULL) ^ (p2->data == NULL)) return 0;
         if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
@@ -151,7 +151,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *str;
     uint8_t *s;
     unsigned int def = (v1->def != NULL);
-    if (v1->len || def) {
+    if (v1->len != 0 || def != 0) {
         ln = v1->len * 2;
         if (ln < v1->len) err_msg_out_of_memory(); /* overflow */
         ln += def;
@@ -162,7 +162,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         list = new_tuple();
         list->data = vals = list_create_elements(list, ln);
         ln = chars;
-        if (v1->len) {
+        if (v1->len != 0) {
             const struct avltree_node *n = avltree_first(&v1->members);
             while (n != NULL) {
                 p = cavltree_container_of(n, struct pair_s, node);
@@ -191,9 +191,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 n = avltree_next(n);
             }
         }
-        if (def) {
+        if (def != 0) {
             v = v1->def->obj->repr(v1->def, epoint, maxsize - chars);
-            if (!v || v->obj != STR_OBJ) {
+            if (v == NULL || v->obj != STR_OBJ) {
             error:
                 list->len = i;
                 val_destroy(&list->v);
@@ -221,17 +221,17 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     for (j = 0; j < i; j++) {
         Str *str2 = (Str *)vals[j];
         if (str2->v.obj != STR_OBJ) continue;
-        if (j) *s++ = (j & 1) ? ':' : ',';
-        if (str2->len) {
+        if (j != 0) *s++ = ((j & 1) != 0) ? ':' : ',';
+        if (str2->len != 0) {
             memcpy(s, str2->data, str2->len);
             s += str2->len;
         }
     }
-    if (def) {
+    if (def != 0) {
         Str *str2 = (Str *)vals[j];
-        if (j) *s++ = ',';
+        if (j != 0) *s++ = ',';
         *s++ = ':';
-        if (str2->len) {
+        if (str2->len != 0) {
             memcpy(s, str2->data, str2->len);
             s += str2->len;
         }
@@ -316,7 +316,7 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     Obj *result;
     int h = a->hash - b->hash;
 
-    if (h) return h;
+    if (h != 0) return h;
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
     result = pair_oper.v1->obj->calc2(&pair_oper);

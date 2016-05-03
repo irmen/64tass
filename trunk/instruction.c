@@ -51,11 +51,11 @@ int lookup_opcode(const char *s) {
     uint32_t name;
 
     name = (s[0] << 16) | (s[1] << 8) | s[2];
-    if (arguments.caseinsensitive) name |= 0x202020;
+    if (arguments.caseinsensitive != 0) name |= 0x202020;
     also = 0;
     no = (felso = last_mnem) / 2;
     for (;;) {  /* do binary search */
-        if (!(s4 = name - mnemonic[no]))
+        if ((s4 = name - mnemonic[no]) == 0)
             return no;
             elozo = no;
         if (elozo == (no = ((s4 > 0) ? (felso + (also = no)) : (also + (felso = no))) / 2)) break;
@@ -137,7 +137,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             am = get_address_mode(val, epoint2);
             switch (am) {
             case A_IMMEDIATE:
-                if ((cod = cnmemonic[(opr = ADR_IMMEDIATE)]) == ____ && prm) { /* 0x69 hack */
+                if ((cod = cnmemonic[(opr = ADR_IMMEDIATE)]) == ____ && prm != 0) { /* 0x69 hack */
                     return err_addressing(am, epoint);
                 }
                 switch (cod) {
@@ -348,7 +348,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             if (val->obj == REGISTER_OBJ) {
                 Register *cpureg = (Register *)val;
                 cod = cnmemonic[(opr = ADR_REG)];
-                if (cod && cpureg->len == 1) {
+                if (cod != 0 && cpureg->len == 1) {
                     const char *ind = strchr(reg_names, cpureg->data[0]);
                     if (ind != NULL) {
                         reg = (enum reg_e)(ind - reg_names);
@@ -597,7 +597,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         case 3:
             addrlist = (Addrlist *)vals;
             if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
-                if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+                if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
                 if (touval(addrlist->data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
                 val = addrlist->data[1];
@@ -661,16 +661,16 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         ln = 1;
         break;
     case AG_B0: /* bank 0 address only */
-        if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = uval;
-            if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c65el02.opcode && !(~adr & 0xff)) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
+            if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
         ln = 2;
         break;
     case AG_PB: /* address in program bank */
-        if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
         else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -684,12 +684,12 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             if (autosize && (opcode == c65el02.opcode || opcode == w65816.opcode)) {
                 switch (cnmemonic[opr]) {
                 case 0xC2:
-                    if (adr & 0x10) longindex = 1;
-                    if (adr & 0x20) longaccu = 1;
+                    if ((adr & 0x10) != 0) longindex = 1;
+                    if ((adr & 0x20) != 0) longaccu = 1;
                     break;
                 case 0xE2:
-                    if (adr & 0x10) longindex = 0;
-                    if (adr & 0x20) longaccu = 0;
+                    if ((adr & 0x10) != 0) longindex = 0;
+                    if ((adr & 0x20) != 0) longaccu = 0;
                     break;
                 }
             }
@@ -704,7 +704,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
             else {
                 w = (cnmemonic[opr - 1] != ____);
-                err_msg2(w ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
+                err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
             }
         } else {
             switch (w) {
@@ -741,7 +741,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else {
                 w = (cnmemonic[opr - 1] != ____);
-                err_msg2(w ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
+                err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
             }
         } else {
             switch (w) {
@@ -767,19 +767,19 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         opr = (enum opr_e)(opr - w); ln = w + 1;
         break;
     case AG_WORD: /* word only */
-        if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 16, NULL, epoint2)) {}
         else adr = uval;
         ln = 2;
         break;
     case AG_RELPB:
-        if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 16, NULL, epoint2)) {}
         else adr = uval - current_section->l_address.address - 3;
         ln = 2;
         break;
     case AG_RELL:
-        if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
         else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - 3;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);

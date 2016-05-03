@@ -41,7 +41,7 @@ void include_list_add(const char *path)
 {
     size_t i, j, len;
     j = i = strlen(path);
-    if (!i) return;
+    if (i == 0) return;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
     if (path[i-1] != '/' && path[i-1] != '\\') j++;
 #else
@@ -87,7 +87,7 @@ char *get_path(const Str *v, const char *base) {
     if (v->len && (v->data[0]=='/' || v->data[0]=='\\')) i = j;
     else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
 #else
-    if (v->len && v->data[0]=='/') i = 0;
+    if (v->len != 0 && v->data[0]=='/') i = 0;
 #endif
     len = i + v->len;
     if (len < i) err_msg_out_of_memory(); /* overflow */
@@ -137,7 +137,7 @@ FILE *file_open(const char *name, const char *mode)
         char temp[64];
         int l;
         ch = *c;
-        if (ch & 0x80) c += utf8in(c, &ch); else c++;
+        if ((ch & 0x80) != 0) c += utf8in(c, &ch); else c++;
         l = wcrtomb(temp, (wchar_t)ch, &ps);
         if (l <= 0) l = sprintf(temp, "{$%" PRIx32 "}", ch);
         len += l;
@@ -148,7 +148,7 @@ FILE *file_open(const char *name, const char *mode)
             newname = (char *)reallocx(newname, max);
         }
         memcpy(newname + len - l, temp, l);
-    } while (ch);
+    } while (ch != 0);
     f=fopen(newname, mode);
     free(newname);
 #endif
@@ -169,7 +169,7 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
     const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
     int c;
     c = strcmp(a->name, b->name);
-    if (c) return c;
+    if (c != 0) return c;
     return strcmp(a->base, b->base);
 }
 
@@ -194,7 +194,7 @@ static void file_free(struct avltree_node *aa)
 }
 
 static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s *tmp) {
-    if (ubuff->p) {
+    if (ubuff->p != 0) {
         uint8_t *p = *pp;
         size_t i;
         for (i = 0; i < ubuff->p; i++) {
@@ -205,7 +205,7 @@ static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s
                 tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
                 p = tmp->data + o;
             }
-            if (ubuff->data[i] && ubuff->data[i] < 0x80) *p++ = ubuff->data[i]; else p = utf8out(ubuff->data[i], p);
+            if (ubuff->data[i] != 0 && ubuff->data[i] < 0x80) *p++ = ubuff->data[i]; else p = utf8out(ubuff->data[i], p);
         }
         *pp = p;
     } else {
@@ -233,7 +233,7 @@ static uint32_t fromiso2(uint8_t c) {
 
 inline uint32_t fromiso(uint8_t c) {
     static uint32_t conv[128];
-    if (!conv[c - 0x80]) conv[c - 0x80] = fromiso2(c);
+    if (conv[c - 0x80] == 0) conv[c - 0x80] = fromiso2(c);
     return conv[c - 0x80];
 }
 
@@ -281,14 +281,14 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             if (val != NULL) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
-                while (f == NULL && i) {
+                while (f == NULL && i != 0) {
                     free(path);
                     path = get_path(val, i->path);
                     f = file_open(path, "rb");
                     i = i->next;
                 }
             } else {
-                if (name[0]=='-' && !name[1]) f=stdin;
+                if (name[0]=='-' && name[1] == 0) f=stdin;
                 else f=file_open(name, "rb");
             }
             if (path == NULL) {
@@ -309,7 +309,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     argv_print(tmp->realname, stdout);
                     putchar('\n');
                 }
-                if (!fseek(f, 0, SEEK_END)) {
+                if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
                     if (len >= 0) {
                         tmp->data = (uint8_t *)mallocx(len);
@@ -324,7 +324,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
                     }
                     fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
-                } while (!feof(f));
+                } while (feof(f) == 0);
             } else {
                 struct ubuff_s ubuff = {NULL, 0, 0};
                 size_t max_lines = 0;
@@ -335,7 +335,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     argv_print(tmp->realname, stdout);
                     putchar('\n');
                 }
-                if (!fseek(f, 0, SEEK_END)) {
+                if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
                     if (len >= 0) {
                         len += 4096;
@@ -349,7 +349,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     rewind(f);
                 }
                 bl = fread(buffer, 1, BUFSIZ, f);
-                if (bl && !buffer[0]) type = E_UTF16BE; /* most likely */
+                if (bl != 0 && buffer[0] == 0) type = E_UTF16BE; /* most likely */
 #ifdef _WIN32
                 setlocale(LC_CTYPE, "");
 #endif
@@ -379,10 +379,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         if (bp / (BUFSIZ / 2) == qr) {
                             if (qr == 1) {
                                 qr = 3;
-                                if (!feof(f)) bl = BUFSIZ + fread(buffer + BUFSIZ, 1, BUFSIZ, f);
+                                if (feof(f) == 0) bl = BUFSIZ + fread(buffer + BUFSIZ, 1, BUFSIZ, f);
                             } else {
                                 qr = 1;
-                                if (!feof(f)) bl = fread(buffer, 1, BUFSIZ, f);
+                                if (feof(f) == 0) bl = fread(buffer, 1, BUFSIZ, f);
                             }
                         }
                         if (bp == bl) break;
@@ -395,7 +395,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             } else if (c == 13) {
                                 break;
                             }
-                            if (c && c < 0x80) *p++ = c; else p = utf8out(c, p);
+                            if (c != 0 && c < 0x80) *p++ = c; else p = utf8out(c, p);
                             continue;
                         }
                         switch (type) {
@@ -437,7 +437,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 c = 0xfffd; break;
                             }
 
-                            for (j = i; i; i--) {
+                            for (j = i; i != 0; i--) {
                                 uint8_t ch2 = (bp == bl) ? 0 : buffer[bp];
                                 if (ch2 < 0x80 || ch2 >= 0xc0) {
                                     if (type == E_UNKNOWN) {
@@ -450,7 +450,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                             ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
                                         }
                                         ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
-                                        for (;i; i-= 6) {
+                                        for (;i != 0; i-= 6) {
                                             if (ubuff.p >= ubuff.len) {
                                                 ubuff.len += 16;
                                                 if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
@@ -470,7 +470,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 c = (c << 6) ^ ch2 ^ 0x80;
                                 bp = (bp + 1) % (BUFSIZ * 2);
                             }
-                            if (j) type = E_UTF8;
+                            if (j != 0) type = E_UTF8;
                             break;
                         case E_UTF16LE:
                             if (bp == bl) goto eof;
@@ -521,7 +521,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 qc = 1;
                             }
                             if (ubuff.p == 1) {
-                                if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                             } else {
                                 flushubuff(&ubuff, &p, tmp);
                                 ubuff.p = 1;
@@ -530,7 +530,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         } else {
                             const struct properties_s *prop = uget_property(c);
                             uint8_t ncclass = prop->combclass;
-                            if ((ncclass && cclass > ncclass) || prop->property & (qc_N | qc_M)) {
+                            if ((ncclass != 0 && cclass > ncclass) || (prop->property & (qc_N | qc_M)) != 0) {
                                 qc = 0;
                                 if (ubuff.p >= ubuff.len) {
                                     ubuff.len += 16;
@@ -544,7 +544,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                     qc = 1; 
                                 }
                                 if (ubuff.p == 1) {
-                                    if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                                 } else {
                                     flushubuff(&ubuff, &p, tmp);
                                     ubuff.p = 1;
@@ -556,10 +556,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     }
                 eof:
                     if (!qc) unfc(&ubuff);
-                    if (ubuff.p) flushubuff(&ubuff, &p, tmp);
+                    if (ubuff.p != 0) flushubuff(&ubuff, &p, tmp);
                     i = (p - tmp->data) - fp;
                     p = tmp->data + fp;
-                    while (i && (p[i-1]==' ' || p[i-1]=='\t')) i--;
+                    while (i != 0 && (p[i-1]==' ' || p[i-1]=='\t')) i--;
                     p[i++] = 0;
                     fp += i;
                 } while (bp != bl);
@@ -573,7 +573,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             }
             err = ferror(f);
             if (f != stdin) err |= fclose(f);
-            if (err && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
+            if (err != 0 && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
             tmp->len = fp;
             tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
             tmp->coding = type;
@@ -598,7 +598,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
 }
 
 void closefile(struct file_s *f) {
-    if (f->open) f->open--;
+    if (f->open != 0) f->open--;
 }
 
 static struct stars_s {
@@ -667,7 +667,7 @@ void makefile(int argc, char *argv[]) {
     size_t len;
     int i, err;
 
-    if (arguments.make[0] == '-' && !arguments.make[1]) {
+    if (arguments.make[0] == '-' && arguments.make[1] == 0) {
         f = stdout;
     } else {
         if ((f = file_open(arguments.make, "wt")) == NULL) {
@@ -692,7 +692,7 @@ void makefile(int argc, char *argv[]) {
 
     for (n = avltree_first(&file_tree); n != NULL; n = avltree_next(n)) {
         const struct file_s *a = cavltree_container_of(n, struct file_s, node);
-        if (a->type) {
+        if (a->type != 0) {
             if (len > 64) {
                 fputs(" \\\n", f);
                 len = 0;
@@ -705,5 +705,5 @@ void makefile(int argc, char *argv[]) {
 
     err = ferror(f);
     err |= (f != stdout) ? fclose(f) : fflush(f);
-    if (err && errno) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
+    if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
 }
