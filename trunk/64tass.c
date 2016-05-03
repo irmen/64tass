@@ -396,7 +396,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     select_opcodes(cpumode);
     listing_set_cpumode(cpumode);
-    constcreated |= registerobj_createnames(cpumode->registers);
+    if (registerobj_createnames(cpumode->registers)) constcreated = 1;
 }
 
 void var_assign(Label *label, Obj *val, int fix) {
@@ -487,7 +487,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
         case T_TUPLE:
         case T_STR:
         rec:
-            warn |= textrecursion(val2, prm, ch2, uninit, sum, max, epoint2);
+            if (textrecursion(val2, prm, ch2, uninit, sum, max, epoint2)) warn = 1;
             break;
         case T_GAP:
         dogap:
@@ -564,7 +564,7 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE:
-            warn |= byterecursion(val2, prm, uninit, bits, epoint);
+            if (byterecursion(val2, prm, uninit, bits, epoint)) warn = 1;
             val_destroy(val2);
             continue;
         case T_GAP:
@@ -591,7 +591,7 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
                     default:
                         err_msg_output_and_destroy(err_addressing(am, epoint));
                     }
-                    ch2 = uv - (prm == CMD_RTA);
+                    ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
                 }
                 break;
             }
@@ -627,7 +627,7 @@ static int instrecursion(List *val, int prm, int w, linepos_t epoint, struct lin
     for (i = 0; i < val->len; i++) {
         Obj *tmp = val->data[i];
         if (tmp->obj == TUPLE_OBJ || tmp->obj == LIST_OBJ) {
-            was |= instrecursion((List *)tmp, prm, w, epoint, epoints);
+            if (instrecursion((List *)tmp, prm, w, epoint, epoints)) was = 1;
             continue;
         }
         err = instruction(prm, w, tmp, epoint, epoints);
@@ -1432,7 +1432,7 @@ Obj *compile(struct file_list_s *cflist)
                 case CMD_PROC:
                     listing_line(epoint.pos);
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
-                    if (!newlabel->ref && ((Code *)newlabel->value)->pass) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
+                    if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
                     else {         /* TODO: first time it should not compile */
                         push_context(((Code *)newlabel->value)->names);
                         newlabel->ref = 0;
@@ -1606,14 +1606,14 @@ Obj *compile(struct file_list_s *cflist)
                             val_destroy(err);
                             waitfor->skip = 0; break;
                         }
-                        waitfor->skip = ((((Int *)err)->len == 0) ^ (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        waitfor->skip = ((((Int *)err)->len == 0) != (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         val_destroy(err);
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
                             if (toival(val, &ival, 8*sizeof(uval_t), &vs->epoint)) { waitfor->skip = 0; break; }
-                            waitfor->skip = (((ival & 0x8000) == 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         } else {
                             err = val->obj->sign(val, &vs->epoint);
                             if (err->obj != INT_OBJ) {
@@ -1622,7 +1622,7 @@ Obj *compile(struct file_list_s *cflist)
                                 val_destroy(err);
                                 waitfor->skip = 0; break;
                             }
-                            waitfor->skip = ((((Int *)err)->len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = ((((Int *)err)->len >= 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                             val_destroy(err);
                         }
                         break;
@@ -2229,7 +2229,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(&w, 0, cfile, 2, 2, &epoint)) goto breakerr;
                     vs = get_val();
                     if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
-                    else if ((uval & current_section->provides) ^ uval) err_msg2(ERROR_REQUIREMENTS_, NULL, &epoint);
+                    else if ((uval & current_section->provides) != uval) err_msg2(ERROR_REQUIREMENTS_, NULL, &epoint);
                     vs = get_val();
                     if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
                     else if ((uval & current_section->provides) != 0) err_msg2(ERROR______CONFLICT, NULL, &epoint);
@@ -2243,7 +2243,7 @@ Obj *compile(struct file_list_s *cflist)
                     int writeit = 1;
                     struct values_s *vs;
                     listing_line(epoint.pos);
-                    if (!get_exp(&w, 0, cfile, (prm == CMD_CWARN || prm == CMD_CERROR), 0, &epoint)) goto breakerr;
+                    if (!get_exp(&w, 0, cfile, (prm == CMD_CWARN || prm == CMD_CERROR) ? 1 : 0, 0, &epoint)) goto breakerr;
                     if (prm == CMD_CWARN || prm == CMD_CERROR) {
                         vs = get_val();
                         if (tobool(vs, &writeit)) writeit = 0;

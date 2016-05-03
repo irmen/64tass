@@ -74,7 +74,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
         return;
     }
     l = s2->len; d = s2->data;
-    if (!arguments.caseinsensitive != 0) {
+    if (arguments.caseinsensitive == 0) {
         for (i = 0; i < l; i++) {
             if ((d[i] & 0x80) != 0) {
                 unfkc(&cache, s2, 0);
