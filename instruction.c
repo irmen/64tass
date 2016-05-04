@@ -45,7 +45,7 @@ unsigned int databank = 0;
 bool longbranchasjmp = false;
 bool allowslowbranch = true;
 
-int lookup_opcode(const char *s) {
+int lookup_opcode(const uint8_t *s) {
     int32_t s4;
     unsigned int also, felso, elozo, no;
     uint32_t name;
