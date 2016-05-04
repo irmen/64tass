@@ -286,7 +286,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
 
         ignore(); opoint = lpoint;
         for (;;) {
-            if ((!here() || here()==';') && p >= macro->argc) break;
+            if ((here() == 0 || here() == ';') && p >= macro->argc) break;
             if (p >= macro_parameters.current->size) {
                 if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
                 else {
@@ -304,7 +304,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
                 } else param[p].data = NULL;
             }
             p++;
-            if (!here() || here()==';') {
+            if (here() == 0 || here() == ';') {
                 if (p < macro->argc) continue;
             }
             if (here() != ',') break;
@@ -457,8 +457,8 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
 
     new_mfunc.param = NULL;
     for (i = 0;;i++) {
-        ignore();if (!here() || here() == ';') break;
-        if (here()=='*') {
+        ignore();if (here() == 0 || here() == ';') break;
+        if (here() == '*') {
             stard = true;
             lpoint.pos++;ignore();
         }
@@ -501,11 +501,11 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
                 new_mfunc.param[i].init = val;
             }
         }
-        if (!here() || here() == ';') {
+        if (here() == 0 || here() == ';') {
             i++;
             break;
         }
-        if (here()!=',') {
+        if (here() != ',') {
             err_msg2(ERROR______EXPECTED, ",", &lpoint);
             i++;
             break;
@@ -534,7 +534,7 @@ void get_macro_params(Obj *v) {
 
     new_macro.param = NULL;
     for (i = 0;;i++) {
-        ignore();if (!here() || here() == ';') break;
+        ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
             len += 16;
             if (/*len < 16 ||*/ len > SIZE_MAX / sizeof(new_macro.param[0]) || len > SIZE_MAX / sizeof(epoints[0])) err_msg_out_of_memory(); /* overflow */
@@ -565,11 +565,11 @@ void get_macro_params(Obj *v) {
             str_cpy(&new_macro.param[i].init, &label);
         } else {new_macro.param[i].init.len = 0; new_macro.param[i].init.data = NULL;}
         ignore();
-        if (!here() || here() == ';') {
+        if (here() == 0 || here() == ';') {
             i++;
             break;
         }
-        if (here()!=',') {
+        if (here() != ',') {
             err_msg2(ERROR______EXPECTED, ",", &lpoint);
             i++;
             break;

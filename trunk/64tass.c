@@ -817,7 +817,7 @@ Obj *compile(struct file_list_s *cflist)
                 mycontext = cheap_context;
             }
             if (here() == ':' && pline[lpoint.pos + 1] != '=') {islabel = true; lpoint.pos++;}
-            if (!islabel && labelname.len == 3 && (prm = lookup_opcode((const char *)labelname.data)) >=0) {
+            if (!islabel && labelname.len == 3 && (prm = lookup_opcode(labelname.data)) >=0) {
                 if ((waitfor->skip & 1) != 0) goto as_opcode; else continue;
             }
             if (false) {
@@ -3215,7 +3215,7 @@ Obj *compile(struct file_list_s *cflist)
                 bool down;
 
                 opname.data = pline + lpoint.pos; opname.len = get_label();
-                if (opname.len == 3 && (prm = lookup_opcode((const char *)opname.data)) >= 0) {
+                if (opname.len == 3 && (prm = lookup_opcode(opname.data)) >= 0) {
                     Error *err;
                     struct linepos_s oldlpoint;
                     struct linepos_s epoints[3];
