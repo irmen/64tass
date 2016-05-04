@@ -608,8 +608,10 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
                 ns->len = 0;
                 newprefix.len = prefix->len + l2->name.len;
                 if (newprefix.len < prefix->len) err_msg_out_of_memory(); /* overflow */
-                if (prefix->len != 0) newprefix.len++;
-                if (newprefix.len == 0) err_msg_out_of_memory(); /* overflow */
+                if (prefix->len != 0) {
+                    newprefix.len++;
+                    if (newprefix.len == 0) err_msg_out_of_memory(); /* overflow */
+                }
                 s = (uint8_t *)mallocx(newprefix.len);
                 newprefix.data = s;
                 if (prefix->len != 0) {
