@@ -241,7 +241,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
       }
       if (opt == 0) {
         if (longind != NULL) *longind = found;
-        if (longopts[found].flag == 0) opt = longopts[found].val;
+        if (longopts[found].flag == NULL) opt = longopts[found].val;
         else *(longopts[found].flag) = longopts[found].val;
       }
       my_optind++;

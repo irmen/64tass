@@ -281,7 +281,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             if (val != NULL) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
-                while (f == NULL && i != 0) {
+                while (f == NULL && i != NULL) {
                     free(path);
                     path = get_path(val, i->path);
                     f = file_open(path, "rb");
