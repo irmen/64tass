@@ -157,7 +157,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
         if (len != 0) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
-        else {tmp2[0]='0';len = 1;}
+        else {tmp2[0] = '0';len = 1;}
         if (len > maxsize) return NULL;
         v = new_str(len);
         v->chars = len;

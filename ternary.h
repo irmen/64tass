@@ -24,6 +24,7 @@
 #define TERNARY_H_
 /* Ternary search trees */
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct ternary_node_def *ternary_tree;
 

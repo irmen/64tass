@@ -328,13 +328,13 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
             if (sc >= 0xac00) {
                 uint32_t hs = sc - 0xac00;
                 if (hs < 588*19 && (hs % 28) == 0) {
-                    if (ch >= 0x11a7 && ch < 0x11a7+28) {
+                    if (ch >= 0x11a7 && ch < 0x11a7 + 28) {
                         d->data[sp] = sc + ch - 0x11a7;
                         sprop = NULL;
                         continue;
                     }
                 }
-            } else if (sc >= 0x1100 && sc < 0x1100+19 && ch >= 0x1161 && ch < 0x1161+21) {
+            } else if (sc >= 0x1100 && sc < 0x1100 + 19 && ch >= 0x1161 && ch < 0x1161 + 21) {
                 d->data[sp] = 0xac00 + (ch - 0x1161 + (sc - 0x1100) * 21) * 28;
                 sprop = NULL;
                 continue;

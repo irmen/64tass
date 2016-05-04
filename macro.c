@@ -110,17 +110,17 @@ bool mtranslate(struct file_s *cfile)
     if (macro_parameters.p == 0) return false;
     mline = &macro_parameters.current->pline;
 
-    q=p=0;
+    q = p = 0;
     for (; (ch = here()) != 0; lpoint.pos++) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
         else if ((ch == ';') && q == 0) { q = 4; }
         else if ((ch=='\\') && q == 0) {
             /* normal parameter reference */
-            if ((ch=pline[lpoint.pos+1]) >= '1' && ch <= '9') {
+            if ((ch = pline[lpoint.pos + 1]) >= '1' && ch <= '9') {
                 str_t *param = macro_parameters.current->param;
                 /* \1..\9 */
-                if ((j=ch-'1') >= macro_parameters.current->len || param[j].data == NULL) {
+                if ((j = ch-'1') >= macro_parameters.current->len || param[j].data == NULL) {
                     Type *obj = macro_parameters.current->macro->obj;
                     if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
                         lpoint.pos++;
@@ -194,14 +194,14 @@ bool mtranslate(struct file_s *cfile)
                     }
                     err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
                 }
-                ch='\\';lpoint = e;
+                ch = '\\';lpoint = e;
             }
-        } else if (ch=='@' && arguments.tasmcomp) {
+        } else if (ch == '@' && arguments.tasmcomp) {
             /* text parameter reference */
-            if ((ch=pline[lpoint.pos+1])>='1' && ch<='9') {
+            if ((ch = pline[lpoint.pos + 1]) >= '1' && ch <= '9') {
                 /* @1..@9 */
                 str_t *param = macro_parameters.current->param;
-                if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                if ((j = ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 if (p + param[j].len > mline->len) {
                     mline->len += param[j].len + 1024;
                     if (mline->len < 1024) err_msg_out_of_memory();
@@ -215,7 +215,7 @@ bool mtranslate(struct file_s *cfile)
                     p += param[j].len;
                 }
                 lpoint.pos++;continue;
-            } else ch='@';
+            } else ch = '@';
         }
     ok:
         if (p + 1 > mline->len) {
@@ -223,7 +223,7 @@ bool mtranslate(struct file_s *cfile)
             if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
             mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
         }
-        mline->data[p++]=ch;
+        mline->data[p++] = ch;
     }
     if (p + 1 > mline->len) {
         mline->len += 1024;
@@ -231,7 +231,7 @@ bool mtranslate(struct file_s *cfile)
         mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
     }
     while (p != 0 && (mline->data[p-1] == ' ' || mline->data[p-1] == ' ')) p--;
-    mline->data[p]=0;
+    mline->data[p] = 0;
     llist = pline = mline->data; lpoint.pos = 0;
     return false;
 }
@@ -243,11 +243,11 @@ static size_t macro_param_find(void) {
 
     struct linepos_s opoint2, npoint2;
     opoint2.pos = lpoint.pos;
-    while ((ch=here()) != 0 && (q != 0 || (ch!=';' && (ch!=',' || pp != 0)))) {
+    while ((ch = here()) != 0 && (q != 0 || (ch != ';' && (ch != ',' || pp != 0)))) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
         if (q == 0) {
-            if (ch == '(' || ch == '[' || ch == '{') par[pp++]=ch;
+            if (ch == '(' || ch == '[' || ch == '{') par[pp++] = ch;
             else if (pp != 0 && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
         }
         lpoint.pos++;
@@ -336,7 +336,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline=0;
+        star_tree = &s->tree;vline = 0;
         cflist = enterfile(macro->file_list->file, epoint);
         lpoint.line = macro->line;
         new_waitfor(t, &nopoint);
@@ -389,7 +389,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
             }
         }
         label = new_label(&mfunc->param[i].name, context, strength, &labelexists);
-        label->ref=false;
+        label->ref = false;
         if (labelexists) {
             if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
@@ -423,7 +423,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline=0;
+        star_tree = &s->tree;vline = 0;
         cflist = enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
         new_waitfor(t, &nopoint);
@@ -637,7 +637,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
             val = (i < args) ? vals[i].val : (mfunc->param[i].init != NULL) ? mfunc->param[i].init : (Obj *)none_value;
         }
         label = new_label(&mfunc->param[i].name, context, 0, &labelexists);
-        label->ref=false;
+        label->ref = false;
         if (labelexists) {
             if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint);
             else {
@@ -672,7 +672,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline=0;
+        star_tree = &s->tree;vline = 0;
         lpoint.line = mfunc->line;
         new_waitfor(W_ENDF2, &nopoint);
         oldbottom = context_get_bottom();

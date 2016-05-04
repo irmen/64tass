@@ -43,9 +43,9 @@ void include_list_add(const char *path)
     j = i = strlen(path);
     if (i == 0) return;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (path[i-1] != '/' && path[i-1] != '\\') j++;
+    if (path[i - 1] != '/' && path[i-1] != '\\') j++;
 #else
-    if (path[i-1] != '/') j++;
+    if (path[i - 1] != '/') j++;
 #endif
     len = j + 1 + sizeof(struct include_list_s);
     if (len < sizeof(struct include_list_s)) err_msg_out_of_memory();
@@ -65,7 +65,7 @@ char *get_path(const Str *v, const char *base) {
     i = strlen(base);
     j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
     while (i > j) {
-        if (base[i-1] == '/' || base[i-1] == '\\') break;
+        if (base[i - 1] == '/' || base[i - 1] == '\\') break;
         i--;
     }
 #else
@@ -84,10 +84,10 @@ char *get_path(const Str *v, const char *base) {
     }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (v->len != 0 && (v->data[0]=='/' || v->data[0]=='\\')) i = j;
+    if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = j;
     else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
 #else
-    if (v->len != 0 && v->data[0]=='/') i = 0;
+    if (v->len != 0 && v->data[0] == '/') i = 0;
 #endif
     len = i + v->len;
     if (len < i) err_msg_out_of_memory(); /* overflow */
@@ -123,7 +123,7 @@ FILE *file_open(const char *name, const char *mode)
     *c2++ = 0;
     c2 = wmode; c = (uint8_t *)mode;
     while ((*c2++=(wchar_t)*c++) != 0);
-    f=_wfopen(wname, wmode);
+    f = _wfopen(wname, wmode);
     free(wname);
 #else
     size_t len = 0, max = strlen(name) + 1;
@@ -149,7 +149,7 @@ FILE *file_open(const char *name, const char *mode)
         }
         memcpy(newname + len - l, temp, l);
     } while (ch != 0);
-    f=fopen(newname, mode);
+    f = fopen(newname, mode);
     free(newname);
 #endif
     return f;
@@ -239,7 +239,7 @@ inline uint32_t fromiso(uint8_t c) {
 
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
-static uint16_t curfnum=1;
+static uint16_t curfnum = 1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const Str *val, linepos_t epoint) {
     char *base2;
     struct avltree_node *b;
@@ -252,7 +252,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     lastfi->base = base2;
     if (name != NULL) {
         lastfi->name = name;
-        b=avltree_insert(&lastfi->node, &file_tree, file_compare);
+        b = avltree_insert(&lastfi->node, &file_tree, file_compare);
     } else {
         b = (command_line != NULL) ? &command_line->node : NULL;
         if (command_line == NULL) command_line = lastfi;
@@ -263,15 +263,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         uint32_t c = 0;
         size_t fp = 0;
 
-	lastfi->line=NULL;
-	lastfi->lines=0;
-	lastfi->data=NULL;
-	lastfi->len=0;
-        lastfi->open=0;
-        lastfi->type=ftype;
+	lastfi->line = NULL;
+	lastfi->lines = 0;
+	lastfi->data = NULL;
+	lastfi->len = 0;
+        lastfi->open = 0;
+        lastfi->type = ftype;
         avltree_init(&lastfi->star);
         tmp = lastfi;
-        lastfi=NULL;
+        lastfi = NULL;
         if (name != NULL) {
             int err;
             char *path = NULL;
@@ -288,8 +288,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     i = i->next;
                 }
             } else {
-                if (name[0]=='-' && name[1] == 0) f=stdin;
-                else f=file_open(name, "rb");
+                if (name[0] == '-' && name[1] == 0) f = stdin;
+                else f = file_open(name, "rb");
             }
             if (path == NULL) {
                 s = (char *)mallocx(namelen);
@@ -587,7 +587,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             tmp->coding = E_UNKNOWN;
         }
 
-        tmp->uid=curfnum++;
+        tmp->uid = curfnum++;
     } else {
         free(base2);
         tmp = avltree_container_of(b, struct file_s, node);
@@ -611,8 +611,8 @@ static int starsp;
 struct star_s *new_star(line_t line, bool *exists) {
     struct avltree_node *b;
     struct star_s *tmp;
-    lastst->line=line;
-    b=avltree_insert(&lastst->node, star_tree, star_compare);
+    lastst->line = line;
+    b = avltree_insert(&lastst->node, star_tree, star_compare);
     if (b == NULL) { /* new label */
 	*exists = false;
         avltree_init(&lastst->tree);

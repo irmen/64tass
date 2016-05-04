@@ -60,7 +60,7 @@ struct section_s *find_new_section(const str_t *name) {
     tmp.name_hash = str_hash(&tmp.cfname);
 
     while (context != NULL) {
-        b=avltree_lookup(&tmp.node, &context->members, section_compare);
+        b = avltree_lookup(&tmp.node, &context->members, section_compare);
         if (b != NULL) {
             tmp2 = avltree_container_of(b, struct section_s, node);
             if (tmp2->defpass >= pass - 1) {
@@ -73,7 +73,7 @@ struct section_s *find_new_section(const str_t *name) {
     return new_section(name);
 }
 
-static struct section_s *lastsc=NULL;
+static struct section_s *lastsc = NULL;
 struct section_s *new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *tmp;
@@ -84,31 +84,31 @@ struct section_s *new_section(const str_t *name) {
     if (name->len > 1 && name->data[1] == 0) lastsc->cfname = *name;
     else str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);
-    b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
+    b = avltree_insert(&lastsc->node, &current_section->members, section_compare);
     if (b == NULL) { /* new section */
         str_cpy(&lastsc->name, name);
         if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
         else str_cfcpy(&lastsc->cfname, NULL);
-        lastsc->parent=current_section;
-        lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
-        lastsc->end=lastsc->address=lastsc->l_address.address=lastsc->l_address.bank=lastsc->size=0;
+        lastsc->parent = current_section;
+        lastsc->provides = ~(uval_t)0;lastsc->requires = lastsc->conflicts = 0;
+        lastsc->end = lastsc->address = lastsc->l_address.address = lastsc->l_address.bank = lastsc->size = 0;
         lastsc->l_address_val = NULL;
-        lastsc->dooutput=true;
-        lastsc->defpass=0;
-        lastsc->usepass=0;
-        lastsc->unionmode=false;
-        lastsc->structrecursion=0;
-        lastsc->logicalrecursion=0;
-        lastsc->moved=false;
-        lastsc->wrapwarn=false;
-        lastsc->next=NULL;
+        lastsc->dooutput = true;
+        lastsc->defpass = 0;
+        lastsc->usepass = 0;
+        lastsc->unionmode = false;
+        lastsc->structrecursion = 0;
+        lastsc->logicalrecursion = 0;
+        lastsc->moved = false;
+        lastsc->wrapwarn = false;
+        lastsc->next = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
         init_memblocks(&lastsc->mem);
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
-	tmp=lastsc;
-	lastsc=NULL;
+	tmp = lastsc;
+	lastsc = NULL;
 	return tmp;
     }
     return avltree_container_of(b, struct section_s, node);            /* already exists */

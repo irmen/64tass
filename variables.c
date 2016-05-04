@@ -125,7 +125,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     s += 8;
     memcpy(s, v1->name.data, len);
     s[len] = '\'';
-    s[len+1] = '>';
+    s[len + 1] = '>';
     return &v->v;
 }
 
