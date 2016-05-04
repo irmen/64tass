@@ -201,9 +201,10 @@ static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
     if (err2->obj != STR_OBJ) return err2;
 
     str = (Str *)err2;
-    p->width -= str->len - minus;
+    i = minus ? 1 : 0;
+    p->width -= str->len - i;
     PAD_RIGHT2(p, 0, minus);
-    for (i = minus; i < str->len; i++) PUT_CHAR(str->data[i]);
+    for (; i < str->len; i++) PUT_CHAR(str->data[i]);
     PAD_LEFT(p);
     val_destroy(&str->v);
     return NULL;

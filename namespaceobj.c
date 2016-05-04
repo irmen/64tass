@@ -208,9 +208,10 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
                 return (Obj *)ref_none();
             }
             count = v2->count;
+            if (count >= 0) count++;
             err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
             err->u.notdef.names = ref_namespace(v1);
-            err->u.notdef.ident.len = count + (count >= 0);
+            err->u.notdef.ident.len = count;
             err->u.notdef.ident.data = NULL;
             err->u.notdef.down = 0;
             return &err->v;

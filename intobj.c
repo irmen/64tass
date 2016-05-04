@@ -837,7 +837,7 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
             for (i = 0; i < len2; i++) v[i] = v1[i] & v2[i];
         }
     }
-    return (Int *)normalize(vv, v, sz, neg1 & neg2);
+    return (Int *)normalize(vv, v, sz, neg1 && neg2);
 }
 
 static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {

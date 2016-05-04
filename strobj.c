@@ -274,7 +274,8 @@ MUST_CHECK Str *new_str(size_t ln) {
 static int scmp(Str *v1, Str *v2) {
     int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h != 0) return h;
-    return (v1->len > v2->len) - (v1->len < v2->len);
+    if (v1->len < v2->len) return -1;
+    return (v1->len > v2->len) ? 1 : 0;
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -646,7 +647,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
         int i;
         if (result->obj != BOOL_OBJ) return result;
-        i = ((Bool *)result)->boolean ^ (op->op == &o_LOR);
+        i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);
         return val_reference(i ? v2 : &v1->v);
     }

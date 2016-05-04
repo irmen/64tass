@@ -80,7 +80,7 @@ int my_getopt(int argc, char *argv[], const char *opts)
     }
     if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
                     fputs(": illegal option -- '", stderr);
-                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, (my_optopt & 0x80) ? utf8len(my_optopt) : 1);
+                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len(my_optopt) : 1);
                     fputs("'\n", stderr);}
     opt = '?';
     if(argv[my_optind][++charind] == '\0') {
@@ -201,7 +201,7 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
         if(my_optopt == c) return my_getopt(argc, argv, shortopts);
       }
     }
-    offset = 2 - (argv[my_optind][1] != '-');
+    offset = (argv[my_optind][1] != '-') ? 1 : 2;
     for(charind = offset;
         (argv[my_optind][charind] != '\0') &&
           (argv[my_optind][charind] != '=');
