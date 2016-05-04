@@ -79,7 +79,7 @@ static inline int tcmp(const Type *vv1, const Type *vv2) {
     enum type_e v1 = vv1->type;
     enum type_e v2 = vv2->type;
     if (v1 < v2) return -1;
-    return v1 > v2;
+    return (v1 > v2) ? 1 : 0;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {

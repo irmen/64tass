@@ -92,7 +92,7 @@ int iswprint(wint_t wc) {
     if (cp == NULL) set_cp();
     c = wc << 8;
     ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
-    return (ch != NULL);
+    return (ch != NULL) ? 1 : 0;
 }
 
 size_t mbrtowc(wchar_t *wc, const char *s, size_t UNUSED(n), mbstate_t *UNUSED(ps)) {
@@ -522,7 +522,7 @@ size_t argv_print(const char *line, FILE *f) {
 
     for (i = 0;line[i] != 0;i++) {
         if (line[i] == '!') break;
-        else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]) != NULL;
+        if (strchr(" \"$&()*;<>'?[\\]`{|}", line[i]) != NULL) quote = 1;
     }
     if (line[i] != 0) quote = 0;
     if (quote) {len++;putc('"', f);}

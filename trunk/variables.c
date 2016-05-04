@@ -348,11 +348,9 @@ Label *find_anonlabel(int32_t count) {
         }
     }
     b = avltree_lookup(&tmp.node, &builtin_namespace->members, label_compare);
-    if (b != NULL) {
-        c = avltree_container_of(b, struct namespacekey_s, node);
-        return (c != NULL) ? c->key : NULL;
-    }
-    return NULL;
+    if (b == NULL) return NULL;
+    c = avltree_container_of(b, struct namespacekey_s, node);
+    return (c != NULL) ? c->key : NULL;
 }
 
 Label *find_anonlabel2(int32_t count, Namespace *context) {
@@ -609,7 +607,9 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
                 size_t ln = ns->len;
                 ns->len = 0;
                 newprefix.len = prefix->len + l2->name.len;
-                newprefix.len += !!prefix->len;
+                if (newprefix.len < prefix->len) err_msg_out_of_memory(); /* overflow */
+                if (prefix->len != 0) newprefix.len++;
+                if (newprefix.len == 0) err_msg_out_of_memory(); /* overflow */
                 s = (uint8_t *)mallocx(newprefix.len);
                 newprefix.data = s;
                 if (prefix->len != 0) {

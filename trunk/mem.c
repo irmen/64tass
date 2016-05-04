@@ -36,8 +36,8 @@ static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa=(const struct memblock_s *)a;
     const struct memblock_s *bb=(const struct memblock_s *)b;
     address_t ad = aa->addr, bd = bb->addr;
-    int comp = ad > bd;
-    return comp ? comp : -(ad < bd);
+    if (ad < bd) return -1;
+    return (ad > bd) ? 1 : 0;
 }
 
 static void memcomp(struct memblocks_s *memblocks) {
@@ -340,8 +340,10 @@ static void output_mem_ihex_data(struct ihex_s *ihex) {
         data += length;
         ihex->length = remains;
     }
-    if ((ihex->address ^ ihex->segment) & ~0xffff) {
-        uint8_t ez[2] = {ihex->address >> 24, ihex->address >> 16};
+    if (((ihex->address ^ ihex->segment) & ~0xffff) != 0) {
+        uint8_t ez[2];
+        ez[0] = ihex->address >> 24;
+        ez[1] = ihex->address >> 16;
         output_mem_ihex_line(ihex->file, sizeof(ez), 0, 4, ez);
         ihex->segment = ihex->address;
     }

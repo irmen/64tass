@@ -198,11 +198,9 @@ MUST_CHECK Iter *invalid_getiter(Obj *v1) {
 }
 
 static MUST_CHECK Obj *invalid_next(Iter *v1) {
-    if (v1->val != 0) {
-        v1->val = 0;
-        return val_reference(v1->data);
-    }
-    return NULL;
+    if (v1->val == 0) return NULL;
+    v1->val = 0;
+    return val_reference(v1->data);
 }
 
 static void iter_destroy(Obj *o1) {

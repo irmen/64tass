@@ -182,11 +182,13 @@ MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
+    size_t ln;
     Code *v1 = (Code *)o1;
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
-    return (Obj *)int_from_size(v1->size / (abs(v1->dtype) + !v1->dtype));
+    ln = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
+    return (Obj *)int_from_size((ln != 0) ? (v1->size / ln) : v1->size);
 }
 
 static MUST_CHECK Obj *size(Obj *o1, linepos_t UNUSED(epoint)) {
@@ -221,7 +223,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
     }
 
     ln2 = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
-    ln2 = ln2 + !ln2;
+    if (ln2 == 0) ln2 = 1;
     ln = v1->size / ln2;
 
     if (ln == 0) {
@@ -280,7 +282,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
     vals = list_create_elements(v, length);
     i = 0;
     ln2 = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
-    ln2 = ln2 + !ln2;
+    if (ln2 == 0) ln2 = 1;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
         offs2 = offs * ln2;
         val = 0;
@@ -328,7 +330,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
     }
 
     ln2 = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
-    ln2 = ln2 + !ln2;
+    if (ln2 == 0) ln2 = 1;
     ln = v1->size / ln2;
 
     if (o2->obj == LIST_OBJ) {
@@ -441,7 +443,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
         int i;
         if (result->obj != BOOL_OBJ) return result;
-        i = ((Bool *)result)->boolean ^ (op->op == &o_LOR);
+        i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);
         return val_reference(i ? o2 : &v1->v);
     }
@@ -503,7 +505,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint2);
         }
         ln = (v2->dtype < 0) ? -v2->dtype : v2->dtype;
-        ln = ln + !ln;
+        if (ln == 0) ln = 1;
         oper.op = &o_EQ;
         oper.v2 = o1;
         oper.epoint = op->epoint;

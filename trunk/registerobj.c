@@ -59,7 +59,7 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
             Register *v = new_register();
             v->chars = v1->chars;
             v->len = v1->len;
-            if (v1->len) {
+            if (v1->len != 0) {
                 s = rnew(v, v->len);
                 memcpy(s, v1->data, v->len);
             } else s = NULL;
@@ -76,7 +76,7 @@ static int same(const Obj *o1, const Obj *o2) {
     const Register *v1 = (const Register *)o1, *v2 = (const Register *)o2;
     return o2->obj == REGISTER_OBJ && v1->len == v2->len && (
             v1->data == v2->data ||
-            !memcmp(v1->data, v2->data, v2->len));
+            memcmp(v1->data, v2->data, v2->len) == 0);
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
@@ -84,12 +84,12 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->len;
     const uint8_t *s2 = v1->data;
     unsigned int h;
-    if (!l) {
+    if (l == 0) {
         *hs = 0;
         return NULL;
     }
     h = *s2 << 7;
-    while (l--) h = (1000003 * h) ^ *s2++;
+    while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
     *hs = h & ((~(unsigned int)0) >> 1);
     return NULL;
@@ -129,8 +129,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 
 static int rcmp(Register *v1, Register *v2) {
     int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
-    if (h) return h;
-    return (v1->len > v2->len) - (v1->len < v2->len);
+    if (h != 0) return h;
+    if (v1->len < v2->len) return -1;
+    return (v1->len > v2->len) ? 1 : 0;
 }
 
 static MUST_CHECK Obj *calc2_register(oper_t op) {
