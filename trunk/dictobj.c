@@ -114,22 +114,22 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Dict *v1 = (const Dict *)o1, *v2 = (const Dict *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;
-    if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
-    if ((v1->def == NULL) != (v2->def == NULL)) return 0;
-    if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return 0;
+    if (o2->obj != DICT_OBJ || v1->len != v2->len) return false;
+    if ((v1->def == NULL) != (v2->def == NULL)) return false;
+    if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return false;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n != NULL && n2 != NULL) {
         const struct pair_s *p, *p2;
-        if (pair_compare(n, n2) != 0) return 0;
+        if (pair_compare(n, n2) != 0) return false;
         p = cavltree_container_of(n, struct pair_s, node);
         p2 = cavltree_container_of(n2, struct pair_s, node);
-        if ((p->data == NULL) != (p2->data == NULL)) return 0;
-        if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return 0;
+        if ((p->data == NULL) != (p2->data == NULL)) return false;
+        if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return false;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }

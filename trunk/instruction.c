@@ -39,11 +39,11 @@ static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
 static const struct cpu_s *cpu;
 
-int longaccu = 0, longindex = 0, autosize = 0; /* hack */
+bool longaccu = false, longindex = false, autosize = false; /* hack */
 unsigned int dpage = 0;
 unsigned int databank = 0;
-int longbranchasjmp = 0;
-int allowslowbranch = 1;
+bool longbranchasjmp = false;
+bool allowslowbranch = true;
 
 int lookup_opcode(const char *s) {
     int32_t s4;
@@ -70,20 +70,20 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-MUST_CHECK int touval(Obj *v1, uval_t *uv, int bits, linepos_t epoint) {
+MUST_CHECK bool touval(Obj *v1, uval_t *uv, int bits, linepos_t epoint) {
     Error *err = v1->obj->uval(v1, uv, bits, epoint);
-    if (err == NULL) return 0;
+    if (err == NULL) return false;
     err_msg_output_and_destroy(err);
-    return 1;
+    return true;
 }
 
-MUST_CHECK int toaddress(Obj *v1, uval_t *uv, int bits, atype_t *am, linepos_t epoint) {
+MUST_CHECK bool toaddress(Obj *v1, uval_t *uv, int bits, atype_t *am, linepos_t epoint) {
     Error *err;
     if (am != NULL) *am = A_NONE;
     err = v1->obj->address(v1, uv, bits, am, epoint);
-    if (err == NULL) return 0;
+    if (err == NULL) return false;
     err_msg_output_and_destroy(err);
-    return 1;
+    return true;
 }
 
 static atype_t get_address_mode(Obj *v1, linepos_t epoint) {
@@ -364,21 +364,21 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             }
             if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
-                int labelexists;
+                bool labelexists;
                 uint16_t oadr, xadr;
-                int labelexists2;
-                int crossbank;
+                bool labelexists2;
+                bool crossbank;
                 ln = 1; opr = ADR_REL;
                 longbranch = 0;
-                if (0) {
+                if (false) {
             justrel2:
                     if (toaddress(val, &uval, 16, NULL, epoint2)) uval = current_section->l_address.address + 1 + ln;
-                    crossbank = 0;
+                    crossbank = false;
                 } else {
             justrel: 
                     if (touval(val, &uval, 24, epoint2)) {
                         uval = current_section->l_address.address + 1 + ln;
-                        crossbank = 0;
+                        crossbank = false;
                     } else crossbank = ((uval_t)current_section->l_address.bank ^ uval) > 0xffff;
                 }
                 xadr = adr;
@@ -392,7 +392,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 if (labelexists2 && oval->obj == CODE_OBJ && pass != ((Code *)oval)->apass) {
                     adr = (uint16_t)(uval - s->addr);
                 } else {
-                    adr = (uint16_t)(uval - current_section->l_address.address - 1 - ln); labelexists2 = 0;
+                    adr = (uint16_t)(uval - current_section->l_address.address - 1 - ln); labelexists2 = false;
                 }
                 if ((adr<0xFF80 && adr>0x007F) || crossbank) {
                     if (cnmemonic[ADR_REL_L] != ____ && !crossbank) { /* 65CE02 long branches */
@@ -402,7 +402,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                         ln = 2;
                     } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
-                            int exists;
+                            bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
                             if (exists && lj->defpass == pass) {
                                 if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
@@ -423,13 +423,13 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
                             if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-                                fixeddig = 0;
+                                fixeddig = false;
                             }
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return err;
                         }
                         if (opr == ADR_BIT_ZP_REL) {
-                            int exists;
+                            bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
                             if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                             if (exists && lj->defpass == pass) {
@@ -469,7 +469,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                                 err = instruction(cpu->jmp, w, vals, epoint, epoints);
                                 if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-                                    fixeddig = 0;
+                                    fixeddig = false;
                                 }
                                 s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                                 return err;
@@ -498,7 +498,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             listing_instr(0, 0, -1);
                             if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-                                fixeddig = 0;
+                                fixeddig = false;
                             }
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return NULL;
@@ -509,7 +509,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             listing_instr(cod, 0, 0);
                             if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-                                fixeddig = 0;
+                                fixeddig = false;
                             }
                             s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return NULL;
@@ -519,7 +519,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             branchok:
                 if (labelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-                    fixeddig = 0;
+                    fixeddig = false;
                 }
                 s->addr = (star + 1 + ln) & all_mem;
                 if (opr == ADR_BIT_ZP_REL) adr = xadr | (adr << 8);
@@ -684,12 +684,12 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             if (autosize && (opcode == c65el02.opcode || opcode == w65816.opcode)) {
                 switch (cnmemonic[opr]) {
                 case 0xC2:
-                    if ((adr & 0x10) != 0) longindex = 1;
-                    if ((adr & 0x20) != 0) longaccu = 1;
+                    if ((adr & 0x10) != 0) longindex = true;
+                    if ((adr & 0x20) != 0) longaccu = true;
                     break;
                 case 0xE2:
-                    if ((adr & 0x10) != 0) longindex = 0;
-                    if ((adr & 0x20) != 0) longaccu = 0;
+                    if ((adr & 0x10) != 0) longindex = false;
+                    if ((adr & 0x20) != 0) longaccu = false;
                     break;
                 }
             }

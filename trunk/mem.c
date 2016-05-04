@@ -43,7 +43,7 @@ static int memblockcomp(const void *a, const void *b) {
 static void memcomp(struct memblocks_s *memblocks) {
     unsigned int i, j, k;
     if (memblocks->compressed) return;
-    memblocks->compressed = 1;
+    memblocks->compressed = true;
     memjmp(memblocks, 0);
 
     for (j = 0; j < memblocks->p; j++) { /* replace references with real copies */
@@ -150,7 +150,8 @@ void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
 
 void memprint(struct memblocks_s *memblocks) {
     char temp[10];
-    unsigned int i, over;
+    unsigned int i;
+    bool over;
     address_t start, end;
 
     memcomp(memblocks);
@@ -468,7 +469,7 @@ void output_mem(struct memblocks_s *memblocks) {
     memcomp(memblocks);
 
     if (memblocks->mem.p != 0) {
-        int binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
+        bool binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
         int err;
         if (arguments.output[0] == '-' && arguments.output[1] == 0) {
 #ifdef _WIN32
@@ -553,12 +554,12 @@ void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
     memblocks->mem.data[ptextaddr] = c;
 }
 
-void list_mem(const struct memblocks_s *memblocks, int dooutput) { 
+void list_mem(const struct memblocks_s *memblocks, bool dooutput) { 
     address_t myaddr;
     size_t len;
-    int first = 1, print = 1;
+    bool first = true, print = true;
 
-    for (;omemp <= memblocks->p;omemp++, first = 0) {
+    for (;omemp <= memblocks->p;omemp++, first = false) {
         if (omemp < memblocks->p) {
             if (first && oaddr < memblocks->data[omemp].addr) {
                 len = 0; myaddr = oaddr; omemp--;
@@ -580,7 +581,7 @@ void list_mem(const struct memblocks_s *memblocks, int dooutput) {
             }
         }
         listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~0xffff));
-        print = 0;
+        print = false;
         ptextaddr += len;
     }
 }
@@ -590,7 +591,7 @@ void restart_memblocks(struct memblocks_s *memblocks, address_t address) {
     memblocks->lastp = 0;
     memblocks->p = 0;
     memblocks->lastaddr = address;
-    memblocks->compressed = 0;
+    memblocks->compressed = false;
 }
 
 void init_memblocks(struct memblocks_s *memblocks) {
@@ -602,7 +603,7 @@ void init_memblocks(struct memblocks_s *memblocks) {
     memblocks->lastp = 0;
     memblocks->lastaddr = 0;
     memblocks->data = NULL;
-    memblocks->compressed = 0;
+    memblocks->compressed = false;
 }
 
 void destroy_memblocks(struct memblocks_s *memblocks) {

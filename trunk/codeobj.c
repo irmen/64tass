@@ -94,7 +94,7 @@ static MUST_CHECK Error *access_check(const Code *v1, linepos_t epoint) {
     return NULL;
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Code *v1 = (const Code *)o1, *v2 = (const Code *)o2;
     return o2->obj == CODE_OBJ && (v1->addr == v2->addr || v1->addr->obj->same(v1->addr, v2->addr))
         && v1->size == v2->size && v1->dtype == v2->dtype
@@ -336,17 +336,17 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
     if (o2->obj == LIST_OBJ) {
         List *list = (List *)o2;
         Tuple *v;
-        int error;
+        bool error;
         if (list->len == 0) {
             return (Obj *)ref_tuple(null_tuple);
         }
         v = new_tuple();
         v->data = vals = list_create_elements(v, list->len);
-        error = 1;
+        error = true;
         for (i = 0; i < list->len; i++) {
             err = indexoffs(list->data[i], ln, &offs, op->epoint2);
             if (err != NULL) {
-                if (error) {err_msg_output(err); error = 0;} 
+                if (error) {err_msg_output(err); error = false;} 
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
                 continue;
@@ -441,7 +441,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     }
     if (op->op == &o_LAND || op->op == &o_LOR) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
-        int i;
+        bool i;
         if (result->obj != BOOL_OBJ) return result;
         i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);

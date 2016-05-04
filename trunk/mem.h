@@ -27,7 +27,7 @@ struct memblocks_s {
         size_t p, len;
         uint8_t *data;
     } mem;
-    unsigned int compressed:1;
+    bool compressed:1;
     size_t p, len;
     size_t lastp;
     address_t lastaddr;
@@ -36,7 +36,7 @@ struct memblocks_s {
 
 extern void mark_mem(const struct memblocks_s *, address_t, address_t);
 extern void write_mark_mem(struct memblocks_s *, uint8_t);
-extern void list_mem(const struct memblocks_s *, int);
+extern void list_mem(const struct memblocks_s *, bool);
 extern void memjmp(struct memblocks_s *, address_t);
 extern void memref(struct memblocks_s *, struct memblocks_s *);
 extern void memprint(struct memblocks_s *);

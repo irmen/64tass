@@ -101,21 +101,21 @@ static MUST_CHECK Obj *invert(const Bytes *v1) {
     return (Obj *)ref_bytes((v1->len < 0) ? null_bytes : inv_bytes);
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Bytes *v1 = (const Bytes *)o1, *v2 = (const Bytes *)o2;
     return o2->obj == BYTES_OBJ && v1->len == v2->len && (
             v1->data == v2->data ||
             memcmp(v1->data, v2->data, byteslen(v2)) == 0);
 }
 
-static int to_bool(const Bytes *v1) {
+static bool to_bool(const Bytes *v1) {
     size_t i, sz;
-    if (v1->len < 0) return 1;
+    if (v1->len < 0) return true;
     sz = byteslen(v1);
     for (i = 0; i < sz; i++) {
-        if (v1->data[i] != 0) return 1;
+        if (v1->data[i] != 0) return true;
     }
-    return 0;
+    return false;
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
@@ -290,7 +290,7 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
     size_t i, sz, len1;
     uint8_t *d;
     Bytes *v;
-    int inv = (v1->len < 0);
+    bool inv = (v1->len < 0);
 
     len1 = v1->bits;
     if (len1 == 0) {
@@ -328,7 +328,7 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
 }
 
 static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
-    int inv;
+    bool inv;
     size_t i, j, sz, bits;
     uint8_t *d;
     const digit_t *b;
@@ -355,7 +355,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
     b = v1->data;
     if (inv) {
-        int c = (b[0] == 0);
+        bool c = (b[0] == 0);
         digit_t b2 = b[0] - 1;
         bits = j = 0;
         for (i = 0; i < sz; i++) {
@@ -520,7 +520,7 @@ static MUST_CHECK Obj *next(Iter *v1) {
 
 static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
     size_t i, len1, len2, sz;
-    int neg1, neg2;
+    bool neg1, neg2;
     uint8_t *v1, *v2, *v;
     Bytes *vv;
     len1 = byteslen(vv1); len2 = byteslen(vv2);
@@ -560,7 +560,7 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
 
 static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
     size_t i, len1, len2, sz;
-    int neg1, neg2;
+    bool neg1, neg2;
     uint8_t *v1, *v2, *v;
     Bytes *vv;
     len1 = byteslen(vv1); len2 = byteslen(vv2);
@@ -601,7 +601,7 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
 
 static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     size_t i, len1, len2, sz;
-    int neg1, neg2;
+    bool neg1, neg2;
     uint8_t *v1, *v2, *v;
     Bytes *vv;
     len1 = byteslen(vv1); len2 = byteslen(vv2);
@@ -630,7 +630,7 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
 static MUST_CHECK Bytes *concat(Bytes *v1, Bytes *v2) {
     Bytes *v;
     uint8_t *s;
-    int inv;
+    bool inv;
     size_t ln, i, len1, len2;
 
     if (v1->len == 0) {

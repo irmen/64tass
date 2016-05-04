@@ -93,14 +93,14 @@ struct section_s *new_section(const str_t *name) {
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address.address=lastsc->l_address.bank=lastsc->size=0;
         lastsc->l_address_val = NULL;
-        lastsc->dooutput=1;
+        lastsc->dooutput=true;
         lastsc->defpass=0;
         lastsc->usepass=0;
-        lastsc->unionmode=0;
+        lastsc->unionmode=false;
         lastsc->structrecursion=0;
         lastsc->logicalrecursion=0;
-        lastsc->moved=0;
-        lastsc->wrapwarn=0;
+        lastsc->moved=false;
+        lastsc->wrapwarn=false;
         lastsc->next=NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
@@ -119,12 +119,12 @@ void reset_section(struct section_s *section) {
     section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
     if (section->l_address_val != NULL) val_destroy(section->l_address_val);
     section->l_address_val = (Obj *)ref_int(int_value[0]);
-    section->dooutput = 1;
+    section->dooutput = true;
     section->structrecursion = 0;
     section->logicalrecursion = 0;
-    section->moved = 0;
-    section->wrapwarn = 0;
-    section->unionmode = 0;
+    section->moved = false;
+    section->wrapwarn = false;
+    section->unionmode = false;
 }
 
 void init_section2(struct section_s *section) {

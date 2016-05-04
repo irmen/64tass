@@ -84,7 +84,7 @@ char *get_path(const Str *v, const char *base) {
     }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (v->len && (v->data[0]=='/' || v->data[0]=='\\')) i = j;
+    if (v->len != 0 && (v->data[0]=='/' || v->data[0]=='\\')) i = j;
     else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
 #else
     if (v->len != 0 && v->data[0]=='/') i = 0;
@@ -111,9 +111,9 @@ FILE *file_open(const char *name, const char *mode)
     if (len > SIZE_MAX / sizeof(wchar_t)) err_msg_out_of_memory();
     wname = (wchar_t *)mallocx(len * sizeof(wchar_t));
     c2 = wname; c = (uint8_t *)name;
-    while (*c) {
+    while (*c != 0) {
         ch = *c;
-        if (ch & 0x80) c += utf8in(c, &ch); else c++;
+        if ((ch & 0x80) != 0) c += utf8in(c, &ch); else c++;
         if (ch < 0x10000) *c2++ = ch;
         else if (ch < 0x110000) {
             *c2++ = (ch >> 10) + 0xd7c0;
@@ -122,7 +122,7 @@ FILE *file_open(const char *name, const char *mode)
     }
     *c2++ = 0;
     c2 = wmode; c = (uint8_t *)mode;
-    while ((*c2++=(wchar_t)*c++));
+    while ((*c2++=(wchar_t)*c++) != 0);
     f=_wfopen(wname, wmode);
     free(wname);
 #else
@@ -357,7 +357,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     int i, j;
                     uint8_t *p;
                     uint32_t lastchar;
-                    int qc = 1;
+                    bool qc = true;
                     uint8_t cclass = 0;
 
                     if (tmp->lines >= max_lines) {
@@ -443,7 +443,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                     if (type == E_UNKNOWN) {
                                         type = E_ISO;
                                         i = (j - i) * 6;
-                                        qc = 0;
+                                        qc = false;
                                         if (ubuff.p >= ubuff.len) {
                                             ubuff.len += 16;
                                             if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
@@ -518,7 +518,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             cclass = 0;
                             if (!qc) {
                                 unfc(&ubuff);
-                                qc = 1;
+                                qc = true;
                             }
                             if (ubuff.p == 1) {
                                 if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
@@ -531,7 +531,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             const struct properties_s *prop = uget_property(c);
                             uint8_t ncclass = prop->combclass;
                             if ((ncclass != 0 && cclass > ncclass) || (prop->property & (qc_N | qc_M)) != 0) {
-                                qc = 0;
+                                qc = false;
                                 if (ubuff.p >= ubuff.len) {
                                     ubuff.len += 16;
                                     if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
@@ -541,7 +541,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             } else {
                                 if (!qc) {
                                     unfc(&ubuff);
-                                    qc = 1; 
+                                    qc = true; 
                                 }
                                 if (ubuff.p == 1) {
                                     if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
@@ -608,13 +608,13 @@ static struct stars_s {
 
 static struct star_s *lastst;
 static int starsp;
-struct star_s *new_star(line_t line, int *exists) {
+struct star_s *new_star(line_t line, bool *exists) {
     struct avltree_node *b;
     struct star_s *tmp;
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree, star_compare);
     if (b == NULL) { /* new label */
-	*exists = 0;
+	*exists = false;
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
@@ -626,7 +626,7 @@ struct star_s *new_star(line_t line, int *exists) {
         lastst = &stars->stars[starsp];
 	return tmp;
     }
-    *exists = 1;
+    *exists = true;
     return avltree_container_of(b, struct star_s, node);            /* already exists */
 }
 

@@ -99,15 +99,15 @@ static int namespacekey_compare(const struct avltree_node *aa, const struct avlt
     return h;
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Namespace *v1 = (const Namespace *)o1, *v2 = (const Namespace *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;
-    if (o2->obj != NAMESPACE_OBJ) return 0;
+    if (o2->obj != NAMESPACE_OBJ) return false;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n != NULL && n2 != NULL) {
-        if (namespacekey_compare(n, n2) != 0) return 0;
+        if (namespacekey_compare(n, n2) != 0) return false;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
@@ -192,7 +192,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
             err->u.notdef.names = ref_namespace(v1);
             err->u.notdef.ident = v2->name;
-            err->u.notdef.down = 0;
+            err->u.notdef.down = false;
             return &err->v;
         }
     case T_ANONIDENT:
@@ -213,7 +213,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             err->u.notdef.names = ref_namespace(v1);
             err->u.notdef.ident.len = count;
             err->u.notdef.ident.data = NULL;
-            err->u.notdef.down = 0;
+            err->u.notdef.down = false;
             return &err->v;
         }
     case T_TUPLE:

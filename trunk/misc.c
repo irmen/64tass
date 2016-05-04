@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0,0,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments={true,true,true,false,true,true,false,false,false,false,false,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -138,7 +138,7 @@ void str_cpy(str_t *s1, const str_t *s2) {
     } else s1->data = NULL;
 }
 
-linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
+linecpos_t calcpos(const uint8_t *line, size_t pos, bool utf8) {
     size_t s, l;
     if (utf8) return pos + 1;
     s = l = 0;
@@ -228,9 +228,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
         switch (opt) {
-            case 'w':arguments.warning = 0;break;
-            case 'q':arguments.quiet = 0;break;
-            case 'X':arguments.longaddr = 1;break;
+            case 'w':arguments.warning = false;break;
+            case 'q':arguments.quiet = false;break;
+            case 'X':arguments.longaddr = true;break;
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
             case 0x107:arguments.output_mode = OUTPUT_XEX;break;
             case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
@@ -238,10 +238,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
-            case 'a':arguments.toascii = 1;break;
-            case 'T':arguments.tasmcomp = 1;break;
+            case 'a':arguments.toascii = true;break;
+            case 'T':arguments.tasmcomp = true;break;
             case 'o':arguments.output = optarg;break;
-            case 0x10a:arguments.caret = 0;break;
+            case 0x10a:arguments.caret = false;break;
             case 'D':
                 {
                     size_t len = strlen(optarg) + 1;
@@ -263,7 +263,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                     fp += len;
                 }
                 break;
-            case 'B': arguments.longbranch = 1;break;
+            case 'B': arguments.longbranch = true;break;
             case 0x101: arguments.cpumode = &c6502;break;
             case 'i': arguments.cpumode = &c6502i;break;
             case 'c': arguments.cpumode = &c65c02;break;
@@ -275,16 +275,16 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x105: arguments.cpumode = &w65c02;break;
             case 'l': arguments.label = optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
-            case 0x10c: arguments.shadow_check = 1; break;
+            case 0x10c: arguments.shadow_check = true; break;
             case 0x10d: arguments.label_mode = LABEL_DUMP; break;
             case 'E': arguments.error = optarg;break;
             case 'L': arguments.list = optarg;break;
             case 'M': arguments.make = optarg;break;
             case 'I': include_list_add(optarg);break;
-            case 'm': arguments.monitor = 0;break;
-            case 's': arguments.source = 0;break;
+            case 'm': arguments.monitor = false;break;
+            case 's': arguments.source = false;break;
             case 'C': arguments.caseinsensitive = 0;break;
-            case 0x110: arguments.verbose = 1;break;
+            case 0x110: arguments.verbose = true;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
@@ -378,7 +378,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     case OUTPUT_APPLE: 
     case OUTPUT_XEX: all_mem2 = 0xffff; break;
     }
-    if (arguments.output[0] == '-' && arguments.output[1] == 0) arguments.quiet = 0;
+    if (arguments.output[0] == '-' && arguments.output[1] == 0) arguments.quiet = false;
     if (fin->lines != max_lines) {
         fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof(fin->line[0]));
     }

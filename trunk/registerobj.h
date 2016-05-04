@@ -33,7 +33,7 @@ typedef struct Register {
 
 extern void registerobj_init(void);
 extern void registerobj_names(void);
-extern int registerobj_createnames(uint32_t);
+extern bool registerobj_createnames(uint32_t);
 
 static inline Register *ref_register(Register *v1) {
     v1->v.refcount++; return v1;

@@ -31,8 +31,9 @@
 #include <stdio.h>
 #include <string.h>
 
-int my_optind=1, my_opterr=1, my_optopt=0;
-char *my_optarg=0;
+int my_optind=1, my_optopt=0;
+bool my_opterr = true;
+char *my_optarg=NULL;
 
 /* this is the plain old UNIX getopt, with GNU-style extensions. */
 /* if you're porting some piece of UNIX software, this is all you need. */
@@ -137,7 +138,7 @@ int my_getopt(int argc, char *argv[], const char *opts)
 
 int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
                      const struct option *longopts, int *longind,
-                     int long_only)
+                     bool long_only)
 {
   char mode, colon_mode;
   int shortoff = 0, opt = -1;
@@ -268,11 +269,11 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
 int my_getopt_long(int argc, char *argv[], const char *shortopts,
                 const struct option *longopts, int *longind)
 {
-  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, 0);
+  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, false);
 }
 
 int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
                 const struct option *longopts, int *longind)
 {
-  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, 1);
+  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, true);
 }

@@ -129,14 +129,14 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 					     const struct avltree *tree,
 					     struct avltree_node **pparent,
 					     struct avltree_node **unbalanced,
-					     int *is_left)
+					     bool *is_left)
 {
 	struct avltree_node *node = tree->root;
 	int res = 0;
 
 	*pparent = NULL;
 	*unbalanced = node;
-	*is_left = 0;
+	*is_left = false;
 
 	while (node != NULL) {
 		if (node->balance != 0)
@@ -158,14 +158,14 @@ struct avltree_node *avltree_lookup(const struct avltree_node *key,
 				    const struct avltree *tree, avltree_cmp_fn_t cmp)
 {
 	struct avltree_node *parent, *unbalanced;
-	int is_left;
+	bool is_left;
 
         cmp_fn = cmp;
 	return do_lookup(key, tree, &parent, &unbalanced, &is_left);
 }
 
 static inline void set_child(struct avltree_node *child,
-		      struct avltree_node *node, int left)
+		      struct avltree_node *node, bool left)
 {
 	if (left)
 		node->left = child;
@@ -177,7 +177,7 @@ static inline void set_child(struct avltree_node *child,
 struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree, avltree_cmp_fn_t cmp)
 {
 	struct avltree_node *key, *parent, *unbalanced;
-	int is_left;
+	bool is_left;
 
         cmp_fn = cmp;
 

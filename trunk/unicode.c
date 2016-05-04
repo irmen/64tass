@@ -443,13 +443,13 @@ size_t argv_print(const char *line, FILE *f) {
     size_t len = 0;
 #ifdef _WIN32
     size_t i = 0, back;
-    int quote = 0, space = 0;
+    bool quote = false, space = false;
 
     for (;;i++) {
         switch (line[i]) {
         case '%':
-        case '"': quote = 1; if (!space) continue; break;
-        case ' ': space = 1; if (!quote) continue; break;
+        case '"': quote = true; if (!space) continue; break;
+        case ' ': space = true; if (!quote) continue; break;
         case 0: break;
         default: continue;
         }
@@ -518,13 +518,13 @@ size_t argv_print(const char *line, FILE *f) {
     }
 #else
     size_t i;
-    int quote = 0;
+    bool quote = false;
 
     for (i = 0;line[i] != 0;i++) {
         if (line[i] == '!') break;
-        if (strchr(" \"$&()*;<>'?[\\]`{|}", line[i]) != NULL) quote = 1;
+        if (strchr(" \"$&()*;<>'?[\\]`{|}", line[i]) != NULL) quote = true;
     }
-    if (line[i] != 0) quote = 0;
+    if (line[i] != 0) quote = false;
     if (quote) {len++;putc('"', f);}
     else {
         switch (line[0]) {

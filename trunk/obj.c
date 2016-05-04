@@ -44,7 +44,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
-int referenceit = 1;
+bool referenceit = true;
 
 static Type lbl_obj;
 static Type mfunc_obj;
@@ -99,7 +99,7 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static int invalid_same(const Obj *v1, const Obj *v2) {
+static bool invalid_same(const Obj *v1, const Obj *v2) {
     return v1->obj == v2->obj;
 }
 
@@ -296,20 +296,20 @@ static void mfunc_garbage(Obj *o1, int j) {
     }
 }
 
-static int mfunc_same(const Obj *o1, const Obj *o2) {
+static bool mfunc_same(const Obj *o1, const Obj *o2) {
     const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
     size_t i;
-    if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return 0;
+    if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return false;
     for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return 0;
-        if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return 0;
-        if (v1->param[i].init != v2->param[i].init && (v1->param[i].init == NULL || v2->param[i].init == NULL || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return 0;
-        if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return 0;
+        if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return false;
+        if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
+        if (v1->param[i].init != v2->param[i].init && (v1->param[i].init == NULL || v2->param[i].init == NULL || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return false;
+        if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return false;
     }
     for (i = 0; i < v1->nslen; i++) {
-        if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(&v1->namespaces[i]->v, &v2->namespaces[i]->v)) return 0;
+        if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(&v1->namespaces[i]->v, &v2->namespaces[i]->v)) return false;
     }
-    return 1;
+    return true;
 }
 
 static MUST_CHECK Obj *mfunc_calc2(oper_t op) {
@@ -367,12 +367,12 @@ static MUST_CHECK Obj *ident_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static int lbl_same(const Obj *o1, const Obj *o2) {
+static bool lbl_same(const Obj *o1, const Obj *o2) {
     const Lbl *v1 = (const Lbl *)o1, *v2 = (const Lbl *)o2;
     return o2->obj == LBL_OBJ && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
 }
 
-static int funcargs_same(const Obj *o1, const Obj *o2) {
+static bool funcargs_same(const Obj *o1, const Obj *o2) {
     Funcargs *v1 = (Funcargs *)o1, *v2 = (Funcargs *)o2;
     return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
 }
@@ -413,16 +413,16 @@ static void struct_garbage(Obj *o1, int i) {
     }
 }
 
-static int struct_same(const Obj *o1, const Obj *o2) {
+static bool struct_same(const Obj *o1, const Obj *o2) {
     const Struct *v1 = (const Struct *)o1, *v2 = (const Struct *)o2;
     size_t i;
-    if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc) return 0;
-    if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return 0;
+    if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc) return false;
+    if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return false;
     for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return 0;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return 0;
+        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
+        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return false;
     }
-    return 1;
+    return true;
 }
 
 static MUST_CHECK Obj *struct_size(Obj *o1, linepos_t UNUSED(epoint)) {

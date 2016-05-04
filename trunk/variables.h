@@ -33,11 +33,11 @@ typedef struct Label {
     Obj *value;
     struct file_list_s *file_list;
     struct linepos_s epoint;
-    unsigned ref:1;
-    unsigned shadowcheck:1;
-    unsigned update_after:1;
-    unsigned constant:1;
-    unsigned owner:1;
+    bool ref:1;
+    bool shadowcheck:1;
+    bool update_after:1;
+    bool constant:1;
+    bool owner:1;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;
@@ -46,7 +46,7 @@ typedef struct Label {
 extern void labelobj_init(void);
 
 extern void push_context(struct Namespace *);
-extern int pop_context(void);
+extern bool pop_context(void);
 extern void reset_context(void);
 extern void get_namespaces(Mfunc *);
 extern size_t context_get_bottom(void);
@@ -58,7 +58,7 @@ extern Label *find_label2(const str_t *, struct Namespace *);
 extern Label *find_label3(const str_t *, struct Namespace *, uint8_t);
 extern Label *find_anonlabel(int32_t);
 extern Label *find_anonlabel2(int32_t, struct Namespace *);
-extern Label *new_label(const str_t *, struct Namespace *, uint8_t, int *);
+extern Label *new_label(const str_t *, struct Namespace *, uint8_t, bool *);
 extern void labelprint(void);
 extern void shadow_check(struct Namespace *);
 extern void destroy_variables(void);

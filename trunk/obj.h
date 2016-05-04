@@ -126,5 +126,5 @@ static inline Default *ref_default(void) {
     default_value->v.refcount++; return default_value;
 }
 
-extern int referenceit;
+extern bool referenceit;
 #endif

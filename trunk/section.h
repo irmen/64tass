@@ -50,11 +50,11 @@ struct section_s {
     uint8_t defpass;
     uint_fast8_t structrecursion;
     uint_fast8_t logicalrecursion;
-    unsigned int dooutput:1;
-    unsigned int declared:1;
-    unsigned int unionmode:1;
-    unsigned int moved:1;
-    unsigned int wrapwarn:1;
+    bool dooutput:1;
+    bool declared:1;
+    bool unionmode:1;
+    bool moved:1;
+    bool wrapwarn:1;
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;

@@ -55,5 +55,5 @@ static inline MUST_CHECK Address *new_address(Obj *val, atype_t type) {
     return v;
 }
 
-extern int check_addr(atype_t);
+extern bool check_addr(atype_t);
 #endif

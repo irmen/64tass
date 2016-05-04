@@ -28,7 +28,7 @@ struct longjump_s {
     uint8_t defpass;
 };
 
-extern struct longjump_s *new_longjump(address_t, int *);
+extern struct longjump_s *new_longjump(address_t, bool *);
 extern void destroy_longjump(void);
 extern void longjump_destroy(struct avltree *);
 #endif
