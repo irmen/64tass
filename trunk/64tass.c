@@ -889,7 +889,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                         tmp.v1 = label->value;
                     }
-                    if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
+                    if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
                     else {
                         struct linepos_s epoints[3];
                         referenceit &= 1; /* not good... */
@@ -950,7 +950,7 @@ Obj *compile(struct file_list_s *cflist)
                     label = (labelname.data[0] == '*') ? NULL : find_label3(&labelname, mycontext, strength);
                     lpoint.pos++; ignore();
                     epoints[0] = lpoint; /* for no elements! */
-                    if (!here() || here() == ';') {
+                    if (here() == 0 || here() == ';') {
                         val = (Obj *)ref_addrlist(null_addrlist);
                     } else {
                         if (label != NULL && !label->ref) referenceit = false;
@@ -1014,7 +1014,7 @@ Obj *compile(struct file_list_s *cflist)
                     itsvar:
                         oldreferenceit = referenceit;
                         label = find_label3(&labelname, mycontext, strength);
-                        if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
+                        if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
                         else {
                             struct linepos_s epoints[3];
                             referenceit &= 1; /* not good... */
@@ -2567,7 +2567,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
                     if (val->obj != STR_OBJ) {err_msg_wrong_type(val, STR_OBJ, &vs->epoint);goto breakerr;}
                     path = get_path((Str *)val, cfile->realname);
-                    if (here() != 0 && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
                     f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
                     free(path);
@@ -2666,7 +2666,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (varname.len != 0) {
                             struct values_s *vs;
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
-                            ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                            ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                             lpoint.pos++;
                             if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) goto breakerr;
                             vs = get_val(); val = vs->val;
@@ -2710,7 +2710,7 @@ Obj *compile(struct file_list_s *cflist)
                     waitfor->breakout = false;
                     for (;;) {
                         lpoint = apoint;
-                        if (here()!=',' && here()) {
+                        if (here() != ',' && here() != 0) {
                             struct values_s *vs;
                             if (!get_exp(&w, 1, cfile, 1, 1, &apoint)) break;
                             vs = get_val();
@@ -2719,16 +2719,16 @@ Obj *compile(struct file_list_s *cflist)
                         }
                         if (nopos < 0) {
                             str_t varname;
-                            ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
+                            ignore();if (here() != ',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint.pos++;ignore();
-                            if (!here() || here()==';') {bpoint.pos = 0; nopos = 0;}
+                            if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
                             else {
                                 bool labelexists;
                                 epoint = lpoint;
                                 varname.data = pline + lpoint.pos; varname.len = get_label();
                                 if (varname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);break;}
                                 if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
-                                ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
+                                ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"="); break;}
                                 lpoint.pos++;ignore();
                                 label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
                                 if (labelexists) {
@@ -2812,7 +2812,7 @@ Obj *compile(struct file_list_s *cflist)
                     listing_line(epoint.pos);
                     optname.data = pline + lpoint.pos; optname.len = get_label();
                     if (optname.len == 0) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
+                    ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     epoint = lpoint;
                     lpoint.pos++;
                     if (!get_exp(&w, 0, cfile, 1, 0, &epoint)) goto breakerr;
@@ -2926,7 +2926,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section->unionmode = false;
                     new_waitfor(W_ENDS, &epoint);waitfor->skip = 0;
                     current_section->structrecursion++;
-                    if (here() != 0 && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (current_section->structrecursion<100) {
                         waitfor->what = W_ENDS2;waitfor->skip = 1;
                         compile(cflist);
@@ -3225,7 +3225,7 @@ Obj *compile(struct file_list_s *cflist)
                     }
                     ignore();
                     oldlpoint = lpoint;
-                    if (!here() || here() == ';') {val = (Obj *)ref_addrlist(null_addrlist); w = 3;}
+                    if (here() == 0 || here() == ';') {val = (Obj *)ref_addrlist(null_addrlist); w = 3;}
                     else {
                         if (!get_exp(&w, 3, cfile, 0, 0, NULL)) goto breakerr;
                         val = get_vals_addrlist(epoints);
