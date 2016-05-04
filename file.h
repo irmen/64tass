@@ -49,6 +49,10 @@ struct star_s {
     struct avltree_node node;
 };
 
+static inline bool dash_name(const char *name) {
+    return (name[0] == '-' && name[1] == 0);
+}
+
 struct Str;
 
 extern struct file_s *openfile(const char *, const char *, int, const struct Str *, linepos_t);

@@ -634,13 +634,10 @@ void labelprint(void) {
     struct linepos_s nopoint = {0, 0};
     int err;
 
-    if (arguments.label[0] == '-' && arguments.label[1] == 0) {
-        flab = stdout;
-    } else {
-        if ((flab = file_open(arguments.label, "wt")) == NULL) {
-            err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
-            return;
-        }
+    flab = dash_name(arguments.label) ? stdout : file_open(arguments.label, "wt");
+    if (flab == NULL) {
+        err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
+        return;
     }
     clearerr(flab);
     referenceit = false;

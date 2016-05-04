@@ -471,7 +471,7 @@ void output_mem(struct memblocks_s *memblocks) {
     if (memblocks->mem.p != 0) {
         bool binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
         int err;
-        if (arguments.output[0] == '-' && arguments.output[1] == 0) {
+        if (dash_name(arguments.output)) {
 #ifdef _WIN32
             if (binary) setmode(fileno(stdout), O_BINARY);
 #endif

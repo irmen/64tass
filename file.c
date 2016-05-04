@@ -288,8 +288,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     i = i->next;
                 }
             } else {
-                if (name[0] == '-' && name[1] == 0) f = stdin;
-                else f = file_open(name, "rb");
+                f = dash_name(name) ? stdin : file_open(name, "rb");
             }
             if (path == NULL) {
                 s = (char *)mallocx(namelen);
@@ -667,13 +666,10 @@ void makefile(int argc, char *argv[]) {
     size_t len;
     int i, err;
 
-    if (arguments.make[0] == '-' && arguments.make[1] == 0) {
-        f = stdout;
-    } else {
-        if ((f = file_open(arguments.make, "wt")) == NULL) {
-            err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
-            return;
-        }
+    f = dash_name(arguments.make) ? stdout : file_open(arguments.make, "wt");
+    if (f == NULL) {
+        err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
+        return;
     }
     clearerr(f);
     path = get_path(NULL, arguments.output);

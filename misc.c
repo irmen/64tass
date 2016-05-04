@@ -377,7 +377,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     case OUTPUT_APPLE: 
     case OUTPUT_XEX: all_mem2 = 0xffff; break;
     }
-    if (arguments.output[0] == '-' && arguments.output[1] == 0) arguments.quiet = false;
+    if (dash_name(arguments.output)) arguments.quiet = false;
     if (fin->lines != max_lines) {
         fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof(fin->line[0]));
     }
