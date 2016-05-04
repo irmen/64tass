@@ -233,7 +233,7 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
 
     switch (vals->len) {
     case 0:
-        return (Obj *)new_float((random64() & ((((uint64_t)1) << 53)-1)) * ldexp(1, -53));
+        return (Obj *)new_float((random64() & ((((uint64_t)1) << 53) - 1)) * ldexp(1, -53));
     case 1: 
         err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
         break;

@@ -107,7 +107,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     if (filename[0] == '-' && filename[1] == 0) {
         flist = stdout;
     } else {
-        if ((flist=file_open(filename,"wt")) == NULL) {
+        if ((flist = file_open(filename,"wt")) == NULL) {
             err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
             return;
         }
@@ -345,7 +345,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
     bool print;
     int l;
     int lcol;
-    char str[3*16+1], *s;
+    char str[3 * 16 + 1], *s;
     if (nolisting != 0 || flist == NULL || temporary_label_branch != 0) return;
 
     print = true;

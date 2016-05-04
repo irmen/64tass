@@ -40,7 +40,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={true,true,true,false,true,true,false,false,false,false,false,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments = {true,true,true,false,true,true,false,false,false,false,false,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -126,7 +126,6 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     }
     s1->len = l;
     s1->data = d;
-    return;
 }
 
 void str_cpy(str_t *s1, const str_t *s2) {
@@ -178,9 +177,9 @@ void tinit(const char *prgname) {
 }
 
 /* ------------------------------------------------------------------ */
-static const char *short_options= "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:";
+static const char *short_options = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:";
 
-static const struct option long_options[]={
+static const struct option long_options[] = {
     {"no-warn"          , no_argument      , 0, 'w'},
     {"quiet"            , no_argument      , 0, 'q'},
     {"nonlinear"        , no_argument      , 0, 'n'},

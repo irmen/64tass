@@ -27,6 +27,8 @@
 #ifndef MY_GETOPT_H_INCLUDED
 #define MY_GETOPT_H_INCLUDED
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -62,7 +64,7 @@ extern int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
 
 extern int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
                             const struct option *longopts, int *longind,
-                            int long_only);
+                            bool long_only);
 
 #ifdef __cplusplus
 }

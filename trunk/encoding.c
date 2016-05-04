@@ -556,7 +556,7 @@ struct encoding_s *new_encoding(const str_t *name)
     if (b == NULL) { /* new encoding */
         if (lasten->cfname.data == name->data) str_cpy(&lasten->cfname, name);
         else str_cfcpy(&lasten->cfname, NULL);
-        lasten->escape=NULL;
+        lasten->escape = NULL;
         avltree_init(&lasten->trans);
         tmp = lasten;
         lasten = NULL;

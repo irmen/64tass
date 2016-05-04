@@ -31,9 +31,9 @@
 #include <stdio.h>
 #include <string.h>
 
-int my_optind=1, my_optopt=0;
+int my_optind = 1, my_optopt = 0;
 bool my_opterr = true;
-char *my_optarg=NULL;
+char *my_optarg = NULL;
 
 /* this is the plain old UNIX getopt, with GNU-style extensions. */
 /* if you're porting some piece of UNIX software, this is all you need. */
@@ -41,33 +41,33 @@ char *my_optarg=NULL;
 
 int my_getopt(int argc, char *argv[], const char *opts)
 {
-  static int charind=0;
+  static int charind = 0;
   const char *s;
   char mode, colon_mode;
   int off = 0, opt = -1;
 
-  if(getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
+  if (getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
-    if((colon_mode = *opts) == ':') off ++;
-    if(((mode = opts[off]) == '+') || (mode == '-')) {
+    if ((colon_mode = *opts) == ':') off ++;
+    if (((mode = opts[off]) == '+') || (mode == '-')) {
       off++;
-      if((colon_mode != ':') && ((colon_mode = opts[off]) == ':'))
+      if ((colon_mode != ':') && ((colon_mode = opts[off]) == ':'))
         off ++;
     }
   }
   my_optarg = NULL;
-  if(charind != 0) {
+  if (charind != 0) {
     my_optopt = argv[my_optind][charind];
-    for(s=opts+off; *s != 0; s++) if(my_optopt == *s) {
+    for (s = opts + off; *s != 0; s++) if (my_optopt == *s) {
       charind++;
-      if((*(++s) == ':') || ((my_optopt == 'W') && (*s == ';'))) {
-        if(argv[my_optind][charind] != 0) {
+      if ((*(++s) == ':') || ((my_optopt == 'W') && (*s == ';'))) {
+        if (argv[my_optind][charind] != 0) {
           my_optarg = &(argv[my_optind++][charind]);
           charind = 0;
-        } else if(*(++s) != ':') {
+        } else if (*(++s) != ':') {
           charind = 0;
-          if(++my_optind >= argc) {
-            if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
+          if (++my_optind >= argc) {
+            if (my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
                             fputs(": option requires an argument -- '", stderr);
                             putc(my_optopt, stderr); fputs("'\n", stderr);}
             opt = (colon_mode == ':') ? ':' : '?';
@@ -79,49 +79,49 @@ int my_getopt(int argc, char *argv[], const char *opts)
       opt = my_optopt;
       goto my_getopt_ok;
     }
-    if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
+    if (my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
                     fputs(": illegal option -- '", stderr);
                     printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len(my_optopt) : 1);
                     fputs("'\n", stderr);}
     opt = '?';
-    if(argv[my_optind][++charind] == '\0') {
+    if (argv[my_optind][++charind] == '\0') {
       my_optind++;
       charind = 0;
     }
   my_getopt_ok:
-    if(charind != 0 && argv[my_optind][charind] == 0) {
+    if (charind != 0 && argv[my_optind][charind] == 0) {
       my_optind++;
       charind = 0;
     }
-  } else if((my_optind >= argc) ||
+  } else if ((my_optind >= argc) ||
              ((argv[my_optind][0] == '-') &&
               (argv[my_optind][1] == '-') &&
               (argv[my_optind][2] == '\0'))) {
     my_optind++;
     opt = -1;
-  } else if((argv[my_optind][0] != '-') ||
+  } else if ((argv[my_optind][0] != '-') ||
              (argv[my_optind][1] == '\0')) {
     char *tmp;
     int i, j, k;
 
-    if(mode == '+') opt = -1;
-    else if(mode == '-') {
+    if (mode == '+') opt = -1;
+    else if (mode == '-') {
       my_optarg = argv[my_optind++];
       charind = 0;
       opt = 1;
     } else {
-      for(i=j=my_optind; i<argc; i++) if((argv[i][0] == '-') &&
+      for (i = j = my_optind; i < argc; i++) if ((argv[i][0] == '-') &&
                                         (argv[i][1] != '\0')) {
-        my_optind=i;
-        opt=my_getopt(argc, argv, opts);
-        while(i > j) {
-          tmp=argv[--i];
-          for(k=i; k+1<my_optind; k++) argv[k]=argv[k+1];
-          argv[--my_optind]=tmp;
+        my_optind = i;
+        opt = my_getopt(argc, argv, opts);
+        while (i > j) {
+          tmp = argv[--i];
+          for (k = i; k + 1 < my_optind; k++) argv[k] = argv[k + 1];
+          argv[--my_optind] = tmp;
         }
         break;
       }
-      if(i == argc) opt = -1;
+      if (i == argc) opt = -1;
     }
   } else {
     charind++;
@@ -143,86 +143,86 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
   char mode, colon_mode;
   int shortoff = 0, opt = -1;
 
-  if(getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
+  if (getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
-    if((colon_mode = *shortopts) == ':') shortoff ++;
-    if(((mode = shortopts[shortoff]) == '+') || (mode == '-')) {
+    if ((colon_mode = *shortopts) == ':') shortoff ++;
+    if (((mode = shortopts[shortoff]) == '+') || (mode == '-')) {
       shortoff++;
-      if((colon_mode != ':') && ((colon_mode = shortopts[shortoff]) == ':'))
+      if ((colon_mode != ':') && ((colon_mode = shortopts[shortoff]) == ':'))
         shortoff ++;
     }
   }
   my_optarg = NULL;
-  if((my_optind >= argc) ||
+  if ((my_optind >= argc) ||
       ((argv[my_optind][0] == '-') &&
        (argv[my_optind][1] == '-') &&
        (argv[my_optind][2] == '\0'))) {
     my_optind++;
     opt = -1;
-  } else if((argv[my_optind][0] != '-') ||
+  } else if ((argv[my_optind][0] != '-') ||
             (argv[my_optind][1] == '\0')) {
     char *tmp;
     int i, j, k;
 
     opt = -1;
-    if(mode == '+') return -1;
-    if(mode == '-') {
+    if (mode == '+') return -1;
+    if (mode == '-') {
       my_optarg = argv[my_optind++];
       return 1;
     }
-    for(i=j=my_optind; i<argc; i++) if((argv[i][0] == '-') &&
+    for (i = j = my_optind; i < argc; i++) if ((argv[i][0] == '-') &&
                                     (argv[i][1] != '\0')) {
-      my_optind=i;
-      opt=_my_getopt_internal(argc, argv, shortopts,
-                              longopts, longind,
-                              long_only);
-      while(i > j) {
-        tmp=argv[--i];
-        for(k=i; k+1<my_optind; k++)
-          argv[k]=argv[k+1];
-        argv[--my_optind]=tmp;
+      my_optind = i;
+      opt = _my_getopt_internal(argc, argv, shortopts,
+                                longopts, longind,
+                                long_only);
+      while (i > j) {
+        tmp = argv[--i];
+        for (k = i; k + 1 < my_optind; k++)
+          argv[k] = argv[k + 1];
+        argv[--my_optind] = tmp;
       }
       break;
     }
-  } else if((!long_only) && (argv[my_optind][1] != '-'))
+  } else if ((!long_only) && (argv[my_optind][1] != '-'))
     opt = my_getopt(argc, argv, shortopts);
   else {
     int charind, offset;
     int found = 0, ind, hits = 0;
 
-    if(((my_optopt = argv[my_optind][1]) != '-') && argv[my_optind][2] == 0) {
+    if (((my_optopt = argv[my_optind][1]) != '-') && argv[my_optind][2] == 0) {
       int c;
-      
+
       ind = shortoff;
-      while((c = shortopts[ind++]) != 0) {
-        if(((shortopts[ind] == ':') ||
+      while ((c = shortopts[ind++]) != 0) {
+        if (((shortopts[ind] == ':') ||
             ((c == 'W') && (shortopts[ind] == ';'))) &&
            (shortopts[++ind] == ':'))
           ind ++;
-        if(my_optopt == c) return my_getopt(argc, argv, shortopts);
+        if (my_optopt == c) return my_getopt(argc, argv, shortopts);
       }
     }
     offset = (argv[my_optind][1] != '-') ? 1 : 2;
-    for(charind = offset;
+    for (charind = offset;
         (argv[my_optind][charind] != '\0') &&
           (argv[my_optind][charind] != '=');
         charind++);
-    for(ind = 0; longopts[ind].name != NULL && hits == 0; ind++)
-      if((strlen(longopts[ind].name) == (size_t) (charind - offset)) &&
+    for (ind = 0; longopts[ind].name != NULL && hits == 0; ind++)
+      if ((strlen(longopts[ind].name) == (size_t) (charind - offset)) &&
          (strncmp(longopts[ind].name,
                   argv[my_optind] + offset, charind - offset) == 0))
         found = ind, hits++;
-    if(hits == 0) for(ind = 0; longopts[ind].name != NULL; ind++)
-      if(strncmp(longopts[ind].name,
+    if (hits == 0) for (ind = 0; longopts[ind].name != NULL; ind++)
+      if (strncmp(longopts[ind].name,
                  argv[my_optind] + offset, charind - offset) == 0)
         found = ind, hits++;
-    if(hits == 1) {
+    if (hits == 1) {
       opt = 0;
 
-      if(argv[my_optind][charind] == '=') {
-        if(longopts[found].has_arg == 0) {
+      if (argv[my_optind][charind] == '=') {
+        if (longopts[found].has_arg == 0) {
           opt = '?';
-          if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+          if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
                          fputs(": option '--", stderr);
                          printable_print((const uint8_t *)longopts[found].name, stderr);
                          fputs("' doesn't allow an argument\n", stderr); }
@@ -230,33 +230,33 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
           my_optarg = argv[my_optind] + ++charind;
           /*charind = 0;*/
         }
-      } else if(longopts[found].has_arg == 1) {
-        if(++my_optind >= argc) {
+      } else if (longopts[found].has_arg == 1) {
+        if (++my_optind >= argc) {
           opt = (colon_mode == ':') ? ':' : '?';
-          if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+          if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
                          fputs(": option '--", stderr);
                          printable_print((const uint8_t *)longopts[found].name, stderr);
                          fputs("' requires an argument\n", stderr); }
         } else my_optarg = argv[my_optind];
       }
-      if(opt == 0) {
+      if (opt == 0) {
         if (longind != NULL) *longind = found;
-        if(longopts[found].flag == 0) opt = longopts[found].val;
+        if (longopts[found].flag == 0) opt = longopts[found].val;
         else *(longopts[found].flag) = longopts[found].val;
       }
       my_optind++;
-    } else if(hits == 0) {
-      if(offset == 1) opt = my_getopt(argc, argv, shortopts);
+    } else if (hits == 0) {
+      if (offset == 1) opt = my_getopt(argc, argv, shortopts);
       else {
         opt = '?';
-        if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+        if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
                        fputs(": unrecognized option '", stderr);
                        printable_print((const uint8_t *)argv[my_optind++], stderr);
                        fputs("'\n", stderr); }
       }
     } else {
       opt = '?';
-      if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+      if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
                      fputs(": option '", stderr);
                      printable_print((const uint8_t *)argv[my_optind++], stderr);
                      fputs("' is ambiguous\n", stderr); }

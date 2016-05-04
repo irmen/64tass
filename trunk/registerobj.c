@@ -123,7 +123,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         }
     }
     s[i] = q;
-    s[i+1] = ')';
+    s[i + 1] = ')';
     return &v->v;
 }
 

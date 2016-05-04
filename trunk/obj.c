@@ -86,7 +86,6 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
 }
 
 static void invalid_destroy(Obj *UNUSED(v1)) {
-    return;
 }
 
 static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {

@@ -33,8 +33,8 @@ struct memblock_s { /* starts and sizes */
 };
 
 static int memblockcomp(const void *a, const void *b) {
-    const struct memblock_s *aa=(const struct memblock_s *)a;
-    const struct memblock_s *bb=(const struct memblock_s *)b;
+    const struct memblock_s *aa = (const struct memblock_s *)a;
+    const struct memblock_s *bb = (const struct memblock_s *)b;
     address_t ad = aa->addr, bd = bb->addr;
     if (ad < bd) return -1;
     return (ad > bd) ? 1 : 0;
@@ -477,7 +477,7 @@ void output_mem(struct memblocks_s *memblocks) {
 #endif
             fout = stdout;
         } else {
-            if ((fout=file_open(arguments.output, binary ? "wb" : "wt")) == NULL) {
+            if ((fout = file_open(arguments.output, binary ? "wb" : "wt")) == NULL) {
                 err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
                 return;
             }

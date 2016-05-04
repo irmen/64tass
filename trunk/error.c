@@ -300,7 +300,7 @@ static void adderror(const char *s) {
     adderror2((const uint8_t *)s, strlen(s));
 }
 
-static const char *terr_warning[]={
+static const char *terr_warning[] = {
     "top of memory exceeded",
     "processor program counter overflow",
     "possible jmp ($xxff) bug",
@@ -309,7 +309,7 @@ static const char *terr_warning[]={
     "label not on left side",
 };
 
-static const char *terr_error[]={
+static const char *terr_error[] = {
     "double defined range",
     "double defined escape",
     "extra characters on line",
@@ -359,7 +359,7 @@ static const char *terr_error[]={
     "not a bank 0 address"
 };
 
-static const char *terr_fatal[]={
+static const char *terr_fatal[] = {
     "can't open file ",
     "error reading file ",
     "can't write object file ",
@@ -551,7 +551,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
         lastnd->file_list = l->file_list;
         lastnd->epoint = l->epoint;
         lastnd->pass = pass;
-        b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
+        b = avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
         if (b != NULL) {
             tmp2 = avltree_container_of(b, struct notdefines_s, node);
             if (tmp2->pass == pass) {
@@ -790,7 +790,6 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
         sprintf(line, ", got %u", num);
         adderror(line);
     }
-    return;
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
@@ -858,7 +857,7 @@ int error_print(bool fix, bool newvar, int anyerr) {
         if (arguments.error[0] == '-' && arguments.error[1] == 0) {
             ferr = stdout;
         } else {
-            if ((ferr=file_open(arguments.error, "wt")) == NULL) {
+            if ((ferr = file_open(arguments.error, "wt")) == NULL) {
                 struct linepos_s nopoint = {0, 0};
                 ferr = stderr;
                 err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);
