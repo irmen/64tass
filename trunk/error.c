@@ -852,16 +852,13 @@ int error_print(bool fix, bool newvar, int anyerr) {
     size_t pos, pos2;
     bool noneerr = false;
     FILE *ferr;
+    struct linepos_s nopoint = {0, 0};
 
     if (arguments.error != NULL) {
-        if (arguments.error[0] == '-' && arguments.error[1] == 0) {
-            ferr = stdout;
-        } else {
-            if ((ferr = file_open(arguments.error, "wt")) == NULL) {
-                struct linepos_s nopoint = {0, 0};
-                ferr = stderr;
-                err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);
-            }
+        ferr = dash_name(arguments.error) ? stdout : file_open(arguments.error, "wt");
+        if (ferr == NULL) {
+            err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);
+            ferr = stderr;
         }
     } else ferr = stderr;
 
