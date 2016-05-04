@@ -79,7 +79,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
     /* Start at the root. */
     pcurr = root;
     /* Loop until we find the right position */
-    while ((curr = *pcurr) != 0)
+    while ((curr = *pcurr) != NULL)
     {
         /* Handle current char equal to node splitchar */
         if (spchar == curr->splitchar) {

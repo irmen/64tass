@@ -482,7 +482,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
 
     for (; data.pf < data.pfend; data.pf++) {
         if ( *data.pf == '%' ) { /* we got a magic % cookie */
-            conv_flag((char *)0, &data); /* initialise format flags */
+            conv_flag(NULL, &data); /* initialise format flags */
             for (state = 1; data.pf < data.pfend - 1 && state != 0;) {
                 switch (*(++data.pf)) {
                 case 'e':
