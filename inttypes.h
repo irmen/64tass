@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #ifndef PRIuFAST32
 #define PRIuFAST32 "u"

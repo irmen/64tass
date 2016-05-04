@@ -154,7 +154,7 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
     default: base = 0;
     }
     if (base != 0) {
-        int neg = 0;
+        bool neg = false;
         neg = (pline[lpoint.pos + 1] == '-');
         if (neg || pline[lpoint.pos + 1] == '+') {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
@@ -282,7 +282,7 @@ static MUST_CHECK Obj *get_string(void) {
 }
 
 void touch_label(Label *tmp) {
-    if (referenceit) tmp->ref = 1;
+    if (referenceit) tmp->ref = true;
     tmp->usepass = pass;
 }
 
@@ -305,12 +305,12 @@ MUST_CHECK Obj *get_star_value(Obj *val) {
 
 static MUST_CHECK Obj *get_star(linepos_t epoint) {
     struct star_s *tmp;
-    int labelexists;
+    bool labelexists;
 
     tmp = new_star(vline, &labelexists);
     if (labelexists && tmp->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-        fixeddig = 0;
+        fixeddig = false;
     }
     tmp->addr = star;
     return get_star_value(current_section->l_address_val);
@@ -342,7 +342,7 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
     eval->o_out[eval->outp++].epoint = *epoint;
 }
 
-static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
+static bool get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     char ch;
 
     Obj *conv, *conv2;
@@ -353,7 +353,7 @@ static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     uint8_t operp = 0;
     struct linepos_s epoint, cpoint = {0, 0};
     size_t llen;
-    int first;
+    bool first;
     str_t ident;
     Label *l;
 
@@ -370,7 +370,7 @@ rest:
     }
     switch (here()) {
     case 0:
-    case ';': return 1;
+    case ';': return true;
     case '!':*wd=1;lpoint.pos++;break;
     case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break; 
     case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break; 
@@ -399,13 +399,13 @@ rest:
         l = find_label(&ident, NULL);
         if (l != NULL) {
             touch_label(l);
-            l->shadowcheck = 1;
+            l->shadowcheck = true;
             push_oper(val_reference(l->value), &epoint);
         } else {
             Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
             err->u.notdef.ident = ident;
             err->u.notdef.names = ref_namespace(current_context);
-            err->u.notdef.down = 1;
+            err->u.notdef.down = true;
             push_oper((Obj *)err, &epoint);
         }
     other:
@@ -448,7 +448,7 @@ rest:
             operp--;
             if (operp == 0 && first) {
                 o_oper[operp].epoint = o_oper[operp].epoint; o_oper[operp++].val = &o_TUPLE;
-                first = 0;
+                first = false;
             }
             goto other;
         case 0:
@@ -460,7 +460,7 @@ rest:
             break;
         default: goto syntaxe;
         }
-        if (operp == 0) return 1;
+        if (operp == 0) return true;
         epoint = o_oper[operp - 1].epoint;
         err_msg2(ERROR______EXPECTED, ")", &epoint); goto error;
     syntaxe:
@@ -468,10 +468,10 @@ rest:
     error:
         break;
     }
-    return 0;
+    return false;
 }
 
-static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
+static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     size_t vsp = 0;
     enum oper_e op;
     Oper *op2;
@@ -597,7 +597,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
             ev->outp2 = ev->outp;
             ev->values_len = 0;
-            return 0;
+            return false;
         }
         v2 = v1; v1 = &values[--vsp-1];
         switch (v1->val->obj->type) {
@@ -666,7 +666,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
     }
     ev->outp2 = i;
     ev->values_len = vsp;
-    return 1;
+    return true;
 }
 
 MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint) {
@@ -789,13 +789,13 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
     }
 }
 
-static int get_val2(struct eval_context_s *ev) {
+static bool get_val2(struct eval_context_s *ev) {
     size_t vsp = 0;
     size_t i;
     enum oper_e op;
     Oper *op2;
     struct values_s *v1, *v2;
-    int stop = (ev->gstop == 3 || ev->gstop == 4);
+    bool stop = (ev->gstop == 3 || ev->gstop == 4);
     struct values_s *o_out;
     Obj *val;
     struct values_s *values;
@@ -863,7 +863,7 @@ static int get_val2(struct eval_context_s *ev) {
         case O_LIST:
             {
                 List *list;
-                int tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
+                bool tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
                 size_t args = 0;
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != op) {
@@ -1216,7 +1216,7 @@ static int get_val2(struct eval_context_s *ev) {
             err_msg(ERROR_EXPRES_SYNTAX, NULL);
             ev->outp2 = ev->outp;
             ev->values_len = 0;
-            return 0;
+            return false;
         }
 
         oper.op = op2;
@@ -1230,7 +1230,7 @@ static int get_val2(struct eval_context_s *ev) {
     }
     ev->outp2 = i;
     ev->values_len = vsp;
-    return 1;
+    return true;
 }
 
 struct values_s *get_val(void) {
@@ -1262,7 +1262,7 @@ size_t get_val_remaining(void) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-static int get_exp2(int *wd, int stop, struct file_s *cfile) {
+static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
     char ch;
 
     Oper *op;
@@ -1281,7 +1281,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
 
     if (arguments.tasmcomp) {
         if (get_exp_compat(wd, stop)) return get_val2_compat(eval);
-        return 0;
+        return false;
     }
     eval->outp = 0;
     o_oper[0].val = &o_COMMA;
@@ -1292,13 +1292,13 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
     ignore();
     switch (here()) {
     case 0:
-    case ';': return 1;
+    case ';': return true;
     case '@':
         switch (pline[++lpoint.pos] | arguments.caseinsensitive) {
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
-        default:err_msg2(ERROR______EXPECTED, "@B or @W or @L", &lpoint); return 0;
+        default:err_msg2(ERROR______EXPECTED, "@B or @W or @L", &lpoint); return false;
         }
         lpoint.pos++;
         break;
@@ -1394,7 +1394,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             goto tryanon;
         default: 
             if (get_label() != 0) {
-                int down;
+                bool down;
                 Label *l;
                 Error *err;
                 str_t ident;
@@ -1433,7 +1433,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l != NULL) {
                     touch_label(l);
-                    if (down) l->shadowcheck = 1;
+                    if (down) l->shadowcheck = true;
                     push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
@@ -1467,7 +1467,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 err->u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
                 err->u.notdef.ident.data = NULL;
                 err->u.notdef.names = ref_namespace(current_context);
-                err->u.notdef.down = 1;
+                err->u.notdef.down = true;
                 push_oper(&err->v, &o_oper[operp].epoint);
                 goto other;
             }
@@ -1492,7 +1492,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 err->u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
                 err->u.notdef.ident.data = NULL;
                 err->u.notdef.names = ref_namespace(current_context);
-                err->u.notdef.down = 1;
+                err->u.notdef.down = true;
                 push_oper(&err->v, &o_oper[operp].epoint);
                 goto other;
             }
@@ -1722,22 +1722,22 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
     error:
         break;
     }
-    return 0;
+    return false;
 }
 
-int get_exp(int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+bool get_exp(int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
     if (!get_exp2(wd, stop, cfile)) {
-        return 0;
+        return false;
     }
     if (eval->values_len < min || (max != 0 && eval->values_len > max)) {
         err_msg_argnum(eval->values_len, min, max, epoint);
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
 
-int get_exp_var(struct file_s *cfile, linepos_t epoint) {
+bool get_exp_var(struct file_s *cfile, linepos_t epoint) {
     int w;
     return get_exp(&w, 2, cfile, 1, 1, epoint);
 }

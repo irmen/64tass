@@ -128,7 +128,7 @@ static inline void PAD_RIGHT(struct DATA *p)
     }
 }
 
-static inline void PAD_RIGHT2(struct DATA *p, char c, int minus)
+static inline void PAD_RIGHT2(struct DATA *p, char c, bool minus)
 {
     if (minus || p->justify == RIGHT || p->space == FOUND) p->width--;
     if (c != 0 && p->square == FOUND) p->width--;
@@ -182,7 +182,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
  */
 static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
 {
-    int minus;
+    bool minus;
     Obj *val = v->val, *err, *err2;
     Str *str;
     size_t i;
@@ -213,7 +213,7 @@ static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
 /* for %x %X hexadecimal representation */
 static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
 {
-    int minus;
+    bool minus;
     Obj *val = v->val, *err;
     Int *integer;
     const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
@@ -252,7 +252,7 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
         } else bp -= 4;
         b = (integer->data[bp2] >> bp) & 0xf;
         PUT_CHAR(hex[b]);
-    } while (1);
+    } while (true);
     PAD_LEFT(p);
     val_destroy(&integer->v);
     return NULL;
@@ -261,7 +261,7 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
 /* for %b binary representation */
 static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
 {
-    int minus;
+    bool minus;
     Obj *val = v->val, *err;
     Int *integer;
     unsigned int bp, b;
@@ -299,7 +299,7 @@ static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
         } else bp--;
         b = (integer->data[bp2] >> bp) & 1;
         PUT_CHAR('0' + b);
-    } while (1);
+    } while (true);
     PAD_LEFT(p);
     val_destroy(&integer->v);
     return NULL;
@@ -368,7 +368,7 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
 static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
 {
     char tmp[400], *t, form[10];
-    int minus;
+    bool minus;
     double d;
     Obj *val = v->val, *err;
 
@@ -381,7 +381,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
         d = ((Float *)err)->real;
         val_destroy(err);
     }
-    if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
+    if (d < 0.0) { d = -d; minus = true;} else minus = false;
     if (p->precision == NOT_FOUND) p->precision = 6;
     t = form;
     *t++ = '%';

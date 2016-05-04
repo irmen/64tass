@@ -45,7 +45,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     }
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Bool *v1 = (const Bool *)o1, *v2 = (const Bool *)o2;
     return o2->obj == BOOL_OBJ && v1->boolean == v2->boolean;
 }
@@ -91,7 +91,7 @@ MUST_CHECK Int *int_from_bool(const Bool *v1) {
     return ref_int(int_value[v1->boolean]);
 }
 
-static inline MUST_CHECK Obj *int_from_bool2(int i) {
+static inline MUST_CHECK Obj *int_from_bool2(bool i) {
     return (Obj *)ref_int(int_value[i ? 1 : 0]);
 }
 
@@ -129,8 +129,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
+static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
     switch (op->op->op) {
+    case O_SUB:
     case O_CMP: 
         if (!v1 && v2) return (Obj *)ref_int(minus1_value);
         return (Obj *)ref_int(int_value[(v1 != v2) ? 1 : 0]);
@@ -151,12 +152,12 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, int v1, int v2) {
         if (!v2) { 
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
-        return int_from_bool2(0);
+        return int_from_bool2(false);
     case O_EXP: return int_from_bool2(v1 || !v2);
     case O_AND: return truth_reference(v1 && v2);
     case O_OR: return truth_reference(v1 || v2);
     case O_XOR: return truth_reference(v1 != v2);
-    case O_LSHIFT: return v2 ? (Obj *)bits_from_bools(v1, 0) : (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
+    case O_LSHIFT: return v2 ? (Obj *)bits_from_bools(v1, false) : (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
     case O_RSHIFT: return v2 ? (Obj *)ref_bits(null_bits) : (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
     case O_CONCAT: return (Obj *)bits_from_bools(v1, v2);
     default: break;
@@ -211,8 +212,8 @@ void boolobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 
-    bool_value[0] = false_value = new_boolean(0);
-    bool_value[1] = true_value = new_boolean(1);
+    bool_value[0] = false_value = new_boolean(false);
+    bool_value[1] = true_value = new_boolean(true);
 }
 
 void boolobj_names(void) {

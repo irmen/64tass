@@ -586,7 +586,7 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
+bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
 {
     struct escape_s *b, tmp;
     Obj *val2;
@@ -594,13 +594,13 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
     uval_t uval;
     size_t i, len;
     uint8_t *odata = NULL, *d;
-    int foundold;
-    int ret;
+    bool foundold;
+    bool ret;
 
     if (lastes == NULL) {
         lastes = (struct escape_s *)mallocx(sizeof(struct escape_s));
     }
-    b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, 0);
+    b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, false);
     if (b == NULL) err_msg_out_of_memory();
     foundold = (b != lastes);
     if (foundold) {
@@ -652,7 +652,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         lastes->len = i;
         lastes->data = d; /* unlock new */
         lastes = NULL;
-        return 0;
+        return false;
     }
     b->data = odata; /* unlock old */
     ret = (i != b->len || memcmp(d, b->data, i) != 0);
@@ -693,7 +693,7 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
 
 static struct {
     size_t i, i2, j, len, len2;
-    int err;
+    bool err;
     const uint8_t *data, *data2;
     linepos_t epoint;
     char mode;
@@ -706,7 +706,7 @@ void encode_string_init(const Str *v, linepos_t epoint) {
     encode_state.len = v->len;
     encode_state.data = v->data;
     encode_state.epoint = epoint;
-    encode_state.err = 0;
+    encode_state.err = false;
 }
 
 void encode_error(enum errors_e no) {
@@ -714,7 +714,7 @@ void encode_error(enum errors_e no) {
         struct linepos_s epoint = *encode_state.epoint;
         epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i2);
         err_msg2(no, NULL, &epoint);
-        encode_state.err = 1;
+        encode_state.err = true;
     }
 }
 
@@ -757,13 +757,13 @@ next:
         struct linepos_s epoint = *encode_state.epoint;
         epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i);
         err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
-        encode_state.err = 1;
+        encode_state.err = true;
     }
     encode_state.i += ln;
     return 256 + '?';
 }
 
-void init_encoding(int toascii)
+void init_encoding(bool toascii)
 {
     struct encoding_s *tmp;
     static const str_t none_enc = {4, (const uint8_t *)"none"};

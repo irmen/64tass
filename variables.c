@@ -96,7 +96,7 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
     return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
         && v1->name.len == v2->name.len
@@ -166,7 +166,7 @@ void push_context(Namespace *name) {
     context_stack.p++;
 }
 
-int pop_context(void) {
+bool pop_context(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
@@ -174,9 +174,9 @@ int pop_context(void) {
         cheap_context = c->cheap;
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
 void reset_context(void) {
@@ -374,7 +374,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 }
 
 /* --------------------------------------------------------------------------- */
-Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *exists) {
+Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists) {
     struct avltree_node *b;
     Label *tmp;
     if (lastlb2 == NULL) {
@@ -394,19 +394,19 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *e
         str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
         else str_cfcpy(&lastlb->cfname, NULL);
-        lastlb->ref = 0;
-        lastlb->shadowcheck = 0;
-        lastlb->update_after = 0;
+        lastlb->ref = false;
+        lastlb->shadowcheck = false;
+        lastlb->update_after = false;
         lastlb->usepass = 0;
         lastlb->defpass = pass;
-	*exists = 0;
+	*exists = false;
 	tmp = lastlb;
 	lastlb = NULL;
         lastlb2 = NULL;
         context->len++;
 	return tmp;
     }
-    *exists = 1;
+    *exists = true;
     return avltree_container_of(b, struct namespacekey_s, node)->key;            /* already exists */
 }
 
@@ -629,7 +629,7 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
 }
 
 void labelprint(void) {
-    int oldreferenceit = referenceit;
+    bool oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
@@ -643,7 +643,7 @@ void labelprint(void) {
         }
     }
     clearerr(flab);
-    referenceit = 0;
+    referenceit = false;
     if (arguments.label_mode == LABEL_DUMP) {
         str_t root = {0, NULL};
         labeldump(root_namespace, &root, flab);
@@ -660,12 +660,12 @@ void new_builtin(const char *ident, Obj *val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     Label *label;
-    int label_exists;
+    bool label_exists;
     name.len = strlen(ident);
     name.data = (const uint8_t *)ident;
     label = new_label(&name, builtin_namespace, 0, &label_exists);
-    label->constant = 1;
-    label->owner = 1;
+    label->constant = true;
+    label->owner = true;
     label->value = val;
     label->file_list = NULL;
     label->epoint = nopoint;

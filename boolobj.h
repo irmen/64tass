@@ -25,7 +25,7 @@ extern struct Type *BOOL_OBJ;
 
 typedef struct Bool {
     Obj v;
-    int boolean;
+    bool boolean;
 } Bool;
 
 extern Bool *true_value;
@@ -40,14 +40,14 @@ static inline Bool *ref_bool(Bool *v1) {
     v1->v.refcount++; return v1;
 }
 
-static inline MUST_CHECK Bool *new_boolean(int boolean) {
+static inline MUST_CHECK Bool *new_boolean(bool boolean) {
     Bool *v = (Bool *)val_alloc(BOOL_OBJ);
     v->boolean = boolean;
     return v;
 }
 
-static inline MUST_CHECK Obj *truth_reference(int i) {
-    return (Obj *)ref_bool(bool_value[i]);
+static inline MUST_CHECK Obj *truth_reference(bool i) {
+    return (Obj *)ref_bool(bool_value[i ? 1 : 0]);
 }
 
 struct Int;

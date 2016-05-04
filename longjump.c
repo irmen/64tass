@@ -34,7 +34,7 @@ static void longjump_free(struct avltree_node *aa)
 }
 
 static struct longjump_s *lastlj = NULL;
-struct longjump_s *new_longjump(address_t address, int *exists) {
+struct longjump_s *new_longjump(address_t address, bool *exists) {
     struct avltree_node *b;
     struct longjump_s *tmp;
 
@@ -45,12 +45,12 @@ struct longjump_s *new_longjump(address_t address, int *exists) {
     b = avltree_insert(&lastlj->node, &current_section->longjump, longjump_compare);
     if (b == NULL) { /* new longjump */
         lastlj->defpass = 0;
-        *exists = 0;
+        *exists = false;
 	tmp = lastlj;
 	lastlj = NULL;
 	return tmp;
     }
-    *exists = 1;
+    *exists = true;
     return avltree_container_of(b, struct longjump_s, node);            /* already exists */
 }
 

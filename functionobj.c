@@ -47,7 +47,7 @@ static Type obj;
 
 Type *FUNCTION_OBJ = &obj;
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
     return o2->obj == FUNCTION_OBJ && v1->func == v2->func;
 }
@@ -104,7 +104,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
                 }
             }
             if (v1->len != 0) {
-                int error = 1;
+                bool error = true;
                 size_t i;
                 Obj **vals2, *o1 = v[j].val;
                 vv = (List *)val_alloc(objt);
@@ -119,7 +119,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
                         }
                     }
                     val = gen_broadcast(vals, epoint, f);
-                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
+                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
                     vals2[i] = val;
                 }
                 vv->len = i;
@@ -284,14 +284,14 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
         List *v1 = (List *)o1, *v;
         if (v1->len != 0) {
-            int error = 1;
+            bool error = true;
             size_t i;
             Obj **vals;
             v = (List *)val_alloc(o1->obj);
             vals = list_create_elements(v, v1->len);
             for (i = 0; i < v1->len; i++) {
                 Obj *val = apply_func(v1->data[i], func, epoint);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
                 vals[i] = val;
             }
             v->len = i;

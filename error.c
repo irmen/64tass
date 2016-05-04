@@ -176,7 +176,7 @@ struct notdefines_s {
     struct avltree_node node;
 };
 
-static int check_duplicate(const struct errorentry_s *nerr) {
+static bool check_duplicate(const struct errorentry_s *nerr) {
     size_t pos;
     const struct errorentry_s *err;
     for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
@@ -187,39 +187,39 @@ static int check_duplicate(const struct errorentry_s *nerr) {
         if (err->error_len != nerr->error_len) continue;
         if (err->epoint.line != nerr->epoint.line) continue;
         if (err->epoint.pos != nerr->epoint.pos) continue;
-        if (memcmp(((uint8_t *)err) + sizeof(struct errorentry_s), ((uint8_t *)nerr) + sizeof(struct errorentry_s), err->line_len + err->error_len)) continue;
-        return 1;
+        if (memcmp(((uint8_t *)err) + sizeof(struct errorentry_s), ((uint8_t *)nerr) + sizeof(struct errorentry_s), err->line_len + err->error_len) != 0) continue;
+        return true;
     }
-    return 0;
+    return false;
 }
 
-static int close_error(void) {
+static bool close_error(void) {
     if (error_list.header_pos < error_list.len) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - sizeof(struct errorentry_s) - err->line_len;
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
-        case SV_DOUBLENOTE: return 0;
+        case SV_DOUBLENOTE: return false;
         default: break;
         }
         if (check_duplicate(err)) {
             error_list.len = error_list.header_pos;
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
-static int new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
+static bool new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct errorentry_s *err;
     size_t line_len;
-    int dupl = close_error();
+    bool dupl = close_error();
     switch (severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
     case SV_DOUBLENOTE:
-        if (dupl) return 1;
+        if (dupl) return true;
         line_len = 0;
         break;
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
@@ -242,7 +242,7 @@ static int new_error_msg(enum severity_e severity, const struct file_list_s *fli
     err->file_list = flist;
     err->epoint = *epoint;
     if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
-    return 0;
+    return false;
 }
 
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -536,7 +536,7 @@ static void notdefines_free(struct avltree_node *aa) {
 }
 
 static struct notdefines_s *lastnd = NULL;
-static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int down, linepos_t epoint) {
+static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t epoint) {
     struct notdefines_s *tmp2;
     struct avltree_node *b;
 
@@ -801,7 +801,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
     const uint8_t *line;
-    int text = (cflist != &file_list);
+    bool text = (cflist != &file_list);
 
     if (text) {
         if (cflist != included_from) {
@@ -848,10 +848,10 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     }
 }
 
-int error_print(int fix, int newvar, int anyerr) {
+int error_print(bool fix, bool newvar, int anyerr) {
     const struct errorentry_s *err, *err2;
     size_t pos, pos2;
-    int noneerr = 0;
+    bool noneerr = false;
     FILE *ferr;
 
     if (arguments.error != NULL) {
@@ -878,9 +878,9 @@ int error_print(int fix, int newvar, int anyerr) {
         case SV_WARNING:
         case SV_NONEERROR:
             break;
-        case SV_CONDERROR: if (!fix) continue; noneerr = 1; break;
-        case SV_NOTDEFERROR: if (newvar) continue; noneerr = 1; break;
-        default: noneerr = 1; break;
+        case SV_CONDERROR: if (!fix) continue; noneerr = true; break;
+        case SV_NOTDEFERROR: if (newvar) continue; noneerr = true; break;
+        default: noneerr = true; break;
         }
     }
 
@@ -966,7 +966,7 @@ void err_msg_out_of_memory2(void)
 
 void err_msg_out_of_memory(void)
 {
-    error_print(0, 1, 1);
+    error_print(false, true, 1);
     err_msg_out_of_memory2();
 }
 
@@ -1037,7 +1037,7 @@ linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i)
     return epoint->pos;
 }
 
-int error_serious(int fix, int newvar) {
+int error_serious(bool fix, bool newvar) {
     const struct errorentry_s *err;
     size_t pos;
     int m = 0;

@@ -34,7 +34,8 @@ extern "C" {
 /* UNIX-style short-argument parser */
 extern int my_getopt(int argc, char *argv[], const char *opts);
 
-extern int my_optind, my_opterr, my_optopt;
+extern int my_optind, my_optopt;
+extern bool my_opterr;
 extern char *my_optarg;
 
 struct option {

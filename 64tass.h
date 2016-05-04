@@ -38,7 +38,7 @@ extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;
-extern int fixeddig, constcreated;
+extern bool fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline;
 extern uint16_t reffile;
@@ -46,6 +46,6 @@ extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
-extern void var_assign(struct Label *, struct Obj *, int);
+extern void var_assign(struct Label *, struct Obj *, bool);
 extern void pokeb(uint8_t);
 #endif

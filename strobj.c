@@ -53,7 +53,7 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Str *v1 = (const Str *)o1, *v2 = (const Str *)o2;
     return o2->obj == STR_OBJ && v1->len == v2->len && (
             v1->data == v2->data || memcmp(v1->data, v2->data, v2->len) == 0);
@@ -645,7 +645,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     }
     if (op->op == &o_LAND || op->op == &o_LOR) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
-        int i;
+        bool i;
         if (result->obj != BOOL_OBJ) return result;
         i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);

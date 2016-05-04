@@ -52,7 +52,7 @@ typedef struct Error {
         struct {
             str_t ident;
             struct Namespace *names;
-            int down;
+            bool down;
         } notdef;
         struct {
             int bits;
@@ -92,7 +92,7 @@ extern void err_msg_output(const Error *);
 extern void err_msg_output_and_destroy(Error *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void error_reset(void);
-extern int error_print(int, int, int);
+extern int error_print(bool, bool, int);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);
@@ -100,18 +100,18 @@ extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
-extern int error_serious(int, int);
+extern int error_serious(bool, bool);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
 
 static inline void *mallocx(size_t l) {
     void *m = malloc(l);
-    if (!m) err_msg_out_of_memory();
+    if (m == NULL) err_msg_out_of_memory();
     return m;
 }
 
 static inline void *reallocx(void *o, size_t l) {
     void *m = realloc(o, l);
-    if (!m) err_msg_out_of_memory();
+    if (m == NULL) err_msg_out_of_memory();
     return m;
 }
 

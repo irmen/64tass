@@ -44,7 +44,7 @@ typedef struct Type {
     Obj *(*create)(Obj *, linepos_t) MUST_CHECK;
     void (*destroy)(Obj *);
     void (*garbage)(Obj *, int);
-    int (*same)(const Obj *, const Obj *);
+    bool (*same)(const Obj *, const Obj *);
     Obj *(*truth)(Obj *, enum truth_e, linepos_t) MUST_CHECK;
     struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t, size_t) MUST_CHECK;

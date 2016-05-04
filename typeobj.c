@@ -43,7 +43,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     return val_reference(&v1->obj->v);
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
@@ -121,13 +121,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     List *v2 = (List *)o2;
                     Obj **vals;
                     size_t i;
-                    int error;
+                    bool error = true;
                     List *v = (List *)val_alloc(o2->obj);
                     v->data = vals = list_create_elements(v, v2->len);
-                    error = 1;
                     for (i = 0;i < v2->len; i++) {
                         Obj *val = v1->create(v2->data[i], op->epoint2);
-                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = 0;} val_destroy(val); val = (Obj *)ref_none(); }
+                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
                         vals[i] = val;
                     }
                     v->len = i;

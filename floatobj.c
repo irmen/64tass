@@ -55,7 +55,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Float *v1 = (const Float *)o1, *v2 = (const Float *)o2;
     return o2->obj == FLOAT_OBJ && v1->real == v2->real;
 }
@@ -171,7 +171,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static int almost_equal(double a, double b) {
+static bool almost_equal(double a, double b) {
     if (a > b) return a - b <= a * 0.0000000005;
     return b - a <= b * 0.0000000005;
 }

@@ -27,13 +27,13 @@ struct Obj;
 extern MUST_CHECK struct Error *instruction(int, int, struct Obj *, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
-extern MUST_CHECK int touval(struct Obj *, uval_t *, int, linepos_t);
-extern MUST_CHECK int toaddress(struct Obj *, uval_t *, int, uint32_t *, linepos_t);
+extern MUST_CHECK bool touval(struct Obj *, uval_t *, int, linepos_t);
+extern MUST_CHECK bool toaddress(struct Obj *, uval_t *, int, uint32_t *, linepos_t);
 extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
 
-extern int longaccu, longindex, autosize;
+extern bool longaccu, longindex, autosize;
 extern unsigned int dpage;
 extern unsigned int databank;
-extern int longbranchasjmp;
-extern int allowslowbranch;
+extern bool longbranchasjmp;
+extern bool allowslowbranch;
 #endif

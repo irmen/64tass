@@ -68,7 +68,7 @@ static ternary_node *tern_alloc(void) {
 /* Non-recursive so we don't waste stack space/time on large
    insertions. */
 
-void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, void *data, int replace)
+void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, void *data, bool replace)
 {
     uint32_t spchar;
     ternary_tree curr, *pcurr;

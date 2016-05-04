@@ -68,7 +68,7 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Address *v1 = (const Address *)o1, *v2 = (const Address *)o2;
     return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
 }
@@ -136,11 +136,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     return &v->v;
 }
 
-int check_addr(atype_t type) {
+bool check_addr(atype_t type) {
     while (type != A_NONE) {
         switch ((enum atype_e)(type & 0xf)) {
         case A_I:
-        case A_LI: return 1;
+        case A_LI: return true;
         case A_IMMEDIATE:
         case A_KR:
         case A_DR:
@@ -154,10 +154,10 @@ int check_addr(atype_t type) {
         }
         type >>= 4;
     }
-    return 0;
+    return false;
 }
 
-static inline int check_addr2(atype_t type) {
+static inline bool check_addr2(atype_t type) {
     while (type != A_NONE) {
         switch ((enum atype_e)(type & 0xf)) {
         case A_KR:
@@ -169,13 +169,13 @@ static inline int check_addr2(atype_t type) {
         case A_RR:
         case A_SR:
         case A_I:
-        case A_LI: return 1;
+        case A_LI: return true;
         case A_IMMEDIATE:
         case A_NONE: break;
         }
         type >>= 4;
     }
-    return 0;
+    return false;
 }
 
 static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {

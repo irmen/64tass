@@ -148,11 +148,11 @@ void val_replace(Obj **val, Obj *val2) {
 }
 
 int val_print(Obj *v1, FILE *f) {
-    int oldreferenceit = referenceit;
+    bool oldreferenceit = referenceit;
     Obj *err;
     struct linepos_s nopoint = {0, 0};
     int len;
-    referenceit = 0;
+    referenceit = false;
     err = v1->obj->repr(v1, &nopoint, SIZE_MAX);
     if (err != NULL) {
         if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);

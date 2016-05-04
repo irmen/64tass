@@ -72,7 +72,7 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static int same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Register *v1 = (const Register *)o1, *v2 = (const Register *)o2;
     return o2->obj == REGISTER_OBJ && v1->len == v2->len && (
             v1->data == v2->data ||
@@ -203,11 +203,11 @@ void registerobj_names(void) {
 
 static uint32_t register_names;
 
-int registerobj_createnames(uint32_t registers) {
+bool registerobj_createnames(uint32_t registers) {
     uint32_t regs = registers & ~register_names;
     char name[2];
 
-    if (regs == 0) return 0;
+    if (regs == 0) return false;
     register_names |= regs;
 
     name[0] = 'a';
@@ -220,5 +220,5 @@ int registerobj_createnames(uint32_t registers) {
         reg->chars = 1;
         new_builtin(name, &reg->v);
     }
-    return 1;
+    return true;
 }

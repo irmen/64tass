@@ -53,7 +53,7 @@ struct Str;
 
 extern struct file_s *openfile(const char *, const char *, int, const struct Str *, linepos_t);
 extern void closefile(struct file_s*);
-extern struct star_s *new_star(line_t, int *);
+extern struct star_s *new_star(line_t, bool *);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);

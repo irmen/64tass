@@ -51,8 +51,8 @@ extern MUST_CHECK Bits *bits_from_binstr(const uint8_t *, size_t *, size_t *);
 extern MUST_CHECK Obj *bits_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Bits *bits_from_bytes(const struct Bytes *);
 extern MUST_CHECK Bits *bits_from_uval(uval_t, int);
-extern MUST_CHECK Bits *ibits_from_bool(int);
-extern MUST_CHECK Bits *bits_from_bools(int, int);
+extern MUST_CHECK Bits *ibits_from_bool(bool);
+extern MUST_CHECK Bits *bits_from_bools(bool, bool);
 extern MUST_CHECK Obj *float_from_bits(const Bits *, linepos_t);
 
 #endif

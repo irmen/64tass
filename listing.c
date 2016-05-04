@@ -119,7 +119,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
         if (newp != NULL) prgname = newp + 1;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
         newp = strrchr(prgname, '\\');
-        if (newp) prgname = newp + 1;
+        if (newp != NULL) prgname = newp + 1;
 #endif
     }
     for (i = 0; i < argc; i++) {
@@ -342,13 +342,13 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
 }
 
 void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
-    int print;
+    bool print;
     int l;
     int lcol;
     char str[3*16+1], *s;
     if (nolisting != 0 || flist == NULL || temporary_label_branch != 0) return;
 
-    print = 1;
+    print = true;
     l = printaddr('>', myaddr);
     if (myaddr != myaddr2) {
         l = padding(l, LADDR_COLUMN);
@@ -367,7 +367,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
                 s = str;
                 if (arguments.source && print) {
                     printllist(l);
-                    print = 0;
+                    print = false;
                 } else putc('\n',flist);
                 l = printaddr('>', myaddr);
                 if (myaddr != myaddr2) {

@@ -32,17 +32,17 @@ enum label_mode_e {
 struct file_s;
 
 struct arguments_s {
-    unsigned warning:1;
-    unsigned caret:1;
-    unsigned quiet:1;
-    unsigned toascii:1;
-    unsigned monitor:1;
-    unsigned source:1;
-    unsigned longbranch:1;
-    unsigned longaddr:1;
-    unsigned tasmcomp:1;
-    unsigned shadow_check:1;
-    unsigned verbose:1;
+    bool warning:1;
+    bool caret:1;
+    bool quiet:1;
+    bool toascii:1;
+    bool monitor:1;
+    bool source:1;
+    bool longbranch:1;
+    bool longaddr:1;
+    bool tasmcomp:1;
+    bool shadow_check:1;
+    bool verbose:1;
     uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;
@@ -66,6 +66,6 @@ extern int str_hash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);
 extern void str_cfcpy(str_t *, const str_t *);
 extern void str_cpy(str_t *, const str_t *);
-extern linecpos_t calcpos(const uint8_t *, size_t, int);
+extern linecpos_t calcpos(const uint8_t *, size_t, bool);
 
 #endif
