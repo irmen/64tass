@@ -351,12 +351,11 @@ static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
     v = inew(vv, len1 + 1);
     v1 = vv1->data; v2 = vv2->data;
     for (c = false, i = 0; i < len2; i++) {
+        d = v1[i];
         if (c) {
-            d = v1[i];
             c = ((v[i] = d + v2[i] + 1) <= d);
             continue;
         }
-        d = v1[i];
         c = ((v[i] = d + v2[i]) < d);
     }
     for (;c && i < len1; i++) {
@@ -506,11 +505,11 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
     len1 = intlen(vv1);
     v1 = vv1->data;
     v2 = vv2->data;
-    if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
-        return (Obj *)ref_int(divrem ? int_value[0] : vv1);
-    }
     negr = (vv1->len < 0);
     neg = (negr != (vv2->len < 0));
+    if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
+        return (Obj *)ref_int(divrem ? ((neg && len1 != 0) ? minus1_value : int_value[0]) : vv1);
+    }
     if (len2 == 1) {
         size_t i;
         twodigits_t r = 0;
@@ -524,6 +523,11 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
                 h = (digit_t)(r / n);
                 v[i] = h;
                 r -= (twodigits_t)h * n;
+            }
+            if (neg && r != 0) {
+                for (i = 0; i < len1; i++) {
+                    if ((v[i] = v[i] + 1) >= 1) break;
+                }
             }
             return normalize(vv, v, len1, neg);
         }
@@ -611,16 +615,16 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
 
         vv = new_int();
         if (divrem) {
-            if (v0 != tmp1.val) free(v0);
-            while (k != 0 && a[k - 1] == 0) k--;
-            if (k <= (ssize_t)sizeof(vv->val)/(ssize_t)sizeof(vv->val[0])) {
-                memcpy(vv->val, a, k * sizeof(digit_t));
-                if (a != tmp3.val) free(a);
-                a = vv->val;
+            if (neg) {
+                while (len2 != 0 && v0[len2 - 1] == 0) len2--;
+                if (len2 != 0) {
+                    for (i = 0; i < k; i++) {
+                        if ((a[i] = a[i] + 1) >= 1) break;
+                    }
+                }
             }
-            vv->data = a;
-            vv->len = neg ? -k : k;
-            return (Obj *)vv;
+            if (v0 != tmp1.val) free(v0);
+            return normalize(vv, a, k, neg);
         }
 
         if (d != 0) {
@@ -629,15 +633,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         } 
 
         if (a != tmp3.val) free(a);
-        while (len2 != 0 && v0[len2 - 1] == 0) len2--;
-        if (len2 <= sizeof(vv->val)/sizeof(vv->val[0])) {
-            memcpy(vv->val, v0, len2 * sizeof(digit_t));
-            if (v0 != tmp1.val) free(v0);
-            v0 = vv->val;
-        }
-        vv->data = v0;
-        vv->len = negr ? -len2 : len2;
-        return (Obj *)vv;
+        return normalize(vv, v0, len2, negr);
     }
 }
 
@@ -1484,34 +1480,15 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         } else imul(v1, v2, v);
         return (Obj *)v;
     case O_DIV:
-        val = idivrem(v1, v2, true, op->epoint3);
-        if (val->obj != INT_OBJ) return val;
-        v = (Int *)val;
-        if ((v1->len < 0) != (v2->len < 0)) {
-            Int *vv = new_int();
-            if (v->len < 0) {
-                iadd(v, int_value[1], vv);
-                vv->len = -vv->len;
-            } else isub(v, int_value[1], vv);
-            val_destroy(&v->v); 
-            return (Obj *)vv;
-        }
-        return (Obj *)v;
+        return idivrem(v1, v2, true, op->epoint3);
     case O_MOD:
         val = idivrem(v1, v2, false, op->epoint3);
         if (val->obj != INT_OBJ) return val;
         v = (Int *)val;
-        if ((v->len < 0) != (v2->len < 0)) {
+        if (v->len !=0 && (v->len ^ v2->len) < 0) {
             Int *vv = new_int();
-            if (v->len < 0) {
-                if (v2->len < 0) {
-                    iadd(v, v2, vv);
-                    vv->len = -vv->len;
-                } else isub(v2, v, vv);
-            } else {
-                if (v2->len < 0) isub(v, v2, vv);
-                else iadd(v, v2, vv);
-            }
+            if (v->len < 0) isub(v2, v, vv);
+            else isub(v, v2, vv);
             val_destroy(&v->v);
             return (Obj *)vv;
         }
