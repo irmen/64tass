@@ -544,8 +544,8 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         vv->len = negr ? -1 : 1;
         return (Obj *)vv;
     } else {
-        size_t i;
-        int k, d;
+        size_t i, k;
+        int d;
         digit_t wm1, wm2, *v0, *vk, *w0, *ak, *a;
         Int tmp1, tmp2, tmp3;
 

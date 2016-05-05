@@ -117,6 +117,18 @@ static MUST_CHECK Obj *normalize(Bits *v, size_t sz, bool neg) {
     return &v->v;
 }
 
+static MUST_CHECK Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
+    ssize_t l;
+    bdigit_t *v;
+    Bits *vv = (Bits *)val_alloc(BITS_OBJ);
+    vv->data = v = vv->val;
+    v[0] = c;
+    l = (c != 0) ? 1 : 0;
+    vv->len = neg ? ~l : l;
+    vv->bits = blen;
+    return vv;
+}
+
 static bool same(const Obj *o1, const Obj *o2) {
     const Bits *v1 = (const Bits *)o1, *v2 = (const Bits *)o2;
     if (o2->obj != BITS_OBJ || v1->len != v2->len || v1->bits != v2->bits) return false;
@@ -272,7 +284,7 @@ MUST_CHECK Obj *float_from_bits(const Bits *v1, linepos_t epoint) {
     case 1: d = v1->data[0]; break;
     default:
         d = (v1->len < 0) ? -1.0 : 0.0;
-        len1 = d != 0.0 ? ~v1->len : v1->len;
+        len1 = bitslen(v1);
         for (i = 0; i < len1; i++) {
             if (v1->len < 0) d -= ldexp(v1->data[i], i * SHIFT);
             else d += ldexp(v1->data[i], i * SHIFT);
@@ -304,39 +316,19 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
 }
 
 MUST_CHECK Bits *ibits_from_bool(bool i) {
-    Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    v->data = v->val;
-    v->val[0] = i ? 1 : 0;
-    v->len = ~(ssize_t)(i ? 1 : 0);
-    v->bits = 1;
-    return v;
+    return return_bits(i ? 1 : 0, 1, true);
 }
 
 MUST_CHECK Bits *bits_from_bools(bool i, bool j) {
-    Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    v->data = v->val;
-    v->val[0] = (i ? 2 : 0) | (j ? 1 : 0);
-    v->len = (i || j) ? 1 : 0;
-    v->bits = 2;
-    return v;
+    return return_bits((i ? 2 : 0) | (j ? 1 : 0), 2, false);
 }
 
 static MUST_CHECK Bits *bits_from_u24(uint32_t i) {
-    Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    v->data = v->val;
-    v->val[0] = i;
-    v->len = (i != 0) ? 1 : 0;
-    v->bits = 24;
-    return v;
+    return return_bits(i & 0xffffff, 24, false);
 }
 
 MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
-    Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    v->data = v->val;
-    v->val[0] = i;
-    v->len = (i != 0) ? 1 : 0;
-    v->bits = bits;
-    return v;
+    return return_bits(i, bits, false);
 }
 
 MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
@@ -371,15 +363,7 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     i = k - i;
     *ln2 = i;
     if (i <= 2 * sizeof(bdigit_t)) {
-        if (i == 0) {
-            return ref_bits(null_bits);
-        }
-        v = (Bits *)val_alloc(BITS_OBJ);
-        v->data = v->val;
-        v->val[0] = uv;
-        v->len = (uv != 0) ? 1 : 0;
-        v->bits = i * 4;
-        return v;
+        return (i == 0) ? ref_bits(null_bits) : return_bits(uv, i * 4, false);
     }
 
     if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
@@ -433,15 +417,7 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     i = k - i;
     *ln2 = i;
     if (i <= 8 * sizeof(bdigit_t)) {
-        if (i == 0) {
-            return ref_bits(null_bits);
-        }
-        v = (Bits *)val_alloc(BITS_OBJ);
-        v->data = v->val;
-        v->val[0] = uv;
-        v->len = (uv != 0) ? 1 : 0;
-        v->bits = i;
-        return v;
+        return (i == 0) ? ref_bits(null_bits) : return_bits(uv, i, false);
     }
 
     sz = i / SHIFT;
@@ -682,7 +658,6 @@ static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         if (neg1) {
             if (neg2) {
@@ -693,13 +668,7 @@ static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
         } else {
             c = vv1->data[0] & (neg2 ? ~vv2->data[0] : vv2->data[0]);
         }
-        vv = (Bits *)val_alloc(BITS_OBJ);
-        vv->data = v = vv->val;
-        v[0] = c;
-        l = (c != 0) ? 1 : 0;
-        vv->len = (neg1 && neg2) ? ~l : l;
-        vv->bits = blen;
-        return &vv->v;
+        return (Obj *)return_bits(c, blen, (neg1 && neg2));
     }
     if (len1 < len2) {
         const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -750,7 +719,6 @@ static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         if (neg1) {
             c = vv1->data[0] & (neg2 ? vv2->data[0] : ~vv2->data[0]);
@@ -761,13 +729,7 @@ static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
                 c = vv1->data[0] | vv2->data[0];
             }
         }
-        vv = (Bits *)val_alloc(BITS_OBJ);
-        vv->data = v = vv->val;
-        v[0] = c;
-        l = (c != 0) ? 1 : 0;
-        vv->len = (neg1 || neg2) ? ~l : l;
-        vv->bits = blen;
-        return &vv->v;
+        return (Obj *)return_bits(c, blen, (neg1 || neg2));
     }
     if (len1 < len2) {
         const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -814,16 +776,9 @@ static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        ssize_t l;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
         c = vv1->val[0] ^ vv2->val[0];
-        vv = (Bits *)val_alloc(BITS_OBJ);
-        vv->data = v = vv->val;
-        v[0] = c;
-        l = (c != 0) ? 1 : 0;
-        vv->len = (neg1 != neg2) ? ~l : l;
-        vv->bits = blen;
-        return &vv->v;
+        return (Obj *)return_bits(c, blen, (neg1 != neg2));
     }
     if (len1 < len2) {
         const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
