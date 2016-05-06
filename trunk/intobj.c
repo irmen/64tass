@@ -746,8 +746,7 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c &= neg2 ? -vv2->val[0] : vv2->val[0];
         if (!neg2) neg1 = false;
-        if (neg1) c = -c;
-        return return_int(c, neg1);
+        return return_int(neg1 ? -c : c, neg1);
     }
     if (len1 < len2) {
         const Int *tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -851,8 +850,7 @@ static MUST_CHECK Int *ior(const Int *vv1, const Int *vv2) {
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c |= neg2 ? -vv2->val[0] : vv2->val[0];
         if (neg2) neg1 = true;
-        if (neg1) c = -c;
-        return return_int(c, neg1);
+        return return_int(neg1 ? -c : c, neg1);
     }
     if (len1 < len2) {
         const Int *tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -960,8 +958,7 @@ static MUST_CHECK Int *ixor(const Int *vv1, const Int *vv2) {
         c = neg1 ? -vv1->val[0] : vv1->val[0];
         c ^= neg2 ? -vv2->val[0] : vv2->val[0];
         if (neg2) neg1 = !neg1;
-        if (neg1) c = -c;
-        return return_int(c, neg1);
+        return return_int(neg1 ? -c : c, neg1);
     }
     if (len1 < len2) {
         const Int *tmp = vv1; vv1 = vv2; vv2 = tmp;
