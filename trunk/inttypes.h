@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdlib.h>
 
 #ifndef PRIuFAST32
@@ -111,7 +110,23 @@ typedef uint32_t uval_t;
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L
-#elif defined(__GNUC__)
+#include <stdbool.h>
+#elif _MSC_VER >= 1800
+#include <stdbool.h>
+#else
+#if __GNUC__ < 3
+typedef int _Bool;
+#endif
+#define bool _Bool
+#define false 0
+#define true 1
+#endif
+#endif
+
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 199901L
+#elif __GNUC__ >= 3
+#define inline __inline
 #elif _MSC_VER >= 900
 #define inline __inline
 #else
