@@ -538,14 +538,17 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         } else {
             Str *val = (Str *)l->value->obj->repr(l->value, NULL, SIZE_MAX);
             size_t len;
-            if (val == NULL || val->v.obj != STR_OBJ) continue;
-            len = printable_print2(l->name.data, flab, l->name.len);
-            padding(len, EQUAL_COLUMN, flab);
-            if (l->constant) fputs("= ", flab);
-            else fputs(&" := "[len < EQUAL_COLUMN], flab);
-            printable_print2(val->data, flab, val->len);
-            putc('\n', flab);
-            val_destroy(&val->v);
+            if (val != NULL) {
+                if (val->v.obj == STR_OBJ) {
+                    len = printable_print2(l->name.data, flab, l->name.len);
+                    padding(len, EQUAL_COLUMN, flab);
+                    if (l->constant) fputs("= ", flab);
+                    else fputs(&" := "[len < EQUAL_COLUMN], flab);
+                    printable_print2(val->data, flab, val->len);
+                    putc('\n', flab);
+                }
+                val_destroy(&val->v);
+            }
         }
     }
 }
