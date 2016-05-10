@@ -412,11 +412,11 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
             if (bits < 16) break;
             if (v1->len < 0) *iv = ~*iv;
             return NULL;
-    case 3: *iv = (v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+    case 3: *iv = ((ival_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 24) break;
             if (v1->len < 0) *iv = ~*iv;
             return NULL;
-    case 4: *iv = (v1->data[3] << 24) + (v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+    case 4: *iv = ((ival_t)v1->data[3] << 24) + ((ival_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 32) break;
             if (v1->len < 0) *iv = ~*iv;
             return NULL;
@@ -441,11 +441,11 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
             if (bits < 16) break;
             if (v1->len < 0) *uv = ~*uv;
             return NULL;
-    case 3: *uv = (v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+    case 3: *uv = ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 24) break;
             if (v1->len < 0) *uv = ~*uv;
             return NULL;
-    case 4: *uv = (v1->data[3] << 24) + (v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+    case 4: *uv = ((uval_t)v1->data[3] << 24) + ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 32) break;
             if (v1->len < 0) *uv = ~*uv;
             return NULL;

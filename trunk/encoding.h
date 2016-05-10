@@ -27,8 +27,8 @@ struct Obj;
 
 struct trans_s {
     uint32_t start;
-    unsigned end : 24;
-    unsigned offset : 8;
+    uint32_t end : 24;
+    uint32_t offset : 8;
     struct avltree_node node;
 };
 

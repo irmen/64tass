@@ -32,7 +32,7 @@ extern MUST_CHECK bool toaddress(struct Obj *, uval_t *, int, uint32_t *, linepo
 extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
 
 extern bool longaccu, longindex, autosize;
-extern unsigned int dpage;
+extern uint32_t dpage;
 extern unsigned int databank;
 extern bool longbranchasjmp;
 extern bool allowslowbranch;
