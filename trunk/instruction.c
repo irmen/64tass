@@ -55,9 +55,8 @@ int lookup_opcode(const uint8_t *s) {
     also = 0;
     no = (felso = last_mnem) / 2;
     for (;;) {  /* do binary search */
-        if ((s4 = name - mnemonic[no]) == 0)
-            return no;
-            elozo = no;
+        if ((s4 = name - mnemonic[no]) == 0) return no;
+        elozo = no;
         if (elozo == (no = ((s4 > 0) ? (felso + (also = no)) : (also + (felso = no))) / 2)) break;
     }
     return -1;

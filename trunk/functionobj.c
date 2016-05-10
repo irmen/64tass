@@ -433,7 +433,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             Function *v2 = (Function *)o2;
             switch (op->op->op) {
             case O_CMP:
-                if (v1->func < v1->func) return (Obj *)ref_int(minus1_value);
+                if (v1->func < v2->func) return (Obj *)ref_int(minus1_value);
                 return (Obj *)ref_int(int_value[v1->func > v2->func]);
             case O_EQ: return truth_reference(v1->func == v2->func);
             case O_NE: return truth_reference(v1->func != v2->func);
