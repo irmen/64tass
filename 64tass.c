@@ -639,6 +639,7 @@ static bool instrecursion(List *val, int prm, int w, linepos_t epoint, struct li
 static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     uval_t uval;
     atype_t am;
+    address_t addr, laddr;
 
     current_section->wrapwarn = false;
     if (!current_section->moved) {
@@ -677,7 +678,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
             break;
         }
-        address_t addr, laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
+        laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
         if (arguments.tasmcomp) addr = (uint16_t)uval;
         else if ((address_t)uval > laddr) {
             addr = (current_section->address + (uval - laddr)) & all_mem2;

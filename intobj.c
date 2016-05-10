@@ -466,7 +466,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
         twodigits_t c = (twodigits_t)vv1->val[0] * vv2->val[0];
         v = vv->val;
         vv->data = v;
-        if (c > MASK) {
+        if (c > (twodigits_t)MASK) {
             v[0] = (digit_t)c;
             v[1] = c >> SHIFT;
             vv->len = 2;

@@ -40,7 +40,7 @@ static unsigned int last_mnem;
 static const struct cpu_s *cpu;
 
 bool longaccu = false, longindex = false, autosize = false; /* hack */
-unsigned int dpage = 0;
+uint32_t dpage = 0;
 unsigned int databank = 0;
 bool longbranchasjmp = false;
 bool allowslowbranch = true;
@@ -50,7 +50,7 @@ int lookup_opcode(const uint8_t *s) {
     unsigned int also, felso, elozo, no;
     uint32_t name;
 
-    name = (s[0] << 16) | (s[1] << 8) | s[2];
+    name = ((uint32_t)s[0] << 16) | (s[1] << 8) | s[2];
     if (arguments.caseinsensitive != 0) name |= 0x202020;
     also = 0;
     no = (felso = last_mnem) / 2;

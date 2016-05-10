@@ -39,7 +39,7 @@ struct cpu_s {
     const uint16_t *disasm;
     const uint32_t registers;
     unsigned int opcodes;
-    unsigned int max_address;
+    address_t max_address;
     int jmp;
     int brl;
 };

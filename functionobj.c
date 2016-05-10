@@ -42,6 +42,14 @@
 extern double round(double);
 extern double trunc(double);
 #endif
+#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
+#else
+static double cbrt(double d) {return exp(log(d)/3);}
+#endif
+#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
+#else
+extern double hypot(double, double);
+#endif
 
 static Type obj;
 

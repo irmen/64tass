@@ -176,7 +176,7 @@ void memprint(struct memblocks_s *memblocks) {
     }
 }
 
-static void putlw(int w, FILE *f) {
+static void putlw(unsigned int w, FILE *f) {
     putc(w, f);
     putc(w >> 8, f);
 }
