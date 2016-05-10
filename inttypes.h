@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+
 #ifndef PRIuFAST32
 #define PRIuFAST32 "u"
 #endif
@@ -105,5 +106,15 @@ typedef uint32_t uval_t;
 #else
 #define MUST_CHECK
 #define NO_RETURN
+#endif
+#endif
+
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 199901L
+#elif defined(__GNUC__)
+#elif _MSC_VER >= 900
+#define inline __inline
+#else
+#define inline
 #endif
 #endif
