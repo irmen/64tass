@@ -26,10 +26,6 @@
 #ifndef MY_WRAPPER_GETOPT_H_INCLUDED
 #define MY_WRAPPER_GETOPT_H_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "my_getopt.h"
 
 #undef getopt
@@ -48,9 +44,5 @@ extern "C" {
 #define optopt my_optopt
 #undef optarg
 #define optarg my_optarg
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MY_WRAPPER_GETOPT_H_INCLUDED */

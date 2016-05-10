@@ -18,7 +18,7 @@
 */
 #ifndef _OPCODES_H_
 #define _OPCODES_H_
-#include <stdint.h>
+#include "inttypes.h"
 
 #define ____ 0x69
 enum opr_e {
