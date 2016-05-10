@@ -18,7 +18,7 @@
 */
 #ifndef _UNICODEDATA_H
 #define _UNICODEDATA_H
-#include <stdint.h>
+#include "inttypes.h"
 
 #define bp_Other 1
 #define bp_Control 2
