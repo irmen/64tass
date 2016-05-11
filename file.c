@@ -231,7 +231,7 @@ static uint32_t fromiso2(uint8_t c) {
     return w;
 }
 
-inline uint32_t fromiso(uint8_t c) {
+static inline uint32_t fromiso(uint8_t c) {
     static uint32_t conv[128];
     if (conv[c - 0x80] == 0) conv[c - 0x80] = fromiso2(c);
     return conv[c - 0x80];
