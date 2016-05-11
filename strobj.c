@@ -761,7 +761,7 @@ void strobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.abs = absolute;
+    obj.absolute = absolute;
     obj.len = len;
     obj.getiter = getiter;
     obj.next = next;

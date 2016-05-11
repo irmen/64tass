@@ -1576,7 +1576,7 @@ void intobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.abs = absolute;
+    obj.absolute = absolute;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
