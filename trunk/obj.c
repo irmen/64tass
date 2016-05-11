@@ -451,7 +451,7 @@ void obj_init(Type *obj) {
     obj->uval = invalid_uval;
     obj->address = invalid_address;
     obj->sign = invalid_sign;
-    obj->abs = invalid_abs;
+    obj->absolute = invalid_abs;
     obj->len = invalid_len;
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;

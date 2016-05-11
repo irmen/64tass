@@ -294,7 +294,7 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     switch (func) {
     case F_SIZE: return o1->obj->size(o1, epoint);
     case F_SIGN: return o1->obj->sign(o1, epoint);
-    case F_ABS: return o1->obj->abs(o1, epoint);
+    case F_ABS: return o1->obj->absolute(o1, epoint);
     case F_REPR: return o1->obj->repr(o1, epoint, SIZE_MAX);
     default: break;
     }

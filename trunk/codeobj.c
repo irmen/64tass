@@ -172,7 +172,7 @@ static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
     Error *err = access_check(v1, epoint);
     if (err != NULL) return &err->v;
     v = v1->addr;
-    return v->obj->abs(v, epoint);
+    return v->obj->absolute(v, epoint);
 }
 
 MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
@@ -590,7 +590,7 @@ void codeobj_init(void) {
     obj.uval = uval;
     obj.address = address;
     obj.sign = sign;
-    obj.abs = absolute;
+    obj.absolute = absolute;
     obj.len = len;
     obj.size = size;
     obj.calc1 = calc1;

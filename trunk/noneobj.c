@@ -99,7 +99,7 @@ void noneobj_init(void) {
     obj.uval = uval;
     obj.address = address;
     obj.sign = sign;
-    obj.abs = absolute;
+    obj.absolute = absolute;
     obj.len = len;
     obj.size = size;
 

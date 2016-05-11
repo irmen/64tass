@@ -305,7 +305,7 @@ static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
     Bits *v1 = (Bits *)o1;
     Obj *tmp, *ret;
     tmp = (Obj *)int_from_bits(v1);
-    ret = tmp->obj->abs(tmp, epoint);
+    ret = tmp->obj->absolute(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
@@ -1264,7 +1264,7 @@ void bitsobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.abs = absolute;
+    obj.absolute = absolute;
     obj.len = len;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
