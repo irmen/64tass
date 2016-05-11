@@ -19,7 +19,7 @@
 
 #include "eval.h"
 #include <string.h>
-#include <math.h>
+#include "math.h"
 #include "file.h"
 #include "section.h"
 #include "encoding.h"
@@ -48,32 +48,6 @@
 #include "gapobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-
-#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
-#else
-#define cbrt(a) pow((a), 1.0/3.0)
-#endif 
-#if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
-#else
-extern double round(double);
-extern double trunc(double);
-double round(double a) {return (a < 0.0) ? ceil(a - 0.5) : floor(a + 0.5);}
-double trunc(double a) {return (a > 0.0) ? floor(a) : ceil(a);}
-#endif 
-#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
-#else
-extern double sinh(double);
-extern double cosh(double);
-extern double tanh(double);
-double sinh(double a) {return (exp(a) - exp(-a)) / 2.0;}
-double cosh(double a) {return (exp(a) + exp(-a)) / 2.0;}
-double tanh(double a) {return sinh(a) / cosh(a);}
-#endif
-#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
-#else
-extern double hypot(double, double);
-double hypot(double a, double b) {return sqrt(a * a + b * b);}
-#endif
 
 size_t get_label(void) {
     uint32_t ch;
