@@ -47,8 +47,8 @@ error.o: error.c error.h inttypes.h errors_e.h avl.h obj.h misc.h file.h \
  variables.h 64tass.h wait_e.h macro.h strobj.h unicode.h unicodedata.h \
  addressobj.h values.h registerobj.h namespaceobj.h operobj.h typeobj.h \
  eval.h
-eval.o: eval.c eval.h obj.h inttypes.h file.h avl.h section.h mem.h \
- encoding.h errors_e.h macro.h wait_e.h variables.h 64tass.h misc.h \
+eval.o: eval.c eval.h obj.h inttypes.h math.h file.h avl.h section.h \
+ mem.h encoding.h errors_e.h macro.h wait_e.h variables.h 64tass.h misc.h \
  unicode.h unicodedata.h listing.h error.h values.h floatobj.h boolobj.h \
  intobj.h bitsobj.h strobj.h codeobj.h bytesobj.h addressobj.h listobj.h \
  dictobj.h registerobj.h namespaceobj.h operobj.h gapobj.h typeobj.h \
@@ -58,8 +58,8 @@ file.o: file.c file.h inttypes.h avl.h misc.h 64tass.h wait_e.h unicode.h \
 floatobj.o: floatobj.c floatobj.h obj.h inttypes.h values.h error.h \
  errors_e.h avl.h eval.h variables.h boolobj.h codeobj.h strobj.h \
  bytesobj.h intobj.h bitsobj.h operobj.h typeobj.h noneobj.h
-functionobj.o: functionobj.c isnprintf.h inttypes.h functionobj.h obj.h \
- values.h eval.h misc.h variables.h floatobj.h strobj.h error.h \
+functionobj.o: functionobj.c math.h inttypes.h isnprintf.h functionobj.h \
+ obj.h values.h eval.h misc.h variables.h floatobj.h strobj.h error.h \
  errors_e.h avl.h listobj.h intobj.h boolobj.h operobj.h typeobj.h \
  noneobj.h
 gapobj.o: gapobj.c gapobj.h obj.h inttypes.h error.h errors_e.h avl.h \

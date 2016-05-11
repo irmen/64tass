@@ -17,7 +17,7 @@
 
 */
 #include <string.h>
-#include <math.h>
+#include "math.h"
 #include "isnprintf.h"
 #include "functionobj.h"
 #include "eval.h"
@@ -33,23 +33,6 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-#if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
-#else
-extern double round(double);
-extern double trunc(double);
-#endif
-#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
-#else
-static double cbrt(double d) {return exp(log(d)/3);}
-#endif
-#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L || defined __DJGPP__
-#else
-extern double hypot(double, double);
-#endif
 
 static Type obj;
 
@@ -426,7 +409,7 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
     if (real < 0.0 && (double)((int)real2) != real2) {
         return (Obj *)new_error(ERROR_NEGFRAC_POWER, epoint);
     }
-    return float_from_double(atan2(real, real2), epoint);
+    return float_from_double(pow(real, real2), epoint);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
