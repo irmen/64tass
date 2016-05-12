@@ -19,6 +19,7 @@
 #ifndef _64TASS_H_
 #define _64TASS_H_
 #include <stdio.h>
+#include "stdbool.h"
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION

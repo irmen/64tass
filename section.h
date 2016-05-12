@@ -19,6 +19,7 @@
 #ifndef _SECTION_H_
 #define _SECTION_H_
 #include "avl.h"
+#include "stdbool.h"
 #include "inttypes.h"
 #include "mem.h"
 

@@ -23,6 +23,7 @@
 #ifndef TERNARY_H_
 #define TERNARY_H_
 /* Ternary search trees */
+#include "stdbool.h"
 #include "inttypes.h"
 
 typedef struct ternary_node_def *ternary_tree;

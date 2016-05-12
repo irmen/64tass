@@ -18,6 +18,7 @@
 */
 #ifndef _MISC_H_
 #define _MISC_H_
+#include "stdbool.h"
 #include "inttypes.h"
 
 enum output_mode_e {

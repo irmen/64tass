@@ -16,20 +16,19 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _LONGJUMP_H_
-#define _LONGJUMP_H_
-#include "avl.h"
-#include "stdbool.h"
-#include "inttypes.h"
+#ifndef STDBOOL_H
+#define STDBOOL_H
 
-struct longjump_s {
-    address_t address;
-    address_t dest;
-    struct avltree_node node;
-    uint8_t defpass;
-};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 199901L || _MSC_VER >= 1800 || __GNUC__ >= 3
+#include <stdbool.h>
+#else
+typedef unsigned char _Bool;
+#define bool _Bool
+#define false 0
+#define true 1
+#define __bool_true_false_are_defined 1
+#endif
+#endif
 
-extern struct longjump_s *new_longjump(address_t, bool *);
-extern void destroy_longjump(void);
-extern void longjump_destroy(struct avltree *);
 #endif
