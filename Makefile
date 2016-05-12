@@ -1,6 +1,5 @@
-SHELL = /bin/sh
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o math.o
 LDLIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "1050?")
@@ -96,6 +95,7 @@ macro.o: macro.c macro.h obj.h stdbool.h inttypes.h wait_e.h misc.h \
  file.h avl.h eval.h values.h section.h mem.h variables.h 64tass.h \
  listing.h error.h errors_e.h listobj.h typeobj.h noneobj.h \
  namespaceobj.h
+math.o: math.c math.h
 mem.o: mem.c mem.h stdbool.h inttypes.h error.h errors_e.h avl.h obj.h \
  file.h misc.h 64tass.h wait_e.h listing.h
 misc.o: misc.c misc.h stdbool.h inttypes.h 64tass.h wait_e.h opcodes.h \

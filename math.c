@@ -16,42 +16,22 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MATH_H
-#define MATH_H
-#include <math.h>
-#include "inttypes.h"
+#include "math.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 199901L && !defined __VBCC__
-#elif _MSC_VER > 1800
-#elif defined __VBCC__
-extern double cbrt(double);
-extern double round(double);
-extern double trunc(double);
-extern double hypot(double, double);
-#else
-static inline double cbrt(double a) {
+#if defined __VBCC__
+double cbrt(double a) {
     return (a > 0.0) ? pow(a, 1.0/3.0) : -pow(-a, 1.0/3.0);
 }
-static inline double round(double a) {
+
+double round(double a) {
     return (a > 0.0) ? floor(a + 0.5) : ceil(a - 0.5);
 }
-static inline double trunc(double a) {
+
+double trunc(double a) {
     return (a > 0.0) ? floor(a) : ceil(a);
 }
-#ifdef _MSC_VER
-#define hypot(x,y) _hypot((x),(y))
-#elif defined __WATCOMC__
-#else
-static inline double hypot(double a, double b) {
+
+double hypot(double a, double b) {
     return sqrt(a * a + b * b);
 }
-#endif
-#endif
-#endif
-
 #endif

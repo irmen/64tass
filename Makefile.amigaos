@@ -1,16 +1,23 @@
-CC = SDK:gcc/bin/gcc
+CC = vc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o math.o
-LDLIBS = -lm
+LDLIBS = -lmsoft
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "1050?")
-CFLAGS = -O2 -W -Wall -Wextra -DREVISION="\"$(REVISION)\""
-LDFLAGS = -s
+CFLAGS = -c99 -soft-float
+LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 TARGET = 64tass
+PREFIX = $(DESTDIR)/usr/local
+BINDIR = $(PREFIX)/bin
 
-.SILENT:
+#.SILENT:
+
+all: $(TARGET) README
 
 $(TARGET): $(OBJ)
+
+README: README.html
+	-sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
 
 64tass.o: 64tass.c wchar.h 64tass.h stdbool.h inttypes.h wait_e.h error.h \
  errors_e.h avl.h obj.h opcodes.h misc.h eval.h values.h section.h mem.h \
@@ -139,7 +146,19 @@ variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
 wchar.o: wchar.c wchar.h
 wctype.o: wctype.c wctype.h
 
-.PHONY: clean
+.PHONY: all clean distclean install install-strip uninstall
 
 clean:
-	rm -f $(OBJ) 64tass *~
+	-rm -f $(OBJ)
+
+distclean: clean
+	-rm -f $(TARGET)
+
+install: $(TARGET)
+	install -D $(TARGET) $(BINDIR)/$(TARGET)
+
+install-strip: $(TARGET)
+	install -D -s $(TARGET) $(BINDIR)/$(TARGET)
+
+uninstall:
+	-rm $(BINDIR)/$(TARGET)
