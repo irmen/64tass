@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _FILE_H_
-#define _FILE_H_
+#ifndef FILE_H
+#define FILE_H
 #include <stdio.h>
 #include "stdbool.h"
 #include "inttypes.h"

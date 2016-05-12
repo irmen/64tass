@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _LISTING_H_
-#define _LISTING_H_
+#ifndef LISTING_H
+#define LISTING_H
 #include "inttypes.h"
 struct cpu_s;
 struct Obj;

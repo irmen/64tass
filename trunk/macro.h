@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _MACRO_H_
-#define _MACRO_H_
+#ifndef MACRO_H
+#define MACRO_H
 #include "obj.h"
 #include "wait_e.h"
 

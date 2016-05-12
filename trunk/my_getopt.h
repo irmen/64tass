@@ -24,8 +24,8 @@
  *  DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef MY_GETOPT_H_INCLUDED
-#define MY_GETOPT_H_INCLUDED
+#ifndef MY_GETOPT_H
+#define MY_GETOPT_H
 
 #include "stdbool.h"
 

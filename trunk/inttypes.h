@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _INTTYPES2_H
-#define _INTTYPES2_H
+#ifndef INTTYPES_H
+#define INTTYPES_H
 
 #include <unistd.h>
 #include <inttypes.h>

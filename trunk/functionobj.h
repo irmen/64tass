@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _FUNCTIONOBJ_H
-#define _FUNCTIONOBJ_H
+#ifndef FUNCTIONOBJ_H
+#define FUNCTIONOBJ_H
 #include "obj.h"
 #include "values.h"
 struct values_s;

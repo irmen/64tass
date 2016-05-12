@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _OPCODES_H_
-#define _OPCODES_H_
+#ifndef OPCODES_H_
+#define OPCODES_H_
 #include "inttypes.h"
 
 #define ____ 0x69

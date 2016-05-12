@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _ISNPRINTF_H_
-#define _ISNPRINTF_H_
+#ifndef ISNPRINTF_H
+#define ISNPRINTF_H
 #include "inttypes.h"
 
 struct Funcargs;

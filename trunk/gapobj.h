@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _GAPOBJ_H
-#define _GAPOBJ_H
+#ifndef GAPOBJ_H
+#define GAPOBJ_H
 #include "obj.h"
 
 extern struct Type *GAP_OBJ;

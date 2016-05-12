@@ -20,8 +20,8 @@
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef TERNARY_H_
-#define TERNARY_H_
+#ifndef TERNARY_H
+#define TERNARY_H
 /* Ternary search trees */
 #include "stdbool.h"
 #include "inttypes.h"

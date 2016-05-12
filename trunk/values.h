@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _VALUES_H_
-#define _VALUES_H_
+#ifndef VALUES_H
+#define VALUES_H
 #include <stdio.h>
 #include "inttypes.h"
 

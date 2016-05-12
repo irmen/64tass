@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _VARIABLES_H_
-#define _VARIABLES_H_
+#ifndef VARIABLES_H
+#define VARIABLES_H
 #include "stdbool.h"
 #include "inttypes.h"
 #include "obj.h"
@@ -34,11 +34,11 @@ typedef struct Label {
     Obj *value;
     struct file_list_s *file_list;
     struct linepos_s epoint;
-    bool ref:1;
-    bool shadowcheck:1;
-    bool update_after:1;
-    bool constant:1;
-    bool owner:1;
+    bool ref;
+    bool shadowcheck;
+    bool update_after;
+    bool constant;
+    bool owner;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;

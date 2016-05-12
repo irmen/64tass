@@ -23,8 +23,8 @@
  *  DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef MY_WRAPPER_GETOPT_H_INCLUDED
-#define MY_WRAPPER_GETOPT_H_INCLUDED
+#ifndef GETOPT_H
+#define GETOPT_H
 
 #include "my_getopt.h"
 
