@@ -18,8 +18,8 @@
 */
 #include <string.h>
 #include <errno.h>
-#include <wchar.h>
-#include <wctype.h>
+#include "wchar.h"
+#include "wctype.h"
 #include <locale.h>
 #include "error.h"
 #include "misc.h"
