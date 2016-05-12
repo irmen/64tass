@@ -27,7 +27,7 @@
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L && !defined __VBCC__
-#elif _MSC_VER > 1800
+#elif defined __GNUC__ || _MSC_VER > 1800
 #elif defined __VBCC__
 extern double cbrt(double);
 extern double round(double);
