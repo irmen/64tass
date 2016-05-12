@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _UNICODE_H
-#define _UNICODE_H
+#ifndef UNICODE_H
+#define UNICODE_H
 #include <stdio.h>
 #include "inttypes.h"
 #include "unicodedata.h"

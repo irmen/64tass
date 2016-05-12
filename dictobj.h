@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _DICTOBJ_H
-#define _DICTOBJ_H
+#ifndef DICTOBJ_H
+#define DICTOBJ_H
 #include "obj.h"
 #include "values.h"
 #include "avl.h"

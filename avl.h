@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301 USA.
  */
-#ifndef _AVL_H
-#define _AVL_H
+#ifndef AVL_H
+#define AVL_H
 
 #include <stddef.h>
 

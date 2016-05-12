@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _SECTION_H_
-#define _SECTION_H_
+#ifndef SECTION_H
+#define SECTION_H
 #include "avl.h"
 #include "stdbool.h"
 #include "inttypes.h"
@@ -51,11 +51,11 @@ struct section_s {
     uint8_t defpass;
     uint_fast8_t structrecursion;
     uint_fast8_t logicalrecursion;
-    bool dooutput:1;
-    bool declared:1;
-    bool unionmode:1;
-    bool moved:1;
-    bool wrapwarn:1;
+    bool dooutput;
+    bool declared;
+    bool unionmode;
+    bool moved;
+    bool wrapwarn;
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;

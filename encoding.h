@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _ENCODING_H_
-#define _ENCODING_H_
+#ifndef ENCODING_H
+#define ENCODING_H
 #include "avl.h"
 #include "stdbool.h"
 #include "inttypes.h"

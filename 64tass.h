@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _64TASS_H_
-#define _64TASS_H_
+#ifndef _64TASS_H
+#define _64TASS_H
 #include <stdio.h>
 #include "stdbool.h"
 #include "inttypes.h"

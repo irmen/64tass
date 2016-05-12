@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _BYTESOBJ_H
-#define _BYTESOBJ_H
+#ifndef BYTESOBJ_H
+#define BYTESOBJ_H
 #include "obj.h"
 
 extern struct Type *BYTES_OBJ;

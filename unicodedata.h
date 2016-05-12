@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _UNICODEDATA_H
-#define _UNICODEDATA_H
+#ifndef UNICODEDATA_H
+#define UNICODEDATA_H
 #include "inttypes.h"
 
 #define bp_Other 1

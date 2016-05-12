@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _INSTRUCTION_H_
-#define _INSTRUCTION_H_
+#ifndef INSTRUCTION_H
+#define INSTRUCTION_H
 #include "stdbool.h"
 #include "inttypes.h"
 struct cpu_s;

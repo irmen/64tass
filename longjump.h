@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _LONGJUMP_H_
-#define _LONGJUMP_H_
+#ifndef LONGJUMP_H
+#define LONGJUMP_H
 #include "avl.h"
 #include "stdbool.h"
 #include "inttypes.h"

@@ -24,7 +24,7 @@
 #include <wchar.h>
 extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
-#elif defined __GNUC__ || defined _MSC_VER
+#elif defined __GNUC__ || _MSC_VER >= 1400
 #include <wchar.h>
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #include <wchar.h>

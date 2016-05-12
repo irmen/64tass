@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _TYPEOBJ_H
-#define _TYPEOBJ_H
+#ifndef TYPEOBJ_H
+#define TYPEOBJ_H
 #include "obj.h"
 
 extern struct Type *TYPE_OBJ;

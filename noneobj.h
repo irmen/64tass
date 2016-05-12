@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _NONEOBJ_H
-#define _NONEOBJ_H
+#ifndef NONEOBJ_H
+#define NONEOBJ_H
 #include "obj.h"
 
 extern struct Type *NONE_OBJ;

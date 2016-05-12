@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _BITSOBJ_H
-#define _BITSOBJ_H
+#ifndef BITSOBJ_H
+#define BITSOBJ_H
 #include "obj.h"
 
 extern struct Type *BITS_OBJ;

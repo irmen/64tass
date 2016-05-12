@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _STROBJ_H
-#define _STROBJ_H
+#ifndef STROBJ_H
+#define STROBJ_H
 #include "obj.h"
 
 extern struct Type *STR_OBJ;

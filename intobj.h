@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#ifndef _INTOBJ_H
-#define _INTOBJ_H
+#ifndef INTOBJ_H
+#define INTOBJ_H
 #include "obj.h"
 #include "values.h"
 

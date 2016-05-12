@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _MISC_H_
-#define _MISC_H_
+#ifndef MISC_H
+#define MISC_H
 #include "stdbool.h"
 #include "inttypes.h"
 
@@ -33,17 +33,17 @@ enum label_mode_e {
 struct file_s;
 
 struct arguments_s {
-    bool warning:1;
-    bool caret:1;
-    bool quiet:1;
-    bool toascii:1;
-    bool monitor:1;
-    bool source:1;
-    bool longbranch:1;
-    bool longaddr:1;
-    bool tasmcomp:1;
-    bool shadow_check:1;
-    bool verbose:1;
+    bool warning;
+    bool caret;
+    bool quiet;
+    bool toascii;
+    bool monitor;
+    bool source;
+    bool longbranch;
+    bool longaddr;
+    bool tasmcomp;
+    bool shadow_check;
+    bool verbose;
     uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;

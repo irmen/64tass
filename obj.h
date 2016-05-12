@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _OBJ_H
-#define _OBJ_H
+#ifndef OBJ_H
+#define OBJ_H
 #include "stdbool.h"
 #include "inttypes.h"
 

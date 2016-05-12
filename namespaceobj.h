@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _NAMESPACEOBJ_H
-#define _NAMESPACEOBJ_H
+#ifndef NAMESPACEOBJ_H
+#define NAMESPACEOBJ_H
 #include "obj.h"
 #include "avl.h"
 

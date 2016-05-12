@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _OPEROBJ_H
-#define _OPEROBJ_H
+#ifndef OPEROBJ_H
+#define OPEROBJ_H
 #include "obj.h"
 
 extern struct Type *OPER_OBJ;

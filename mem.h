@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _MEM_H_
-#define _MEM_H_
+#ifndef MEM_H
+#define MEM_H
 #include "stdbool.h"
 #include "inttypes.h"
 
@@ -28,7 +28,7 @@ struct memblocks_s {
         size_t p, len;
         uint8_t *data;
     } mem;
-    bool compressed:1;
+    bool compressed;
     size_t p, len;
     size_t lastp;
     address_t lastaddr;

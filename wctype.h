@@ -23,7 +23,7 @@
 #ifdef __DJGPP__
 #include <wctype.h>
 extern int iswprint(wint_t wc);
-#elif defined __GNUC__ || defined _MSC_VER
+#elif defined __GNUC__ || _MSC_VER >= 1400
 #include <wctype.h>
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #include <wctype.h>
