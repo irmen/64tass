@@ -19,7 +19,7 @@
 #include "wctype.h"
 
 #ifdef __DJGPP__
-#elif defined __GNUC__ || _MSC_VER >= 1400
+#elif defined __GNUC__ || _MSC_VER >= 1400 || __WATCOMC__
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #else
 #include <ctype.h>
