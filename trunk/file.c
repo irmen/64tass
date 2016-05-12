@@ -42,7 +42,7 @@ void include_list_add(const char *path)
     size_t i, j, len;
     j = i = strlen(path);
     if (i == 0) return;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     if (path[i - 1] != '/' && path[i-1] != '\\') j++;
 #else
     if (path[i - 1] != '/') j++;
@@ -59,7 +59,7 @@ void include_list_add(const char *path)
 char *get_path(const Str *v, const char *base) {
     char *path;
     size_t i, len;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     size_t j;
 
     i = strlen(base);
@@ -83,7 +83,7 @@ char *get_path(const Str *v, const char *base) {
         return path;
     }
 
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = j;
     else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
 #else

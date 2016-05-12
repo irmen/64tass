@@ -115,7 +115,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     if (prgname != NULL) {
         const char *newp = strrchr(prgname, '/');
         if (newp != NULL) prgname = newp + 1;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
         newp = strrchr(prgname, '\\');
         if (newp != NULL) prgname = newp + 1;
 #endif
