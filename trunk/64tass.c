@@ -36,7 +36,7 @@
 #include <wincon.h>
 #endif
 #include <locale.h>
-#include <wchar.h>
+#include "wchar.h"
 #include <string.h>
 
 #include "64tass.h"

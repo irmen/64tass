@@ -17,7 +17,7 @@
 
 */
 #include <string.h>
-#include <wchar.h>
+#include "wchar.h"
 #include <errno.h>
 #include <locale.h>
 #include "file.h"

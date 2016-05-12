@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o
 LDLIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "1050?")
@@ -20,7 +20,7 @@ $(TARGET): $(OBJ)
 README: README.html
 	-sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
 
-64tass.o: 64tass.c 64tass.h stdbool.h inttypes.h wait_e.h error.h \
+64tass.o: 64tass.c wchar.h 64tass.h stdbool.h inttypes.h wait_e.h error.h \
  errors_e.h avl.h obj.h opcodes.h misc.h eval.h values.h section.h mem.h \
  encoding.h file.h variables.h macro.h instruction.h unicode.h \
  unicodedata.h listing.h listobj.h codeobj.h strobj.h floatobj.h \
@@ -29,7 +29,7 @@ README: README.html
 addressobj.o: addressobj.c addressobj.h obj.h stdbool.h inttypes.h \
  values.h error.h errors_e.h avl.h eval.h variables.h boolobj.h strobj.h \
  intobj.h operobj.h typeobj.h noneobj.h
-avl.o: avl.c avl.h stdbool.h
+avl.o: avl.c avl.h stdbool.h inttypes.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h stdbool.h inttypes.h eval.h \
  variables.h unicode.h unicodedata.h encoding.h avl.h errors_e.h \
  boolobj.h values.h floatobj.h codeobj.h error.h strobj.h bytesobj.h \
@@ -51,18 +51,18 @@ dictobj.o: dictobj.c dictobj.h obj.h stdbool.h inttypes.h values.h avl.h \
 encoding.o: encoding.c encoding.h avl.h stdbool.h inttypes.h errors_e.h \
  error.h obj.h ternary.h misc.h 64tass.h wait_e.h unicode.h unicodedata.h \
  strobj.h bytesobj.h typeobj.h values.h
-error.o: error.c error.h stdbool.h inttypes.h errors_e.h avl.h obj.h \
- misc.h file.h variables.h 64tass.h wait_e.h macro.h strobj.h unicode.h \
- unicodedata.h addressobj.h values.h registerobj.h namespaceobj.h \
- operobj.h typeobj.h eval.h
+error.o: error.c wchar.h wctype.h error.h stdbool.h inttypes.h errors_e.h \
+ avl.h obj.h misc.h file.h variables.h 64tass.h wait_e.h macro.h strobj.h \
+ unicode.h unicodedata.h addressobj.h values.h registerobj.h \
+ namespaceobj.h operobj.h typeobj.h eval.h
 eval.o: eval.c eval.h obj.h stdbool.h inttypes.h math.h file.h avl.h \
  section.h mem.h encoding.h errors_e.h macro.h wait_e.h variables.h \
  64tass.h misc.h unicode.h unicodedata.h listing.h error.h values.h \
  floatobj.h boolobj.h intobj.h bitsobj.h strobj.h codeobj.h bytesobj.h \
  addressobj.h listobj.h dictobj.h registerobj.h namespaceobj.h operobj.h \
  gapobj.h typeobj.h noneobj.h
-file.o: file.c file.h stdbool.h inttypes.h avl.h misc.h 64tass.h wait_e.h \
- unicode.h unicodedata.h error.h errors_e.h obj.h strobj.h
+file.o: file.c wchar.h file.h stdbool.h inttypes.h avl.h misc.h 64tass.h \
+ wait_e.h unicode.h unicodedata.h error.h errors_e.h obj.h strobj.h
 floatobj.o: floatobj.c floatobj.h obj.h stdbool.h inttypes.h values.h \
  error.h errors_e.h avl.h eval.h variables.h boolobj.h codeobj.h strobj.h \
  bytesobj.h intobj.h bitsobj.h operobj.h typeobj.h noneobj.h
@@ -133,8 +133,8 @@ typeobj.o: typeobj.c typeobj.h obj.h stdbool.h inttypes.h variables.h \
  eval.h error.h errors_e.h avl.h strobj.h operobj.h intobj.h values.h \
  boolobj.h listobj.h noneobj.h
 unicodedata.o: unicodedata.c unicodedata.h inttypes.h
-unicode.o: unicode.c unicode.h inttypes.h unicodedata.h error.h stdbool.h \
- errors_e.h avl.h obj.h
+unicode.o: unicode.c wchar.h wctype.h unicode.h inttypes.h unicodedata.h \
+ error.h stdbool.h errors_e.h avl.h obj.h
 values.o: values.c values.h inttypes.h obj.h stdbool.h unicode.h \
  unicodedata.h error.h errors_e.h avl.h strobj.h typeobj.h noneobj.h \
  variables.h
@@ -143,6 +143,8 @@ variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
  floatobj.h error.h errors_e.h namespaceobj.h strobj.h codeobj.h \
  registerobj.h functionobj.h listobj.h intobj.h bytesobj.h bitsobj.h \
  dictobj.h addressobj.h gapobj.h typeobj.h noneobj.h
+wchar.o: wchar.c wchar.h
+wctype.o: wctype.c wctype.h
 
 .PHONY: all clean distclean install install-strip uninstall
 
