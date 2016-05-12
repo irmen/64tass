@@ -18,6 +18,7 @@
 */
 #ifndef _ERROR_H_
 #define _ERROR_H_
+#include "stdbool.h"
 #include "inttypes.h"
 #include "errors_e.h"
 #include "avl.h"

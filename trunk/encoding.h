@@ -19,6 +19,7 @@
 #ifndef _ENCODING_H_
 #define _ENCODING_H_
 #include "avl.h"
+#include "stdbool.h"
 #include "inttypes.h"
 #include "errors_e.h"
 

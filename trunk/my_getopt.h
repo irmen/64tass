@@ -27,7 +27,7 @@
 #ifndef MY_GETOPT_H_INCLUDED
 #define MY_GETOPT_H_INCLUDED
 
-#include "inttypes.h"
+#include "stdbool.h"
 
 /* UNIX-style short-argument parser */
 extern int my_getopt(int argc, char *argv[], const char *opts);
