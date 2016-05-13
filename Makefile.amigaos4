@@ -11,7 +11,7 @@ TARGET = 64tass
 .SILENT:
 
 $(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 64tass.o: 64tass.c wchar.h 64tass.h stdbool.h inttypes.h wait_e.h error.h \
  errors_e.h avl.h obj.h opcodes.h misc.h eval.h values.h section.h mem.h \
