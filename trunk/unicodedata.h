@@ -20,22 +20,11 @@
 #define UNICODEDATA_H
 #include "inttypes.h"
 
-#define bp_Other 1
-#define bp_Control 2
-#define bp_Extend 4
-#define bp_SpacingMark 8
-#define bp_L 16
-#define bp_T 32
-#define bp_V 64
-#define bp_LV 128
-#define bp_LVT 256
-#define bp_Regional_Indicator 512
-#define bp_MASK 1023
-#define pr_compat 1024
-#define id_Start 2048
-#define id_Continue 4096
-#define qc_N 8192
-#define qc_M 16384
+#define pr_compat 1
+#define id_Start 2
+#define id_Continue 4
+#define qc_N 8
+#define qc_M 16
 
 struct properties_s {
     int16_t decompose;
@@ -43,12 +32,12 @@ struct properties_s {
     uint8_t combclass;
     int8_t diar;
     int16_t base;
-    uint16_t property;
+    uint8_t property;
 };
 
 extern const int16_t usequences[];
 extern const int32_t usequences2[];
-extern const uint8_t upropshash1[3600];
+extern const uint8_t upropshash1[763];
 extern const uint16_t upropshash2[][256];
 extern const struct properties_s uproperties[];
 extern const uint32_t ucomposed[];
