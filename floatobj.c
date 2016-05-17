@@ -272,7 +272,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         val_destroy(err);
         return calc2_double(op, ((Float *)op->v1)->real, d);
     default:
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+        if (op->op != &o_MEMBER && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
         }
     }

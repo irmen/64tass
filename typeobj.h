@@ -51,6 +51,7 @@ typedef struct Type {
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
     Obj *(*calc2)(struct oper_s *) MUST_CHECK;
     Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
+    Obj *(*slice)(Obj *, struct oper_s *, size_t) MUST_CHECK;
     struct Error *(*ival)(Obj *, ival_t *, int, linepos_t) MUST_CHECK;
     struct Error *(*uval)(Obj *, uval_t *, int, linepos_t) MUST_CHECK;
     struct Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;

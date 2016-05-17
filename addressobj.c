@@ -310,7 +310,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
         break;
     default:
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+        if (op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
     }

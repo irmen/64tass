@@ -125,6 +125,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(op->v2);
 }
 
+static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
+    return val_reference(v1);
+}
+
 void errorobj_init(void) {
     new_type(&obj, T_ERROR, "error", sizeof(Error));
     obj_init(&obj);
@@ -133,6 +137,7 @@ void errorobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 }
 
 /* ------------------------------------------------------------------------------ */

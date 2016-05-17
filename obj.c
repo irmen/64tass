@@ -160,6 +160,19 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static MUST_CHECK Obj *invalid_slice(Obj *UNUSED(v1), oper_t op, size_t indx) {
+    if (op->v2->obj == ERROR_OBJ) {
+        return val_reference(op->v2);
+    }
+    if (indx != 0) {
+        Obj *o2 = op->v2;
+        Funcargs *args = (Funcargs *)o2;
+        err_msg_argnum(args->len, 1, indx, op->epoint2);
+        return (Obj *)ref_none();
+    }
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK Error *invalid_ival(Obj *v1, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
@@ -351,7 +364,7 @@ static MUST_CHECK Obj *ident_calc2(oper_t op) {
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+        if (op->op != &o_MEMBER && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
         }
     default: break;
@@ -447,6 +460,7 @@ void obj_init(Type *obj) {
     obj->calc1 = invalid_calc1;
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
+    obj->slice = invalid_slice;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
     obj->address = invalid_address;

@@ -177,7 +177,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_BOOL: return calc2_bool(op, v1->boolean, ((Bool *)op->v2)->boolean);
     default: 
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+        if (op->op != &o_MEMBER && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
         }
     }

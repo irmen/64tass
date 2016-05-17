@@ -3,19 +3,21 @@
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
 
-  * Open source, mostly portable C with minimal dependencies
-  * Familiar syntax to Omicron TASS and TASM.
+  * Open source portable C with minimal dependencies
+  * Familiar syntax to Omicron TASS and TASM
   * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-  * Arbitrary-precision integers and bitstrings, double precision floating
+  * Arbitrary-precision integers and bit strings, double precision floating
     point numbers
   * Character and byte strings, array arithmetic
-  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, unicode character
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, Unicode character
     strings
-  * Supports Unicode identifiers with case folding and compatibility
-    normalization
+  * Supports Unicode identifiers with compatibility normalization and optional
+    case insensitivity
   * Built-in `linker' with section support
-  * CPU or flat address space for creating huge binaries (e.g. cartridges)
-  * Conditional compilation, macros, struct/union structures, scopes.
+  * Various memory models, binary targets and text output formats (also Hex/
+    S-record)
+  * Assembly and label listings available for debugging or exporting
+  * Conditional compilation, macros, struct/union structures, scopes
 
 This is a development version, features or syntax may change over time. Not
 everything is backwards compatible.
@@ -298,6 +300,9 @@ Bit strings are automatically promoted to integer or floating point as
 necessary in expressions. The higher bits are extended with zeros or ones as
 needed.
 
+Bit strings support indexing and slicing. This is explained in detail in
+section `Slicing and indexing'.
+
 Other types can be converted to bit string using the bit string type bits.
 
         .byte $33       ; hex
@@ -381,18 +386,8 @@ encoding "z"-"a" is 25.
 Other types can be converted to character strings by using the type str or by
 using the repr and format functions.
 
-Indexing characters with positive integers start with zero. Negative indexes
-are translated internally by adding the number of characters to them, therefore
--1 can be used to access the last character. Indexing with list of integers is
-possible as well so "abc"[(-1, 0, 1)] is "cab".
-
-Slicing is an operation when parts of string are extracted from a start
-position to an end position with a step value. These parameters are separated
-with colons enclosed in square brackets and are all optional. Their default
-values are [start:maximum:step=1]. Negative start and end characters are
-converted to positive internally by adding the length of string to them.
-Negative step operates in reverse direction, non single steps will jump over
-characters.
+Character strings support indexing and slicing. This is explained in detail in
+section `Slicing and indexing'.
 
 mystr   = "oeU"         ; text
         .text 'it''s'   ; text: it's
@@ -422,7 +417,8 @@ a[s]   cut off start       b"abc"[1:] is b"bc"
 a[s]   cut off end         b"abc"[:-1] is b"ab"
 a[s]   reverse             b"abc"[::-1] is b"cba"
 
-Indexing and slicing works as with character strings.
+Byte strings support indexing and slicing. This is explained in detail in
+section `Slicing and indexing'.
 
 Other types can be converted to byte strings by using the type bytes.
 
@@ -467,18 +463,8 @@ When lists form an array and columns/rows are missing the smaller array is
 stretched to fill in the gaps if possible, so [[1], [2]] * [3, 4] is [[3, 4],
 [6, 8]].
 
-Indexing elements with positive integers start with zero. Negative indexes are
-transformed to positive by adding the number of elements to them, therefor -1
-is the last element. Indexing with list of integers is possible as well so [1,
-2, 3][(-1, 0, 1)] is [3, 1, 2].
-
-Slicing is an operation when parts of list or tuple are extracted from a start
-position to an end position with a step value. These parameters are separated
-with colons enclosed in square brackets and are all optional. Their default
-values are [start:maximum:step=1]. Negative start and end elements are
-converted to positive internally by adding the number of elements to them.
-Negative step operates in reverse direction, non single steps will jump over
-elements.
+Lists and tuples support indexing and slicing. This is explained in detail in
+section `Slicing and indexing'.
 
 mylist  = [1, 2, "whatever"]
 mytuple = (cmd_e, cmd_g)
@@ -1116,7 +1102,7 @@ used directly with instructions.
 
 Compound assignment
 
-These assignment operators are shorthands for common .var directive use.
+These assignment operators are short hands for common .var directive use.
 
 With the exception of := the variables updated must be defined beforehand. As
 with .var they can't update constants, only variables.
@@ -1132,6 +1118,75 @@ x=  repeat      :=  assign
 
 v       := 1            ; same as 'v .var 1'
 v       += 1            ; same as 'v .var v + 1'
+
+Slicing and indexing
+
+Lists, character strings, byte strings and bit strings support various slicing
+and indexing possibilities through the [] operator.
+
+Indexing elements with positive integers is zero based. Negative indexes are
+transformed to positive by adding the number of elements to them, therefore -1
+is the last element. Indexing with list of integers is possible as well so [1,
+2, 3][(-1, 0, 1)] is [3, 1, 2].
+
+Slicing is an operation when parts of sequence is extracted from a start
+position to an end position with a step value. These parameters are separated
+with colons enclosed in square brackets and are all optional. Their default
+values are [start:maximum:step=1]. Negative start and end characters are
+converted to positive internally by adding the length of string to them.
+Negative step operates in reverse direction, non-single steps will jump over
+elements.
+
+This is quite powerful and therefore a few examples will be given here:
+
+Positive indexing a[x]
+    It'll simply extracts a numbered element. It is zero based, therefore
+    "abcd"[1] results in "b".
+Negative indexing a[-x]
+    This extracts an element counted from the end, -1 is the last one. So
+    "abcd"[-2] results in "c".
+Cut off end a[:to]
+    Extracts a continuous range stopping before `to'. So [10,20,30,40][:-1]
+    results in [10,20,30].
+Cut off start a[from:]
+    Extracts a continuous range starting from `from'. So [10,20,30,40][-2:]
+    results in [30,40].
+Slicing a[from:to]
+    Extracts a continuous range starting from element `from' and stopping
+    before `to'. The two end positions can be positive or negative indexes. So
+    [10,20,30,40][1:-1] results in [20,30].
+Everything a[:]
+    Giving no start or end will cover everything and therefore results in a
+    complete copy.
+Reverse a[::-1]
+    This gives everything in reverse, so "abcd"[::-1] is "dcba".
+Stepping through a[from:to:step]
+    Extracts every `step'th element starting from `from' and stopping before
+    `to'. So "abcdef"[1:4:2] results in "bd". The `from' and `to' can be
+    omitted in case it starts from the beginning or end at the end. If the
+    `step' is negative then it's done in reverse.
+Extract multiple elements a[list]
+    Extract elements based on a list. So "abcd"[[1,3]] will be "bd".
+
+The fun start with nested lists and tuples, as these can be used to create a
+matrix. The examples will be given for a two dimensional matrix for easier
+understanding, but this also works in higher dimensions.
+
+Extract row a[x]
+    Given a [(1,2),(3,4)] matrix [0] will give the first row which is (1,2)
+Extract row range a[from:to]
+    Given a [(1,2),(3,4),(5,6),(7,8)] matrix [1:3] will give [(3,4),(5,6)]
+Extract column a[x]
+    Given a [(1,2),(3,4)] matrix [:,0] will give the first column of all rows
+    which is [1,3]
+Extract column range a[:,from:to]
+    Given a [(1,2,3,4),(5,6,7,8)] matrix [:,1:3] will give [(2,3),(6,7)]
+
+And it works for list of indexes, negative indexes, stepped ranges, reversing,
+etc. on all axes in too many ways to show all possibilities.
+
+Basically it's just the indexing and slicing applied on nested constructs,
+where each nesting level is separated by a colon.
 
 -------------------------------------------------------------------------------
 
@@ -3367,6 +3422,10 @@ GRA 4C 80                               INA 1A
 R65C02 opcodes
 
 This processor is an enhanced version of standard 65C02.
+
+Please note that the bit number is not part of the instruction name (like rmb7
+$20). Instead it's the first element of coma separated parameters (e.g. rmb
+7,$20).
 
                               Additional opcodes
 BBR 0F 1F 2F 3F 4F 5F 6F 7F             BBS 8F 9F AF BF CF DF EF FF
