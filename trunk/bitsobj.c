@@ -972,125 +972,51 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return normalize(vv, sz, (vv1->len < 0));
 }
 
-static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
-    size_t bo, wo, bl, wl, sz, wl2, l;
-    bdigit_t uv;
-    bdigit_t *v, *v1;
-    bdigit_t inv;
-    int bits;
-    Bits *vv, *vv1 = (Bits *)op->v1;
-    size_t length;
-    ival_t offs, end, step;
-    Obj *err;
-
-    err = sliceparams(vv2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err != NULL) return err;
-
-    if (length == 0) {
-        return (Obj *)ref_bits(null_bits);
-    }
-    inv = (vv1->len < 0) ? ~(bdigit_t)0 : 0;
-    if (step == 1) {
-        if (length == vv1->bits && inv == 0) {
-            return (Obj *)ref_bits(vv1); /* original bits */
-        }
-
-        bo = offs % SHIFT;
-        wo = offs / SHIFT;
-        bl = length % SHIFT;
-        wl = length / SHIFT;
-
-        sz = (bl > 0) ? (wl + 1) : wl;
-        vv = new_bits(sz);
-        v = vv->data;
-
-        l = bitslen(vv1);
-        v1 = vv1->data + wo;
-        wl2 = (wo > l) ? 0 : (l - wo);
-        if (bo != 0) {
-            for (sz = 0; sz < wl; sz++) {
-                v[sz] = inv ^ (sz < wl2 ? (v1[sz] >> bo) : 0) ^ ((sz + 1 < wl2) ? (v1[sz + 1] << (SHIFT - bo)) : 0);
-            }
-            if (bl != 0) {
-                v[sz] = sz < wl2 ? (v1[sz] >> bo) : 0;
-                if (bl > (SHIFT - bo)) v[sz] |= v1[sz + 1] << (SHIFT - bo);
-                v[sz] ^= inv;
-            }
-        } else {
-            for (sz = 0; sz < wl2 && sz < wl; sz++) v[sz] = v1[sz] ^ inv;
-            for (; sz < wl; sz++) v[sz] = inv;
-            if (bl != 0) v[sz] = inv ^ ((sz < wl2) ? v1[sz] : 0);
-        }
-        if (bl != 0) v[sz++] &= ((1 << bl) - 1);
-    } else {
-        sz = length / SHIFT;
-        if ((length % SHIFT) != 0) sz++;
-        vv = new_bits(sz);
-        v = vv->data;
-
-        uv = inv;
-        sz = bits = 0;
-        l = bitslen(vv1);
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            wo = offs / SHIFT;
-            if (wo < l && ((vv1->data[wo] >> (offs & (SHIFT - 1))) & 1) != 0) {
-                uv ^= 1 << bits;
-            }
-            bits++;
-            if (bits == SHIFT) {
-                v[sz++] = uv;
-                uv = inv;
-                bits = 0;
-            }
-            offs += step;
-        }
-        if (bits != 0) v[sz++] = uv & ((1 << bits) - 1);
-    }
-
-    vv->bits = length;
-    return normalize(vv, sz, false);
-}
-
-static inline MUST_CHECK Obj *iindex(oper_t op) {
-    size_t offs, ln, sz;
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+    size_t offs2, ln, sz;
     size_t i, o;
-    Bits *vv1 = (Bits *)op->v1, *vv;
-    Obj *vv2 = op->v2;
+    Bits *vv, *vv1 = (Bits *)o1;
+    Obj *o2 = op->v2;
     bdigit_t *v;
     bdigit_t uv;
     bdigit_t inv = (vv1->len < 0) ? ~(bdigit_t)0 : 0;
     int bits;
     Error *err;
-    Funcargs *args = (Funcargs *)vv2;
+    Funcargs *args = (Funcargs *)o2;
+    linepos_t epoint2;
 
-    if (args->len != 1) {
-        err_msg_argnum(args->len, 1, 1, op->epoint2);
+    if (args->len > indx + 1) {
+        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
         return (Obj *)ref_none();
     }
-    vv2 = args->val->val;
+
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
 
     ln = vv1->bits;
 
-    if (vv2->obj == LIST_OBJ) {
-        List *list = (List *)vv2;
-        if (list->len == 0) {
+    if (o2->obj == LIST_OBJ) {
+        List *list = (List *)o2;
+        size_t len1 = list->len;
+
+        if (len1 == 0) {
             return (Obj *)ref_bits(null_bits);
         }
-        sz = (list->len + SHIFT - 1) / SHIFT;
+        sz = (len1 + SHIFT - 1) / SHIFT;
 
         vv = new_bits(sz);
         v = vv->data;
 
         uv = inv;
         bits = sz = 0;
-        for (i = 0; i < list->len; i++) {
-            err = indexoffs(list->data[i], ln, &offs, op->epoint2);
+        for (i = 0; i < len1; i++) {
+            err = indexoffs(list->data[i], ln, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&vv->v);
                 return &err->v;
             }
-            o = offs / SHIFT;
-            if (o < bitslen(vv1) && ((vv1->data[o] >> (offs & (SHIFT - 1))) & 1) != 0) {
+            o = offs2 / SHIFT;
+            if (o < bitslen(vv1) && ((vv1->data[o] >> (offs2 & (SHIFT - 1))) & 1) != 0) {
                 uv ^= 1 << bits;
             }
             bits++;
@@ -1102,18 +1028,87 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         }
         if (bits != 0) v[sz++] = uv & ((1 << bits) - 1);
 
-        vv->bits = list->len;
+        vv->bits = len1;
         return normalize(vv, sz, false);
     }
-    if (vv2->obj == COLONLIST_OBJ) {
-        return slice((Colonlist *)vv2, op, ln);
+    if (o2->obj == COLONLIST_OBJ) {
+        size_t length;
+        ival_t offs, end, step;
+        size_t bo, wo, bl, wl, wl2, l;
+        bdigit_t *v1;
+
+        err = (Error *)sliceparams((Colonlist *)o2, ln, &length, &offs, &end, &step, epoint2);
+        if (err != NULL) return &err->v;
+
+        if (length == 0) {
+            return (Obj *)ref_bits(null_bits);
+        }
+        if (step == 1) {
+            if (length == vv1->bits && inv == 0) {
+                return (Obj *)ref_bits(vv1); /* original bits */
+            }
+
+            bo = offs % SHIFT;
+            wo = offs / SHIFT;
+            bl = length % SHIFT;
+            wl = length / SHIFT;
+
+            sz = (bl > 0) ? (wl + 1) : wl;
+            vv = new_bits(sz);
+            v = vv->data;
+
+            l = bitslen(vv1);
+            v1 = vv1->data + wo;
+            wl2 = (wo > l) ? 0 : (l - wo);
+            if (bo != 0) {
+                for (sz = 0; sz < wl; sz++) {
+                    v[sz] = inv ^ (sz < wl2 ? (v1[sz] >> bo) : 0) ^ ((sz + 1 < wl2) ? (v1[sz + 1] << (SHIFT - bo)) : 0);
+                }
+                if (bl != 0) {
+                    v[sz] = sz < wl2 ? (v1[sz] >> bo) : 0;
+                    if (bl > (SHIFT - bo)) v[sz] |= v1[sz + 1] << (SHIFT - bo);
+                    v[sz] ^= inv;
+                }
+            } else {
+                for (sz = 0; sz < wl2 && sz < wl; sz++) v[sz] = v1[sz] ^ inv;
+                for (; sz < wl; sz++) v[sz] = inv;
+                if (bl != 0) v[sz] = inv ^ ((sz < wl2) ? v1[sz] : 0);
+            }
+            if (bl != 0) v[sz++] &= ((1 << bl) - 1);
+        } else {
+            sz = length / SHIFT;
+            if ((length % SHIFT) != 0) sz++;
+            vv = new_bits(sz);
+            v = vv->data;
+
+            uv = inv;
+            sz = bits = 0;
+            l = bitslen(vv1);
+            while ((end > offs && step > 0) || (end < offs && step < 0)) {
+                wo = offs / SHIFT;
+                if (wo < l && ((vv1->data[wo] >> (offs & (SHIFT - 1))) & 1) != 0) {
+                    uv ^= 1 << bits;
+                }
+                bits++;
+                if (bits == SHIFT) {
+                    v[sz++] = uv;
+                    uv = inv;
+                    bits = 0;
+                }
+                offs += step;
+            }
+            if (bits != 0) v[sz++] = uv & ((1 << bits) - 1);
+        }
+
+        vv->bits = length;
+        return normalize(vv, sz, false);
     }
-    err = indexoffs(vv2, ln, &offs, op->epoint2);
+    err = indexoffs(o2, ln, &offs2, epoint2);
     if (err != NULL) return &err->v;
 
     uv = inv;
-    o = offs / SHIFT;
-    if (o < bitslen(vv1) && ((vv1->data[o] >> (offs & (SHIFT - 1))) & 1) != 0) {
+    o = offs2 / SHIFT;
+    if (o < bitslen(vv1) && ((vv1->data[o] >> (offs2 & (SHIFT - 1))) & 1) != 0) {
         uv ^= 1;
     }
     return (Obj *)ref_bits(bits_value[uv & 1]);
@@ -1127,9 +1122,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     ival_t shift;
     ssize_t val;
 
-    if (op->op == &o_INDEX) {
-        return (Obj *)iindex(op);
-    }
     if (op->op == &o_X) {
         return repeat(op);
     }
@@ -1269,6 +1261,7 @@ void bitsobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 
     null_bits = new_bits(0);
     null_bits->len = 0;

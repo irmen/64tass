@@ -241,34 +241,40 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     return &str->v;
 }
 
-static MUST_CHECK Obj *calc2(oper_t op) {
-    Dict *v1 = (Dict *)op->v1;
+
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+    struct pair_s pair;
+    const struct avltree_node *b;
     Obj *o2 = op->v2;
-    if (op->op == &o_INDEX) {
-        struct pair_s pair;
-        const struct avltree_node *b;
-        Error *err;
-        Funcargs *args = (Funcargs *)o2;
+    Dict *v1 = (Dict *)o1;
+    Error *err;
+    Funcargs *args = (Funcargs *)o2;
+    linepos_t epoint2;
 
-        if (args->len != 1) {
-            err_msg_argnum(args->len, 1, 1, op->epoint2);
-            return (Obj *)ref_none();
-        }
-        o2 = args->val->val;
-
-        pair.key = o2;
-        err = pair.key->obj->hash(pair.key, &pair.hash, op->epoint2);
-        if (err != NULL) return &err->v;
-        b = avltree_lookup(&pair.node, &v1->members, pair_compare);
-        if (b != NULL) {
-            const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
-            return val_reference(p->data);
-        }
-        if (v1->def != NULL) {
-            return val_reference(v1->def);
-        }
-        return (Obj *)new_error(ERROR_____KEY_ERROR, op->epoint2);
+    if (args->len > indx + 1) {
+        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
+        return (Obj *)ref_none();
     }
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
+
+    pair.key = o2;
+    err = pair.key->obj->hash(pair.key, &pair.hash, epoint2);
+    if (err != NULL) return &err->v;
+    b = avltree_lookup(&pair.node, &v1->members, pair_compare);
+    if (b != NULL) {
+        const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
+        return val_reference(p->data);
+    }
+    if (v1->def != NULL) {
+        return val_reference(v1->def);
+    }
+    return (Obj *)new_error(ERROR_____KEY_ERROR, epoint2);
+}
+
+static MUST_CHECK Obj *calc2(oper_t op) {
+    Obj *o2 = op->v2;
+
     switch (o2->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -339,6 +345,7 @@ void dictobj_init(void) {
     obj.repr = repr;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 
     pair_oper.op = &o_CMP;
     pair_oper.epoint = &nopoint;

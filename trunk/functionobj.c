@@ -493,7 +493,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_LIST:
     case T_TUPLE:
     case T_DICT:
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+        if (op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
     default: break;

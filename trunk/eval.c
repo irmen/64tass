@@ -824,7 +824,11 @@ static bool get_val2(struct eval_context_s *ev) {
                 oper.epoint = &v1->epoint;
                 oper.epoint2 = (args != 0) ? &tmp->val->epoint : &o_out->epoint;
                 oper.epoint3 = &o_out->epoint;
-                val = oper.v1->obj->calc2(&oper);
+                if (op == O_BRACKET) {
+                    val = oper.v1->obj->slice(oper.v1, &oper, 0);
+                } else {
+                    val = oper.v1->obj->calc2(&oper);
+                }
                 val_destroy(&tmp->v);
                 val_destroy(v1->val); v1->val = val;
 

@@ -10,7 +10,7 @@ TARGET = 64tass
 PREFIX = $(DESTDIR)/usr/local
 BINDIR = $(PREFIX)/bin
 
-#.SILENT:
+.SILENT:
 
 all: $(TARGET) README
 

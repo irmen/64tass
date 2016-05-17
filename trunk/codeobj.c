@@ -256,74 +256,25 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
     return &v->v;
 }
 
-static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
-    Obj **vals;
-    Tuple *v;
-    Code *v1 = (Code *)op->v1;
-    size_t i, i2;
-    size_t ln2;
-    size_t offs2;
-    int16_t r;
-    uval_t val;
-    size_t length;
-    ival_t offs, end, step;
-    Obj *err;
-
-    err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err != NULL) return err;
-
-    if (length == 0) {
-        return (Obj *)ref_tuple(null_tuple);
-    }
-    if (v1->pass != pass) {
-        return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint);
-    }
-    v = new_tuple();
-    vals = list_create_elements(v, length);
-    i = 0;
-    ln2 = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
-    if (ln2 == 0) ln2 = 1;
-    while ((end > offs && step > 0) || (end < offs && step < 0)) {
-        offs2 = offs * ln2;
-        val = 0;
-        r = -1;
-        for (i2 = 0; i2 < ln2; i2++) {
-            r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
-            if (r < 0) break;
-            val |= r << (i2 * 8);
-        }
-        if (v1->dtype < 0 && (r & 0x80) != 0) {
-            for (; i2 < sizeof(val); i2++) {
-                val |= 0xff << (i2 * 8);
-            }
-        }
-        if (r < 0) vals[i] = (Obj *)ref_gap();
-        else if (v1->dtype < 0) vals[i] = (Obj *)int_from_ival((ival_t)val);
-        else vals[i] = (Obj *)int_from_uval(val);
-        i++; offs += step;
-    }
-    v->len = length;
-    v->data = vals;
-    return &v->v;
-}
-
-static inline MUST_CHECK Obj *iindex(oper_t op) {
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     Obj **vals;
     size_t i, i2;
     size_t ln, ln2;
-    size_t offs, offs2;
+    size_t offs1, offs2;
     int16_t r;
     uval_t val;
-    Code *v1 = (Code *)op->v1;
+    Code *v1 = (Code *)o1;
     Obj *o2 = op->v2;
     Error *err;
     Funcargs *args = (Funcargs *)o2;
+    linepos_t epoint2;
 
-    if (args->len != 1) {
-        err_msg_argnum(args->len, 1, 1, op->epoint2);
+    if (args->len > indx + 1) {
+        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
         return (Obj *)ref_none();
     }
-    o2 = args->val->val;
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
 
     if (v1->pass != pass) {
         return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint);
@@ -335,23 +286,25 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
 
     if (o2->obj == LIST_OBJ) {
         List *list = (List *)o2;
+        size_t len1 = list->len;
         Tuple *v;
         bool error;
-        if (list->len == 0) {
+
+        if (len1 == 0) {
             return (Obj *)ref_tuple(null_tuple);
         }
         v = new_tuple();
-        v->data = vals = list_create_elements(v, list->len);
+        v->data = vals = list_create_elements(v, len1);
         error = true;
-        for (i = 0; i < list->len; i++) {
-            err = indexoffs(list->data[i], ln, &offs, op->epoint2);
+        for (i = 0; i < len1; i++) {
+            err = indexoffs(list->data[i], ln, &offs1, epoint2);
             if (err != NULL) {
                 if (error) {err_msg_output(err); error = false;} 
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
                 continue;
             }
-            offs2 = offs * ln2;
+            offs2 = offs1 * ln2;
             val = 0;
             r = -1;
             for (i2 = 0; i2 < ln2; i2++) {
@@ -372,12 +325,51 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        return slice((Colonlist *)o2, op, ln);
+        size_t length;
+        ival_t offs, end, step;
+        Tuple *v;
+
+        err = (Error *)sliceparams((Colonlist *)o2, ln, &length, &offs, &end, &step, epoint2);
+        if (err != NULL) return &err->v;
+
+        if (length == 0) {
+            return (Obj *)ref_tuple(null_tuple);
+        }
+        if (v1->pass != pass) {
+            return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint);
+        }
+        v = new_tuple();
+        vals = list_create_elements(v, length);
+        i = 0;
+        ln2 = (v1->dtype < 0) ? -v1->dtype : v1->dtype;
+        if (ln2 == 0) ln2 = 1;
+        while ((end > offs && step > 0) || (end < offs && step < 0)) {
+            offs2 = offs * ln2;
+            val = 0;
+            r = -1;
+            for (i2 = 0; i2 < ln2; i2++) {
+                r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
+                if (r < 0) break;
+                val |= r << (i2 * 8);
+            }
+            if (v1->dtype < 0 && (r & 0x80) != 0) {
+                for (; i2 < sizeof(val); i2++) {
+                    val |= 0xff << (i2 * 8);
+                }
+            }
+            if (r < 0) vals[i] = (Obj *)ref_gap();
+            else if (v1->dtype < 0) vals[i] = (Obj *)int_from_ival((ival_t)val);
+            else vals[i] = (Obj *)int_from_uval(val);
+            i++; offs += step;
+        }
+        v->len = length;
+        v->data = vals;
+        return &v->v;
     }
-    err = indexoffs(o2, ln, &offs, op->epoint2);
+    err = indexoffs(o2, ln, &offs1, epoint2);
     if (err != NULL) return &err->v;
 
-    offs2 = offs * ln2;
+    offs2 = offs1 * ln2;
     val = 0;
     r = -1;
     for (i2 = 0; i2 < ln2; i2++) {
@@ -432,9 +424,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Error *err;
     if (op->op == &o_MEMBER) {
         return namespace_member(op, v1->names);
-    }
-    if (op->op == &o_INDEX) {
-        return iindex(op);
     }
     if (op->op == &o_X) {
         return obj_oper_error(op);
@@ -596,6 +585,7 @@ void codeobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 }
 
 void codeobj_names(void) {

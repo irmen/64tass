@@ -91,16 +91,17 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 the 65xx series of processors. Key features:</p>
 
 <ul>
-<li>Open source, mostly portable C with minimal dependencies
-<li>Familiar syntax to Omicron TASS and TASM.
+<li>Open source portable C with minimal dependencies
+<li>Familiar syntax to Omicron TASS and TASM
 <li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-<li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
+<li>Arbitrary-precision integers and bit strings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
-<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, unicode character strings
-<li>Supports Unicode identifiers with case folding and compatibility normalization
+<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, Unicode character strings
+<li>Supports Unicode identifiers with compatibility normalization and optional case insensitivity
 <li>Built-in <q>linker</q> with section support
-<li>CPU or flat address space for creating huge binaries (e.g. cartridges)
-<li>Conditional compilation, macros, struct/union structures, scopes.
+<li>Various memory models, binary targets and text output formats (also Hex/S-record)
+<li>Assembly and label listings available for debugging or exporting
+<li>Conditional compilation, macros, struct/union structures, scopes
 </ul>
 
 <p><b>This is a development version, features or syntax may change over time.
@@ -448,6 +449,9 @@ the number of bit digits used including leading zeros.</p>
 <p>Bit strings are automatically promoted to integer or floating point as necessary in
 expressions. The higher bits are extended with zeros or ones as needed.</p>
 
+<p>Bit strings support indexing and slicing. This is explained in detail
+in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
+
 <p>Other types can be converted to bit string using the bit string type <code>bits</code>.</p>
 
 <pre width=80>
@@ -542,18 +546,8 @@ encoding and escape rules. For example when using a sane encoding <code>"z"&minu
 <code>str</code> or by using the <code>repr</code> and <code>format</code>
 functions.</p>
 
-<p>Indexing characters with positive integers start with zero. Negative indexes
-are translated internally by adding the number of characters to them, therefore
-&minus;1 can be used to access the last character. Indexing with list of integers is
-possible as well so <code>"abc"[(&minus;1, 0, 1)]</code> is <code>"cab"</code>.</p>
-
-<p>Slicing is an operation when parts of string are extracted from a start
-position to an end position with a step value. These parameters are separated
-with colons enclosed in square brackets and are all optional. Their default
-values are [start:maximum:step=1]. Negative start and end characters are
-converted to positive internally by adding the length of string to them.
-Negative step operates in reverse direction, non single steps will jump over
-characters.</p>
+<p>Character strings support indexing and slicing. This is explained in detail
+in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 
 <pre width=80>
 mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
@@ -589,7 +583,8 @@ create.</p>
 </tbody>
 </table></div>
 
-<p>Indexing and slicing works as with character strings.</p>
+<p>Byte strings support indexing and slicing. This is explained in detail
+in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 
 <p>Other types can be converted to byte strings by using the type <code>bytes</code>.</p>
 
@@ -642,18 +637,8 @@ elements, so <code>[1, 2] + [3, 4]</code> is <code>[4, 6]</code>.</p>
 stretched to fill in the gaps if possible, so <code>[[1], [2]] &lowast; [3, 4]</code>
 is <code>[[3, 4], [6, 8]]</code>.</p>
 
-<p>Indexing elements with positive integers start with zero. Negative indexes
-are transformed to positive by adding the number of elements to them, therefor
-&minus;1 is the last element. Indexing with list of integers is possible as well so
-<code>[1, 2, 3][(&minus;1, 0, 1)]</code> is <code>[3, 1, 2]</code>.</p>
-
-<p>Slicing is an operation when parts of list or tuple are extracted from a
-start position to an end position with a step value. These parameters are
-separated with colons enclosed in square brackets and are all optional. Their
-default values are [start:maximum:step=1]. Negative start and end elements are
-converted to positive internally by adding the number of elements to them.
-Negative step operates in reverse direction, non single steps will jump over
-elements.</p>
+<p>Lists and tuples support indexing and slicing. This is explained in detail
+in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 
 <pre width=80>
 mylist  <b>=</b> [<span>1</span>, <span>2</span>, <span class="s">"whatever"</span>]
@@ -1471,7 +1456,7 @@ directly with instructions.</p>
 
 <h4>Compound assignment<a name="compound" href="#compound"></a></h4>
 
-<p>These assignment operators are shorthands for common <a href="#d_var"><code>.var</code></a> directive use.</p>
+<p>These assignment operators are short hands for common <a href="#d_var"><code>.var</code></a> directive use.</p>
 
 <p>With the exception of <code>:=</code> the variables updated must be defined
 beforehand. As with <a href="#d_var"><code>.var</code></a> they can't update constants, only
@@ -1501,6 +1486,74 @@ variables.</p>
 v       <b>:=</b> <span>1</span>            <i>; same as 'v .var 1'</i>
 v       <b>+=</b> <span>1</span>            <i>; same as 'v .var v + 1'</i>
 </pre>
+
+<h4>Slicing and indexing<a name="slicing_indexing" href="#slicing_indexing"></a></h4>
+
+<p>Lists, character strings, byte strings and bit strings support various
+slicing and indexing possibilities through the </code>[]</code> operator.</p>
+
+<p>Indexing elements with positive integers is zero based. Negative indexes
+are transformed to positive by adding the number of elements to them, therefore
+&minus;1 is the last element. Indexing with list of integers is possible as well so
+<code>[1, 2, 3][(&minus;1, 0, 1)]</code> is <code>[3, 1, 2]</code>.</p>
+
+<p>Slicing is an operation when parts of sequence is extracted from a start
+position to an end position with a step value. These parameters are separated
+with colons enclosed in square brackets and are all optional. Their default
+values are <code>[start:maximum:step=1]</code>. Negative start and end characters are
+converted to positive internally by adding the length of string to them.
+Negative step operates in reverse direction, non-single steps will jump over
+elements.</p>
+
+<p>This is quite powerful and therefore a few examples will be given here:<p>
+
+<dl>
+<dt>Positive indexing <code>a[x]</code>
+<dd>It'll simply extracts a numbered element. It is zero based, therefore
+<code>"abcd"[1]</code> results in <code>"b"</code>.
+<dt>Negative indexing <code>a[-x]</code>
+<dd>This extracts an element counted from the end, &minus;1 is the last one. So <code>"abcd"[-2]</code> results in <code>"c"</code>.
+<dt>Cut off end <code>a[:to]</code>
+<dd>Extracts a continuous range stopping before <q>to</q>. So <code>[10,20,30,40][:-1]</code> results in <code>[10,20,30]</code>.
+<dt>Cut off start <code>a[from:]</code>
+<dd>Extracts a continuous range starting from <q>from</q>. So <code>[10,20,30,40][-2:]</code> results in <code>[30,40]</code>.
+<dt>Slicing <code>a[from:to]</code>
+<dd>Extracts a continuous range starting from element <q>from</q> and stopping
+before <q>to</q>. The two end positions can be positive or negative indexes. So
+<code>[10,20,30,40][1:-1]</code> results in <code>[20,30]</code>.
+<dt>Everything <code>a[:]</code>
+<dd>Giving no start or end will cover everything and therefore results in a complete copy.
+<dt>Reverse <code>a[::-1]</code>
+<dd>This gives everything in reverse, so <code>"abcd"[::-1]</code> is <code>"dcba"</code>.
+<dt>Stepping through <code>a[from:to:step]</code>
+<dd>Extracts every <q>step</q>th element starting from <q>from</q> and stopping
+before <q>to</q>. So <code>"abcdef"[1:4:2]</code> results in <code>"bd"</code>.
+The <q>from</q> and <q>to</q> can be omitted in case it starts from the
+beginning or end at the end. If the <q>step</q> is negative then it's done in reverse.
+<dt>Extract multiple elements <code>a[list]</code>
+<dd>Extract elements based on a list. So <code>"abcd"[[1,3]]</code> will be <code>"bd"</code>.
+</dl>
+
+<p>The fun start with nested lists and tuples, as these can be used to create a matrix. The
+examples will be given for a two dimensional matrix for easier understanding,
+but this also works in higher dimensions.<p>
+
+<dl>
+<dt>Extract row <code>a[x]</code>
+<dd>Given a <code>[(1,2),(3,4)]</code> matrix <code>[0]</code> will give the first row which is <code>(1,2)</code>
+<dt>Extract row range <code>a[from:to]</code>
+<dd>Given a <code>[(1,2),(3,4),(5,6),(7,8)]</code> matrix <code>[1:3]</code> will give <code>[(3,4),(5,6)]</code>
+<dt>Extract column <code>a[x]</code>
+<dd>Given a <code>[(1,2),(3,4)]</code> matrix <code>[:,0]</code> will give the first column of all rows which is <code>[1,3]</code>
+<dt>Extract column range <code>a[:,from:to]</code>
+<dd>Given a <code>[(1,2,3,4),(5,6,7,8)]</code> matrix <code>[:,1:3]</code> will give <code>[(2,3),(6,7)]</code>
+</dl>
+
+<p>And it works for list of indexes, negative indexes, stepped ranges,
+reversing, etc. on all axes in too many ways to show all possibilities.<p>
+
+<p>Basically it's just the indexing and slicing applied on nested
+constructs, where each nesting level is separated by a colon.</p>
 
 <hr>
 <h2>Compiler directives<a name="compiler-directives" href="#compiler-directives"></a></h2>
@@ -4116,6 +4169,11 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <hr>
 <h3>R65C02 opcodes<a name="opcodes-r65c02" href="#opcodes-r65c02"></a></h3>
 <p>This processor is an enhanced version of standard 65C02.</p>
+
+<p>Please note that the bit number is not part of the instruction name (like
+<code>rmb7 $20</code>). Instead it's the first element of coma separated
+parameters (e.g. <code>rmb 7,$20</code>).</p>
+
 <div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
 <tbody>

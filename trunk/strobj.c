@@ -432,147 +432,65 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return (Obj *)ref_str(null_str);
 }
 
-static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
-    size_t len2;
-    uint8_t *p;
-    uint8_t *p2;
-    Str *v, *v1 = (Str *)op->v1;
-    size_t length;
-    ival_t offs, end, step;
-    Obj *err;
-
-    err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err != NULL) return err;
-
-    if (length == 0) {
-        return (Obj *)ref_str(null_str);
-    }
-    if (step == 1) {
-        if (length == v1->chars) {
-            return (Obj *)ref_str(v1); /* original string */
-        }
-        if (v1->len == v1->chars) {
-            len2 = length;
-        } else {
-            ival_t i;
-            p = v1->data;
-            for (i = 0; i < offs; i++) {
-                p += utf8len(*p);
-            }
-            offs = p - v1->data;
-            for (; i < end; i++) {
-                p += utf8len(*p);
-            }
-            len2 = p - v1->data - offs;
-        }
-        v = new_str(len2);
-        v->chars = length;
-        memcpy(v->data, v1->data + offs, len2);
-        return &v->v;
-    }
-    if (v1->len == v1->chars) {
-        v = new_str(length);
-        p2 = v->data;
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            *p2++ = v1->data[offs];
-            offs += step;
-        }
-    } else {
-        ival_t i, j, k;
-        uint8_t *o;
-        v = new_str(v1->len);
-        o = p2 = v->data;
-        p = v1->data;
-        for (i = 0; i < offs; i++) {
-            p += utf8len(*p);
-        }
-        if (step > 0) {
-            for (k = i; i < end; i++) {
-                j = utf8len(*p);
-                if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
-                p += j;
-            }
-        } else {
-            p += utf8len(*p);
-            for (k = i; i > end; i--) {
-                j = 0;
-                do {
-                    p--;j++;
-                } while (*p >= 0x80 && *p < 0xc0);
-                if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
-            }
-        }
-        len2 = p2 - o;
-        if (o != v->val) {
-            if (len2 <= sizeof(v->val)) {
-                memcpy(v->val, o, len2);
-                free(o);
-                p = v->val;
-            } else {
-                p = (uint8_t *)reallocx(o, len2);
-            }
-        } else p = o;
-        v->len = len2;
-        v->data = p;
-    }
-    v->chars = length;
-    return &v->v;
-}
-
-static inline MUST_CHECK Obj *iindex(oper_t op) {
-    uint8_t *p;
-    uint8_t *p2;
-    size_t offs, len1, len2;
-    size_t i;
-    Str *v1 = (Str *)op->v1, *v;
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+    uint8_t *p, *p2;
+    size_t offs2;
+    size_t len1, len2;
     Obj *o2 = op->v2;
-    Error *err;
+    Str *v, *v1 = (Str *)o1;
     Funcargs *args = (Funcargs *)o2;
+    Error *err;
+    linepos_t epoint2;
 
-    if (args->len != 1) {
-        err_msg_argnum(args->len, 1, 1, op->epoint2);
+    if (args->len > indx + 1) {
+        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
         return (Obj *)ref_none();
     }
-    o2 = args->val->val;
+
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
 
     len1 = v1->chars;
 
     if (o2->obj == LIST_OBJ) {
+        size_t i;
         List *v2 = (List *)o2;
-        if (v2->len == 0) {
+
+        len2 = v2->len;
+        if (len2 == 0) {
             return (Obj *)ref_str(null_str);
         }
         if (v1->len == v1->chars) {
-            len2 = v2->len;
             v = new_str(len2);
             p2 = v->data;
             for (i = 0; i < len2; i++) {
-                err = indexoffs(v2->data[i], len1, &offs, op->epoint2);
+                err = indexoffs(v2->data[i], len1, &offs2, epoint2);
                 if (err != NULL) {
                     val_destroy(&v->v);
                     return &err->v;
                 }
-                *p2++ = v1->data[offs];
+                *p2++ = v1->data[offs2];
             }
             len1 = i;
         } else {
             size_t m = v1->len;
             uint8_t *o;
             size_t j = 0;
+
             v = new_str(m);
             o = p2 = v->data;
             p = v1->data;
 
             for (i = 0; i < v2->len; i++) {
                 int k;
-                err = indexoffs(v2->data[i], len1, &offs, op->epoint2);
+                err = indexoffs(v2->data[i], len1, &offs2, epoint2);
                 if (err != NULL) {
                     v->data = o;
                     val_destroy(&v->v);
                     return &err->v;
                 }
-                while (offs != j) {
-                    if (offs > j) {
+                while (offs2 != j) {
+                    if (offs2 > j) {
                         p += utf8len(*p);
                         j++;
                     } else {
@@ -612,19 +530,97 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        return slice((Colonlist *)o2, op, len1);
+        size_t length;
+        ival_t offs, end, step;
+
+        err = (Error *)sliceparams((Colonlist *)o2, len1, &length, &offs, &end, &step, epoint2);
+        if (err != NULL) return &err->v;
+
+        if (length == 0) {
+            return (Obj *)ref_str(null_str);
+        }
+        if (step == 1) {
+            if (length == v1->chars) {
+                return (Obj *)ref_str(v1); /* original string */
+            }
+            if (v1->len == v1->chars) {
+                len2 = length;
+            } else {
+                ival_t i;
+                p = v1->data;
+                for (i = 0; i < offs; i++) {
+                    p += utf8len(*p);
+                }
+                offs = p - v1->data;
+                for (; i < end; i++) {
+                    p += utf8len(*p);
+                }
+                len2 = p - v1->data - offs;
+            }
+            v = new_str(len2);
+            v->chars = length;
+            memcpy(v->data, v1->data + offs, len2);
+            return &v->v;
+        }
+        if (v1->len == v1->chars) {
+            v = new_str(length);
+            p2 = v->data;
+            while ((end > offs && step > 0) || (end < offs && step < 0)) {
+                *p2++ = v1->data[offs];
+                offs += step;
+            }
+        } else {
+            ival_t i, j, k;
+            uint8_t *o;
+            v = new_str(v1->len);
+            o = p2 = v->data;
+            p = v1->data;
+            for (i = 0; i < offs; i++) {
+                p += utf8len(*p);
+            }
+            if (step > 0) {
+                for (k = i; i < end; i++) {
+                    j = utf8len(*p);
+                    if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
+                    p += j;
+                }
+            } else {
+                p += utf8len(*p);
+                for (k = i; i > end; i--) {
+                    j = 0;
+                    do {
+                        p--;j++;
+                    } while (*p >= 0x80 && *p < 0xc0);
+                    if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
+                }
+            }
+            len2 = p2 - o;
+            if (o != v->val) {
+                if (len2 <= sizeof(v->val)) {
+                    memcpy(v->val, o, len2);
+                    free(o);
+                    p = v->val;
+                } else {
+                    p = (uint8_t *)reallocx(o, len2);
+                }
+            } else p = o;
+            v->len = len2;
+            v->data = p;
+        }
+        v->chars = length;
+        return &v->v;
     }
-    err = indexoffs(o2, len1, &offs, op->epoint2);
+    err = indexoffs(o2, len1, &offs2, epoint2);
     if (err != NULL) return &err->v;
 
     if (v1->len == v1->chars) {
         v = new_str(1);
         v->chars = 1;
-        v->data[0] = v1->data[offs];
+        v->data[0] = v1->data[offs2];
         return &v->v;
     } 
     p = v1->data;
-    while ((offs--) != 0) p += utf8len(*p);
+    while ((offs2--) != 0) p += utf8len(*p);
     len1 = utf8len(*p);
     v = new_str(len1);
     v->chars = 1;
@@ -637,9 +633,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
     Obj *tmp;
 
-    if (op->op == &o_INDEX) {
-        return iindex(op);
-    }
     if (op->op == &o_X) {
         return repeat(op); 
     }
@@ -768,6 +761,7 @@ void strobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 
     null_str = new_str(0);
     null_str->chars = 0;

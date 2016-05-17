@@ -826,85 +826,78 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return (Obj *)ref_bytes((v1->len < 0) ? inv_bytes : null_bytes);
 }
 
-static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
-    uint8_t *p2, inv;
-    Bytes *v, *v1 = (Bytes *)op->v1;
-    size_t length;
-    ival_t offs, end, step;
-    Obj *err;
-
-    err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (err != NULL) return err;
-
-    if (length == 0) {
-        return (Obj *)ref_bytes(null_bytes);
-    }
-    inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
-    if (step == 1 && inv == 0) {
-        if (length == byteslen(v1)) {
-            return (Obj *)ref_bytes(v1); /* original bytes */
-        }
-        if (length == 1) return (Obj *)bytes_from_u8(v1->data[offs]);
-        v = new_bytes(length);
-        memcpy(v->data, v1->data + offs, length);
-    } else {
-        v = new_bytes(length);
-        p2 = v->data;
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            *p2++ = v1->data[offs] ^ inv;
-            offs += step;
-        }
-    }
-    v->len = length;
-    return &v->v;
-}
-
-static inline MUST_CHECK Obj *iindex(oper_t op) {
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     uint8_t *p2;
-    size_t offs, len1, len2;
+    size_t offs2, len1;
     size_t i;
-    Bytes *v1 = (Bytes *)op->v1, *v;
+    Bytes *v, *v1 = (Bytes *)o1;
     Obj *o2 = op->v2;
     Error *err;
-    uint8_t inv;
+    uint8_t inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
     Funcargs *args = (Funcargs *)o2;
+    linepos_t epoint2;
 
-    if (args->len != 1) {
-        err_msg_argnum(args->len, 1, 1, op->epoint2);
+    if (args->len > indx + 1) {
+        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
         return (Obj *)ref_none();
     }
-    o2 = args->val->val;
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
 
     len1 = byteslen(v1);
 
     if (o2->obj == LIST_OBJ) {
         List *list = (List *)o2;
-        if (list->len == 0) {
+        size_t len2 = list->len;
+
+        if (len2 == 0) {
             return (Obj *)ref_bytes(null_bytes);
         }
-        len2 = list->len;
-        inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
         v = new_bytes(len2);
         p2 = v->data;
         for (i = 0; i < len2; i++) {
-            err = indexoffs(list->data[i], len1, &offs, op->epoint2);
+            err = indexoffs(list->data[i], len1, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&v->v);
                 return &err->v;
             }
-            *p2++ = v1->data[offs] ^ inv;
+            *p2++ = v1->data[offs2] ^ inv;
         }
         if (i > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
         v->len = i;
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        return slice((Colonlist *)o2, op, len1);
+        size_t length;
+        ival_t offs, end, step;
+
+        err = (Error *)sliceparams((Colonlist *)o2, len1, &length, &offs, &end, &step, epoint2);
+        if (err != NULL) return &err->v;
+
+        if (length == 0) {
+            return (Obj *)ref_bytes(null_bytes);
+        }
+        if (step == 1 && inv == 0) {
+            if (length == byteslen(v1)) {
+                return (Obj *)ref_bytes(v1); /* original bytes */
+            }
+            if (length == 1) return (Obj *)bytes_from_u8(v1->data[offs]);
+            v = new_bytes(length);
+            memcpy(v->data, v1->data + offs, length);
+        } else {
+            v = new_bytes(length);
+            p2 = v->data;
+            while ((end > offs && step > 0) || (end < offs && step < 0)) {
+                *p2++ = v1->data[offs] ^ inv;
+                offs += step;
+            }
+        }
+        v->len = length;
+        return &v->v;
     }
-    err = indexoffs(o2, len1, &offs, op->epoint2);
+    err = indexoffs(o2, len1, &offs2, epoint2);
     if (err != NULL) return &err->v;
-    inv = v1->data[offs];
-    return (Obj *)bytes_from_u8((v1->len < 0) ? ~inv : inv);
+    return (Obj *)bytes_from_u8(v1->data[offs2] ^ inv);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -912,9 +905,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
     Obj *tmp;
 
-    if (op->op == &o_INDEX) {
-        return iindex(op);
-    }
     if (op->op == &o_X) {
         return repeat(op); 
     }
@@ -1023,6 +1013,7 @@ void bytesobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
 
     null_bytes = new_bytes(0);
     null_bytes->len = 0;
