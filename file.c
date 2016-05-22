@@ -414,20 +414,20 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             } 
                             ch2 = (bp == bl) ? 0 : buffer[bp];
                             if (c < 0xe0) {
-                                i = 1; c ^= 0xc0;
-                                if (c < 2) goto invalid;
+                                if (c < 0xc2) goto invalid;
+                                c ^= 0xc0; i = 1;
                             } else if (c < 0xf0) {
-                                i = 2; c ^= 0xe0;
-                                if (c == 0 && (ch2 ^ 0xa0) >= 0x20) goto invalid;
+                                if ((c ^ 0xe0) == 0 && (ch2 ^ 0xa0) >= 0x20) goto invalid;
+                                c ^= 0xe0; i = 2;
                             } else if (c < 0xf8) {
-                                i = 3; c ^= 0xf0;
-                                if (c == 0 && (uint8_t)(ch2 - 0x90) >= 0x30) goto invalid;
+                                if ((c ^ 0xf0) == 0 && (uint8_t)(ch2 - 0x90) >= 0x30) goto invalid;
+                                c ^= 0xf0; i = 3;
                             } else if (c < 0xfc) {
-                                i = 4; c ^= 0xf8;
-                                if (c == 0 && (uint8_t)(ch2 - 0x88) >= 0x38) goto invalid;
+                                if ((c ^ 0xf8) == 0 && (uint8_t)(ch2 - 0x88) >= 0x38) goto invalid;
+                                c ^= 0xf8; i = 4;
                             } else if (c < 0xfe) {
-                                i = 5; c ^= 0xfc;
-                                if (c == 0 && (uint8_t)(ch2 - 0x84) >= 0x3c) goto invalid;
+                                if ((c ^ 0xfc) == 0 && (uint8_t)(ch2 - 0x84) >= 0x3c) goto invalid;
+                                c ^= 0xfc; i = 5;
                             } else {
                                 if (type != E_UNKNOWN) goto invalid;
                                 if (c == 0xff && ch2 == 0xfe) type = E_UTF16LE;
@@ -438,14 +438,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             }
 
                             for (j = i; i != 0; i--) {
-                                ch2 = (bp == bl) ? 0 : buffer[bp];
-                                if ((ch2 ^ 0x80) < 0x40) {
-                                    c = (c << 6) ^ ch2 ^ 0x80;
-                                    bp = (bp + 1) % (BUFSIZ * 2);
-                                    continue;
+                                if (bp != bl) {
+                                    ch2 = buffer[bp];
+                                    if ((ch2 ^ 0x80) < 0x40) {
+                                        c = (c << 6) ^ ch2 ^ 0x80;
+                                        bp = (bp + 1) % (BUFSIZ * 2);
+                                        continue;
+                                    }
                                 }
                                 if (type != E_UNKNOWN) {
-                                    if (bp == bl) goto eof;
                                     c = REPLACEMENT_CHARACTER;break;
                                 }
                                 type = E_ISO;
