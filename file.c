@@ -27,6 +27,8 @@
 #include "error.h"
 #include "strobj.h"
 
+#define REPLACEMENT_CHARACTER 0xfffd
+
 struct include_list_s {
     struct include_list_s *next;
     char path[];
@@ -118,7 +120,7 @@ FILE *file_open(const char *name, const char *mode)
         else if (ch < 0x110000) {
             *c2++ = (ch >> 10) + 0xd7c0;
             *c2++ = (ch & 0x3ff) | 0xdc00;
-        } else *c2++ = 0xfffd;
+        } else *c2++ = REPLACEMENT_CHARACTER;
     }
     *c2++ = 0;
     c2 = wmode; c = (uint8_t *)mode;
@@ -369,6 +371,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     p = tmp->data + fp;
                     for (;;) {
                         size_t o = p - tmp->data;
+                        uint8_t ch2;
                         if (o + 6*6 + 1 > tmp->len) {
                             tmp->len += 4096;
                             if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
@@ -402,77 +405,76 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         case E_UTF8:
                             if (c < 0x80) goto done;
                             if (c < 0xc0) {
+                            invalid:
                                 if (type == E_UNKNOWN) {
                                     c = fromiso(c);
                                     type = E_ISO; break;
                                 }
-                                c = 0xfffd; break;
-                            } else if (c < 0xe0) {
-                                c ^= 0xc0;i = 1;
+                                c = REPLACEMENT_CHARACTER; break;
+                            } 
+                            ch2 = (bp == bl) ? 0 : buffer[bp];
+                            if (c < 0xe0) {
+                                i = 1; c ^= 0xc0;
+                                if (c < 2) goto invalid;
                             } else if (c < 0xf0) {
-                                c ^= 0xe0;i = 2;
+                                i = 2; c ^= 0xe0;
+                                if (c == 0 && (ch2 ^ 0xa0) >= 0x20) goto invalid;
                             } else if (c < 0xf8) {
-                                c ^= 0xf0;i = 3;
+                                i = 3; c ^= 0xf0;
+                                if (c == 0 && (uint8_t)(ch2 - 0x90) >= 0x30) goto invalid;
                             } else if (c < 0xfc) {
-                                c ^= 0xf8;i = 4;
+                                i = 4; c ^= 0xf8;
+                                if (c == 0 && (uint8_t)(ch2 - 0x88) >= 0x38) goto invalid;
                             } else if (c < 0xfe) {
-                                c ^= 0xfc;i = 5;
+                                i = 5; c ^= 0xfc;
+                                if (c == 0 && (uint8_t)(ch2 - 0x84) >= 0x3c) goto invalid;
                             } else {
-                                if (type == E_UNKNOWN) {
-                                    if (bp != bl) {
-                                        uint8_t ch2 = buffer[bp];
-                                        if (c == 0xff && ch2 == 0xfe) {
-                                            bp = (bp + 1) % (BUFSIZ * 2);
-                                            type = E_UTF16LE;continue;
-                                        }
-                                        if (c == 0xfe && ch2 == 0xff) {
-                                            bp = (bp + 1) % (BUFSIZ * 2);
-                                            type = E_UTF16BE;continue;
-                                        }
-                                    }
-                                    c = fromiso(c);
-                                    type = E_ISO; break;
-                                }
-                                c = 0xfffd; break;
+                                if (type != E_UNKNOWN) goto invalid;
+                                if (c == 0xff && ch2 == 0xfe) type = E_UTF16LE;
+                                else if (c == 0xfe && ch2 == 0xff) type = E_UTF16BE;
+                                else goto invalid;
+                                bp = (bp + 1) % (BUFSIZ * 2);
+                                continue;
                             }
 
                             for (j = i; i != 0; i--) {
-                                uint8_t ch2 = (bp == bl) ? 0 : buffer[bp];
-                                if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                    if (type == E_UNKNOWN) {
-                                        type = E_ISO;
-                                        i = (j - i) * 6;
-                                        qc = false;
-                                        if (ubuff.p >= ubuff.len) {
-                                            ubuff.len += 16;
-                                            if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
-                                            ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                        }
-                                        ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
-                                        for (;i != 0; i-= 6) {
-                                            if (ubuff.p >= ubuff.len) {
-                                                ubuff.len += 16;
-                                                if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
-                                                ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                            }
-                                            ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
-                                        }
-                                        if (bp == bl) goto eof;
-                                        c = (ch2 >= 0x80) ? fromiso(ch2) : ch2; 
-                                        j = 0;
-                                        bp = (bp + 1) % (BUFSIZ * 2);
-                                        break;
-                                    }
-                                    if (bp == bl) goto eof;
-                                    c = 0xfffd;break;
+                                ch2 = (bp == bl) ? 0 : buffer[bp];
+                                if ((ch2 ^ 0x80) < 0x40) {
+                                    c = (c << 6) ^ ch2 ^ 0x80;
+                                    bp = (bp + 1) % (BUFSIZ * 2);
+                                    continue;
                                 }
-                                c = (c << 6) ^ ch2 ^ 0x80;
+                                if (type != E_UNKNOWN) {
+                                    if (bp == bl) goto eof;
+                                    c = REPLACEMENT_CHARACTER;break;
+                                }
+                                type = E_ISO;
+                                i = (j - i) * 6;
+                                qc = false;
+                                if (ubuff.p >= ubuff.len) {
+                                    ubuff.len += 16;
+                                    if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
+                                    ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                }
+                                ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
+                                for (;i != 0; i-= 6) {
+                                    if (ubuff.p >= ubuff.len) {
+                                        ubuff.len += 16;
+                                        if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
+                                        ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                    }
+                                    ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
+                                }
+                                if (bp == bl) goto eof;
+                                c = (ch2 >= 0x80) ? fromiso(ch2) : ch2; 
+                                j = 0;
                                 bp = (bp + 1) % (BUFSIZ * 2);
+                                break;
                             }
                             if (j != 0) type = E_UTF8;
                             break;
                         case E_UTF16LE:
-                            if (bp == bl) goto eof;
+                            if (bp == bl) goto invalid;
                             c |= buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
                                 type = E_UTF16BE;
@@ -480,7 +482,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             }
                             break;
                         case E_UTF16BE:
-                            if (bp == bl) goto eof;
+                            if (bp == bl) goto invalid;
                             c = (c << 8) | buffer[bp]; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
                                 type = E_UTF16LE;
@@ -495,15 +497,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         if (type != E_UTF8) {
                             if (c >= 0xd800 && c < 0xdc00) {
                                 if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                                c = 0xfffd;
+                                c = REPLACEMENT_CHARACTER;
                             } else if (c >= 0xdc00 && c < 0xe000) {
                                 if (lastchar >= 0xd800 && lastchar < 0xdc00) {
                                     c ^= 0x360dc00 ^ (lastchar << 10);
                                     c += 0x10000;
                                 } else
-                                    c = 0xfffd;
+                                    c = REPLACEMENT_CHARACTER;
                             } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                c = 0xfffd;
+                                c = REPLACEMENT_CHARACTER;
                             }
                         }
                     done:
