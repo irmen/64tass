@@ -324,7 +324,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         return &v->v;
     case O_NEG: return (Obj *)negate(v1);
     case O_POS: return (Obj *)ref_int(v1);
-    case O_STRING: return (Obj *)repr(&v1->v, op->epoint, SIZE_MAX);
+    case O_STRING: return repr(&v1->v, op->epoint, SIZE_MAX);
     case O_LNOT: return truth_reference(v1->len == 0);
     default: break;
     }

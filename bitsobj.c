@@ -289,7 +289,7 @@ MUST_CHECK Obj *float_from_bits(const Bits *v1, linepos_t epoint) {
             if (v1->len < 0) d -= ldexp(v1->data[i], i * SHIFT);
             else d += ldexp(v1->data[i], i * SHIFT);
         }
-        return (Obj *)float_from_double(d, epoint);
+        return float_from_double(d, epoint);
     }
     return (Obj *)new_float(d);
 }
