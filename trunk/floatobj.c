@@ -161,8 +161,8 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_HWORD: val >>= 8;
     case O_WORD: return (Obj *)bytes_from_u16(val);
     case O_BSWORD: return (Obj *)bytes_from_u16((uint8_t)(val >> 8) | (uint16_t)(val << 8));
-    case O_INV: return (Obj *)float_from_double(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1, op->epoint);
-    case O_NEG: return (Obj *)float_from_double(-v1, op->epoint);
+    case O_INV: return float_from_double(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1, op->epoint);
+    case O_NEG: return float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
     case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
     case O_LNOT: return truth_reference(v1 == 0.0);

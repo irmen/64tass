@@ -61,9 +61,8 @@ static bool same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Str *v1 = (Str *)o1;
-    Obj *tmp, *ret;
-    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
-    ret = tmp->obj->truth(tmp, type, epoint);
+    Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Obj *ret = tmp->obj->truth(tmp, type, epoint);
     val_destroy(tmp);
     return ret;
 }
@@ -134,10 +133,8 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     Str *v1 = (Str *)o1;
-    Obj *tmp;
-    Error *ret;
-    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
-    ret = tmp->obj->ival(tmp, iv, bits, epoint);
+    Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Error *ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     if (ret != NULL && ret->num == ERROR_____CANT_IVAL) {
         val_destroy(&ret->v);
@@ -150,10 +147,8 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
     Str *v1 = (Str *)o1;
-    Obj *tmp;
-    Error *ret;
-    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
-    ret = tmp->obj->uval(tmp, uv, bits, epoint);
+    Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Error *ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     if (ret != NULL && ret->num == ERROR_____CANT_UVAL) {
         val_destroy(&ret->v);
@@ -165,8 +160,8 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
 }
 
 MUST_CHECK Obj *float_from_str(const Str *v1, linepos_t epoint) {
-    Obj *tmp, *ret;
-    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Obj *tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Obj *ret;
     if (tmp->obj != BYTES_OBJ) return tmp;
     ret = float_from_bytes((Bytes *)tmp, epoint);
     val_destroy(tmp);
@@ -175,9 +170,8 @@ MUST_CHECK Obj *float_from_str(const Str *v1, linepos_t epoint) {
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     Str *v1 = (Str *)o1;
-    Obj *tmp, *ret;
-    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
-    ret = tmp->obj->sign(tmp, epoint);
+    Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    Obj *ret = tmp->obj->sign(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
