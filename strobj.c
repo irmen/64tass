@@ -370,7 +370,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
         {
             uint8_t *s;
             size_t ln = v1->len + v2->len;
-            if (ln < v2->len) err_msg_out_of_memory(); /* overflow */
+            if (ln < v2->len) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
 
             v = new_str(ln);
             v->chars = v1->chars + v2->chars;
@@ -413,7 +413,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
             return (Obj *)ref_str(v1);
         }
         ln = v1->len;
-        if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+        if (ln > SIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
         v = new_str(ln * rep);
         v->chars = v1->chars * rep;
         s = v->data;
