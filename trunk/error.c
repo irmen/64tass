@@ -361,7 +361,8 @@ static const char *terr_error[] = {
     "no long sized addressing mode for opcode",
     "not a direct page address",
     "not a data bank address",
-    "not a bank 0 address"
+    "not a bank 0 address",
+    "out of memory"
 };
 
 static const char *terr_fatal[] = {
@@ -667,6 +668,7 @@ void err_msg_output(const Error *val) {
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR:
     case ERROR_NO_ZERO_VALUE:
+    case ERROR_OUT_OF_MEMORY:
     case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->num - 0x40], NULL, &val->epoint);break;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:

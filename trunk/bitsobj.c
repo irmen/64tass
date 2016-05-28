@@ -798,7 +798,7 @@ static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
     return normalize(vv, sz, neg1 != neg2);
 }
 
-static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
+static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2, linepos_t epoint) {
     size_t blen;
     size_t sz, bits, i, j, rbits, l;
     bdigit_t *v1, *v, uv;
@@ -812,7 +812,7 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
         return (Obj *)ref_bits(vv1);
     }
     blen = vv1->bits + vv2->bits;
-    if (blen < vv2->bits) err_msg_out_of_memory(); /* overflow */
+    if (blen < vv2->bits) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, epoint); /* overflow */
     sz = blen / SHIFT;
     if ((blen % SHIFT) != 0) sz++;
     i = vv2->bits / SHIFT + bitslen(vv1);
@@ -928,7 +928,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
         return (Obj *)ref_bits(vv1);
     }
 
-    if (blen > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+    if (blen > SIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
     blen *= rep;
     sz = blen / SHIFT;
     if ((blen % SHIFT) != 0) sz++;
@@ -1159,7 +1159,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_AND: return and_(v1, v2);
             case O_OR: return or_(v1, v2);
             case O_XOR: return xor_(v1, v2);
-            case O_CONCAT: return concat(v1, v2);
+            case O_CONCAT: return concat(v1, v2, op->epoint3);
             case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }
@@ -1226,7 +1226,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             case O_AND: return and_(v1, v2);
             case O_OR: return or_(v1, v2);
             case O_XOR: return xor_(v1, v2);
-            case O_CONCAT: return concat(v1, v2);
+            case O_CONCAT: return concat(v1, v2, op->epoint3);
             case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }

@@ -627,22 +627,22 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     return vv;
 }
 
-static MUST_CHECK Bytes *concat(Bytes *v1, Bytes *v2) {
+static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
     Bytes *v;
     uint8_t *s;
     bool inv;
     size_t ln, i, len1, len2;
 
     if (v1->len == 0) {
-        return ref_bytes(v2);
+        return (Obj *)ref_bytes(v2);
     }
     if (v2->len == 0 || v2->len == ~(ssize_t)0) {
-        return ref_bytes(v1);
+        return (Obj *)ref_bytes(v1);
     }
     len1 = byteslen(v1);
     len2 = byteslen(v2);
     ln = len1 + len2;
-    if (ln < len2 || ln > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
+    if (ln < len2 || ln > SSIZE_MAX) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, epoint); /* overflow */
 
     v = new_bytes(ln);
     s = v->data;
@@ -654,7 +654,7 @@ static MUST_CHECK Bytes *concat(Bytes *v1, Bytes *v2) {
     } else memcpy(s + len1, v2->data, len2);
     v->len = (v1->len < 0) ? ~ln : ln;
     v->data = s;
-    return v;
+    return &v->v;
 }
 
 static int icmp(Bytes *v1, Bytes *v2) {
@@ -765,7 +765,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
     case O_LE: return truth_reference(icmp(v1, v2) <= 0);
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-    case O_CONCAT: return (Obj *)concat(v1, v2);
+    case O_CONCAT: return concat(v1, v2, op->epoint3);
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
@@ -812,7 +812,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
         if (rep == 1) {
             return (Obj *)ref_bytes(v1);
         }
-        if (len1 > SSIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+        if (len1 > SSIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
         v = new_bytes(len1 * rep);
         s = v->data;
         v->len = 0;

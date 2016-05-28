@@ -364,7 +364,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                 return val_reference(o1);
             }
             ln = v1->len + v2->len;
-            if (ln < v2->len) err_msg_out_of_memory(); /* overflow */
+            if (ln < v2->len) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
             v = (List *)val_alloc(o1->obj);
             vals = lnew(v, ln);
             for (i = 0; i < v1->len; i++) {
@@ -397,7 +397,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
             return val_reference(o1);
         }
         ln = v1->len * rep;
-        if (v1->len > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+        if (v1->len > SIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
         v = (List *)val_alloc(o1->obj);
         v->data = vals = lnew(v, ln);
         while ((rep--) != 0) {
