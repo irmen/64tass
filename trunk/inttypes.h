@@ -24,15 +24,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#ifndef PRIuFAST32
-#define PRIuFAST32 "u"
-#endif
-#ifndef PRIuFAST16
-#define PRIuFAST16 "u"
-#endif
-#ifndef PRIxFAST32
-#define PRIxFAST32 "x"
-#endif
 #ifndef PRId32
 #define PRId32 "d"
 #endif
@@ -50,10 +41,18 @@
 #endif
 
 #ifndef PRIxSIZE
-#ifdef _WIN32
-#define PRIxSIZE "x"
+#if __STDC_VERSION__ >= 199901L && !defined _WIN32
+#define PRIxSIZE  "zx"
+#elif defined UINT_MAX && SIZE_MAX == UINT_MAX
+#define PRIxSIZE  "x"
+#elif defined ULLONG_MAX && SIZE_MAX == ULLONG_MAX
+#define PRIxSIZE  "llx"
+#elif defined ULONG_MAX && SIZE_MAX == ULONG_MAX
+#define PRIxSIZE  "lx"
+#elif defined USHRT_MAX && SIZE_MAX == USHRT_MAX
+#define PRIxSIZE  "hx"
 #else
-#define PRIxSIZE "zx"
+#define PRIxSIZE  "x"
 #endif
 #endif
 
