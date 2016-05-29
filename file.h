@@ -32,7 +32,7 @@ struct file_s {
     const char *realname;
     const char *base;
     size_t *line;
-    size_t lines;
+    line_t lines;
     uint8_t *data;    /* data */
     size_t len;       /* length */
     uint16_t open;    /* open/not open */

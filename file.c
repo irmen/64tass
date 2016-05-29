@@ -329,6 +329,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             } else {
                 struct ubuff_s ubuff = {NULL, 0, 0};
                 size_t max_lines = 0;
+                line_t lines = 0;
                 uint8_t buffer[BUFSIZ * 2];
                 size_t bp = 0, bl, qr = 1;
                 if (arguments.quiet) {
@@ -361,12 +362,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     bool qc = true;
                     uint8_t cclass = 0;
 
-                    if (tmp->lines >= max_lines) {
+                    if (lines >= max_lines) {
                         max_lines += 1024;
                         if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof(tmp->line[0])) err_msg_out_of_memory(); /* overflow */
                         tmp->line = (size_t *)reallocx(tmp->line, max_lines * sizeof(tmp->line[0]));
                     }
-                    tmp->line[tmp->lines++] = fp;
+                    tmp->line[lines++] = fp;
+                    if (lines < 1) err_msg_out_of_memory(); /* overflow */
                     ubuff.p = 0;
                     p = tmp->data + fp;
                     for (;;) {
@@ -569,8 +571,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 setlocale(LC_CTYPE, "C");
 #endif
                 free(ubuff.data);
-                if (tmp->lines != max_lines) {
-                    tmp->line = (size_t *)reallocx(tmp->line, tmp->lines * sizeof(tmp->line[0]));
+                tmp->lines = lines;
+                if (lines != max_lines) {
+                    tmp->line = (size_t *)reallocx(tmp->line, lines * sizeof(tmp->line[0]));
                 }
             }
             err = ferror(f);
