@@ -27,10 +27,6 @@
 
 */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#define _MAIN_C_
 #ifdef _WIN32
 #include <windows.h>
 #include <wincon.h>
@@ -2450,8 +2446,8 @@ Obj *compile(struct file_list_s *cflist)
                         {"65ce02", &c65ce02}, {"6502i", &c6502i},
                         {"65816", &w65816}, {"65dtv02", &c65dtv02},
                         {"65el02", &c65el02}, {"r65c02", &r65c02},
-                        {"w65c02", &w65c02}, {"default", NULL},
-                        {NULL, NULL},
+                        {"w65c02", &w65c02}, {"4510", &c4510},
+                        {"default", NULL}, {NULL, NULL},
                     };
                     size_t len;
                     listing_line(epoint.pos);
