@@ -159,7 +159,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
         Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
-            err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
+            err = val->obj->uval(val, &uval, 8 * (sizeof uval) - 1, &v->epoint);
             if (err != NULL) return &err->v;
             p->width = uval;
         }
@@ -169,7 +169,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
         Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
-            err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
+            err = val->obj->uval(val, &uval, 8 * (sizeof uval) - 1, &v->epoint);
             if (err != NULL) return &err->v;
             p->precision = uval;
         }
@@ -390,7 +390,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
     *t++ = '*';
     *t++ = *p->pf;
     *t++ = 0;
-    snprintf(tmp, sizeof(tmp), form, (p->precision < 80) ? p->precision : 80, d);
+    snprintf(tmp, sizeof tmp, form, (p->precision < 80) ? p->precision : 80, d);
     t = tmp;
 
     p->width -= strlen(tmp);
@@ -582,7 +582,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     str = new_str(0);
     str->len = return_value.len;
     str->chars = return_value.chars;
-    if (return_value.len > sizeof(str->val)) {
+    if (return_value.len > sizeof str->val) {
         if (returnsize > return_value.len) {
             str->data = (uint8_t *)reallocx(return_value.data, return_value.len);
         } else str->data = return_value.data;

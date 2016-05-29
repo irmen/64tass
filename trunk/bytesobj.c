@@ -81,7 +81,7 @@ static void destroy(Obj *o1) {
 
 MUST_CHECK Bytes *new_bytes(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
-    if (ln > sizeof(v->val)) {
+    if (ln > sizeof v->val) {
         v->data = (uint8_t *)mallocx(ln);
     } else {
         v->data = v->val;
@@ -188,7 +188,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
     if (len != 0 || len2 != 0) {
         if (actual_encoding != NULL) {
             int ch;
-            if (len < sizeof(v->val)) len = sizeof(v->val);
+            if (len < sizeof v->val) len = sizeof v->val;
             if (len == 0) {
                 return (Obj *)ref_bytes(null_bytes);
             }
@@ -235,7 +235,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
             return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
         }
         if (v->val != s) {
-            if (len2 <= sizeof(v->val)) {
+            if (len2 <= sizeof v->val) {
                 if (len2 != 0) memcpy(v->val, s, len2);
                 free(s);
                 s = v->val;
@@ -315,7 +315,7 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
         size_t j = 0;
         while (sz > i) {
             d[i++] = b >> bits;
-            if (bits == (8 * sizeof(bdigit_t)) - 8) {
+            if (bits == (8 * sizeof b) - 8) {
                 bits = 0;
                 j++;
                 if (j >= len1) break;
@@ -348,8 +348,8 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
     inv = (v1->len < 0);
     sz = inv ? -v1->len : v1->len;
-    if (sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-    sz *= sizeof(digit_t);
+    if (sz > SSIZE_MAX / sizeof *b) err_msg_out_of_memory(); /* overflow */
+    sz *= sizeof *b;
     v = new_bytes(sz);
     d = v->data;
 
@@ -360,7 +360,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
         bits = j = 0;
         for (i = 0; i < sz; i++) {
             d[i] = b2 >> bits;
-            if (bits == (8 * sizeof(digit_t)) - 8) {
+            if (bits == (8 * sizeof b2) - 8) {
                 j++;
                 if (c) {
                     c = (b[j] == 0);
@@ -374,7 +374,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
         bits = j = 0;
         for (i = 0; i < sz; i++) {
             d[i] = b2 >> bits;
-            if (bits == (8 * sizeof(digit_t)) - 8) {
+            if (bits == (8 * sizeof b2) - 8) {
                 j++;
                 b2 = b[j];
                 bits = 0;
@@ -384,7 +384,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
     while (sz != 0 && d[sz - 1] == 0) sz--;
     if (v->val != d) {
-        if (sz <= sizeof(v->val)) {
+        if (sz <= sizeof v->val) {
             if (sz != 0) memcpy(v->val, d, sz);
             free(d);
             d = v->val;
@@ -804,7 +804,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     size_t len1 = byteslen(v1);
     Error *err;
 
-    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
     if (len1 != 0 && rep != 0) {

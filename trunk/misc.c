@@ -66,7 +66,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
                 s1->data = (uint8_t *)reallocx((uint8_t *)s1->data, s1->len);
             }
         } else free((uint8_t *)cache.data);
-        memset(&cache, 0, sizeof(cache));
+        memset(&cache, 0, sizeof cache);
         return;
     }
     l = s2->len; d = s2->data;
@@ -244,8 +244,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
-                        if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof(fin->line[0])) err_msg_out_of_memory(); /* overflow */
-                        fin->line = (size_t *)reallocx(fin->line, max_lines * sizeof(fin->line[0]));
+                        if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof *fin->line) err_msg_out_of_memory(); /* overflow */
+                        fin->line = (size_t *)reallocx(fin->line, max_lines * sizeof *fin->line);
                     }
                     fin->line[fin->lines++] = fp;
 
@@ -378,7 +378,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     }
     if (dash_name(arguments.output)) arguments.quiet = false;
     if (fin->lines != max_lines) {
-        fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof(fin->line[0]));
+        fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof *fin->line);
     }
     closefile(fin);
     if (fp != fin->len) {

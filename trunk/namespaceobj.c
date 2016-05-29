@@ -265,7 +265,7 @@ void namespacekey_free(struct namespacekey_s *val) {
 
 struct namespacekey_s *namespacekey_alloc(void) {
 #ifdef DEBUG
-    struct namespacekey_s *val = (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
+    struct namespacekey_s *val = (struct namespacekey_s *)mallocx(sizeof *val);
 #else
     struct namespacekey_s *val = (struct namespacekey_s *)namespacekey_next;
     if (val == NULL) {

@@ -28,6 +28,8 @@
 #include "typeobj.h"
 #include "values.h"
 
+#define lenof(a) (sizeof a / sizeof a[0])
+
 struct encoding_s *actual_encoding;
 
 struct encoding_s {
@@ -549,7 +551,7 @@ struct encoding_s *new_encoding(const str_t *name)
     struct encoding_s *tmp;
 
     if (lasten == NULL) {
-        lasten = (struct encoding_s *)mallocx(sizeof(struct encoding_s));
+        lasten = (struct encoding_s *)mallocx(sizeof *lasten);
     }
     str_cfcpy(&lasten->cfname, name);
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
@@ -571,7 +573,7 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     struct avltree_node *b;
     struct trans_s *tmp;
     if (lasttr == NULL) {
-        lasttr = (struct trans_s *)mallocx(sizeof(struct trans_s));
+        lasttr = (struct trans_s *)mallocx(sizeof *lasttr);
     }
     lasttr->start = trans->start;
     lasttr->end = trans->end;
@@ -598,7 +600,7 @@ bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint
     bool ret;
 
     if (lastes == NULL) {
-        lastes = (struct escape_s *)mallocx(sizeof(struct escape_s));
+        lastes = (struct escape_s *)mallocx(sizeof *lastes);
     }
     b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, false);
     if (b == NULL) err_msg_out_of_memory();
@@ -610,7 +612,7 @@ bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint
 
     i = 0;
     lastes->data = NULL; /* lock new one */
-    len = sizeof(tmp.val);
+    len = sizeof tmp.val;
     d = tmp.val;
 
     if (val->obj == STR_OBJ) {
@@ -626,7 +628,7 @@ bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint
             uval = 0;
         }
         if (i >= len) {
-            if (i == sizeof(tmp.val)) {
+            if (i == sizeof tmp.val) {
                 len = 16;
                 d = (uint8_t *)mallocx(len);
                 memcpy(d, tmp.val, i);
@@ -680,10 +682,10 @@ static void add_esc(const char *s, struct encoding_s *enc) {
     val_destroy(&tmp->v);
 }
 
-static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
+static void add_trans(struct trans2_s *t, size_t ln, struct encoding_s *tmp) {
     size_t i;
     struct trans_s tmp2;
-    for (i = 0; i < max / sizeof(struct trans2_s); i++) {
+    for (i = 0; i < ln; i++) {
         tmp2.start = t[i].start;
         tmp2.end = t[i].end;
         tmp2.offset = t[i].offset;
@@ -776,27 +778,27 @@ void init_encoding(bool toascii)
         if (tmp == NULL) {
             return;
         }
-        add_trans(no_trans, sizeof(no_trans), tmp);
+        add_trans(no_trans, lenof(no_trans), tmp);
 
         tmp = new_encoding(&screen_enc);
         if (tmp == NULL) {
             return;
         }
-        add_trans(no_screen_trans, sizeof(no_screen_trans), tmp);
+        add_trans(no_screen_trans, lenof(no_screen_trans), tmp);
     } else {
         tmp = new_encoding(&none_enc);
         if (tmp == NULL) {
             return;
         }
         add_esc(petscii_esc, tmp);
-        add_trans(petscii_trans, sizeof(petscii_trans), tmp);
+        add_trans(petscii_trans, lenof(petscii_trans), tmp);
 
         tmp = new_encoding(&screen_enc);
         if (tmp == NULL) {
             return;
         }
         add_esc(petscii_screen_esc, tmp);
-        add_trans(petscii_screen_trans, sizeof(petscii_screen_trans), tmp);
+        add_trans(petscii_screen_trans, lenof(petscii_screen_trans), tmp);
     }
 }
 

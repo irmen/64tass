@@ -40,7 +40,7 @@ static void destroy(Obj *o1) {
 }
 
 static uint8_t *rnew(Register *v, size_t len) {
-    if (len > sizeof(v->val)) {
+    if (len > sizeof v->val) {
         return (uint8_t *)mallocx(len);
     }
     return v->val;

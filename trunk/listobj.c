@@ -77,9 +77,9 @@ static void garbage(Obj *o1, int j) {
 }
 
 static Obj **lnew(List *v, size_t len) {
-    if (len > sizeof(v->val) / sizeof(Obj *)) {
-        if (len > SIZE_MAX / sizeof(Obj *)) err_msg_out_of_memory(); /* overflow */
-        return (Obj **)mallocx(len * sizeof(Obj *));
+    if (len > sizeof(v->val) / sizeof(v->val[0])) {
+        if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+        return (Obj **)mallocx(len * sizeof *v->data);
     }
     return v->val;
 }
@@ -388,7 +388,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     uval_t rep;
     Error *err;
 
-    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
     if (v1->len != 0 && rep != 0) {

@@ -156,8 +156,8 @@ static struct context_stack_s context_stack;
 void push_context(Namespace *name) {
     if (context_stack.p >= context_stack.len) {
         context_stack.len += 8;
-        if (/*context_stack.len < 8 ||*/ context_stack.len > SIZE_MAX / sizeof(struct cstack_s)) err_msg_out_of_memory(); /* overflow */
-        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof(struct cstack_s));
+        if (/*context_stack.len < 8 ||*/ context_stack.len > SIZE_MAX / sizeof *context_stack.stack) err_msg_out_of_memory(); /* overflow */
+        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof *context_stack.stack);
     }
     context_stack.stack[context_stack.p].normal = ref_namespace(name);
     current_context = name;
@@ -193,9 +193,9 @@ void reset_context(void) {
 
 void get_namespaces(Mfunc *mfunc) {
     size_t i, len = context_stack.p - context_stack.bottom;
-    if (len > SIZE_MAX / sizeof(Namespace *)) err_msg_out_of_memory(); /* overflow */
+    if (len > SIZE_MAX / sizeof *mfunc->namespaces) err_msg_out_of_memory(); /* overflow */
     mfunc->nslen = len;
-    mfunc->namespaces = (Namespace **)mallocx(len * sizeof(Namespace *));
+    mfunc->namespaces = (Namespace **)mallocx(len * sizeof *mfunc->namespaces);
     for (i = context_stack.bottom; i < context_stack.p; i++) {
         mfunc->namespaces[i] = ref_namespace(context_stack.stack[i].normal);
     }
@@ -336,7 +336,7 @@ Label *find_anonlabel(int32_t count) {
 
     tmp.key = &label;
     tmp.key->cfname.data = (const uint8_t *)&anon_idents;
-    tmp.key->cfname.len = sizeof(anon_idents);
+    tmp.key->cfname.len = sizeof anon_idents;
     tmp.hash = str_hash(&tmp.key->cfname);
 
     while (context_stack.bottom < p) {
@@ -364,7 +364,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 
     tmp.key = &label;
     tmp.key->cfname.data = (const uint8_t *)&anon_idents;
-    tmp.key->cfname.len = sizeof(anon_idents);
+    tmp.key->cfname.len = sizeof anon_idents;
     tmp.hash = str_hash(&tmp.key->cfname);
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare);
