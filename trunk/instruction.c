@@ -105,7 +105,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     enum opr_e opr;
     enum reg_e reg;
     const uint8_t *cnmemonic; /* current nmemonic */
-    int_fast8_t ln;
+    int8_t ln;
     uint8_t cod, longbranch;
     uint32_t adr;
     uval_t uval;

@@ -97,10 +97,9 @@ bool in_macro(void) {
 }
 
 /* ------------------------------------------------------------------------------ */
-bool mtranslate(struct file_s *cfile)
-{
-    uint_fast8_t q;
-    uint_fast16_t j;
+bool mtranslate(struct file_s *cfile) {
+    uint8_t q;
+    size_t j;
     size_t p;
     uint8_t ch;
     struct macro_pline_s *mline;
@@ -115,9 +114,10 @@ bool mtranslate(struct file_s *cfile)
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
         else if ((ch == ';') && q == 0) { q = 4; }
-        else if ((ch=='\\') && q == 0) {
+        else if ((ch == '\\') && q == 0) {
             /* normal parameter reference */
-            if ((ch = pline[lpoint.pos + 1]) >= '1' && ch <= '9') {
+            ch = pline[lpoint.pos + 1];
+            if (ch >= '1' && ch <= '9') {
                 str_t *param = macro_parameters.current->param;
                 /* \1..\9 */
                 if ((j = ch-'1') >= macro_parameters.current->len || param[j].data == NULL) {
@@ -138,7 +138,7 @@ bool mtranslate(struct file_s *cfile)
                 memcpy((char *)mline->data + p, param[j].data, param[j].len);
                 p += param[j].len;
                 lpoint.pos++;continue;
-            } else if (ch=='@') {
+            } else if (ch == '@') {
                 /* \@ gives complete parameter list */
                 str_t *all = &macro_parameters.current->all;
                 if (p + all->len > mline->len) {
@@ -198,7 +198,8 @@ bool mtranslate(struct file_s *cfile)
             }
         } else if (ch == '@' && arguments.tasmcomp) {
             /* text parameter reference */
-            if ((ch = pline[lpoint.pos + 1]) >= '1' && ch <= '9') {
+            ch = pline[lpoint.pos + 1];
+            if (ch >= '1' && ch <= '9') {
                 /* @1..@9 */
                 str_t *param = macro_parameters.current->param;
                 if ((j = ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
@@ -230,14 +231,14 @@ bool mtranslate(struct file_s *cfile)
         if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
         mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
     }
-    while (p != 0 && (mline->data[p-1] == ' ' || mline->data[p-1] == ' ')) p--;
+    while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
     mline->data[p] = 0;
     llist = pline = mline->data; lpoint.pos = 0;
     return false;
 }
 
 static size_t macro_param_find(void) {
-    uint_fast8_t q = 0, ch;
+    uint8_t q = 0, ch;
     uint8_t pp = 0;
     char par[256];
 
