@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef OPCODES_H_
-#define OPCODES_H_
+#ifndef OPCODES_H
+#define OPCODES_H
 #include "inttypes.h"
 
 #define ____ 0x69
@@ -57,5 +57,6 @@ extern const struct cpu_s c65el02;
 extern const struct cpu_s r65c02;
 extern const struct cpu_s w65c02;
 extern const struct cpu_s c65ce02;
+extern const struct cpu_s c4510;
 
 #endif

@@ -5,7 +5,7 @@ the 65xx series of processors. Key features:
 
   * Open source portable C with minimal dependencies
   * Familiar syntax to Omicron TASS and TASM
-  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
+  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510
   * Arbitrary-precision integers and bit strings, double precision floating
     point numbers
   * Character and byte strings, array arithmetic
@@ -124,6 +124,7 @@ Table of Contents
       + W65816 opcodes
       + 65EL02 opcodes
       + 65CE02 opcodes
+      + 4510 opcodes
   * Appendix
       + Assembler directives
       + Built-in functions
@@ -1515,7 +1516,7 @@ to map Unicode characters to 8 bit values in strings.
         .cdef "[[", $5b
         .cdef "??", $5c
         .cdef "]]", $5d
-        .cdef "??", $5e
+        .cdef "????", $5e
         .cdef $2190, $2190, $1f;left arrow
 
         .edef "\n", 13  ;one byte control codes
@@ -2212,6 +2213,7 @@ Target
             .cpu "65el02"   ;65el02
             .cpu "r65c02"   ;R65C02
             .cpu "w65c02"   ;W65C02
+            .cpu "4510"     ;CSG 4510
             .cpu "default"  ;cpu set on commandline
 
 Misc
@@ -2766,6 +2768,14 @@ using the .cpu directive in the source.
     64tass --mw65c02 a.asm
             wai
 
+--m4510
+    CSG 4510. Enables extra opcodes and addressing modes specific to this CPU.
+    Useful for C65 projects.
+
+    64tass --m4510 a.asm
+            map
+            eom
+
 Source listing options
 
 -l <file>, --labels=<file>
@@ -3126,28 +3136,28 @@ codes.
  -@      U+0020-U+0040         20-40    A-Z      U+0041-U+005A         C1-DA
 [        U+005B                5B       ]        U+005D                5D
 a-z      U+0061-U+007A         41-5A    ?        U+00A3                5C
-?        U+03C0                FF       ?        U+2190                5F
-?        U+2191                5E       ?        U+2500                C0
-?        U+2502                DD       ?        U+250C                B0
-?        U+2510                AE       ?        U+2514                AD
-?        U+2518                BD       ?        U+251C                AB
-?        U+2524                B3       ?        U+252C                B2
-?        U+2534                B1       ?        U+253C                DB
-?        U+256D                D5       ?        U+256E                C9
-?        U+256F                CB       ?        U+2570                CA
-?        U+2571                CE       ?        U+2572                CD
-?        U+2573                D6       ?        U+2581                A4
-?        U+2582                AF       ?        U+2583                B9
-?        U+2584                A2       ?        U+258C                A1
-?        U+258D                B5       ?        U+258E                B4
-?        U+258F                A5       ?        U+2592                A6
-?        U+2594                A3       ?        U+2595                A7
+??       U+03C0                FF       ??       U+2190                5F
+??       U+2191                5E       ??       U+2500                C0
+??       U+2502                DD       ??       U+250C                B0
+??       U+2510                AE       ??       U+2514                AD
+??       U+2518                BD       ??       U+251C                AB
+??       U+2524                B3       ??       U+252C                B2
+??       U+2534                B1       ??       U+253C                DB
+??       U+256D                D5       ??       U+256E                C9
+??       U+256F                CB       ??       U+2570                CA
+??       U+2571                CE       ??       U+2572                CD
+??       U+2573                D6       ??       U+2581                A4
+??       U+2582                AF       ??       U+2583                B9
+??       U+2584                A2       ??       U+258C                A1
+??       U+258D                B5       ??       U+258E                B4
+??       U+258F                A5       ??       U+2592                A6
+??       U+2594                A3       ??       U+2595                A7
 ?        U+2596                BB       ?        U+2597                AC
 ?        U+2598                BE       ?        U+259A                BF
-?        U+259D                BC       ?        U+25CB                D7
-?        U+25CF                D1       ?        U+25E4                A9
-?        U+25E5                DF       ?        U+2660                C1
-?        U+2663                D8       ?        U+2665                D3
+?        U+259D                BC       ??       U+25CB                D7
+??       U+25CF                D1       ??       U+25E4                A9
+??       U+25E5                DF       ??       U+2660                C1
+??       U+2663                D8       ??       U+2665                D3
 ?        U+2666                DA       ?        U+2713                BA
 
                        Built-in PETSCII escape sequences
@@ -3238,29 +3248,29 @@ for control code screen codes.
  -?     U+0020-U+003F     20-3F         @       U+0040            00
 A-Z     U+0041-U+005A     41-5A         [       U+005B            1B
 ]       U+005D            1D            a-z     U+0061-U+007A     01-1A
-?       U+00A3            1C            ?       U+03C0            5E
-?       U+2190            1F            ?       U+2191            1E
-?       U+2500            40            ?       U+2502            5D
-?       U+250C            70            ?       U+2510            6E
-?       U+2514            6D            ?       U+2518            7D
-?       U+251C            6B            ?       U+2524            73
-?       U+252C            72            ?       U+2534            71
-?       U+253C            5B            ?       U+256D            55
-?       U+256E            49            ?       U+256F            4B
-?       U+2570            4A            ?       U+2571            4E
-?       U+2572            4D            ?       U+2573            56
-?       U+2581            64            ?       U+2582            6F
-?       U+2583            79            ?       U+2584            62
-?       U+258C            61            ?       U+258D            75
-?       U+258E            74            ?       U+258F            65
-?       U+2592            66            ?       U+2594            63
-?       U+2595            67            ?       U+2596            7B
+?       U+00A3            1C            ??      U+03C0            5E
+??      U+2190            1F            ??      U+2191            1E
+??      U+2500            40            ??      U+2502            5D
+??      U+250C            70            ??      U+2510            6E
+??      U+2514            6D            ??      U+2518            7D
+??      U+251C            6B            ??      U+2524            73
+??      U+252C            72            ??      U+2534            71
+??      U+253C            5B            ??      U+256D            55
+??      U+256E            49            ??      U+256F            4B
+??      U+2570            4A            ??      U+2571            4E
+??      U+2572            4D            ??      U+2573            56
+??      U+2581            64            ??      U+2582            6F
+??      U+2583            79            ??      U+2584            62
+??      U+258C            61            ??      U+258D            75
+??      U+258E            74            ??      U+258F            65
+??      U+2592            66            ??      U+2594            63
+??      U+2595            67            ?       U+2596            7B
 ?       U+2597            6C            ?       U+2598            7E
 ?       U+259A            7F            ?       U+259D            7C
-?       U+25CB            57            ?       U+25CF            51
-?       U+25E4            69            ?       U+25E5            5F
-?       U+2660            41            ?       U+2663            58
-?       U+2665            53            ?       U+2666            5A
+??      U+25CB            57            ??      U+25CF            51
+??      U+25E4            69            ??      U+25E5            5F
+??      U+2660            41            ??      U+2663            58
+??      U+2665            53            ?       U+2666            5A
 ?       U+2713            7A
 
                  Built-in PETSCII screen code escape sequences
@@ -3543,6 +3553,18 @@ RTN 62
 
                             This alias is not valid
 CLR 64 74 9C 9E
+
+-------------------------------------------------------------------------------
+
+CSG 4510 opcodes
+
+This processor is an enhanced version of 65CE02.
+
+                              Additional opcodes
+MAP 5C
+
+                              Additional aliases
+EOM EA
 
 -------------------------------------------------------------------------------
 

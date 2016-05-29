@@ -17,10 +17,6 @@
 
 */
 
-#define _MISC_C_
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include "misc.h"
 #include <string.h>
 #include "64tass.h"
@@ -203,6 +199,7 @@ static const struct option long_options[] = {
     {"m65el02"          , no_argument      , NULL, 'e'},
     {"mr65c02"          , no_argument      , NULL,  0x104},
     {"mw65c02"          , no_argument      , NULL,  0x105},
+    {"m4510"            , no_argument      , NULL,  0x111},
     {"labels"           , required_argument, NULL, 'l'},
     {"output"           , required_argument, NULL, 'o'},
     {"error"            , required_argument, NULL, 'E'},
@@ -272,6 +269,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'e': arguments.cpumode = &c65el02;break;
             case 0x104: arguments.cpumode = &r65c02;break;
             case 0x105: arguments.cpumode = &w65c02;break;
+            case 0x111: arguments.cpumode = &c4510;break;
             case 'l': arguments.label = optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
             case 0x10c: arguments.shadow_check = true; break;
@@ -293,7 +291,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--labels=<file>] [--vice-labels]\n"
+               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
                "        [--dump-labels] [--shadow-check] [--list=<file>] [--no-monitor]\n"
                "        [--no-source] [--tab-size=<value>] [--verbose-list] [--errors=<file>]\n"
                "        [--output=<file>] [--help] [--usage] [--version] SOURCES");
@@ -340,6 +338,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -x, --m65816          W65C816\n"
                "      --mr65c02         R65C02\n"
                "      --mw65c02         W65C02\n"
+               "      --m4510           CSG 4510\n"
                "\n"
                " Source listing and labels:\n"
                "  -l, --labels=<file>   List labels into <file>\n"

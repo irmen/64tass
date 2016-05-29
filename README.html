@@ -93,7 +93,7 @@ the 65xx series of processors. Key features:</p>
 <ul>
 <li>Open source portable C with minimal dependencies
 <li>Familiar syntax to Omicron TASS and TASM
-<li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
+<li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510
 <li>Arbitrary-precision integers and bit strings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
 <li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, Unicode character strings
@@ -243,6 +243,7 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#opcodes-w65816">W65816 opcodes</a>
   <li><a href="#opcodes-65el02">65EL02 opcodes</a>
   <li><a href="#opcodes-65ce02">65CE02 opcodes</a>
+  <li><a href="#opcodes-4510">4510 opcodes</a>
  </ul>
  <li><a href="#appendix">Appendix</a>
  <ul>
@@ -2617,6 +2618,7 @@ can ruin the timing of a carefully cycle counted code.
 	<b class="k">.cpu</b> <span class="s">"65el02"</span>	<i>;65el02</i>
 	<b class="k">.cpu</b> <span class="s">"r65c02"</span>	<i>;R65C02</i>
 	<b class="k">.cpu</b> <span class="s">"w65c02"</span>	<i>;W65C02</i>
+	<b class="k">.cpu</b> <span class="s">"4510"</span>	<i>;CSG 4510</i>
 	<b class="k">.cpu</b> <span class="s">"default"</span>	<i>;cpu set on commandline</i>
 </pre>
 
@@ -3197,6 +3199,14 @@ for SuperCPU projects.
 <pre width=80>
 64tass --mw65c02 a.asm
         <b>wai</b>
+</pre>
+
+<dt><b>--m4510</b><a name="o_m4510" href="#o_m4510"></a>
+<dd>CSG 4510. Enables extra opcodes and addressing modes specific to this CPU. Useful for C65 projects.
+<pre width=80>
+64tass --m4510 a.asm
+        <b>map</b>
+        <b>eom</b>
 </pre>
 </dl>
 
@@ -4390,6 +4400,25 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <tbody>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
+</tbody>
+</table></div>
+
+<hr>
+<h3>CSG 4510 opcodes<a name="opcodes-4510" href="#opcodes-4510"></a></h3>
+<p>This processor is an enhanced version of 65CE02.</p>
+<div><table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tbody>
+<tr><th width="4%">MAP<td width="46%">5C
+<th width="4%"><td width="46%">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tbody>
+<tr><th width="4%">EOM<td width="46%">EA
+<th width="4%"><td width="46%">
 </tbody>
 </table></div>
 
