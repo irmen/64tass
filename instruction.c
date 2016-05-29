@@ -664,7 +664,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = uval;
-            if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
+            if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
         ln = 2;
         break;
@@ -774,13 +774,13 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     case AG_RELPB:
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 16, NULL, epoint2)) {}
-        else adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode) ? 3 : 2);
+        else adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
         ln = 2;
         break;
     case AG_RELL:
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
-        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode) ? 3 : 2);
+        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
         break;
