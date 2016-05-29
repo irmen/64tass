@@ -49,8 +49,8 @@ struct section_s {
     struct memblocks_s mem;
     uint8_t usepass;
     uint8_t defpass;
-    uint_fast8_t structrecursion;
-    uint_fast8_t logicalrecursion;
+    uint8_t structrecursion;
+    uint8_t logicalrecursion;
     bool dooutput;
     bool declared;
     bool unionmode;
