@@ -399,7 +399,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
     return v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Bytes *v1 = (Bytes *)o1;
     Error *v;
     switch (byteslen(v1)) {
@@ -428,7 +428,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     return v;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Bytes *v1 = (Bytes *)o1;
     Error *v;
     switch (byteslen(v1)) {

@@ -29,6 +29,8 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
+#define lenof(a) (sizeof a / sizeof a[0])
+
 static Type list_obj;
 static Type tuple_obj;
 static Type addrlist_obj;
@@ -77,7 +79,7 @@ static void garbage(Obj *o1, int j) {
 }
 
 static Obj **lnew(List *v, size_t len) {
-    if (len > sizeof(v->val) / sizeof(v->val[0])) {
+    if (len > lenof(v->val)) {
         if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
         return (Obj **)mallocx(len * sizeof *v->data);
     }

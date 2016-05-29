@@ -58,15 +58,15 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return (Obj *)ref_none();
 }
 
-static MUST_CHECK Error *ival(Obj *UNUSED(v1), ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *UNUSED(v1), ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Error *uval(Obj *UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int UNUSED(bits), linepos_t epoint) {
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), uint32_t *UNUSED(am), linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int UNUSED(bits), uint32_t *UNUSED(am), linepos_t epoint) {
     return new_error(ERROR____STILL_NONE, epoint);
 }
 

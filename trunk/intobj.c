@@ -230,16 +230,16 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Int *v1 = (Int *)o1;
     Error *v;
     switch (v1->len) {
     case 1: *iv = v1->data[0];
-            if (bits < (int)(SHIFT-1) && ((uval_t)*iv >> (bits-1)) != 0) break;
+            if (bits < SHIFT - 1 && ((uval_t)*iv >> (bits - 1)) != 0) break;
             return NULL;
     case 0: *iv = 0; return NULL;
     case -1: *iv = -v1->data[0];
-             if (bits < (int)(SHIFT-1) && ((uval_t)~*iv >> (bits-1)) != 0) break;
+             if (bits < SHIFT - 1 && ((uval_t)~*iv >> (bits - 1)) != 0) break;
              return NULL;
     default: break;
     }
@@ -249,12 +249,12 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     return v;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Int *v1 = (Int *)o1;
     Error *v;
     switch (v1->len) {
     case 1: *uv = v1->data[0];
-            if (bits < (int)SHIFT && (*uv >> bits) != 0) break;
+            if (bits < SHIFT && (*uv >> bits) != 0) break;
             return NULL;
     case 0: *uv = 0; return NULL;
     default: break;

@@ -101,7 +101,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Float *v1 = (Float *)o1;
     Error *v;
     if (-v1->real >= (double)(~((~(uval_t)0) >> 1)) + 1.0 || v1->real >= (double)((~(uval_t)0) >> 1) + 1.0) {
@@ -112,7 +112,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
         return v;
     }
     *iv = v1->real;
-    if ((((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) != 0) {
+    if ((((*iv >= 0) ? *iv : (~*iv)) >> (bits - 1)) != 0) {
         v = new_error(ERROR_____CANT_IVAL, epoint);
         v->u.intconv.bits = bits;
         v->u.intconv.val = val_reference(o1);
@@ -121,7 +121,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     return NULL;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Float *v1 = (Float *)o1;
     Error *v;
     if (v1->real <= -1.0 || v1->real >= (double)(~(uval_t)0) + 1.0) {
@@ -131,7 +131,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
         return v;
     }
     *uv = v1->real;
-    if (bits < 8*(int)sizeof(uval_t) && (*uv >> bits) != 0) {
+    if (bits < 8 * sizeof *uv && (*uv >> bits) != 0) {
         v = new_error(ERROR_____CANT_UVAL, epoint);
         v->u.intconv.bits = bits;
         v->u.intconv.val = val_reference(o1);
@@ -199,29 +199,14 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
         return float_from_double(v1 / v2, op->epoint3);
     case O_MOD:
         if (v2 == 0.0) { 
-            return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3); 
+            return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         r = fmod(v1, v2); 
         if (r != 0.0 && ((v2 < 0.0) != (r < 0))) r += v2;
         return (Obj *)new_float(r);
-    case O_AND:
-        r = (ival_t)floor(v1) & (ival_t)floor(v2);
-        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        r += ((uint32_t)floor(v1 * 2.0) & (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
-        return (Obj *)new_float(r);
-    case O_OR:
-        r = (ival_t)floor(v1) | (ival_t)floor(v2);
-        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        r += ((uint32_t)floor(v1 * 2.0) | (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
-        return (Obj *)new_float(r);
-    case O_XOR:
-        r = (ival_t)floor(v1) | (ival_t)floor(v2);
-        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
-        r += ((uint32_t)floor(v1 * 2.0) ^ (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
-        return (Obj *)new_float(r);
+    case O_AND: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) & (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
+    case O_OR: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) | (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
+    case O_XOR: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) ^ (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
     case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2), op->epoint3);
     case O_RSHIFT: return (Obj *)new_float(v1 * pow(2.0, -v2));
     case O_EXP: 

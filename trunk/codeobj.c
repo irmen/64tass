@@ -122,7 +122,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     return v->obj->repr(v, epoint, maxsize);
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
@@ -131,7 +131,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     return v->obj->ival(v, iv, bits, epoint);
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
@@ -140,7 +140,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
     return v->obj->uval(v, uv, bits, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *o1, uval_t *uv, unsigned int bits, uint32_t *am, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     if (uv != NULL) {

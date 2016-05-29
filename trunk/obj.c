@@ -173,15 +173,15 @@ static MUST_CHECK Obj *invalid_slice(Obj *UNUSED(v1), oper_t op, size_t indx) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Error *invalid_ival(Obj *v1, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK Error *invalid_ival(Obj *v1, ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), unsigned int UNUSED(bits), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK Error *invalid_address(Obj *v1, uval_t *uv, int bits, uint32_t *UNUSED(am), linepos_t epoint) {
+static MUST_CHECK Error *invalid_address(Obj *v1, uval_t *uv, unsigned int bits, uint32_t *UNUSED(am), linepos_t epoint) {
     return (uv != NULL) ? v1->obj->uval(v1, uv, bits, epoint) : NULL;
 }
 

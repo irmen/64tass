@@ -44,10 +44,10 @@ static void tern_free(union tern_u *tern) {
 }
 
 static ternary_node *tern_alloc(void) {
-#ifdef DEBUG
-    return (ternary_node *)mallocx(sizeof(ternary_node));
-#else
     ternary_node *tern;
+#ifdef DEBUG
+    tern = (ternary_node *)mallocx(sizeof *tern)
+#else
     size_t i;
     tern = (ternary_node *)terns_free;
     terns_free = terns_free->next;
@@ -61,8 +61,8 @@ static ternary_node *tern_alloc(void) {
         terns->next = old;
         terns_free = &terns->terns[0];
     }
-    return tern;
 #endif
+    return tern;
 }
 
 /* Non-recursive so we don't waste stack space/time on large
