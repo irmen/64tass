@@ -396,7 +396,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 if ((adr<0xFF80 && adr>0x007F) || crossbank) {
                     if (cnmemonic[ADR_REL_L] != ____ && !crossbank) { /* 65CE02 long branches */
                     asbrl:
-                        if (!labelexists2) adr = (uint16_t)(adr - 1);
+                        if (!labelexists2) adr = (uint16_t)adr; /* same + 2 offset! */
                         opr = ADR_REL_L;
                         ln = 2;
                     } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
@@ -774,13 +774,13 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     case AG_RELPB:
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 16, NULL, epoint2)) {}
-        else adr = uval - current_section->l_address.address - 3;
+        else adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode) ? 3 : 2);
         ln = 2;
         break;
     case AG_RELL:
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
-        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - 3;
+        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode) ? 3 : 2);
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
         break;
