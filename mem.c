@@ -55,10 +55,10 @@ static void memcomp(struct memblocks_s *memblocks) {
             memblocks->p += b->p - 1;
             if (memblocks->p >= memblocks->len) {
                 memblocks->len = memblocks->p + 64;
-                if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
-                memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof(*memblocks->data));
+                if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
+                memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
             }
-            memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof(*memblocks->data));
+            memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof *memblocks->data);
             for (k = 0; k < b->p; k++) {
                 struct memblock_s *b2 = &memblocks->data[j + k];
                 b2->p = memblocks->mem.p;
@@ -111,7 +111,7 @@ static void memcomp(struct memblocks_s *memblocks) {
         }
     }
     memblocks->p = k;
-    qsort(memblocks->data, memblocks->p, sizeof(*memblocks->data), memblockcomp);
+    qsort(memblocks->data, memblocks->p, sizeof *memblocks->data, memblockcomp);
 }
 
 void memjmp(struct memblocks_s *memblocks, address_t adr) {
@@ -122,8 +122,8 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
     }
     if (memblocks->p >= memblocks->len) {
         memblocks->len += 64;
-        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
-        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof(*memblocks->data));
+        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
+        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
     }
     block = &memblocks->data[memblocks->p++];
     block->len = memblocks->mem.p - memblocks->lastp;
@@ -138,8 +138,8 @@ void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
     struct memblock_s *block;
     if (memblocks->p >= memblocks->len) {
         memblocks->len += 64;
-        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
-        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof(*memblocks->data));
+        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
+        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
     }
     block = &memblocks->data[memblocks->p++];
     block->len = 0;
@@ -345,7 +345,7 @@ static void output_mem_ihex_data(struct ihex_s *ihex) {
         uint8_t ez[2];
         ez[0] = ihex->address >> 24;
         ez[1] = ihex->address >> 16;
-        output_mem_ihex_line(ihex->file, sizeof(ez), 0, 4, ez);
+        output_mem_ihex_line(ihex->file, sizeof ez, 0, 4, ez);
         ihex->segment = ihex->address;
     }
     output_mem_ihex_line(ihex->file, ihex->length, ihex->address, 0, data);
@@ -372,13 +372,13 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
                 ihex.address = addr;
             }
             while (blen != 0) {
-                size_t left = sizeof(ihex.data) - ihex.length;
+                size_t left = (sizeof ihex.data) - ihex.length;
                 size_t copy = blen > left ? left : blen;
                 memcpy(ihex.data + ihex.length, d, copy); 
                 ihex.length += copy; 
                 d += copy;
                 blen -= copy;
-                if (ihex.length == sizeof(ihex.data)) {
+                if (ihex.length == sizeof ihex.data) {
                     output_mem_ihex_data(&ihex);
                 }
             }
@@ -445,13 +445,13 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
                 srec.address = addr;
             }
             while (blen != 0) {
-                size_t left = sizeof(srec.data) - srec.length;
+                size_t left = (sizeof srec.data) - srec.length;
                 size_t copy = blen > left ? left : blen;
                 memcpy(srec.data + srec.length, d, copy); 
                 srec.length += copy; 
                 d += copy;
                 blen -= copy;
-                if (srec.length == sizeof(srec.data)) {
+                if (srec.length == sizeof srec.data) {
                     output_mem_srec_line(&srec);
                 }
             }

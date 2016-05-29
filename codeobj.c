@@ -244,7 +244,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
             val |= r << (i2 * 8);
         }
         if (v1->dtype < 0 && (r & 0x80) != 0) {
-            for (; i2 < sizeof(val); i2++) {
+            for (; i2 < sizeof val; i2++) {
                 val |= 0xff << (i2 * 8);
             }
         }
@@ -313,7 +313,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 val |= r << (i2 * 8);
             }
             if (v1->dtype < 0 && (r & 0x80) != 0) {
-                for (; i2 < sizeof(val); i2++) {
+                for (; i2 < sizeof val; i2++) {
                     val |= 0xff << (i2 * 8);
                 }
             }
@@ -353,7 +353,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 val |= r << (i2 * 8);
             }
             if (v1->dtype < 0 && (r & 0x80) != 0) {
-                for (; i2 < sizeof(val); i2++) {
+                for (; i2 < sizeof val; i2++) {
                     val |= 0xff << (i2 * 8);
                 }
             }
@@ -378,7 +378,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         val |= r << (i2 * 8);
     }
     if (v1->dtype < 0 && (r & 0x80) != 0) {
-        for (; i2 < sizeof(val); i2++) {
+        for (; i2 < sizeof val; i2++) {
             val |= 0xff << (i2 * 8);
         }
     }
@@ -510,7 +510,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
                 uv |= r << (i * 8);
             }
             if (v2->dtype < 0 && (r & 0x80) != 0) {
-                for (; i < sizeof(uv); i++) {
+                for (; i < sizeof uv; i++) {
                     uv |= 0xff << (i * 8);
                 }
             }

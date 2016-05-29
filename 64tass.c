@@ -229,8 +229,8 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor_p++;
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
-        if (/*waitfor_len < 8 ||*/ waitfor_len > SIZE_MAX / sizeof(struct waitfor_s)) err_msg_out_of_memory(); /* overflow */
-        waitfors = (struct waitfor_s *)reallocx(waitfors, waitfor_len * sizeof(struct waitfor_s));
+        if (/*waitfor_len < 8 ||*/ waitfor_len > SIZE_MAX / sizeof *waitfors) err_msg_out_of_memory(); /* overflow */
+        waitfors = (struct waitfor_s *)reallocx(waitfors, waitfor_len * sizeof *waitfors);
     }
     waitfor = &waitfors[waitfor_p];
     prevwaitfor = (waitfor_p != 0) ? &waitfors[waitfor_p - 1] : waitfor;
@@ -648,7 +648,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
             break;
         }
-        if (toaddress(val, &uval, 8*sizeof(uval_t), &am, epoint2)) {
+        if (toaddress(val, &uval, 8 * sizeof uval, &am, epoint2)) {
             break;
         }
         if (am != A_NONE && check_addr(am)) {
@@ -775,7 +775,7 @@ Obj *compile(struct file_list_s *cflist)
                 anonident.reffile = reffile;
                 anonident.count = (wht == '-') ? backr++ : forwr++;
 
-                labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof(anonident);
+                labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof anonident;
                 goto hh;
             default:
                 lpoint.pos--;
@@ -1609,7 +1609,7 @@ Obj *compile(struct file_list_s *cflist)
                     case CMD_IFPL:
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
-                            if (toival(val, &ival, 8*sizeof(uval_t), &vs->epoint)) { waitfor->skip = 0; break; }
+                            if (toival(val, &ival, 8 * sizeof ival, &vs->epoint)) { waitfor->skip = 0; break; }
                             waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         } else {
                             err = val->obj->sign(val, &vs->epoint);
@@ -1957,10 +1957,10 @@ Obj *compile(struct file_list_s *cflist)
                             path = get_path(val2, cfile->realname);
                         }
                         if ((vs = get_val()) != NULL) {
-                            if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
+                            if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                             else foffset = uval;
                             if ((vs = get_val()) != NULL) {
-                                if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
+                                if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                                 else if (uval != 0 && (address_t)uval - 1 > all_mem2) err_msg2(ERROR_CONSTNT_LARGE,NULL, &vs->epoint);
                                 else fsize = uval;
                             }
@@ -1994,7 +1994,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section->wrapwarn = false;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (toival(vs->val, &ival, 8*sizeof(ival_t), &vs->epoint)) break;
+                    if (toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) break;
                     if (ival != 0) {
                         if (current_section->structrecursion != 0) {
                             if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".OFFS", &epoint);
@@ -2071,7 +2071,7 @@ Obj *compile(struct file_list_s *cflist)
                         anonident2.type = '.';
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
+                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
                         label = new_label(&tmpname, mycontext, strength, &labelexists);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -2146,7 +2146,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(&w, 0, cfile, 1, 2, &epoint)) goto breakerr;
                     if (prm == CMD_ALIGN && current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".ALIGN", &epoint);
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
                     if (prm == CMD_ALIGN) {
                         if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else if ((uval & ~(uval_t)all_mem) != 0) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
@@ -2208,13 +2208,13 @@ Obj *compile(struct file_list_s *cflist)
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 3, 3, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) current_section->provides = ~(uval_t)0;
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->provides = ~(uval_t)0;
                     else current_section->provides = uval;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) current_section->requires = 0;
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->requires = 0;
                     else current_section->requires = uval;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) current_section->conflicts = 0;
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->conflicts = 0;
                     else current_section->conflicts = uval;
                 }
                 break;
@@ -2225,10 +2225,10 @@ Obj *compile(struct file_list_s *cflist)
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 2, 2, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                     else if ((uval & current_section->provides) != uval) err_msg2(ERROR_REQUIREMENTS_, NULL, &epoint);
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) {}
+                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                     else if ((uval & current_section->provides) != 0) err_msg2(ERROR______CONFLICT, NULL, &epoint);
                 }
                 break;
@@ -2492,7 +2492,7 @@ Obj *compile(struct file_list_s *cflist)
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &cnt, 8*sizeof(uval_t), &vs->epoint)) break;
+                    if (touval(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) break;
                     if (cnt > 0) {
                         line_t lin = lpoint.line;
                         bool labelexists;
@@ -2604,7 +2604,7 @@ Obj *compile(struct file_list_s *cflist)
                                 anonident2.type = '.';
                                 anonident2.star_tree = star_tree;
                                 anonident2.vline = vline;
-                                tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
+                                tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
                                 label = new_label(&tmpname, mycontext, strength, &labelexists);
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -3139,7 +3139,7 @@ Obj *compile(struct file_list_s *cflist)
                         anonident2.type = '#';
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
+                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
                         label = new_label(&tmpname, mycontext, strength, &labelexists);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -3170,7 +3170,7 @@ Obj *compile(struct file_list_s *cflist)
                     anonident2.type = '#';
                     anonident2.star_tree = star_tree;
                     anonident2.vline = vline;
-                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
+                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
                     label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -3458,7 +3458,7 @@ int wmain(int argc, wchar_t *argv2[]) {
         atexit(myexit);
     }
 
-    argv = (char **)malloc(sizeof(char *)*argc);
+    argv = (char **)malloc(argc * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
 	uint32_t c = 0, lastchar;
@@ -3506,7 +3506,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC, "C");
 
-    uargv = (char **)malloc(sizeof(char *)*argc);
+    uargv = (char **)malloc(argc * sizeof *uargv);
     if (uargv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         const char *s = argv[i];
@@ -3517,7 +3517,7 @@ int main(int argc, char *argv[]) {
         uint8_t *data = (uint8_t *)malloc(len);
         if (data == NULL || len < 64) err_msg_out_of_memory2();
 
-        memset(&ps, 0, sizeof(ps));
+        memset(&ps, 0, sizeof ps);
         p = data;
         for (;;) {
             ssize_t l;

@@ -268,8 +268,8 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
     if (macro_parameters.p >= macro_parameters.len) {
         struct macro_params_s *params = macro_parameters.params;
         macro_parameters.len += 1;
-        if (/*macro_parameters.len < 1 ||*/ macro_parameters.len > SIZE_MAX / sizeof(params[0])) err_msg_out_of_memory();
-        params = (struct macro_params_s *)reallocx(params, macro_parameters.len * sizeof(params[0]));
+        if (/*macro_parameters.len < 1 ||*/ macro_parameters.len > SIZE_MAX / sizeof *params) err_msg_out_of_memory();
+        params = (struct macro_params_s *)reallocx(params, macro_parameters.len * sizeof *params);
         macro_parameters.params = params;
         macro_parameters.current = &params[macro_parameters.p];
         macro_parameters.current->param = NULL;
@@ -294,8 +294,8 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
                     macro_parameters.current->size += 4;
                     /*if (macro_parameters.current->size < 4) err_msg_out_of_memory();*/ /* overflow */
                 }
-                if (macro_parameters.current->size > SIZE_MAX / sizeof(param[0])) err_msg_out_of_memory();
-                param = (str_t *)reallocx(param, macro_parameters.current->size * sizeof(param[0]));
+                if (macro_parameters.current->size > SIZE_MAX / sizeof *param) err_msg_out_of_memory();
+                param = (str_t *)reallocx(param, macro_parameters.current->size * sizeof *param);
             }
             param[p].data = pline + lpoint.pos;
             param[p].len = macro_param_find();
@@ -465,8 +465,8 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
         }
         if (i >= len) {
             len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof(new_mfunc.param[0])) err_msg_out_of_memory(); /* overflow */
-            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, len * sizeof(new_mfunc.param[0]));
+            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *new_mfunc.param) err_msg_out_of_memory(); /* overflow */
+            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, len * sizeof *new_mfunc.param);
         }
         new_mfunc.param[i].epoint = lpoint;
         label.data = pline + lpoint.pos;
@@ -515,8 +515,8 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
     }
     if (i != len) {
         if (i != 0) {
-            if (i > SIZE_MAX / sizeof(new_mfunc.param[0])) err_msg_out_of_memory(); /* overflow */
-            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, i * sizeof(new_mfunc.param[0]));
+            if (i > SIZE_MAX / sizeof *new_mfunc.param) err_msg_out_of_memory(); /* overflow */
+            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, i * sizeof *new_mfunc.param);
         } else {
             free(new_mfunc.param);
             new_mfunc.param = NULL;
@@ -538,9 +538,9 @@ void get_macro_params(Obj *v) {
         ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
             len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof(new_macro.param[0]) || len > SIZE_MAX / sizeof(epoints[0])) err_msg_out_of_memory(); /* overflow */
-            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, len * sizeof(new_macro.param[0]));
-            epoints = (struct linepos_s *)reallocx(epoints, len * sizeof(epoints[0]));
+            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *new_macro.param || len > SIZE_MAX / sizeof *epoints) err_msg_out_of_memory(); /* overflow */
+            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, len * sizeof *new_macro.param);
+            epoints = (struct linepos_s *)reallocx(epoints, len * sizeof *epoints);
         }
         epoints[i] = lpoint;
         label.data = pline + lpoint.pos;
@@ -579,8 +579,8 @@ void get_macro_params(Obj *v) {
     }
     if (i != len) {
         if (i != 0) {
-            if (i > SIZE_MAX / sizeof(new_macro.param[0])) err_msg_out_of_memory(); /* overflow */
-            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, i * sizeof(new_macro.param[0]));
+            if (i > SIZE_MAX / sizeof *new_macro.param) err_msg_out_of_memory(); /* overflow */
+            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, i * sizeof *new_macro.param);
         } else {
             free(new_macro.param);
             new_macro.param = NULL;

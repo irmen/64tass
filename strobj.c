@@ -257,7 +257,7 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln) {
 MUST_CHECK Str *new_str(size_t ln) {
     Str *v = (Str *)val_alloc(STR_OBJ);
     v->len = ln;
-    if (ln > sizeof(v->val)) {
+    if (ln > sizeof v->val) {
         v->data = (uint8_t *)mallocx(ln);
         return v;
     } 
@@ -403,7 +403,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     uval_t rep;
     Error *err;
 
-    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
     if (v1->len != 0 && rep != 0) {
@@ -509,7 +509,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             len1 = i;
             len2 = p2 - o;
             if (o != v->val) {
-                if (len2 <= sizeof(v->val)) {
+                if (len2 <= sizeof v->val) {
                     memcpy(v->val, o, len2);
                     free(o);
                     p = v->val;
@@ -590,7 +590,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             }
             len2 = p2 - o;
             if (o != v->val) {
-                if (len2 <= sizeof(v->val)) {
+                if (len2 <= sizeof v->val) {
                     memcpy(v->val, o, len2);
                     free(o);
                     p = v->val;

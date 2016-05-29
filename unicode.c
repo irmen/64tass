@@ -121,8 +121,8 @@ static inline unsigned int utf8outlen(uint32_t i) {
 
 static void extbuff(struct ubuff_s *d) {
     d->len += 16;
-    if (/*d->len < 16 ||*/ d->len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
-    d->data = (uint32_t *)reallocx(d->data, d->len * sizeof(uint32_t));
+    if (/*d->len < 16 ||*/ d->len > SIZE_MAX / sizeof *d->data) err_msg_out_of_memory(); /* overflow */
+    d->data = (uint32_t *)reallocx(d->data, d->len * sizeof *d->data);
 }
 
 static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
@@ -446,7 +446,7 @@ size_t argv_print(const char *line, FILE *f) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
-                memset(&ps, 0, sizeof(ps));
+                memset(&ps, 0, sizeof ps);
                 ln = wcrtomb(temp, ch, &ps);
                 if (ln != (size_t)-1) {
                     len += fwrite(temp, ln, 1, f);
@@ -527,7 +527,7 @@ void printable_print(const uint8_t *line, FILE *f) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
-                memset(&ps, 0, sizeof(ps));
+                memset(&ps, 0, sizeof ps);
                 ln = wcrtomb(temp, ch, &ps);
                 if (ln != (size_t)-1) {
                     fwrite(temp, ln, 1, f);
@@ -603,7 +603,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
                 mbstate_t ps;
                 char temp[64];
                 size_t ln;
-                memset(&ps, 0, sizeof(ps));
+                memset(&ps, 0, sizeof ps);
                 ln = wcrtomb(temp, ch, &ps);
                 if (ln != (size_t)-1) {
                     len += fwrite(temp, ln, 1, f); /* 1 character */
@@ -653,7 +653,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
             i += utf8in(line + i, &ch);
             if (iswprint(ch) != 0) {
                 mbstate_t ps;
-                memset(&ps, 0, sizeof(ps));
+                memset(&ps, 0, sizeof ps);
                 if (wcrtomb(temp, ch, &ps) != (size_t)-1) {
                     l++;
                     continue;

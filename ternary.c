@@ -53,7 +53,7 @@ static ternary_node *tern_alloc(void) {
     terns_free = terns_free->next;
     if (terns_free == NULL) {
         struct terns_s *old = terns;
-        terns = (struct terns_s *)mallocx(sizeof(struct terns_s));
+        terns = (struct terns_s *)mallocx(sizeof *terns);
         for (i = 0; i < 254; i++) {
             terns->terns[i].next = &terns->terns[i + 1];
         }
@@ -169,7 +169,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
 void init_ternary(void)
 {
     size_t i;
-    terns = (struct terns_s *)mallocx(sizeof(struct terns_s));
+    terns = (struct terns_s *)mallocx(sizeof *terns);
     for (i = 0; i < 254; i++) {
         terns->terns[i].next = &terns->terns[i + 1];
     }

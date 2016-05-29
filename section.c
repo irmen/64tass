@@ -79,7 +79,7 @@ struct section_s *new_section(const str_t *name) {
     struct section_s *tmp;
 
     if (lastsc == NULL) {
-	lastsc = (struct section_s *)mallocx(sizeof(struct section_s));
+	lastsc = (struct section_s *)mallocx(sizeof *lastsc);
     }
     if (name->len > 1 && name->data[1] == 0) lastsc->cfname = *name;
     else str_cfcpy(&lastsc->cfname, name);

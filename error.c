@@ -184,7 +184,7 @@ struct notdefines_s {
 static bool check_duplicate(const struct errorentry_s *nerr) {
     size_t pos;
     const struct errorentry_s *err;
-    for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
+    for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         if (err->severity != nerr->severity) continue;
         if (err->file_list != nerr->file_list) continue;
@@ -192,7 +192,7 @@ static bool check_duplicate(const struct errorentry_s *nerr) {
         if (err->error_len != nerr->error_len) continue;
         if (err->epoint.line != nerr->epoint.line) continue;
         if (err->epoint.pos != nerr->epoint.pos) continue;
-        if (memcmp(((uint8_t *)err) + sizeof(struct errorentry_s), ((uint8_t *)nerr) + sizeof(struct errorentry_s), err->line_len + err->error_len) != 0) continue;
+        if (memcmp(err + 1, nerr + 1, err->line_len + err->error_len) != 0) continue;
         return true;
     }
     return false;
@@ -201,7 +201,7 @@ static bool check_duplicate(const struct errorentry_s *nerr) {
 static bool close_error(void) {
     if (error_list.header_pos < error_list.len) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
-        err->error_len = error_list.len - error_list.header_pos - sizeof(struct errorentry_s) - err->line_len;
+        err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
@@ -230,8 +230,8 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
     }
     error_list.header_pos = ALIGN(error_list.len);
-    error_list.len = error_list.header_pos + sizeof(struct errorentry_s);
-    if (error_list.len < sizeof(struct errorentry_s)) err_msg_out_of_memory2(); /* overflow */
+    error_list.len = error_list.header_pos + sizeof *err;
+    if (error_list.len < sizeof *err) err_msg_out_of_memory2(); /* overflow */
     error_list.len += line_len;
     if (error_list.len < line_len) err_msg_out_of_memory2(); /* overflow */
     if (error_list.len > error_list.max) {
@@ -246,7 +246,7 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     err->line_len = line_len;
     err->file_list = flist;
     err->epoint = *epoint;
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
+    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof *err], pline, line_len);
     return false;
 }
 
@@ -270,7 +270,7 @@ static struct file_list_s *lastfl = NULL;
 struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
     if (lastfl == NULL) {
-        lastfl = (struct file_list_s *)mallocx(sizeof(struct file_list_s));
+        lastfl = (struct file_list_s *)mallocx(sizeof *lastfl);
     }
     lastfl->file = file;
     lastfl->epoint = *epoint;
@@ -549,7 +549,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     if (constcreated && pass < max_pass) return;
 
     if (lastnd == NULL) {
-        lastnd = (struct notdefines_s *)mallocx(sizeof(struct notdefines_s));
+        lastnd = (struct notdefines_s *)mallocx(sizeof *lastnd);
     }
 
     if (name->data != NULL) {
@@ -822,7 +822,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
             }
             included_from = cflist;
         }
-        line = (err->line_len != 0) ? (((uint8_t *)err) + sizeof(struct errorentry_s)) : get_line(cflist->file, epoint->line);
+        line = (err->line_len != 0) ? ((uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         printable_print((uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
@@ -841,7 +841,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     case SV_ERROR: fputs("error: ", f);break;
     case SV_FATAL: fputs("fatal error: ", f);break;
     }
-    printable_print2(((uint8_t *)err) + sizeof(struct errorentry_s) + err->line_len, f, err->error_len);
+    printable_print2(((uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
     putc('\n', f);
     if (text && arguments.caret) {
         if (err->severity != SV_NOTDEFGNOTE) {
@@ -872,7 +872,7 @@ int error_print(bool fix, bool newvar, int anyerr) {
     warnings = errors = 0;
     close_error();
 
-    for (pos = 0; !noneerr && pos < error_list.len; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
+    for (pos = 0; !noneerr && pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
@@ -887,7 +887,7 @@ int error_print(bool fix, bool newvar, int anyerr) {
         }
     }
 
-    for (pos = 0; pos < error_list.len; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
+    for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         if (anyerr > 1 && err->severity != SV_FATAL) continue;
         switch (err->severity) {
@@ -896,13 +896,13 @@ int error_print(bool fix, bool newvar, int anyerr) {
             if (newvar) continue;
             pos2 = pos; err2 = err;
             do {
-                pos2 = ALIGN(pos2 + sizeof(struct errorentry_s) + err2->line_len + err2->error_len);
+                pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
                 err2 = (const struct errorentry_s *)&error_list.data[pos2];
                 if (pos2 >= error_list.len) break;
             } while (noneerr && err2->severity == SV_NONEERROR);
             if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
             do {
-                pos2 = ALIGN(pos2 + sizeof(struct errorentry_s) + err2->line_len + err2->error_len);
+                pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
                 err2 = (const struct errorentry_s *)&error_list.data[pos2];
                 if (pos2 >= error_list.len) break;
             } while (noneerr && err2->severity == SV_NONEERROR);
@@ -914,10 +914,10 @@ int error_print(bool fix, bool newvar, int anyerr) {
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_DOUBLENOTE:
-            pos2 = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len);
+            pos2 = ALIGN(pos + (sizeof *err2) + err->line_len + err->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLEERROR) break;
-            pos2 = ALIGN(pos2 + sizeof(struct errorentry_s) + err2->line_len + err2->error_len);
+            pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
@@ -991,7 +991,7 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     adderror(terr_fatal[no - 0xc0]);
     adderror(prm);
     adderror(": ");
-    memset(&ps, 0, sizeof(ps));
+    memset(&ps, 0, sizeof ps);
     while (i < n) {
         if (s[i] != 0 && (s[i] & 0x80) == 0) {
             adderror2((uint8_t *)s + i, 1);
@@ -1045,7 +1045,7 @@ int error_serious(bool fix, bool newvar) {
     size_t pos;
     int m = 0;
     close_error();
-    for (pos = 0; pos < error_list.len; pos = ALIGN(pos + sizeof(struct errorentry_s) + err->line_len + err->error_len)) {
+    for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTDEFGNOTE:

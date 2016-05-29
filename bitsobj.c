@@ -37,6 +37,7 @@
 #include "noneobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
+#define lenof(a) (sizeof a / sizeof a[0])
 
 static Type obj;
 
@@ -82,9 +83,9 @@ static void destroy(Obj *o1) {
 
 static MUST_CHECK Bits *new_bits(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    if (len > sizeof(v->val)/sizeof(v->val[0])) {
-        if (len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        v->data = (bdigit_t *)mallocx(len * sizeof(bdigit_t));
+    if (len > lenof(v->val)) {
+        if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+        v->data = (bdigit_t *)mallocx(len * sizeof *v->data);
         return v;
     } 
     v->data = v->val;
@@ -97,7 +98,7 @@ static MUST_CHECK Obj *invert(const Bits *v1) {
     v->bits = v1->bits;
     v->len = ~v1->len;
     if (sz != 0) {
-        memcpy(v->data, v1->data, sz * sizeof(bdigit_t));
+        memcpy(v->data, v1->data, sz * sizeof *v->data);
     } else {
         v->data[0] = 0;
     }
@@ -107,8 +108,8 @@ static MUST_CHECK Obj *invert(const Bits *v1) {
 static MUST_CHECK Obj *normalize(Bits *v, size_t sz, bool neg) {
     bdigit_t *d = v->data;
     while (sz != 0 && d[sz - 1] == 0) sz--;
-    if (v->val != d && sz <= sizeof(v->val)/sizeof(v->val[0])) {
-        memcpy(v->val, d, sz * sizeof(bdigit_t));
+    if (v->val != d && sz <= lenof(v->val)) {
+        memcpy(v->val, d, sz * sizeof *d);
         free(d);
         v->data = v->val;
     }
@@ -132,7 +133,7 @@ static MUST_CHECK Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
 static bool same(const Obj *o1, const Obj *o2) {
     const Bits *v1 = (const Bits *)o1, *v2 = (const Bits *)o2;
     if (o2->obj != BITS_OBJ || v1->len != v2->len || v1->bits != v2->bits) return false;
-    return memcmp(v1->data, v2->data, bitslen(v1) * sizeof(bdigit_t)) == 0;
+    return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
@@ -362,14 +363,14 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (i <= 2 * sizeof(bdigit_t)) {
+    if (i <= 2 * sizeof *d) {
         return (i == 0) ? ref_bits(null_bits) : return_bits(uv, i * 4, false);
     }
 
     if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
 
-    sz = i / (2 * sizeof(bdigit_t));
-    if ((i % (2 * sizeof(bdigit_t))) != 0) sz++;
+    sz = i / (2 * sizeof *d);
+    if ((i % (2 * sizeof *d)) != 0) sz++;
     v = new_bits(sz);
     v->bits = i * 4;
     d = v->data;
@@ -416,7 +417,7 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (i <= 8 * sizeof(bdigit_t)) {
+    if (i <= 8 * sizeof *d) {
         return (i == 0) ? ref_bits(null_bits) : return_bits(uv, i, false);
     }
 
@@ -454,10 +455,10 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
             return (Obj *)ref_bits(null_bits);
         }
 
-        if (v1->len <= sizeof(v->val)) sz = sizeof(v->val) / sizeof(v->val[0]);
+        if (v1->len <= sizeof v->val) sz = lenof(v->val);
         else {
-            sz = v1->len / sizeof(bdigit_t);
-            if ((v1->len % sizeof(bdigit_t)) != 0) sz++;
+            sz = v1->len / sizeof *d;
+            if ((v1->len % sizeof *d) != 0) sz++;
         }
         v = new_bits(sz);
         d = v->data;
@@ -469,13 +470,13 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
             if (bits == SHIFT - 8) {
                 if (j >= sz) {
                     if (v->val == d) {
-                        sz = 16 / sizeof(bdigit_t);
-                        d = (bdigit_t *)mallocx(sz * sizeof(bdigit_t));
-                        memcpy(d, v->val, j * sizeof(bdigit_t));
+                        sz = 16 / sizeof *d;
+                        d = (bdigit_t *)mallocx(sz * sizeof *d);
+                        memcpy(d, v->val, j * sizeof *d);
                     } else {
-                        sz += 1024 / sizeof(bdigit_t);
-                        if (/*sz < 1024 / sizeof(bdigit_t) ||*/ sz > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-                        d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
+                        sz += 1024 / sizeof *d;
+                        if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
+                        d = (bdigit_t *)reallocx(d, sz * sizeof *d);
                     }
                 }
                 d[j++] = uv;
@@ -486,11 +487,11 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
             if (j >= sz) {
                 sz++;
                 if (v->val == d) {
-                    d = (bdigit_t *)mallocx(sz * sizeof(bdigit_t));
-                    memcpy(d, v->val, j * sizeof(bdigit_t));
+                    d = (bdigit_t *)mallocx(sz * sizeof *d);
+                    memcpy(d, v->val, j * sizeof *d);
                 } else {
-                    if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-                    d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
+                    if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
+                    d = (bdigit_t *)reallocx(d, sz * sizeof *d);
                 }
             }
             d[j] = uv;
@@ -499,12 +500,12 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
 
         while (osz != 0 && d[osz - 1] == 0) osz--;
         if (v->val != d) {
-            if (osz <= sizeof(v->val)/sizeof(v->val[0])) {
-                memcpy(v->val, d, osz * sizeof(bdigit_t));
+            if (osz <= lenof(v->val)) {
+                memcpy(v->val, d, osz * sizeof *d);
                 free(d);
                 d = v->val;
             } else if (osz < sz) {
-                d = (bdigit_t *)reallocx(d, osz * sizeof(bdigit_t));
+                d = (bdigit_t *)reallocx(d, osz * sizeof *d);
             }
         }
         v->data = d;
@@ -535,8 +536,8 @@ MUST_CHECK Bits *bits_from_bytes(const Bytes *v1) {
 
     if (len1 > SIZE_MAX / 8) err_msg_out_of_memory(); /* overflow */
 
-    sz = len1 / sizeof(bdigit_t);
-    if ((len1 % sizeof(bdigit_t)) != 0) sz++;
+    sz = len1 / sizeof *d;
+    if ((len1 % sizeof *d) != 0) sz++;
     v = new_bits(sz);
     v->bits = len1 * 8;
     d = v->data;
@@ -578,7 +579,7 @@ static MUST_CHECK Obj *bits_from_int(const Int *v1) {
         for (; i < sz; i++) {
             d[i] = b[i];
         }
-    } else memcpy(d, b, sz * sizeof(bdigit_t));
+    } else memcpy(d, b, sz * sizeof *d);
 
     d2 = d[sz - 1];
     for (bits = 0; d2 != 0; bits++) d2 >>= 1;
@@ -872,8 +873,8 @@ static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
             o[i + 1] |= v1[i] >> (SHIFT - bit);
             o[i] = v1[i] << bit;
         }
-    } else if (len1 != 0) memmove(o, v1, len1 * sizeof(bdigit_t));
-    memset(v, 0, word * sizeof(bdigit_t));
+    } else if (len1 != 0) memmove(o, v1, len1 * sizeof *o);
+    memset(v, 0, word * sizeof *v);
 
     vv->bits = bits;
     return normalize(vv, sz, (vv1->len < 0));
@@ -903,7 +904,7 @@ static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s) {
             v[i] |= v1[i + 1] << (SHIFT - bit);
         }
         v[i] = v1[i] >> bit;
-    } else if (sz != 0) memmove(v, v1, sz * sizeof(bdigit_t));
+    } else if (sz != 0) memmove(v, v1, sz * sizeof *v);
 
     vv->bits = bits;
     return normalize(vv, sz, (vv1->len < 0));
@@ -918,7 +919,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     uval_t rep;
     Error *err;
 
-    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
     if (rep == 0 || blen == 0) {
@@ -1168,12 +1169,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_INT:
         switch (op->op->op) {
         case O_LSHIFT:
-            err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
+            err = o2->obj->ival(o2, &shift, 8 * sizeof shift, op->epoint2);
             if (err != NULL) return &err->v;
             if (shift == 0) return val_reference(&v1->v);
             return (shift < 0) ? rshift(v1, -shift) : lshift(v1, shift);
         case O_RSHIFT:
-            err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
+            err = o2->obj->ival(o2, &shift, 8 * sizeof shift, op->epoint2);
             if (err != NULL) return &err->v;
             if (shift == 0) return val_reference(&v1->v);
             return (shift < 0) ? lshift(v1, -shift) : rshift(v1, shift);

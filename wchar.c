@@ -27,6 +27,8 @@
 #include <go32.h>
 #include "codepages.h"
 
+#define lenof(a) (sizeof a / sizeof a[0])
+
 static const wchar_t *cp;
 static uint32_t revcp[128];
 
@@ -55,7 +57,7 @@ static void set_cp(void) {
         __dpmi_int(0x2f, &regs);
         dcp = (regs.x.flags & 1) ? 0 : regs.x.bx;
     } else {
-        dosmemget(__tb + 2, sizeof(dcp), &dcp);
+        dosmemget(__tb + 2, sizeof dcp, &dcp);
     }
     switch (dcp) {
     case 737: cp = cp737; break;
@@ -79,7 +81,7 @@ static void set_cp(void) {
     for (i = 0; i < 128; i++) {
         revcp[i] = (cp[i] << 8) | i | 0x80;
     }
-    qsort(revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp);
+    qsort(revcp, lenof(revcp), sizeof *revcp, compcp);
 }
 
 int iswprint(wint_t wc) {
@@ -87,7 +89,7 @@ int iswprint(wint_t wc) {
     if (wc < 0x80) return isprint(wc);
     if (cp == NULL) set_cp();
     c = wc << 8;
-    ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
+    ch = (uint32_t *)bsearch(&c, revcp, lenof(revcp), sizeof *revcp, compcp2);
     return (ch != NULL) ? 1 : 0;
 }
 
@@ -116,7 +118,7 @@ size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
     }
     if (cp == NULL) set_cp();
     c = wc << 8;
-    ch = (uint32_t *)bsearch(&c, revcp, sizeof(revcp)/sizeof(revcp[0]), sizeof(revcp[0]), compcp2);
+    ch = (uint32_t *)bsearch(&c, revcp, lenof(revcp), sizeof *revcp, compcp2);
     if (ch != NULL) {
         *s = *ch;
         return 1;
