@@ -131,7 +131,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Str *v1 = (Str *)o1;
     Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     Error *ret = tmp->obj->ival(tmp, iv, bits, epoint);
@@ -145,7 +145,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
     return ret;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Str *v1 = (Str *)o1;
     Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     Error *ret = tmp->obj->uval(tmp, uv, bits, epoint);

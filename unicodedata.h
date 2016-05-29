@@ -44,6 +44,6 @@ extern const uint32_t ucomposed[];
 extern const int16_t ucomposing[];
 
 static inline const struct properties_s *uget_property(uint32_t c) {
-    return c < sizeof(upropshash1)*256 ? &uproperties[upropshash2[upropshash1[c >> 8]][c & 0xff]] : uproperties;
+    return (c < 256 * sizeof upropshash1) ? &uproperties[upropshash2[upropshash1[c >> 8]][c & 0xff]] : uproperties;
 }
 #endif

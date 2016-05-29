@@ -178,7 +178,7 @@ static inline bool check_addr2(atype_t type) {
     return false;
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *o1, uval_t *uv, unsigned int bits, uint32_t *am, linepos_t epoint) {
     const Address *v1 = (Address *)o1;
     Obj *v = v1->val;
     Error *err;

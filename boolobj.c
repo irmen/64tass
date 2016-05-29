@@ -71,13 +71,13 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
     Bool *v1 = (Bool *)o1;
     *iv = v1->boolean ? 1 : 0;
     return NULL;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
     Bool *v1 = (Bool *)o1;
     *uv = v1->boolean ? 1 : 0;
     return NULL;

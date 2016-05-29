@@ -25,6 +25,7 @@
 
 #define U_CASEFOLD 1
 #define U_COMPAT 2
+#define lenof(a) (sizeof a / sizeof a[0])
 
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
@@ -642,7 +643,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 wchar_t tmp2[64];
                 memcpy(tmp, line + i, ln);
                 tmp[ln] = 0;
-                if (swprintf(tmp2, sizeof(tmp2) / sizeof(tmp2[0]), L"%S", tmp) > 0) {
+                if (swprintf(tmp2, lenof(tmp2), L"%S", tmp) > 0) {
                     i += ln;
                     l++;
                     continue;

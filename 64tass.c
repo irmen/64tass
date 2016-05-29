@@ -67,6 +67,8 @@
 #include "noneobj.h"
 #include "registerobj.h"
 
+#define lenof(a) (sizeof a / sizeof a[0])
+
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
 address_t all_mem, all_mem2;
@@ -383,7 +385,7 @@ static int get_command(void) {
         }
     }
     lpoint.pos -= l;
-    return sizeof(command)/sizeof(command[0]);
+    return lenof(command);
 }
 
 /* ------------------------------------------------------------------------------ */
@@ -769,7 +771,7 @@ Obj *compile(struct file_list_s *cflist)
             case '\t':
             case ';':
             case '\0':
-                if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof(anonident));
+                if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof anonident);
                 else anonident.padding = 0;
                 anonident.dir = wht;
                 anonident.reffile = reffile;
@@ -2066,7 +2068,7 @@ Obj *compile(struct file_list_s *cflist)
                         Label *label;
                         bool labelexists;
                         str_t tmpname;
-                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                         else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                         anonident2.type = '.';
                         anonident2.star_tree = star_tree;
@@ -2599,7 +2601,7 @@ Obj *compile(struct file_list_s *cflist)
                                 Label *label;
                                 bool labelexists;
                                 str_t tmpname;
-                                if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                                if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                                 else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                                 anonident2.type = '.';
                                 anonident2.star_tree = star_tree;
@@ -3102,7 +3104,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section = tmp;
                 } else new_waitfor(W_SEND, &epoint);
                 break;
-            case sizeof(command)/sizeof(command[0]):
+            case lenof(command):
                 if ((waitfor->skip & 1) != 0) goto as_macro2;
                 break;
             default:
@@ -3134,7 +3136,7 @@ Obj *compile(struct file_list_s *cflist)
                         Label *label;
                         bool labelexists;
                         str_t tmpname;
-                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                         else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                         anonident2.type = '#';
                         anonident2.star_tree = star_tree;
@@ -3165,7 +3167,7 @@ Obj *compile(struct file_list_s *cflist)
                     Mfunc *mfunc;
                     bool labelexists;
                     str_t tmpname;
-                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                     else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                     anonident2.type = '#';
                     anonident2.star_tree = star_tree;
@@ -3466,7 +3468,7 @@ int wmain(int argc, wchar_t *argv2[]) {
 	uint8_t *c2;
 
 	while (*p != 0) p++;
-	c2 = (uint8_t *)malloc((p - argv2[i]) * 4 / sizeof(wchar_t) + 1);
+	c2 = (uint8_t *)malloc((p - argv2[i]) * 4 / (sizeof *p) + 1);
 	if (c2 == 0) err_msg_out_of_memory2();
 	p = argv2[i];
 	argv[i] = (char *)c2;

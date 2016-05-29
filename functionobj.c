@@ -406,7 +406,7 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
     if (real2 < 0.0 && real == 0.0) {
         return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
     }
-    if (real < 0.0 && (double)((int)real2) != real2) {
+    if (real < 0.0 && floor(real2) != real2) {
         return (Obj *)new_error(ERROR_NEGFRAC_POWER, epoint);
     }
     return float_from_double(pow(real, real2), epoint);
