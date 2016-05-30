@@ -447,7 +447,7 @@ void shadow_check(Namespace *members) {
             size_t p = context_stack.p;
             Obj *o2 = key2->value;
             while (context_stack.bottom < p) {
-                b = avltree_lookup(&l->node, &context_stack.stack[--p].normal->members, label_compare);
+                b = avltree_lookup(&l->node, &context_stack.stack[--p].normal->members, label_compare2);
                 if (b != NULL) {
                     const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
                     Label *key1 = l2->key;
@@ -458,7 +458,7 @@ void shadow_check(Namespace *members) {
                     }
                 }
             }
-            b = avltree_lookup(&l->node, &builtin_namespace->members, label_compare);
+            b = avltree_lookup(&l->node, &builtin_namespace->members, label_compare2);
             if (b != NULL) {
                 const struct namespacekey_s *l2 = cavltree_container_of(b, struct namespacekey_s, node);
                 Label *key1 = l2->key;
