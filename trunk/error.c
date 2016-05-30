@@ -280,15 +280,18 @@ struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
         lastfl->parent = current_file_list;
         avltree_init(&lastfl->members);
         current_file_list = lastfl;
+        curfile = lastfl->file->uid;
         lastfl = NULL;
         return current_file_list;
     }
     current_file_list = avltree_container_of(b, struct file_list_s, node);
+    curfile = current_file_list->file->uid;
     return current_file_list;
 }
 
 void exitfile(void) {
     if (current_file_list->parent != NULL) current_file_list = current_file_list->parent;
+    curfile = current_file_list->file->uid;
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
