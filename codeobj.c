@@ -457,6 +457,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_FLOAT:
     case T_STR:
     case T_BYTES:
+    case T_ADDRESS:
         err = access_check(v1, op->epoint);
         if (err != NULL) return &err->v;
         op->v1 = v1->addr;
@@ -544,6 +545,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_INT:
     case T_BITS:
     case T_FLOAT:
+    case T_ADDRESS:
         err = access_check(v2, op->epoint2);
         if (err != NULL) return &err->v;
         op->v2 = v2->addr;

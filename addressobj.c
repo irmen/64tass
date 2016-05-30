@@ -289,7 +289,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_INT:
     case T_BITS:
     case T_FLOAT:
-    case T_CODE:
     case T_BYTES:
     case T_STR:
         switch (op->op->op) {
@@ -326,7 +325,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_INT:
     case T_BITS:
     case T_FLOAT:
-    case T_CODE:
     case T_BYTES:
     case T_STR:
     case T_GAP:
@@ -342,6 +340,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         default: break;
         }
         break;
+    case T_CODE:
+        if (op->op != &o_IN) {
+            return op->v2->obj->calc2(op);
+        }
     default: break;
     }
     return obj_oper_error(op);
