@@ -719,7 +719,7 @@ was used. There's no restriction on the length of symbol names.
 
 Care must be taken to not use duplicate names in the same scope when the symbol
 is used as a constant. Case sensitivity can be enabled with the `-C' command
-line option, otherwise symbols are matched case insensitive.
+line option, otherwise all symbols are matched case insensitive.
 
 Duplicate names in parent scopes are never a problem, they'll just be
 `shadowed'. This could be either good by reducing collisions and gives the
@@ -2626,8 +2626,8 @@ Operation options
             bcc $1233       ;no error, automatically converted to the above one.
 
 -C, --case-sensitive
-    Case sensitive labels. Labels are not case sensitive by default, this
-    option changes that.
+    Make all symbols (variables, opcodes, directives, operators, etc.) case
+    sensitive. Otherwise everything is case insensitive by default.
 
     64tass a.asm
     label   nop
