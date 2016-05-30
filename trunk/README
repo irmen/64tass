@@ -2934,6 +2934,8 @@ address not in processor address space
     value larger than current CPU address space
 address out of section
     moving the address around is fine, but do not place it before the section
+addressing mode too complex
+    too much indexing or indirection
 at least one byte is needed
     the expression didn't yield any bytes
 branch crosses page
