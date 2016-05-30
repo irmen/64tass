@@ -2823,7 +2823,7 @@ Source listing options
     .1003            d0 fd          bne $1002               bne loop
     .1005            60             rts                     rts
 
-    ;******  end of code
+    ;******  End of listing
 
 -m, --no-monitor
     Don't put monitor code into listing. There won't be any monitor listing in
@@ -2842,7 +2842,7 @@ Source listing options
     .1003            d0 fd                                  bne loop
     .1005            60                                     rts
 
-    ;******  end of code
+    ;******  End of listing
 
 -s, --no-source
     Don't put source code into listing. There won't be any source listing in
@@ -2861,7 +2861,7 @@ Source listing options
     .1003            d0 fd          bne $1002
     .1005            60             rts
 
-    ;******  end of code
+    ;******  End of listing
 
 --tab-size=<number>
     By default the listing file is using a tab size of 8 to align the
