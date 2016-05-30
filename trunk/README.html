@@ -934,7 +934,8 @@ There's no restriction on the length of symbol names.</p>
 
 <p>Care must be taken to not use duplicate names in the same scope when
 the symbol is used as a constant. Case sensitivity can be enabled with
-the <q><a href="#o_case-sensitive"><tt>-C</tt></a></q> command line option, otherwise symbols are matched case insensitive.</p>
+the <q><a href="#o_case-sensitive"><tt>-C</tt></a></q> command line
+option, otherwise all symbols are matched case insensitive.</p>
 
 <p>Duplicate names in parent scopes are never a problem, they'll just be
 <q>shadowed</q>. This could be either good by reducing collisions and gives the
@@ -3051,8 +3052,8 @@ is not converted.
 </pre>
 
 <dt><b>-C</b>, <b>--case-sensitive</b><a name="o_case-sensitive" href="#o_case-sensitive"></a>
-<dd>Case sensitive labels. Labels are not case sensitive by default, this
-option changes that.
+<dd>Make all symbols (variables, opcodes, directives, operators, etc.) case
+sensitive. Otherwise everything is case insensitive by default.
 <pre>
 64tass a.asm
 label	<b>nop</b>

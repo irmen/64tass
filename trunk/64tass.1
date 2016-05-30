@@ -77,8 +77,8 @@ usually they'll need to be rewritten to BXX *+5 JMP xxx. 64tass can do this
 automatically if this option is used. But BRA is not converted.
 .TP 0.5i
 \fB\-C\fR, \fB\-\-case\-sensitive\fR
-Case sensitive labels. Labels are not case sensitive by default, this
-option changes that.
+Make all symbols (variables, opcodes, directives, operators, etc.) case
+sensitive. Otherwise everything is case insensitive by default.
 .TP 0.5i
 \fB\-D\fR \fIlabel\fR=\fIvalue\fR
 Defines a \fIlabel\fR to a \fIvalue\fR. Same syntax is
