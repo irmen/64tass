@@ -1157,7 +1157,7 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
 }
 
 MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
-    int bits;
+    unsigned int bits;
     size_t i, j, sz, len1;
     digit_t *d, uv;
     Int *v;
@@ -1249,78 +1249,78 @@ MUST_CHECK Int *int_from_bits(const Bits *v1) {
 MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     int ch;
     Int *v;
+    digit_t uv;
+    unsigned int bits;
+    size_t i, j, sz, osz;
+    digit_t *d;
 
-    if (actual_encoding != NULL) {
-        digit_t uv;
-        int bits;
-        size_t i, j, sz, osz;
-        digit_t *d;
-
-        i = v1->len;
-        if (i == 0) {
-            return (Obj *)ref_int(int_value[0]);
+    if (actual_encoding == NULL) {
+        if (v1->chars == 1) {
+            uint32_t ch2 = v1->data[0];
+            if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
+            return (Obj *)int_from_uval(ch2);
         }
+        return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
+    }
 
-        sz = i / sizeof *d;
-        if ((i % sizeof *d) != 0) sz++;
-        v = new_int();
-        d = inew(v, sz);
+    i = v1->len;
+    if (i == 0) {
+        return (Obj *)ref_int(int_value[0]);
+    }
 
-        uv = bits = j = 0;
-        encode_string_init(v1, epoint);
-        while ((ch = encode_string()) != EOF) {
-            uv |= (uint8_t)ch << bits;
-            if (bits == SHIFT - 8) {
-                if (j >= sz) {
-                    if (v->val == d) {
-                        sz = 16 / sizeof *d;
-                        d = (digit_t *)mallocx(sz * sizeof *d);
-                        memcpy(d, v->val, j * sizeof *d);
-                    } else {
-                        sz += 1024 / sizeof *d;
-                        if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
-                        d = (digit_t *)reallocx(d, sz * sizeof *d);
-                    }
-                }
-                d[j++] = uv;
-                bits = uv = 0;
-            } else bits += 8;
-        }
-        if (bits != 0) {
+    sz = i / sizeof *d;
+    if ((i % sizeof *d) != 0) sz++;
+    v = new_int();
+    d = inew(v, sz);
+
+    uv = bits = j = 0;
+    encode_string_init(v1, epoint);
+    while ((ch = encode_string()) != EOF) {
+        uv |= (uint8_t)ch << bits;
+        if (bits == SHIFT - 8) {
             if (j >= sz) {
-                sz++;
                 if (v->val == d) {
+                    sz = 16 / sizeof *d;
                     d = (digit_t *)mallocx(sz * sizeof *d);
                     memcpy(d, v->val, j * sizeof *d);
                 } else {
-                    if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
+                    sz += 1024 / sizeof *d;
+                    if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
                     d = (digit_t *)reallocx(d, sz * sizeof *d);
                 }
             }
-            d[j] = uv;
-            osz = j + 1;
-        } else osz = j;
-
-        while (osz != 0 && d[osz - 1] == 0) osz--;
-        if (v->val != d) {
-            if (osz <= lenof(v->val)) {
-                memcpy(v->val, d, osz * sizeof *d);
-                free(d);
-                d = v->val;
-            } else if (osz < sz) {
-                d = (digit_t *)reallocx(d, osz * sizeof *d);
+            d[j++] = uv;
+            bits = uv = 0;
+        } else bits += 8;
+    }
+    if (bits != 0) {
+        if (j >= sz) {
+            sz++;
+            if (v->val == d) {
+                d = (digit_t *)mallocx(sz * sizeof *d);
+                memcpy(d, v->val, j * sizeof *d);
+            } else {
+                if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) err_msg_out_of_memory(); /* overflow */
+                d = (digit_t *)reallocx(d, sz * sizeof *d);
             }
         }
-        v->data = d;
-        v->len = osz;
-        return &v->v;
-    } 
-    if (v1->chars == 1) {
-        uint32_t ch2 = v1->data[0];
-        if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
-        return (Obj *)int_from_uval(ch2);
-    } 
-    return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
+        d[j] = uv;
+        osz = j + 1;
+    } else osz = j;
+
+    while (osz != 0 && d[osz - 1] == 0) osz--;
+    if (v->val != d) {
+        if (osz <= lenof(v->val)) {
+            memcpy(v->val, d, osz * sizeof *d);
+            free(d);
+            d = v->val;
+        } else if (osz < sz) {
+            d = (digit_t *)reallocx(d, osz * sizeof *d);
+        }
+    }
+    v->data = d;
+    v->len = osz;
+    return &v->v;
 }
 
 MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
