@@ -3028,6 +3028,8 @@ Obj *compile(struct file_list_s *cflist)
                         tmp3->l_unionend = current_section->l_unionend;
                         tmp3->structrecursion = current_section->structrecursion;
                         tmp3->logicalrecursion = current_section->logicalrecursion;
+                        if (tmp3->l_address_val != NULL) val_destroy(tmp3->l_address_val); /* TODO: restart as well */
+                        tmp3->l_address_val = (current_section->l_address_val != NULL) ? val_reference(current_section->l_address_val) : NULL;
                         tmp3->file_list = cflist;
                         tmp3->epoint = epoint;
                         if (tmp3->usepass == pass) {
