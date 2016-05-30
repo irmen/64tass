@@ -19,9 +19,11 @@
 #ifndef LISTING_H
 #define LISTING_H
 #include "inttypes.h"
+#include "stdbool.h"
 struct cpu_s;
 struct Obj;
 
+extern bool listing_pccolumn;
 extern unsigned int nolisting;
 extern const uint8_t *llist;
 extern void listing_open(const char *, int, char *[]);
