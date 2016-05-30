@@ -144,23 +144,23 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     putc('\n', flist);
     l = 0;
     if (arguments.linenum) {
-        fputs(";line", flist); l += 5;
+        fputs(";Line", flist); l += 5;
         l = padding(l, columns.addr);
     }
-    fputs(";offset", flist); l += 7;
+    fputs(";Offset", flist); l += 7;
     if (listing_pccolumn) {
         l = padding(l, columns.laddr);
-        fputs(";pc", flist); l += 3;
+        fputs(";PC", flist); l += 3;
     }
     l = padding(l, columns.hex);
-    fputs(";bytes", flist); l += 6;
+    fputs(";Hex", flist); l += 4;
     if (arguments.monitor) {
         l = padding(l, columns.monitor);
-        fputs(";disassembly", flist); l += 12;
+        fputs(";Monitor", flist); l += 8;
     }
     if (arguments.source) {
         padding(l, columns.source);
-        fputs(";source", flist);
+        fputs(";Source", flist);
     }
     putc('\n', flist);
 }
@@ -491,7 +491,7 @@ void listing_file(const char *txt, const char *name) {
     if (flist != NULL) {
         putc('\n', flist);
         if (arguments.linenum) {
-            int l = fprintf(flist, ":%u", curfile - 1);
+            int l = (name != NULL) ? fprintf(flist, ":%u", curfile - 1) : 0;
             padding((l >= 0) ? l : 0, columns.addr);
             lastfile = curfile;
         };
