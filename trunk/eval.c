@@ -494,10 +494,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                 case O_TUPLE:
                     {
                         Address *old = (Address *)v1->val;
-                        Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
-                        val2->type = old->type << 4;
-                        val2->type |= (op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR;
-                        val2->val = val_reference(old->val);
+                        Address *val2 = new_address(val_reference(old->val), (old->type << 4) | ((op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR));
                         val_destroy(v1->val); v1->val = (Obj *)val2;
                         v1->epoint = o_out->epoint;
                         continue;
@@ -528,10 +525,8 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                     case O_COMMAX:
                     case O_COMMAY:
                         {
-                            Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
-                            val2->type = (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR;
-                            val2->val = val_reference(v1->val);
-                            val_destroy(v1->val); v1->val = &val2->v;
+                            Address *val2 = new_address(v1->val, (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR);
+                            v1->val = &val2->v;
                             v1->epoint = o_out->epoint;
                             continue;
                         }
@@ -543,10 +538,8 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                         break;
                     case O_TUPLE:
                         {
-                            Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
-                            val2->type = A_I;
-                            val2->val = val_reference(v1->val);
-                            val_destroy(v1->val); v1->val = &val2->v;
+                            Address *val2 = new_address(v1->val, A_I);
+                            v1->val = &val2->v;
                             v1->epoint = o_out->epoint;
                             continue;
                         }
@@ -721,15 +714,11 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
 }
 
 static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
-
     switch (o1->obj->type) {
     case T_ADDRESS:
         {
             Address *v1 = (Address *)o1;
-            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
-            v->val = val_reference(v1->val);
-            v->type = am | (v1->type << 4);
-            return (Obj *)v;
+            return (Obj *)new_address(val_reference(v1->val), am | (v1->type << 4));
         }
     case T_LIST:
     case T_TUPLE:
@@ -743,23 +732,13 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
             }
             v->len = v1->len;
             v->data = vals;
-            return (Obj *)v;
+            return &v->v;
         }
     case T_ERROR:
-        {
-            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
-            v->val = (Obj *)ref_none();
-            v->type = am;
-            err_msg_output((Error *)o1);
-            return (Obj *)v;
-        }
+        err_msg_output((Error *)o1);
+        return (Obj *)new_address((Obj *)ref_none(), am);
     default:
-        {
-            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
-            v->val = val_reference(o1);
-            v->type = am;
-            return (Obj *)v;
-        }
+        return (Obj *)new_address(val_reference(o1), am);
     }
 }
 
