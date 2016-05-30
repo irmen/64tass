@@ -3340,7 +3340,7 @@ static int main2(int argc, char *argv[]) {
     /* assemble the input file(s) */
     do {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
+        listing_pccolumn = false; fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
@@ -3353,11 +3353,13 @@ static int main2(int argc, char *argv[]) {
             init_macro();
             /*	nolisting = 0;flist = stderr;*/
             if (i == opts - 1) {
-                cflist = enterfile(fin, &nopoint);
-                star_tree = &fin->star;
-                reffile = fin->uid;
-                compile(cflist);
-                exitfile();
+                if (fin->lines != 0) {
+                    cflist = enterfile(fin, &nopoint);
+                    star_tree = &fin->star;
+                    reffile = fin->uid;
+                    compile(cflist);
+                    exitfile();
+                }
                 restart_memblocks(&root_section.mem, 0);
                 continue;
             }
@@ -3398,11 +3400,14 @@ static int main2(int argc, char *argv[]) {
             init_macro();
 
             if (i == opts - 1) {
-                cflist = enterfile(fin, &nopoint);
-                star_tree = &fin->star;
-                reffile = fin->uid;
-                compile(cflist);
-                exitfile();
+                if (fin->lines != 0) {
+                    cflist = enterfile(fin, &nopoint);
+                    star_tree = &fin->star;
+                    reffile = fin->uid;
+                    listing_file(";******  Command line definitions", NULL);
+                    compile(cflist);
+                    exitfile();
+                }
                 restart_memblocks(&root_section.mem, 0);
                 continue;
             }
