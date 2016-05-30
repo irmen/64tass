@@ -39,6 +39,7 @@ struct arguments_s {
     bool toascii;
     bool monitor;
     bool source;
+    bool linenum;
     bool longbranch;
     bool longaddr;
     bool tasmcomp;

@@ -592,7 +592,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             tmp->coding = E_UNKNOWN;
         }
 
-        tmp->uid = curfnum++;
+        tmp->uid = (ftype != 1) ? curfnum++ : 0;
     } else {
         free(base2);
         tmp = avltree_container_of(b, struct file_s, node);

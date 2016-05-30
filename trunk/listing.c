@@ -33,15 +33,21 @@
 #include "mem.h"
 #include "values.h"
 
-#define LADDR_COLUMN 8
-#define HEX_COLUMN 17
-#define MONITOR_COLUMN 32
-#define SOURCE_COLUMN 48
+#define LINE_WIDTH 8
+#define ADDR_WIDTH 8
+#define LADDR_WIDTH 8
+#define HEX_WIDTH 16
+#define MONITOR_WIDTH 16
+
+static struct {
+    int addr, laddr, hex, monitor, source;
+} columns;
 
 unsigned int nolisting;   /* listing */
 const uint8_t *llist = NULL;
 static FILE* flist = NULL;      /* listfile */
 static const char *hex = "0123456789abcdef";
+static uint16_t lastfile;
 
 static int padding(int l, int t) {
     if (l >= t) {putc('\n', flist); l = 0;}
@@ -105,6 +111,12 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     const char *prgname;
     int i;
 
+    columns.addr = arguments.linenum ? LINE_WIDTH : 0;
+    columns.laddr = columns.addr + ADDR_WIDTH;
+    columns.hex = columns.laddr + LADDR_WIDTH;
+    columns.monitor = columns.hex + HEX_WIDTH;
+    columns.source = columns.monitor + (arguments.monitor ? MONITOR_WIDTH : 0);
+
     flist = dash_name(filename) ? stdout : file_open(filename, "wt");
     if (flist == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
@@ -126,6 +138,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     }
     fputs("\n; ", flist);
     time(&t); fputs(ctime(&t), flist);
+    lastfile = 0;
 }
 
 void listing_close(const char *filename) {
@@ -146,7 +159,7 @@ static void printllist(int l) {
             const uint8_t *c = llist;
             while (*c == 0x20 || *c == 0x09) c++;
             if (*c != 0) {
-                padding(l, SOURCE_COLUMN);
+                padding(l, columns.source);
                 printable_print(llist, flist);
             }
             llist = NULL;
@@ -155,11 +168,28 @@ static void printllist(int l) {
     }
 }
 
+static int printline(void) {
+    int l;
+    if (reffile < 2) return 0;
+    l = fprintf(flist, "%" PRIuline, lpoint.line);
+    if (l < 0) l = 0;
+    if (lastfile != reffile) {
+        int l2 = fprintf(flist, ":%u", reffile - 1);
+        if (l2 >= 0) l += l2;
+        lastfile = reffile;
+    }
+    return l;
+}
+
 void listing_equal(Obj *val) {
     if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
         int l;
+        if (arguments.linenum) {
+            l = printline();
+            l = padding(l, columns.addr);
+        } else l = 0;
         putc('=', flist);
-        l = val_print(val, flist) + 1;
+        l += val_print(val, flist) + 1;
         printllist(l);
     }
 }
@@ -184,22 +214,27 @@ void listing_line(linecpos_t pos) {
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
             if (i < pos) {
                 address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-                l = printaddr('.', current_section->address);
+                if (arguments.linenum) {
+                    l = printline();
+                    l = padding(l, columns.addr);
+                } else l = 0;
+                l += printaddr('.', current_section->address);
                 if (current_section->address != addr) {
-                    l = padding(l, LADDR_COLUMN);
+                    l = padding(l, columns.laddr);
                     l += printaddr('\0', addr);
                 }
             } else l = 0;
             if (arguments.verbose) {
                 if (llist[i] != 0) {
-                    padding(l, SOURCE_COLUMN);
+                    if (l == 0 && arguments.linenum) l = printline();
+                    padding(l, columns.source);
                     printable_print(llist, flist);
                 }
                 putc('\n', flist);
             } else {
                 if (l != 0) {
                     while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-                    padding(l, SOURCE_COLUMN);
+                    padding(l, columns.source);
                     printable_print2(llist, flist, pos);
                     putc('\n', flist);
                 }
@@ -216,13 +251,18 @@ void listing_line_cut(linecpos_t pos) {
             while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
             if (i < pos) {
                 address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-                int l = printaddr('.', current_section->address);
+                int l;
+                if (arguments.linenum) {
+                    l = printline();
+                    l = padding(l, columns.addr);
+                } else l = 0;
+                l += printaddr('.', current_section->address);
                 if (current_section->address != addr) {
-                    l = padding(l, LADDR_COLUMN);
+                    l = padding(l, columns.laddr);
                     l += printaddr('\0', addr);
                 }
                 while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-                padding(l, SOURCE_COLUMN);
+                padding(l, columns.source);
                 printable_print2(llist, flist, pos);
                 putc('\n', flist);
             }
@@ -235,7 +275,8 @@ void listing_line_cut2(linecpos_t pos) {
     if (arguments.verbose) {
         if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
             if (llist != NULL) {
-                padding(0, SOURCE_COLUMN);
+                int l = arguments.linenum ? printline() : 0;
+                padding(l, columns.source);
                 caret_print(llist, flist, pos);
                 printable_print(llist + pos, flist);
                 putc('\n', flist);
@@ -259,16 +300,20 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
         address_t addr = ((current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
         address_t addr2 = (current_section->address - ln - 1) & all_mem2;
 
-        l = printaddr('.', addr2);
+        if (arguments.linenum) {
+            l = (llist != NULL) ? printline() : 0;
+            l = padding(l, columns.addr);
+        } else l = 0;
+        l += printaddr('.', addr2);
         if (addr2 != addr) {
-            l = padding(l, LADDR_COLUMN);
+            l = padding(l, columns.laddr);
             l += printaddr('\0', addr);
         }
         if (current_section->dooutput) {
             char str[32], *s;
             if (ln >= 0) {
                 uint32_t temp = adr;
-                l = padding(l, HEX_COLUMN);
+                l = padding(l, columns.hex);
                 s = out_hex(str, cod ^ outputeor);
                 for (i = 0; i < ln; i++) {*s++ = ' '; s = out_hex(s, temp); temp >>= 8;}
                 *s = 0;
@@ -279,7 +324,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                 if (ln >= 0) {
                     const char *post = "";
                     uint32_t mnem = mnemonic[disasm[cod] & 0xff];
-                    l = padding(l, MONITOR_COLUMN);
+                    l = padding(l, columns.monitor);
                     s = str;
                     for (i = 16; i >= 0; i -= 8) *s++ = mnem >> i;
                     *s++ = ' ';
@@ -347,16 +392,20 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
     if (nolisting != 0 || flist == NULL || temporary_label_branch != 0) return;
 
     print = true;
-    l = printaddr('>', myaddr);
+    if (arguments.linenum) {
+        l = printline();
+        l = padding(l, columns.addr);
+    } else l = 0;
+    l += printaddr('>', myaddr);
     if (myaddr != myaddr2) {
-        l = padding(l, LADDR_COLUMN);
+        l = padding(l, columns.laddr);
         l += printaddr('\0', myaddr2);
     }
     if (len != 0) {
         size_t p = 0;
-        lcol = arguments.source ? 8 : 16;
+        lcol = arguments.source ? (arguments.monitor ? 8 : 4) : 16;
         s = str;
-        l = padding(l, HEX_COLUMN);
+        l = padding(l, columns.hex);
         while (len != 0) {
             if ((lcol--) == 0) {
                 *s = 0;
@@ -367,12 +416,13 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
                     printllist(l);
                     print = false;
                 } else putc('\n',flist);
-                l = printaddr('>', myaddr);
+                l = arguments.linenum ? padding(0, columns.addr) : 0;
+                l += printaddr('>', myaddr);
                 if (myaddr != myaddr2) {
-                    l = padding(l, LADDR_COLUMN);
+                    l = padding(l, columns.laddr);
                     l += printaddr('\0', myaddr2);
                 }
-                l = padding(l, HEX_COLUMN);
+                l = padding(l, columns.hex);
                 lcol = 15;
             }
             *s++ = ' ';
@@ -393,6 +443,12 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
 
 void listing_file(const char *txt, const char *name) {
     if (flist != NULL) {
+        putc('\n', flist);
+        if (arguments.linenum) {
+            int l = fprintf(flist, ":%u", reffile - 1);
+            padding((l >= 0) ? l : 0, columns.addr);
+            lastfile = reffile;
+        };
         fputs(txt, flist);
         argv_print(name, flist);
         fputs("\n\n", flist);

@@ -2581,7 +2581,6 @@ Obj *compile(struct file_list_s *cflist)
                         line_t vlin = vline;
                         struct file_list_s *cflist2;
 
-                        listing_file("\n;******  Processing file: ", f->realname);
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2593,6 +2592,7 @@ Obj *compile(struct file_list_s *cflist)
                         star_tree = &s->tree;
                         backr = forwr = 0;
                         reffile = f->uid;
+                        listing_file(";******  Processing file: ", f->realname);
                         if (prm == CMD_BINCLUDE) {
                             if (newlabel != NULL) {
                                 push_context(((Code *)newlabel->value)->names);
@@ -2633,7 +2633,7 @@ Obj *compile(struct file_list_s *cflist)
                         backr = old_backr; forwr = old_forwr;
                         exitfile();
                         reffile = cfile->uid;
-                        listing_file("\n;******  Return to file: ", cfile->realname);
+                        listing_file(";******  Return to file: ", cfile->realname);
                     }
                     closefile(f);
                     goto breakerr;
@@ -3388,9 +3388,6 @@ static int main2(int argc, char *argv[]) {
         restart_memblocks(&root_section.mem, 0);
         listing_open(arguments.list, argc, argv);
         for (i = opts - 1; i<argc; i++) {
-            if (i >= opts) {
-                listing_file("\n;******  Processing input file: ", argv[i]);
-            }
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
             allowslowbranch = true;temporary_label_branch = 0;
@@ -3415,6 +3412,7 @@ static int main2(int argc, char *argv[]) {
                 cflist = enterfile(cfile, &nopoint);
                 star_tree = &cfile->star;
                 reffile = cfile->uid;
+                listing_file(";******  Processing input file: ", argv[i]);
                 compile(cflist);
                 closefile(cfile);
                 exitfile();

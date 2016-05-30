@@ -36,7 +36,30 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments = {true,true,true,false,true,true,false,false,false,false,false,0x20,"a.out",&c6502,NULL,NULL,NULL,NULL, OUTPUT_CBM, 8, LABEL_64TASS};
+struct arguments_s arguments = {
+    true,        /* warning */
+    true,        /* caret */
+    true,        /* quiet */
+    false,       /* toascii */
+    true,        /* monitor */
+    true,        /* source */
+    false,       /* linenum */
+    false,       /* longbranch */
+    false,       /* longaddr */
+    false,       /* tasmcomp */
+    false,       /* shadow_check */
+    false,       /* verbose */
+    0x20,        /* caseinsensitive */
+    "a.out",     /* output */
+    &c6502,      /* cpumode */
+    NULL,        /* label */
+    NULL,        /* list */
+    NULL,        /* make */
+    NULL,        /* error */
+    OUTPUT_CBM,  /* output_mode */
+    8,           /* tab_size */
+    LABEL_64TASS /* label_mode */
+};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -210,12 +233,13 @@ static const struct option long_options[] = {
     {"verbose-list"     , no_argument      , NULL,  0x110},
     {"no-monitor"       , no_argument      , NULL, 'm'},
     {"no-source"        , no_argument      , NULL, 's'},
+    {"line-numbers"     , no_argument      , NULL,  0x112},
     {"no-caret-diag"    , no_argument      , NULL,  0x10a},
     {"tab-size"         , required_argument, NULL,  0x109},
     {"version"          , no_argument      , NULL, 'V'},
     {"usage"            , no_argument      , NULL,  0x102},
     {"help"             , no_argument      , NULL,  0x103},
-    {NULL, no_argument, NULL, 0}
+    {NULL               , no_argument      , NULL,  0}
 };
 
 int testarg(int argc,char *argv[], struct file_s *fin) {
@@ -280,6 +304,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'I': include_list_add(optarg);break;
             case 'm': arguments.monitor = false;break;
             case 's': arguments.source = false;break;
+            case 0x112: arguments.linenum = true;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case 0x110: arguments.verbose = true;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
@@ -293,8 +318,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
                "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
                "        [--dump-labels] [--shadow-check] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--tab-size=<value>] [--verbose-list] [--errors=<file>]\n"
-               "        [--output=<file>] [--help] [--usage] [--version] SOURCES");
+               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
+               "        [--errors=<file>] [--output=<file>] [--help] [--usage] [--version]\n"
+               "        SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -347,6 +373,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -L, --list=<file>     List into <file>\n"
                "  -m, --no-monitor      Don't put monitor code into listing\n"
                "  -s, --no-source       Don't put source code into listing\n"
+               "      --line-numbers    Put line numbers into listing\n"
                "      --tab-size=<n>    Override the default tab size (8)\n"
                "      --verbose-list    List unused lines as well\n"
                "\n"
@@ -373,7 +400,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     case OUTPUT_IHEX:
     case OUTPUT_SREC:
     case OUTPUT_FLAT: all_mem2 = 0xffffffff; break;
-    case OUTPUT_APPLE: 
+    case OUTPUT_APPLE:
     case OUTPUT_XEX: all_mem2 = 0xffff; break;
     }
     if (dash_name(arguments.output)) arguments.quiet = false;
