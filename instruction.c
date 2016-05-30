@@ -95,7 +95,9 @@ static atype_t get_address_mode(Obj *v1, linepos_t epoint) {
 }
 
 MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
-    Error *v = new_error(ERROR_NO_ADDRESSING, epoint);
+    Error *v;
+    if (am > 0xFFF) return new_error(ERROR__ADDR_COMPLEX, epoint);
+    v = new_error(ERROR_NO_ADDRESSING, epoint);
     v->u.addressing = am;
     return v;
 }
@@ -339,7 +341,8 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 return err_addressing(am, epoint);
             case A_NONE:
                 goto noneaddr;
-            default: 
+            default:
+                if (am > 0xFFF) return new_error(ERROR__ADDR_COMPLEX, epoint2);
                 return err_addressing(am, epoint); /* non-existing */
             }
             break;
