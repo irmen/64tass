@@ -29,7 +29,6 @@
 
 #define SLOTS 128
 #define ALIGN sizeof(int *)
-#define lenof(a) (sizeof a / sizeof a[0])
 
 typedef struct Slot {
     Obj v;

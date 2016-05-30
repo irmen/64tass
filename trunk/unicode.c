@@ -25,7 +25,6 @@
 
 #define U_CASEFOLD 1
 #define U_COMPAT 2
-#define lenof(a) (sizeof a / sizeof a[0])
 
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
