@@ -93,7 +93,7 @@ static struct waitfor_s {
     bool breakout;
 } *waitfors, *waitfor, *prevwaitfor;
 
-uint16_t reffile;
+uint16_t reffile, curfile;
 uint32_t backr, forwr;
 struct avltree *star_tree = NULL;
 

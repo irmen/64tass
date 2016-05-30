@@ -42,7 +42,7 @@ extern struct avltree *star_tree;
 extern bool fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline;
-extern uint16_t reffile;
+extern uint16_t reffile, curfile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);

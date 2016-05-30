@@ -170,13 +170,13 @@ static void printllist(int l) {
 
 static int printline(void) {
     int l;
-    if (reffile < 2) return 0;
+    if (curfile < 2) return 0;
     l = fprintf(flist, "%" PRIuline, lpoint.line);
     if (l < 0) l = 0;
-    if (lastfile != reffile) {
-        int l2 = fprintf(flist, ":%u", reffile - 1);
+    if (lastfile != curfile) {
+        int l2 = fprintf(flist, ":%u", curfile - 1);
         if (l2 >= 0) l += l2;
-        lastfile = reffile;
+        lastfile = curfile;
     }
     return l;
 }
@@ -445,9 +445,9 @@ void listing_file(const char *txt, const char *name) {
     if (flist != NULL) {
         putc('\n', flist);
         if (arguments.linenum) {
-            int l = fprintf(flist, ":%u", reffile - 1);
+            int l = fprintf(flist, ":%u", curfile - 1);
             padding((l >= 0) ? l : 0, columns.addr);
-            lastfile = reffile;
+            lastfile = curfile;
         };
         fputs(txt, flist);
         argv_print(name, flist);
