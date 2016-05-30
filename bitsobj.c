@@ -307,9 +307,8 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
     Bits *v1 = (Bits *)o1;
-    Obj *tmp, *ret;
-    tmp = (Obj *)int_from_bits(v1);
-    ret = tmp->obj->absolute(tmp, epoint);
+    Obj *tmp = (Obj *)int_from_bits(v1);
+    Obj *ret = tmp->obj->absolute(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }

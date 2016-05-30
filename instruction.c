@@ -69,14 +69,14 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-MUST_CHECK bool touval(Obj *v1, uval_t *uv, int bits, linepos_t epoint) {
+MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Error *err = v1->obj->uval(v1, uv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
     return true;
 }
 
-MUST_CHECK bool toaddress(Obj *v1, uval_t *uv, int bits, atype_t *am, linepos_t epoint) {
+MUST_CHECK bool toaddress(Obj *v1, uval_t *uv, unsigned int bits, atype_t *am, linepos_t epoint) {
     Error *err;
     if (am != NULL) *am = A_NONE;
     err = v1->obj->address(v1, uv, bits, am, epoint);

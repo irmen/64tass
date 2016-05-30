@@ -56,7 +56,7 @@ typedef struct Error {
             bool down;
         } notdef;
         struct {
-            int bits;
+            unsigned int bits;
             Obj *val;
         } intconv;
         const char *objname;
