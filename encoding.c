@@ -28,7 +28,6 @@
 #include "typeobj.h"
 #include "values.h"
 
-#define lenof(a) (sizeof a / sizeof a[0])
 
 struct encoding_s *actual_encoding;
 

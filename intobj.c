@@ -40,7 +40,6 @@
 #define MASK (~(digit_t)0)
 #define DSHIFT 9
 #define DMUL ((digit_t)1000000000)
-#define lenof(a) (sizeof a / sizeof a[0])
 
 static Type obj;
 

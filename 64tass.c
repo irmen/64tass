@@ -67,7 +67,6 @@
 #include "noneobj.h"
 #include "registerobj.h"
 
-#define lenof(a) (sizeof a / sizeof a[0])
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */

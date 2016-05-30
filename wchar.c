@@ -27,7 +27,6 @@
 #include <go32.h>
 #include "codepages.h"
 
-#define lenof(a) (sizeof a / sizeof a[0])
 
 static const wchar_t *cp;
 static uint32_t revcp[128];

@@ -29,7 +29,6 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
-#define lenof(a) (sizeof a / sizeof a[0])
 
 static Type list_obj;
 static Type tuple_obj;
