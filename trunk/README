@@ -2718,7 +2718,7 @@ Operation options
     With this option conditional directives required booleans
 
     Here are a few sloppy coding styles which won't work any more and how to
-    improve it:
+    improve them:
 
       + `1' and `0' as boolean constants. Use the slightly longer `true' and
         `false'.
