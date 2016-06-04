@@ -195,28 +195,26 @@ static void file_free(struct avltree_node *aa)
     free(a);
 }
 
-static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s *tmp) {
-    if (ubuff->p != 0) {
-        uint8_t *p = *pp;
-        size_t i;
-        for (i = 0; i < ubuff->p; i++) {
-            size_t o = p - tmp->data;
-            if (o + 6*6 + 1 > tmp->len) {
-                tmp->len += 4096;
-                if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
-                tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
-                p = tmp->data + o;
-            }
-            if (ubuff->data[i] != 0 && ubuff->data[i] < 0x80) *p++ = ubuff->data[i]; else p = utf8out(ubuff->data[i], p);
-        }
-        *pp = p;
-    } else {
-        if (ubuff->p >= ubuff->len) {
-            ubuff->len += 16;
-            if (/*ubuff->len < 16 ||*/ ubuff->len > SIZE_MAX / sizeof *ubuff->data) err_msg_out_of_memory(); /* overflow */
-            ubuff->data = (uint32_t *)reallocx(ubuff->data, ubuff->len * sizeof *ubuff->data);
-        }
+static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp) {
+    size_t i;
+    if (ubuff->data == NULL) {
+        ubuff->len = 16;
+        ubuff->data = (uint32_t *)mallocx(16 * sizeof *ubuff->data);
+        return p;
     }
+    for (i = 0; i < ubuff->p; i++) {
+        size_t o = p - tmp->data;
+        uint32_t ch;
+        if (o + 6*6 + 1 > tmp->len) {
+            tmp->len += 4096;
+            if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
+            tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
+            p = tmp->data + o;
+        }
+        ch = ubuff->data[i];
+        if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+    }
+    return p;
 }
 
 static uint32_t fromiso2(uint8_t c) {
@@ -527,7 +525,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (ubuff.p == 1) {
                                 if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                             } else {
-                                flushubuff(&ubuff, &p, tmp);
+                                p = flushubuff(&ubuff, p, tmp);
                                 ubuff.p = 1;
                             }
                             ubuff.data[0] = c;
@@ -550,7 +548,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 if (ubuff.p == 1) {
                                     if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                                 } else {
-                                    flushubuff(&ubuff, &p, tmp);
+                                    p = flushubuff(&ubuff, p, tmp);
                                     ubuff.p = 1;
                                 }
                                 ubuff.data[0] = c;
@@ -560,7 +558,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     }
                 eof:
                     if (!qc) unfc(&ubuff);
-                    if (ubuff.p != 0) flushubuff(&ubuff, &p, tmp);
+                    p = flushubuff(&ubuff, p, tmp);
                     i = (p - tmp->data) - fp;
                     p = tmp->data + fp;
                     while (i != 0 && (p[i-1]==' ' || p[i-1]=='\t')) i--;
