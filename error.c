@@ -315,6 +315,9 @@ static const char *terr_warning[] = {
     "long branch used",
     "directive ignored",
     "label not on left side",
+    "deprecated equal operator, use == instead",
+    "deprecated modulo operator, use % instead",
+    "deprecated not equal operator, use != instead"
 };
 
 static const char *terr_error[] = {
