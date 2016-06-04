@@ -21,11 +21,11 @@
 #include <errno.h>
 #include <locale.h>
 #include "file.h"
-#include "misc.h"
 #include "64tass.h"
 #include "unicode.h"
 #include "error.h"
 #include "strobj.h"
+#include "arguments.h"
 
 #define REPLACEMENT_CHARACTER 0xfffd
 

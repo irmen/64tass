@@ -36,6 +36,7 @@
 #include "typeobj.h"
 #include "eval.h"
 #include "values.h"
+#include "arguments.h"
 
 static Type obj;
 

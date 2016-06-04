@@ -31,6 +31,7 @@
 #include "listing.h"
 #include "error.h"
 #include "values.h"
+#include "arguments.h"
 
 #include "floatobj.h"
 #include "boolobj.h"

@@ -31,6 +31,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "namespaceobj.h"
+#include "arguments.h"
 
 static Type macro_obj;
 static Type segment_obj;

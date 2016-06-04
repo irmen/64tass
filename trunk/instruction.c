@@ -21,7 +21,6 @@
 #include "opcodes.h"
 #include "obj.h"
 #include "64tass.h"
-#include "misc.h"
 #include "section.h"
 #include "file.h"
 #include "listing.h"
@@ -33,6 +32,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "longjump.h"
+#include "arguments.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
