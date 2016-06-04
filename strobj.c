@@ -19,10 +19,10 @@
 #include <string.h>
 #include "strobj.h"
 #include "eval.h"
-#include "misc.h"
 #include "unicode.h"
 #include "error.h"
 #include "variables.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "floatobj.h"

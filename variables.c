@@ -42,6 +42,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "values.h"
+#include "arguments.h"
 
 static struct namespacekey_s *lastlb2 = NULL;
 static Label *lastlb = NULL;

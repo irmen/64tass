@@ -22,9 +22,9 @@
 #include <errno.h>
 #include "error.h"
 #include "file.h"
-#include "misc.h"
 #include "64tass.h"
 #include "listing.h"
+#include "arguments.h"
 
 struct memblock_s { /* starts and sizes */
     size_t p, len;

@@ -26,12 +26,12 @@
 #include "64tass.h"
 #include "opcodes.h"
 #include "unicode.h"
-#include "misc.h"
 #include "section.h"
 #include "instruction.h"
 #include "obj.h"
 #include "mem.h"
 #include "values.h"
+#include "arguments.h"
 
 #define LINE_WIDTH 8
 #define ADDR_WIDTH 8
