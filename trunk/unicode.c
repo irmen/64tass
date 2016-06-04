@@ -482,8 +482,15 @@ size_t argv_print(const char *line, FILE *f) {
 
 static int unknown_print(FILE *f, uint32_t ch) {
     char temp[64];
-    if (f != NULL) fprintf(f, "{$%" PRIx32 "}", ch);
-    return sprintf(temp, "{$%" PRIx32 "}", ch);
+    const char *format = (ch >= 256) ? "<U+%" PRIX32 ">" : "<%02" PRIX32 ">";
+    if (f != NULL) {
+        int ln;
+        if (print_use_color) fputs("\33[7m", f);
+        ln = fprintf(f, format, ch);
+        if (print_use_color) fputs("\33[m", f);
+        return ln;
+    }
+    return sprintf(temp, format, ch);
 }
 
 void printable_print(const uint8_t *line, FILE *f) {
@@ -743,7 +750,6 @@ static size_t charwidth(uint32_t ch) {
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0;
     for (i = 0; i < max;) {
-        char temp[64];
         uint32_t ch = line[i];
         if ((ch & 0x80) != 0) {
 #ifdef _WIN32
@@ -763,6 +769,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
 #else
             i += utf8in(line + i, &ch);
             if (iswprint(ch) != 0) {
+                char temp[64];
                 mbstate_t ps;
                 memset(&ps, 0, sizeof ps);
                 if (wcrtomb(temp, ch, &ps) != (size_t)-1) {

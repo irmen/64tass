@@ -143,6 +143,10 @@ void errorobj_init(void) {
 
 /* ------------------------------------------------------------------------------ */
 
+#ifdef COLOR_OUTPUT
+bool print_use_color = false;
+#endif
+
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
 
 static unsigned int errors = 0, warnings = 0;
@@ -816,6 +820,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     linepos_t epoint = &err->epoint;
     const uint8_t *line;
     bool text = (cflist != &file_list);
+    bool bold;
 
     if (text) {
         if (cflist != included_from) {
@@ -823,41 +828,48 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
             while (included_from->parent != &file_list) {
                 line = get_line(included_from->parent->file, included_from->epoint.line);
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
+                if (print_use_color) fputs("\33[01m", f);
                 printable_print((uint8_t *)included_from->parent->file->realname, f);
                 fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, calcpos(line, included_from->epoint.pos, included_from->parent->file->coding == E_UTF8));
                 included_from = included_from->parent;
+                if (print_use_color) fputs("\33[m\33[K", f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
             }
             included_from = cflist;
         }
         line = (err->line_len != 0) ? ((uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
+        if (print_use_color) fputs("\33[01m", f);
         printable_print((uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
+        if (print_use_color) fputs("\33[01m", f);
         printable_print((uint8_t *)prgname, f);
         fputs(": ", f);
     }
     switch (err->severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
-    case SV_DOUBLENOTE: fputs("note: ", f);break;
-    case SV_WARNING: fputs("warning: ", f);break;
+    case SV_DOUBLENOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
+    case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
     case SV_CONDERROR:
     case SV_DOUBLEERROR:
     case SV_NOTDEFERROR:
     case SV_NONEERROR:
-    case SV_ERROR: fputs("error: ", f);break;
-    case SV_FATAL: fputs("fatal error: ", f);break;
+    case SV_ERROR: if (print_use_color) fputs("\33[31m", f); fputs("error: ", f); bold = true; break;
+    case SV_FATAL: if (print_use_color) fputs("\33[31m", f); fputs("fatal error: ", f); bold = true; break;
+    default: bold = false;
     }
+    if (print_use_color) fputs(bold ? "\33[m\33[01m" : "\33[m\33[K", f);
     printable_print2(((uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
+    if (print_use_color && bold) fputs("\33[m\33[K", f);
     putc('\n', f);
     if (text && arguments.caret) {
         if (err->severity != SV_NOTDEFGNOTE) {
             putc(' ', f);
             printable_print(line, f);
-            fputs("\n ", f);
+            fputs(print_use_color ? "\n\33[01;32m\33[K " : "\n ", f);
             caret_print(line, f, epoint->pos);
-            fputs("^\n", f);
+            fputs(print_use_color ? "^\33[m\33[K\n" : "^\n", f);
         }
     }
 }
@@ -876,6 +888,13 @@ int error_print(bool fix, bool newvar, int anyerr) {
             ferr = stderr;
         }
     } else ferr = stderr;
+
+#ifdef COLOR_OUTPUT
+    {
+        char const *term = getenv ("TERM");
+        print_use_color = term && strcmp(term, "dumb") != 0 && isatty(fileno(ferr)) == 1;
+    }
+#endif
 
     warnings = errors = 0;
     close_error();
@@ -941,6 +960,9 @@ int error_print(bool fix, bool newvar, int anyerr) {
         }
         print_error(ferr, err);
     }
+#ifdef COLOR_OUTPUT
+    print_use_color = false;
+#endif
     if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors;
 }
