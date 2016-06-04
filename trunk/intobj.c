@@ -24,6 +24,7 @@
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -124,8 +125,9 @@ static bool same(const Obj *o1, const Obj *o2) {
     return memcmp(v1->data, v2->data, intlen(v1) * sizeof *v1->data) == 0;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     const Int *v1 = (const Int *)o1;
+    if (arguments.strict && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
     return truth_reference(v1->len != 0);
 }
 
@@ -325,7 +327,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return (Obj *)negate(v1);
     case O_POS: return (Obj *)ref_int(v1);
     case O_STRING: return repr(&v1->v, op->epoint, SIZE_MAX);
-    case O_LNOT: return truth_reference(v1->len == 0);
+    case O_LNOT:
+        if (arguments.strict) break;
+        return truth_reference(v1->len == 0);
     default: break;
     }
     return obj_oper_error(op);
@@ -1502,14 +1506,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp, *ret, *v2 = op->v2;
 
     if (op->op == &o_LAND) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((((Int *)(op->v1))->len != 0) ? v2 : op->v1);
     }
     if (op->op == &o_LOR) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((((Int *)(op->v1))->len != 0) ? op->v1 : v2);
     }
     switch (v2->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
+        if (arguments.strict) break;
         tmp = (Obj *)ref_int(int_value[((Bool *)v2)->boolean]);
         op->v2 = tmp;
         ret = calc2_int(op);
@@ -1549,6 +1556,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp, *ret, *v1 = op->v1;
     switch (v1->obj->type) {
     case T_BOOL:
+        if (arguments.strict) break;
         switch (op->op->op) {
         case O_LSHIFT:
         case O_RSHIFT: tmp = (Obj *)ref_bits(bits_value[((Bool *)v1)->boolean]); break;

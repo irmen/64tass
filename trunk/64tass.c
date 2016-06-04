@@ -295,6 +295,7 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     }
     *truth = ((Bool *)err)->boolean;
     val_destroy(err);
+    if (arguments.strict && val->obj != BOOL_OBJ) err_msg_wrong_type(val, BOOL_OBJ, &v1->epoint);
     return false;
 }
 
@@ -2324,8 +2325,13 @@ Obj *compile(struct file_list_s *cflist)
 
                         val = vs->val;
                         switch (val->obj->type) {
-                        case T_FLOAT:
                         case T_BOOL:
+                            if (arguments.strict) {
+                                err_msg_wrong_type(val, NULL, &vs->epoint);
+                                goto breakerr;
+                            }
+                            /* fall through */
+                        case T_FLOAT:
                         case T_INT:
                         case T_BITS:
                             if (touval(val, &uval, 24, &vs->epoint)) uval = 0;

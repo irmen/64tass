@@ -23,6 +23,7 @@
 #include "unicode.h"
 #include "encoding.h"
 #include "variables.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -118,12 +119,13 @@ static bool to_bool(const Bytes *v1) {
     return false;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     const Bytes *v1 = (const Bytes *)o1;
     size_t i, sz;
     uint8_t inv;
     switch (type) {
     case TRUTH_ALL:
+        if (arguments.strict) break;
         sz = byteslen(v1);
         inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
         for (i = 0; i < sz; i++) {
@@ -131,9 +133,11 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint
         }
         return (Obj *)ref_bool(true_value);
     case TRUTH_ANY:
+        if (arguments.strict) break;
     default:
         return truth_reference(to_bool(v1));
     }
+    return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
@@ -703,15 +707,19 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV: return invert(v1);
     case O_NEG:
     case O_POS:
-    case O_STRING: tmp = (Obj *)int_from_bytes(v1);break;
-    case O_LNOT: return truth_reference(!to_bool(v1));
-    default: return obj_oper_error(op);
+    case O_STRING:
+        tmp = (Obj *)int_from_bytes(v1);
+        op->v1 = tmp;
+        v = tmp->obj->calc1(op);
+        op->v1 = &v1->v;
+        val_destroy(tmp);
+        return v;
+    case O_LNOT:
+        if (arguments.strict) break;
+        return truth_reference(!to_bool(v1));
+    default: break;
     }
-    op->v1 = tmp;
-    v = tmp->obj->calc1(op);
-    op->v1 = &v1->v;
-    val_destroy(tmp);
-    return v;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *calc2_bytes(oper_t op) {
@@ -909,14 +917,18 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return repeat(op); 
     }
     if (op->op == &o_LAND) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference(to_bool(v1) ? o2 : &v1->v);
     }
     if (op->op == &o_LOR) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference(to_bool(v1) ? &v1->v : o2);
     }
     switch (o2->obj->type) {
     case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -961,6 +973,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp;
     switch (o1->obj->type) {
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:

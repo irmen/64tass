@@ -12,5 +12,5 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Cross assembler for 65xx microprocessors
  64tass is a multi-pass optimizing macro assembler for the 65xx series of
  processors. It supports the 6502, 65C02, R65C02, W65C02, 65CE02, 65816,
- DTV, and 65EL02, using a syntax similar to that of Omicron TASS and
+ DTV, 65EL02, and 4510 using a syntax similar to that of Omicron TASS and
  TASM.

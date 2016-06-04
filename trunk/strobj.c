@@ -61,8 +61,10 @@ static bool same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Str *v1 = (Str *)o1;
-    Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
-    Obj *ret = tmp->obj->truth(tmp, type, epoint);
+    Obj *tmp, *ret;
+    if (arguments.strict && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+    ret = tmp->obj->truth(tmp, type, epoint);
     val_destroy(tmp);
     return ret;
 }
@@ -277,6 +279,8 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *v, *tmp;
     switch (op->op->op) {
     case O_LNOT:
+        if (arguments.strict) return obj_oper_error(op);
+        /* fall through */
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -636,11 +640,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (result->obj != BOOL_OBJ) return result;
         i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference(i ? v2 : &v1->v);
     }
     switch (v2->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -694,6 +701,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp;
     switch (v1->obj->type) {
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:

@@ -23,10 +23,12 @@
 #include "variables.h"
 #include "unicode.h"
 #include "encoding.h"
+#include "error.h"
+#include "arguments.h"
+
+#include "codeobj.h"
 #include "boolobj.h"
 #include "floatobj.h"
-#include "codeobj.h"
-#include "error.h"
 #include "strobj.h"
 #include "bytesobj.h"
 #include "intobj.h"
@@ -139,12 +141,13 @@ static bool same(const Obj *o1, const Obj *o2) {
     return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     const Bits *v1 = (const Bits *)o1;
     size_t i, sz, sz2;
     bdigit_t b, inv;
     switch (type) {
     case TRUTH_ALL:
+        if (arguments.strict) break;
         sz = bitslen(v1);
         sz2 = v1->bits / SHIFT;
         if (sz2 > sz) sz2 = sz;
@@ -157,10 +160,12 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint
         b <<= SHIFT - v1->bits % SHIFT;
         return truth_reference(b == 0);
     case TRUTH_ANY:
+        if (arguments.strict) break;
         return truth_reference(v1->len != 0 && v1->len != ~0);
     default:
         return truth_reference(v1->len != 0);
     }
+    return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
@@ -640,7 +645,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         val_destroy(tmp);
         op->v1 = &v1->v;
         return v;
-    case O_LNOT: return truth_reference(v1->len == 0);
+    case O_LNOT:
+        if (arguments.strict) break;
+        return truth_reference(v1->len == 0);
     default:
         break;
     }
@@ -1133,15 +1140,18 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return repeat(op);
     }
     if (op->op == &o_LAND) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((v1->len != 0) ? o2 : &v1->v);
     }
     if (op->op == &o_LOR) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((v1->len != 0) ? &v1->v : o2);
     }
     switch (o2->obj->type) {
     case T_BOOL:
         {
             Bool *v2 = (Bool *)o2;
+            if (arguments.strict) break;
             tmp = (Obj *)ref_bits(bits_value[v2->boolean]);
             op->v2 = tmp;
             result = calc2(op);
@@ -1209,6 +1219,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BOOL:
         {
             Bool *v1 = (Bool *)o1;
+            if (arguments.strict) break;
             tmp = (Obj *)ref_bits(bits_value[v1->boolean]);
             op->v1 = tmp;
             result = calc2(op);

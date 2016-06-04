@@ -38,6 +38,7 @@ struct arguments_s arguments = {
     false,       /* tasmcomp */
     false,       /* shadow_check */
     false,       /* verbose */
+    false,        /* strict */
     0x20,        /* caseinsensitive */
     "a.out",     /* output */
     &c6502,      /* cpumode */
@@ -83,6 +84,7 @@ static const struct option long_options[] = {
     {"vice-labels"      , no_argument      , NULL,  0x10b},
     {"dump-labels"      , no_argument      , NULL,  0x10d},
     {"shadow-check"     , no_argument      , NULL,  0x10c},
+    {"strict-bool"      , no_argument      , NULL,  0x113},
     {"list"             , required_argument, NULL, 'L'},
     {"verbose-list"     , no_argument      , NULL,  0x110},
     {"no-monitor"       , no_argument      , NULL, 'm'},
@@ -159,6 +161,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'm': arguments.monitor = false;break;
             case 's': arguments.source = false;break;
             case 0x112: arguments.linenum = true;break;
+            case 0x113: arguments.strict = true;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case 0x110: arguments.verbose = true;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
@@ -171,10 +174,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
                "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
-               "        [--dump-labels] [--shadow-check] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
-               "        [--errors=<file>] [--output=<file>] [--help] [--usage] [--version]\n"
-               "        SOURCES");
+               "        [--dump-labels] [--shadow-check] [--strict-bool] [--list=<file>]\n"
+               "        [--no-monitor] [--no-source] [--line-numbers] [--tab-size=<value>]\n"
+               "        [--verbose-list] [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
+               "        [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -196,6 +199,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -w, --no-warn         Suppress warnings\n"
                "      --no-caret-diag   Suppress source line display\n"
                "      --shadow-check    Check symbol shadowing\n"
+               "      --strict-bool     No implicit bool conversions\n"
                "\n"
                " Output selection:\n"
                "  -o, --output=<file>   Place output into <file>\n"

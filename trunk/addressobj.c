@@ -21,6 +21,7 @@
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "strobj.h"
@@ -286,6 +287,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             break;
         }
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -322,6 +325,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     atype_t am;
     switch (o1->obj->type) {
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
