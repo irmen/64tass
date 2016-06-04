@@ -20,15 +20,16 @@
 #include "listobj.h"
 #include "eval.h"
 #include "variables.h"
-#include "boolobj.h"
 #include "error.h"
+#include "arguments.h"
+
+#include "boolobj.h"
 #include "codeobj.h"
 #include "strobj.h"
 #include "intobj.h"
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-
 
 static Type list_obj;
 static Type tuple_obj;
@@ -150,7 +151,6 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     List *v1 = (List *)o1;
     size_t i;
     Obj *val;
-    Error *err;
     switch (type) {
     case TRUTH_ALL:
         for (i = 0; i < v1->len; i++) {
@@ -169,9 +169,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
         }
         return (Obj *)ref_bool(false_value);
     default: 
-        err = new_error(ERROR_____CANT_BOOL, epoint);
-        err->u.objname = o1->obj->name;
-        return &err->v;
+        return DEFAULT_OBJ->truth(o1, type, epoint);
     }
 }
 

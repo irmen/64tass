@@ -25,6 +25,7 @@
 #include "variables.h"
 #include "error.h"
 #include "values.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -105,7 +106,9 @@ static bool same(const Obj *o1, const Obj *o2) {
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
-    Error *err = access_check(v1, epoint);
+    Error *err;
+    if (arguments.strict && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
+    err = access_check(v1, epoint);
     if (err != NULL) return &err->v;
     v = v1->addr;
     return v->obj->truth(v, type, epoint);
@@ -390,6 +393,9 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
 static MUST_CHECK Obj *calc1(oper_t op) {
     Code *v, *v1 = (Code *)op->v1;
     switch (op->op->op) {
+    case O_LNOT:
+        if (arguments.strict) break;
+        /* fall through */
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -397,7 +403,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD:
     case O_BSWORD:
     case O_STRING:
-    case O_LNOT:
         op->v1 = v1->addr;
         v = (Code *)op->v1->obj->calc1(op);
         op->v1 = &v1->v;
@@ -434,6 +439,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (result->obj != BOOL_OBJ) return result;
         i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference(i ? o2 : &v1->v);
     }
     switch (o2->obj->type) {
@@ -452,6 +458,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return &v->v;
         }
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -542,6 +550,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return &v->v;
         }
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:

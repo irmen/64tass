@@ -854,10 +854,7 @@ well.</p>
 
 <h3>Booleans<a name="booleans" href="#booleans"></a></h3>
 
-<p>There are two predefined boolean variables, <code>true</code> and <code>false</code>.</p>
-
-<p>In numeric expressions <code>true</code> is <code>1</code> and <code>false</code> is <code>0</code>.
-Other types can be converted to boolean by using the type <code>bool</code>.</p>
+<p>There are two predefined boolean constant variables, <code>true</code> and <code>false</code>.</p>
 
 <p>Booleans are created by comparison operators (<code>&lt;</code>,
 <code>&lt;=</code>, <code>!=</code>, <code>==</code>, <code>&gt;=</code>, <code>&gt;</code>),
@@ -865,7 +862,11 @@ logical operators (<code>&amp;&amp;</code>, <code>||</code>, <code>^^</code>,
 <code>!</code>), the membership operator (<code>in</code>) and the
 <code>all</code> and <code>any</code> functions.</p>
 
-<p>Conditional expressions, logical expressions and conditional compilation uses them.</p>
+<p>Normally in numeric expressions <code>true</code> is <code>1</code> and
+<code>false</code> is <code>0</code>, unless the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option was
+used.</p>
+
+<p>Other types can be converted to boolean by using the type <code>bool</code>.</p>
 
 <div><table border="0">
 <caption>Boolean values of various types</caption>
@@ -1193,9 +1194,11 @@ parameters to functions.</p>
 <tr><td width="50%">all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
 <tr><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-<tr><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
+<tr><td>all elements true or empty list<td><code><span class="k">all</span>([<span>true</span>, <span>true</span>, <span>false</span>])</code> is <code><span>false</span></code>
 </tbody>
 </table></div>
+
+<p>Only booleans in a list are accepted with the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option.</p>
 
 <dt><code><b>any(</b>&lt;expression&gt;<b>)</b></code><a name="f_any" href="#f_any"></a>
 <dd>Return truth for various definitions of <q>any</q>.
@@ -1205,9 +1208,11 @@ parameters to functions.</p>
 <tr><td width="50%">at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
 <tr><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-<tr><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
+<tr><td>at least one true element<td><code><span class="k">any</span>([<span>true</span>, <span>true</span>, <span>false</span>])</code> is <code><span>true</span></code>
 </tbody>
 </table></div>
+
+<p>Only booleans in a list are accepted with the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option.</p>
 
 <dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
 <dd>Create string from values according to a format string.
@@ -1414,17 +1419,16 @@ opcodes.</p>
 
 <h4>Conditional operators<a name="conditionals" href="#conditionals"></a></h4>
 <p>Boolean conditional operators give false or true or one of the
-operands as the result. True is defined as a non-zero number, anything else is false.</p>
+operands as the result.</p>
 
 <div><table border="0">
 <caption>Logical and conditional operators</caption>
 <tbody>
-<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if x is true then x otherwise y
-<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then false otherwise x || y
-<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if x is true then y otherwise x
-<tr><td><code>!<u>x</u></code><td>if x is true then false otherwise true
-<tr><td><code>!!<u>x</u></code><td>if x is true then true otherwise false
-<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then x otherwise y
+<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if <code>x</code> is true then <code>x</code> otherwise <code>y</code>
+<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then <code>false</code> otherwise <code>x || y</code>
+<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if <code>x</code> is true then <code>y</code> otherwise <code>x</code>
+<tr><td><code>!<u>x</u></code><td>if <code>x</code> is true then <code>false</code> otherwise <code>true</code>
+<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then <code>x</code> otherwise <code>y</code>
 </tbody>
 </table></div>
 
@@ -1436,6 +1440,9 @@ operands as the result. True is defined as a non-zero number, anything else is f
 
 <p>Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.</p>
+
+<p>With the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option
+booleans are required as arguments and only the <q><code>?</code></q> operator may return something else.</p>
 
 <h4>Address length forcing<a name="addresslength" href="#addresslength"></a></h4>
 
@@ -2131,23 +2138,23 @@ used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
 <h4>If, else if, else<a name="conditional-if" href="#conditional-if"></a></h4>
 <dl class="dir">
-<dt><code><b class="k">.if</b></code> &lt;expression&gt;<a name="d_if" href="#d_if"></a>
-<dd>Compile, if result is true (not zero)
-<dt><code><b class="k">.elsif</b></code> &lt;expression&gt;<a name="d_elsif" href="#d_elsif"></a>
-<dd>Compile if the previous conditions were all skipped and the result is true (not zero)
+<dt><code><b class="k">.if</b></code> &lt;condition&gt;<a name="d_if" href="#d_if"></a>
+<dd>Compile if condition is true
+<dt><code><b class="k">.elsif</b></code> &lt;condition&gt;<a name="d_elsif" href="#d_elsif"></a>
+<dd>Compile if previous conditions were not met and the condition is true
 <dt><code><b class="k">.else</b></code><a name="d_else" href="#d_else"></a>
-<dd>Compile if the previous conditions were all skipped
+<dd>Compile if previous conditions were not met
 <dt><code><b class="k">.fi</b></code><a name="d_fi" href="#d_fi"></a>
 <dt><code><b class="k">.endif</b></code><a name="d_endif" href="#d_endif"></a>
-<dd>End of conditional compile
+<dd>End of conditional compilation
 <dt><code><b class="k">.ifne</b></code> &lt;value&gt;<a name="d_ifne" href="#d_ifne"></a>
-<dd>Compile, if value is not zero (or true)
+<dd>Compile if value is not zero
 <dt><code><b class="k">.ifeq</b></code> &lt;value&gt;<a name="d_ifeq" href="#d_ifeq"></a>
-<dd>Compile, if value is zero (or false)
+<dd>Compile if value is zero
 <dt><code><b class="k">.ifpl</b></code> &lt;value&gt;<a name="d_ifpl" href="#d_ifpl"></a>
-<dd>Compile, if value is greater or equal zero
+<dd>Compile if value is greater or equal zero
 <dt><code><b class="k">.ifmi</b></code> &lt;value&gt;<a name="d_ifmi" href="#d_ifmi"></a>
-<dd>Compile, if value is less than zero
+<dd>Compile if value is less than zero
 </dl>
 
 <p>The <a href="#d_ifne"><code>.ifne</code></a>, <a href="#d_ifeq"><code>.ifeq</code></a>, <a href="#d_ifpl"><code>.ifpl</code></a> and
@@ -3118,6 +3125,8 @@ using <q>-</q> as the file name.</p>
 <dd>Enable symbol shadowing check
 <p>Makes local variables <q>shadowing</q> other variables in upper scopes an
 error if they are used in a way which is ambiguous.</p>
+<p>This is useful to detect hard to notice bugs where a new local
+variable takes the place of a global one by mistake.</p>
 
 <pre width=80>
 bl      <b class="k">.block</b>
@@ -3127,6 +3136,20 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
         <b class="k">.end</b>
         <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
 </pre>
+
+<dt><b>--strict-bool</b><a name="o_strict-bool" href="#o_strict-bool"></a>
+<dd>Disables implicit boolean conversions
+<p>With this option conditional directives required booleans</p>
+<p>Here are a few  sloppy coding styles which won't work any more and how to improve it:</p>
+
+<ul>
+<li><q><code>1</code></q> and <q><code>0</code></q> as boolean constants. Use the slightly longer <q><code>true</code></q> and <q><code>false</code></q>.
+<li>Implicit non-zero checks. Write it out like <q><code>.if (lbl &amp; 1) != 0</code></q>.
+<li>Zero checks with <q><code>!</code></q>. Write it out like <q><code>lbl == 0</code></q>.
+<li>Binary operators on booleans. Use the proper <q><code>||</code></q>, <q><code>&amp;&amp;</code></q> and <q><code>^^</code></q> operators.
+<li>Numeric expressions like <q><code>1 + (lbl &gt; 3)</code></q>. It's better as <q><code>(lbl &gt; 3) ? 2 : 1</code></q>.
+</ul>
+
 </dl>
 
 <h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>

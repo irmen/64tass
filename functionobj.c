@@ -23,9 +23,10 @@
 #include "eval.h"
 #include "misc.h"
 #include "variables.h"
+#include "error.h"
+
 #include "floatobj.h"
 #include "strobj.h"
-#include "error.h"
 #include "listobj.h"
 #include "floatobj.h"
 #include "intobj.h"

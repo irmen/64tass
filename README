@@ -649,17 +649,16 @@ uninitialized memory, but .fill, .align, .offs or address manipulation as well.
 
 Booleans
 
-There are two predefined boolean variables, true and false.
-
-In numeric expressions true is 1 and false is 0. Other types can be converted
-to boolean by using the type bool.
+There are two predefined boolean constant variables, true and false.
 
 Booleans are created by comparison operators (<, <=, !=, ==, >=, >), logical
 operators (&&, ||, ^^, !), the membership operator (in) and the all and any
 functions.
 
-Conditional expressions, logical expressions and conditional compilation uses
-them.
+Normally in numeric expressions true is 1 and false is 0, unless the `
+--strict-bool' command line option was used.
+
+Other types can be converted to boolean by using the type bool.
 
          Boolean values of various types
 bits  At least one non-zero bit
@@ -914,16 +913,22 @@ all(<expression>)
     all characters non-zero or empty      all("c") is true
     string
     all bytes non-zero or no bytes        all(b"c") is true
-    all elements true or empty list       all([1, 1, 0]) is false
+    all elements true or empty list       all([true, true, false]) is false
+
+    Only booleans in a list are accepted with the `--strict-bool' command line
+    option.
 
 any(<expression>)
     Return truth for various definitions of `any'.
 
-                           Any function
-    at least one bit set            any(~$f) is false
-    at least one non-zero character any("c") is true
-    at least one non-zero byte      any(b"c") is true
-    at least one true element       any([1, 1, 0]) is true
+                            Any function
+    at least one bit set             any(~$f) is false
+    at least one non-zero character  any("c") is true
+    at least one non-zero byte       any(b"c") is true
+    at least one true element        any([true, true, false]) is true
+
+    Only booleans in a list are accepted with the `--strict-bool' command line
+    option.
 
 format(<string expression>[, <expression>, ...])
     Create string from values according to a format string.
@@ -1071,14 +1076,13 @@ of operands.
 Conditional operators
 
 Boolean conditional operators give false or true or one of the operands as the
-result. True is defined as a non-zero number, anything else is false.
+result.
 
               Logical and conditional operators
 x || y      if x is true then x otherwise y
 x ^^ y      if both false or true then false otherwise x || y
 x && y      if x is true then y otherwise x
 !x          if x is true then false otherwise true
-!!x         if x is true then true otherwise false
 c ? x : y   if c is true then x otherwise y
 
 ;Silly example for 1=>"simple", 2=>"advanced", else "normal"
@@ -1087,6 +1091,9 @@ c ? x : y   if c is true then x otherwise y
 
 Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.
+
+With the `--strict-bool' command line option booleans are required as arguments
+and only the `?' operator may return something else.
 
 Address length forcing
 
@@ -1757,24 +1764,23 @@ from the same source.
 
 If, else if, else
 
-.if <expression>
-    Compile, if result is true (not zero)
-.elsif <expression>
-    Compile if the previous conditions were all skipped and the result is true
-    (not zero)
+.if <condition>
+    Compile if condition is true
+.elsif <condition>
+    Compile if previous conditions were not met and the condition is true
 .else
-    Compile if the previous conditions were all skipped
+    Compile if previous conditions were not met
 .fi
 .endif
-    End of conditional compile
+    End of conditional compilation
 .ifne <value>
-    Compile, if value is not zero (or true)
+    Compile if value is not zero
 .ifeq <value>
-    Compile, if value is zero (or false)
+    Compile if value is zero
 .ifpl <value>
-    Compile, if value is greater or equal zero
+    Compile if value is greater or equal zero
 .ifmi <value>
-    Compile, if value is less than zero
+    Compile if value is less than zero
 
 The .ifne, .ifeq, .ifpl and .ifmi directives exists for compatibility only, in
 practice it's better to use comparison operators instead.
@@ -2696,12 +2702,32 @@ Operation options
     Makes local variables `shadowing' other variables in upper scopes an error
     if they are used in a way which is ambiguous.
 
+    This is useful to detect hard to notice bugs where a new local variable
+    takes the place of a global one by mistake.
+
     bl      .block
     a       .byte 2         ;'a' is a built-in register
     x       .byte 2         ;'x' is a built-in register
             asl a           ; accumulator or the byte above?
             .end
             asl bl.x        ; not ambiguous
+
+--strict-bool
+    Disables implicit boolean conversions
+
+    With this option conditional directives required booleans
+
+    Here are a few sloppy coding styles which won't work any more and how to
+    improve it:
+
+      + `1' and `0' as boolean constants. Use the slightly longer `true' and
+        `false'.
+      + Implicit non-zero checks. Write it out like `.if (lbl & 1) != 0'.
+      + Zero checks with `!'. Write it out like `lbl == 0'.
+      + Binary operators on booleans. Use the proper `||', `&&' and `^^'
+        operators.
+      + Numeric expressions like `1 + (lbl > 3)'. It's better as `(lbl > 3) ? 2
+        : 1'.
 
 Target selection on command line
 

@@ -19,15 +19,17 @@
 #include <string.h>
 #include "eval.h"
 #include "boolobj.h"
+#include "error.h"
+#include "variables.h"
+#include "arguments.h"
+
 #include "floatobj.h"
 #include "strobj.h"
-#include "error.h"
 #include "bytesobj.h"
 #include "bitsobj.h"
 #include "intobj.h"
 #include "operobj.h"
 #include "typeobj.h"
-#include "variables.h"
 
 static Type obj;
 
@@ -105,6 +107,14 @@ static MUST_CHECK Obj *absolute(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)int_from_bool(v1);
 }
 
+static MUST_CHECK Obj *calc1_strict(oper_t op) {
+    if (op->op == &o_LNOT) {
+        Bool *v1 = (Bool *)op->v1;
+        return truth_reference(!v1->boolean);
+    }
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK Obj *calc1(oper_t op) {
     Bool *v1 = (Bool *)op->v1;
     Str *v;
@@ -165,6 +175,20 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
     return obj_oper_error(op);
 }
 
+static MUST_CHECK Obj *calc2_strict(oper_t op) {
+    if (op->v2->obj == BOOL_OBJ) {
+        Bool *v1 = (Bool *)op->v1;
+
+        if (op->op == &o_LAND) {
+            return val_reference(v1->boolean ? op->v2 : &v1->v);
+        }
+        if (op->op == &o_LOR) {
+            return val_reference(v1->boolean ? &v1->v : op->v2);
+        }
+    }
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Bool *v1 = (Bool *)op->v1;
 
@@ -204,13 +228,18 @@ void boolobj_init(void) {
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.sign = sign;
-    obj.absolute = absolute;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    if (arguments.strict) {
+        obj.calc1 = calc1_strict;
+        obj.calc2 = calc2_strict;
+    } else {
+        obj.ival = ival;
+        obj.uval = uval;
+        obj.sign = sign;
+        obj.absolute = absolute;
+        obj.calc1 = calc1;
+        obj.calc2 = calc2;
+        obj.rcalc2 = rcalc2;
+    }
 
     bool_value[0] = false_value = new_boolean(false);
     bool_value[1] = true_value = new_boolean(true);

@@ -509,7 +509,6 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
             case T_INT:
             case T_BITS:
             case T_STR:
-            case T_BOOL:
                 {
                     uint16_t val1;
                     uval_t uval;
@@ -573,14 +572,12 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
         case T_BITS:
         case T_CODE:
         case T_STR:
-        case T_BOOL:
         case T_ADDRESS:
             switch (v2->val->obj->type) {
             case T_INT:
             case T_BITS:
             case T_CODE:
             case T_STR:
-            case T_BOOL:
             case T_ADDRESS:
                 {
                     uint16_t val1, val2;
@@ -946,6 +943,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 values[vsp - 1].val = val;
                 continue;
             }
+            if (arguments.strict && values[vsp - 1].val->obj != BOOL_OBJ) err_msg_wrong_type(values[vsp - 1].val, BOOL_OBJ, &values[vsp - 1].epoint);
             if (((Bool *)val)->boolean) {
                 Obj *tmp = values[vsp - 1].val;
                 values[vsp - 1].val = v1->val;
@@ -1150,6 +1148,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 val_destroy(v1->val); v1->val = val;
                 continue;
             }
+            if (arguments.strict && v1->val->obj != BOOL_OBJ) err_msg_wrong_type(v1->val, BOOL_OBJ, &v1->epoint);
             {
                 Obj *val2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
                 if (val2->obj != BOOL_OBJ) {
@@ -1157,6 +1156,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     val_destroy(val);
                     continue;
                 }
+                if (arguments.strict && v2->val->obj != BOOL_OBJ) err_msg_wrong_type(v2->val, BOOL_OBJ, &v2->epoint);
                 if (((Bool *)val)->boolean) {
                     if (((Bool *)val2)->boolean) val_replace(&v1->val, (Obj *)false_value);
                 } else {

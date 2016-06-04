@@ -22,6 +22,7 @@
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
+#include "arguments.h"
 
 #include "boolobj.h"
 #include "codeobj.h"
@@ -60,8 +61,9 @@ static bool same(const Obj *o1, const Obj *o2) {
     return o2->obj == FLOAT_OBJ && v1->real == v2->real;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Float *v1 = (Float *)o1;
+    if (arguments.strict && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
     return truth_reference(v1->real != 0.0);
 }
 
@@ -165,7 +167,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG: return float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
     case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
-    case O_LNOT: return truth_reference(v1 == 0.0);
+    case O_LNOT:
+        if (arguments.strict) break;
+        return truth_reference(v1 == 0.0);
     default: break;
     }
     return obj_oper_error(op);
@@ -239,14 +243,18 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     double d;
     Obj *err;
     if (op->op == &o_LAND) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((((Float *)(op->v1))->real != 0.0) ? op->v2 : op->v1);
     }
     if (op->op == &o_LOR) {
+        if (arguments.strict) return obj_oper_error(op);
         return val_reference((((Float *)(op->v1))->real != 0.0) ? op->v1 : op->v2);
     }
     switch (op->v2->obj->type) {
     case T_FLOAT: return calc2_double(op, ((Float *)op->v1)->real, ((Float *)op->v2)->real);
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
     case T_STR:
@@ -269,6 +277,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *err;
     switch (op->v1->obj->type) {
     case T_BOOL:
+        if (arguments.strict) break;
+        /* fall through */
     case T_INT:
     case T_BITS:
         err = create(op->v1, op->epoint);
