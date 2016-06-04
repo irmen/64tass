@@ -36,6 +36,13 @@ struct file_list_s {
 
 extern struct Type *ERROR_OBJ;
 
+#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+#define COLOR_OUTPUT
+extern bool print_use_color;
+#else
+#define print_use_color false
+#endif
+
 struct Namespace;
 struct Register;
 struct Oper;
