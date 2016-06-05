@@ -40,14 +40,14 @@ struct cpu_model_s {
 static struct cpu_model_s cpu;
 
 const char *cpu_opt_branch_suggest(void) {
-    if (cpu.p.z == 0) return "bne"; /* 0xD0 BNE *+$12 */
-    if (cpu.p.z == 1) return "beq"; /* 0xF0 BEQ *+$12 */
-    if (cpu.p.c == 0) return "bcc"; /* 0x90 BCC *+$12 */
-    if (cpu.p.c == 1) return "bcs"; /* 0xB0 BCS *+$12 */
-    if (cpu.p.n == 0) return "bpl"; /* 0x10 BPL *+$12 */
-    if (cpu.p.n == 1) return "bmi"; /* 0x30 BMI *+$12 */
-    if (cpu.p.v == 0) return "bvc"; /* 0x50 BVC *+$12 */
-    if (cpu.p.v == 1) return "bvs"; /* 0x70 BVS *+$12 */
+    if (cpu.p.z == 0) return "gne"; /* 0xD0 BNE *+$12 */
+    if (cpu.p.z == 1) return "geq"; /* 0xF0 BEQ *+$12 */
+    if (cpu.p.c == 0) return "gcc"; /* 0x90 BCC *+$12 */
+    if (cpu.p.c == 1) return "gcs"; /* 0xB0 BCS *+$12 */
+    if (cpu.p.n == 0) return "gpl"; /* 0x10 BPL *+$12 */
+    if (cpu.p.n == 1) return "gmi"; /* 0x30 BMI *+$12 */
+    if (cpu.p.v == 0) return "gvc"; /* 0x50 BVC *+$12 */
+    if (cpu.p.v == 1) return "gvs"; /* 0x70 BVS *+$12 */
     return NULL;
 }
 
