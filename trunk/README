@@ -2938,11 +2938,11 @@ without them.
 
 Warnings
 
-deprecated equal operator, use == instead
+deprecated equal operator, use '==' instead
     single equal sign for comparions is going away soon, update source
-deprecated modulo operator, use % instead
+deprecated modulo operator, use '%' instead
     double slash for modulo is going away soon, update source
-deprecated not equal operator, use != instead
+deprecated not equal operator, use '!=' instead
     non-standard not equal operators, update source
 directive ignored
     an assembler directive was ignored for compatibility reasons.
