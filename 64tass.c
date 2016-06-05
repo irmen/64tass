@@ -3445,8 +3445,12 @@ static int main2(int argc, char *argv[]) {
     }
 
     output_mem(&root_section.mem);
-    status(0);
-    return EXIT_SUCCESS;
+
+    {
+        int e = error_serious(fixeddig, constcreated);
+        status(e);
+        return (e != 0) ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
 }
 
 #ifdef _WIN32
