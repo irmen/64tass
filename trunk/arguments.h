@@ -46,6 +46,7 @@ struct arguments_s {
     bool shadow_check;
     bool verbose;
     bool strict;
+    bool optimize;
     uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;

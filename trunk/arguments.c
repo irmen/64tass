@@ -38,7 +38,8 @@ struct arguments_s arguments = {
     false,       /* tasmcomp */
     false,       /* shadow_check */
     false,       /* verbose */
-    false,        /* strict */
+    false,       /* strict */
+    false,       /* optimize */
     0x20,        /* caseinsensitive */
     "a.out",     /* output */
     &c6502,      /* cpumode */
@@ -51,7 +52,7 @@ struct arguments_s arguments = {
     LABEL_64TASS /* label_mode */
 };
 
-static const char *short_options = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:";
+static const char *short_options = "wqnbfXaTCBicxteOl:L:I:M:msV?o:D:E:";
 
 static const struct option long_options[] = {
     {"no-warn"          , no_argument      , NULL, 'w'},
@@ -162,12 +163,13 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 's': arguments.source = false;break;
             case 0x112: arguments.linenum = true;break;
             case 0x113: arguments.strict = true;break;
+            case 'O':arguments.optimize = true;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case 0x110: arguments.verbose = true;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
-               "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
+               "Usage: 64tass [-abBCfnTqwWcitxmseO?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--flat] [--atari-xex]\n"
                "        [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
@@ -194,6 +196,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -E, --error=<file>    Place errors into <file>\n"
                "  -I <path>             Include search path\n"
                "  -M <file>             Makefile dependencies to <file>\n"
+               "  -O                    Use the optimizer\n"
                "  -q, --quiet           Do not output summary and header\n"
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"

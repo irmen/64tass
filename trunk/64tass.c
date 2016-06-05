@@ -49,6 +49,7 @@
 #include "instruction.h"
 #include "unicode.h"
 #include "listing.h"
+#include "optimizer.h"
 
 #include "listobj.h"
 #include "codeobj.h"
@@ -822,6 +823,7 @@ Obj *compile(struct file_list_s *cflist)
             if (false) {
             hh: islabel = true;
             }
+            if (arguments.optimize) cpu_opt_invalidate();
             ignore();wht = here();
             if ((waitfor->skip & 1) == 0) {epoint = lpoint; goto jn;} /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
@@ -3348,6 +3350,7 @@ static int main2(int argc, char *argv[]) {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         listing_pccolumn = false; fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
+        if (arguments.optimize) cpu_opt_invalidate();
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
@@ -3395,6 +3398,7 @@ static int main2(int argc, char *argv[]) {
         fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         listing_open(arguments.list, argc, argv);
+        if (arguments.optimize) cpu_opt_invalidate();
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
