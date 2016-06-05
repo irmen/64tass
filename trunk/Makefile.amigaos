@@ -1,5 +1,5 @@
 CC = vc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o math.o arguments.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o longjump.o wctype.o wchar.o math.o arguments.o optimizer.o
 LDLIBS = -lmsoft
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "1050?")
@@ -23,10 +23,10 @@ README: README.html
 64tass.o: 64tass.c wchar.h 64tass.h stdbool.h inttypes.h wait_e.h error.h \
  errors_e.h avl.h obj.h opcodes.h misc.h eval.h values.h section.h mem.h \
  encoding.h file.h variables.h macro.h instruction.h unicode.h \
- unicodedata.h listing.h listobj.h codeobj.h strobj.h floatobj.h \
- addressobj.h boolobj.h bytesobj.h intobj.h bitsobj.h functionobj.h \
- namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h registerobj.h \
- arguments.h
+ unicodedata.h listing.h optimizer.h listobj.h codeobj.h strobj.h \
+ floatobj.h addressobj.h boolobj.h bytesobj.h intobj.h bitsobj.h \
+ functionobj.h namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h \
+ registerobj.h arguments.h
 addressobj.o: addressobj.c addressobj.h obj.h stdbool.h inttypes.h \
  values.h error.h errors_e.h avl.h eval.h variables.h arguments.h \
  boolobj.h strobj.h intobj.h operobj.h typeobj.h noneobj.h
@@ -82,7 +82,7 @@ gapobj.o: gapobj.c gapobj.h obj.h stdbool.h inttypes.h error.h errors_e.h \
 instruction.o: instruction.c instruction.h stdbool.h inttypes.h opcodes.h \
  obj.h 64tass.h wait_e.h section.h avl.h mem.h file.h listing.h error.h \
  errors_e.h addressobj.h values.h listobj.h registerobj.h codeobj.h \
- typeobj.h noneobj.h longjump.h arguments.h
+ typeobj.h noneobj.h longjump.h arguments.h optimizer.h
 intobj.o: intobj.c intobj.h obj.h stdbool.h inttypes.h values.h unicode.h \
  unicodedata.h encoding.h avl.h errors_e.h error.h eval.h variables.h \
  arguments.h boolobj.h floatobj.h codeobj.h strobj.h bytesobj.h bitsobj.h \
@@ -124,6 +124,8 @@ obj.o: obj.c variables.h stdbool.h inttypes.h obj.h misc.h section.h \
 opcodes.o: opcodes.c opcodes.h inttypes.h
 operobj.o: operobj.c operobj.h obj.h stdbool.h inttypes.h strobj.h \
  typeobj.h
+optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
+ errors_e.h avl.h obj.h section.h mem.h
 registerobj.o: registerobj.c registerobj.h obj.h stdbool.h inttypes.h \
  values.h error.h errors_e.h avl.h eval.h opcodes.h variables.h boolobj.h \
  strobj.h intobj.h operobj.h typeobj.h noneobj.h
