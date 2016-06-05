@@ -33,6 +33,7 @@
 #include "noneobj.h"
 #include "longjump.h"
 #include "arguments.h"
+#include "optimizer.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
@@ -680,6 +681,13 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         ln = 2;
         if (toaddress(val, &uval, 24, NULL, epoint2)) break;
         if ((current_section->l_address.bank ^ uval) <= 0xffff) { 
+            if (arguments.optimize && cnmemonic[opr] == 0x4C) { 
+                adr = (uint16_t)(uval - current_section->l_address.address - 2);
+                if (adr>=0xFF80 || adr<=0x007F) {
+                    const char *brname = cpu_opt_branch_suggest();
+                    if (brname != NULL) err_msg2(ERROR___OPTIMIZABLE, brname, epoint);
+                }
+            }
             adr = uval;
             break; 
         }
@@ -827,6 +835,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
 
     cod = cnmemonic[opr];
     if (opr == ADR_REG) cod = regopcode_table[cod][reg];
+    if (arguments.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
         uint32_t temp = adr;
         pokeb(cod ^ longbranch);

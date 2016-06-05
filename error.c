@@ -408,8 +408,23 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     if (no < 0x40) {
         new_error_msg(SV_WARNING, current_file_list, epoint);
         if (!arguments.warning) return;
-        if (no == ERROR_WUSER_DEFINED) adderror2(((Str *)prm)->data, ((Str *)prm)->len);
-        else adderror(terr_warning[no]);
+        switch (no) {
+        case ERROR___OPTIMIZABLE:
+            adderror("could be shorter by using '");
+            adderror((const char *)prm);
+            adderror("' instead");
+            break;
+        case ERROR_____REMOVABLE:
+            adderror("possibly redundant as ");
+            adderror((const char *)prm);
+            break;
+        case ERROR_WUSER_DEFINED: 
+            adderror2(((Str *)prm)->data, ((Str *)prm)->len);
+            break;
+        default: 
+            adderror(terr_warning[no]);
+            break;
+        }
         return;
     }
 
