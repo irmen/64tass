@@ -29,6 +29,7 @@
 
 struct cpu_model_s {
     bool branched;
+    bool call;
     unsigned int pc;
     uint8_t ar, xr, yr, sr;
     uint8_t av, xv, yv, sv;
@@ -61,6 +62,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu.pc = current_section->l_address.address;
     }
     cpu.pc = (cpu.pc + ln + 1) & 0xffff;
+
+    if (cpu.call) {
+        if (cod == 0x60) err_msg2(ERROR_____TAIL_CALL, NULL, epoint);
+        cpu.call = false;
+    }
 
     switch (cod) {
     case 0x69: /* ADC #$12 */
@@ -608,8 +614,20 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0x60: /* RTS */
         cpu.branched = true;
         break;
-    case 0x00: /* BRK #$12 */
     case 0x20: /* JSR $1234 */
+        cpu.call = true;
+        cpu.av = 0;
+        cpu.xv = 0;
+        cpu.yv = 0;
+        cpu.sv = 0;
+        cpu.p.n = UNKNOWN;
+        cpu.p.v = UNKNOWN;
+        cpu.p.d = UNKNOWN;
+        cpu.p.i = UNKNOWN;
+        cpu.p.z = UNKNOWN;
+        cpu.p.c = UNKNOWN;
+        break;
+    case 0x00: /* BRK #$12 */
     default:
         cpu_opt_invalidate();
     }
@@ -632,6 +650,7 @@ replace:
 
 void cpu_opt_invalidate(void) {
     cpu.branched = false;
+    cpu.call = false;
     cpu.av = 0;
     cpu.xv = 0;
     cpu.yv = 0;
