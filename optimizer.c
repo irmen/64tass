@@ -190,24 +190,26 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         old.ar = cpu.ar;
         old.av = cpu.av;
     comp:
+        old.p.n = cpu.p.n; old.p.z = cpu.p.z; old.p.c = cpu.p.c;
+        a1 = old.ar ^ adr;
+        cpu.p.z = ((a1 & cpu.av) == 0 && cpu.av != 0xff) ? UNKNOWN : (((a1 & cpu.av) == 0) ? 1 : 0);
         switch ((uint8_t)adr) {
         case 0x00: 
             cpu.p.n = ((old.av & 0x80) == 0) ? UNKNOWN : (old.ar >> 7);
-            cpu.p.z = ((old.ar & old.av) == 0 && old.av != 0xff) ? UNKNOWN : (((old.ar & old.av) == 0) ? 1 : 0);
             cpu.p.c = 1; 
             break;
         case 0x80: 
             cpu.p.n = ((old.av & 0x80) == 0) ? UNKNOWN : ((old.ar >> 7) ^ 1);
-            cpu.p.z = (((old.ar ^ 0x80) & old.av) == 0 && old.av != 0xff) ? UNKNOWN : ((((old.ar ^ 0x80) & old.av) == 0) ? 1 : 0);
             cpu.p.c = ((old.av & 0x80) == 0) ? UNKNOWN : (old.ar >> 7); 
             break;
         default: 
-            a1 = old.ar - adr;
-            cpu.p.n = (old.av != 0xff) ? UNKNOWN : (a1 >> 7);
-            cpu.p.z = (old.av != 0xff) ? UNKNOWN : ((a1 == 0) ? 1 : 0);
-            cpu.p.c = (old.av != 0xff) ? UNKNOWN : ((old.ar >= (uint8_t)adr) ? 1 : 0); 
+            cpu.p.n = (old.av != 0xff) ? UNKNOWN : (((uint8_t)(old.ar - adr)) >> 7);
+            cpu.p.c = (((uint8_t)(old.ar | ~old.av) >= (uint8_t)adr) != ((old.ar & old.av) >= (uint8_t)adr)) ? UNKNOWN : ((old.ar >= (uint8_t)adr) ? 1 : 0); 
             break;
         }
+        if (old.p.n < UNKNOWN && old.p.n == cpu.p.n &&
+            old.p.c < UNKNOWN && old.p.c == cpu.p.c &&
+            old.p.z < UNKNOWN && old.p.z == cpu.p.z) goto remove;
         break;
     case 0xE0: /* CPX #$12 */
         old.ar = cpu.xr;
