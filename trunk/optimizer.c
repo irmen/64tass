@@ -192,7 +192,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     comp:
         old.p.n = cpu.p.n; old.p.z = cpu.p.z; old.p.c = cpu.p.c;
         a1 = old.ar ^ adr;
-        cpu.p.z = ((a1 & cpu.av) == 0 && cpu.av != 0xff) ? UNKNOWN : (((a1 & cpu.av) == 0) ? 1 : 0);
+        cpu.p.z = ((a1 & old.av) == 0 && old.av != 0xff) ? UNKNOWN : (((a1 & old.av) == 0) ? 1 : 0);
         switch ((uint8_t)adr) {
         case 0x00: 
             cpu.p.n = ((old.av & 0x80) == 0) ? UNKNOWN : (old.ar >> 7);
