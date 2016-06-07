@@ -65,7 +65,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
 
     if (cpu.call) {
         if (cod == 0x60) err_msg2(ERROR_____TAIL_CALL, NULL, epoint);
-        cpu.call = false;
+        cpu_opt_invalidate();
     }
 
     switch (cod) {
@@ -276,12 +276,39 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (ln < 1) break;
         if (cpu.p.n == 1) goto removecond;
         if (cpu.p.n == 0) cpu.branched = true;
+        if (cpu.p.n == UNKNOWN_A) {
+            cpu.p.z = 0;
+            cpu.ar |= 0x80;
+            cpu.av |= 0x80;
+        }
+        if (cpu.p.n == UNKNOWN_X) {
+            cpu.p.z = 0;
+            cpu.xr |= 0x80;
+            cpu.xv |= 0x80;
+        }
+        if (cpu.p.n == UNKNOWN_Y) {
+            cpu.p.z = 0;
+            cpu.yr |= 0x80;
+            cpu.yv |= 0x80;
+        }
         cpu.p.n = 1;
         break;
     case 0x30: /* BMI *+$12 */
         if (ln < 1) break;
         if (cpu.p.n == 0) goto removecond;
         if (cpu.p.n == 1) cpu.branched = true;
+        if (cpu.p.n == UNKNOWN_A) {
+            cpu.ar &= ~0x80;
+            cpu.av |= 0x80;
+        }
+        if (cpu.p.n == UNKNOWN_X) {
+            cpu.xr &= ~0x80;
+            cpu.xv |= 0x80;
+        }
+        if (cpu.p.n == UNKNOWN_Y) {
+            cpu.yr &= ~0x80;
+            cpu.yv |= 0x80;
+        }
         cpu.p.n = 0;
         break;
     case 0x50: /* BVC *+$12 */
