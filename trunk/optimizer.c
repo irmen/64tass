@@ -65,7 +65,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
 
     if (cpu.call) {
         if (cod == 0x60) err_msg2(ERROR_____TAIL_CALL, NULL, epoint);
-        cpu_opt_invalidate();
+        cpu.call = false;
     }
 
     switch (cod) {
