@@ -22,6 +22,5 @@
 
 extern void cpu_opt(uint8_t, uint32_t, int8_t, linepos_t);
 extern void cpu_opt_invalidate(void);
-extern const char *cpu_opt_branch_suggest(void);
 
 #endif
