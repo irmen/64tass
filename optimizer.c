@@ -276,6 +276,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x10: /* BPL *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.n == 1) goto removecond;
         if (cpu.p.n == 0) cpu.branched = true;
         if (cpu.p.n == UNKNOWN_A) {
@@ -297,6 +298,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x30: /* BMI *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.n == 0) goto removecond;
         if (cpu.p.n == 1) cpu.branched = true;
         if (cpu.p.n == UNKNOWN_A) {
@@ -315,30 +317,35 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x50: /* BVC *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.v == 1) goto removecond;
         if (cpu.p.v == 0) cpu.branched = true;
         cpu.p.v = 1;
         break;
     case 0x70: /* BVS *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.v == 0) goto removecond;
         if (cpu.p.v == 1) cpu.branched = true;
         cpu.p.v = 0;
         break;
     case 0x90: /* BCC *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.c == 1) goto removecond;
         if (cpu.p.c == 0) cpu.branched = true;
         cpu.p.c = 1;
         break;
     case 0xB0: /* BCS *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.c == 0) goto removecond;
         if (cpu.p.c == 1) cpu.branched = true;
         cpu.p.c = 0;
         break;
     case 0xD0: /* BNE *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.z == 1) goto removecond;
         if (cpu.p.z == 0) cpu.branched = true;
         if (cpu.p.z == UNKNOWN_A) {
@@ -360,6 +367,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0xF0: /* BEQ *+$12 */
         if (ln < 1) break;
+        if ((uint8_t)adr == 0) goto jump;
         if (cpu.p.z == 0) goto removecond;
         if (cpu.p.z == 1) cpu.branched = true;
         cpu.p.z = 0;
@@ -638,6 +646,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu.p.c = UNKNOWN;
         break;
     case 0x4C: /* JMP $1234 */
+        if (cpu.pc == (uint16_t)adr) goto jump;
+        /* fall through */
     case 0x6C: /* JMP ($1234) */
     case 0x40: /* RTI */
     case 0x60: /* RTS */
@@ -672,6 +682,9 @@ removeset:
     return;
 removeclr:
     err_msg2(ERROR_____REMOVABLE, "flag is already clear", epoint);
+    return;
+jump:
+    err_msg2(ERROR_____REMOVABLE, "target is the next instruction", epoint);
     return;
 replace:
     err_msg2(ERROR___OPTIMIZABLE, optname, epoint);
