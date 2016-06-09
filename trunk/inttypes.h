@@ -19,7 +19,9 @@
 #ifndef INTTYPES_H
 #define INTTYPES_H
 
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
