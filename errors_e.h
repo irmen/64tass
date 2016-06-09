@@ -36,6 +36,7 @@ enum errors_e {
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,
     ERROR_____TAIL_CALL,
+    ERROR___CONST_INDEX,
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR_____REMOVABLE,

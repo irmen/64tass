@@ -322,7 +322,8 @@ static const char *terr_warning[] = {
     "deprecated equal operator, use '==' instead",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
-    "possibly redundant if last 'jsr' is changed to 'jmp'"
+    "possibly redundant if last 'jsr' is changed to 'jmp'",
+    "possibly redundant indexing with a constant value"
 };
 
 static const char *terr_error[] = {
