@@ -2769,8 +2769,7 @@ using the .cpu directive in the source.
             sac #$00
 
 -x, --m65816
-    W65C816. Enables extra opcodes, and full 16 MiB address space. Useful for
-    SuperCPU projects.
+    W65C816. Enables extra opcodes. Useful for SuperCPU projects.
 
     64tass --m65816 a.asm
             lda $123456,x
