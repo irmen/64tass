@@ -964,23 +964,23 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 break;
             case 0xCB: /* SBX #$12 */
                 old.xr = cpu->xr; old.xv = cpu->xv; old.p.n = cpu->p.n; old.p.z = cpu->p.z; old.p.c = cpu->p.c;
+                cpu->xv = (cpu->xv & cpu->av) | (cpu->av & ~cpu->ar) | (cpu->xv & ~cpu->xr);
                 cpu->xr &= cpu->ar;
-                cpu->xv = (cpu->xv & cpu->av) | ~cpu->ar | ~cpu->xr;
 
-                a1 = old.xr ^ adr;
-                cpu->p.z = ((a1 & old.xv) == 0 && old.xv != 0xff) ? UNKNOWN_X : (((a1 & old.xv) == 0) ? 1 : 0);
+                a1 = cpu->xr ^ adr;
+                cpu->p.z = ((a1 & cpu->xv) == 0 && cpu->xv != 0xff) ? UNKNOWN_X : (((a1 & cpu->xv) == 0) ? 1 : 0);
                 switch ((uint8_t)adr) {
                 case 0x00: 
-                    cpu->p.n = ((old.xv & 0x80) == 0) ? UNKNOWN_X : (old.xr >> 7);
+                    cpu->p.n = ((cpu->xv & 0x80) == 0) ? UNKNOWN_X : (cpu->xr >> 7);
                     cpu->p.c = 1; 
                     break;
                 case 0x80: 
-                    cpu->p.n = ((old.xv & 0x80) == 0) ? UNKNOWN_X : ((old.xr >> 7) ^ 1);
-                    cpu->p.c = ((old.xv & 0x80) == 0) ? UNKNOWN_X : (old.xr >> 7); 
+                    cpu->p.n = ((cpu->xv & 0x80) == 0) ? UNKNOWN_X : ((cpu->xr >> 7) ^ 1);
+                    cpu->p.c = ((cpu->xv & 0x80) == 0) ? UNKNOWN_X : (cpu->xr >> 7); 
                     break;
                 default: 
-                    cpu->p.n = (old.xv != 0xff) ? UNKNOWN_X : (((uint8_t)(old.xr - adr)) >> 7);
-                    cpu->p.c = (((uint8_t)(old.xr | ~old.xv) >= (uint8_t)adr) != ((old.xr & old.xv) >= (uint8_t)adr)) ? UNKNOWN : ((old.xr >= (uint8_t)adr) ? 1 : 0); 
+                    cpu->p.n = (cpu->xv != 0xff) ? UNKNOWN_X : (((uint8_t)(cpu->xr - adr)) >> 7);
+                    cpu->p.c = (((uint8_t)(cpu->xr | ~cpu->xv) >= (uint8_t)adr) != ((cpu->xr & cpu->xv) >= (uint8_t)adr)) ? UNKNOWN : ((cpu->xr >= (uint8_t)adr) ? 1 : 0); 
                     break;
                 }
                 cpu->xr -= adr;
