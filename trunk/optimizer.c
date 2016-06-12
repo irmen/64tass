@@ -41,9 +41,11 @@ struct optimizer_s {
 };
 
 static const struct cpu_s *cputype;
+bool cputype_65c02;
 
 void cpu_opt_set_cpumode(const struct cpu_s *cpu) {
     cputype = cpu;
+    cputype_65c02 = (cpu == &c65c02 || cpu == &r65c02 || cpu == &w65c02);
 }
 
 void cpu_opt_long_branch(uint16_t cod) {
@@ -81,10 +83,18 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     }
 
     switch (cod) {
+    case 0x71: /* ADC ($12),y */
+    case 0xF1: /* SBC ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        goto adcsbc;
     case 0x79: /* ADC $1234,y */
     case 0xF9: /* SBC $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         goto adcsbc;
+    case 0x61: /* ADC ($12,x) */
+    case 0xE1: /* SBC ($12,x) */
+        if (!cputype_65c02) goto adcsbc;
+        /* fall through */
     case 0x7D: /* ADC $1234,x */
     case 0x75: /* ADC $12,x */
     case 0xFD: /* SBC $1234,x */
@@ -94,13 +104,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0x69: /* ADC #$12 */
     case 0x6D: /* ADC $1234 */
     case 0x65: /* ADC $12 */
-    case 0x61: /* ADC ($12,x) */
-    case 0x71: /* ADC ($12),y */
     case 0xE9: /* SBC #$12 */
     case 0xED: /* SBC $1234 */
     case 0xE5: /* SBC $12 */
-    case 0xE1: /* SBC ($12,x) */
-    case 0xF1: /* SBC ($12),y */
     adcsbc:
         cpu->av = 0;
         cpu->p.n = UNKNOWN_A;
@@ -125,34 +131,42 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->ar |= adr;
         cpu->av |= adr;
         goto loada;
+    case 0x31: /* AND ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        goto and;
     case 0x39: /* AND $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         goto and;
+    case 0x21: /* AND ($12,x) */
+        if (!cputype_65c02) goto and;
+        /* fall through */
     case 0x3D: /* AND $1234,x */
     case 0x35: /* AND $12,x */
         if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         /* fall through */
     case 0x2D: /* AND $1234 */
     case 0x25: /* AND $12 */
-    case 0x21: /* AND ($12,x) */
-    case 0x31: /* AND ($12),y */
     and:
         cpu->av &= ~cpu->ar;
     nzfl:
         cpu->p.n = ((cpu->av & 0x80) == 0) ? UNKNOWN_A : (cpu->ar >> 7);
         cpu->p.z = ((cpu->ar & cpu->av) == 0 && cpu->av != 0xff) ? UNKNOWN_A : (((cpu->ar & cpu->av) == 0) ? 1 : 0);
         break;
+    case 0x11: /* ORA ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        goto ora;
     case 0x19: /* ORA $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         goto ora;
+    case 0x01: /* ORA ($12,x) */
+        if (!cputype_65c02) goto ora;
+        /* fall through */
     case 0x1D: /* ORA $1234,x */
     case 0x15: /* ORA $12,x */
         if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         /* fall through */
     case 0x0D: /* ORA $1234 */
     case 0x05: /* ORA $12 */
-    case 0x01: /* ORA ($12,x) */
-    case 0x11: /* ORA ($12),y */
     ora:
         cpu->av &= cpu->ar;
         goto nzfl;
@@ -161,10 +175,18 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->sr++;
         if (((cpu->sr ^ old.sr) & ~cpu->sv) != 0) cpu->sv = 0;
         goto eorlda;
+    case 0x51: /* EOR ($12),y */
+    case 0xB1: /* LDA ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        goto eorlda;
     case 0x59: /* EOR $1234,y */
     case 0xB9: /* LDA $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         goto eorlda;
+    case 0x41: /* EOR ($12,x) */
+    case 0xA1: /* LDA ($12,x) */
+        if (!cputype_65c02) goto eorlda;
+        /* fall through */
     case 0x5D: /* EOR $1234,x */
     case 0x55: /* EOR $12,x */
     case 0xBD: /* LDA $1234,x */
@@ -173,12 +195,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         /* fall through */
     case 0x4D: /* EOR $1234 */
     case 0x45: /* EOR $12 */
-    case 0x41: /* EOR ($12,x) */
-    case 0x51: /* EOR ($12),y */
     case 0xAD: /* LDA $1234 */
     case 0xA5: /* LDA $12 */
-    case 0xA1: /* LDA ($12,x) */
-    case 0xB1: /* LDA ($12),y */
     eorlda:
         cpu->av = 0;
         cpu->p.n = UNKNOWN_A;
@@ -251,17 +269,21 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         old.ar = cpu->yr;
         old.av = cpu->yv;
         goto comp;
+    case 0xD1: /* CMP ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        goto cmp;
     case 0xD9: /* CMP $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         goto cmp;
+    case 0xC1: /* CMP ($12,x) */
+        if (!cputype_65c02) goto cmp;
+        /* fall through */
     case 0xDD: /* CMP $1234,x */
     case 0xD5: /* CMP $12,x */
         if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         /* fall through */
     case 0xCD: /* CMP $1234 */
     case 0xC5: /* CMP $12 */
-    case 0xC1: /* CMP ($12,x) */
-    case 0xD1: /* CMP ($12),y */
     cmp:
         cpu->p.n = UNKNOWN;
         cpu->p.z = UNKNOWN;
@@ -427,6 +449,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x2C: /* BIT $1234 */
     case 0x24: /* BIT $12 */
+    bit:
         cpu->p.n = UNKNOWN;
         cpu->p.v = UNKNOWN;
         cpu->p.z = (cpu->ar == 0 && cpu->av == 0xff) ? 1 : UNKNOWN;
@@ -540,6 +563,16 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 goto replace;
             }
         }
+        if (cputype_65c02) {
+            if (cpu->ar == ((old.ar + 1) & 0xff)) {
+                optname = "inc a"; /* 0x1A INC A */
+                goto replace;
+            }
+            if (cpu->ar == ((old.ar - 1) & 0xff)) {
+                optname = "dec a"; /* 0x3A DEC A */
+                goto replace;
+            }
+        }
         break;
     case 0xA2: /* LDX #$12 */
         old.xr = cpu->xr; old.xv = cpu->xv; old.p.n = cpu->p.n; old.p.z = cpu->p.z;
@@ -617,10 +650,16 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0xEA: /* NOP */
         break;
+    case 0x91: /* STA ($12),y */
+        if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+        break;
     case 0x99: /* STA $1234,y */
     case 0x96: /* STX $12,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
         break;
+    case 0x81: /* STA ($12,x) */
+        if (!cputype_65c02) break;
+        /* fall through */
     case 0x9D: /* STA $1234,x */
     case 0x95: /* STA $12,x */
     case 0x94: /* STY $12,x */
@@ -628,8 +667,6 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x8D: /* STA $1234 */
     case 0x85: /* STA $12 */
-    case 0x81: /* STA ($12,x) */
-    case 0x91: /* STA ($12),y */
     case 0x8E: /* STX $1234 */
     case 0x86: /* STX $12 */
     case 0x8C: /* STY $1234 */
@@ -637,6 +674,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         break;
     case 0x48: /* PHA */
     case 0x08: /* PHP */
+    push:
         old.sr = cpu->sr;
         cpu->sr--;
         if (((cpu->sr ^ old.sr) & ~cpu->sv) != 0) cpu->sv = 0;
@@ -960,6 +998,106 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 break;
 
             default:
+                cpu_opt_invalidate();
+            }
+            break;
+        }
+        if (cputype_65c02) {
+            switch (cod) {
+            case 0x72: /* ADC ($12) */
+            case 0xF2: /* SBC ($12) */
+                goto adcsbc;
+            case 0x32: /* AND ($12) */
+                goto and;
+            case 0x80: /* BRA *+$12 */
+                if ((uint8_t)adr == 0) goto jump;
+                cpu->branched = true;
+                break;
+            case 0x89: /* BIT #$12 */
+                cpu->p.z = ((cpu->ar & adr) == 0 && (cpu->av & adr) != adr) ? UNKNOWN_A : (((cpu->ar & adr) == 0) ? 1 : 0);
+                break;
+            case 0x3C: /* BIT $1234,x */
+            case 0x34: /* BIT $12,x */
+                if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+                goto bit;
+            case 0xD2: /* CMP ($12) */
+                goto cmp;
+            case 0x3A: /* DEC A */
+                old.ar = cpu->ar;
+                cpu->ar--;
+            deca:
+                if (((cpu->ar ^ old.ar) & ~cpu->av) != 0) cpu->av = 0;
+                cpu->p.n = ((cpu->av & 0x80) == 0) ? UNKNOWN_Y : (cpu->ar >> 7);
+                cpu->p.z = ((cpu->ar & cpu->av) == 0 && cpu->av != 0xff) ? UNKNOWN_Y : (((cpu->ar & cpu->av) == 0) ? 1 : 0);
+                break;
+            case 0x1A: /* INC A */
+                old.ar = cpu->ar;
+                cpu->ar++;
+                goto deca;
+            case 0x52: /* EOR ($12) */
+            case 0xB2: /* LDA ($12) */
+                goto eorlda;
+            case 0x7C: /* JMP ($1234,x) */
+                if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+                cpu->branched = true;
+                break;
+            case 0x12: /* ORA ($12) */
+                goto ora;
+            case 0xDA: /* PHX */
+            case 0x5A: /* PHY */
+                goto push;
+            case 0xFA: /* PLX */
+                old.sr = cpu->sr;
+                cpu->sr++;
+                if (((cpu->sr ^ old.sr) & ~cpu->sv) != 0) cpu->sv = 0;
+                cpu->xv = 0;
+                cpu->p.n = UNKNOWN_A;
+                cpu->p.z = UNKNOWN_A;
+                break;
+            case 0x7A: /* PLY */
+                old.sr = cpu->sr;
+                cpu->sr++;
+                if (((cpu->sr ^ old.sr) & ~cpu->sv) != 0) cpu->sv = 0;
+                cpu->yv = 0;
+                cpu->p.n = UNKNOWN_A;
+                cpu->p.z = UNKNOWN_A;
+                break;
+            case 0x92: /* STA ($12) */
+                break;
+            case 0x9E: /* STZ $1234,x */
+            case 0x74: /* STZ $12,x */
+                if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+                /* fall through */
+            case 0x9C: /* STZ $1234 */
+            case 0x64: /* STZ $12 */
+                break;
+            case 0x1C: /* TRB $1234 */
+            case 0x14: /* TRB $12 */
+            case 0x0C: /* TSB $1234 */
+            case 0x04: /* TSB $12 */
+                cpu->p.z = UNKNOWN;
+                break;
+            default:
+                if (cputype == &r65c02 || cputype == &w65c02) {
+                    if ((cod & 0xF) == 0xF) { /* BBR & BBS */
+                        if ((adr & 0xff00) == 0) goto jump;
+                        break;
+                    }
+                    if ((cod & 0x7) == 0x7) { /* RMB & SMB */
+                        break;
+                    }
+                    if (cputype == &w65c02) {
+                        if (cod == 0xDB) { /* 0xDB STP */
+                            cpu->branched = true;
+                            break;
+                        }
+                        if (cod == 0xCB) { /* 0xCB WAI */
+                            break;
+                        }
+                    }
+                    cpu_opt_invalidate();
+                    break;
+                }
                 cpu_opt_invalidate();
             }
             break;
