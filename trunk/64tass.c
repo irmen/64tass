@@ -395,6 +395,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     select_opcodes(cpumode);
     listing_set_cpumode(cpumode);
+    cpu_opt_set_cpumode(cpumode);
     if (registerobj_createnames(cpumode->registers)) constcreated = true;
 }
 
