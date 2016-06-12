@@ -30,13 +30,13 @@
 #include "stdbool.h"
 
 /* UNIX-style short-argument parser */
-extern int my_getopt(int argc, char *argv[], const char *opts);
+/*extern int my_getopt(int argc, char *argv[], const char *opts);*/
 
 extern int my_optind, my_optopt;
 extern bool my_opterr;
 extern char *my_optarg;
 
-struct option {
+struct my_option {
   const char *name;
   int has_arg;
   int *flag;
@@ -44,22 +44,17 @@ struct option {
 };
 
 /* human-readable values for has_arg */
-#undef no_argument
-#define no_argument 0
-#undef required_argument
-#define required_argument 1
-#undef optional_argument
-#define optional_argument 2
+#define my_no_argument 0
+#define my_required_argument 1
+#define my_optional_argument 2
 
 /* GNU-style long-argument parsers */
 extern int my_getopt_long(int argc, char *argv[], const char *shortopts,
-                       const struct option *longopts, int *longind);
+                       const struct my_option *longopts, int *longind);
 
+/*
 extern int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
-                            const struct option *longopts, int *longind);
+                            const struct my_option *longopts, int *longind);
 
-extern int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
-                            const struct option *longopts, int *longind,
-                            bool long_only);
-
-#endif /* MY_GETOPT_H_INCLUDED */
+*/
+#endif
