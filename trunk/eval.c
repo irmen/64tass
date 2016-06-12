@@ -32,6 +32,7 @@
 #include "error.h"
 #include "values.h"
 #include "arguments.h"
+#include "optimizer.h"
 
 #include "floatobj.h"
 #include "boolobj.h"
@@ -282,6 +283,7 @@ static MUST_CHECK Obj *get_star(linepos_t epoint) {
     struct star_s *tmp;
     bool labelexists;
 
+    if (arguments.optimize) cpu_opt_invalidate();
     tmp = new_star(vline, &labelexists);
     if (labelexists && tmp->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);

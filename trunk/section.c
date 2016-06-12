@@ -24,6 +24,7 @@
 #include "values.h"
 #include "intobj.h"
 #include "longjump.h"
+#include "optimizer.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
@@ -47,6 +48,7 @@ static void section_free(struct avltree_node *aa)
     longjump_destroy(&a->longjump);
     destroy_memblocks(&a->mem);
     if (a->l_address_val != NULL) val_destroy(a->l_address_val);
+    cpu_opt_destroy(a->optimizer);
     free(a);
 }
 
@@ -102,6 +104,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->moved = false;
         lastsc->wrapwarn = false;
         lastsc->next = NULL;
+        lastsc->optimizer = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
         init_memblocks(&lastsc->mem);
@@ -134,6 +137,7 @@ void init_section2(struct section_s *section) {
     section->cfname.data = NULL;
     section->cfname.len = 0;
     section->next = NULL;
+    section->optimizer = NULL;
     init_memblocks(&section->mem);
     section->l_address_val = NULL;
     avltree_init(&section->members);
@@ -153,6 +157,8 @@ void destroy_section2(struct section_s *section) {
         val_destroy(section->l_address_val);
         section->l_address_val = NULL;
     }
+    cpu_opt_destroy(section->optimizer);
+    section->optimizer = NULL;
 }
 
 void destroy_section(void) {

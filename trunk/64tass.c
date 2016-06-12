@@ -823,7 +823,6 @@ Obj *compile(struct file_list_s *cflist)
             if (false) {
             hh: islabel = true;
             }
-            if (arguments.optimize) cpu_opt_invalidate();
             ignore();wht = here();
             if ((waitfor->skip & 1) == 0) {epoint = lpoint; goto jn;} /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
@@ -884,6 +883,7 @@ Obj *compile(struct file_list_s *cflist)
                     oldreferenceit = referenceit;
                     if (labelname.data[0] == '*') {
                         label = NULL;
+                        if (arguments.optimize) cpu_opt_invalidate();
                         tmp.v1 = get_star_value(current_section->l_address_val);
                     } else {
                         label = find_label2(&labelname, mycontext);
@@ -948,7 +948,10 @@ Obj *compile(struct file_list_s *cflist)
                     bool oldreferenceit;
                 starassign:
                     oldreferenceit = referenceit;
-                    label = (labelname.data[0] == '*') ? NULL : find_label3(&labelname, mycontext, strength);
+                    if (labelname.data[0] == '*') {
+                        label = NULL;
+                        if (arguments.optimize) cpu_opt_invalidate();
+                    } else label = find_label3(&labelname, mycontext, strength);
                     lpoint.pos++; ignore();
                     epoints[0] = lpoint; /* for no elements! */
                     if (here() == 0 || here() == ';') {
@@ -1191,6 +1194,7 @@ Obj *compile(struct file_list_s *cflist)
                         bool labelexists, doubledef = false;
                         Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
+                        if (arguments.optimize) cpu_opt_invalidate();
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &cmdpoint);waitfor->skip = 0;
                         label = new_label(&labelname, mycontext, strength, &labelexists);
 
@@ -1303,6 +1307,7 @@ Obj *compile(struct file_list_s *cflist)
                             fixeddig = false;
                             tmp->defpass = pass - 1;
                             restart_memblocks(&tmp->mem, tmp->address);
+                            if (arguments.optimize) cpu_opt_invalidate();
                         } else if (tmp->usepass != pass) {
                             if (!tmp->moved) {
                                 if (tmp->end < tmp->address) tmp->end = tmp->address;
@@ -1314,6 +1319,7 @@ Obj *compile(struct file_list_s *cflist)
                             tmp->address = tmp->restart;
                             tmp->l_address = tmp->l_restart;
                             restart_memblocks(&tmp->mem, tmp->address);
+                            if (arguments.optimize) cpu_opt_invalidate();
                         }
                         tmp->usepass = pass;
                         waitfor->what = W_SEND2;
@@ -1382,7 +1388,9 @@ Obj *compile(struct file_list_s *cflist)
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
                     if (!newlabel->update_after) {
-                        Obj *tmp = get_star_value(current_section->l_address_val);
+                        Obj *tmp;
+                        if (arguments.optimize && newlabel->ref) cpu_opt_invalidate();
+                        tmp = get_star_value(current_section->l_address_val);
                         code = (Code *)newlabel->value;
                         if (!tmp->obj->same(tmp, code->addr)) {
                             val_destroy(code->addr); code->addr = tmp;
@@ -1405,6 +1413,7 @@ Obj *compile(struct file_list_s *cflist)
                         if (labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
                     }
                 } else {
+                    if (arguments.optimize) cpu_opt_invalidate();
                     code = new_code();
                     if (!constcreated && temporary_label_branch == 0) {
                         if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
@@ -1446,6 +1455,8 @@ Obj *compile(struct file_list_s *cflist)
                         bool old_unionmode = current_section->unionmode;
                         struct values_s *vs;
                         Type *obj;
+
+                        if (arguments.optimize) cpu_opt_invalidate();
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         listing_line(epoint.pos);
@@ -1780,6 +1791,7 @@ Obj *compile(struct file_list_s *cflist)
                 } else {err_msg2(ERROR______EXPECTED,".SECTION", &epoint);goto breakerr;}
                 break;
             case CMD_ENDU: /* .endu */
+                if (arguments.optimize) cpu_opt_invalidate();
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDU)) {
                 } else if (close_waitfor(W_ENDU2)) {
@@ -1796,6 +1808,7 @@ Obj *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".UNION", &epoint);
                 break;
             case CMD_ENDP: /* .endp */
+                if (arguments.optimize) cpu_opt_invalidate();
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
@@ -1808,6 +1821,7 @@ Obj *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".PAGE", &epoint);
                 break;
             case CMD_HERE: /* .here */
+                if (arguments.optimize) cpu_opt_invalidate();
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
                 if (close_waitfor(W_HERE)) {
                 } else if (waitfor->what==W_HERE2) {
@@ -1870,6 +1884,7 @@ Obj *compile(struct file_list_s *cflist)
                     size_t uninit = 0;
                     size_t sum = 0;
 
+                    if (arguments.optimize) cpu_opt_invalidate();
                     mark_mem(&current_section->mem, current_section->address, star);
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2=-1;
@@ -1990,6 +2005,8 @@ Obj *compile(struct file_list_s *cflist)
                 {   /* .offs */
                     struct values_s *vs;
                     ival_t ival;
+
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     if (!current_section->moved) {
                         if (current_section->end < current_section->address) current_section->end = current_section->address;
@@ -2013,6 +2030,8 @@ Obj *compile(struct file_list_s *cflist)
                 { /* .logical */
                     struct values_s *vs;
                     uval_t uval;
+
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = (current_section->l_address_val != NULL) ? val_reference(current_section->l_address_val) : NULL;
                     current_section->logicalrecursion++;
@@ -2144,6 +2163,7 @@ Obj *compile(struct file_list_s *cflist)
                     address_t db = 0;
                     uval_t uval;
                     struct values_s *vs;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     if (newlabel != NULL) {
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
@@ -2459,6 +2479,8 @@ Obj *compile(struct file_list_s *cflist)
                         {"default", NULL}, {NULL, NULL},
                     };
                     size_t len;
+
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
@@ -2497,6 +2519,7 @@ Obj *compile(struct file_list_s *cflist)
                     uval_t cnt;
                     struct values_s *vs;
                     Obj *nf;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
@@ -2566,6 +2589,7 @@ Obj *compile(struct file_list_s *cflist)
                     struct file_s *f;
                     struct values_s *vs;
                     char *path;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
@@ -2662,6 +2686,7 @@ Obj *compile(struct file_list_s *cflist)
                     bool starexists;
                     size_t lentmp;
 
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
                     { /* label */
@@ -2804,6 +2829,7 @@ Obj *compile(struct file_list_s *cflist)
                 break;
             case CMD_PAGE: if ((waitfor->skip & 1) != 0)
                 { /* .page */
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_section->address;waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     newlabel = NULL;
@@ -2946,6 +2972,7 @@ Obj *compile(struct file_list_s *cflist)
                     bool old_unionmode = current_section->unionmode;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                     address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(0);
                     current_section->unionmode = true;
                     current_section->unionstart = current_section->unionend = current_section->address;
@@ -2967,6 +2994,7 @@ Obj *compile(struct file_list_s *cflist)
                 { /* .dstruct */
                     bool old_unionmode = current_section->unionmode;
                     struct values_s *vs;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(0);
                     current_section->unionmode = false;
                     if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;
@@ -2987,6 +3015,7 @@ Obj *compile(struct file_list_s *cflist)
                     bool old_unionmode = current_section->unionmode;
                     struct values_s *vs;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(0);
                     current_section->unionmode = true;
                     current_section->unionstart = current_section->unionend = current_section->address;
@@ -3008,6 +3037,8 @@ Obj *compile(struct file_list_s *cflist)
                 { /* .dsection */
                     struct section_s *tmp3;
                     str_t sectionname;
+
+                    if (arguments.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".DSECTION", &epoint);
                     epoint = lpoint;
@@ -3024,6 +3055,7 @@ Obj *compile(struct file_list_s *cflist)
                             tmp3->l_restart = tmp3->l_address = current_section->l_address;
                             tmp3->usepass = pass;
                             restart_memblocks(&tmp3->mem, tmp3->address);
+                            if (arguments.optimize) cpu_opt_invalidate();
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
                         }
@@ -3070,6 +3102,7 @@ Obj *compile(struct file_list_s *cflist)
                             }
                             tmp3->size = t;
                             restart_memblocks(&tmp3->mem, tmp3->address);
+                            if (arguments.optimize) cpu_opt_invalidate();
                         }
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
@@ -3096,6 +3129,7 @@ Obj *compile(struct file_list_s *cflist)
                         fixeddig = false;
                         tmp->defpass = pass - 1;
                         restart_memblocks(&tmp->mem, tmp->address);
+                        if (arguments.optimize) cpu_opt_invalidate();
                     } else if (tmp->usepass != pass) {
                         if (!tmp->moved) {
                             if (tmp->end < tmp->address) tmp->end = tmp->address;
@@ -3107,6 +3141,7 @@ Obj *compile(struct file_list_s *cflist)
                         tmp->address = tmp->restart;
                         tmp->l_address = tmp->l_restart;
                         restart_memblocks(&tmp->mem, tmp->address);
+                        if (arguments.optimize) cpu_opt_invalidate();
                     }
                     tmp->usepass = pass;
                     waitfor->what = W_SEND2;
@@ -3370,6 +3405,7 @@ static int main2(int argc, char *argv[]) {
                     exitfile();
                 }
                 restart_memblocks(&root_section.mem, 0);
+                if (arguments.optimize) cpu_opt_invalidate();
                 continue;
             }
             cfile = openfile(argv[i], "", 0, NULL, &nopoint);
@@ -3397,8 +3433,8 @@ static int main2(int argc, char *argv[]) {
         max_pass = pass; pass++;
         fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
-        listing_open(arguments.list, argc, argv);
         if (arguments.optimize) cpu_opt_invalidate();
+        listing_open(arguments.list, argc, argv);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
@@ -3419,6 +3455,7 @@ static int main2(int argc, char *argv[]) {
                     exitfile();
                 }
                 restart_memblocks(&root_section.mem, 0);
+                if (arguments.optimize) cpu_opt_invalidate();
                 continue;
             }
 
