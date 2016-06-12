@@ -21,7 +21,7 @@
 #include <string.h>
 #include "64tass.h"
 #include "opcodes.h"
-#include "getopt.h"
+#include "my_getopt.h"
 #include "file.h"
 #include "error.h"
 
@@ -54,56 +54,56 @@ struct arguments_s arguments = {
 
 static const char *short_options = "wqnbfXaTCBicxteOl:L:I:M:msV?o:D:E:";
 
-static const struct option long_options[] = {
-    {"no-warn"          , no_argument      , NULL, 'w'},
-    {"quiet"            , no_argument      , NULL, 'q'},
-    {"nonlinear"        , no_argument      , NULL, 'n'},
-    {"nostart"          , no_argument      , NULL, 'b'},
-    {"flat"             , no_argument      , NULL, 'f'},
-    {"long-address"     , no_argument      , NULL, 'X'},
-    {"atari-xex"        , no_argument      , NULL,  0x107},
-    {"apple-ii"         , no_argument      , NULL,  0x108},
-    {"intel-hex"        , no_argument      , NULL,  0x10e},
-    {"s-record"         , no_argument      , NULL,  0x10f},
-    {"ascii"            , no_argument      , NULL, 'a'},
-    {"tasm-compatible"  , no_argument      , NULL, 'T'},
-    {"case-sensitive"   , no_argument      , NULL, 'C'},
-    {"long-branch"      , no_argument      , NULL, 'B'},
-    {"m65xx"            , no_argument      , NULL,  0x101},
-    {"m6502"            , no_argument      , NULL, 'i'},
-    {"m65c02"           , no_argument      , NULL, 'c'},
-    {"m65ce02"          , no_argument      , NULL,  0x106},
-    {"m65816"           , no_argument      , NULL, 'x'},
-    {"m65dtv02"         , no_argument      , NULL, 't'},
-    {"m65el02"          , no_argument      , NULL, 'e'},
-    {"mr65c02"          , no_argument      , NULL,  0x104},
-    {"mw65c02"          , no_argument      , NULL,  0x105},
-    {"m4510"            , no_argument      , NULL,  0x111},
-    {"labels"           , required_argument, NULL, 'l'},
-    {"output"           , required_argument, NULL, 'o'},
-    {"error"            , required_argument, NULL, 'E'},
-    {"vice-labels"      , no_argument      , NULL,  0x10b},
-    {"dump-labels"      , no_argument      , NULL,  0x10d},
-    {"shadow-check"     , no_argument      , NULL,  0x10c},
-    {"strict-bool"      , no_argument      , NULL,  0x113},
-    {"list"             , required_argument, NULL, 'L'},
-    {"verbose-list"     , no_argument      , NULL,  0x110},
-    {"no-monitor"       , no_argument      , NULL, 'm'},
-    {"no-source"        , no_argument      , NULL, 's'},
-    {"line-numbers"     , no_argument      , NULL,  0x112},
-    {"no-caret-diag"    , no_argument      , NULL,  0x10a},
-    {"tab-size"         , required_argument, NULL,  0x109},
-    {"version"          , no_argument      , NULL, 'V'},
-    {"usage"            , no_argument      , NULL,  0x102},
-    {"help"             , no_argument      , NULL,  0x103},
-    {NULL               , no_argument      , NULL,  0}
+static const struct my_option long_options[] = {
+    {"no-warn"          , my_no_argument      , NULL, 'w'},
+    {"quiet"            , my_no_argument      , NULL, 'q'},
+    {"nonlinear"        , my_no_argument      , NULL, 'n'},
+    {"nostart"          , my_no_argument      , NULL, 'b'},
+    {"flat"             , my_no_argument      , NULL, 'f'},
+    {"long-address"     , my_no_argument      , NULL, 'X'},
+    {"atari-xex"        , my_no_argument      , NULL,  0x107},
+    {"apple-ii"         , my_no_argument      , NULL,  0x108},
+    {"intel-hex"        , my_no_argument      , NULL,  0x10e},
+    {"s-record"         , my_no_argument      , NULL,  0x10f},
+    {"ascii"            , my_no_argument      , NULL, 'a'},
+    {"tasm-compatible"  , my_no_argument      , NULL, 'T'},
+    {"case-sensitive"   , my_no_argument      , NULL, 'C'},
+    {"long-branch"      , my_no_argument      , NULL, 'B'},
+    {"m65xx"            , my_no_argument      , NULL,  0x101},
+    {"m6502"            , my_no_argument      , NULL, 'i'},
+    {"m65c02"           , my_no_argument      , NULL, 'c'},
+    {"m65ce02"          , my_no_argument      , NULL,  0x106},
+    {"m65816"           , my_no_argument      , NULL, 'x'},
+    {"m65dtv02"         , my_no_argument      , NULL, 't'},
+    {"m65el02"          , my_no_argument      , NULL, 'e'},
+    {"mr65c02"          , my_no_argument      , NULL,  0x104},
+    {"mw65c02"          , my_no_argument      , NULL,  0x105},
+    {"m4510"            , my_no_argument      , NULL,  0x111},
+    {"labels"           , my_required_argument, NULL, 'l'},
+    {"output"           , my_required_argument, NULL, 'o'},
+    {"error"            , my_required_argument, NULL, 'E'},
+    {"vice-labels"      , my_no_argument      , NULL,  0x10b},
+    {"dump-labels"      , my_no_argument      , NULL,  0x10d},
+    {"shadow-check"     , my_no_argument      , NULL,  0x10c},
+    {"strict-bool"      , my_no_argument      , NULL,  0x113},
+    {"list"             , my_required_argument, NULL, 'L'},
+    {"verbose-list"     , my_no_argument      , NULL,  0x110},
+    {"no-monitor"       , my_no_argument      , NULL, 'm'},
+    {"no-source"        , my_no_argument      , NULL, 's'},
+    {"line-numbers"     , my_no_argument      , NULL,  0x112},
+    {"no-caret-diag"    , my_no_argument      , NULL,  0x10a},
+    {"tab-size"         , my_required_argument, NULL,  0x109},
+    {"version"          , my_no_argument      , NULL, 'V'},
+    {"usage"            , my_no_argument      , NULL,  0x102},
+    {"help"             , my_no_argument      , NULL,  0x103},
+    {NULL               , my_no_argument      , NULL,  0}
 };
 
 int testarg(int argc,char *argv[], struct file_s *fin) {
     int opt, longind, tab;
     size_t max_lines = 0, fp = 0;
 
-    while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
+    while ((opt = my_getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
         switch (opt) {
             case 'w':arguments.warning = false;break;
             case 'q':arguments.quiet = false;break;
@@ -117,11 +117,11 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii = true;break;
             case 'T':arguments.tasmcomp = true;break;
-            case 'o':arguments.output = optarg;break;
+            case 'o':arguments.output = my_optarg;break;
             case 0x10a:arguments.caret = false;break;
             case 'D':
                 {
-                    size_t len = strlen(optarg) + 1;
+                    size_t len = strlen(my_optarg) + 1;
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
@@ -136,7 +136,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                         if (fin->len < 1024) err_msg_out_of_memory();
                         fin->data = (uint8_t*)reallocx(fin->data, fin->len);
                     }
-                    memcpy(fin->data + fp, optarg, len);
+                    memcpy(fin->data + fp, my_optarg, len);
                     fp += len;
                 }
                 break;
@@ -151,14 +151,14 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x104: arguments.cpumode = &r65c02;break;
             case 0x105: arguments.cpumode = &w65c02;break;
             case 0x111: arguments.cpumode = &c4510;break;
-            case 'l': arguments.label = optarg;break;
+            case 'l': arguments.label = my_optarg;break;
             case 0x10b: arguments.label_mode = LABEL_VICE; break;
             case 0x10c: arguments.shadow_check = true; break;
             case 0x10d: arguments.label_mode = LABEL_DUMP; break;
-            case 'E': arguments.error = optarg;break;
-            case 'L': arguments.list = optarg;break;
-            case 'M': arguments.make = optarg;break;
-            case 'I': include_list_add(optarg);break;
+            case 'E': arguments.error = my_optarg;break;
+            case 'L': arguments.list = my_optarg;break;
+            case 'M': arguments.make = my_optarg;break;
+            case 'I': include_list_add(my_optarg);break;
             case 'm': arguments.monitor = false;break;
             case 's': arguments.source = false;break;
             case 0x112: arguments.linenum = true;break;
@@ -166,7 +166,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'O':arguments.optimize = true;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case 0x110: arguments.verbose = true;break;
-            case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
+            case 0x109:tab = atoi(my_optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmseO?V] [-D <label>=<value>] [-o <file>]\n"
@@ -185,7 +185,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
                      return 0;
             case 0x103:
-            case '?':if (optopt == '?' || opt == 0x103) { puts(
+            case '?':if (my_optopt == '?' || opt == 0x103) { puts(
                "Usage: 64tass [OPTIONS...] SOURCES\n"
                "64tass Turbo Assembler Macro V" VERSION "\n"
                "\n"
@@ -276,10 +276,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
         }
     }
     fin->coding = E_UTF8;
-    if (argc <= optind) {
+    if (argc <= my_optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
         return -1;
     }
-    return optind;
+    return my_optind;
 }

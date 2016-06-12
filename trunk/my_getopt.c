@@ -39,7 +39,7 @@ char *my_optarg = NULL;
 /* if you're porting some piece of UNIX software, this is all you need. */
 /* this supports GNU-style permution and optional arguments */
 
-int my_getopt(int argc, char *argv[], const char *opts)
+static int my_getopt(int argc, char *argv[], const char *opts)
 {
   static int charind = 0;
   const char *s;
@@ -136,8 +136,8 @@ int my_getopt(int argc, char *argv[], const char *opts)
  * expecting GNU libc getopt call it.
  */
 
-int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
-                     const struct option *longopts, int *longind,
+static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
+                     const struct my_option *longopts, int *longind,
                      bool long_only)
 {
   char mode, colon_mode;
@@ -173,9 +173,9 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
     for (i = j = my_optind; i < argc; i++) if ((argv[i][0] == '-') &&
                                     (argv[i][1] != '\0')) {
       my_optind = i;
-      opt = _my_getopt_internal(argc, argv, shortopts,
-                                longopts, longind,
-                                long_only);
+      opt = my_getopt_internal(argc, argv, shortopts,
+                               longopts, longind,
+                               long_only);
       while (i > j) {
         tmp = argv[--i];
         for (k = i; k + 1 < my_optind; k++)
@@ -267,13 +267,15 @@ int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
 }
 
 int my_getopt_long(int argc, char *argv[], const char *shortopts,
-                const struct option *longopts, int *longind)
+                const struct my_option *longopts, int *longind)
 {
-  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, false);
+  return my_getopt_internal(argc, argv, shortopts, longopts, longind, false);
 }
 
+/*
 int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
-                const struct option *longopts, int *longind)
+                const struct my_option *longopts, int *longind)
 {
   return _my_getopt_internal(argc, argv, shortopts, longopts, longind, true);
 }
+*/

@@ -31,8 +31,7 @@ addressobj.o: addressobj.c addressobj.h obj.h stdbool.h inttypes.h \
  values.h error.h errors_e.h avl.h eval.h variables.h arguments.h \
  boolobj.h strobj.h intobj.h operobj.h typeobj.h noneobj.h
 arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
- wait_e.h opcodes.h getopt.h my_getopt.h file.h avl.h error.h errors_e.h \
- obj.h
+ wait_e.h opcodes.h my_getopt.h file.h avl.h error.h errors_e.h obj.h
 avl.o: avl.c avl.h stdbool.h inttypes.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h stdbool.h inttypes.h eval.h \
  variables.h unicode.h unicodedata.h encoding.h avl.h errors_e.h error.h \
@@ -125,7 +124,7 @@ opcodes.o: opcodes.c opcodes.h inttypes.h
 operobj.o: operobj.c operobj.h obj.h stdbool.h inttypes.h strobj.h \
  typeobj.h
 optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
- errors_e.h avl.h obj.h section.h mem.h
+ errors_e.h avl.h obj.h section.h mem.h opcodes.h
 registerobj.o: registerobj.c registerobj.h obj.h stdbool.h inttypes.h \
  values.h error.h errors_e.h avl.h eval.h opcodes.h variables.h boolobj.h \
  strobj.h intobj.h operobj.h typeobj.h noneobj.h
