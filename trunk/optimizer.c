@@ -30,6 +30,7 @@
 #define UNKNOWN_Z 65540
 #define UNKNOWN_B 65541
 #define UNKNOWN_M 65542
+#define UNKNOWN_C 65543
 
 struct optimizer_s {
     bool branched;
@@ -247,19 +248,19 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     comp:
         old.p.n = cpu->p.n; old.p.z = cpu->p.z; old.p.c = cpu->p.c;
         a1 = old.ar ^ adr;
-        cpu->p.z = ((a1 & old.av) == 0 && old.av != 0xff) ? UNKNOWN_M : (((a1 & old.av) == 0) ? 1 : 0);
+        cpu->p.z = ((a1 & old.av) == 0 && old.av != 0xff) ? UNKNOWN_C : (((a1 & old.av) == 0) ? 1 : 0);
         switch ((uint8_t)adr) {
         case 0x00: 
-            cpu->p.n = ((old.av & 0x80) == 0) ? UNKNOWN_M : (old.ar >> 7);
+            cpu->p.n = ((old.av & 0x80) == 0) ? UNKNOWN_C : (old.ar >> 7);
             cpu->p.c = 1; 
             break;
         case 0x80: 
-            cpu->p.n = ((old.av & 0x80) == 0) ? UNKNOWN_M : ((old.ar >> 7) ^ 1);
-            cpu->p.c = ((old.av & 0x80) == 0) ? UNKNOWN : (old.ar >> 7); 
+            cpu->p.n = ((old.av & 0x80) == 0) ? UNKNOWN_C : ((old.ar >> 7) ^ 1);
+            cpu->p.c = ((old.av & 0x80) == 0) ? UNKNOWN_C : (old.ar >> 7); 
             break;
         default: 
-            cpu->p.n = (old.av != 0xff) ? UNKNOWN_M : (((uint8_t)(old.ar - adr)) >> 7);
-            cpu->p.c = (((uint8_t)(old.ar | ~old.av) >= (uint8_t)adr) != ((old.ar & old.av) >= (uint8_t)adr)) ? UNKNOWN : ((old.ar >= (uint8_t)adr) ? 1 : 0); 
+            cpu->p.n = (old.av != 0xff) ? UNKNOWN_C : (((uint8_t)(old.ar - adr)) >> 7);
+            cpu->p.c = (((uint8_t)(old.ar | ~old.av) >= (uint8_t)adr) != ((old.ar & old.av) >= (uint8_t)adr)) ? UNKNOWN_C : ((old.ar >= (uint8_t)adr) ? 1 : 0); 
             break;
         }
         if (old.p.n < UNKNOWN && old.p.n == cpu->p.n &&
@@ -290,21 +291,21 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0xCD: /* CMP $1234 */
     case 0xC5: /* CMP $12 */
     cmp:
-        cpu->p.n = UNKNOWN_M;
-        cpu->p.z = UNKNOWN_M;
-        cpu->p.c = ((cpu->ar & cpu->av) == 255) ? 1 : UNKNOWN;
+        cpu->p.n = UNKNOWN_C;
+        cpu->p.z = UNKNOWN_C;
+        cpu->p.c = ((cpu->ar & cpu->av) == 255) ? 1 : UNKNOWN_C;
         break;
     case 0xEC: /* CPX $1234 */
     case 0xE4: /* CPX $12 */
-        cpu->p.n = UNKNOWN_M;
-        cpu->p.z = UNKNOWN_M;
-        cpu->p.c = ((cpu->xr & cpu->xv) == 255) ? 1 : UNKNOWN;
+        cpu->p.n = UNKNOWN_C;
+        cpu->p.z = UNKNOWN_C;
+        cpu->p.c = ((cpu->xr & cpu->xv) == 255) ? 1 : UNKNOWN_C;
         break;
     case 0xCC: /* CPY $1234 */
     case 0xC4: /* CPY $12 */
-        cpu->p.n = UNKNOWN_M;
-        cpu->p.z = UNKNOWN_M;
-        cpu->p.c = ((cpu->yr & cpu->yv) == 255) ? 1 : UNKNOWN;
+        cpu->p.n = UNKNOWN_C;
+        cpu->p.z = UNKNOWN_C;
+        cpu->p.c = ((cpu->yr & cpu->yv) == 255) ? 1 : UNKNOWN_C;
         break;
     case 0x1E: /* ASL $1234,x */
     case 0x16: /* ASL $12,x */
@@ -409,6 +410,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (cpu->lb > 255) { cpu->branched = true; break; }
         if (adr == 0) goto jump;
         if (cpu->p.c == 1) cpu->branched = true;
+        if (cpu->p.c == UNKNOWN_C) { if (cpu->p.z == UNKNOWN_C) cpu->p.z = 0; }
         cpu->p.c = 0;
         break;
     case 0xD0: /* BNE *+$12 */
@@ -424,6 +426,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (cpu->p.z == UNKNOWN_Z) { if (cpu->p.n == UNKNOWN_Z) cpu->p.n = 0; cpu->zr = 0; cpu->zv = 0xff; }
         if (cpu->p.z == UNKNOWN_B) { if (cpu->p.n == UNKNOWN_B) cpu->p.n = 0; cpu->br = 0; cpu->bv = 0xff; }
         if (cpu->p.z == UNKNOWN_M) { if (cpu->p.n == UNKNOWN_M) cpu->p.n = 0; }
+        if (cpu->p.z == UNKNOWN_C) { if (cpu->p.n == UNKNOWN_C) cpu->p.n = 0; if (cpu->p.c == UNKNOWN_C) cpu->p.c = 1; }
         cpu->p.z = 1;
         break;
     case 0xF0: /* BEQ *+$12 */
@@ -1018,7 +1021,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             cpu->branched = true;
             break;
         case 0x89: /* BIT #$12 */
-            cpu->p.z = ((cpu->ar & adr) == 0 && (cpu->av & adr) != adr) ? UNKNOWN_A : (((cpu->ar & adr) == 0) ? 1 : 0);
+            cpu->p.z = ((cpu->ar & adr) == 0 && (cpu->av & adr) != adr) ? UNKNOWN : (((cpu->ar & adr) == 0) ? 1 : 0);
             break;
         case 0x3C: /* BIT $1234,x */
         case 0x34: /* BIT $12,x */
@@ -1149,9 +1152,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                        goto comp;
             case 0xD4: /* CPZ $12 */
             case 0xDC: /* CPZ $1234 */
-                       cpu->p.n = UNKNOWN_M;
-                       cpu->p.z = UNKNOWN_M;
-                       cpu->p.c = ((cpu->zr & cpu->zv) == 255) ? 1 : UNKNOWN;
+                       cpu->p.n = UNKNOWN_C;
+                       cpu->p.z = UNKNOWN_C;
+                       cpu->p.c = ((cpu->zr & cpu->zv) == 255) ? 1 : UNKNOWN_C;
                        break;
             case 0xC3: /* DEW $12 */
             case 0xE3: /* INW $12 */
