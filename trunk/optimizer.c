@@ -1096,6 +1096,13 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             if ((cod & 0x7) == 0x7) { /* RMB & SMB */
                 break;
             }
+            if (cod == 0x54) { /* NOP $12,x */
+                if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+                break;
+            }
+            if (cod == 0x82 || cod == 0xDC || cod == 0x44) { /* NOP #$12 */ /* NOP $1234 */ /* NOP $12 */
+                break;
+            }
             if (cputype == &w65c02) {
                 if (cod == 0xDB) { /* 0xDB STP */
                     cpu->branched = true;

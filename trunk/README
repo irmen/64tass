@@ -3472,7 +3472,8 @@ $20). Instead it's the first element of coma separated parameters (e.g. rmb
 
                               Additional opcodes
 BBR 0F 1F 2F 3F 4F 5F 6F 7F             BBS 8F 9F AF BF CF DF EF FF
-RMB 07 17 27 37 47 57 67 77             SMB 87 97 A7 B7 C7 D7 E7 F7
+NOP 44 54 82 DC                         RMB 07 17 27 37 47 57 67 77
+SMB 87 97 A7 B7 C7 D7 E7 F7
 
 -------------------------------------------------------------------------------
 
