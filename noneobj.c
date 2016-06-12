@@ -58,6 +58,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return (Obj *)ref_none();
 }
 
+static MUST_CHECK Obj *slice(Obj *UNUSED(v1), oper_t UNUSED(op), size_t UNUSED(indx)) {
+    return (Obj *)ref_none();
+}
+
 static MUST_CHECK Error *ival(Obj *UNUSED(v1), ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
     return new_error(ERROR____STILL_NONE, epoint);
 }
@@ -95,6 +99,7 @@ void noneobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+    obj.slice = slice;
     obj.ival = ival;
     obj.uval = uval;
     obj.address = address;
