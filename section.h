@@ -24,6 +24,7 @@
 #include "mem.h"
 
 struct Obj;
+struct optimizer_s;
 
 struct section_s {
     int name_hash;
@@ -59,6 +60,7 @@ struct section_s {
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;
+    struct optimizer_s *optimizer;
     struct linepos_s epoint;
     struct avltree members;
     struct avltree longjump;

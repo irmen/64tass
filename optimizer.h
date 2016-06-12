@@ -16,11 +16,15 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef OPT_H
-#define OPT_H
+#ifndef OPTIMIZER_H
+#define OPTIMIZER_H
 #include "inttypes.h"
+
+struct optimizer_s;
 
 extern void cpu_opt(uint8_t, uint32_t, int8_t, linepos_t);
 extern void cpu_opt_invalidate(void);
+extern void cpu_opt_destroy(struct optimizer_s *);
+extern void cpu_opt_long_branch(uint16_t);
 
 #endif

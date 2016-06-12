@@ -32,6 +32,7 @@
 #include "noneobj.h"
 #include "namespaceobj.h"
 #include "arguments.h"
+#include "optimizer.h"
 
 static Type macro_obj;
 static Type segment_obj;
@@ -333,6 +334,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
         struct file_list_s *cflist;
         struct linepos_s nopoint = {0, 0};
 
+        if (arguments.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
@@ -420,6 +422,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
         struct linepos_s nopoint = {0, 0};
         size_t oldbottom;
 
+        if (arguments.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
@@ -669,6 +672,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         struct linepos_s nopoint = {0, 0};
         size_t oldbottom;
 
+        if (arguments.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
