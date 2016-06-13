@@ -519,59 +519,57 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         old.p.n = cpu->p.n; old.p.z = cpu->p.z;
         cpu->p.n = ((cpu->av & 0x80) == 0) ? UNKNOWN_A : (cpu->ar >> 7);
         cpu->p.z = ((cpu->ar & cpu->av) == 0 && cpu->av != 0xff) ? UNKNOWN_A : (((cpu->ar & cpu->av) == 0) ? 1 : 0);
-        if (cpu->av != 0xff) {
-            break;
-        }
-        if (cpu->ar == old.ar && old.av == 0xff &&
-            old.p.n < UNKNOWN && old.p.n == cpu->p.n &&
-            old.p.z < UNKNOWN && old.p.z == cpu->p.z) goto remove;
-        if (cpu->ar == cpu->xr && cpu->xv == 0xff) {
-            optname = "txa"; /* 0x8A TXA */
-            goto replace;
-        }
-        if (cpu->ar == cpu->yr && cpu->yv == 0xff) {
-            optname = "tya"; /* 0x98 TYA */
-            goto replace;
-        }
-        if (cputype_65ce02) {
-            if (cpu->ar == cpu->zr && cpu->zv == 0xff) {
-                optname = "tza"; /* 0x6B TZA */
+        if (cpu->av == 0xff) {
+            if (cpu->ar == old.ar && old.av == 0xff &&
+                    old.p.n < UNKNOWN && old.p.n == cpu->p.n &&
+                    old.p.z < UNKNOWN && old.p.z == cpu->p.z) goto remove;
+            if (cpu->ar == cpu->xr && cpu->xv == 0xff) {
+                optname = "txa"; /* 0x8A TXA */
                 goto replace;
             }
-            if (cpu->ar == cpu->br && cpu->bv == 0xff) {
-                optname = "tba"; /* 0x7B TBA */
+            if (cpu->ar == cpu->yr && cpu->yv == 0xff) {
+                optname = "tya"; /* 0x98 TYA */
                 goto replace;
+            }
+            if (cputype_65ce02) {
+                if (cpu->ar == cpu->zr && cpu->zv == 0xff) {
+                    optname = "tza"; /* 0x6B TZA */
+                    goto replace;
+                }
+                if (cpu->ar == cpu->br && cpu->bv == 0xff) {
+                    optname = "tba"; /* 0x7B TBA */
+                    goto replace;
+                }
+            }
+            if (old.av == 0xff) {
+                if (cpu->p.c == ((old.ar & 0x80) >> 7)) {
+                    if (cpu->ar == ((old.ar << 1) & 0xff)) {
+                        optname = "asl a"; /* 0x0A ASL A */
+                        goto replace;
+                    }
+                    if (cpu->ar == (((old.ar << 1) & 0xff) | cpu->p.c)) {
+                        optname = "rol a"; /* 0x2A ROL A */
+                        goto replace;
+                    }
+                }
+                if (cpu->p.c == (old.ar & 1)) {
+                    if (cpu->ar == (old.ar >> 1)) {
+                        optname = "lsr a"; /* 0x4A LSR A */
+                        goto replace;
+                    }
+                    if (cpu->ar == ((old.ar >> 1) | (cpu->p.c << 7))) {
+                        optname = "ror a"; /* 0x6A ROR A */
+                        goto replace;
+                    }
+                }
             }
         }
-        if (old.av != 0xff) {
-            break;
-        }
-        if (cpu->p.c == ((old.ar & 0x80) ? 1 : 0)) {
-            if (cpu->ar == ((old.ar << 1) & 0xff)) {
-                optname = "asl a"; /* 0x0A ASL A */
-                goto replace;
-            }
-            if (cpu->ar == (((old.ar << 1) & 0xff) | cpu->p.c)) {
-                optname = "rol a"; /* 0x2A ROL A */
-                goto replace;
-            }
-        }
-        if (cpu->p.c == ((old.ar & 1) ? 1 : 0)) {
-            if (cpu->ar == (old.ar >> 1)) {
-                optname = "lsr a"; /* 0x4A LSR A */
-                goto replace;
-            }
-            if (cpu->ar == ((old.ar >> 1) | (cpu->p.c << 7))) {
-                optname = "ror a"; /* 0x6A ROR A */
-                goto replace;
-            }
-        }
-        if (cputype_65c02) {
-            if (cpu->ar == ((old.ar + 1) & 0xff)) {
+        if (cputype_65c02 && old.av == cpu->av) {
+            if (cpu->ar == ((old.ar + 1) & 0xff) && (((old.ar + 1) ^ old.ar) & ~old.av) == 0) {
                 optname = "inc a"; /* 0x1A INC A */
                 goto replace;
             }
-            if (cpu->ar == ((old.ar - 1) & 0xff)) {
+            if (cpu->ar == ((old.ar - 1) & 0xff) && (((old.ar - 1) ^ old.ar) & ~old.av) == 0) {
                 optname = "dec a"; /* 0x3A DEC A */
                 goto replace;
             }
