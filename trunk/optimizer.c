@@ -120,10 +120,10 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->p.z = UNKNOWN_A;
         break;
     case 0x29: /* AND #$12 */
-        if ((adr & 0xff) == 0xff && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) goto remove;
         old.ar = cpu->ar; old.av = cpu->av;
         cpu->ar &= adr;
         cpu->av |= ~adr;
+        if ((uint8_t)(adr & ~old.av) == (uint8_t)~old.av && (cpu->ar & old.av) == (old.ar & old.av) && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) goto remove;
         goto loada;
     case 0x49: /* EOR #$12 */
         if ((adr & 0xff) == 0 && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) goto remove;
@@ -131,10 +131,10 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->ar ^= adr;
         goto loada;
     case 0x09: /* ORA #$12 */
-        if ((adr & 0xff) == 0 && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) goto remove;
         old.ar = cpu->ar; old.av = cpu->av;
         cpu->ar |= adr;
         cpu->av |= adr;
+        if ((uint8_t)(~adr & ~old.av) == (uint8_t)~old.av && (cpu->ar & old.av) == (old.ar & old.av) && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) goto remove;
         goto loada;
     case 0x31: /* AND ($12),y */
         if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
