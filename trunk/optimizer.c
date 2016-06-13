@@ -243,7 +243,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->av = (old.av >> 1) | ((old.p.c < UNKNOWN) ? 0x80 : 0);
         goto loadac;
     case 0xC9: /* CMP #$12 */
-        if ((uint8_t)adr == 0 && cpu->p.c == 1 && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) { cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C; goto remove; }
+        if ((uint8_t)adr == 0 && cpu->p.n == UNKNOWN_A && cpu->p.z == UNKNOWN_A) { 
+            cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C;
+            if (cpu->p.c == 1) goto remove;
+            cpu->p.c = 1; optname = "sec"; goto replace; /* 0x38 SEC */
+        }
         old.ar = cpu->ar;
         old.av = cpu->av;
     comp:
@@ -269,12 +273,20 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             old.p.z < UNKNOWN && old.p.z == cpu->p.z) goto remove;
         break;
     case 0xE0: /* CPX #$12 */
-        if ((uint8_t)adr == 0 && cpu->p.c == 1 && cpu->p.n == UNKNOWN_X && cpu->p.z == UNKNOWN_X) { cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C; goto remove; }
+        if ((uint8_t)adr == 0 && cpu->p.n == UNKNOWN_X && cpu->p.z == UNKNOWN_X) { 
+            cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C;
+            if (cpu->p.c == 1) goto remove;
+            cpu->p.c = 1; optname = "sec"; goto replace; /* 0x38 SEC */
+        }
         old.ar = cpu->xr;
         old.av = cpu->xv;
         goto comp;
     case 0xC0: /* CPY #$12 */
-        if ((uint8_t)adr == 0 && cpu->p.c == 1 && cpu->p.n == UNKNOWN_Y && cpu->p.z == UNKNOWN_Y) { cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C; goto remove; }
+        if ((uint8_t)adr == 0 && cpu->p.n == UNKNOWN_Y && cpu->p.z == UNKNOWN_Y) { 
+            cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C;
+            if (cpu->p.c == 1) goto remove;
+            cpu->p.c = 1; optname = "sec"; goto replace; /* 0x38 SEC */
+        }
         old.ar = cpu->yr;
         old.av = cpu->yv;
         goto comp;
@@ -1172,7 +1184,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                        cpu->p.e = 1;
                        break;
             case 0xC2: /* CPZ #$12 */
-                       if ((uint8_t)adr == 0 && cpu->p.c == 1 && cpu->p.n == UNKNOWN_Z && cpu->p.z == UNKNOWN_Z) { cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C; goto remove; }
+                       if ((uint8_t)adr == 0 && cpu->p.n == UNKNOWN_Z && cpu->p.z == UNKNOWN_Z) { 
+                           cpu->p.n = UNKNOWN_C; cpu->p.z = UNKNOWN_C;
+                           if (cpu->p.c == 1) goto remove;
+                           cpu->p.c = 1; optname = "sec"; goto replace; /* 0x38 SEC */
+                       }
                        old.ar = cpu->zr;
                        old.av = cpu->zv;
                        goto comp;
