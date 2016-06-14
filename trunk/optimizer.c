@@ -1266,13 +1266,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                        cpu->sv = 0;
                        cpu->svh = 0;
                        cpu->bv = 0;
-                       cpu->p.n = UNKNOWN;
-                       cpu->p.v = UNKNOWN;
-                       cpu->p.e = UNKNOWN;
-                       cpu->p.d = UNKNOWN;
-                       cpu->p.i = UNKNOWN;
-                       cpu->p.z = UNKNOWN;
-                       cpu->p.c = UNKNOWN;
+                       cpu->p.n = cpu->p.v = cpu->p.e = cpu->p.d = cpu->p.i = cpu->p.z = cpu->p.c = UNKNOWN;
+                       cpu->ps.n = cpu->ps.v = cpu->ps.e = cpu->ps.d = cpu->ps.i = cpu->ps.z = cpu->ps.c = 0;
                        break;
             case 0xA3: /* LDZ #$12 */
                        old.zr = cpu->zr; old.zv = cpu->zv; old.p.n = cpu->p.n; old.p.z = cpu->p.z;
@@ -1446,13 +1441,8 @@ void cpu_opt_invalidate(void) {
     cpu->svh = 0;
     cpu->bv = 0;
     cpu->pc = UNKNOWN;
-    cpu->p.n = UNKNOWN;
-    cpu->p.v = UNKNOWN;
-    cpu->p.e = UNKNOWN;
-    cpu->p.d = UNKNOWN;
-    cpu->p.i = UNKNOWN;
-    cpu->p.z = UNKNOWN;
-    cpu->p.c = UNKNOWN;
+    cpu->p.n = cpu->p.v = cpu->p.e = cpu->p.d = cpu->p.i = cpu->p.z = cpu->p.c = UNKNOWN;
+    cpu->ps.n = cpu->ps.v = cpu->ps.e = cpu->ps.d = cpu->ps.i = cpu->ps.z = cpu->ps.c = 0;
 }
 
 void cpu_opt_destroy(struct optimizer_s *cpu) {
