@@ -434,10 +434,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (adr == 0) goto jump;
         if (cpu->p.c == 0) cpu->branched = true;
         if (cpu->cmp == 255) {
-            if ((cpu->ps.c & F_CA) != 0) { cpu->p.z = 1; cpu->ar = 255; cpu->av = 0xff; }
-            if ((cpu->ps.c & F_CX) != 0) { cpu->p.z = 1; cpu->xr = 255; cpu->av = 0xff; }
-            if ((cpu->ps.c & F_CY) != 0) { cpu->p.z = 1; cpu->yr = 255; cpu->av = 0xff; }
-            if ((cpu->ps.c & F_CZ) != 0) { cpu->p.z = 1; cpu->zr = 255; cpu->av = 0xff; }
+            old.ps.c = cpu->ps.c & cpu->ps.z & cpu->ps.n;
+            if ((old.ps.c & F_CA) != 0) { cpu->p.z = 1; cpu->ar = 255; cpu->av = 0xff; }
+            if ((old.ps.c & F_CX) != 0) { cpu->p.z = 1; cpu->xr = 255; cpu->av = 0xff; }
+            if ((old.ps.c & F_CY) != 0) { cpu->p.z = 1; cpu->yr = 255; cpu->av = 0xff; }
+            if ((old.ps.c & F_CZ) != 0) { cpu->p.z = 1; cpu->zr = 255; cpu->av = 0xff; }
         }
         cpu->p.c = 1;
         break;
@@ -448,11 +449,12 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (cpu->lb > 255) { cpu->branched = true; break; }
         if (adr == 0) goto jump;
         if (cpu->p.c == 1) cpu->branched = true;
-        if ((cpu->ps.c & F_C)  != 0) { if ((cpu->ps.z & F_C)  != 0) cpu->p.z = 0; }
-        if ((cpu->ps.c & F_CA) != 0) { if ((cpu->ps.z & F_CA) != 0) cpu->p.z = 0; if (cpu->cmp == 1) { cpu->ar = 0; cpu->av = 0xff; } }
-        if ((cpu->ps.c & F_CX) != 0) { if ((cpu->ps.z & F_CX) != 0) cpu->p.z = 0; if (cpu->cmp == 1) { cpu->xr = 0; cpu->av = 0xff; } }
-        if ((cpu->ps.c & F_CY) != 0) { if ((cpu->ps.z & F_CY) != 0) cpu->p.z = 0; if (cpu->cmp == 1) { cpu->yr = 0; cpu->av = 0xff; } }
-        if ((cpu->ps.c & F_CZ) != 0) { if ((cpu->ps.z & F_CZ) != 0) cpu->p.z = 0; if (cpu->cmp == 1) { cpu->zr = 0; cpu->av = 0xff; } }
+        old.ps.c = cpu->ps.c & cpu->ps.z;
+        if ((old.ps.c & F_C)  != 0) cpu->p.z = 0;
+        if ((old.ps.c & F_CA) != 0) { cpu->p.z = 0; if (cpu->cmp == 1) { cpu->ar = 0; cpu->av = 0xff; } }
+        if ((old.ps.c & F_CX) != 0) { cpu->p.z = 0; if (cpu->cmp == 1) { cpu->xr = 0; cpu->av = 0xff; } }
+        if ((old.ps.c & F_CY) != 0) { cpu->p.z = 0; if (cpu->cmp == 1) { cpu->yr = 0; cpu->av = 0xff; } }
+        if ((old.ps.c & F_CZ) != 0) { cpu->p.z = 0; if (cpu->cmp == 1) { cpu->zr = 0; cpu->av = 0xff; } }
         cpu->p.c = 0;
         break;
     case 0xD0: /* BNE *+$12 */
