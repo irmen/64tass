@@ -828,6 +828,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             if (cpu->p.n == 1) {optname = "gmi";goto replace;} /* 0x30 BMI *+$12 */
             if (cpu->p.v == 0) {optname = "gvc";goto replace;} /* 0x50 BVC *+$12 */
             if (cpu->p.v == 1) {optname = "gvs";goto replace;} /* 0x70 BVS *+$12 */
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) {optname = "gra";goto replace;}
         }
         break;
     case 0x6C: /* JMP ($1234) */
