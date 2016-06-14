@@ -620,7 +620,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 }
             }
         }
-        if (cputype_65c02 && old.av == cpu->av) {
+        if ((cputype_65c02 || cputype_65ce02) && old.av == cpu->av) {
             if (cpu->ar == ((old.ar + 1) & 0xff) && (((old.ar + 1) ^ old.ar) & ~old.av) == 0) {
                 optname = "inc a"; /* 0x1A INC A */
                 goto replace;
