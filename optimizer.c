@@ -849,6 +849,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->ps.n = cpu->ps.v = cpu->ps.e = cpu->ps.d = cpu->ps.i = cpu->ps.z = cpu->ps.c = F_F;
         break;
     case 0x00: /* BRK #$12 */
+        cpu_opt_invalidate();
+        break;
     default:
         if (cputype == &c6502i || cputype == &c65dtv02) {
             switch (cod) {
