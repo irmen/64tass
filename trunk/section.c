@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#include "unicode.h"
 #include "section.h"
+#include "unicode.h"
 #include "error.h"
 #include "misc.h"
 #include "64tass.h"

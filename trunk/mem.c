@@ -18,7 +18,9 @@
 */
 #include "mem.h"
 #include <string.h>
+#ifdef _WIN32
 #include <fcntl.h>
+#endif
 #include <errno.h>
 #include "error.h"
 #include "file.h"

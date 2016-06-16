@@ -27,6 +27,7 @@
 
 */
 
+#include "64tass.h"
 #ifdef _WIN32
 #include <windows.h>
 #include <wincon.h>
@@ -35,7 +36,6 @@
 #include "wchar.h"
 #include <string.h>
 
-#include "64tass.h"
 #include "error.h"
 #include "opcodes.h"
 #include "misc.h"

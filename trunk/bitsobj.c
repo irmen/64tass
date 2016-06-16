@@ -16,9 +16,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "bitsobj.h"
 #include <string.h>
 #include <math.h>
-#include "bitsobj.h"
 #include "eval.h"
 #include "variables.h"
 #include "unicode.h"
@@ -32,7 +32,6 @@
 #include "strobj.h"
 #include "bytesobj.h"
 #include "intobj.h"
-#include "error.h"
 #include "listobj.h"
 #include "operobj.h"
 #include "typeobj.h"

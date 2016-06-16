@@ -16,9 +16,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "bytesobj.h"
 #include <string.h>
 #include <math.h>
-#include "bytesobj.h"
 #include "eval.h"
 #include "unicode.h"
 #include "encoding.h"

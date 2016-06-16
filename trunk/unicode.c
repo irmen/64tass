@@ -16,11 +16,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "unicode.h"
 #include "wchar.h"
 #include "wctype.h"
 #include <ctype.h>
 #include <string.h>
-#include "unicode.h"
 #include "error.h"
 
 #define U_CASEFOLD 1

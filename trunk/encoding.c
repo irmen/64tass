@@ -21,7 +21,6 @@
 #include "string.h"
 #include "ternary.h"
 #include "misc.h"
-#include "64tass.h"
 #include "unicode.h"
 #include "strobj.h"
 #include "bytesobj.h"

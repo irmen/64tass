@@ -16,9 +16,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "boolobj.h"
 #include <string.h>
 #include "eval.h"
-#include "boolobj.h"
 #include "error.h"
 #include "variables.h"
 #include "arguments.h"

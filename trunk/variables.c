@@ -16,10 +16,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "variables.h"
 #include <string.h>
 #include <errno.h>
 #include "unicode.h"
-#include "variables.h"
 #include "misc.h"
 #include "64tass.h"
 #include "file.h"

@@ -16,11 +16,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "file.h"
 #include <string.h>
 #include "wchar.h"
 #include <errno.h>
+#ifdef _WIN32
 #include <locale.h>
-#include "file.h"
+#endif
 #include "64tass.h"
 #include "unicode.h"
 #include "error.h"

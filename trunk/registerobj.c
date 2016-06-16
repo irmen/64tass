@@ -16,11 +16,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#include <string.h>
 #include "registerobj.h"
+#include <string.h>
 #include "error.h"
 #include "eval.h"
-#include "opcodes.h"
 #include "variables.h"
 
 #include "boolobj.h"
