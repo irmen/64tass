@@ -16,10 +16,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "functionobj.h"
 #include <string.h>
 #include "math.h"
 #include "isnprintf.h"
-#include "functionobj.h"
 #include "eval.h"
 #include "misc.h"
 #include "variables.h"
@@ -28,7 +28,6 @@
 #include "floatobj.h"
 #include "strobj.h"
 #include "listobj.h"
-#include "floatobj.h"
 #include "intobj.h"
 #include "boolobj.h"
 #include "operobj.h"

@@ -16,9 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+#include "intobj.h"
 #include <string.h>
 #include <math.h>
-#include "intobj.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "error.h"
@@ -31,7 +31,6 @@
 #include "codeobj.h"
 #include "strobj.h"
 #include "bytesobj.h"
-#include "floatobj.h"
 #include "bitsobj.h"
 #include "operobj.h"
 #include "typeobj.h"

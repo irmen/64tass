@@ -46,8 +46,8 @@
  Alain Magloire: alainm@rcsm.ee.mcgill.ca
 */
 
-#include <string.h>
 #include "isnprintf.h"
+#include <string.h>
 #include "unicode.h"
 #include "eval.h"
 #include "floatobj.h"

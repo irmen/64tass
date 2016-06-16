@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#include <string.h>
 #include "listobj.h"
+#include <string.h>
 #include "eval.h"
 #include "variables.h"
 #include "error.h"

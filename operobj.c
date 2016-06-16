@@ -16,8 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#include <string.h>
 #include "operobj.h"
+#include <string.h>
 
 #include "strobj.h"
 #include "typeobj.h"
