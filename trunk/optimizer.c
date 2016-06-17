@@ -749,7 +749,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0x9A: /* TXS */
         old.sr = cpu->sr; old.sv = cpu->sv;
         cpu->sr = cpu->xr; cpu->sv = cpu->xv;
-        if (cpu->sr == old.sr && old.sv == 0xff) goto remove;
+        if (cpu->sr == old.sr && old.sv == 0xff && cpu->sv == 0xff) goto remove;
         break;
     case 0xBA: /* TSX */
         old.xr = cpu->xr; old.xv = cpu->xv;
@@ -1345,19 +1345,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                        if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
                        break;
             case 0x5B: /* TAB */
-                       old.br = cpu->br; old.bv = cpu->bv; old.p.n = cpu->p.n; old.p.z = cpu->p.z;
-                       cpu->ps.n = cpu->ps.z = F_A | F_B;
-                       cpu->br = cpu->ar;
-                       cpu->bv = cpu->av;
-
-                       cpu->p.n = ((cpu->bv & 0x80) == 0) ? UNKNOWN : (cpu->br >> 7);
-                       cpu->p.z = ((cpu->br & cpu->bv) == 0 && cpu->bv != 0xff) ? UNKNOWN : (((cpu->br & cpu->bv) == 0) ? 1 : 0);
-                       if (cpu->bv != 0xff) {
-                           break;
-                       }
-                       if (cpu->br == old.br && old.bv == 0xff &&
-                               old.p.n != UNKNOWN && old.p.n == cpu->p.n &&
-                               old.p.z != UNKNOWN && old.p.z == cpu->p.z) goto remove;
+                       old.br = cpu->br; old.bv = cpu->bv;
+                       cpu->br = cpu->ar; cpu->bv = cpu->av;
+                       if (cpu->br == old.br && old.bv == 0xff && cpu->bv == 0xff) goto remove;
                        break;
             case 0x4B: /* TAZ */
                        old.zr = cpu->zr; old.zv = cpu->zv; old.p.n = cpu->p.n; old.p.z = cpu->p.z;
@@ -1389,7 +1379,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             case 0x2B: /* TYS */
                        old.srh = cpu->srh; old.svh = cpu->svh;
                        cpu->srh = cpu->yr; cpu->svh = cpu->yv;
-                       if (cpu->srh == old.srh && old.svh == 0xff) goto remove;
+                       if (cpu->srh == old.srh && old.svh == 0xff && cpu->svh == 0xff) goto remove;
                        break;
             case 0x6B: /* TZA */
                        old.ar = cpu->ar; old.av = cpu->av;
