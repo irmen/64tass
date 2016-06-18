@@ -234,8 +234,9 @@ void listing_line(linecpos_t pos) {
     int l;
     if (nolisting != 0 || !arguments.source || temporary_label_branch != 0 || llist == NULL) return;
     if (flist == NULL) {
+        address_t addr;
         if (!fixeddig || constcreated || listing_pccolumn) return;
-        address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
         if (i < pos && current_section->address != addr) listing_pccolumn = true;
@@ -277,8 +278,9 @@ void listing_line_cut(linecpos_t pos) {
     size_t i;
     if (nolisting != 0 || !arguments.source || temporary_label_branch != 0 || llist == NULL) return;
     if (flist == NULL) {
+        address_t addr;
         if (!fixeddig || constcreated || listing_pccolumn) return;
-        address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
         if (i < pos && current_section->address != addr) listing_pccolumn = true;
