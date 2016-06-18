@@ -36,7 +36,7 @@ struct file_list_s {
 
 extern struct Type *ERROR_OBJ;
 
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX2_VERSION
+#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX2_VERSION || _POSIX2_C_VERSION
 #define COLOR_OUTPUT
 extern bool print_use_color;
 #else
