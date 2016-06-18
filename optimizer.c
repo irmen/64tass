@@ -601,11 +601,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             }
             if (old.av == 0xff) {
                 if (cpu->p.c == ((old.ar & 0x80) >> 7)) {
-                    if (cpu->ar == ((old.ar << 1) & 0xff)) {
+                    if (cpu->ar == (uint8_t)(old.ar << 1)) {
                         optname = "asl a"; /* 0x0A ASL A */
                         goto replace;
                     }
-                    if (cpu->ar == (((old.ar << 1) & 0xff) | cpu->p.c)) {
+                    if (cpu->ar == ((uint8_t)(old.ar << 1) | cpu->p.c)) {
                         optname = "rol a"; /* 0x2A ROL A */
                         goto replace;
                     }
@@ -623,13 +623,19 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             }
         }
         if ((cputype_65c02 || cputype_65ce02) && old.av == cpu->av) {
-            if (cpu->ar == ((old.ar + 1) & 0xff) && (((old.ar + 1) ^ old.ar) & ~old.av) == 0) {
+            if (cpu->ar == (uint8_t)(old.ar + 1) && (((uint8_t)(old.ar + 1) ^ old.ar) & ~old.av) == 0) {
                 optname = "inc a"; /* 0x1A INC A */
                 goto replace;
             }
-            if (cpu->ar == ((old.ar - 1) & 0xff) && (((old.ar - 1) ^ old.ar) & ~old.av) == 0) {
+            if (cpu->ar == (uint8_t)(old.ar - 1) && (((uint8_t)(old.ar - 1) ^ old.ar) & ~old.av) == 0) {
                 optname = "dec a"; /* 0x3A DEC A */
                 goto replace;
+            }
+            if (cputype_65ce02 && old.av == cpu->av) {
+                if (cpu->ar == (uint8_t)(-old.ar) && old.av == 255) {
+                    optname = "neg a"; /* 0x42 NEG A */
+                    goto replace;
+                }
             }
         }
         break;
