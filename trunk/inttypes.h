@@ -92,6 +92,10 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 #define PRIXval PRIX32
 
+#ifndef SIZE_MAX
+# define SIZE_MAX ((size_t)-1)
+#endif
+
 #ifndef SSIZE_MAX
 # define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
 #endif
@@ -110,22 +114,28 @@ typedef uint32_t uval_t;
 #endif
 
 #ifdef MUST_CHECK
-#elif defined(__GNUC__)
-#define MUST_CHECK __attribute__ ((warn_unused_result))
-#define NO_RETURN  __attribute__((noreturn))
+#elif __GNUC__ >= 3
+# define MUST_CHECK __attribute__ ((warn_unused_result))
 #else
-#define MUST_CHECK
-#define NO_RETURN
+# define MUST_CHECK
 #endif
+
+#ifdef NO_RETURN
+#elif defined(__GNUC__)
+# define NO_RETURN  __attribute__((noreturn))
+#else
+# define NO_RETURN
 #endif
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L
 #elif __GNUC__ >= 3
-#define inline __inline
+# define inline __inline
 #elif _MSC_VER >= 900
-#define inline __inline
+# define inline __inline
 #else
-#define inline
+# define inline
 #endif
+#endif
+
 #endif

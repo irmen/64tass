@@ -1456,10 +1456,10 @@ Obj *compile(struct file_list_s *cflist)
                         bool old_unionmode = current_section->unionmode;
                         struct values_s *vs;
                         Type *obj;
-
-                        if (arguments.optimize) cpu_opt_invalidate();
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+
+                        if (arguments.optimize) cpu_opt_invalidate();
                         listing_line(epoint.pos);
                         newlabel->ref = false;
                         if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;

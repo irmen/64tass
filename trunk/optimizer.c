@@ -146,12 +146,12 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         goto loada;
     case 0x31: /* AND ($12),y */
         if (cputype_65c02 && cpu->yv == 0xff && cpu->yr == 0) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
-        goto and;
+        goto anda;
     case 0x39: /* AND $1234,y */
         if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
-        goto and;
+        goto anda;
     case 0x21: /* AND ($12,x) */
-        if (!cputype_65c02) goto and;
+        if (!cputype_65c02) goto anda;
         /* fall through */
     case 0x3D: /* AND $1234,x */
     case 0x35: /* AND $12,x */
@@ -159,7 +159,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         /* fall through */
     case 0x2D: /* AND $1234 */
     case 0x25: /* AND $12 */
-    and:
+    anda:
         cpu->av &= ~cpu->ar;
     nzfl:
         cpu->p.n = ((cpu->av & 0x80) == 0) ? UNKNOWN : (cpu->ar >> 7);
@@ -929,7 +929,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             case 0x3B: /* RLA $1234,y */
                 if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
                 cpu->p.c = UNKNOWN;
-                goto and;
+                goto anda;
             case 0x3F: /* RLA $1234,x */
             case 0x37: /* RLA $12,x */
                 if (cpu->xv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
@@ -939,7 +939,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             case 0x23: /* RLA ($12,x) */
             case 0x33: /* RLA ($12),y */
                 cpu->p.c = UNKNOWN;
-                goto and;
+                goto anda;
             case 0x1B: /* SLO $1234,y */
                 if (cpu->yv == 0xff) err_msg2(ERROR___CONST_INDEX, NULL, epoint);
                 cpu->p.c = UNKNOWN;
@@ -1092,7 +1092,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         case 0xF2: /* SBC ($12) */ /* SBC ($12),z */
             goto adcsbc;
         case 0x32: /* AND ($12) */ /* AND ($12),z */
-            goto and;
+            goto anda;
         case 0x80: /* BRA *+$12 */
             if ((uint8_t)adr == 0) goto jump;
             cpu->branched = true;
