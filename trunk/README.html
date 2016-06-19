@@ -2884,8 +2884,8 @@ bytes. Also increases the size of raw output to 16&nbsp;MiB.
 64tass --long-address --m65816 a.asm
 </pre>
 
-<dt>no option
-<dd>Outputs CBM format binaries
+<dt><b>--cbm-prg</b><a name="o_cbm-prg" href="#o_cbm-prg"></a>
+<dd>Generate CBM format binaries (default)
 <p>The first 2 bytes are the little endian address of the first valid byte (start
 address). Overlapping blocks are flattened and uninitialized memory is filled up with zeros.
 Uninitialized memory before the first and after the last valid bytes are not saved. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.</p>

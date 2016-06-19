@@ -65,6 +65,7 @@ static const struct my_option long_options[] = {
     {"apple-ii"         , my_no_argument      , NULL,  0x108},
     {"intel-hex"        , my_no_argument      , NULL,  0x10e},
     {"s-record"         , my_no_argument      , NULL,  0x10f},
+    {"cbm-prg"          , my_no_argument      , NULL,  0x114},
     {"ascii"            , my_no_argument      , NULL, 'a'},
     {"tasm-compatible"  , my_no_argument      , NULL, 'T'},
     {"case-sensitive"   , my_no_argument      , NULL, 'C'},
@@ -113,6 +114,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
             case 0x10e:arguments.output_mode = OUTPUT_IHEX;break;
             case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
+            case 0x114:arguments.output_mode = OUTPUT_CBM;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii = true;break;
@@ -171,8 +173,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmseO?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
-               "        [--nostart] [--long-branch] [--case-sensitive] [--flat] [--atari-xex]\n"
-               "        [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
+               "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
+               "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
                "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
@@ -210,6 +212,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -f, --flat            Generate flat output file\n"
                "  -n, --nonlinear       Generate nonlinear output file\n"
                "  -X, --long-address    Use 3 byte start/len address\n"
+               "      --cbm-prg         Output CBM program file\n"
                "      --atari-xex       Output Atari XEX file\n"
                "      --apple-ii        Output Apple II file\n"
                "      --intel-hex       Output Intel HEX file\n"

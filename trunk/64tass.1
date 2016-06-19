@@ -19,6 +19,14 @@ this option changes it.
 Use 3 byte address/length for CBM and nonlinear output instead of 2
 bytes. Also increases the size of raw output to 16 MiB.
 .TP 0.5i
+\fB\-\-cbm\-prg\fR
+Generate CBM format binaries (default).
+The first 2 bytes are the little endian address of the first valid byte
+(start address). Overlapping blocks are flattened and uninitialized memory
+is filled up with zeros. Uninitialized memory before the first and after
+the last valid bytes are not saved. Up to 64 KiB or 16 MiB with long
+address.
+.TP 0.5i
 \fB\-b\fR, \fB\-\-nostart\fR
 Output raw data only without start address.
 Overlapping blocks are flattened and uninitialized memory is filled up
