@@ -192,6 +192,27 @@ void reset_context(void) {
     push_context(root_namespace);
 }
 
+struct label_stack_s {
+    Label **stack;
+    size_t len, p;
+};
+
+static struct label_stack_s label_stack;
+
+static void push_label(Label *name) {
+    if (label_stack.p >= label_stack.len) {
+        label_stack.len += 8;
+        if (/*label_stack.len < 8 ||*/ label_stack.len > SIZE_MAX / sizeof(Label *)) err_msg_out_of_memory(); /* overflow */
+        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(Label *));
+    }
+    label_stack.stack[label_stack.p] = name;
+    label_stack.p++;
+}
+
+static void pop_label(void) {
+    label_stack.p--;
+}
+
 void get_namespaces(Mfunc *mfunc) {
     size_t i, len = context_stack.p - context_stack.bottom;
     if (len > SIZE_MAX / sizeof *mfunc->namespaces) err_msg_out_of_memory(); /* overflow */
@@ -499,6 +520,15 @@ static inline void padding(int l, int t, FILE *f) {
     while (l < t) { l++; putc(' ', f);} 
 }
 
+static void labelname_print(Label *l, FILE *flab, char d) {
+    size_t p;
+    for (p = 0; p < label_stack.p; p++) {
+        printable_print2(label_stack.stack[p]->name.data, flab, label_stack.stack[p]->name.len);
+        putc(d, flab);
+    }
+    printable_print2(l->name.data, flab, l->name.len);
+}
+
 static void labelprint2(const struct avltree *members, FILE *flab, int labelmode) {
     struct avltree_node *n;
     Label *l;
@@ -519,37 +549,54 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         if (labelmode == LABEL_VICE) {
             if (l->value->obj == CODE_OBJ) {
                 Error *err;
+                Code *code = (Code *)l->value;
                 uval_t uv;
                 struct linepos_s epoint;
+                size_t i, j = l->name.len;
+                const uint8_t *d = l->name.data;
+                for (i = 0; i < j; i++) {
+                    uint8_t c = d[i];
+                    if (c < '0') break;
+                    if (c <= '9') continue;
+                    if (c == '_') continue;
+                    c |= 0x20;
+                    if (c < 'a') break;
+                    if (c <= 'z') continue;
+                    break;
+                }
+                if (i != j) continue;
+
                 err = l->value->obj->uval(l->value, &uv, 24, &epoint);
-                if (err != NULL) val_destroy(&err->v);
-                else {
-                    size_t i, j = l->name.len;
-                    const uint8_t *d = l->name.data;
-                    for (i = 0; i < j; i++) {
-                        if ((d[i] & 0x80) != 0) break;
-                    }
-                    if (i == j) {
-                        fprintf(flab, "al %" PRIx32 " .", uv);
-                        printable_print2(l->name.data, flab, l->name.len);
-                        putc('\n', flab);
-                    }
+                if (err != NULL) {
+                    val_destroy(&err->v);
+                    continue;
+                }
+                if (!l->owner) continue;
+                fprintf(flab, "al %" PRIx32 " .", uv);
+                labelname_print(l, flab, ':');
+                putc('\n', flab);
+                if (code->names->len != 0) {
+                    size_t ln = code->names->len;
+                    code->names->len = 0;
+                    push_label(l);
+                    labelprint2(&code->names->members, flab, labelmode);
+                    pop_label();
+                    code->names->len = ln;
                 }
             }
         } else {
             Str *val = (Str *)l->value->obj->repr(l->value, NULL, SIZE_MAX);
             size_t len;
-            if (val != NULL) {
-                if (val->v.obj == STR_OBJ) {
-                    len = printable_print2(l->name.data, flab, l->name.len);
-                    padding(len, EQUAL_COLUMN, flab);
-                    if (l->constant) fputs("= ", flab);
-                    else fputs(&" := "[len < EQUAL_COLUMN], flab);
-                    printable_print2(val->data, flab, val->len);
-                    putc('\n', flab);
-                }
-                val_destroy(&val->v);
+            if (val == NULL) continue;
+            if (val->v.obj == STR_OBJ) {
+                len = printable_print2(l->name.data, flab, l->name.len);
+                padding(len, EQUAL_COLUMN, flab);
+                if (l->constant) fputs("= ", flab);
+                else fputs(&" := "[len < EQUAL_COLUMN], flab);
+                printable_print2(val->data, flab, val->len);
+                putc('\n', flab);
             }
+            val_destroy(&val->v);
         }
     }
 }
@@ -558,7 +605,7 @@ static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
     return &file->data[file->line[line - 1]];
 }
 
-static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
+static void labeldump(Namespace *members, FILE *flab) {
     const struct avltree_node *n;
 
     for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
@@ -575,11 +622,7 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
                     linepos_t epoint = &l2->epoint;
                     printable_print((uint8_t *)file->realname, flab);
                     fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(get_line(file, epoint->line), epoint->pos, file->coding == E_UTF8));
-                    if (prefix->len != 0) {
-                        printable_print2(prefix->data, flab, prefix->len);
-                        putc('.', flab);
-                    }
-                    printable_print2(l2->name.data, flab, l2->name.len);
+                    labelname_print(l2, flab, '.');
                     fputs(l2->constant ? " = " : " := ", flab);
                     printable_print2(val->data, flab, val->len);
                     putc('\n', flab);
@@ -606,26 +649,11 @@ static void labeldump(Namespace *members, const str_t *prefix, FILE *flab) {
 
         if (ns != NULL && ns->len != 0 && l2->owner) {
             if (l2->name.len < 2 || l2->name.data[1] != 0) {
-                str_t newprefix;
-                uint8_t *s;
                 size_t ln = ns->len;
                 ns->len = 0;
-                newprefix.len = prefix->len + l2->name.len;
-                if (newprefix.len < prefix->len) err_msg_out_of_memory(); /* overflow */
-                if (prefix->len != 0) {
-                    newprefix.len++;
-                    if (newprefix.len == 0) err_msg_out_of_memory(); /* overflow */
-                }
-                s = (uint8_t *)mallocx(newprefix.len);
-                newprefix.data = s;
-                if (prefix->len != 0) {
-                    memcpy(s, prefix->data, prefix->len);
-                    s += prefix->len;
-                    *s++ = '.';
-                }
-                memcpy(s, l2->name.data, l2->name.len);
-                labeldump(ns, &newprefix, flab);
-                free((uint8_t *)newprefix.data);
+                push_label(l2);
+                labeldump(ns, flab);
+                pop_label();
                 ns->len = ln;
             }
         }
@@ -645,12 +673,14 @@ void labelprint(void) {
     }
     clearerr(flab);
     referenceit = false;
+    label_stack.stack = NULL;
+    label_stack.p = label_stack.len = 0;
     if (arguments.label_mode == LABEL_DUMP) {
-        str_t root = {0, NULL};
-        labeldump(root_namespace, &root, flab);
+        labeldump(root_namespace, flab);
     } else {
         labelprint2(&root_namespace->members, flab, arguments.label_mode);
     }
+    free(label_stack.stack);
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
