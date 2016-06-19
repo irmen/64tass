@@ -571,11 +571,10 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                     val_destroy(&err->v);
                     continue;
                 }
-                if (!l->owner) continue;
                 fprintf(flab, "al %" PRIx32 " .", uv);
                 labelname_print(l, flab, ':');
                 putc('\n', flab);
-                if (code->names->len != 0) {
+                if (code->names->len != 0 && l->owner) {
                     size_t ln = code->names->len;
                     code->names->len = 0;
                     push_label(l);
