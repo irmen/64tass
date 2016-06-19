@@ -2451,8 +2451,8 @@ Output options
 
     64tass --long-address --m65816 a.asm
 
-no option
-    Outputs CBM format binaries
+--cbm-prg
+    Generate CBM format binaries (default)
 
     The first 2 bytes are the little endian address of the first valid byte
     (start address). Overlapping blocks are flattened and uninitialized memory
