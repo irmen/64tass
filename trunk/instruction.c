@@ -507,12 +507,30 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                             err = NULL;
                             goto branchend;
                         } 
-                        if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
-                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, 1, 0, epoint);
-                            cpu_opt_long_branch(0);
-                            err = NULL;
-                            goto branchend;
+                        if (adr == 1) {
+                            if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                dump_instr(cnmemonic[ADR_REL] ^ 0x20, 1, 0, epoint);
+                                cpu_opt_long_branch(0);
+                                err = NULL;
+                                goto branchend;
+                            }
+                            if (cnmemonic[ADR_REL] == 0x80 && (opcode == r65c02.opcode || opcode == w65c02.opcode)) {
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                dump_instr(0x82, 1, 0, epoint);
+                                cpu_opt_long_branch(0);
+                                err = NULL;
+                                goto branchend;
+                            }
+                        }
+                        if (adr == 2 && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
+                            if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                dump_instr(cnmemonic[ADR_REL] ^ 0x23, 2, 0, epoint);
+                                cpu_opt_long_branch(0);
+                                err = NULL;
+                                goto branchend;
+                            }
                         }
                     }
                 }

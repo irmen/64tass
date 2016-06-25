@@ -2312,9 +2312,6 @@ jump distance is short enough and as JMP or BRL when longer.
 The names are derived from conditional branches and are: GEQ, GNE, GCC, GCS,
 GPL, GMI, GVC, GVS, GLT and GGE.
 
-There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
-(if available) or JMP.
-
 .0000    a9 03          lda #$03        in1     lda #3
 .0002    d0 02          bne $0006               gne at          ;branch always
 .0004    a9 02          lda #$02        in2     lda #2
@@ -2322,7 +2319,13 @@ There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
 
 If the branch would skip only one byte then the opposite condition is compiled
 and only the first byte is emitted. This is now a never executed jump, and the
-relative distance byte after the opcode is the jumped over byte.
+relative distance byte after the opcode is the jumped over byte. If the CPU has
+long conditional branches (65CE02/4510) then the same method is applied to two
+byte skips as well.
+
+There's a pseudo opcode called GRA for CPUs supporting BRA, which is expanded
+to BRL (if available) or JMP. A one byte skip will be shortened to a single
+byte if the CPU has a NOP immediate instruction (R65C02/W65C02).
 
 If the branch would not skip anything at all then no code is generated.
 
