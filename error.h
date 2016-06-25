@@ -74,6 +74,7 @@ typedef struct Error {
             size_t v1;
             size_t v2;
         } broadcast;
+        Obj *key;
     } u;
 } Error;
 
