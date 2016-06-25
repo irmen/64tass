@@ -258,6 +258,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     o2 = args->val[indx].val;
     epoint2 = &args->val[indx].epoint;
 
+    if (o2->obj == NONE_OBJ) return val_reference(o2);
+
     pair.key = o2;
     err = pair.key->obj->hash(pair.key, &pair.hash, epoint2);
     if (err != NULL) return &err->v;
@@ -269,7 +271,9 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     if (v1->def != NULL) {
         return val_reference(v1->def);
     }
-    return (Obj *)new_error(ERROR_____KEY_ERROR, epoint2);
+    err = new_error(ERROR_____KEY_ERROR, epoint2);
+    err->u.key = val_reference(o2);
+    return &err->v; 
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {

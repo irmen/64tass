@@ -46,7 +46,7 @@ static void tern_free(union tern_u *tern) {
 static ternary_node *tern_alloc(void) {
     ternary_node *tern;
 #ifdef DEBUG
-    tern = (ternary_node *)mallocx(sizeof *tern)
+    tern = (ternary_node *)mallocx(sizeof *tern);
 #else
     size_t i;
     tern = (ternary_node *)terns_free;

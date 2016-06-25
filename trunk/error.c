@@ -60,6 +60,10 @@ static void destroy(Obj *o1) {
         return;
     case ERROR___NOT_DEFINED: 
         val_destroy((Obj *)v1->u.notdef.names);
+        return;
+    case ERROR_____KEY_ERROR: 
+        val_destroy(v1->u.key);
+        return;
     default: return;
     }
 }
@@ -96,8 +100,10 @@ static void garbage(Obj *o1, int i) {
         v = v1->u.intconv.val;
         break;
     case ERROR___NOT_DEFINED: 
-        v = (Obj *)v1->u.notdef.names;
+        v = &v1->u.notdef.names->v;
         break;
+    case ERROR_____KEY_ERROR: 
+        v = v1->u.key;
     default: return;
     }
     switch (i) {
@@ -357,7 +363,6 @@ static const char *terr_error[] = {
     "requirements not met",
     "conflict",
     "index out of range",
-    "key error",
     "not hashable",
     "not a key and value pair",
     "can't convert to a %u bit signed integer",
@@ -671,6 +676,12 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepo
     adderror(msg2);
 }
 
+static void err_msg_key_error(Obj *val, linepos_t epoint) {
+    new_error_msg(SV_CONDERROR, current_file_list, epoint);
+    adderror("key error");
+    err_msg_variable(val, epoint);
+}
+
 void err_msg_output(const Error *val) {
     switch (val->num) {
     case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.notdef.ident, val->u.notdef.names, val->u.notdef.down, &val->epoint);break;
@@ -693,7 +704,6 @@ void err_msg_output(const Error *val) {
     case ERROR__BYTES_NEEDED:
     case ERROR___NO_LAST_GAP:
     case ERROR_BIG_STRING_CO:
-    case ERROR_____KEY_ERROR:
     case ERROR__NO_BYTE_ADDR:
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR:
@@ -713,6 +723,7 @@ void err_msg_output(const Error *val) {
     case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
     case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
     case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
+    case ERROR_____KEY_ERROR: err_msg_key_error(val->u.key, &val->epoint);break;
     default: break;
     }
 }
