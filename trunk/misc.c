@@ -30,6 +30,7 @@
 #include "error.h"
 #include "values.h"
 #include "arguments.h"
+#include "opt_bit.h"
 
 #include "namespaceobj.h"
 
@@ -150,6 +151,7 @@ void tfree(void) {
     destroy_values();
     destroy_namespacekeys();
     destroy_ternary();
+    destroy_opt_bit();
     unfc(NULL);
     unfkc(NULL, NULL, 0);
     str_cfcpy(NULL, NULL);
@@ -164,5 +166,6 @@ void tinit(const char *prgname) {
     init_variables();
     init_eval();
     init_ternary();
+    init_opt_bit();
 }
 
