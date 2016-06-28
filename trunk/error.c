@@ -104,6 +104,7 @@ static void garbage(Obj *o1, int i) {
         break;
     case ERROR_____KEY_ERROR: 
         v = v1->u.key;
+        break;
     default: return;
     }
     switch (i) {
