@@ -25,6 +25,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifndef PRId32
 #define PRId32 "d"
@@ -45,14 +46,14 @@
 #ifndef PRIxSIZE
 #if __STDC_VERSION__ >= 199901L && !defined _WIN32
 #define PRIxSIZE  "zx"
-#elif defined UINT_MAX && SIZE_MAX == UINT_MAX
-#define PRIxSIZE  "x"
-#elif defined ULLONG_MAX && SIZE_MAX == ULLONG_MAX
-#define PRIxSIZE  "llx"
-#elif defined ULONG_MAX && SIZE_MAX == ULONG_MAX
-#define PRIxSIZE  "lx"
 #elif defined USHRT_MAX && SIZE_MAX == USHRT_MAX
 #define PRIxSIZE  "hx"
+#elif defined UINT_MAX && SIZE_MAX == UINT_MAX
+#define PRIxSIZE  "x"
+#elif defined ULONG_MAX && SIZE_MAX == ULONG_MAX
+#define PRIxSIZE  "lx"
+#elif defined ULLONG_MAX && SIZE_MAX == ULLONG_MAX
+#define PRIxSIZE  "llx"
 #else
 #define PRIxSIZE  "x"
 #endif
@@ -61,14 +62,14 @@
 #ifndef PRIuSIZE
 #if __STDC_VERSION__ >= 199901L && !defined _WIN32
 #define PRIuSIZE  "zu"
-#elif defined UINT_MAX && SIZE_MAX == UINT_MAX
-#define PRIuSIZE  "u"
-#elif defined ULLONG_MAX && SIZE_MAX == ULLONG_MAX
-#define PRIuSIZE  "llu"
-#elif defined ULONG_MAX && SIZE_MAX == ULONG_MAX
-#define PRIuSIZE  "lu"
 #elif defined USHRT_MAX && SIZE_MAX == USHRT_MAX
 #define PRIuSIZE  "hu"
+#elif defined UINT_MAX && SIZE_MAX == UINT_MAX
+#define PRIuSIZE  "u"
+#elif defined ULONG_MAX && SIZE_MAX == ULONG_MAX
+#define PRIuSIZE  "lu"
+#elif defined ULLONG_MAX && SIZE_MAX == ULLONG_MAX
+#define PRIuSIZE  "llu"
 #else
 #define PRIuSIZE  "u"
 #endif
