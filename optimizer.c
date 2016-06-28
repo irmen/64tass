@@ -115,9 +115,10 @@ static bool flag_is_zero(struct optimizer_s *cpu) {
     default: break;
     }
     if (cpu->zcmp) {
-        return false;
+        for (i = 0; i < 8; i++) if (!eq_bit(cpu->z2.a[i], cpu->z3.a[i])) return false;
+    } else {
+        for (i = 0; i < 8; i++) if (get_bit(cpu->z1.a[i]) != B0) return false;
     }
-    for (i = 0; i < 8; i++) if (get_bit(cpu->z1.a[i]) != B0) return false;
     set_bit(&cpu->p.z, new_bit1());
     return true;
 }
@@ -130,11 +131,15 @@ static bool flag_is_nonzero(struct optimizer_s *cpu) {
     default: break;
     }
     if (cpu->zcmp) {
-        return false;
-    }
-    for (i = 0; i < 8; i++) if (get_bit(cpu->z1.a[i]) == B1) {
-        set_bit(&cpu->p.z, new_bit0());
-        return true;
+        for (i = 0; i < 8; i++) if (neq_bit(cpu->z2.a[i], cpu->z3.a[i])) {
+            set_bit(&cpu->p.z, new_bit0());
+            return true;
+        }
+    } else {
+        for (i = 0; i < 8; i++) if (get_bit(cpu->z1.a[i]) == B1) {
+            set_bit(&cpu->p.z, new_bit0());
+            return true;
+        }
     }
     return false;
 }
@@ -895,7 +900,15 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (cpu->lb > 255) { cpu->branched = true; break; }
         if (adr == 0) goto jump;
         if (b == BU) mod_bit(cpu->p.c, B1); else set_bit(&cpu->p.c, new_bit1());
-        cpu->ccmp = false;
+        if (cpu->ccmp) {
+            unsigned int i, j;
+            for (i = 0; i < 8; i++) {
+                j = i ^ 7;
+                if (get_bit(cpu->z3.a[j]) != B1) break;
+                if (get_bit(cpu->z2.a[j]) == BU) mod_bit(cpu->z2.a[j], B1);
+            }
+            cpu->ccmp = false;
+        }
         if (b == B0) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gcc"; goto replace; }
@@ -909,7 +922,25 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (cpu->lb > 255) { cpu->branched = true; break; }
         if (adr == 0) goto jump;
         if (b == BU) mod_bit(cpu->p.c, B0); else set_bit(&cpu->p.c, new_bit0());
-        cpu->ccmp = false;
+        if (cpu->ccmp) {
+            unsigned int i, j;
+            uint8_t bb;
+            for (i = 0; i < 8; i++) {
+                j = i ^ 7;
+                bb = get_bit(cpu->z3.a[j]);
+                if (bb != B0) break;
+                if (get_bit(cpu->z2.a[j]) == BU) mod_bit(cpu->z2.a[j], B0);
+            }
+            if (bb == B1) {
+                for (i = i + 1; i < 8; i++) if (get_bit(cpu->z3.a[i ^ 7]) != B0) break;
+                if (i == 8 && get_bit(cpu->z2.a[j]) == BU) mod_bit(cpu->z2.a[j], B0);
+            }
+            if (cpu->zcmp) {
+                if (get_bit(cpu->p.z) == BU) mod_bit(cpu->p.z, B0); else set_bit(&cpu->p.z, new_bit0());
+                cpu->zcmp = false;
+            }
+            cpu->ccmp = false;
+        }
         if (b == B1) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gcs"; goto replace; }
@@ -925,20 +956,22 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             if (cpu->lb > 255) { cpu->branched = true; break; }
             if (adr == 0) goto jump;
             z = flag_is_nonzero(cpu);
-            if (get_bit(cpu->p.z) == BU) {
+            if (get_bit(cpu->p.z) == BU) mod_bit(cpu->p.z, B1); else set_bit(&cpu->p.z, new_bit1());
+            if (cpu->zcmp) {
+                for (i = 0; i < 8; i++) {
+                    b = get_bit(cpu->z3.a[i]);
+                    if (b != BU && get_bit(cpu->z2.a[i]) == BU) mod_bit(cpu->z2.a[i], b);
+                }
+                if (cpu->ccmp) { 
+                    if (get_bit(cpu->p.c) == BU) mod_bit(cpu->p.c, B1); else set_bit(&cpu->p.c, new_bit1());
+                    cpu->ccmp = false;
+                }
+                cpu->zcmp = false;
+            } else {
                 for (i = 0; i < 8; i++) {
                     if (get_bit(cpu->z1.a[i]) == BU) mod_bit(cpu->z1.a[i], B0);
                 }
-                if (cpu->zcmp) {
-                    for (i = 0; i < 8; i++) {
-                        b = get_bit(cpu->z3.a[i]);
-                        if (b != BU && get_bit(cpu->z2.a[i]) == BU) mod_bit(cpu->z2.a[i], b);
-                        else change_bit(&cpu->z2.a[i], cpu->z3.a[i]);
-                    }
-                }
-                mod_bit(cpu->p.z, B1);
-            } else set_bit(&cpu->p.z, new_bit1());
-            cpu->zcmp = false;
+            }
             if (z) {
                 cpu->branched = true;
                 if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gne"; goto replace; }
