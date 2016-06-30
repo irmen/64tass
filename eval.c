@@ -448,6 +448,16 @@ rest:
     return false;
 }
 
+static struct values_s *extend_values(struct eval_context_s *ev, size_t by) {
+    size_t j = ev->values_size;
+    struct values_s *values;
+    ev->values_size += by;
+    if (ev->values_size < by || ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
+    ev->values = values = (struct values_s *)reallocx(ev->values, ev->values_size * sizeof *values);
+    for (; j < ev->values_size; j++) values[j].val = NULL;
+    return values;
+}
+
 static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     size_t vsp = 0;
     enum oper_e op;
@@ -465,13 +475,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
         o_out = &ev->o_out[i];
         val = o_out->val;
         if (val->obj != OPER_OBJ) {
-            if (vsp >= ev->values_size) {
-                size_t j = ev->values_size;
-                ev->values_size += 16;
-                if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-                ev->values = values = (struct values_s *)reallocx(ev->values, ev->values_size * sizeof *values);
-                for (; j < ev->values_size; j++) values[j].val = NULL;
-            }
+            if (vsp >= ev->values_size) values = extend_values(ev, 16);
             o_out->val = values[vsp].val;
             values[vsp].val = val;
             values[vsp++].epoint = o_out->epoint;
@@ -762,13 +766,7 @@ static bool get_val2(struct eval_context_s *ev) {
         o_out = &ev->o_out[i];
         val = o_out->val;
         if (val->obj != OPER_OBJ || val == &o_PARENT.v || val == &o_BRACKET.v || val == &o_BRACE.v) {
-            if (vsp >= ev->values_size) {
-                size_t j = ev->values_size;
-                ev->values_size += 16;
-                if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-                ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof *values);
-                for (; j < ev->values_size; j++) values[j].val = NULL;
-            }
+            if (vsp >= ev->values_size) values = extend_values(ev, 16);
             o_out->val = values[vsp].val;
             values[vsp].val = val;
             values[vsp++].epoint = o_out->epoint;
@@ -1073,18 +1071,14 @@ static bool get_val2(struct eval_context_s *ev) {
                     continue;
                 }
             }
-            if (v1->val->obj == TUPLE_OBJ || v1->val->obj == LIST_OBJ) {
+            if (v1->val->obj == TUPLE_OBJ || v1->val->obj == LIST_OBJ || v1->val->obj == ADDRLIST_OBJ) {
                 List *tmp = (List *)v1->val;
                 size_t k, len = tmp->len;
+                size_t len2 = vsp + len;
+                if (len2 < len) err_msg_out_of_memory(); /* overflow */
                 v1->val = NULL;
                 vsp--;
-                if (vsp + len >= ev->values_size) {
-                    size_t j = ev->values_size;
-                    ev->values_size = vsp + len;
-                    if (ev->values_size < len || ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof *values);
-                    for (; j < ev->values_size; j++) values[j].val = NULL;
-                }
+                if (len2 >= ev->values_size) values = extend_values(ev, len);
                 for (k = 0; k < len; k++) {
                     if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = (tmp->v.refcount == 1) ? tmp->data[k] : val_reference(tmp->data[k]);
@@ -1097,15 +1091,12 @@ static bool get_val2(struct eval_context_s *ev) {
             if (v1->val->obj == DICT_OBJ) {
                 Dict *tmp = (Dict *)v1->val;
                 const struct avltree_node *n;
+                size_t len = (tmp->def == NULL) ? tmp->len : tmp->len + 1;
+                size_t len2 = vsp + len;
+                if (len < tmp->len || len2 < len) err_msg_out_of_memory(); /* overflow */
                 v1->val = NULL;
                 vsp--;
-                if (vsp + tmp->len >= ev->values_size) {
-                    size_t j = ev->values_size;
-                    ev->values_size = vsp + tmp->len;
-                    if (ev->values_size < vsp || ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof *values);
-                    for (; j < ev->values_size; j++) values[j].val = NULL;
-                }
+                if (len2 >= ev->values_size) values = extend_values(ev, len);
                 for (n = avltree_first(&tmp->members); n != NULL; n = avltree_next(n)) {
                     const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
                     Colonlist *list = new_colonlist();
@@ -1119,15 +1110,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     values[vsp++].epoint = o_out->epoint;
                 }
                 if (tmp->def != NULL) {
-                    Colonlist *list;
-                    if (vsp >= ev->values_size) {
-                        size_t j = ev->values_size;
-                        ev->values_size += 16;
-                        if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-                        ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof *values);
-                        for (; j < ev->values_size; j++) values[j].val = NULL;
-                    }
-                    list = new_colonlist();
+                    Colonlist *list = new_colonlist();
                     list->len = 2;
                     list->data = list_create_elements(list, 2);
                     list->data[0] = (Obj *)ref_default();
