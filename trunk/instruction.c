@@ -443,7 +443,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                         if (opr == ADR_BIT_ZP_REL) {
                             bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
-                            if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                            if (crossbank) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
                             if (exists && lj->defpass == pass) {
                                 if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
                                     uint16_t adrk = lj->dest - current_section->l_address.address - 3;
@@ -470,8 +470,10 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                                 goto branchend;
                             } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
                                 int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
-                                if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                                else err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
+                                if (crossbank) {
+                                    if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+                                    else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                                } else err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
                             } else { /* bra -> jmp */
                             asjmp:
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
@@ -491,8 +493,10 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                         if (cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
                         goto asjmp; /* gcc -> jmp */
                     } else { /* too long */
-                        if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                        else {
+                        if (crossbank) {
+                            if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+                            else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                        } else {
                             int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
                             err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);
                         }
@@ -699,7 +703,8 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             adr = uval;
             break; 
         }
-        err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+        if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+        else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         break;
     case AG_BYTE: /* byte only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
@@ -809,7 +814,8 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
             break;
         }
-        err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+        if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+        else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         break;
     case AG_PB2:
         if (w == 3) {/* auto length */

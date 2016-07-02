@@ -690,6 +690,7 @@ void err_msg_output(const Error *val) {
     case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->num - 0x40], val);break;
+    case ERROR_ADDRESS_LARGE:
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
