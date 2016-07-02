@@ -3494,7 +3494,7 @@ HLT DB
 
 W65816 opcodes
 
-This processor is an enhanced version of W65C02.
+This processor is an enhanced version of 65C02.
 
                               Additional opcodes
 ADC 63 67 6F 73 77 7F                   AND 23 27 2F 33 37 3F
@@ -3510,16 +3510,18 @@ PHK 4B                                  PLB AB
 PLD 2B                                  REP C2
 RTL 6B                                  SBC E3 E7 EF F3 F7 FF
 SEP E2                                  STA 83 87 8F 93 97 9F
-TCD 5B                                  TCS 1B
-TDC 7B                                  TSC 3B
-TXY 9B                                  TYX BB
+STP DB                                  TCD 5B
+TCS 1B                                  TDC 7B
+TSC 3B                                  TXY 9B
+TYX BB                                  WAI CB
 XBA EB                                  XCE FB
 
                               Additional aliases
 CSP 02                                  CLP C2
-JML 5C DC                               SWA EB
-TAD 5B                                  TAS 1B
-TDA 7B                                  TSA 3B
+HLT DB                                  JML 5C DC
+SWA EB                                  TAD 5B
+TAS 1B                                  TDA 7B
+TSA 3B
 
 -------------------------------------------------------------------------------
 
