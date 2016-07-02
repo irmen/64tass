@@ -201,15 +201,27 @@ context default lightgray
     keyword whole .word yellow
     keyword whole .text yellow
 
+    keyword whole $\[0123456789abcdefABCDEF\]\.\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\] brightred
+    keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\.\[0123456789abcdefABCDEF\] brightred
+    keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
+    keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
+    keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\.\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
+    keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\.\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
     keyword whole $\{0123456789abcdefABCDEF\}\[0123456789abcdefABCDEF\] brightred
+    keyword whole %\[01\]\.\{01\}\[01\] brightred
+    keyword whole %\{01\}\[01\]\.\[01\] brightred
+    keyword whole %\{01\}\[01\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
+    keyword whole %\{01\}\[01\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
+    keyword whole %\{01\}\[01\]\.\{01\}\[01\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
+    keyword whole %\{01\}\[01\]\.\{01\}\[01\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
     keyword whole %\{01\}\[01\] brightred
-    keyword whole \{0123456789\}\[0123456789\] brightred
     keyword whole \[0123456789\]\.\{0123456789\}\[0123456789\] brightred
     keyword whole \{0123456789\}\[0123456789\]\.\[0123456789\] brightred
     keyword whole \{0123456789\}\[0123456789\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
     keyword whole \{0123456789\}\[0123456789\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
     keyword whole \{0123456789\}\[0123456789\]\.\{0123456789\}\[0123456789\]\{eEpP\}\{0123456789\}\[0123456789\] brightred
     keyword whole \{0123456789\}\[0123456789\]\.\{0123456789\}\[0123456789\]\{eEpP\}\{\-\+\}\{0123456789\}\[0123456789\] brightred
+    keyword whole \{0123456789\}\[0123456789\] brightred
 
     keyword \*= white
     keyword ,x white
