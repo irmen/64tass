@@ -288,45 +288,51 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
     Bits *v1 = (Bits *)o1;
-    Error *v;
     switch (v1->len) {
-    case ~1: *iv = v1->data[0];
-            if (bits < SHIFT && ((uval_t)*iv >> bits) != 0) break;
-            *iv = ~*iv;
-            return NULL;
-    case ~0: *iv = ~(ival_t)0; return NULL;
-    case 0: *iv = 0; return NULL;
-    case 1: *iv = v1->data[0];
-            if (bits < SHIFT && ((uval_t)*iv >> bits) != 0) break;
-            return NULL;
-    default: break;
+    case ~1: 
+        *uv = ~v1->data[0];
+        if (v1->bits > SHIFT) break;
+        if (v1->bits > bits) {
+            bdigit_t t = (v1->bits == SHIFT) ? 0 : ((~(bdigit_t)0) << v1->bits);
+            t = (~(t | v1->data[0])) >> bits;
+            if (t != 0) break;
+        }
+        return true;
+    case ~0: 
+        *uv = ~(uval_t)0; 
+        if (v1->bits > bits) break;
+        return true;
+    case 0: 
+        *uv = 0; 
+        return true;
+    case 1: 
+        *uv = v1->data[0];
+        if (bits < SHIFT && (*uv >> bits) != 0) break;
+        return true;
+    default:
+        /* TODO: long inverted stuff */
+        break;
     }
+    return false;
+}
+
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    Error *v;
+    if (uval2(o1, (uval_t *)iv, bits)) return NULL;
     v = new_error(ERROR_____CANT_IVAL, epoint);
     v->u.intconv.bits = bits;
-    v->u.intconv.val = (Obj *)ref_bits(v1);
+    v->u.intconv.val = val_reference(o1);
     return v;
 }
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Bits *v1 = (Bits *)o1;
     Error *v;
-    switch (v1->len) {
-    case ~1: *uv = v1->data[0];
-            if (bits < SHIFT && (*uv >> bits) != 0) break;
-            *uv = ~*uv;
-            return NULL;
-    case ~0: *uv = ~(uval_t)0; return NULL;
-    case 0: *uv = 0; return NULL;
-    case 1: *uv = v1->data[0];
-            if (bits < SHIFT && (*uv >> bits) != 0) break;
-            return NULL;
-    default: break;
-    }
+    if (uval2(o1, uv, bits)) return NULL;
     v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
-    v->u.intconv.val = (Obj *)ref_bits(v1);
+    v->u.intconv.val = val_reference(o1);
     return v;
 }
 
