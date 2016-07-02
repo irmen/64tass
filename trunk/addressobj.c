@@ -210,7 +210,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
     case O_POS:
         am = v1->type;
-        if (check_addr(am)) break;
+        if (check_addr2(am)) break;
         op->v1 = v1->val;
         result = op->v1->obj->calc1(op);
         op->v1 = &v1->v;
@@ -274,13 +274,34 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_SUB:
                 if (check_addr(am)) break;
                 if (check_addr(v2->type)) break;
-                if (am != v2->type) break; /* TODO */
-                op->v1 = v1->val;
-                op->v2 = v2->val;
-                result = op->v1->obj->calc2(op);
-                op->v1 = &v1->v;
-                op->v2 = &v2->v;
-                return result;
+                {
+                    atype_t am1 = A_NONE, am2 = v2->type;
+                    for (; (am & 0xfff) != 0; am <<= 4) { 
+                        atype_t amc = (am >> 8) & 0xf;
+                        atype_t am3, am4;
+                        if (amc == A_NONE) continue;
+                        am3 = A_NONE; am4 = am2;
+                        while (am4 != A_NONE) { 
+                            atype_t am5 = (am4 & 0xf);
+                            if (amc == am5) amc = A_NONE;
+                            else am3 = (am3 << 4) | am5;
+                            am4 >>= 4;
+                        }
+                        am2 = am3;
+                        if (amc == A_NONE) continue;
+                        am1 = (am1 << 4) | amc;
+                    }
+                    if (am2 != A_NONE) break;
+                    op->v1 = v1->val;
+                    op->v2 = v2->val;
+                    result = op->v1->obj->calc2(op);
+                    op->v1 = &v1->v;
+                    op->v2 = &v2->v;
+                    if (am1 == A_NONE) return result;
+                    v = new_address(result, am1);
+                    if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
+                    return &v->v;
+                }
             default:
                 break;
             }
