@@ -495,8 +495,9 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR_____NOT_BANK0:
         case ERROR____NOT_DIRECT:
         case ERROR__NOT_DATABANK:
+        case ERROR_ADDRESS_LARGE:
             adderror(terr_error[no - 0x40]);
-            err_msg_variable((Obj *)prm, epoint);
+            if (prm != NULL) err_msg_variable((Obj *)prm, epoint);
             break;
         case ERROR___UNKNOWN_CPU:
             adderror("unknown processor");

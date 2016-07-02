@@ -675,7 +675,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             return;
         }
         if (uval > all_mem) {
-            err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint2);
+            err_msg2(ERROR_ADDRESS_LARGE, val, epoint2);
             break;
         }
         laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
@@ -2046,7 +2046,7 @@ Obj *compile(struct file_list_s *cflist)
                             err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
                             break;
                         }
-                        if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, &vs->epoint);
+                        if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, vs->val, &vs->epoint);
                         else {
                             current_section->l_address.address = uval & 0xffff;
                             current_section->l_address.bank = uval & ~0xffff;
