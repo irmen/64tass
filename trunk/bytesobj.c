@@ -441,7 +441,7 @@ static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
     uval_t u;
     if (ln > bits / 8) return false;
     u = 0;
-    while (ln--) u |= v1->data[ln] << (8 * ln);
+    while (ln != 0) u = (u << 8) | v1->data[--ln];
     *uv = (v1->len < 0) ? ~u : u;
     return true;
 }

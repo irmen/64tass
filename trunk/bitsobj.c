@@ -293,12 +293,7 @@ static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
     switch (v1->len) {
     case ~1: 
         *uv = ~v1->data[0];
-        if (v1->bits > SHIFT) break;
-        if (v1->bits > bits) {
-            bdigit_t t = (v1->bits == SHIFT) ? 0 : ((~(bdigit_t)0) << v1->bits);
-            t = (~(t | v1->data[0])) >> bits;
-            if (t != 0) break;
-        }
+        if (v1->bits > bits) break;
         return true;
     case ~0: 
         *uv = ~(uval_t)0; 
@@ -312,7 +307,6 @@ static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
         if (bits < SHIFT && (*uv >> bits) != 0) break;
         return true;
     default:
-        /* TODO: long inverted stuff */
         break;
     }
     return false;
