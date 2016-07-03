@@ -54,7 +54,7 @@ typedef struct Type {
     Obj *(*slice)(Obj *, struct oper_s *, size_t) MUST_CHECK;
     struct Error *(*ival)(Obj *, ival_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uval)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
-    struct Error *(*address)(Obj *, uval_t *, unsigned int, uint32_t *, linepos_t) MUST_CHECK;
+    struct Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*absolute)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;

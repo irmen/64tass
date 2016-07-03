@@ -143,7 +143,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     return v->obj->uval(v, uv, bits, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, unsigned int bits, uint32_t *am, linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     if (uv != NULL) {

@@ -43,6 +43,7 @@ Oper o_COLON;
 Oper o_COND;
 Oper o_COLON2;
 Oper o_HASH;
+Oper o_HASH_SIGNED;
 Oper o_COMMAX;
 Oper o_COMMAY;
 Oper o_COMMAZ;
@@ -141,6 +142,7 @@ void operobj_init(void) {
     oper_init(&o_COND, "condition '?", O_COND, 3);
     oper_init(&o_COLON2, "':", O_COLON2, 3);
     oper_init(&o_HASH, "immediate '#", O_HASH, 3);
+    oper_init(&o_HASH_SIGNED, "signed immediate '#+", O_HASH_SIGNED, 3);
     oper_init(&o_WORD, "word '<>", O_WORD, 4);
     oper_init(&o_HWORD, "high word '>`", O_HWORD, 4);
     oper_init(&o_BSWORD, "swapped word '><", O_BSWORD, 4);

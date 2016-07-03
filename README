@@ -547,6 +547,8 @@ being recognized as an operator.
 
   Addressing mode operators
 #  immediate
+#+ signed immediate
+#- signed immediate
 (  indirect
 [  long indirect
 ,b data bank indexed
@@ -568,6 +570,8 @@ modes of the supported CPUs.
 
                   Valid addressing mode operator combinations
 #              immediate                            lda #$12
+#+             signed immediate                     lda #+127
+#-             signed immediate                     lda #-128
 #addr,#addr    move                                 mvp #5,#6
 addr           direct or relative                   lda $12 lda $1234 bne $1234
 addr,addr      direct page bit                      rmb 5,$12

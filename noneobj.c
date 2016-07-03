@@ -70,7 +70,7 @@ static MUST_CHECK Error *uval(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int 
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int UNUSED(bits), uint32_t *UNUSED(am), linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), uint32_t *UNUSED(am), linepos_t epoint) {
     return new_error(ERROR____STILL_NONE, epoint);
 }
 

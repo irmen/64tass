@@ -1048,19 +1048,20 @@ static bool get_val2(struct eval_context_s *ev) {
             val_destroy(v1->val); v1->val = val;
             v1->epoint = o_out->epoint;
             continue;
-        case O_COMMAS: am = A_SR; goto addr;  /* ,s */
-        case O_COMMAR: am = A_RR; goto addr;  /* ,r */
-        case O_COMMAZ: am = A_ZR; goto addr;  /* ,z */
-        case O_COMMAY: am = A_YR; goto addr;  /* ,y */
-        case O_COMMAX: am = A_XR; goto addr;  /* ,x */
-        case O_COMMAD: am = A_DR; goto addr;  /* ,d */
-        case O_COMMAB: am = A_BR; goto addr;  /* ,b */
-        case O_COMMAK: am = A_KR; goto addr;  /* ,k */
-        case O_HASH: am = A_IMMEDIATE;        /* #  */
+        case O_COMMAS: am = A_SR; goto addr;                    /* ,s */
+        case O_COMMAR: am = A_RR; goto addr;                    /* ,r */
+        case O_COMMAZ: am = A_ZR; goto addr;                    /* ,z */
+        case O_COMMAY: am = A_YR; goto addr;                    /* ,y */
+        case O_COMMAX: am = A_XR; goto addr;                    /* ,x */
+        case O_COMMAD: am = A_DR; goto addr;                    /* ,d */
+        case O_COMMAB: am = A_BR; goto addr;                    /* ,b */
+        case O_COMMAK: am = A_KR; goto addr;                    /* ,k */
+        case O_HASH_SIGNED: am = A_IMMEDIATE_SIGNED; goto addr; /* #+ */
+        case O_HASH: am = A_IMMEDIATE;                          /* #  */
         addr:
             val = apply_addressing(v1->val, am);
             val_destroy(v1->val); v1->val = val;
-            if (op == O_HASH) v1->epoint = o_out->epoint;
+            if (op == O_HASH || op == O_HASH_SIGNED) v1->epoint = o_out->epoint;
             continue;
         case O_SPLAT:   /* *  */
             if (i + 1 < ev->outp) {
@@ -1301,8 +1302,12 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
             push_oper(&o_BRACE.v, &epoint);
             openclose++;
             continue;
-        case '+': op = &o_POS; break;
-        case '-': op = &o_NEG; break;
+        case '+': 
+            if (operp != 0 && o_oper[operp - 1].val == &o_HASH) o_oper[operp - 1].val = &o_HASH_SIGNED;
+            op = &o_POS; break;
+        case '-': 
+            if (operp != 0 && o_oper[operp - 1].val == &o_HASH) o_oper[operp - 1].val = &o_HASH_SIGNED;
+            op = &o_NEG; break;
         case '*': op = &o_SPLAT; break;
         case '!': op = &o_LNOT;break;
         case '~': op = &o_INV; break;
