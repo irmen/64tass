@@ -741,7 +741,7 @@ as an operator.</p>
 <tbody>
 <tr><td><code>#</code><td>immediate
 <tr><td><code>#+</code><td>signed immediate
-<tr><td><code>#-</code><td>signed immediate
+<tr><td><code>#&minus;</code><td>signed immediate
 <tr><td><code>(</code><td>indirect
 <tr><td><code>[</code><td>long indirect
 <tr><td><code>,b</code><td>data bank indexed
@@ -768,7 +768,7 @@ modes of the supported CPUs.</b></p>
 <tbody>
 <tr><td><code>#</code><td>immediate<td><code><b>lda</b>&nbsp;#<span>$12</span></code>
 <tr><td><code>#+</code><td>signed immediate<td><code><b>lda</b>&nbsp;#<span>+127</span></code>
-<tr><td><code>#-</code><td>signed immediate<td><code><b>lda</b>&nbsp;#<span>-128</span></code>
+<tr><td><code>#&minus;</code><td>signed immediate<td><code><b>lda</b>&nbsp;#<span>&minus;128</span></code>
 <tr><td><code>#<u>addr</u>,#<u>addr</u></code><td>move<td><code><b>mvp</b>&nbsp;#<span>5</span>,#<span>6</span></code>
 <tr><td><code><u>addr</u></code><td>direct or relative<td><code><b>lda</b>&nbsp;<span>$12</span> <b>lda</b>&nbsp;<span>$1234</span> <b>bne</b>&nbsp;<span>$1234</span></code>
 <tr><td><code><u>addr</u>,<u>addr</u></code><td>direct page bit<td><code><b>rmb</b>&nbsp;<span>5</span>,<span>$12</span></code>
@@ -808,17 +808,33 @@ the address ranges set up by <a href="#d_dpage"><code>.dpage</code></a>, <a href
 and the current program counter address. Therefore the <q>,d</q>,
 <q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
 
-<p>The direct page indexed addressing mode is not affected by the
+<p>The direct page indexed (<code>,d</code>) addressing mode is not affected by the
 <a href="#d_dpage"><code>.dpage</code></a> directive and always forces the 8&nbsp;bit address as
 is. It's only usable for direct/zero page instructions.</p>
 
-<p>The data bank indexed addressing mode is not affected by the
+<p>The data bank indexed (<code>,b</code>) addressing mode is not affected by the
 <a href="#d_databank"><code>.databank</code></a> directive and always forces the 16&nbsp;bit address
 as is. It's only usable with data bank accessing instructions.</p>
 
-<p>The program bank indexed addressing mode is not affected by the
+<p>The program bank indexed (<code>,k</code>) addressing mode is not affected by the
 current program bank and always generates the 16&nbsp;bit constant value as
 is. It's only usable with jump instructions.</p>
+
+<p>The immediate (<code>#</code>) addressing mode expects unsigned values of byte or
+word size. Therefore it only accepts constants of 1 byte or in range 0&ndash;255
+or 2 bytes or in range 0&ndash;65535.</p>
+
+<p>The signed immediate (<code>#+</code> and <code>#&minus;</code>) addressing
+mode is to allow signed numbers to be used as immediate constants. It accepts
+a single byte or an integer in range &minus;128&ndash;127, or two bytes or an integer of
+&minus;32768&ndash;32767.</p>
+
+<p>The use of signed immediate (like <code>#&minus;3</code>) is seamless, but
+it needs to be explicitly written out for variables or expressions
+(<code>#+variable</code>). In case the unsigned variant is needed but the
+expression starts with a negation then it needs to be put into parentheses
+(<code>#(-variable)</code>) or else it'll change the address mode to
+signed.</p>
 
 <p>Normally addressing mode operators are used in expressions right after
 instructions. They can also be used for defining stack variable symbols when
@@ -832,6 +848,7 @@ const   <b>=</b> #<span>1</span>              <i>;immediate constant</i>
         <b>lda</b> <u>param</u>+<span>1</span>       <i>;results in lda $02,s</i>
         <b>lda</b> (<u>param</u>),y     <i>;results in lda ($01,s),y</i>
         <b>ldx</b> <u>const</u>         <i>;results in ldx #$01</i>
+        <b>lda</b> #<span>-2</span>           <i>;negative constant, $fe</i>
 </pre>
 
 <h3>Uninitialized memory<a name="uninitialized" href="#uninitialized"></a></h3>
@@ -1533,11 +1550,11 @@ elements.</p>
 <dt>Slicing <code>a[from:to]</code>
 <dd>Extracts a continuous range starting from element <q>from</q> and stopping
 before <q>to</q>. The two end positions can be positive or negative indexes. So
-<code>[10,20,30,40][1:-1]</code> results in <code>[20,30]</code>.
+<code>[10,20,30,40][1:&minus;1]</code> results in <code>[20,30]</code>.
 <dt>Everything <code>a[:]</code>
 <dd>Giving no start or end will cover everything and therefore results in a complete copy.
-<dt>Reverse <code>a[::-1]</code>
-<dd>This gives everything in reverse, so <code>"abcd"[::-1]</code> is <code>"dcba"</code>.
+<dt>Reverse <code>a[::&minus;1]</code>
+<dd>This gives everything in reverse, so <code>"abcd"[::&minus;1]</code> is <code>"dcba"</code>.
 <dt>Stepping through <code>a[from:to:step]</code>
 <dd>Extracts every <q>step</q>th element starting from <q>from</q> and stopping
 before <q>to</q>. So <code>"abcdef"[1:4:2]</code> results in <code>"bd"</code>.

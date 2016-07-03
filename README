@@ -609,17 +609,31 @@ instructions are inteligently chosen based on the instruction type, the address
 ranges set up by .dpage, .databank and the current program counter address.
 Therefore the `,d', `,b' and `,k' indexing is only used in very special cases.
 
-The direct page indexed addressing mode is not affected by the .dpage directive
-and always forces the 8 bit address as is. It's only usable for direct/zero
-page instructions.
+The direct page indexed (,d) addressing mode is not affected by the .dpage
+directive and always forces the 8 bit address as is. It's only usable for
+direct/zero page instructions.
 
-The data bank indexed addressing mode is not affected by the .databank
+The data bank indexed (,b) addressing mode is not affected by the .databank
 directive and always forces the 16 bit address as is. It's only usable with
 data bank accessing instructions.
 
-The program bank indexed addressing mode is not affected by the current program
-bank and always generates the 16 bit constant value as is. It's only usable
-with jump instructions.
+The program bank indexed (,k) addressing mode is not affected by the current
+program bank and always generates the 16 bit constant value as is. It's only
+usable with jump instructions.
+
+The immediate (#) addressing mode expects unsigned values of byte or word size.
+Therefore it only accepts constants of 1 byte or in range 0-255 or 2 bytes or
+in range 0-65535.
+
+The signed immediate (#+ and #-) addressing mode is to allow signed numbers to
+be used as immediate constants. It accepts a single byte or an integer in range
+-128-127, or two bytes or an integer of -32768-32767.
+
+The use of signed immediate (like #-3) is seamless, but it needs to be
+explicitly written out for variables or expressions (#+variable). In case the
+unsigned variant is needed but the expression starts with a negation then it
+needs to be put into parentheses (#(-variable)) or else it'll change the
+address mode to signed.
 
 Normally addressing mode operators are used in expressions right after
 instructions. They can also be used for defining stack variable symbols when
@@ -632,6 +646,7 @@ const   = #1              ;immediate constant
         lda param+1       ;results in lda $02,s
         lda (param),y     ;results in lda ($01,s),y
         ldx const         ;results in ldx #$01
+        lda #-2           ;negative constant, $fe
 
 Uninitialized memory
 
