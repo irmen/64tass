@@ -102,6 +102,38 @@ static MUST_CHECK Obj *invert(const Bytes *v1) {
     return (Obj *)ref_bytes((v1->len < 0) ? null_bytes : inv_bytes);
 }
 
+static MUST_CHECK Obj *negate(Bytes *v1) {
+    size_t i, sz = byteslen(v1);
+    Bytes *v;
+    if (v1->len == 0) return val_reference(&v1->v);
+    if (v1->len < 0) {
+        for (i = 0; i < sz; i++) if (v1->data[i] != (uint8_t)~0) break;
+        if (i == sz) return NULL;
+        v = new_bytes(sz);
+        for (i = 0; i < sz; i++) {
+            if (v1->data[i] != (uint8_t)~0) {
+                v->data[i] = v1->data[i] + 1;
+                i++;
+                break;
+            }
+            v->data[i] = 0;
+        }
+    } else {
+        v = new_bytes(sz);
+        for (i = 0; i < sz; i++) {
+            if (v1->data[i] != 0) {
+                v->data[i] = v1->data[i] - 1;
+                i++;
+                break;
+            }
+            v->data[i] = ~(uint8_t)0;
+        }
+    }
+    for (; i < sz; i++) v->data[i] = v1->data[i];
+    v->len = ~v1->len;
+    return &v->v;
+}
+
 static bool same(const Obj *o1, const Obj *o2) {
     const Bytes *v1 = (const Bytes *)o1, *v2 = (const Bytes *)o2;
     return o2->obj == BYTES_OBJ && v1->len == v2->len && (
@@ -403,58 +435,43 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
     return v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
     Bytes *v1 = (Bytes *)o1;
-    Error *v;
     switch (byteslen(v1)) {
-    case 0: *iv = (v1->len < 0) ? -(ival_t)1 : 0; return NULL;
-    case 1: *iv = v1->data[0];
+    case 0: *uv = (v1->len < 0) ? ~(uval_t)0 : 0; return true;
+    case 1: *uv = v1->data[0];
             if (bits < 8) break;
-            if (v1->len < 0) *iv = ~*iv;
-            return NULL;
-    case 2: *iv = (v1->data[1] << 8) + v1->data[0];
+            if (v1->len < 0) *uv = ~*uv;
+            return true;
+    case 2: *uv = (v1->data[1] << 8) + v1->data[0];
             if (bits < 16) break;
-            if (v1->len < 0) *iv = ~*iv;
-            return NULL;
-    case 3: *iv = ((ival_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+            if (v1->len < 0) *uv = ~*uv;
+            return true;
+    case 3: *uv = ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 24) break;
-            if (v1->len < 0) *iv = ~*iv;
-            return NULL;
-    case 4: *iv = ((ival_t)v1->data[3] << 24) + ((ival_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
+            if (v1->len < 0) *uv = ~*uv;
+            return true;
+    case 4: *uv = ((uval_t)v1->data[3] << 24) + ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
             if (bits < 32) break;
-            if (v1->len < 0) *iv = ~*iv;
-            return NULL;
+            if (v1->len < 0) *uv = ~*uv;
+            return true;
     default: break;
     }
-    v = new_error(ERROR_____CANT_IVAL, epoint);
+    return false;
+}
+
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    Error *v;
+    if (uval2(o1, (uval_t *)iv, bits)) return NULL;
+    v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
     return v;
 }
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Bytes *v1 = (Bytes *)o1;
     Error *v;
-    switch (byteslen(v1)) {
-    case 0: *uv = (v1->len < 0) ? ~(uval_t)0 : 0; return NULL;
-    case 1: *uv = v1->data[0];
-            if (bits < 8) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return NULL;
-    case 2: *uv = (v1->data[1] << 8) + v1->data[0];
-            if (bits < 16) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return NULL;
-    case 3: *uv = ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
-            if (bits < 24) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return NULL;
-    case 4: *uv = ((uval_t)v1->data[3] << 24) + ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
-            if (bits < 32) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return NULL;
-    default: break;
-    }
+    if (uval2(o1, uv, bits)) return NULL;
     v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
@@ -704,9 +721,12 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (v1->len < ~1) return (Obj *)bytes_from_u16(~(v1->data[1] + (v1->data[0] << 8)));
         if (v1->len < ~0) return (Obj *)bytes_from_u16(~(v1->data[0] << 8));
         return (Obj *)bytes_from_u16((v1->len < 0) ? 0xffff : 0);
+    case O_POS: return val_reference(&v1->v);
     case O_INV: return invert(v1);
-    case O_NEG:
-    case O_POS:
+    case O_NEG: 
+        v = negate(v1); 
+        if (v != NULL) return v;
+        /* fall through */
     case O_STRING:
         tmp = (Obj *)int_from_bytes(v1);
         op->v1 = tmp;
