@@ -301,9 +301,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     op->v1 = &v1->v;
                     op->v2 = &v2->v;
                     if (am1 == A_NONE) return result;
-                    v = new_address(result, am1);
                     if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
-                    return &v->v;
+                    return (Obj *)new_address(result, am1);
                 }
             default:
                 break;
