@@ -33,6 +33,7 @@ extern Bool *false_value;
 extern Bool *bool_value[2];
 
 extern void boolobj_init(void);
+extern void boolobj_init2(void);
 extern void boolobj_names(void);
 extern void boolobj_destroy(void);
 

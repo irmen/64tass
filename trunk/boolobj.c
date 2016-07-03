@@ -228,6 +228,12 @@ void boolobj_init(void) {
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
+
+    bool_value[0] = false_value = new_boolean(false);
+    bool_value[1] = true_value = new_boolean(true);
+}
+
+void boolobj_init2(void) {
     if (arguments.strict) {
         obj.calc1 = calc1_strict;
         obj.calc2 = calc2_strict;
@@ -240,9 +246,6 @@ void boolobj_init(void) {
         obj.calc2 = calc2;
         obj.rcalc2 = rcalc2;
     }
-
-    bool_value[0] = false_value = new_boolean(false);
-    bool_value[1] = true_value = new_boolean(true);
 }
 
 void boolobj_names(void) {
