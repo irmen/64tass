@@ -3374,6 +3374,7 @@ static int main2(int argc, char *argv[]) {
         return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     init_encoding(arguments.toascii);
+    boolobj_init2();
 
     if (arguments.quiet) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"
