@@ -437,33 +437,19 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
 static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
     Bytes *v1 = (Bytes *)o1;
-    switch (byteslen(v1)) {
-    case 0: *uv = (v1->len < 0) ? ~(uval_t)0 : 0; return true;
-    case 1: *uv = v1->data[0];
-            if (bits < 8) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return true;
-    case 2: *uv = (v1->data[1] << 8) + v1->data[0];
-            if (bits < 16) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return true;
-    case 3: *uv = ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
-            if (bits < 24) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return true;
-    case 4: *uv = ((uval_t)v1->data[3] << 24) + ((uval_t)v1->data[2] << 16) + (v1->data[1] << 8) + v1->data[0];
-            if (bits < 32) break;
-            if (v1->len < 0) *uv = ~*uv;
-            return true;
-    default: break;
-    }
-    return false;
+    size_t ln = byteslen(v1);
+    uval_t u;
+    if (ln > bits / 8) return false;
+    u = 0;
+    while (ln--) u |= v1->data[ln] << (8 * ln);
+    *uv = (v1->len < 0) ? ~u : u;
+    return true;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Error *v;
     if (uval2(o1, (uval_t *)iv, bits)) return NULL;
-    v = new_error(ERROR_____CANT_UVAL, epoint);
+    v = new_error(ERROR_____CANT_IVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
     return v;
