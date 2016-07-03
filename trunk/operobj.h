@@ -35,7 +35,8 @@ enum oper_e {
     O_LXOR,          /* ^^    */
     O_LAND,          /* &&    */
 
-    O_HASH,          /* #     */ /* NOTE:                */
+    O_HASH,          /* #     */ /*                      */
+    O_HASH_SIGNED,   /* #+    */ /* NOTE:                */
     O_COMMAX,        /* ,x    */ /* there's a check for  */
     O_COMMAY,        /* ,y    */ /* O_COMMAX to O_COMMAK */
     O_COMMAZ,        /* ,z    */ /* in eval.c            */
@@ -117,6 +118,7 @@ extern Oper o_COLON;
 extern Oper o_COND;
 extern Oper o_COLON2;
 extern Oper o_HASH;
+extern Oper o_HASH_SIGNED;
 extern Oper o_COMMAX;
 extern Oper o_COMMAY;
 extern Oper o_COMMAZ;

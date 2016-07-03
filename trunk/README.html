@@ -740,6 +740,8 @@ as an operator.</p>
 <caption>Addressing mode operators</caption>
 <tbody>
 <tr><td><code>#</code><td>immediate
+<tr><td><code>#+</code><td>signed immediate
+<tr><td><code>#-</code><td>signed immediate
 <tr><td><code>(</code><td>indirect
 <tr><td><code>[</code><td>long indirect
 <tr><td><code>,b</code><td>data bank indexed
@@ -765,6 +767,8 @@ modes of the supported CPUs.</b></p>
 <caption>Valid addressing mode operator combinations</caption>
 <tbody>
 <tr><td><code>#</code><td>immediate<td><code><b>lda</b>&nbsp;#<span>$12</span></code>
+<tr><td><code>#+</code><td>signed immediate<td><code><b>lda</b>&nbsp;#<span>+127</span></code>
+<tr><td><code>#-</code><td>signed immediate<td><code><b>lda</b>&nbsp;#<span>-128</span></code>
 <tr><td><code>#<u>addr</u>,#<u>addr</u></code><td>move<td><code><b>mvp</b>&nbsp;#<span>5</span>,#<span>6</span></code>
 <tr><td><code><u>addr</u></code><td>direct or relative<td><code><b>lda</b>&nbsp;<span>$12</span> <b>lda</b>&nbsp;<span>$1234</span> <b>bne</b>&nbsp;<span>$1234</span></code>
 <tr><td><code><u>addr</u>,<u>addr</u></code><td>direct page bit<td><code><b>rmb</b>&nbsp;<span>5</span>,<span>$12</span></code>

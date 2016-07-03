@@ -101,6 +101,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
         case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
         case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
+        case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+';
         case A_IMMEDIATE: buffer2[--ind] = '#';break;
         }
         addrtype <<= 4;
@@ -143,6 +144,7 @@ bool check_addr(atype_t type) {
         case A_I:
         case A_LI: return true;
         case A_IMMEDIATE:
+        case A_IMMEDIATE_SIGNED:
         case A_KR:
         case A_DR:
         case A_BR:
@@ -172,6 +174,7 @@ static inline bool check_addr2(atype_t type) {
         case A_I:
         case A_LI: return true;
         case A_IMMEDIATE:
+        case A_IMMEDIATE_SIGNED:
         case A_NONE: break;
         }
         type >>= 4;
@@ -179,7 +182,7 @@ static inline bool check_addr2(atype_t type) {
     return false;
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, unsigned int bits, uint32_t *am, linepos_t epoint) {
+static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
     const Address *v1 = (Address *)o1;
     Obj *v = v1->val;
     Error *err;

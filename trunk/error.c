@@ -641,6 +641,7 @@ static void err_msg_no_addressing(atype_t addrtype, linepos_t epoint) {
         switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
         case A_NONE: continue;
         case A_IMMEDIATE: txt = " immediate"; break;
+        case A_IMMEDIATE_SIGNED: txt = " signed immediate"; break;
         case A_XR: txt = " x indexed"; break;
         case A_YR: txt = " y indexed"; break;
         case A_ZR: txt = " z indexed"; break;
