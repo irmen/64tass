@@ -131,14 +131,14 @@ static MUST_CHECK Obj *negate(Bits *v1) {
         size_t bs = (v1->bits % SHIFT);
         ext = true;
         for (i = 0; i < sz; i++) {
-            if (v1->data[i] != ~(bdigit_t)0) {
+            if (v1->data[i] != (bdigit_t)~0) {
                 ext = false;
                 break;
             }
         }
         if (i == v1->bits / SHIFT) {
             if (bs == 0) return NULL;
-            if (v1->data[i] == ~((~(v1->data[i] >> bs)) << bs)) return NULL;
+            if (v1->data[i] == (bdigit_t)~((~(v1->data[i] >> bs)) << bs)) return NULL;
         }
         v = new_bits(ext ? sz + 1 : sz);
         if (ext) {
@@ -146,7 +146,7 @@ static MUST_CHECK Obj *negate(Bits *v1) {
             v->data[i] = 1;
         } else {
             for (i = 0; i < sz; i++) {
-                if (v1->data[i] != ~(bdigit_t)0) {
+                if (v1->data[i] != (bdigit_t)~0) {
                     v->data[i] = v1->data[i] + 1;
                     i++;
                     break;
@@ -162,7 +162,7 @@ static MUST_CHECK Obj *negate(Bits *v1) {
                 i++;
                 break;
             }
-            v->data[i] = ~(bdigit_t)0;
+            v->data[i] = ~0;
         }
     }
     for (; i < sz; i++) v->data[i] = v1->data[i];
@@ -198,7 +198,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
         sz = bitslen(v1);
         sz2 = v1->bits / SHIFT;
         if (sz2 > sz) sz2 = sz;
-        inv = (v1->len >= 0) ? ~(bdigit_t)0 : 0;
+        inv = (v1->len >= 0) ? ~0 : 0;
         for (i = 0; i < sz2; i++) {
             if (v1->data[i] != inv) return (Obj *)ref_bool(false_value);
         }
@@ -265,10 +265,10 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     unsigned int h;
 
     switch (v1->len) {
-    case ~1: *hs = (~v1->data[0]) & ((~(unsigned int)0) >> 1); return NULL;
-    case ~0: *hs = ((~(unsigned int)0) >> 1); return NULL;
+    case ~1: *hs = (~v1->data[0]) & (((unsigned int)~0) >> 1); return NULL;
+    case ~0: *hs = (((unsigned int)~0) >> 1); return NULL;
     case 0: *hs = 0; return NULL;
-    case 1: *hs = v1->data[0] & ((~(unsigned int)0) >> 1); return NULL;
+    case 1: *hs = v1->data[0] & (((unsigned int)~0) >> 1); return NULL;
     default: break;
     }
     if (v1->len < 0) {
@@ -284,7 +284,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
             h += v1->val[l];
         }
     }
-    *hs = h & ((~(unsigned int)0) >> 1);
+    *hs = h & (((unsigned int)~0) >> 1);
     return NULL;
 }
 
@@ -296,7 +296,7 @@ static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
         if (v1->bits > bits) break;
         return true;
     case ~0: 
-        *uv = ~(uval_t)0; 
+        *uv = ~0; 
         if (v1->bits > bits) break;
         return true;
     case 0: 
@@ -656,8 +656,8 @@ static ssize_t icmp(const Bits *vv1, const Bits *vv2) {
     j = bitslen(vv1);
     while ((j--) != 0) {
         a = vv1->data[j]; b = vv2->data[j];
-        if (a > b) return (vv1->len < 0) ? -1: 1;
-        if (a < b) return (vv1->len < 0) ? 1: -1;
+        if (a > b) return (vv1->len < 0) ? -1 : 1;
+        if (a < b) return (vv1->len < 0) ? 1 : -1;
     }
     return 0;
 }
@@ -665,8 +665,10 @@ static ssize_t icmp(const Bits *vv1, const Bits *vv2) {
 static bdigit_t ldigit(const Bits *v1) {
     ssize_t ln = v1->len;
     if (ln > 0) return v1->data[0];
-    if (ln < ~(ssize_t)0) return ~v1->data[0];
-    return ln;
+    if (ln == 0) return 0;
+    ln = ~ln;
+    if (ln == 0) return ~0;
+    return ~v1->data[0];
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -884,7 +886,7 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2, linepos_t epoint) {
     if (i < sz) sz = i;
     vv = new_bits(sz);
     v = vv->data;
-    inv = ((vv2->len ^ vv1->len) < 0) ? ~(bdigit_t)0 : 0;
+    inv = ((vv2->len ^ vv1->len) < 0) ? ~0 : 0;
 
     v1 = vv2->data;
     rbits = vv2->bits / SHIFT;
@@ -1043,7 +1045,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     Obj *o2 = op->v2;
     bdigit_t *v;
     bdigit_t uv;
-    bdigit_t inv = (vv1->len < 0) ? ~(bdigit_t)0 : 0;
+    bdigit_t inv = (vv1->len < 0) ? ~0 : 0;
     int bits;
     Error *err;
     Funcargs *args = (Funcargs *)o2;
