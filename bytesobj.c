@@ -126,7 +126,7 @@ static MUST_CHECK Obj *negate(Bytes *v1) {
                 i++;
                 break;
             }
-            v->data[i] = ~(uint8_t)0;
+            v->data[i] = ~0;
         }
     }
     for (; i < sz; i++) v->data[i] = v1->data[i];
@@ -159,7 +159,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     case TRUTH_ALL:
         if (arguments.strict) break;
         sz = byteslen(v1);
-        inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
+        inv = (v1->len < 0) ? ~0 : 0;
         for (i = 0; i < sz; i++) {
             if (v1->data[i] == inv) return (Obj *)ref_bool(false_value);
         }
@@ -847,7 +847,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     Bytes *v, *v1 = (Bytes *)o1;
     Obj *o2 = op->v2;
     Error *err;
-    uint8_t inv = (v1->len < 0) ? ~(uint8_t)0 : 0;
+    uint8_t inv = (v1->len < 0) ? ~0 : 0;
     Funcargs *args = (Funcargs *)o2;
     linepos_t epoint2;
 
