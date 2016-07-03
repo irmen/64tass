@@ -198,7 +198,7 @@ static int printline(void) {
     l = fprintf(flist, "%" PRIuline, lpoint.line);
     if (l < 0) l = 0;
     if (lastfile != curfile) {
-        int l2 = fprintf(flist, ":%u", curfile - 1);
+        int l2 = fprintf(flist, ":%u", (unsigned int)(curfile - 1));
         if (l2 >= 0) l += l2;
         lastfile = curfile;
     }
@@ -494,7 +494,7 @@ void listing_file(const char *txt, const char *name) {
     if (flist != NULL) {
         putc('\n', flist);
         if (arguments.linenum) {
-            int l = (name != NULL) ? fprintf(flist, ":%u", curfile - 1) : 0;
+            int l = (name != NULL) ? fprintf(flist, ":%u", (unsigned int)(curfile - 1)) : 0;
             padding((l >= 0) ? l : 0, columns.addr);
             lastfile = curfile;
         };
