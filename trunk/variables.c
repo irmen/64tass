@@ -683,7 +683,7 @@ void labelprint(void) {
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
-    if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
+    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
 }
 
 void new_builtin(const char *ident, Obj *val) {

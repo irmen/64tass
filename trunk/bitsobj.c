@@ -1204,7 +1204,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         {
             Bool *v2 = (Bool *)o2;
             if (arguments.strict) break;
-            tmp = (Obj *)ref_bits(bits_value[v2->boolean]);
+            tmp = (Obj *)ref_bits(bits_value[v2->boolean ? 1 : 0]);
             op->v2 = tmp;
             result = calc2(op);
             val_destroy(tmp);
@@ -1272,7 +1272,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         {
             Bool *v1 = (Bool *)o1;
             if (arguments.strict) break;
-            tmp = (Obj *)ref_bits(bits_value[v1->boolean]);
+            tmp = (Obj *)ref_bits(bits_value[v1->boolean ? 1 : 0]);
             op->v1 = tmp;
             result = calc2(op);
             val_destroy(tmp);

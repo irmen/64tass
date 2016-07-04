@@ -497,7 +497,7 @@ void output_mem(struct memblocks_s *memblocks) {
         }
         err = ferror(fout);
         err |= (fout != stdout) ? fclose(fout) : fflush(fout);
-        if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+        if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif

@@ -1516,7 +1516,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
         if (arguments.strict) break;
-        tmp = (Obj *)ref_int(int_value[((Bool *)v2)->boolean]);
+        tmp = (Obj *)ref_int(int_value[((Bool *)v2)->boolean ? 1 : 0]);
         op->v2 = tmp;
         ret = calc2_int(op);
         val_destroy(tmp);
@@ -1558,8 +1558,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (arguments.strict) break;
         switch (op->op->op) {
         case O_LSHIFT:
-        case O_RSHIFT: tmp = (Obj *)ref_bits(bits_value[((Bool *)v1)->boolean]); break;
-        default: tmp = (Obj *)ref_int(int_value[((Bool *)v1)->boolean]); break;
+        case O_RSHIFT: tmp = (Obj *)ref_bits(bits_value[((Bool *)v1)->boolean ? 1 : 0]); break;
+        default: tmp = (Obj *)ref_int(int_value[((Bool *)v1)->boolean ? 1 : 0]); break;
         }
         op->v1 = tmp;
         ret = tmp->obj->calc2(op);

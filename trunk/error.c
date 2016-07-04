@@ -926,7 +926,7 @@ int error_print(bool fix, bool newvar, int anyerr) {
 #ifdef COLOR_OUTPUT
     {
         char const *term = getenv ("TERM");
-        print_use_color = term && strcmp(term, "dumb") != 0 && isatty(fileno(ferr)) == 1;
+        print_use_color = term != NULL && strcmp(term, "dumb") != 0 && isatty(fileno(ferr)) == 1;
     }
 #endif
 

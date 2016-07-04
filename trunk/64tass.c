@@ -278,7 +278,7 @@ static void set_size(const Label *label, size_t size, struct memblocks_s *mem, s
     code->membp = membp;
 }
 
-static bool toival(Obj *v1, ival_t *iv, int bits, linepos_t epoint) {
+static bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Error *err = v1->obj->ival(v1, iv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
