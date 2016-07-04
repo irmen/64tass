@@ -90,7 +90,7 @@ MUST_CHECK Float *float_from_bool(const Bool *v1) {
 }
 
 MUST_CHECK Int *int_from_bool(const Bool *v1) {
-    return ref_int(int_value[v1->boolean]);
+    return ref_int(int_value[v1->boolean ? 1 : 0]);
 }
 
 static inline MUST_CHECK Obj *int_from_bool2(bool i) {
@@ -126,7 +126,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD: return (Obj *)bytes_from_u16(v1->boolean ? 1 : 0);
     case O_BSWORD: return (Obj *)bytes_from_u16(v1->boolean ? 0x100 : 0);
     case O_INV: return (Obj *)ibits_from_bool(v1->boolean);
-    case O_NEG: return (Obj *)int_from_int(v1->boolean ? -1 : 0);
+    case O_NEG: return (Obj *)ref_int(v1->boolean ? minus1_value : int_value[0]);
     case O_POS: return (Obj *)int_from_bool(v1);
     case O_STRING:
         v = new_str(1);

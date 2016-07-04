@@ -619,7 +619,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0x31: /* AND ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -651,7 +651,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0x11: /* ORA ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -683,7 +683,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0x51: /* EOR ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -718,7 +718,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xB1: /* LDA ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -756,7 +756,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0xC9: /* CMP #$12 */
         load_imm(adr, &alu);
         if (cmp(cpu, &cpu->a, &alu, &optname)) goto remove;
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xD1: /* CMP ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -781,7 +781,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0xE0: /* CPX #$12 */
         load_imm(adr, &alu);
         if (cmp(cpu, &cpu->x, &alu, &optname)) goto remove;
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xEC: /* CPX $1234 */
     case 0xE4: /* CPX $12 */
@@ -791,7 +791,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0xC0: /* CPY #$12 */
         load_imm(adr, &alu);
         if (cmp(cpu, &cpu->y, &alu, &optname)) goto remove;
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xCC: /* CPY $1234 */
     case 0xC4: /* CPY $12 */
@@ -1073,7 +1073,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_x(cpu, &alu);
         set_reg(&alu, &cpu->x);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xBE: /* LDX $1234,y */
     case 0xB6: /* LDX $12,y */
@@ -1095,7 +1095,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         }
         optname = try_y(cpu, &alu);
         set_reg(&alu, &cpu->y);
-        if (optname) goto replace;
+        if (optname != NULL) goto replace;
         break;
     case 0xBC: /* LDY $1234,x */
     case 0xB4: /* LDY $12,x */
@@ -1383,7 +1383,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                             optname = NULL;
                         }
                         set_reg(&alu, &cpu->a);
-                        if (optname) goto replace;
+                        if (optname != NULL) goto replace;
                         break;
                     case 0xBB: /* LDS $1234,y */
                         load_mem(&alu);
@@ -1424,7 +1424,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                         load_imm(adr, &alu);
                         if (sbx(cpu, &cpu->x, &cpu->a, &alu, &optname)) goto remove;
                         set_reg(&alu, &cpu->x);
-                        if (optname) goto replace;
+                        if (optname != NULL) goto replace;
                         break;
                     case 0x93: /* SHA $1234,x */
                     case 0x9F: /* SHA $1234,y */
@@ -1594,7 +1594,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             case 0xC2: /* CPZ #$12 */
                 load_imm(adr, &alu);
                 if (cmp(cpu, &cpu->z, &alu, &optname)) goto remove;
-                if (optname) goto replace;
+                if (optname != NULL) goto replace;
                 break;
             case 0xD4: /* CPZ $12 */
             case 0xDC: /* CPZ $1234 */
@@ -1633,7 +1633,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 }
                 optname = try_z(cpu, &alu);
                 set_reg(&alu, &cpu->z);
-                if (optname) goto replace;
+                if (optname != NULL) goto replace;
                 break;
             case 0xBB: /* LDZ $1234,x */
                 altmode = is_known(&cpu->x);

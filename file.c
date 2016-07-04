@@ -584,7 +584,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             }
             err = ferror(f);
             if (f != stdin) err |= fclose(f);
-            if (err != 0 && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
+            if (err != 0 && errno != 0) err_msg_file(ERROR__READING_FILE, name, epoint);
             tmp->len = fp;
             tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
             tmp->coding = type;
@@ -713,5 +713,5 @@ void makefile(int argc, char *argv[]) {
 
     err = ferror(f);
     err |= (f != stdout) ? fclose(f) : fflush(f);
-    if (err != 0 && errno) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
+    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
 }
