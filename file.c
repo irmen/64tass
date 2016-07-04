@@ -35,7 +35,7 @@ struct include_list_s {
     struct include_list_s *next;
 #if __STDC_VERSION__ >= 199901L
     char path[];
-#elif defined(__GNUC__)
+#elif __GNUC__ >= 3
     char path[];
 #else
     char path[1];

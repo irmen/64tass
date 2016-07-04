@@ -24,6 +24,8 @@
 #include "opcodes.h"
 #include "opt_bit.h"
 
+typedef struct Bit Bit;
+
 typedef struct Reg8 {
     Bit *a[8];
 } Reg8;
