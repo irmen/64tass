@@ -21,7 +21,7 @@
 #include "inttypes.h"
 #include "stdbool.h"
 
-typedef struct Bit Bit;
+struct Bit;
 
 #define BU 0
 #define B0 1
@@ -33,12 +33,12 @@ extern struct Bit *new_bitu(void);
 extern struct Bit *new_bit(uint8_t);
 extern void del_bit(struct Bit *);
 extern struct Bit *ref_bit(struct Bit *);
-extern struct Bit *inv_bit(Bit *);
+extern struct Bit *inv_bit(struct Bit *);
 extern void mod_bit(struct Bit *, uint8_t);
 extern uint8_t get_bit(const struct Bit *);
 extern void reset_bit(struct Bit **v);
 extern bool eq_bit(const struct Bit *, const struct Bit *);
-extern bool neq_bit(const Bit *, const Bit *);
+extern bool neq_bit(const struct Bit *, const struct Bit *);
 extern struct Bit *add_bit(struct Bit *, struct Bit *, struct Bit *, struct Bit **);
 extern struct Bit *ld_bit(struct Bit *, struct Bit *);
 extern struct Bit *and_bit(struct Bit *, struct Bit *);
