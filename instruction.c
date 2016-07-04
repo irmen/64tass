@@ -171,9 +171,11 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 case 0xC2:
                 case 0xE2:
+                case 0xEF:  /* sep rep mmu */
+                    if (am != A_IMMEDIATE && (opcode == w65816.opcode || opcode == c65el02.opcode)) return err_addressing(am, epoint);
+                    /* fall through */
                 case 0x00:
-                case 0x02:
-                case 0xEF: /* sep rep brk cop mmu */
+                case 0x02: /* brk cop */
                     adrgen = (am == A_IMMEDIATE) ? AG_BYTE : AG_CHAR;
                     break;
                 default:
@@ -582,13 +584,13 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             if (cnmemonic[ADR_MOVE] != ____) {
                 if (toaddress(addrlist->data[0], &uval, 8, &am, epoint2)) {}
                 else {
-                    if (am != A_NONE && am != A_IMMEDIATE && am != A_IMMEDIATE_SIGNED) err_msg_output_and_destroy(err_addressing(am, epoint2));
+                    if (am != A_NONE && am != A_IMMEDIATE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else adr = (uint16_t)uval << 8;
                 }
                 epoint2 = &epoints[1];
                 if (toaddress(addrlist->data[1], &uval, 8, &am, epoint2)) {}
                 else {
-                    if (am != A_NONE && am != A_IMMEDIATE && am != A_IMMEDIATE_SIGNED) err_msg_output_and_destroy(err_addressing(am, epoint2));
+                    if (am != A_NONE && am != A_IMMEDIATE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else adr |= (uint8_t)uval;
                 }
                 ln = 2; 
