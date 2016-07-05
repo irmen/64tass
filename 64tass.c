@@ -215,12 +215,12 @@ enum command_e {
 
 /* --------------------------------------------------------------------------- */
 
-static void status(int anyerr) {
-    int errors = error_print(fixeddig, constcreated, anyerr);
+static void status(void) {
+    bool errors = error_print();
     if (arguments.quiet) {
         error_status();
         printf("Passes:            %u\n",pass);
-        if (errors == 0) sectionprint();
+        if (!errors) sectionprint();
     }
     tfree();
     free_macro();
@@ -3421,12 +3421,9 @@ static int main2(int argc, char *argv[]) {
             }
         }
         /*garbage_collect();*/
-        if (arguments.shadow_check && fixeddig && !constcreated) shadow_check(root_namespace);
-        {
-            int e = error_serious(fixeddig, constcreated);
-            if (e != 0) {status(e);return EXIT_FAILURE;}
-        }
     } while (!fixeddig || constcreated);
+    if (arguments.shadow_check) shadow_check(root_namespace);
+    if (error_serious()) {status();return EXIT_FAILURE;}
 
     /* assemble again to create listing */
     if (arguments.list != NULL) {
@@ -3481,18 +3478,14 @@ static int main2(int argc, char *argv[]) {
     if (arguments.label != NULL) labelprint();
     if (arguments.make != NULL) makefile(argc - opts, argv + opts);
 
-    fixeddig = true; constcreated = false;
-    {
-        int e = error_serious(fixeddig, constcreated);
-        if (e != 0) {status(e);return EXIT_FAILURE;}
-    }
+    if (error_serious()) {status();return EXIT_FAILURE;}
 
     output_mem(&root_section.mem);
 
     {
-        int e = error_serious(fixeddig, constcreated);
-        status(e);
-        return (e != 0) ? EXIT_FAILURE : EXIT_SUCCESS;
+        bool e = error_serious();
+        status();
+        return e ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 }
 
