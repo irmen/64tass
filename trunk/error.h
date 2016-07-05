@@ -101,7 +101,7 @@ extern void err_msg_output(const Error *);
 extern void err_msg_output_and_destroy(Error *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void error_reset(void);
-extern int error_print(bool, bool, int);
+extern bool error_print(void);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);
@@ -109,7 +109,7 @@ extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
-extern int error_serious(bool, bool);
+extern bool error_serious(void);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
 
 static inline void *mallocx(size_t l) {
