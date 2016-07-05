@@ -191,7 +191,10 @@ static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
 
 static MUST_CHECK Obj *get_hex(linepos_t epoint) {
     size_t len, len2;
-    Obj *v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
+    Obj *v;
+
+    lpoint.pos++;
+    v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
@@ -211,7 +214,10 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
 
 static MUST_CHECK Obj *get_bin(linepos_t epoint) {
     size_t len, len2;
-    Obj *v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
+    Obj *v;
+
+    lpoint.pos++;
+    v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
@@ -307,14 +313,17 @@ static struct eval_context_s {
 
 static struct eval_context_s *eval;
 
+static void extend_o_out(void) {
+    size_t i;
+    eval->out_size += 64;
+    if (/*eval->out_size < 64 ||*/ eval->out_size > SIZE_MAX / sizeof *eval->o_out) err_msg_out_of_memory(); /* overflow */
+    eval->o_out = (struct values_s *)reallocx(eval->o_out, eval->out_size * sizeof *eval->o_out);
+    for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = NULL;
+}
+
 static inline void push_oper(Obj *val, linepos_t epoint) {
-    if (eval->outp >= eval->out_size) {
-        size_t i;
-        eval->out_size += 64;
-        if (/*eval->out_size < 64 ||*/ eval->out_size > SIZE_MAX / sizeof *eval->o_out) err_msg_out_of_memory(); /* overflow */
-        eval->o_out = (struct values_s *)reallocx(eval->o_out, eval->out_size * sizeof *eval->o_out);
-        for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = NULL;
-    } else if (eval->o_out[eval->outp].val != NULL) val_destroy(eval->o_out[eval->outp].val);
+    if (eval->outp >= eval->out_size) extend_o_out();
+    else if (eval->o_out[eval->outp].val != NULL) val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
     eval->o_out[eval->outp++].epoint = *epoint;
 }
@@ -353,12 +362,13 @@ rest:
     case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break; 
     }
     for (;;) {
+        Oper *op;
         ignore();ch = here(); epoint = lpoint;
 
         switch (ch) {
-        case '(': lpoint.pos++;o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_PARENT;continue;
-        case '$': lpoint.pos++;push_oper(get_hex(&epoint), &epoint);goto other;
-        case '%': lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other;
+        case '(': op = &o_PARENT;goto add;
+        case '$': push_oper(get_hex(&epoint), &epoint);goto other;
+        case '%': push_oper(get_bin(&epoint), &epoint);goto other;
         case '"': push_oper(get_string(), &epoint);goto other;
         case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
@@ -412,13 +422,14 @@ rest:
                 goto as_ident;
             }
             goto rest;
-        case '&': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_AND; lpoint.pos++;continue;
-        case '.': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_OR; lpoint.pos++;continue;
-        case ':': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_XOR; lpoint.pos++;continue;
-        case '*': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_MUL; lpoint.pos++;continue;
-        case '/': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_DIV; lpoint.pos++;continue;
-        case '+': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_ADD; lpoint.pos++;continue;
-        case '-': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_SUB; lpoint.pos++;continue;
+        case '&': op = &o_AND; goto add;
+        case '.': op = &o_OR; goto add;
+        case ':': op = &o_XOR; goto add;
+        case '*': op = &o_MUL; goto add;
+        case '/': op = &o_DIV; goto add;
+        case '+': op = &o_ADD; goto add;
+        case '-': op = &o_SUB; 
+              add: o_oper[operp].epoint = epoint; o_oper[operp++].val = op; lpoint.pos++;continue;
         case ')':
             if (operp == 0) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
             lpoint.pos++;
@@ -1316,8 +1327,8 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '#': op = &o_HASH; break;
         case '`': op = &o_BANK; break;
         case '^': op = &o_STRING; break;
-        case '$': lpoint.pos++;push_oper(get_hex(&epoint), &epoint);goto other;
-        case '%': if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other; }
+        case '$': push_oper(get_hex(&epoint), &epoint);goto other;
+        case '%': if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { push_oper(get_bin(&epoint), &epoint);goto other; }
                   goto tryanon;
         case '"':
         case '\'': push_oper(get_string(), &epoint);goto other;
