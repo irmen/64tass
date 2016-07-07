@@ -3145,6 +3145,12 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
 
+<dt><b>-Wno-implied-reg</b><a name="o_Wno-implied-reg" href="#o_Wno-implied-reg"></a>
+<dd>Do not accept implied addressing as register addressing.
+<p>Some instructions have implied aliases like <q><code>asl</code></q>
+which are the same as <q><code>asl a</code></q> for compatibility
+reasons. This option disables that.</p>
+
 <dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
 <dd>Check for optimizable code.
 <p>Warns on things that could be optimized, at least according to the limited
@@ -3168,7 +3174,7 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
 
 <dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
 <dd>Disables implicit boolean conversions
-<p>With this option conditional directives required booleans</p>
+<p>With this option booleans do not implicitly convert to and from other types.</p>
 <p>Here are a few  sloppy coding styles which won't work any more and how to improve them:</p>
 
 <ul>
