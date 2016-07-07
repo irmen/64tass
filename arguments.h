@@ -43,10 +43,7 @@ struct arguments_s {
     bool longbranch;
     bool longaddr;
     bool tasmcomp;
-    bool shadow_check;
     bool verbose;
-    bool strict;
-    bool optimize;
     uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;
@@ -59,7 +56,14 @@ struct arguments_s {
     enum label_mode_e label_mode;
 };
 
+struct diagnostics_s {
+    bool shadow;
+    bool strict_bool;
+    bool optimize;
+};
+
 extern int testarg(int, char **, struct file_s *);
 extern struct arguments_s arguments;
+extern struct diagnostics_s diagnostics;
 
 #endif

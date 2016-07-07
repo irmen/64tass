@@ -675,7 +675,7 @@ operators (&&, ||, ^^, !), the membership operator (in) and the all and any
 functions.
 
 Normally in numeric expressions true is 1 and false is 0, unless the `
---strict-bool' command line option was used.
+-Wstrict-bool' command line option was used.
 
 Other types can be converted to boolean by using the type bool.
 
@@ -934,7 +934,7 @@ all(<expression>)
     all bytes non-zero or no bytes        all(b"c") is true
     all elements true or empty list       all([true, true, false]) is false
 
-    Only booleans in a list are accepted with the `--strict-bool' command line
+    Only booleans in a list are accepted with the `-Wstrict-bool' command line
     option.
 
 any(<expression>)
@@ -946,7 +946,7 @@ any(<expression>)
     at least one non-zero byte       any(b"c") is true
     at least one true element        any([true, true, false]) is true
 
-    Only booleans in a list are accepted with the `--strict-bool' command line
+    Only booleans in a list are accepted with the `-Wstrict-bool' command line
     option.
 
 format(<string expression>[, <expression>, ...])
@@ -1111,7 +1111,7 @@ c ? x : y   if c is true then x otherwise y
 Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.
 
-With the `--strict-bool' command line option booleans are required as arguments
+With the `-Wstrict-bool' command line option booleans are required as arguments
 and only the `?' operator may return something else.
 
 Address length forcing
@@ -2718,7 +2718,13 @@ Operation options
     possible to redirect them to a file or to the standard output by using `-'
     as the file name.
 
---shadow-check
+-Woptimize
+    Check for optimizable code.
+
+    Warns on things that could be optimized, at least according to the limited
+    analyzis done.
+
+-Wshadow
     Enable symbol shadowing check
 
     Makes local variables `shadowing' other variables in upper scopes an error
@@ -2734,7 +2740,7 @@ Operation options
             .end
             asl bl.x        ; not ambiguous
 
---strict-bool
+-Wstrict-bool
     Disables implicit boolean conversions
 
     With this option conditional directives required booleans
