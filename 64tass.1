@@ -128,10 +128,10 @@ Normally compilation errors a written to the standard error output. It's
 possible to redirect them to a file or to the standard output by using '-'
 as the file name.
 .TP 0.5i
-\fB\-Wno\-implied\-reg\fR
-Do not accept implied addressing as register addressing.
-Some instructions have implied aliases like 'asl' which are the same as
- 'asl a' for compatibility reasons. This option disables that.
+\fB\-Wimplied\-reg\fR
+Check if implied addressing is used instead of register.
+Some instructions have implied aliases like 'asl' for 'asl a' for
+compatibility reasons. This option generates an error for this.
 .TP 0.5i
 \fB\-Woptimize\fR
 Check for optimizable code.
@@ -139,7 +139,7 @@ Warns on things that could be optimized, at least according to the limited
 analyzis done.
 .TP 0.5i
 \fB\-Wshadow\fR
-Enable symbol shadowing check
+Enable symbol shadowing check.
 Makes local variables 'shadowing' other variables in upper scopes an error
 if they are used in a way which is ambiguous.
 .TP 0.5i

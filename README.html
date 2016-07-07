@@ -3145,11 +3145,11 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
 
-<dt><b>-Wno-implied-reg</b><a name="o_Wno-implied-reg" href="#o_Wno-implied-reg"></a>
-<dd>Do not accept implied addressing as register addressing.
+<dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
+<dd>Check if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
-which are the same as <q><code>asl a</code></q> for compatibility
-reasons. This option disables that.</p>
+for <q><code>asl a</code></q> for compatibility
+reasons. This option generates an error for this.</p>
 
 <dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
 <dd>Check for optimizable code.
@@ -3157,7 +3157,7 @@ reasons. This option disables that.</p>
 analyzis done.</p>
 
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
-<dd>Enable symbol shadowing check
+<dd>Enable symbol shadowing check.
 <p>Makes local variables <q>shadowing</q> other variables in upper scopes an
 error if they are used in a way which is ambiguous.</p>
 <p>This is useful to detect hard to notice bugs where a new local
