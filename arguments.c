@@ -238,6 +238,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -T, --tasm-compatible Enable TASM compatible mode\n"
            "  -w, --no-warn         Suppress warnings\n"
            "      --no-caret-diag   Suppress source line display\n"
+           "  -Wimplied-reg         No implied register aliases\n"
            "  -Woptimize            Optimization warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"

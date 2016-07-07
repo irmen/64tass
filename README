@@ -2731,7 +2731,7 @@ Operation options
     analyzis done.
 
 -Wshadow
-    Enable symbol shadowing check
+    Enable symbol shadowing check.
 
     Makes local variables `shadowing' other variables in upper scopes an error
     if they are used in a way which is ambiguous.
