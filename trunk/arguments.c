@@ -54,7 +54,7 @@ struct diagnostics_s diagnostics = {
     false,       /* shadow */
     false,       /* strict_bool */
     false,       /* optimize */
-    true,        /* implied_reg */
+    false,       /* implied_reg */
 };
 
 struct w_options_s {

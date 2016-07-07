@@ -2718,11 +2718,11 @@ Operation options
     possible to redirect them to a file or to the standard output by using `-'
     as the file name.
 
--Wno-implied-reg
-    Do not accept implied addressing as register addressing.
+-Wimplied-reg
+    Check if implied addressing is used instead of register.
 
-    Some instructions have implied aliases like `asl' which are the same as
-    `asl a' for compatibility reasons. This option disables that.
+    Some instructions have implied aliases like `asl' for `asl a' for
+    compatibility reasons. This option generates an error for this.
 
 -Woptimize
     Check for optimizable code.

@@ -144,7 +144,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         switch (((Addrlist *)vals)->len) {
         case 0:
             if (cnmemonic[ADR_IMPLIED] != ____) {
-                if (diagnostics.implied_reg || cnmemonic[ADR_REG] == 0) {
+                if (!diagnostics.implied_reg || cnmemonic[ADR_REG] == 0) {
                     adrgen = AG_IMP; opr = ADR_IMPLIED;
                     break;
                 }
