@@ -107,7 +107,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err;
-    if (arguments.strict && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
+    if (diagnostics.strict_bool && type != TRUTH_BOOL) return DEFAULT_OBJ->truth(o1, type, epoint);
     err = access_check(v1, epoint);
     if (err != NULL) return &err->v;
     v = v1->addr;
@@ -394,7 +394,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Code *v, *v1 = (Code *)op->v1;
     switch (op->op->op) {
     case O_LNOT:
-        if (arguments.strict) break;
+        if (diagnostics.strict_bool) break;
         /* fall through */
     case O_BANK:
     case O_HIGHER:
@@ -439,7 +439,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (result->obj != BOOL_OBJ) return result;
         i = ((Bool *)result)->boolean != (op->op == &o_LOR);
         val_destroy(result);
-        if (arguments.strict) return obj_oper_error(op);
+        if (diagnostics.strict_bool) return obj_oper_error(op);
         return val_reference(i ? o2 : &v1->v);
     }
     switch (o2->obj->type) {
@@ -458,7 +458,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return &v->v;
         }
     case T_BOOL:
-        if (arguments.strict) break;
+        if (diagnostics.strict_bool) break;
         /* fall through */
     case T_INT:
     case T_BITS:
@@ -550,7 +550,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return &v->v;
         }
     case T_BOOL:
-        if (arguments.strict) break;
+        if (diagnostics.strict_bool) break;
         /* fall through */
     case T_INT:
     case T_BITS:

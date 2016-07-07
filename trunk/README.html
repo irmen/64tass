@@ -884,7 +884,7 @@ logical operators (<code>&amp;&amp;</code>, <code>||</code>, <code>^^</code>,
 <code>all</code> and <code>any</code> functions.</p>
 
 <p>Normally in numeric expressions <code>true</code> is <code>1</code> and
-<code>false</code> is <code>0</code>, unless the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option was
+<code>false</code> is <code>0</code>, unless the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option was
 used.</p>
 
 <p>Other types can be converted to boolean by using the type <code>bool</code>.</p>
@@ -1219,7 +1219,7 @@ parameters to functions.</p>
 </tbody>
 </table></div>
 
-<p>Only booleans in a list are accepted with the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option.</p>
+<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option.</p>
 
 <dt><code><b>any(</b>&lt;expression&gt;<b>)</b></code><a name="f_any" href="#f_any"></a>
 <dd>Return truth for various definitions of <q>any</q>.
@@ -1233,7 +1233,7 @@ parameters to functions.</p>
 </tbody>
 </table></div>
 
-<p>Only booleans in a list are accepted with the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option.</p>
+<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option.</p>
 
 <dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
 <dd>Create string from values according to a format string.
@@ -1462,7 +1462,7 @@ operands as the result.</p>
 <p>Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.</p>
 
-<p>With the <q><a href="#o_strict-bool"><tt>--strict-bool</tt></a></q> command line option
+<p>With the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option
 booleans are required as arguments and only the <q><code>?</code></q> operator may return something else.</p>
 
 <h4>Address length forcing<a name="addresslength" href="#addresslength"></a></h4>
@@ -3145,7 +3145,12 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
 
-<dt><b>--shadow-check</b><a name="o_shadow-check" href="#o_shadow-check"></a>
+<dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
+<dd>Check for optimizable code.
+<p>Warns on things that could be optimized, at least according to the limited
+analyzis done.</p>
+
+<dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
 <dd>Enable symbol shadowing check
 <p>Makes local variables <q>shadowing</q> other variables in upper scopes an
 error if they are used in a way which is ambiguous.</p>
@@ -3161,7 +3166,7 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
         <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
 </pre>
 
-<dt><b>--strict-bool</b><a name="o_strict-bool" href="#o_strict-bool"></a>
+<dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
 <dd>Disables implicit boolean conversions
 <p>With this option conditional directives required booleans</p>
 <p>Here are a few  sloppy coding styles which won't work any more and how to improve them:</p>

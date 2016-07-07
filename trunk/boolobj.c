@@ -234,7 +234,7 @@ void boolobj_init(void) {
 }
 
 void boolobj_init2(void) {
-    if (arguments.strict) {
+    if (diagnostics.strict_bool) {
         obj.calc1 = calc1_strict;
         obj.calc2 = calc2_strict;
     } else {

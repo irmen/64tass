@@ -104,7 +104,7 @@ MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
 }
 
 static Error *dump_instr(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint)  {
-    if (arguments.optimize) cpu_opt(cod, adr, ln, epoint);
+    if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
         uint32_t temp = adr;
         pokeb(cod);
