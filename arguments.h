@@ -60,6 +60,7 @@ struct diagnostics_s {
     bool shadow;
     bool strict_bool;
     bool optimize;
+    bool implied_reg;
 };
 
 extern int testarg(int, char **, struct file_s *);

@@ -128,14 +128,24 @@ Normally compilation errors a written to the standard error output. It's
 possible to redirect them to a file or to the standard output by using '-'
 as the file name.
 .TP 0.5i
-\fB--shadow-check\fR
-Enable symbol shadowing check.
-Makes local variables 'shadowing' other variables in upper scopes an
-error if they are used in a way which is ambiguous.
+\fB\-Wno\-implied\-reg\fR
+Do not accept implied addressing as register addressing.
+Some instructions have implied aliases like 'asl' which are the same as
+ 'asl a' for compatibility reasons. This option disables that.
 .TP 0.5i
-\fB--strict-bool\fR
+\fB\-Woptimize\fR
+Check for optimizable code.
+Warns on things that could be optimized, at least according to the limited
+analyzis done.
+.TP 0.5i
+\fB\-Wshadow\fR
+Enable symbol shadowing check
+Makes local variables 'shadowing' other variables in upper scopes an error
+if they are used in a way which is ambiguous.
+.TP 0.5i
+\fB\-Wstrict\-bool\fR
 Disables implicit boolean conversions.
-With this option explicit comparisons or type conversions are necessary.
+With this option booleans do not implicitly convert to and from other types.
 .TP 0.5i
 \fB\-\-m65xx\fR
 Standard 65xx (default). For writing compatible code, no extra codes.

@@ -2718,6 +2718,12 @@ Operation options
     possible to redirect them to a file or to the standard output by using `-'
     as the file name.
 
+-Wno-implied-reg
+    Do not accept implied addressing as register addressing.
+
+    Some instructions have implied aliases like `asl' which are the same as
+    `asl a' for compatibility reasons. This option disables that.
+
 -Woptimize
     Check for optimizable code.
 
@@ -2743,7 +2749,8 @@ Operation options
 -Wstrict-bool
     Disables implicit boolean conversions
 
-    With this option conditional directives required booleans
+    With this option booleans do not implicitly convert to and from other
+    types.
 
     Here are a few sloppy coding styles which won't work any more and how to
     improve them:

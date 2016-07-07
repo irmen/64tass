@@ -54,6 +54,7 @@ struct diagnostics_s diagnostics = {
     false,       /* shadow */
     false,       /* strict_bool */
     false,       /* optimize */
+    true,        /* implied_reg */
 };
 
 struct w_options_s {
@@ -62,14 +63,15 @@ struct w_options_s {
 };
 
 static const struct w_options_s w_options[] = {
-    {"optimize",    &diagnostics.optimize},
-    {"shadow",      &diagnostics.shadow},
-    {"strict-bool", &diagnostics.strict_bool},
-    {NULL         , NULL}
+    {"optimize",     &diagnostics.optimize},
+    {"shadow",       &diagnostics.shadow},
+    {"strict-bool",  &diagnostics.strict_bool},
+    {"implied-reg",  &diagnostics.implied_reg},
+    {NULL          , NULL}
 };
 
 static bool woption(const char *n, const char *s) {
-    bool no = (s[2] == 'n') && (s[3] == 'o') && (s[4] == '-');
+    bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-');
     const struct w_options_s *w = w_options;
 
     while (w->name != NULL) {
