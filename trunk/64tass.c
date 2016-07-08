@@ -296,7 +296,7 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     }
     *truth = ((Bool *)err)->boolean;
     val_destroy(err);
-    if (diagnostics.strict_bool && val->obj != BOOL_OBJ) err_msg_wrong_type(val, BOOL_OBJ, &v1->epoint);
+    if (diagnostics.strict_bool && val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
     return false;
 }
 
@@ -2349,11 +2349,6 @@ Obj *compile(struct file_list_s *cflist)
                         val = vs->val;
                         switch (val->obj->type) {
                         case T_BOOL:
-                            if (diagnostics.strict_bool) {
-                                err_msg_wrong_type(val, NULL, &vs->epoint);
-                                goto breakerr;
-                            }
-                            /* fall through */
                         case T_FLOAT:
                         case T_INT:
                         case T_BITS:
@@ -3374,7 +3369,6 @@ static int main2(int argc, char *argv[]) {
         return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     init_encoding(arguments.toascii);
-    boolobj_init2();
 
     if (arguments.quiet) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"

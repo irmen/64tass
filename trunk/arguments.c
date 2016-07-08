@@ -57,6 +57,13 @@ struct diagnostics_s diagnostics = {
     false,       /* implied_reg */
 };
 
+struct diagnostics_s diagnostic_errors = {
+    true,        /* shadow */
+    true,        /* strict_bool */
+    false,       /* optimize */
+    true,        /* implied_reg */
+};
+
 struct w_options_s {
     const char *name;
     bool *opt;

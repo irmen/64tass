@@ -194,7 +194,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     bdigit_t b, inv;
     switch (type) {
     case TRUTH_ALL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
         sz = bitslen(v1);
         sz2 = v1->bits / SHIFT;
         if (sz2 > sz) sz2 = sz;
@@ -207,7 +207,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
         b <<= SHIFT - v1->bits % SHIFT;
         return truth_reference(b == 0);
     case TRUTH_ANY:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
         return truth_reference(v1->len != 0 && v1->len != ~0);
     default:
         return truth_reference(v1->len != 0);
@@ -698,7 +698,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         op->v1 = &v1->v;
         return v;
     case O_LNOT:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return truth_reference(v1->len == 0);
     default:
         break;
@@ -1192,18 +1192,18 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return repeat(op);
     }
     if (op->op == &o_LAND) {
-        if (diagnostics.strict_bool) return obj_oper_error(op);
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((v1->len != 0) ? o2 : &v1->v);
     }
     if (op->op == &o_LOR) {
-        if (diagnostics.strict_bool) return obj_oper_error(op);
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((v1->len != 0) ? &v1->v : o2);
     }
     switch (o2->obj->type) {
     case T_BOOL:
         {
             Bool *v2 = (Bool *)o2;
-            if (diagnostics.strict_bool) break;
+            if (diagnostics.strict_bool) err_msg_bool_oper(op);
             tmp = (Obj *)ref_bits(bits_value[v2->boolean ? 1 : 0]);
             op->v2 = tmp;
             result = calc2(op);
@@ -1271,7 +1271,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BOOL:
         {
             Bool *v1 = (Bool *)o1;
-            if (diagnostics.strict_bool) break;
+            if (diagnostics.strict_bool) err_msg_bool_oper(op);
             tmp = (Obj *)ref_bits(bits_value[v1->boolean ? 1 : 0]);
             op->v1 = tmp;
             result = calc2(op);
