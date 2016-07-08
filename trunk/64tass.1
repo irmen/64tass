@@ -128,33 +128,47 @@ Normally compilation errors a written to the standard error output. It's
 possible to redirect them to a file or to the standard output by using '-'
 as the file name.
 .TP 0.5i
-\fB\-Werror\fR=\fI<name>\fR, \fB\-Wno-error\fR=\fI<name>\fR
-Change a warning to error or the other way around.
-This option can change the severity of diagnostic messages. For
-example '-Wno-error=implied-reg' makes the associated message a warning only.
+\fB\-Wall\fR
+Enable all diagnostic warnings, except those individually disabled. Or with the 'no-' prefix disable all except those enabled. 
+.TP 0.5i
+\fB\-Werror\fR
+Make all diagnostic warnings to an error, except those individually set to a warning. 
+.TP 0.5i
+\fB\-Werror\fR=\fI<name>\fR
+Change a diagnostic warning to an error.
+For example "-Werror=implied-reg" makes this check an error. The "-Wno-error=" variant is useful with "-Werror" to set some to warnings.
 .TP 0.5i
 \fB\-Wimplied\-reg\fR
-Check if implied addressing is used instead of register.
+Warns if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
-compatibility reasons. This option generates an error for this.
+compatibility reasons, but it's not the preferred form.
 .TP 0.5i
 \fB\-Wno\-jmp\-bug\fR
-Don't check for jmp ($xxff) bug. The high byte is read from the wrong
-address on some 6502 variants.
+Don't warn about the jmp ($xxff) bug.
+It's fine that the high byte is read from the 'wrong' address on 6502,
+6502i and 65dtv02.
+.TP 0.5i
+\fB\-Wno\-mem\-wrap\fR
+Don't warn for compile offset wrap around.
+Continue from the beginning of image file once it's end was reached.
+.TP 0.5i
+\fB\-Wno\-pc\-wrap\fR
+Don't warn for program counter wrap around.
+Continue from the beginning of program bank once it's end was reached.
 .TP 0.5i
 \fB\-Woptimize\fR
-Check for optimizable code.
+Warn about optimizable code.
 Warns on things that could be optimized, at least according to the limited
 analyzis done.
 .TP 0.5i
 \fB\-Wshadow\fR
-Enable symbol shadowing check.
-Makes local variables 'shadowing' other variables in upper scopes an error
-if they are used in a way which is ambiguous.
+Warn about symbol shadowing.
+Checks if local variables 'shadow' other variables of same name in upper
+scopes in ambiguous ways.
 .TP 0.5i
 \fB\-Wstrict\-bool\fR
-Disables implicit boolean conversions.
-With this option booleans do not implicitly convert to and from other types.
+Warn about implicit boolean conversions.
+Boolean values can be interpreted as numeric 0/1 and other types as booleans. This is convenient but may cause mistakes.
 .TP 0.5i
 \fB\-\-m65xx\fR
 Standard 65xx (default). For writing compatible code, no extra codes.

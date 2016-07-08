@@ -99,6 +99,7 @@ Table of Contents
   * Command line options
       + Output options
       + Operation options
+      + Diagnostic options
       + Target selection on command line
       + Source listing options
       + Other options
@@ -2718,34 +2719,57 @@ Operation options
     possible to redirect them to a file or to the standard output by using `-'
     as the file name.
 
--Werror=<name>, -Wno-error=<name>
-    Change a warning to error or the other way around.
+Diagnostic options
 
-    This option can change the severity of diagnostic messages. For example
-    `-Wno-error=implied-reg' makes the associated message a warning only.
+Diagnostic message switched start with a `-W' and can have an optional `no-'
+prefix to disable them. The options below with this prefix are enabled by
+default, the others are disabled.
+
+-Wall
+    Enable all diagnostic warnings, except those individually disabled. Or with
+    the `no-' prefix disable all except those enabled.
+-Werror
+    Make all diagnostic warnings to an error, except those individually set to
+    a warning.
+-Werror=<name>
+    Change a diagnostic warning to an error.
+
+    For example `-Werror=implied-reg' makes this check an error. The
+    `-Wno-error=' variant is useful with `-Werror' to set some to warnings.
 
 -Wimplied-reg
-    Check if implied addressing is used instead of register.
+    Warns if implied addressing is used instead of register.
 
     Some instructions have implied aliases like `asl' for `asl a' for
-    compatibility reasons. This option generates an error for this.
+    compatibility reasons, but it's not the preferred form.
 
 -Wno-jmp-bug
-    Don't check for jmp ($xxff) bug.
+    Don't warn about the jmp ($xxff) bug.
 
-    The high byte is read from the wrong address on some 6502 variants.
+    It's fine that the high byte is read from the `wrong' address on 6502,
+    6502i and 65dtv02.
+
+-Wno-mem-wrap
+    Don't warn for compile offset wrap around.
+
+    Continue from the beginning of image file once it's end was reached.
+
+-Wno-pc-wrap
+    Don't warn for program counter wrap around.
+
+    Continue from the beginning of program bank once it's end was reached.
 
 -Woptimize
-    Check for optimizable code.
+    Warn about optimizable code.
 
     Warns on things that could be optimized, at least according to the limited
     analyzis done.
 
 -Wshadow
-    Enable symbol shadowing check.
+    Warn about symbol shadowing.
 
-    Makes local variables `shadowing' other variables in upper scopes an error
-    if they are used in a way which is ambiguous.
+    Checks if local variables `shadow' other variables of same name in upper
+    scopes in ambiguous ways.
 
     This is useful to detect hard to notice bugs where a new local variable
     takes the place of a global one by mistake.
@@ -2758,13 +2782,12 @@ Operation options
             asl bl.x        ; not ambiguous
 
 -Wstrict-bool
-    Disables implicit boolean conversions
+    Warn about implicit boolean conversions.
 
-    With this option booleans do not implicitly convert to and from other
-    types.
+    Boolean values can be interpreted as numeric 0/1 and other types as
+    booleans. This is convenient but may cause mistakes.
 
-    Here are a few sloppy coding styles which won't work any more and how to
-    improve them:
+    To pass this option the following constructs need improvements:
 
       + `1' and `0' as boolean constants. Use the slightly longer `true' and
         `false'.

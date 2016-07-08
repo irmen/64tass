@@ -105,6 +105,8 @@ extern void err_msg_bool_oper(struct oper_s *);
 extern void err_msg_bool_val(enum errors_e, unsigned int, Obj *, linepos_t);
 extern void err_msg_implied_reg(linepos_t);
 extern void err_msg_jmp_bug(linepos_t);
+extern void err_msg_pc_wrap(void);
+extern void err_msg_mem_wrap(void);
 extern void error_reset(void);
 extern bool error_print(void);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);

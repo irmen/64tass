@@ -56,14 +56,40 @@ struct diagnostics_s diagnostics = {
     false,       /* optimize */
     false,       /* implied_reg */
     true,        /* jmp_bug */
+    true,        /* pc_wrap */
+    true,        /* mem_wrap */
 };
 
 struct diagnostics_s diagnostic_errors = {
+    false,       /* shadow */
+    false,       /* strict_bool */
+    false,       /* optimize */
+    false,       /* implied_reg */
+    false,       /* jmp_bug */
+    false,       /* pc_wrap */
+    false,       /* mem_wrap */
+};
+
+static struct diagnostics_s diagnostic_no_all;
+static struct diagnostics_s diagnostic_all = {
     true,        /* shadow */
     true,        /* strict_bool */
-    false,       /* optimize */
+    true,        /* optimize */
     true,        /* implied_reg */
-    false,       /* jmp_bug */
+    true,        /* jmp_bug */
+    true,        /* pc_wrap */
+    true,        /* mem_wrap */
+};
+
+static struct diagnostics_s diagnostic_no_error_all;
+static struct diagnostics_s diagnostic_error_all = {
+    true,        /* shadow */
+    true,        /* strict_bool */
+    true,        /* optimize */
+    true,        /* implied_reg */
+    true,        /* jmp_bug */
+    true,        /* pc_wrap */
+    true,        /* mem_wrap */
 };
 
 struct w_options_s {
@@ -78,19 +104,35 @@ static const struct w_options_s w_options[] = {
     {"strict-bool",  &diagnostics.strict_bool, &diagnostic_errors.strict_bool},
     {"implied-reg",  &diagnostics.implied_reg, &diagnostic_errors.implied_reg},
     {"jmp-bug",      &diagnostics.jmp_bug,     &diagnostic_errors.jmp_bug},
+    {"pc-wrap",      &diagnostics.pc_wrap,     &diagnostic_errors.pc_wrap},
+    {"mem-wrap",     &diagnostics.mem_wrap,    &diagnostic_errors.mem_wrap},
     {NULL,           NULL,                     NULL}
 };
 
 static bool woption(const char *n, const char *s) {
-    bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-');
+    bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-'), *b;
     const struct w_options_s *w = w_options;
     const char *s2 = no ? s + 3 : s;
+
+    if (!strcmp(s2, "all")) {
+        memcpy(&diagnostics, no ? &diagnostic_no_all : &diagnostic_all, sizeof diagnostics);
+        return false;
+    }
+
+    if (!strcmp(s2, "error")) {
+        memcpy(&diagnostic_errors, no ? &diagnostic_no_error_all : &diagnostic_error_all, sizeof diagnostic_errors);
+        return false;
+    }
 
     if (!strncmp(s2, "error=", 6)) {
         s2 += 6;
         while (w->name != NULL) {
             if (!strcmp(w->name, s2)) {
                 *w->error = !no;
+                b = w->opt - &diagnostics.shadow + &diagnostic_error_all.shadow;
+                *b = !no;
+                b = w->opt - &diagnostics.shadow + &diagnostic_no_error_all.shadow;
+                *b = !no;
                 return false;
             }
             w++;
@@ -99,6 +141,10 @@ static bool woption(const char *n, const char *s) {
         while (w->name != NULL) {
             if (!strcmp(w->name, s2)) {
                 *w->opt = !no;
+                b = w->opt - &diagnostics.shadow + &diagnostic_all.shadow;
+                *b = !no;
+                b = w->opt - &diagnostics.shadow + &diagnostic_no_all.shadow;
+                *b = !no;
                 return false;
             }
             w++;
@@ -261,11 +307,15 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -T, --tasm-compatible Enable TASM compatible mode\n"
            "  -w, --no-warn         Suppress warnings\n"
            "      --no-caret-diag   Suppress source line display\n"
+           "  -Wall                 Enable all diagnostic warnings\n"
+           "  -Werror               Diagnostic warnings to errors\n"
            "  -Werror=<name>        Make a diagnostic to an error\n"
            "  -Wno-error=<name>     Make a diagnostic to a warning\n"
            "  -Wimplied-reg         No implied register aliases\n"
-           "  -Wno-jmp-bug          Disable jmp ($xxff) check\n"
            "  -Woptimize            Optimization warnings\n"
+           "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
+           "  -Wno-mem-wrap         No offset overflow warning\n"
+           "  -Wno-pc-wrap          No PC overflow warning\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"
            "\n"
