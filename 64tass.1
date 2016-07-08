@@ -138,6 +138,10 @@ Check if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
 compatibility reasons. This option generates an error for this.
 .TP 0.5i
+\fB\-Wno\-jmp\-bug\fR
+Don't check for jmp ($xxff) bug. The high byte is read from the wrong
+address on some 6502 variants.
+.TP 0.5i
 \fB\-Woptimize\fR
 Check for optimizable code.
 Warns on things that could be optimized, at least according to the limited

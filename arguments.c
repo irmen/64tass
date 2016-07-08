@@ -55,6 +55,7 @@ struct diagnostics_s diagnostics = {
     false,       /* strict_bool */
     false,       /* optimize */
     false,       /* implied_reg */
+    true,        /* jmp_bug */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -62,6 +63,7 @@ struct diagnostics_s diagnostic_errors = {
     true,        /* strict_bool */
     false,       /* optimize */
     true,        /* implied_reg */
+    false,       /* jmp_bug */
 };
 
 struct w_options_s {
@@ -75,6 +77,7 @@ static const struct w_options_s w_options[] = {
     {"shadow",       &diagnostics.shadow,      &diagnostic_errors.shadow},
     {"strict-bool",  &diagnostics.strict_bool, &diagnostic_errors.strict_bool},
     {"implied-reg",  &diagnostics.implied_reg, &diagnostic_errors.implied_reg},
+    {"jmp-bug",      &diagnostics.jmp_bug,     &diagnostic_errors.jmp_bug},
     {NULL,           NULL,                     NULL}
 };
 
@@ -258,7 +261,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -T, --tasm-compatible Enable TASM compatible mode\n"
            "  -w, --no-warn         Suppress warnings\n"
            "      --no-caret-diag   Suppress source line display\n"
+           "  -Werror=<name>        Make a diagnostic to an error\n"
+           "  -Wno-error=<name>     Make a diagnostic to a warning\n"
            "  -Wimplied-reg         No implied register aliases\n"
+           "  -Wno-jmp-bug          Disable jmp ($xxff) check\n"
            "  -Woptimize            Optimization warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"

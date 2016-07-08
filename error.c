@@ -862,8 +862,14 @@ void err_msg_bool_oper(oper_t op) {
 }
 
 void err_msg_implied_reg(linepos_t epoint) {
-   err_msg_no_addressing(diagnostic_errors.implied_reg ? SV_ERROR : SV_WARNING, A_NONE, epoint);
+    err_msg_no_addressing(diagnostic_errors.implied_reg ? SV_ERROR : SV_WARNING, A_NONE, epoint);
     adderror(" [-Wimplied-reg]");
+}
+
+void err_msg_jmp_bug(linepos_t epoint) {
+    new_error_msg(diagnostic_errors.jmp_bug ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    adderror(terr_warning[ERROR______JUMP_BUG]);
+    adderror(" [-Wjmp-bug]");
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {

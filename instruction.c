@@ -697,7 +697,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
         if (toaddress(val, &uval, 24, NULL, epoint2)) break;
         if (uval <= 0xffff) {
             adr = uval;
-            if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
+            if (diagnostics.jmp_bug && cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg_jmp_bug(epoint);/* jmp ($xxff) */
             break;
         } 
         err_msg2(uval > all_mem ? ERROR_ADDRESS_LARGE : ERROR_____NOT_BANK0, val, epoint2);
