@@ -310,7 +310,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             break;
         }
     case T_BOOL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
     case T_INT:
     case T_BITS:
@@ -348,7 +348,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     atype_t am;
     switch (o1->obj->type) {
     case T_BOOL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
     case T_INT:
     case T_BITS:

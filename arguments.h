@@ -65,6 +65,6 @@ struct diagnostics_s {
 
 extern int testarg(int, char **, struct file_s *);
 extern struct arguments_s arguments;
-extern struct diagnostics_s diagnostics;
+extern struct diagnostics_s diagnostics, diagnostic_errors;
 
 #endif

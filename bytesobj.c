@@ -157,7 +157,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     uint8_t inv;
     switch (type) {
     case TRUTH_ALL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
         sz = byteslen(v1);
         inv = (v1->len < 0) ? ~0 : 0;
         for (i = 0; i < sz; i++) {
@@ -165,7 +165,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
         }
         return (Obj *)ref_bool(true_value);
     case TRUTH_ANY:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
     default:
         return truth_reference(to_bool(v1));
     }
@@ -721,7 +721,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         val_destroy(tmp);
         return v;
     case O_LNOT:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return truth_reference(!to_bool(v1));
     default: break;
     }
@@ -923,17 +923,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return repeat(op); 
     }
     if (op->op == &o_LAND) {
-        if (diagnostics.strict_bool) return obj_oper_error(op);
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(to_bool(v1) ? o2 : &v1->v);
     }
     if (op->op == &o_LOR) {
-        if (diagnostics.strict_bool) return obj_oper_error(op);
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(to_bool(v1) ? &v1->v : o2);
     }
     switch (o2->obj->type) {
     case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
     case T_INT:
     case T_BITS:
@@ -979,7 +979,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp;
     switch (o1->obj->type) {
     case T_BOOL:
-        if (diagnostics.strict_bool) break;
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
     case T_INT:
     case T_BITS:

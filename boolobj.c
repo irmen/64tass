@@ -73,14 +73,16 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
+    if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_IVAL, bits, o1, epoint);
     *iv = v1->boolean ? 1 : 0;
     return NULL;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
+    if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_UVAL, bits, o1, epoint);
     *uv = v1->boolean ? 1 : 0;
     return NULL;
 }
@@ -97,27 +99,22 @@ static inline MUST_CHECK Obj *int_from_bool2(bool i) {
     return (Obj *)ref_int(int_value[i ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
+    if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_SIGN, o1, epoint);
     return (Obj *)int_from_bool(v1);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
+    if (diagnostics.strict_bool) err_msg_bool(ERROR______CANT_ABS, o1, epoint);
     return (Obj *)int_from_bool(v1);
-}
-
-static MUST_CHECK Obj *calc1_strict(oper_t op) {
-    if (op->op == &o_LNOT) {
-        Bool *v1 = (Bool *)op->v1;
-        return truth_reference(!v1->boolean);
-    }
-    return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
     Bool *v1 = (Bool *)op->v1;
     Str *v;
+    if (diagnostics.strict_bool && op->op != &o_LNOT) err_msg_bool_oper(op);
     switch (op->op->op) {
     case O_BANK:
     case O_HIGHER: return (Obj *)bytes_from_u8(0);
@@ -175,31 +172,21 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *calc2_strict(oper_t op) {
-    if (op->v2->obj == BOOL_OBJ) {
-        Bool *v1 = (Bool *)op->v1;
-
-        if (op->op == &o_LAND) {
-            return val_reference(v1->boolean ? op->v2 : &v1->v);
-        }
-        if (op->op == &o_LOR) {
-            return val_reference(v1->boolean ? &v1->v : op->v2);
-        }
-    }
-    return obj_oper_error(op);
-}
-
 static MUST_CHECK Obj *calc2(oper_t op) {
     Bool *v1 = (Bool *)op->v1;
 
     if (op->op == &o_LAND) {
+        if (diagnostics.strict_bool && op->v2->obj != BOOL_OBJ) err_msg_bool_oper(op);
         return val_reference(v1->boolean ? op->v2 : &v1->v);
     }
     if (op->op == &o_LOR) {
+        if (diagnostics.strict_bool && op->v2->obj != BOOL_OBJ) err_msg_bool_oper(op);
         return val_reference(v1->boolean ? &v1->v : op->v2);
     }
     switch (op->v2->obj->type) {
-    case T_BOOL: return calc2_bool(op, v1->boolean, ((Bool *)op->v2)->boolean);
+    case T_BOOL: 
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        return calc2_bool(op, v1->boolean, ((Bool *)op->v2)->boolean);
     default: 
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
@@ -228,24 +215,16 @@ void boolobj_init(void) {
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.sign = sign;
+    obj.absolute = absolute;
+    obj.calc1 = calc1;
+    obj.calc2 = calc2;
+    obj.rcalc2 = rcalc2;
 
     bool_value[0] = false_value = new_boolean(false);
     bool_value[1] = true_value = new_boolean(true);
-}
-
-void boolobj_init2(void) {
-    if (diagnostics.strict_bool) {
-        obj.calc1 = calc1_strict;
-        obj.calc2 = calc2_strict;
-    } else {
-        obj.ival = ival;
-        obj.uval = uval;
-        obj.sign = sign;
-        obj.absolute = absolute;
-        obj.calc1 = calc1;
-        obj.calc2 = calc2;
-        obj.rcalc2 = rcalc2;
-    }
 }
 
 void boolobj_names(void) {

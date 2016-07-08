@@ -954,7 +954,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 values[vsp - 1].val = val;
                 continue;
             }
-            if (diagnostics.strict_bool && values[vsp - 1].val->obj != BOOL_OBJ) err_msg_wrong_type(values[vsp - 1].val, BOOL_OBJ, &values[vsp - 1].epoint);
+            if (diagnostics.strict_bool && values[vsp - 1].val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, values[vsp - 1].val, &values[vsp - 1].epoint);
             if (((Bool *)val)->boolean) {
                 Obj *tmp = values[vsp - 1].val;
                 values[vsp - 1].val = v1->val;
@@ -1145,7 +1145,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 val_destroy(v1->val); v1->val = val;
                 continue;
             }
-            if (diagnostics.strict_bool && v1->val->obj != BOOL_OBJ) err_msg_wrong_type(v1->val, BOOL_OBJ, &v1->epoint);
+            if (diagnostics.strict_bool && v1->val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, v1->val, &v1->epoint); /* TODO */
             {
                 Obj *val2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
                 if (val2->obj != BOOL_OBJ) {
@@ -1153,7 +1153,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     val_destroy(val);
                     continue;
                 }
-                if (diagnostics.strict_bool && v2->val->obj != BOOL_OBJ) err_msg_wrong_type(v2->val, BOOL_OBJ, &v2->epoint);
+                if (diagnostics.strict_bool && v2->val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, v2->val, &v2->epoint); /* TODO */
                 if (((Bool *)val)->boolean) {
                     if (((Bool *)val2)->boolean) val_replace(&v1->val, (Obj *)false_value);
                 } else {

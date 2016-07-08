@@ -176,7 +176,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_DOUBLEWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct errorentry_s {
@@ -416,22 +416,32 @@ static void err_msg_variable(Obj *val, linepos_t epoint) {
 void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
 
     if (no < 0x40) {
-        new_error_msg(SV_WARNING, current_file_list, epoint);
-        if (!arguments.warning) return;
         switch (no) {
         case ERROR___OPTIMIZABLE:
+            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
             adderror("could be shorter by using '");
             adderror((const char *)prm);
             adderror("' instead");
+            adderror(" [-Woptimize]");
             break;
         case ERROR_____REMOVABLE:
+            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
             adderror("possibly redundant as ");
             adderror((const char *)prm);
+            adderror(" [-Woptimize]");
+            break;
+        case ERROR___CONST_INDEX:
+        case ERROR_____TAIL_CALL:
+            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+            adderror(terr_warning[no]);
+            adderror(" [-Woptimize]");
             break;
         case ERROR_WUSER_DEFINED: 
+            new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             break;
         default: 
+            new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror(terr_warning[no]);
             break;
         }
@@ -533,12 +543,11 @@ static void err_msg_char_name(const char *msg, const char *name, linepos_t epoin
     str_name((const uint8_t *)name, strlen(name));
 }
 
-static void err_msg_big_integer(const char *msg, const Error *val) {
+static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val, linepos_t epoint) {
     char msg2[256];
-    new_error_msg(SV_ERROR, current_file_list, &val->epoint);
-    sprintf(msg2, msg, val->u.intconv.bits);
+    sprintf(msg2, msg, bits);
     adderror(msg2);
-    err_msg_variable(val->u.intconv.val, &val->epoint);
+    err_msg_variable(val, epoint);
 }
 
 static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -614,8 +623,8 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     }
 }
 
-static void err_msg_no_addressing(atype_t addrtype, linepos_t epoint) {
-    new_error_msg(SV_ERROR, current_file_list, epoint);
+static void err_msg_no_addressing(enum severity_e severity, atype_t addrtype, linepos_t epoint) {
+    new_error_msg(severity, current_file_list, epoint);
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
     for (; (addrtype & 0xfff) != 0; addrtype <<= 4) {
@@ -673,7 +682,7 @@ void err_msg_output(const Error *val) {
     case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.invoper.op, val->u.invoper.v1, val->u.invoper.v2, &val->epoint);break;
     case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
     case ERROR_____CANT_IVAL:
-    case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->num - 0x40], val);break;
+    case ERROR_____CANT_UVAL: new_error_msg(SV_ERROR, current_file_list, &val->epoint); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
     case ERROR_ADDRESS_LARGE:
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
@@ -705,7 +714,7 @@ void err_msg_output(const Error *val) {
     case ERROR______CANT_LEN:
     case ERROR_____CANT_SIZE:
     case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->num - 0x40], val->u.objname, &val->epoint);break;
-    case ERROR_NO_ADDRESSING: err_msg_no_addressing(val->u.addressing, &val->epoint);break;
+    case ERROR_NO_ADDRESSING: err_msg_no_addressing(SV_ERROR, val->u.addressing, &val->epoint);break;
     case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
     case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
     case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
@@ -751,8 +760,8 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     if (name != NULL) str_name(name->data, name->len);
 }
 
-static void err_msg_double_defined2(const char *msg, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
-    new_error_msg(SV_DOUBLEERROR, cflist, epoint2);
+static void err_msg_double_defined2(const char *msg, enum severity_e severity, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+    new_error_msg(severity, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
     if (new_error_msg(SV_DOUBLENOTE, cflist1, epoint1)) return;
@@ -762,35 +771,26 @@ static void err_msg_double_defined2(const char *msg, struct file_list_s *cflist1
 }
 
 void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", l->file_list, &l->epoint, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, l->file_list, &l->epoint, current_file_list, labelname2, epoint2);
 }
 
 void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", cflist, epoint, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, cflist, epoint, current_file_list, labelname2, epoint2);
 }
 
 void err_msg_shadow_defined(Label *l, Label *l2) {
-    err_msg_double_defined2("shadow definition", l->file_list, &l->epoint, l2->file_list, &l2->name, &l2->epoint);
+    err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_DOUBLEWARNING, l->file_list, &l->epoint, l2->file_list, &l2->name, &l2->epoint);
+    adderror(" [-Wshadow]");
 }
 
 void err_msg_shadow_defined2(Label *l) {
-    new_error_msg(SV_DOUBLEERROR, l->file_list, &l->epoint);
+    new_error_msg(diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_DOUBLEWARNING, l->file_list, &l->epoint);
     adderror("shadow definition of built-in");
     str_name(l->name.data, l->name.len);
+    adderror(" [-Wshadow]");
 }
 
-void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        err_msg_output((Error *)v1);
-        return;
-    }
-    if (v2 != NULL && v2->obj == ERROR_OBJ) {
-        err_msg_output((Error *)v2);
-        return;
-    }
-
-    new_error_msg(SV_ERROR, current_file_list, epoint);
-
+static void err_msg_invalid_oper2(const Oper *op, const Obj *v1, const Obj *v2) {
     adderror((v2 != NULL) ? "invalid operands to " : "invalid type argument to ");
     adderror(op->name);
 
@@ -804,6 +804,20 @@ void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_
         adderror(v1->obj->name);
     }
     adderror("'");
+}
+
+void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        err_msg_output((Error *)v1);
+        return;
+    }
+    if (v2 != NULL && v2->obj == ERROR_OBJ) {
+        err_msg_output((Error *)v2);
+        return;
+    }
+
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    err_msg_invalid_oper2(op, v1, v2);
 }
 
 void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepos_t epoint) {
@@ -825,6 +839,31 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
         sprintf(line, ", got %u", num);
         adderror(line);
     }
+}
+
+void err_msg_bool(enum errors_e no, Obj *o, linepos_t epoint) {
+    const char *name = o->obj->name;
+    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    adderror(terr_error[no - 0x40]);
+    str_name((const uint8_t *)name, strlen(name));
+    adderror(" [-Wstrict-bool]");
+}
+
+void err_msg_bool_val(enum errors_e no, unsigned int bits, Obj *o, linepos_t epoint) {
+    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    err_msg_big_integer(terr_error[no - 0x40], bits, o, epoint);
+    adderror(" [-Wstrict-bool]");
+}
+
+void err_msg_bool_oper(oper_t op) {
+    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, op->epoint3);
+    err_msg_invalid_oper2(op->op, op->v1, op->v2);
+    adderror(" [-Wstrict-bool]");
+}
+
+void err_msg_implied_reg(linepos_t epoint) {
+   err_msg_no_addressing(diagnostic_errors.implied_reg ? SV_ERROR : SV_WARNING, A_NONE, epoint);
+    adderror(" [-Wimplied-reg]");
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
@@ -866,6 +905,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
     case SV_DOUBLENOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
+    case SV_DOUBLEWARNING:
     case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
     case SV_DOUBLEERROR:
     case SV_NOTDEFERROR:
@@ -921,6 +961,7 @@ bool error_print() {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
         case SV_DOUBLENOTE:
+        case SV_DOUBLEWARNING:
         case SV_WARNING:
             break;
         default: noneerr = true; anyerr = true; break;
@@ -954,16 +995,18 @@ bool error_print() {
         case SV_DOUBLENOTE:
             pos2 = ALIGN(pos + (sizeof *err2) + err->line_len + err->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || err2->severity != SV_DOUBLEERROR) break;
+            if (pos2 >= error_list.len || (err2->severity != SV_DOUBLEERROR && err2->severity != SV_DOUBLEWARNING)) break;
             pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
+        case SV_DOUBLEWARNING:
         case SV_WARNING: 
+            if (!arguments.warning) continue; 
             warnings++; 
-            if (!arguments.warning || anyerr) continue; 
+            if (anyerr) continue; 
             break;
         case SV_NONEERROR: 
              if (noneerr) continue; 
@@ -1094,6 +1137,7 @@ bool error_serious(void) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
         case SV_DOUBLENOTE:
+        case SV_DOUBLEWARNING:
         case SV_WARNING: break;
         default: return true;
         }
