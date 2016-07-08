@@ -95,17 +95,16 @@ static struct diagnostics_s diagnostic_error_all = {
 struct w_options_s {
     const char *name;
     bool *opt;
-    bool *error;
 };
 
 static const struct w_options_s w_options[] = {
-    {"optimize",     &diagnostics.optimize,    &diagnostic_errors.optimize},
-    {"shadow",       &diagnostics.shadow,      &diagnostic_errors.shadow},
-    {"strict-bool",  &diagnostics.strict_bool, &diagnostic_errors.strict_bool},
-    {"implied-reg",  &diagnostics.implied_reg, &diagnostic_errors.implied_reg},
-    {"jmp-bug",      &diagnostics.jmp_bug,     &diagnostic_errors.jmp_bug},
-    {"pc-wrap",      &diagnostics.pc_wrap,     &diagnostic_errors.pc_wrap},
-    {"mem-wrap",     &diagnostics.mem_wrap,    &diagnostic_errors.mem_wrap},
+    {"optimize",     &diagnostics.optimize},
+    {"shadow",       &diagnostics.shadow},
+    {"strict-bool",  &diagnostics.strict_bool},
+    {"implied-reg",  &diagnostics.implied_reg},
+    {"jmp-bug",      &diagnostics.jmp_bug},
+    {"pc-wrap",      &diagnostics.pc_wrap},
+    {"mem-wrap",     &diagnostics.mem_wrap},
     {NULL,           NULL,                     NULL}
 };
 
@@ -128,7 +127,8 @@ static bool woption(const char *n, const char *s) {
         s2 += 6;
         while (w->name != NULL) {
             if (!strcmp(w->name, s2)) {
-                *w->error = !no;
+                b = w->opt - &diagnostics.shadow + &diagnostic_errors.shadow;
+                *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_error_all.shadow;
                 *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_no_error_all.shadow;

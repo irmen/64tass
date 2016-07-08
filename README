@@ -3023,7 +3023,7 @@ possible jmp ($xxff) bug
     yet another 65xx feature...
 processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank
-top of memory exceeded
+compile offset overflow
     compile continues at the bottom ($0000)
 
 Errors
