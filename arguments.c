@@ -67,26 +67,39 @@ struct diagnostics_s diagnostic_errors = {
 struct w_options_s {
     const char *name;
     bool *opt;
+    bool *error;
 };
 
 static const struct w_options_s w_options[] = {
-    {"optimize",     &diagnostics.optimize},
-    {"shadow",       &diagnostics.shadow},
-    {"strict-bool",  &diagnostics.strict_bool},
-    {"implied-reg",  &diagnostics.implied_reg},
-    {NULL          , NULL}
+    {"optimize",     &diagnostics.optimize,    &diagnostic_errors.optimize},
+    {"shadow",       &diagnostics.shadow,      &diagnostic_errors.shadow},
+    {"strict-bool",  &diagnostics.strict_bool, &diagnostic_errors.strict_bool},
+    {"implied-reg",  &diagnostics.implied_reg, &diagnostic_errors.implied_reg},
+    {NULL,           NULL,                     NULL}
 };
 
 static bool woption(const char *n, const char *s) {
     bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-');
     const struct w_options_s *w = w_options;
+    const char *s2 = no ? s + 3 : s;
 
-    while (w->name != NULL) {
-        if (!strcmp(w->name, no ? s + 3 : s)) {
-            *w->opt = !no;
-            return false;
+    if (!strncmp(s2, "error=", 6)) {
+        s2 += 6;
+        while (w->name != NULL) {
+            if (!strcmp(w->name, s2)) {
+                *w->error = !no;
+                return false;
+            }
+            w++;
         }
-        w++;
+    } else {
+        while (w->name != NULL) {
+            if (!strcmp(w->name, s2)) {
+                *w->opt = !no;
+                return false;
+            }
+            w++;
+        }
     }
     printable_print((const uint8_t *)n, stderr);
     fputs(": unrecognized option '-W", stderr);
