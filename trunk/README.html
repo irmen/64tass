@@ -3145,6 +3145,11 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
 
+<dt><b>-Werror=</b>&lt;name&gt;, <b>-Wno-error</b>=&lt;name&gt;<a name="o_Werror" href="#o_Werror"></a>
+<dd>Change a warning to error or the other way around.
+<p>This option can change the severity of diagnostic messages. For
+example <q>-Wno-error=implied-reg</q> makes the associated message a warning only.</p>
+
 <dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
 <dd>Check if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>

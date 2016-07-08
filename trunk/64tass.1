@@ -128,6 +128,11 @@ Normally compilation errors a written to the standard error output. It's
 possible to redirect them to a file or to the standard output by using '-'
 as the file name.
 .TP 0.5i
+\fB\-Werror\fR=\fI<name>\fR, \fB\-Wno-error\fR=\fI<name>\fR
+Change a warning to error or the other way around.
+This option can change the severity of diagnostic messages. For
+example '-Wno-error=implied-reg' makes the associated message a warning only.
+.TP 0.5i
 \fB\-Wimplied\-reg\fR
 Check if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
