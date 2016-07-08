@@ -3,7 +3,7 @@ OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encod
 LDLIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "1050?")
-CFLAGS = -O0 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
+CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 TARGET = 64tass

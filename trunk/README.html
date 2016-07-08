@@ -1520,7 +1520,7 @@ v       <b>+=</b> <span>1</span>            <i>; same as 'v .var v + 1'</i>
 <h4>Slicing and indexing<a name="slicing_indexing" href="#slicing_indexing"></a></h4>
 
 <p>Lists, character strings, byte strings and bit strings support various
-slicing and indexing possibilities through the </code>[]</code> operator.</p>
+slicing and indexing possibilities through the <code>[]</code> operator.</p>
 
 <p>Indexing elements with positive integers is zero based. Negative indexes
 are transformed to positive by adding the number of elements to them, therefore
@@ -1535,7 +1535,7 @@ converted to positive internally by adding the length of string to them.
 Negative step operates in reverse direction, non-single steps will jump over
 elements.</p>
 
-<p>This is quite powerful and therefore a few examples will be given here:<p>
+<p>This is quite powerful and therefore a few examples will be given here:</p>
 
 <dl>
 <dt>Positive indexing <code>a[x]</code>
@@ -1566,7 +1566,7 @@ beginning or end at the end. If the <q>step</q> is negative then it's done in re
 
 <p>The fun start with nested lists and tuples, as these can be used to create a matrix. The
 examples will be given for a two dimensional matrix for easier understanding,
-but this also works in higher dimensions.<p>
+but this also works in higher dimensions.</p>
 
 <dl>
 <dt>Extract row <code>a[x]</code>
@@ -1580,7 +1580,7 @@ but this also works in higher dimensions.<p>
 </dl>
 
 <p>And it works for list of indexes, negative indexes, stepped ranges,
-reversing, etc. on all axes in too many ways to show all possibilities.<p>
+reversing, etc. on all axes in too many ways to show all possibilities.</p>
 
 <p>Basically it's just the indexing and slicing applied on nested
 constructs, where each nesting level is separated by a colon.</p>
@@ -3155,6 +3155,10 @@ example <q>-Wno-error=implied-reg</q> makes the associated message a warning onl
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
 for <q><code>asl a</code></q> for compatibility
 reasons. This option generates an error for this.</p>
+
+<dt><b>-Wno-jmp-bug</b><a name="o_Wjmp-bug" href="#o_Wjmp-bug"></a>
+<dd>Don't check for jmp ($xxff) bug.
+<p>The high byte is read from the wrong address on some 6502 variants.</p>
 
 <dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
 <dd>Check for optimizable code.

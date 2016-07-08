@@ -61,6 +61,7 @@ struct diagnostics_s {
     bool strict_bool;
     bool optimize;
     bool implied_reg;
+    bool jmp_bug;
 };
 
 extern int testarg(int, char **, struct file_s *);
