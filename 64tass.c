@@ -307,12 +307,12 @@ static bool tobool(const struct values_s *v1, bool *truth) {
 static void memskip(address_t db) {
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn = false;}
+        if (current_section->wrapwarn) {err_msg_mem_wrap();current_section->wrapwarn = false;}
         current_section->moved = false;
     }
     if (current_section->l_address.address > 0xffff || db > 0x10000 - current_section->l_address.address) {
         current_section->l_address.address = ((current_section->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg(ERROR___BANK_BORDER,NULL);
+        err_msg_pc_wrap();
     } else current_section->l_address.address += db;
     if (db > (~current_section->address & all_mem2)) {
         if (db - 1 + current_section->address == all_mem2) {
@@ -324,7 +324,7 @@ static void memskip(address_t db) {
             if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
             current_section->moved = false;
             current_section->address = (current_section->address + db) & all_mem2;
-            err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn = false;
+            err_msg_mem_wrap();current_section->wrapwarn = false;
         }
     } else current_section->address += db;
     memjmp(&current_section->mem, current_section->address);
@@ -338,12 +338,12 @@ void pokeb(uint8_t byte)
 {
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn = false;}
+        if (current_section->wrapwarn) {err_msg_mem_wrap();current_section->wrapwarn = false;}
         current_section->moved = false;
     }
     if (current_section->l_address.address > 0xffff) {
         current_section->l_address.address = 0;
-        err_msg(ERROR___BANK_BORDER,NULL);
+        err_msg_pc_wrap();
     }
     if (current_section->dooutput) write_mem(&current_section->mem, byte ^ outputeor);
     current_section->address++;current_section->l_address.address++;

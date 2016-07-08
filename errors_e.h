@@ -26,10 +26,7 @@
 */
 
 enum errors_e {
-    ERROR_TOP_OF_MEMORY = 0x00,
-    ERROR___BANK_BORDER,
-    ERROR______JUMP_BUG,
-    ERROR___LONG_BRANCH,
+    ERROR___LONG_BRANCH = 0x00,
     ERROR_DIRECTIVE_IGN,
     ERROR_LABEL_NOT_LEF,
     ERROR_____OLD_EQUAL,

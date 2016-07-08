@@ -322,9 +322,6 @@ static void adderror(const char *s) {
 }
 
 static const char *terr_warning[] = {
-    "top of memory exceeded",
-    "processor program counter overflow",
-    "possible jmp ($xxff) bug",
     "long branch used",
     "directive ignored",
     "label not on left side",
@@ -868,8 +865,19 @@ void err_msg_implied_reg(linepos_t epoint) {
 
 void err_msg_jmp_bug(linepos_t epoint) {
     new_error_msg(diagnostic_errors.jmp_bug ? SV_ERROR : SV_WARNING, current_file_list, epoint);
-    adderror(terr_warning[ERROR______JUMP_BUG]);
-    adderror(" [-Wjmp-bug]");
+    adderror( "possible jmp ($xxff) bug [-Wjmp-bug]");
+}
+
+void err_msg_pc_wrap(void) {
+    if (!diagnostics.pc_wrap) return;
+    new_error_msg(diagnostic_errors.pc_wrap ? SV_ERROR : SV_WARNING, current_file_list, &lpoint);
+    adderror("processor program counter overflow [-Wpc-wrap]");
+}
+
+void err_msg_mem_wrap(void) {
+    if (!diagnostics.mem_wrap) return;
+    new_error_msg(diagnostic_errors.mem_wrap ? SV_ERROR : SV_WARNING, current_file_list, &lpoint);
+    adderror("compile offset overflow [-Wmem-wrap]");
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {

@@ -208,6 +208,7 @@ Not everything is backwards compatible.</b></p>
  <ul>
   <li><a href="#commandline-output">Output options</a>
   <li><a href="#commandline-operation">Operation options</a>
+  <li><a href="#commandline-diagnostic">Diagnostic options</a>
   <li><a href="#commandline-target">Target selection on command line</a>
   <li><a href="#commandline-listing">Source listing options</a>
   <li><a href="#commandline-other">Other options</a>
@@ -3144,31 +3145,51 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 <p>Normally compilation errors a written to the standard error output.
 It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
+</dl>
 
-<dt><b>-Werror=</b>&lt;name&gt;, <b>-Wno-error</b>=&lt;name&gt;<a name="o_Werror" href="#o_Werror"></a>
-<dd>Change a warning to error or the other way around.
-<p>This option can change the severity of diagnostic messages. For
-example <q>-Wno-error=implied-reg</q> makes the associated message a warning only.</p>
+<h3>Diagnostic options<a name="commandline-diagnostic" href="#commandline-diagnostic"></a></h3>
+
+<p>Diagnostic message switched start with a <q>-W</q> and can have an optional <q>no-</q> prefix to
+disable them. The options below with this prefix are enabled by default, the others are disabled.</p>
+
+<dl class="dir">
+<dt><b>-Wall</b><a name="o_Wall" href="#o_Wall"></a>
+<dd>Enable all diagnostic warnings, except those individually disabled. Or with the <q>no-</q> prefix disable all except those enabled.
+
+<dt><b>-Werror</b><a name="o_Werror" href="#o_Werror"></a>
+<dd>Make all diagnostic warnings to an error, except those individually set to a warning.
+
+<dt><b>-Werror=</b>&lt;name&gt;<a name="o_Werror" href="#o_Werror"></a>
+<dd>Change a diagnostic warning to an error.
+<p>For example <q>-Werror=implied-reg</q> makes this check an error. The <q>-Wno-error=</q> variant is useful with <q>-Werror</q> to set some to warnings.</p>
 
 <dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
-<dd>Check if implied addressing is used instead of register.
+<dd>Warns if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
 for <q><code>asl a</code></q> for compatibility
-reasons. This option generates an error for this.</p>
+reasons, but it's not the preferred form.</p>
 
 <dt><b>-Wno-jmp-bug</b><a name="o_Wjmp-bug" href="#o_Wjmp-bug"></a>
-<dd>Don't check for jmp ($xxff) bug.
-<p>The high byte is read from the wrong address on some 6502 variants.</p>
+<dd>Don't warn about the <code>jmp ($xxff)</code> bug.
+<p>It's fine that the high byte is read from the <q>wrong</q> address on 6502, 6502i and 65dtv02.</p>
+
+<dt><b>-Wno-mem-wrap</b><a name="o_Wmem-wrap" href="#o_Wmem-wrap"></a>
+<dd>Don't warn for compile offset wrap around.
+<p>Continue from the beginning of image file once it's end was reached.</p>
+
+<dt><b>-Wno-pc-wrap</b><a name="o_Wpc-wrap" href="#o_Wpc-wrap"></a>
+<dd>Don't warn for program counter wrap around.
+<p>Continue from the beginning of program bank once it's end was reached.</p>
 
 <dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
-<dd>Check for optimizable code.
+<dd>Warn about optimizable code.
 <p>Warns on things that could be optimized, at least according to the limited
 analyzis done.</p>
 
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
-<dd>Enable symbol shadowing check.
-<p>Makes local variables <q>shadowing</q> other variables in upper scopes an
-error if they are used in a way which is ambiguous.</p>
+<dd>Warn about symbol shadowing.
+<p>Checks if local variables <q>shadow</q> other variables of same name in upper scopes in
+ambiguous ways.</p>
 <p>This is useful to detect hard to notice bugs where a new local
 variable takes the place of a global one by mistake.</p>
 
@@ -3182,9 +3203,10 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
 </pre>
 
 <dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
-<dd>Disables implicit boolean conversions
-<p>With this option booleans do not implicitly convert to and from other types.</p>
-<p>Here are a few  sloppy coding styles which won't work any more and how to improve them:</p>
+<dd>Warn about implicit boolean conversions.
+<p>Boolean values can be interpreted as numeric 0/1 and other types as
+booleans. This is convenient but may cause mistakes.</p>
+<p>To pass this option the following constructs need improvements:</p>
 
 <ul>
 <li><q><code>1</code></q> and <q><code>0</code></q> as boolean constants. Use the slightly longer <q><code>true</code></q> and <q><code>false</code></q>.
@@ -3431,7 +3453,7 @@ will display without them.</p>
 <dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
 <dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
-<dt>top of memory exceeded<dd>compile continues at the bottom ($0000)
+<dt>compile offset overflow<dd>compile continues at the bottom ($0000)
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
