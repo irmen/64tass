@@ -347,7 +347,7 @@ an example:</p>
         <b>ldx</b> #<span class="k">size</span>(<u>zpcode</u>)-<span>1</span><i>;calculate length</i>
 -       <b>lda</b> <u>zpcode</u>,x
         <b>sta</b> <u>wrbyte</u>,x
-        <b>dex</b>             <i>;install to zeropage</i>
+        <b>dex</b>             <i>;install to zero page</i>
         <b>bpl</b> <u>-</u>
         <b>jsr</b> <u>wrbyte</u>
         <b>rts</b>
@@ -804,7 +804,7 @@ modes of the supported CPUs.</b></p>
 </table></div>
 
 <p>Direct page, data bank, program bank indexed and long addressing modes
-of instructions are inteligently chosen based on the instruction type,
+of instructions are intelligently chosen based on the instruction type,
 the address ranges set up by <a href="#d_dpage"><code>.dpage</code></a>, <a href="#d_databank"><code>.databank</code></a>
 and the current program counter address. Therefore the <q>,d</q>,
 <q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
@@ -989,7 +989,7 @@ and are assigned to the code symbol above them.</p>
 
 <p>Not all regularly named symbols can be scope boundaries just plain code symbol ones
 without anything or an opcode after them (no macros!). Symbols defined as procedures, blocks,
-macros, functions, structs and unions are ignored. Also symbols defined by
+macros, functions, structures and unions are ignored. Also symbols defined by
 <a href="#d_var"><code>.var</code></a>, <code>:=</code> or <code>=</code> don't apply, and there are a few more
 exceptions, so stick to using plain code labels.</p>
 
@@ -1060,7 +1060,7 @@ re-definable. Forward referencing of them is allowed as they retain the
 objects over compilation passes.</p>
 
 <p>Symbols in front of code or certain assembler directives are created as
-constant symbols too. They are binded to the object following them.</p>
+constant symbols too. They are bound to the object following them.</p>
 
 <p>Re-definable symbols can be created by the <a href="#d_var"><code>.var</code></a> directive
 or <code>:=</code> construct. These are also called as variables as they
@@ -1263,7 +1263,7 @@ type character. These flags can be used:</p>
 <tbody>
 <tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
 <tr><td><code>b</code><td>binary
-<tr><td><code>c</code><td>unicode character
+<tr><td><code>c</code><td>Unicode character
 <tr><td><code>d</code><td>decimal
 <tr><td><code>e&nbsp;E</code><td>exponential float (uppercase)
 <tr><td><code>f&nbsp;F</code><td>floating point (uppercase)
@@ -1791,7 +1791,7 @@ are converted using the current encoding.</p>
 </pre>
 
 <dt><code><b class="d">.shift</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shift" href="#d_shift"></a>
-<dd>Assemble strings of 7&nbsp;bit bytes and mark the last byte by setting it's most significiant bit.
+<dd>Assemble strings of 7&nbsp;bit bytes and mark the last byte by setting it's most significant bit.
 <p>Any byte which already has the most significant bit set will cause an error.
 The last byte can't be uninitialized or missing of course.</p>
 <p>The naming comes from old TASM and is a reference to setting the high bit of alphabetic letters which results in it's uppercase version in PETSCII.</p>
@@ -1810,7 +1810,7 @@ The last byte can't be uninitialized or missing of course.</p>
 </pre>
 
 <dt><code><b class="d">.shiftl</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shiftl" href="#d_shiftl"></a>
-<dd>Assemble strings of 7&nbsp;bit bytes shifted to the left once with the last byte's least significiant bit set.
+<dd>Assemble strings of 7&nbsp;bit bytes shifted to the left once with the last byte's least significant bit set.
 <p>Any byte which already has the most significant
 bit set will cause an error as this is cut off on shifting.
 The last byte can't be uninitialized or missing of course.</p>
@@ -2005,7 +2005,7 @@ backg	<b class="d">.byte</b> <span>?</span>
 </pre>
 
 <p>Anonymous structures and unions in combination with sections are useful for
-overlapping memory assignment. The example below shares zeropage allocations
+overlapping memory assignment. The example below shares zero page allocations
 for two separate parts of a bigger program. The common subroutine variables
 are assigned after in the <q>zp</q> section.</p>
 
@@ -2357,7 +2357,7 @@ count	<b>ldx</b> #<span>0</span>
 <dt><code><b class="k">.weak</b></code><a name="d_weak" href="#d_weak"></a>
 <dt><code><b class="k">.endweak</b></code><a name="d_endweak" href="#d_endweak"></a>
 <dd>Weak symbol area
-<p>Any symbols defined inside can be overriden by <q>stronger</q> symbols in
+<p>Any symbols defined inside can be overridden by <q>stronger</q> symbols in
 the same scope from outside. Can be nested as necessary.</p>
 <p>This gives the possibility of giving default values for symbols which might
 not always exist without resorting to <code>.ifdef</code>/<code>.ifndef</code> or
@@ -2412,8 +2412,8 @@ start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.</p>
 
 <pre width=80>
 *       <b>=</b> <span>$02</span>
-        <b class="d">.dsection</b> <u>zp</u>   <i>;declare zeropage section</i>
-        <b class="k">.cerror</b> <u>*</u> &gt; <span>$30</span>, <span class="s">"Too many zeropage variables"</span>
+        <b class="d">.dsection</b> <u>zp</u>   <i>;declare zero page section</i>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$30</span>, <span class="s">"Too many zero page variables"</span>
 
 *       <b>=</b> <span>$334</span>
         <b class="d">.dsection</b> <u>bss</u>   <i>;declare uninitialized variable section</i>
@@ -2433,7 +2433,7 @@ start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.</p>
 ss	<b class="d">.word</b> <span>0</span>
 
 start   <b>sei</b>
-        <b class="k">.section</b> <u>zp</u>     <i>;declare some new zeropage variables</i>
+        <b class="k">.section</b> <u>zp</u>     <i>;declare some new zero page variables</i>
 p2	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
         <b class="k">.send</b> <u>zp</u>
         <b class="k">.section</b> <u>bss</u>    <i>;new variables</i>
@@ -2450,7 +2450,7 @@ label   <b class="d">.null</b> <span class="s">"message"</span>
         <b class="k">.send</b> <u>data</u>
 
         <b>jmp</b> <u>error</u>
-        <b class="k">.section</b> <u>zp</u>     <i>;declare some more zeropage variables</i>
+        <b class="k">.section</b> <u>zp</u>     <i>;declare some more zero page variables</i>
 p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
         <b class="k">.send</b> <u>zp</u>
         <b class="k">.send</b> <u>code</u>
@@ -2837,7 +2837,7 @@ space.</p>
 <h2>Original turbo assembler compatibility<a name="tasm-compatibility" href="#tasm-compatibility"></a></h2>
 <h3>How to convert source code for use with 64tass<a name="tasm-convert" href="#tasm-convert"></a></h3>
 <p>Currently there are two options, either use <q>TMPview</q> by Style to convert the
-sourcefile directly, or do the following:</p>
+source file directly, or do the following:</p>
 <ul>
 <li>load turbo assembler, start (by <code>SYS 9&lowast;4096</code> or <code>SYS 8&lowast;4096</code> depending on version)
 <li>&larr; then l to load a source file
@@ -3169,7 +3169,7 @@ disable them. The options below with this prefix are enabled by default, the oth
 <dd>Warns if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
 for <q><code>asl a</code></q> for compatibility
-reasons, but it's not the preferred form.</p>
+reasons, but this shorthand is not the preferred form.</p>
 
 <dt><b>-Wno-jmp-bug</b><a name="o_Wjmp-bug" href="#o_Wjmp-bug"></a>
 <dd>Don't warn about the <code>jmp ($xxff)</code> bug.
@@ -3194,7 +3194,18 @@ unknown aliases and not for enforcing label placement.</p>
 <dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
 <dd>Warn about optimizable code.
 <p>Warns on things that could be optimized, at least according to the limited
-analyzis done.</p>
+analysis done. Currently it's easy to fool with these constructs:</p>
+
+<ul>
+<li>Self modifying code, especially modifying immediate addressing mode instructions or branch targets
+<li>Using <code>.byte $2c</code> and similar tricks to skip instructions.
+<li>Using <code>*+5</code> and similar tricks to skip instructions, or to loop like <code>*-1</code>.
+<li>Any other method of flow control not involving referenced labels. E.g. calculated returns.
+</ul>
+
+<p>It's also rather simple and conservative, so some opportunities will be
+missed. Most CPUs are supported with the notable exception of 65816 and 65EL02,
+but this could improve in later versions.</p>
 
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
 <dd>Warn about symbol shadowing.
@@ -3455,15 +3466,19 @@ internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
-<dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparions is going away soon, update source
+<dt>compile offset overflow<dd>compile continues at the bottom ($0000)
+<dt>could be shorter by ...<dd>an alternative equivalent instruction proposed by the optimizer
+<dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators, update source
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
-<dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label
+<dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label
 <dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
 <dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
+<dt>possibly redundant as ...<dd>according to the optimizer this might not be needed
+<dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility detected
+<dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
-<dt>compile offset overflow<dd>compile continues at the bottom ($0000)
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
@@ -3506,7 +3521,7 @@ will display without them.</p>
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
 <dt>logarithm of non-positive number<dd>only positive numbers have a logarithm
 <dt>missing argument<dd>not enough arguments supplied to function
-<dt>most significiant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
+<dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>negative number raised on fractional power<dd>can't calculate this
 <dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this opcode
 <dt>not a bank 0 address<dd>value must be a bank zero address
@@ -3561,7 +3576,8 @@ Improved TASS compatibility, PETSCII codes by Groepaz.</p>
 Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
 Berlin, snprintf Alain Magloire, Amiga OS4 support files by Janne Per&auml;aho.</p>
 
-<p>Pierre Zero helped to uncover a lot of faults by fuzzing.</p>
+<p>Pierre Zero helped to uncover a lot of faults by fuzzing. Also there were a
+lot of discussions with oziphantom about the need of various features.</p>
 
 <p>Main developer and maintainer: soci at c64.rulez.org</p>
 <hr>

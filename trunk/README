@@ -208,7 +208,7 @@ and the length must be known to copy it there. Here's an example:
         ldx #size(zpcode)-1;calculate length
 -       lda zpcode,x
         sta wrbyte,x
-        dex             ;install to zeropage
+        dex             ;install to zero page
         bpl -
         jsr wrbyte
         rts
@@ -606,9 +606,10 @@ addr,x         x indexed                            lda $12,x
 addr,y         y indexed                            lda $12,y
 
 Direct page, data bank, program bank indexed and long addressing modes of
-instructions are inteligently chosen based on the instruction type, the address
-ranges set up by .dpage, .databank and the current program counter address.
-Therefore the `,d', `,b' and `,k' indexing is only used in very special cases.
+instructions are intelligently chosen based on the instruction type, the
+address ranges set up by .dpage, .databank and the current program counter
+address. Therefore the `,d', `,b' and `,k' indexing is only used in very
+special cases.
 
 The direct page indexed (,d) addressing mode is not affected by the .dpage
 directive and always forces the 8 bit address as is. It's only usable for
@@ -767,7 +768,7 @@ Therefore they're easy to reuse without explicit scope declaration directives.
 
 Not all regularly named symbols can be scope boundaries just plain code symbol
 ones without anything or an opcode after them (no macros!). Symbols defined as
-procedures, blocks, macros, functions, structs and unions are ignored. Also
+procedures, blocks, macros, functions, structures and unions are ignored. Also
 symbols defined by .var, := or = don't apply, and there are a few more
 exceptions, so stick to using plain code labels.
 
@@ -835,7 +836,7 @@ re-definable. Forward referencing of them is allowed as they retain the objects
 over compilation passes.
 
 Symbols in front of code or certain assembler directives are created as
-constant symbols too. They are binded to the object following them.
+constant symbols too. They are bound to the object following them.
 
 Re-definable symbols can be created by the .var directive or := construct.
 These are also called as variables as they don't carry their content over from
@@ -972,7 +973,7 @@ format(<string expression>[, <expression>, ...])
           Formatting conversion types
     a A   hexadecimal floating point (uppercase)
     b     binary
-    c     unicode character
+    c     Unicode character
     d     decimal
     e E   exponential float (uppercase)
     f F   floating point (uppercase)
@@ -1428,7 +1429,7 @@ using the current encoding.
 
 .shift <expression>[, <expression>, ...]
     Assemble strings of 7 bit bytes and mark the last byte by setting it's most
-    significiant bit.
+    significant bit.
 
     Any byte which already has the most significant bit set will cause an
     error. The last byte can't be uninitialized or missing of course.
@@ -1450,7 +1451,7 @@ using the current encoding.
 
 .shiftl <expression>[, <expression>, ...]
     Assemble strings of 7 bit bytes shifted to the left once with the last
-    byte's least significiant bit set.
+    byte's least significant bit set.
 
     Any byte which already has the most significant bit set will cause an error
     as this is cut off on shifting. The last byte can't be uninitialized or
@@ -1638,7 +1639,7 @@ backg   .byte ?
         .endu
 
 Anonymous structures and unions in combination with sections are useful for
-overlapping memory assignment. The example below shares zeropage allocations
+overlapping memory assignment. The example below shares zero page allocations
 for two separate parts of a bigger program. The common subroutine variables are
 assigned after in the `zp' section.
 
@@ -1969,7 +1970,7 @@ global one with the same name.
 .endweak
     Weak symbol area
 
-    Any symbols defined inside can be overriden by `stronger' symbols in the
+    Any symbols defined inside can be overridden by `stronger' symbols in the
     same scope from outside. Can be nested as necessary.
 
     This gives the possibility of giving default values for symbols which might
@@ -2017,8 +2018,8 @@ to manipulate the compile offset in fragments, but putting code before the
 start of .dsection is not allowed.
 
 *       = $02
-        .dsection zp   ;declare zeropage section
-        .cerror * > $30, "Too many zeropage variables"
+        .dsection zp   ;declare zero page section
+        .cerror * > $30, "Too many zero page variables"
 
 *       = $334
         .dsection bss   ;declare uninitialized variable section
@@ -2038,7 +2039,7 @@ start of .dsection is not allowed.
 ss      .word 0
 
 start   sei
-        .section zp     ;declare some new zeropage variables
+        .section zp     ;declare some new zero page variables
 p2      .word ?         ;a pointer
         .send zp
         .section bss    ;new variables
@@ -2055,7 +2056,7 @@ label   .null "message"
         .send data
 
         jmp error
-        .section zp     ;declare some more zeropage variables
+        .section zp     ;declare some more zero page variables
 p3      .word ?         ;a pointer
         .send zp
         .send code
@@ -2398,7 +2399,7 @@ Original turbo assembler compatibility
 How to convert source code for use with 64tass
 
 Currently there are two options, either use `TMPview' by Style to convert the
-sourcefile directly, or do the following:
+source file directly, or do the following:
 
   * load turbo assembler, start (by SYS 9*4096 or SYS 8*4096 depending on
     version)
@@ -2743,7 +2744,7 @@ default, the others are disabled.
     Warns if implied addressing is used instead of register.
 
     Some instructions have implied aliases like `asl' for `asl a' for
-    compatibility reasons, but it's not the preferred form.
+    compatibility reasons, but this shorthand is not the preferred form.
 
 -Wno-jmp-bug
     Don't warn about the jmp ($xxff) bug.
@@ -2775,7 +2776,18 @@ default, the others are disabled.
     Warn about optimizable code.
 
     Warns on things that could be optimized, at least according to the limited
-    analyzis done.
+    analysis done. Currently it's easy to fool with these constructs:
+
+      + Self modifying code, especially modifying immediate addressing mode
+        instructions or branch targets
+      + Using .byte $2c and similar tricks to skip instructions.
+      + Using *+5 and similar tricks to skip instructions, or to loop like *-1.
+      + Any other method of flow control not involving referenced labels. E.g.
+        calculated returns.
+
+    It's also rather simple and conservative, so some opportunities will be
+    missed. Most CPUs are supported with the notable exception of 65816 and
+    65EL02, but this could improve in later versions.
 
 -Wshadow
     Warn about symbol shadowing.
@@ -3018,8 +3030,12 @@ without them.
 
 Warnings
 
+compile offset overflow
+    compile continues at the bottom ($0000)
+could be shorter by ...
+    an alternative equivalent instruction proposed by the optimizer
 deprecated equal operator, use '==' instead
-    single equal sign for comparions is going away soon, update source
+    single equal sign for comparisons is going away soon, update source
 deprecated modulo operator, use '%' instead
     double slash for modulo is going away soon, update source
 deprecated not equal operator, use '!=' instead
@@ -3027,16 +3043,21 @@ deprecated not equal operator, use '!=' instead
 directive ignored
     an assembler directive was ignored for compatibility reasons.
 label not on left side
-    check if an instruction name was not mistyped and if the currect CPU has
+    check if an instruction name was not mistyped and if the current CPU has
     it, or remove white space before label
 long branch used
     branch too long, so long branch was used (bxx *+5 jmp)
 possible jmp ($xxff) bug
     yet another 65xx feature...
+possibly redundant as ...
+    according to the optimizer this might not be needed
+possibly redundant if last 'jsr' is changed to 'jmp'
+    tail call elimination possibility detected
+possibly redundant indexing with a constant value
+    the index register used seems to be constant and there's a way to eliminate
+    indexing
 processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank
-compile offset overflow
-    compile continues at the bottom ($0000)
 
 Errors
 
@@ -3116,7 +3137,7 @@ logarithm of non-positive number
     only positive numbers have a logarithm
 missing argument
     not enough arguments supplied to function
-most significiant bit must be clear in byte
+most significant bit must be clear in byte
     for .shift and .shiftl only 7 bit "bytes" are valid
 negative number raised on fractional power
     can't calculate this

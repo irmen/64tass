@@ -568,6 +568,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cod = cpu->lb & 0xff;
     }
 
+    if (cputype == &w65816 || cputype == &c65el02) return; /* unsupported for now */
+
     switch (cod) {
     case 0x71: /* ADC ($12),y */
     case 0xF1: /* SBC ($12),y */
