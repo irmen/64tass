@@ -2751,6 +2751,16 @@ default, the others are disabled.
     It's fine that the high byte is read from the `wrong' address on 6502,
     6502i and 65dtv02.
 
+-Wno-label-left
+    Don't warn about certain labels not being on left side.
+
+    You may disable this if you use labels which look like mistyped versions of
+    implied addressing mode instructions and you don't want to put them in the
+    first column.
+
+    This check is there to catch typos, unsupported implied instructions, or
+    unknown aliases and not for enforcing label placement.
+
 -Wno-mem-wrap
     Don't warn for compile offset wrap around.
 

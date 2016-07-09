@@ -58,6 +58,7 @@ struct diagnostics_s diagnostics = {
     true,        /* jmp_bug */
     true,        /* pc_wrap */
     true,        /* mem_wrap */
+    true,        /* label_left */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -68,6 +69,7 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* jmp_bug */
     false,       /* pc_wrap */
     false,       /* mem_wrap */
+    false,       /* label_left */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -79,6 +81,7 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* jmp_bug */
     true,        /* pc_wrap */
     true,        /* mem_wrap */
+    true,        /* label_left */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -90,6 +93,7 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* jmp_bug */
     true,        /* pc_wrap */
     true,        /* mem_wrap */
+    true,        /* label_left */
 };
 
 struct w_options_s {
@@ -105,6 +109,7 @@ static const struct w_options_s w_options[] = {
     {"jmp-bug",      &diagnostics.jmp_bug},
     {"pc-wrap",      &diagnostics.pc_wrap},
     {"mem-wrap",     &diagnostics.mem_wrap},
+    {"label-left",   &diagnostics.label_left},
     {NULL,           NULL}
 };
 

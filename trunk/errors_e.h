@@ -28,7 +28,6 @@
 enum errors_e {
     ERROR___LONG_BRANCH = 0x00,
     ERROR_DIRECTIVE_IGN,
-    ERROR_LABEL_NOT_LEF,
     ERROR_____OLD_EQUAL,
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,

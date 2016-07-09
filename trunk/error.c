@@ -324,7 +324,6 @@ static void adderror(const char *s) {
 static const char *terr_warning[] = {
     "long branch used",
     "directive ignored",
-    "label not on left side",
     "deprecated equal operator, use '==' instead",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
@@ -878,6 +877,11 @@ void err_msg_mem_wrap(void) {
     if (!diagnostics.mem_wrap) return;
     new_error_msg(diagnostic_errors.mem_wrap ? SV_ERROR : SV_WARNING, current_file_list, &lpoint);
     adderror("compile offset overflow [-Wmem-wrap]");
+}
+
+void err_msg_label_left(linepos_t epoint) {
+    new_error_msg(diagnostic_errors.label_left ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    adderror("label not on left side [-Wlabel-left]");
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {

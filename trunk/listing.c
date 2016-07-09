@@ -436,7 +436,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
     int lcol;
     char str[3 * 16 + 1], prev[3 * 16 + 1], *s;
     address_t omyaddr, omyaddr2, oomyaddr, oomyaddr2;
-    size_t repeat;
+    unsigned int repeat;
     size_t p;
 
     if (nolisting != 0 || temporary_label_branch != 0) return;
