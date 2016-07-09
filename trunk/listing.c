@@ -431,7 +431,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
 }
 
 void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
-    bool print, exit = false;
+    bool print, exitnow = false;
     int l;
     int lcol;
     char str[3 * 16 + 1], prev[3 * 16 + 1], *s;
@@ -445,15 +445,15 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
          return;
     }
     print = true;
-    omyaddr = myaddr;
-    omyaddr2 = myaddr2;
+    oomyaddr = omyaddr = myaddr;
+    oomyaddr2 = omyaddr2 = myaddr2;
     s = str; repeat = 0; p = 0;
     if (len != 0) {
         lcol = arguments.source ? (arguments.monitor ? 8 : 4) : 16;
         while (len != 0) {
             if ((lcol--) == 0) {
                 *s = 0;
-                if (print || strcmp(prev, str) || arguments.verbose) {
+                if (print || strcmp(prev, str) != 0 || arguments.verbose) {
                 flush:
                     if (repeat != 0) {
                         l = arguments.linenum ? padding(0, columns.addr) : 0;
@@ -491,7 +491,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
                     if (arguments.source && print) {
                         printllist(l);
                     } else putc('\n',flist);
-                    if (exit) return;
+                    if (exitnow) return;
                     print = false;
                 } else repeat++;
                 s = str;
@@ -509,7 +509,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
         }
     }
     *s = 0;
-    exit = true;
+    exitnow = true;
     goto flush;
 }
 

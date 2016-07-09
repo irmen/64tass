@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.52 r1050 reference manual</title>
+<title>64tass v1.52 r1228 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -35,7 +35,7 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.errorlist dt, dl.dir dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre {font-family:monospace,monospace;}
+dl.errorlist dt, dl.dir dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, tt {font-family:monospace,monospace;}
 dl.dir code b { color: inherit; }
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
@@ -85,7 +85,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.52 r1050 reference manual</h1>
+<h1>64tass v1.52 r1228 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -151,6 +151,7 @@ Not everything is backwards compatible.</b></p>
    <li><a href="#conditionals">Conditional operators</a>
    <li><a href="#addresslength">Address length forcing</a>
    <li><a href="#compound">Compound assignment</a>
+   <li><a href="#slicing_indexing">Slicing and indexing</a>
   </ul>
  </ul>
  <li><a href="#compiler-directives">Compiler directives</a>
@@ -244,7 +245,7 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#opcodes-w65816">W65816 opcodes</a>
   <li><a href="#opcodes-65el02">65EL02 opcodes</a>
   <li><a href="#opcodes-65ce02">65CE02 opcodes</a>
-  <li><a href="#opcodes-4510">4510 opcodes</a>
+  <li><a href="#opcodes-4510">CSG 4510 opcodes</a>
  </ul>
  <li><a href="#appendix">Appendix</a>
  <ul>
@@ -3420,6 +3421,12 @@ result (list.txt):
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
+
+<dt><b>--line-numbers</b><a name="o_line-numbers" href="#o_line-numbers"></a>
+
+<dd>This option creates a new column for showing line numbers for easier
+identification of source origin. The line number is followed with an optional colon
+separated file number in case it comes from a different file then the previous lines.
 
 <dt><b>--tab-size</b>=&lt;number&gt;<a name="o_tab-size" href="#o_tab-size"></a>
 

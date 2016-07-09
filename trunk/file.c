@@ -177,8 +177,7 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
 {
     const struct file_s *a = cavltree_container_of(aa, struct file_s, node);
     const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
-    int c;
-    c = strcmp(a->name, b->name);
+    int c = strcmp(a->name, b->name);
     if (c != 0) return c;
     return strcmp(a->base, b->base);
 }
