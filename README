@@ -1,4 +1,4 @@
-64tass v1.52 r1050 reference manual
+64tass v1.52 r1228 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -59,6 +59,7 @@ Table of Contents
           o Conditional operators
           o Address length forcing
           o Compound assignment
+          o Slicing and indexing
   * Compiler directives
       + Controlling the compile offset and program counter
       + Dumping data
@@ -125,7 +126,7 @@ Table of Contents
       + W65816 opcodes
       + 65EL02 opcodes
       + 65CE02 opcodes
-      + 4510 opcodes
+      + CSG 4510 opcodes
   * Appendix
       + Assembler directives
       + Built-in functions
@@ -2993,6 +2994,11 @@ Source listing options
 
     ;******  End of listing
 
+--line-numbers
+    This option creates a new column for showing line numbers for easier
+    identification of source origin. The line number is followed with an
+    optional colon separated file number in case it comes from a different file
+    then the previous lines.
 --tab-size=<number>
     By default the listing file is using a tab size of 8 to align the
     disassembly. This can be changed to other more favorable values like 4.

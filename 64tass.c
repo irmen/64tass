@@ -1502,7 +1502,7 @@ Obj *compile(struct file_list_s *cflist)
                 unsigned int i;
                 for (i = 0; i < 3; i++) {
                     char c = labelname.data[i] | arguments.caseinsensitive;
-                    if ((c < 'a') | (c > 'z')) break;
+                    if ((c < 'a') || (c > 'z')) break;
                 }
                 if (i == 3) err_msg_label_left(&epoint);
             }

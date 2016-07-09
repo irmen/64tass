@@ -267,10 +267,12 @@ static bool asri(struct optimizer_s *cpu, Reg8 *r, Reg8 *v) {
     Bit *b = and_bit(r->a[0], v->a[0]);
     bool ret = eq_bit(cpu->p.c, b);
     set_bit(&cpu->p.c, b);
+    del_bit(v->a[0]);
     for (i = 0; i < 7; i++) {
         b = and_bit(r->a[i + 1], v->a[i + 1]);
         if (ret && !eq_bit(r->a[i], b)) ret = false;
         set_bit(&r->a[i], b);
+        del_bit(v->a[i + 1]);
     }
     b = new_bit0();
     ret = ret && eq_bit(r->a[7], b);
@@ -1374,6 +1376,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                             change_bit(&cpu->p.c, cpu->a.a[7]);
                             if (b != BU) {
                                 optname = (b == B0 ? "clc" : "sec");
+                                del_reg(&alu);
                                 goto replace;
                             }
                             break;
@@ -1424,7 +1427,10 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                         break;
                     case 0xCB: /* SBX #$12 */
                         load_imm(adr, &alu);
-                        if (sbx(cpu, &cpu->x, &cpu->a, &alu, &optname)) goto remove;
+                        if (sbx(cpu, &cpu->x, &cpu->a, &alu, &optname)) {
+                            del_reg(&alu);
+                            goto remove;
+                        }
                         set_reg(&alu, &cpu->x);
                         if (optname != NULL) goto replace;
                         break;

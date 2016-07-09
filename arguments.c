@@ -128,20 +128,20 @@ static bool woption(const char *n, const char *s) {
     const struct w_options_s *w = w_options;
     const char *s2 = no ? s + 3 : s;
 
-    if (!strcmp(s2, "all")) {
+    if (strcmp(s2, "all") == 0) {
         memcpy(&diagnostics, no ? &diagnostic_no_all : &diagnostic_all, sizeof diagnostics);
         return false;
     }
 
-    if (!strcmp(s2, "error")) {
+    if (strcmp(s2, "error") == 0) {
         memcpy(&diagnostic_errors, no ? &diagnostic_no_error_all : &diagnostic_error_all, sizeof diagnostic_errors);
         return false;
     }
 
-    if (!strncmp(s2, "error=", 6)) {
+    if (strncmp(s2, "error=", 6) == 0) {
         s2 += 6;
         while (w->name != NULL) {
-            if (!strcmp(w->name, s2)) {
+            if (strcmp(w->name, s2) == 0) {
                 b = w->opt - &diagnostics.shadow + &diagnostic_errors.shadow;
                 *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_error_all.shadow;
@@ -154,7 +154,7 @@ static bool woption(const char *n, const char *s) {
         }
     } else {
         while (w->name != NULL) {
-            if (!strcmp(w->name, s2)) {
+            if (strcmp(w->name, s2) == 0) {
                 *w->opt = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_all.shadow;
                 *b = !no;
