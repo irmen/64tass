@@ -105,7 +105,7 @@ static const struct w_options_s w_options[] = {
     {"jmp-bug",      &diagnostics.jmp_bug},
     {"pc-wrap",      &diagnostics.pc_wrap},
     {"mem-wrap",     &diagnostics.mem_wrap},
-    {NULL,           NULL,                     NULL}
+    {NULL,           NULL}
 };
 
 static bool woption(const char *n, const char *s) {
