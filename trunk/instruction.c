@@ -510,7 +510,10 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     }
                 } else { /* short */
                     if (((uint16_t)(current_section->l_address.address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
-                        if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, NULL, epoint);
+                        int diff = (int8_t)oadr;
+                        if (diff >= 0) diff++;
+                        if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, &diff, epoint);
+                        else if (diagnostics.branch_page) err_msg_branch_page(diff, epoint);
                     }
                     if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (adr == 0) {

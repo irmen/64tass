@@ -264,6 +264,10 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     return false;
 }
 
+static void new_error_msg2(bool type, linepos_t epoint) {
+    new_error_msg(type ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+}
+
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
@@ -327,6 +331,7 @@ static const char *terr_warning[] = {
     "deprecated equal operator, use '==' instead",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
+    "deprecated directive, only for TASM compatible mode",
     "possibly redundant if last 'jsr' is changed to 'jmp'",
     "possibly redundant indexing with a constant value"
 };
@@ -414,23 +419,30 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     if (no < 0x40) {
         switch (no) {
         case ERROR___OPTIMIZABLE:
-            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+            new_error_msg2(diagnostic_errors.optimize, epoint);
             adderror("could be shorter by using '");
             adderror((const char *)prm);
             adderror("' instead");
             adderror(" [-Woptimize]");
             break;
         case ERROR_____REMOVABLE:
-            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+            new_error_msg2(diagnostic_errors.optimize, epoint);
             adderror("possibly redundant as ");
             adderror((const char *)prm);
             adderror(" [-Woptimize]");
             break;
         case ERROR___CONST_INDEX:
         case ERROR_____TAIL_CALL:
-            new_error_msg(diagnostic_errors.optimize ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+            new_error_msg2(diagnostic_errors.optimize, epoint);
             adderror(terr_warning[no]);
             adderror(" [-Woptimize]");
+            break;
+        case ERROR_____OLD_EQUAL:
+        case ERROR____OLD_MODULO:
+        case ERROR_______OLD_NEQ:
+            new_error_msg2(diagnostic_errors.deprecated, epoint);
+            adderror(terr_warning[no]);
+            adderror(" [-Wdeprecated]");
             break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
@@ -459,7 +471,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             sprintf(line,"ptext too long by %" PRIuSIZE " bytes", *(const size_t *)prm - 0x100); adderror(line);
             break;
         case ERROR__BRANCH_CROSS:
-            adderror("branch crosses page");
+            sprintf(line,"branch crosses page by %+d bytes", *(const int *)prm); adderror(line);
             break;
         case ERROR__USER_DEFINED:
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
@@ -839,20 +851,20 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
 
 void err_msg_bool(enum errors_e no, Obj *o, linepos_t epoint) {
     const char *name = o->obj->name;
-    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    new_error_msg2(diagnostic_errors.strict_bool, epoint);
     adderror(terr_error[no - 0x40]);
     str_name((const uint8_t *)name, strlen(name));
     adderror(" [-Wstrict-bool]");
 }
 
 void err_msg_bool_val(enum errors_e no, unsigned int bits, Obj *o, linepos_t epoint) {
-    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    new_error_msg2(diagnostic_errors.strict_bool, epoint);
     err_msg_big_integer(terr_error[no - 0x40], bits, o, epoint);
     adderror(" [-Wstrict-bool]");
 }
 
 void err_msg_bool_oper(oper_t op) {
-    new_error_msg(diagnostic_errors.strict_bool ? SV_ERROR : SV_WARNING, current_file_list, op->epoint3);
+    new_error_msg2(diagnostic_errors.strict_bool, op->epoint3);
     err_msg_invalid_oper2(op->op, op->v1, op->v2);
     adderror(" [-Wstrict-bool]");
 }
@@ -863,25 +875,32 @@ void err_msg_implied_reg(linepos_t epoint) {
 }
 
 void err_msg_jmp_bug(linepos_t epoint) {
-    new_error_msg(diagnostic_errors.jmp_bug ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    new_error_msg2(diagnostic_errors.jmp_bug, epoint);
     adderror( "possible jmp ($xxff) bug [-Wjmp-bug]");
 }
 
 void err_msg_pc_wrap(void) {
     if (!diagnostics.pc_wrap) return;
-    new_error_msg(diagnostic_errors.pc_wrap ? SV_ERROR : SV_WARNING, current_file_list, &lpoint);
+    new_error_msg2(diagnostic_errors.pc_wrap, &lpoint);
     adderror("processor program counter overflow [-Wpc-wrap]");
 }
 
 void err_msg_mem_wrap(void) {
     if (!diagnostics.mem_wrap) return;
-    new_error_msg(diagnostic_errors.mem_wrap ? SV_ERROR : SV_WARNING, current_file_list, &lpoint);
+    new_error_msg2(diagnostic_errors.mem_wrap, &lpoint);
     adderror("compile offset overflow [-Wmem-wrap]");
 }
 
 void err_msg_label_left(linepos_t epoint) {
-    new_error_msg(diagnostic_errors.label_left ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    new_error_msg2(diagnostic_errors.label_left, epoint);
     adderror("label not on left side [-Wlabel-left]");
+}
+
+void err_msg_branch_page(int by, linepos_t epoint) {
+    char msg2[256];
+    new_error_msg2(diagnostic_errors.branch_page, epoint);
+    sprintf(msg2, "branch crosses page by %+d bytes [-Wbranch-page]", by);
+    adderror(msg2);
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
