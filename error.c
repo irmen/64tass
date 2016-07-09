@@ -328,7 +328,6 @@ static void adderror(const char *s) {
 static const char *terr_warning[] = {
     "long branch used",
     "directive ignored",
-    "deprecated equal operator, use '==' instead",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
@@ -437,12 +436,15 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             adderror(terr_warning[no]);
             adderror(" [-Woptimize]");
             break;
-        case ERROR_____OLD_EQUAL:
-        case ERROR____OLD_MODULO:
         case ERROR_______OLD_NEQ:
+        case ERROR____OLD_MODULO:
             new_error_msg2(diagnostic_errors.deprecated, epoint);
             adderror(terr_warning[no]);
             adderror(" [-Wdeprecated]");
+            break;
+        case ERROR_____OLD_EQUAL:
+            new_error_msg2(diagnostic_errors.old_equal, epoint);
+            adderror("deprecated equal operator, use '==' instead [-Wold-equal]");
             break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);

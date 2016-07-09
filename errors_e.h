@@ -28,7 +28,6 @@
 enum errors_e {
     ERROR___LONG_BRANCH = 0x00,
     ERROR_DIRECTIVE_IGN,
-    ERROR_____OLD_EQUAL,
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,
     ERROR______OLD_GOTO,
@@ -37,6 +36,7 @@ enum errors_e {
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR_____REMOVABLE,
+    ERROR_____OLD_EQUAL,
 
     ERROR__DOUBLE_RANGE = 0x40,
     ERROR_DOUBLE_ESCAPE,
