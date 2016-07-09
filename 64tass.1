@@ -143,6 +143,12 @@ Warns if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
 compatibility reasons, but it's not the preferred form.
 .TP 0.5i
+\fB\-Wno\-label\-left\fR
+Don't warn about certain labels not being on left side.
+You may disable this if you use labels which look like mistyped versions of
+implied addressing mode instructions and you don't want to put them in the
+first column.
+.TP 0.5i
 \fB\-Wno\-jmp\-bug\fR
 Don't warn about the jmp ($xxff) bug.
 It's fine that the high byte is read from the 'wrong' address on 6502,

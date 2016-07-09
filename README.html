@@ -3175,6 +3175,14 @@ reasons, but it's not the preferred form.</p>
 <dd>Don't warn about the <code>jmp ($xxff)</code> bug.
 <p>It's fine that the high byte is read from the <q>wrong</q> address on 6502, 6502i and 65dtv02.</p>
 
+<dt><b>-Wno-label-left</b><a name="o_Wlabel-left" href="#o_Wlabel-left"></a>
+<dd>Don't warn about certain labels not being on left side.
+<p>You may disable this if you use labels which look like mistyped versions of
+implied addressing mode instructions and you don't want to put them in the first
+column.</p>
+<p>This check is there to catch typos, unsupported implied instructions, or
+unknown aliases and not for enforcing label placement.</p>
+
 <dt><b>-Wno-mem-wrap</b><a name="o_Wmem-wrap" href="#o_Wmem-wrap"></a>
 <dd>Don't warn for compile offset wrap around.
 <p>Continue from the beginning of image file once it's end was reached.</p>

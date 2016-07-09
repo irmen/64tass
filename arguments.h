@@ -64,6 +64,7 @@ struct diagnostics_s {
     bool jmp_bug;
     bool pc_wrap;
     bool mem_wrap;
+    bool label_left;
 };
 
 extern int testarg(int, char **, struct file_s *);

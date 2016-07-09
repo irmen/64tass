@@ -1497,7 +1497,14 @@ Obj *compile(struct file_list_s *cflist)
                 newlabel->ref = false;
                 goto as_command;
             }
-            if (!newlabel->ref && epoint.pos != 0) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
+            if (labelname.len == 3 && !newlabel->ref && epoint.pos != 0 && diagnostics.label_left) {
+                unsigned int i;
+                for (i = 0; i < 3; i++) {
+                    char c = labelname.data[i] | arguments.caseinsensitive;
+                    if ((c < 'a') | (c > 'z')) break;
+                }
+                if (i == 3) err_msg_label_left(&epoint);
+            }
             epoint = lpoint;
             newlabel->ref = false;
         }
