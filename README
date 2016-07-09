@@ -1876,7 +1876,7 @@ Repetitions
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
     Causes assembler to continue assembling from the jump label. No forward
-    references of course, handle with care. Typically used in classic TASM
+    references of course, handle with care. Should only be used in classic TASM
     sources for creating loops.
 
     i       .var 100
@@ -1898,7 +1898,7 @@ found there the include search path is consulted for further possible
 locations.
 
 To make your sources portable please always use forward slashes (/) as a
-directory separator and use lower/uppercase consistently in filenames!
+directory separator and use lower/uppercase consistently in file names!
 
 .include <filename>
     Include source file here.
@@ -2729,8 +2729,8 @@ prefix to disable them. The options below with this prefix are enabled by
 default, the others are disabled.
 
 -Wall
-    Enable all diagnostic warnings, except those individually disabled. Or with
-    the `no-' prefix disable all except those enabled.
+    Enable most diagnostic warnings, except those individually disabled. Or
+    with the `no-' prefix disable all except those enabled.
 -Werror
     Make all diagnostic warnings to an error, except those individually set to
     a warning.
@@ -2740,17 +2740,29 @@ default, the others are disabled.
     For example `-Werror=implied-reg' makes this check an error. The
     `-Wno-error=' variant is useful with `-Werror' to set some to warnings.
 
+-Wbranch-page
+    Warns if a branch is crossing a page.
+
+    Page crossing branches execute with a penalty cycle. This option helps to
+    locate them easily.
+
 -Wimplied-reg
     Warns if implied addressing is used instead of register.
 
     Some instructions have implied aliases like `asl' for `asl a' for
     compatibility reasons, but this shorthand is not the preferred form.
 
+-Wno-deprecated
+    Don't warn about deprecated features.
+
+    Unfortunately there were some features added previously which shouldn't
+    have been included. This option disables warnings about their uses.
+
 -Wno-jmp-bug
     Don't warn about the jmp ($xxff) bug.
 
-    It's fine that the high byte is read from the `wrong' address on 6502,
-    6502i and 65dtv02.
+    It's fine that the high byte is read from the `wrong' address on 6502, NMOS
+    6502 and 65DTV02.
 
 -Wno-label-left
     Don't warn about certain labels not being on left side.
@@ -3034,6 +3046,8 @@ compile offset overflow
     compile continues at the bottom ($0000)
 could be shorter by ...
     an alternative equivalent instruction proposed by the optimizer
+deprecated directive, only for TASM compatible mode
+    .goto and .lbl should only be used in TASM compatible mode
 deprecated equal operator, use '==' instead
     single equal sign for comparisons is going away soon, update source
 deprecated modulo operator, use '%' instead
@@ -3071,7 +3085,7 @@ addressing mode too complex
     too much indexing or indirection
 at least one byte is needed
     the expression didn't yield any bytes
-branch crosses page
+branch crosses page by ? bytes
     page crossing detected
 branch too far by ? bytes
     can't branch that far
@@ -3229,7 +3243,8 @@ Additional code: my_getopt command-line argument parser by Benjamin Sittler,
 avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin, snprintf
 Alain Magloire, Amiga OS4 support files by Janne Per?aho.
 
-Pierre Zero helped to uncover a lot of faults by fuzzing.
+Pierre Zero helped to uncover a lot of faults by fuzzing. Also there were a lot
+of discussions with oziphantom about the need of various features.
 
 Main developer and maintainer: soci at c64.rulez.org
 

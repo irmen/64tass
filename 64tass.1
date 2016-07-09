@@ -129,7 +129,7 @@ possible to redirect them to a file or to the standard output by using '-'
 as the file name.
 .TP 0.5i
 \fB\-Wall\fR
-Enable all diagnostic warnings, except those individually disabled. Or with the 'no-' prefix disable all except those enabled. 
+Enable most diagnostic warnings, except those individually disabled. Or with the 'no-' prefix disable all except those enabled.
 .TP 0.5i
 \fB\-Werror\fR
 Make all diagnostic warnings to an error, except those individually set to a warning. 
@@ -138,10 +138,20 @@ Make all diagnostic warnings to an error, except those individually set to a war
 Change a diagnostic warning to an error.
 For example "-Werror=implied-reg" makes this check an error. The "-Wno-error=" variant is useful with "-Werror" to set some to warnings.
 .TP 0.5i
+\fB\-Wbranch\-page\fR
+Warns if a branch is crossing a page.
+Page crossing branches execute with a penalty cycle. This option helps to
+locate them.
+.TP 0.5i
 \fB\-Wimplied\-reg\fR
 Warns if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
 compatibility reasons, but this shorthand not the preferred form.
+.TP 0.5i
+\fB\-Wno\-deprecated\fR
+Don't warn about deprecated features.
+Unfortunately there were some features added previously which shouldn't
+have been included. This option disables warnings about their uses.
 .TP 0.5i
 \fB\-Wno\-label\-left\fR
 Don't warn about certain labels not being on left side.
@@ -152,7 +162,7 @@ first column.
 \fB\-Wno\-jmp\-bug\fR
 Don't warn about the jmp ($xxff) bug.
 It's fine that the high byte is read from the 'wrong' address on 6502,
-6502i and 65dtv02.
+NMOS 6502 and 65DTV02.
 .TP 0.5i
 \fB\-Wno\-mem\-wrap\fR
 Don't warn for compile offset wrap around.
@@ -193,7 +203,7 @@ NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64, disk d
 65DTV02. Enables extra opcodes specific to DTV.
 .TP 0.5i
 \fB\-x\fR, \fB\-\-m65816\fR
-W65C816. Enables extra opcodes, and full 16 MiB address space. Useful for SuperCPU projects.
+W65C816. Enables extra opcodes. Useful for SuperCPU projects.
 .TP 0.5i
 \fB\-e\fR, \fB\-\-m65el02\fR
 65EL02. Enables extra opcodes, useful RedPower CPU projects. Probably you'll need "\-\-nostart" as well.

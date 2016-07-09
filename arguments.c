@@ -59,6 +59,8 @@ struct diagnostics_s diagnostics = {
     true,        /* pc_wrap */
     true,        /* mem_wrap */
     true,        /* label_left */
+    false,       /* branch_page */
+    true,        /* deprecated */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -70,18 +72,22 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* pc_wrap */
     false,       /* mem_wrap */
     false,       /* label_left */
+    false,       /* branch_page */
+    false,       /* deprecated */
 };
 
 static struct diagnostics_s diagnostic_no_all;
 static struct diagnostics_s diagnostic_all = {
     true,        /* shadow */
     true,        /* strict_bool */
-    true,        /* optimize */
+    false,       /* optimize */
     true,        /* implied_reg */
     true,        /* jmp_bug */
     true,        /* pc_wrap */
     true,        /* mem_wrap */
     true,        /* label_left */
+    false,       /* branch_page */
+    true,        /* deprecated */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -94,6 +100,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* pc_wrap */
     true,        /* mem_wrap */
     true,        /* label_left */
+    true,        /* branch_page */
+    true,        /* deprecated */
 };
 
 struct w_options_s {
@@ -110,6 +118,8 @@ static const struct w_options_s w_options[] = {
     {"pc-wrap",      &diagnostics.pc_wrap},
     {"mem-wrap",     &diagnostics.mem_wrap},
     {"label-left",   &diagnostics.label_left},
+    {"branch-page",  &diagnostics.branch_page},
+    {"deprecated",   &diagnostics.deprecated},
     {NULL,           NULL}
 };
 
@@ -312,15 +322,20 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -T, --tasm-compatible Enable TASM compatible mode\n"
            "  -w, --no-warn         Suppress warnings\n"
            "      --no-caret-diag   Suppress source line display\n"
-           "  -Wall                 Enable all diagnostic warnings\n"
+           "\n"
+           " Diagnostic options:\n"
+           "  -Wall                 Enable most diagnostic warnings\n"
            "  -Werror               Diagnostic warnings to errors\n"
            "  -Werror=<name>        Make a diagnostic to an error\n"
            "  -Wno-error=<name>     Make a diagnostic to a warning\n"
+           "  -Wbranch-page         Warn if a branch crosses a page\n"
            "  -Wimplied-reg         No implied register aliases\n"
-           "  -Woptimize            Optimization warnings\n"
+           "  -Wno-deprecated       No deprecated feature warnings\n"
            "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
+           "  -Wno-label-left       No warning about strange labels\n"
            "  -Wno-mem-wrap         No offset overflow warning\n"
            "  -Wno-pc-wrap          No PC overflow warning\n"
+           "  -Woptimize            Optimization warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"
            "\n"

@@ -31,6 +31,7 @@ enum errors_e {
     ERROR_____OLD_EQUAL,
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,
+    ERROR______OLD_GOTO,
     ERROR_____TAIL_CALL,
     ERROR___CONST_INDEX,
     ERROR_WUSER_DEFINED,

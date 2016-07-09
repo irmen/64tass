@@ -2260,7 +2260,7 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <spa
 <dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
 <dt><code><b class="k">.goto</b></code> &lt;labelname&gt;<a name="d_goto" href="#d_goto"></a>
 <dd>Causes assembler to continue assembling from the jump label. No
-forward references of course, handle with care. Typically used in
+forward references of course, handle with care. Should only be used in
 classic TASM sources for creating loops.
 
 <pre width=80>
@@ -2286,7 +2286,7 @@ locations.</p>
 
 <p>To make your sources portable please always use forward slashes
 (<code>/</code>) as a directory separator and use lower/uppercase consistently
-in filenames!</p>
+in file names!</p>
 
 <dl class="dir">
 <dt><code><b class="k">.include</b></code> &lt;filename&gt;<a name="d_include" href="#d_include"></a>
@@ -3156,7 +3156,7 @@ disable them. The options below with this prefix are enabled by default, the oth
 
 <dl class="dir">
 <dt><b>-Wall</b><a name="o_Wall" href="#o_Wall"></a>
-<dd>Enable all diagnostic warnings, except those individually disabled. Or with the <q>no-</q> prefix disable all except those enabled.
+<dd>Enable most diagnostic warnings, except those individually disabled. Or with the <q>no-</q> prefix disable all except those enabled.
 
 <dt><b>-Werror</b><a name="o_Werror" href="#o_Werror"></a>
 <dd>Make all diagnostic warnings to an error, except those individually set to a warning.
@@ -3165,15 +3165,24 @@ disable them. The options below with this prefix are enabled by default, the oth
 <dd>Change a diagnostic warning to an error.
 <p>For example <q>-Werror=implied-reg</q> makes this check an error. The <q>-Wno-error=</q> variant is useful with <q>-Werror</q> to set some to warnings.</p>
 
+<dt><b>-Wbranch-page</b><a name="o_Wbranch-page" href="#o_Wbranch-page"></a>
+<dd>Warns if a branch is crossing a page.
+<p>Page crossing branches execute with a penalty cycle. This option helps to locate them easily.</p>
+
 <dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
 <dd>Warns if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
 for <q><code>asl a</code></q> for compatibility
 reasons, but this shorthand is not the preferred form.</p>
 
+<dt><b>-Wno-deprecated</b><a name="o_Wdeprecated" href="#o_Wdeprecated"></a>
+<dd>Don't warn about deprecated features.
+<p>Unfortunately there were some features added previously which shouldn't have
+been included. This option disables warnings about their uses.</p>
+
 <dt><b>-Wno-jmp-bug</b><a name="o_Wjmp-bug" href="#o_Wjmp-bug"></a>
 <dd>Don't warn about the <code>jmp ($xxff)</code> bug.
-<p>It's fine that the high byte is read from the <q>wrong</q> address on 6502, 6502i and 65dtv02.</p>
+<p>It's fine that the high byte is read from the <q>wrong</q> address on 6502, NMOS 6502 and 65DTV02.</p>
 
 <dt><b>-Wno-label-left</b><a name="o_Wlabel-left" href="#o_Wlabel-left"></a>
 <dd>Don't warn about certain labels not being on left side.
@@ -3468,6 +3477,7 @@ will display without them.</p>
 <dl class="errorlist">
 <dt>compile offset overflow<dd>compile continues at the bottom ($0000)
 <dt>could be shorter by ...<dd>an alternative equivalent instruction proposed by the optimizer
+<dt>deprecated directive, only for TASM compatible mode<dd>.goto and .lbl should only be used in TASM compatible mode
 <dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators, update source
@@ -3488,7 +3498,7 @@ will display without them.</p>
 <dt>address out of section<dd>moving the address around is fine, but do not place it before the section
 <dt>addressing mode too complex<dd>too much indexing or indirection
 <dt>at least one byte is needed<dd>the expression didn't yield any bytes
-<dt>branch crosses page<dd>page crossing detected
+<dt>branch crosses page by ? bytes<dd>page crossing detected
 <dt>branch too far by ? bytes<dd>can't branch that far
 <dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
 <dt>can't calculate this<dd>could not get any value, is this a circular reference?

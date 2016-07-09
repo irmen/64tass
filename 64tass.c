@@ -1087,6 +1087,7 @@ Obj *compile(struct file_list_s *cflist)
                             label->file_list = cflist;
                             label->epoint = epoint;
                         }
+                        if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &cmdpoint);
                         label->ref = false;
                         goto finish;
                     }
@@ -2867,6 +2868,7 @@ Obj *compile(struct file_list_s *cflist)
                     Lbl *lbl;
                     listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
+                    if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &epoint);
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); break; }
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); break; }
@@ -2944,6 +2946,7 @@ Obj *compile(struct file_list_s *cflist)
                 if ((waitfor->skip & 1) != 0) {
                     listing_line(0);
                     if (labelname.len == 0) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                    else if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &epoint);
                 }
                 break;
             case CMD_PROC: /* .proc */
