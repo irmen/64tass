@@ -431,47 +431,74 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
 }
 
 void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
-    bool print;
+    bool print, exit = false;
     int l;
     int lcol;
-    char str[3 * 16 + 1], *s;
+    char str[3 * 16 + 1], prev[3 * 16 + 1], *s;
+    address_t omyaddr, omyaddr2, oomyaddr, oomyaddr2;
+    size_t repeat;
+    size_t p;
+
     if (nolisting != 0 || temporary_label_branch != 0) return;
     if (flist == NULL) {
          if (myaddr != myaddr2) listing_pccolumn = true;
          return;
     }
     print = true;
-    if (arguments.linenum) {
-        l = printline();
-        l = padding(l, columns.addr);
-    } else l = 0;
-    l += printaddr('>', myaddr);
-    if (myaddr != myaddr2 && listing_pccolumn) {
-        l = padding(l, columns.laddr);
-        l += printaddr('\0', myaddr2);
-    }
+    omyaddr = myaddr;
+    omyaddr2 = myaddr2;
+    s = str; repeat = 0; p = 0;
     if (len != 0) {
-        size_t p = 0;
         lcol = arguments.source ? (arguments.monitor ? 8 : 4) : 16;
-        s = str;
-        l = padding(l, columns.hex);
         while (len != 0) {
             if ((lcol--) == 0) {
                 *s = 0;
-                fputs(str + 1, flist);
-                l += s - str - 1;
-                s = str;
-                if (arguments.source && print) {
-                    printllist(l);
+                if (print || strcmp(prev, str) || arguments.verbose) {
+                flush:
+                    if (repeat != 0) {
+                        l = arguments.linenum ? padding(0, columns.addr) : 0;
+                        if (repeat == 1) {
+                            l += printaddr('>', oomyaddr);
+                            if (oomyaddr != oomyaddr2 && listing_pccolumn) {
+                                l = padding(l, columns.laddr);
+                                l += printaddr('\0', omyaddr2);
+                            }
+                            padding(l, columns.hex);
+                            fputs(prev + 1, flist);
+                            putc('\n', flist);
+                        } else {
+                            putc(';', flist); l++;
+                            padding(l, columns.hex);
+                            fprintf(flist, "...repeated %u times (%u bytes)...\n", repeat, repeat * 16);
+                        }
+                        repeat = 0;
+                    }
+                    if (arguments.linenum) {
+                        l = print ? printline() : 0;
+                        l = padding(l, columns.addr);
+                    } else l = 0;
+                    l += printaddr('>', omyaddr);
+                    if (omyaddr != omyaddr2 && listing_pccolumn) {
+                        l = padding(l, columns.laddr);
+                        l += printaddr('\0', omyaddr2);
+                    }
+                    if (str[0] != 0) {
+                        l = padding(l, columns.hex);
+                        fputs(str + 1, flist);
+                        l += s - str - 1;
+                    }
+                    memcpy(prev, str, sizeof prev);
+                    if (arguments.source && print) {
+                        printllist(l);
+                    } else putc('\n',flist);
+                    if (exit) return;
                     print = false;
-                } else putc('\n',flist);
-                l = arguments.linenum ? padding(0, columns.addr) : 0;
-                l += printaddr('>', myaddr);
-                if (myaddr != myaddr2 && listing_pccolumn) {
-                    l = padding(l, columns.laddr);
-                    l += printaddr('\0', myaddr2);
-                }
-                l = padding(l, columns.hex);
+                } else repeat++;
+                s = str;
+                oomyaddr = omyaddr;
+                oomyaddr2 = omyaddr2;
+                omyaddr = myaddr;
+                omyaddr2 = myaddr2;
                 lcol = 15;
             }
             *s++ = ' ';
@@ -480,14 +507,10 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t my
             myaddr2 = ((myaddr2 + 1) & 0xffff) | (myaddr2 & ~0xffff);
             len--;
         }
-        *s = 0;
-        fputs(str + 1, flist);
-        l += s - str - 1;
     }
-
-    if (arguments.source && print) {
-        printllist(l);
-    } else putc('\n',flist);
+    *s = 0;
+    exit = true;
+    goto flush;
 }
 
 void listing_file(const char *txt, const char *name) {
