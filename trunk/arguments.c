@@ -61,6 +61,7 @@ struct diagnostics_s diagnostics = {
     true,        /* label_left */
     false,       /* branch_page */
     true,        /* deprecated */
+    false        /* old_equal */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -74,6 +75,7 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* label_left */
     false,       /* branch_page */
     false,       /* deprecated */
+    false        /* old_equal */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -88,6 +90,7 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* label_left */
     false,       /* branch_page */
     true,        /* deprecated */
+    true         /* old_equal */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -102,6 +105,7 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* label_left */
     true,        /* branch_page */
     true,        /* deprecated */
+    true         /* old_equal */
 };
 
 struct w_options_s {
@@ -120,6 +124,7 @@ static const struct w_options_s w_options[] = {
     {"label-left",   &diagnostics.label_left},
     {"branch-page",  &diagnostics.branch_page},
     {"deprecated",   &diagnostics.deprecated},
+    {"old-equal",    &diagnostics.old_equal},
     {NULL,           NULL}
 };
 
@@ -335,6 +340,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Wno-label-left       No warning about strange labels\n"
            "  -Wno-mem-wrap         No offset overflow warning\n"
            "  -Wno-pc-wrap          No PC overflow warning\n"
+           "  -Wold-equal           Warn about old equal operator\n"
            "  -Woptimize            Optimization warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"

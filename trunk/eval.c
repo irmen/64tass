@@ -1568,7 +1568,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
             o_oper[operp++].val = op;
             lpoint.pos++;
             continue;
-        case '=': op = &o_EQ; if (pline[lpoint.pos + 1] == '=') lpoint.pos += 2; else {if (diagnostics.deprecated) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint); lpoint.pos++;}
+        case '=': op = &o_EQ; if (pline[lpoint.pos + 1] == '=') lpoint.pos += 2; else {if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint); lpoint.pos++;}
         push2:
             prec = op->prio;
         push3:

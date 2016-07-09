@@ -1,4 +1,4 @@
-64tass v1.52 r1228 reference manual
+64tass v1.52 r1229 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -2784,6 +2784,12 @@ default, the others are disabled.
     Don't warn for program counter wrap around.
 
     Continue from the beginning of program bank once it's end was reached.
+
+-Wold-equal
+    Warn about old equal operator.
+
+    The single `=' operator is only there for compatibility reasons and should
+    be written as `==' normally.
 
 -Woptimize
     Warn about optimizable code.
