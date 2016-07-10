@@ -384,7 +384,7 @@ static const char *terr_error[] = {
     "not a bank 0 address",
     "out of memory",
     "addressing mode too complex",
-    "empty encoding, nothing defined on this name"
+    "empty encoding, add something or correct name"
 };
 
 static const char *terr_fatal[] = {

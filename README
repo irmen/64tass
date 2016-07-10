@@ -3133,7 +3133,7 @@ double defined range
     part of a character range was already defined by another .cdef
 duplicate definition
     symbol defined more than once
-empty encoding, nothing defined on this name
+empty encoding, add something or correct name
     probably a typo in the name of encoding, otherwise use .cdef/.edef to
     define something
 empty range not allowed
