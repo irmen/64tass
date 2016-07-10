@@ -31,6 +31,7 @@
 struct encoding_s *actual_encoding;
 
 struct encoding_s {
+    str_t name;
     str_t cfname;
     ternary_tree escape;
     struct avltree trans;
@@ -536,7 +537,8 @@ static void encoding_free(struct avltree_node *aa)
 {
     struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
 
-    free((char *)a->cfname.data);
+    free((char *)a->name.data);
+    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     ternary_cleanup(a->escape, escape_free);
     avltree_destroy(&a->trans, trans_free);
     free(a);
@@ -554,7 +556,8 @@ struct encoding_s *new_encoding(const str_t *name)
     str_cfcpy(&lasten->cfname, name);
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
     if (b == NULL) { /* new encoding */
-        if (lasten->cfname.data == name->data) str_cpy(&lasten->cfname, name);
+        str_cpy(&lasten->name, name);
+        if (lasten->cfname.data == name->data) lasten->cfname = lasten->name;
         else str_cfcpy(&lasten->cfname, NULL);
         lasten->escape = NULL;
         avltree_init(&lasten->trans);
@@ -756,7 +759,7 @@ next:
     if (!encode_state.err) {
         struct linepos_s epoint = *encode_state.epoint;
         epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i);
-        err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
+        err_msg_unknown_char(ch, &actual_encoding->name, &epoint);
         encode_state.err = true;
     }
     encode_state.i += ln;
