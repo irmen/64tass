@@ -36,7 +36,7 @@ struct trans_s {
 extern struct encoding_s *actual_encoding;
 
 struct Str;
-extern struct encoding_s *new_encoding(const str_t *);
+extern struct encoding_s *new_encoding(const str_t *, linepos_t);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
 extern bool new_escape(const struct Str *, struct Obj *, struct encoding_s *, linepos_t);
 extern void encode_string_init(const struct Str *, linepos_t);
