@@ -478,15 +478,6 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR__USER_DEFINED:
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             break;
-        case ERROR___UNKNOWN_CHR:
-            {
-                uint8_t *s = (uint8_t *)line;
-                uint32_t ch = *(const uint32_t *)prm;
-                adderror("can't encode character '");
-                if (ch != 0 && ch < 0x80) *s++ = ch; else s = utf8out(ch, s);
-                sprintf((char *)s, "' ($%02" PRIx32 ")", *(const uint32_t *)prm); adderror(line);
-            }
-            break;
         case ERROR______EXPECTED:
             adderror((char *)prm);
             adderror(" expected");
@@ -909,6 +900,16 @@ void err_msg_branch_page(int by, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.branch_page, epoint);
     sprintf(msg2, "branch crosses page by %+d bytes [-Wbranch-page]", by);
     adderror(msg2);
+}
+
+void err_msg_unknown_char(uint32_t ch, const str_t *name, linepos_t epoint) {
+    uint8_t line[256], *s = line;
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("can't encode character '");
+    if (ch != 0 && ch < 0x80) *s++ = ch; else s = utf8out(ch, s);
+    sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror(line);
+    adderror2(name->data, name->len);
+    adderror("'");
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, size_t line) {

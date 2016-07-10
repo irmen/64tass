@@ -110,6 +110,7 @@ extern void err_msg_mem_wrap(void);
 extern void err_msg_label_left(linepos_t);
 extern void err_msg_branch_page(int, linepos_t);
 extern void err_msg_deprecated(enum errors_e, linepos_t);
+extern void err_msg_unknown_char(uint32_t, const str_t *, linepos_t);
 extern void error_reset(void);
 extern bool error_print(void);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
