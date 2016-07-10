@@ -383,7 +383,8 @@ static const char *terr_error[] = {
     "not a data bank address",
     "not a bank 0 address",
     "out of memory",
-    "addressing mode too complex"
+    "addressing mode too complex",
+    "empty encoding, nothing defined on this name"
 };
 
 static const char *terr_fatal[] = {
@@ -907,7 +908,7 @@ void err_msg_unknown_char(uint32_t ch, const str_t *name, linepos_t epoint) {
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("can't encode character '");
     if (ch != 0 && ch < 0x80) *s++ = ch; else s = utf8out(ch, s);
-    sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror(line);
+    sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror((char *)line);
     adderror2(name->data, name->len);
     adderror("'");
 }

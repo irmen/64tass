@@ -2328,7 +2328,7 @@ Obj *compile(struct file_list_s *cflist)
                     epoint = lpoint;
                     encname.data = pline + lpoint.pos; encname.len = get_label();
                     if (encname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    actual_encoding = new_encoding(&encname);
+                    actual_encoding = new_encoding(&encname, &epoint);
                 }
                 break;
             case CMD_CDEF: if ((waitfor->skip & 1) != 0)
@@ -3394,7 +3394,7 @@ static int main2(int argc, char *argv[]) {
         if (diagnostics.optimize) cpu_opt_invalidate();
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
-            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
+            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
             reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 0;
             reset_context();
@@ -3440,7 +3440,7 @@ static int main2(int argc, char *argv[]) {
         listing_open(arguments.list, argc, argv);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc);
+            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
             reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 0;
             reset_context();
