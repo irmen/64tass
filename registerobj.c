@@ -29,9 +29,9 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
-static Type register_obj;
+static Type obj;
 
-Type *REGISTER_OBJ = &register_obj;
+Type *REGISTER_OBJ = &obj;
 
 static void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
@@ -185,15 +185,15 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void registerobj_init(void) {
-    new_type(&register_obj, T_REGISTER, "register", sizeof(Register));
-    obj_init(&register_obj);
-    register_obj.create = create;
-    register_obj.destroy = destroy;
-    register_obj.same = same;
-    register_obj.hash = hash;
-    register_obj.repr = repr;
-    register_obj.calc2 = calc2;
-    register_obj.rcalc2 = rcalc2;
+    new_type(&obj, T_REGISTER, "register", sizeof(Register));
+    obj_init(&obj);
+    obj.create = create;
+    obj.destroy = destroy;
+    obj.same = same;
+    obj.hash = hash;
+    obj.repr = repr;
+    obj.calc2 = calc2;
+    obj.rcalc2 = rcalc2;
 }
 
 void registerobj_names(void) {
