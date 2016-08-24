@@ -38,6 +38,8 @@ struct file_s {
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
     int type;
+    int err_no;
+    bool read_error;
     enum filecoding_e coding;
     struct avltree star;
     struct avltree_node node;
