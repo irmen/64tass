@@ -179,7 +179,9 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
     const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
     int c = strcmp(a->name, b->name);
     if (c != 0) return c;
-    return strcmp(a->base, b->base);
+    c = strcmp(a->base, b->base);
+    if (c != 0) return c;
+    return a->type - b->type;
 }
 
 static void star_free(struct avltree_node *aa)
@@ -257,6 +259,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     }
     base2 = get_path(NULL, base);
     lastfi->base = base2;
+    lastfi->type = ftype;
     if (name != NULL) {
         lastfi->name = name;
         b = avltree_insert(&lastfi->node, &file_tree, file_compare);
@@ -275,7 +278,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
 	lastfi->data = NULL;
 	lastfi->len = 0;
         lastfi->open = 0;
-        lastfi->type = ftype;
+        lastfi->err_no = 0;
+        lastfi->read_error = false;
         avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi = NULL;
@@ -304,6 +308,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             }
             tmp->realname = path;
             if (f == NULL) {
+                tmp->err_no = errno;
+            openerr:
                 path = (val != NULL) ? get_path(val, "") : NULL;
                 err_msg_file(ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
                 free(path);
@@ -583,7 +589,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             }
             err = ferror(f);
             if (f != stdin) err |= fclose(f);
-            if (err != 0 && errno != 0) err_msg_file(ERROR__READING_FILE, name, epoint);
+            if (err != 0 && errno != 0) {
+                tmp->err_no = errno;
+                tmp->read_error = true;
+                path = (val != NULL) ? get_path(val, "") : NULL;
+                err_msg_file(ERROR__READING_FILE, (val != NULL) ? path : name, epoint);
+                free(path);
+            }
             tmp->len = fp;
             tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
             tmp->coding = type;
@@ -601,7 +613,14 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     } else {
         free(base2);
         tmp = avltree_container_of(b, struct file_s, node);
-        if ((tmp->type == 1) != (ftype == 1)) err_msg_file(ERROR__READING_FILE, name, epoint);
+        if (tmp->err_no != 0) {
+            char * path;
+            errno = tmp->err_no;
+            if (!tmp->read_error) goto openerr;
+            path = (val != NULL) ? get_path(val, "") : NULL;
+            err_msg_file(ERROR__READING_FILE, (val != NULL) ? path : name, epoint);
+            free(path);
+        }
     }
     tmp->open++;
     return tmp;
