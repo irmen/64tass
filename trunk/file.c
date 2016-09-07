@@ -309,11 +309,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             tmp->realname = path;
             if (f == NULL) {
                 tmp->err_no = errno;
-            openerr:
-                path = (val != NULL) ? get_path(val, "") : NULL;
-                err_msg_file(ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
-                free(path);
-                return NULL;
+                goto openerr;
             }
             if (ftype == 1) {
                 if (arguments.quiet) {
@@ -616,7 +612,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         if (tmp->err_no != 0) {
             char * path;
             errno = tmp->err_no;
-            if (!tmp->read_error) goto openerr;
+            if (!tmp->read_error) {
+            openerr:
+                path = (val != NULL) ? get_path(val, "") : NULL;
+                err_msg_file(ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
+                free(path);
+                return NULL;
+            }
             path = (val != NULL) ? get_path(val, "") : NULL;
             err_msg_file(ERROR__READING_FILE, (val != NULL) ? path : name, epoint);
             free(path);
