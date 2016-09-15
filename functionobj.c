@@ -266,12 +266,6 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
 static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     Obj *err;
     double real;
-    switch (func) {
-    case F_ANY: return o1->obj->truth(o1, TRUTH_ANY, epoint);
-    case F_ALL: return o1->obj->truth(o1, TRUTH_ALL, epoint);
-    case F_LEN: return o1->obj->len(o1, epoint);
-    default: break;
-    }
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
         List *v1 = (List *)o1, *v;
         if (v1->len != 0) {
@@ -482,7 +476,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         err_msg_argnum(args, 1, 1, op->epoint2);
                         return (Obj *)ref_none();
                     }
-                    return apply_func(v[0].val, func, &v[0].epoint);
+                    switch (func) {
+                    case F_ANY: return v[0].val->obj->truth(v[0].val, TRUTH_ANY, &v[0].epoint);
+                    case F_ALL: return v[0].val->obj->truth(v[0].val, TRUTH_ALL, &v[0].epoint);
+                    case F_LEN: return v[0].val->obj->len(v[0].val, &v[0].epoint);
+                    default: return apply_func(v[0].val, func, &v[0].epoint);
+                    }
                 }
             default: break;
             }
