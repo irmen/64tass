@@ -70,6 +70,7 @@
 #include "registerobj.h"
 #include "labelobj.h"
 #include "errorobj.h"
+#include "macroobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
