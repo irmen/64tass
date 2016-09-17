@@ -903,7 +903,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     for (j = 0; j < args; j++) {
                         Obj *key, *data;
                         Error *err;
-                        struct pair_s *p, *p2;
+                        struct pair_s *p;
                         struct avltree_node *b;
                         v2 = &values[vsp + j];
                         if (v2->val->obj == NONE_OBJ || v2->val->obj == ERROR_OBJ) {
@@ -940,9 +940,8 @@ static bool get_val2(struct eval_context_s *ev) {
                         b = avltree_insert(&p->node, &dict->members, pair_compare);
                         if (b != NULL) {
                             free(p);
-                            p2 = avltree_container_of(b, struct pair_s, node);
-                            if (p2->data != NULL) val_destroy(p2->data);
-                            p = p2;
+                            p = avltree_container_of(b, struct pair_s, node);
+                            if (p->data != NULL) val_destroy(p->data);
                         } else {
                             p->key = val_reference(p->key);
                             dict->len++;
