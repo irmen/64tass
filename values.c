@@ -25,7 +25,6 @@
 #include "strobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-#include "variables.h"
 
 #define SLOTS 128
 #define ALIGN sizeof(int *)
@@ -84,7 +83,6 @@ static inline void obj_destroy(Obj *v1) {
 void garbage_collect(void) {
     Slotcoll *vals;
     size_t i, j;
-    destroy_lastlb();
 
     for (j = 0; j < lenof(slotcoll); j++) {
         size_t size = j * ALIGN;

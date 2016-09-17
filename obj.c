@@ -18,7 +18,6 @@
 */
 #include "obj.h"
 #include <string.h>
-#include "variables.h"
 #include "misc.h"
 #include "eval.h"
 #include "error.h"
@@ -42,6 +41,7 @@
 #include "gapobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "labelobj.h"
 
 bool referenceit = true;
 

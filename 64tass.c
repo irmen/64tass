@@ -50,6 +50,7 @@
 #include "unicode.h"
 #include "listing.h"
 #include "optimizer.h"
+#include "arguments.h"
 
 #include "listobj.h"
 #include "codeobj.h"
@@ -67,7 +68,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "registerobj.h"
-#include "arguments.h"
+#include "labelobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
