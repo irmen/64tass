@@ -2791,6 +2791,7 @@ Obj *compile(struct file_list_s *cflist)
                                     tmp.epoint = &epoint;
                                     tmp.epoint2 = &epoint2;
                                     tmp.epoint3 = &epoint3;
+                                    break;
                                 }
                                 if (tmp.op == NULL) {
                                     if (wht != '=') {err_msg(ERROR______EXPECTED,"="); break;}
