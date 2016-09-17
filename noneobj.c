@@ -17,10 +17,11 @@
 
 */
 #include "noneobj.h"
-#include "error.h"
 #include "eval.h"
-#include "typeobj.h"
 #include "values.h"
+
+#include "typeobj.h"
+#include "errorobj.h"
 
 static Type obj;
 

@@ -35,6 +35,7 @@
 #include "noneobj.h"
 #include "namespaceobj.h"
 #include "labelobj.h"
+#include "errorobj.h"
 
 static Type macro_obj;
 static Type segment_obj;

@@ -36,6 +36,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "errorobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 

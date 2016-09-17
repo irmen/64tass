@@ -34,8 +34,6 @@ struct file_list_s {
     struct avltree members;
 };
 
-extern struct Type *ERROR_OBJ;
-
 #if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX_VERSION || _POSIX2_VERSION
 #define COLOR_OUTPUT
 extern bool print_use_color;
@@ -43,46 +41,9 @@ extern bool print_use_color;
 #define print_use_color false
 #endif
 
-struct Namespace;
-struct Register;
-struct Oper;
-
-typedef struct Error {
-    Obj v;
-    enum errors_e num;
-    struct linepos_s epoint;
-    union {
-        struct {
-            struct Oper *op;
-            Obj *v1;
-            Obj *v2;
-        } invoper;
-        struct {
-            str_t ident;
-            struct Namespace *names;
-            bool down;
-        } notdef;
-        struct {
-            unsigned int bits;
-            Obj *val;
-        } intconv;
-        const char *objname;
-        uint32_t addressing;
-        struct Register *reg;
-        size_t opers;
-        struct {
-            size_t v1;
-            size_t v2;
-        } broadcast;
-        Obj *key;
-    } u;
-} Error;
-
-extern void errorobj_init(void);
-
-extern MUST_CHECK Error *new_error(enum errors_e, linepos_t);
-
 struct Label;
+struct Oper;
+struct Error;
 
 extern void err_msg(enum errors_e, const void *);
 extern void err_msg2(enum errors_e, const void *, linepos_t);
@@ -97,8 +58,8 @@ extern void err_msg_shadow_defined2(struct Label *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
-extern void err_msg_output(const Error *);
-extern void err_msg_output_and_destroy(Error *);
+extern void err_msg_output(const struct Error *);
+extern void err_msg_output_and_destroy(struct Error *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void err_msg_bool(enum errors_e, Obj *, linepos_t);
 extern void err_msg_bool_oper(struct oper_s *);

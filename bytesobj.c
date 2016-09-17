@@ -24,6 +24,7 @@
 #include "encoding.h"
 #include "variables.h"
 #include "arguments.h"
+#include "error.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -35,7 +36,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-#include "error.h"
+#include "errorobj.h"
 
 static Type obj;
 

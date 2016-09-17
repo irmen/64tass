@@ -22,11 +22,12 @@
 #include "ternary.h"
 #include "misc.h"
 #include "unicode.h"
+#include "values.h"
+
 #include "strobj.h"
 #include "bytesobj.h"
 #include "typeobj.h"
-#include "values.h"
-
+#include "errorobj.h"
 
 struct encoding_s *actual_encoding;
 

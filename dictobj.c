@@ -29,6 +29,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "errorobj.h"
 
 static Type obj;
 

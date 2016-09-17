@@ -42,6 +42,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "labelobj.h"
+#include "errorobj.h"
 
 bool referenceit = true;
 

@@ -30,6 +30,7 @@
 #include "intobj.h"
 #include "operobj.h"
 #include "typeobj.h"
+#include "errorobj.h"
 
 static Type obj;
 

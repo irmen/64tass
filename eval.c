@@ -51,6 +51,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "labelobj.h"
+#include "errorobj.h"
 
 size_t get_label(void) {
     uint32_t ch;

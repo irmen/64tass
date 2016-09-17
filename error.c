@@ -30,7 +30,6 @@
 #include "macro.h"
 #include "unicode.h"
 #include "eval.h"
-#include "values.h"
 #include "arguments.h"
 
 #include "strobj.h"
@@ -40,118 +39,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "labelobj.h"
-
-static Type obj;
-
-Type *ERROR_OBJ = &obj;
-
-static void destroy(Obj *o1) {
-    Error *v1 = (Error *)o1;
-    switch (v1->num) {
-    case ERROR__INVALID_OPER:
-        if (v1->u.invoper.v1 != NULL) val_destroy(v1->u.invoper.v1);
-        if (v1->u.invoper.v2 != NULL) val_destroy(v1->u.invoper.v2);
-        return;
-    case ERROR___NO_REGISTER: 
-        val_destroy(&v1->u.reg->v);
-        return;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-        val_destroy(v1->u.intconv.val);
-        return;
-    case ERROR___NOT_DEFINED: 
-        val_destroy((Obj *)v1->u.notdef.names);
-        return;
-    case ERROR_____KEY_ERROR: 
-        val_destroy(v1->u.key);
-        return;
-    default: return;
-    }
-}
-
-static void garbage(Obj *o1, int i) {
-    Error *v1 = (Error *)o1;
-    Obj *v;
-    switch (v1->num) {
-    case ERROR__INVALID_OPER:
-        v = v1->u.invoper.v1;
-        if (v != NULL) {
-            switch (i) {
-            case -1:
-                v->refcount--;
-                break;
-            case 0:
-                break;
-            case 1:
-                if ((v->refcount & SIZE_MSB) != 0) {
-                    v->refcount -= SIZE_MSB - 1;
-                    v->obj->garbage(v, 1);
-                } else v->refcount++;
-                break;
-            }
-        }
-        v = v1->u.invoper.v2;
-        if (v == NULL) return;
-        break;
-    case ERROR___NO_REGISTER: 
-        v = &v1->u.reg->v;
-        break;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-        v = v1->u.intconv.val;
-        break;
-    case ERROR___NOT_DEFINED: 
-        v = &v1->u.notdef.names->v;
-        break;
-    case ERROR_____KEY_ERROR: 
-        v = v1->u.key;
-        break;
-    default: return;
-    }
-    switch (i) {
-    case -1:
-        v->refcount--;
-        return;
-    case 0:
-        return;
-    case 1:
-        if ((v->refcount & SIZE_MSB) != 0) {
-            v->refcount -= SIZE_MSB - 1;
-            v->obj->garbage(v, 1);
-        } else v->refcount++;
-        return;
-    }
-}
-
-
-static MUST_CHECK Obj *calc1(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK Obj *calc2(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK Obj *rcalc2(oper_t op) {
-    return val_reference(op->v2);
-}
-
-static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
-    return val_reference(v1);
-}
-
-void errorobj_init(void) {
-    new_type(&obj, T_ERROR, "error", sizeof(Error));
-    obj_init(&obj);
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
-}
-
-/* ------------------------------------------------------------------------------ */
+#include "errorobj.h"
 
 #ifdef COLOR_OUTPUT
 bool print_use_color = false;
@@ -1191,11 +1079,4 @@ bool error_serious(void) {
         }
     }
     return false;
-}
-
-MUST_CHECK Error *new_error(enum errors_e num, linepos_t epoint) {
-    Error *v = (Error *)val_alloc(ERROR_OBJ);
-    v->num = num;
-    v->epoint = *epoint;
-    return v;
 }

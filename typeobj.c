@@ -28,6 +28,7 @@
 #include "boolobj.h"
 #include "listobj.h"
 #include "noneobj.h"
+#include "errorobj.h"
 
 static Type obj;
 
