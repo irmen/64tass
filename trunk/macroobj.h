@@ -16,24 +16,43 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MACRO_H
-#define MACRO_H
+#ifndef MACROOBJ_H
+#define MACROOBJ_H
 #include "obj.h"
-#include "wait_e.h"
 
-struct values_s;
-struct file_s;
+extern struct Type *MACRO_OBJ;
+extern struct Type *SEGMENT_OBJ;
+extern struct Type *STRUCT_OBJ;
+extern struct Type *UNION_OBJ;
 
-struct Namespace;
-struct Mfunc;
+struct file_list_s;
 
-extern bool mtranslate(struct file_s *);
-extern Obj *macro_recurse(enum wait_e, Obj *, struct Namespace *, linepos_t);
-extern Obj *mfunc_recurse(enum wait_e, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
-extern Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, unsigned int, linepos_t);
-extern void init_macro(void);
-extern void free_macro(void);
-extern void get_macro_params(Obj *);
-extern void get_func_params(struct Mfunc *, struct file_s *);
-extern bool in_macro(void);
+struct macro_param_s {
+    str_t cfname;
+    str_t init;
+};
+
+typedef struct Macro {
+    Obj v;
+    size_t argc;
+    struct macro_param_s *param;
+    struct file_list_s *file_list;
+    line_t line;
+    bool retval;
+} Macro;
+typedef struct Macro Segment;
+
+typedef struct Struct {
+    Obj v;
+    size_t argc;
+    struct macro_param_s *param;
+    struct file_list_s *file_list;
+    line_t line;
+    size_t size; /* first part same as macro! */
+    struct Namespace *names;
+} Struct;
+typedef struct Struct Union;
+
+extern void macroobj_init(void);
+
 #endif

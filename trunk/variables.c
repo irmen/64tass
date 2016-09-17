@@ -46,6 +46,7 @@
 #include "noneobj.h"
 #include "labelobj.h"
 #include "errorobj.h"
+#include "macroobj.h"
 
 static struct namespacekey_s *lastlb2 = NULL;
 static Label *lastlb = NULL;

@@ -36,47 +36,7 @@
 #include "namespaceobj.h"
 #include "labelobj.h"
 #include "errorobj.h"
-
-static Type macro_obj;
-static Type segment_obj;
-
-Type *MACRO_OBJ = &macro_obj;
-Type *SEGMENT_OBJ = &segment_obj;
-
-static void destroy(Obj *o1) {
-    Macro *v1 = (Macro *)o1;
-    while (v1->argc != 0) {
-        --v1->argc;
-        free((char *)v1->param[v1->argc].cfname.data);
-        free((char *)v1->param[v1->argc].init.data);
-    }
-    free(v1->param);
-}
-
-static bool same(const Obj *o1, const Obj *o2) {
-    const Macro *v1 = (const Macro *)o1, *v2 = (const Macro *)o2;
-    size_t i;
-    if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return false;
-    for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return false;
-    }
-    return true;
-}
-
-
-void macroobj_init(void) {
-    new_type(&macro_obj, T_MACRO, "macro", sizeof(Macro));
-    obj_init(&macro_obj);
-    macro_obj.destroy = destroy;
-    macro_obj.same = same;
-    new_type(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
-    obj_init(&segment_obj);
-    segment_obj.destroy = destroy;
-    segment_obj.same = same;
-}
-
-/* ------------------------------------------------------------------------------ */
+#include "macroobj.h"
 
 static int functionrecursion;
 

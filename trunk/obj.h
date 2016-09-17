@@ -47,23 +47,6 @@ typedef struct Mfunc {
     struct Namespace **namespaces;
 } Mfunc;
 
-struct macro_param_s {
-    str_t cfname;
-    str_t init;
-}; 
-
-typedef struct Struct {
-    Obj v;
-    size_t argc;
-    struct macro_param_s *param;
-    struct file_list_s *file_list;
-    line_t line;
-    size_t size; /* first part same as macro! */
-    struct Namespace *names;
-} Struct;
-
-typedef struct Struct Union;
-
 typedef struct Lbl_s {
     Obj v;
     line_t sline;
@@ -114,8 +97,6 @@ extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern struct Type *LBL_OBJ;
 extern struct Type *MFUNC_OBJ;
-extern struct Type *STRUCT_OBJ;
-extern struct Type *UNION_OBJ;
 extern struct Type *IDENT_OBJ;
 extern struct Type *ANONIDENT_OBJ;
 extern struct Type *DEFAULT_OBJ;

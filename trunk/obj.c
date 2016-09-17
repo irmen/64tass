@@ -22,11 +22,12 @@
 #include "eval.h"
 #include "error.h"
 #include "values.h"
+#include "macro.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
 #include "strobj.h"
-#include "macro.h"
+#include "macroobj.h"
 #include "intobj.h"
 #include "listobj.h"
 #include "namespaceobj.h"
@@ -48,8 +49,6 @@ bool referenceit = true;
 
 static Type lbl_obj;
 static Type mfunc_obj;
-static Type struct_obj;
-static Type union_obj;
 static Type ident_obj;
 static Type anonident_obj;
 static Type default_obj;
@@ -58,8 +57,6 @@ static Type funcargs_obj;
 
 Type *LBL_OBJ = &lbl_obj;
 Type *MFUNC_OBJ = &mfunc_obj;
-Type *STRUCT_OBJ = &struct_obj;
-Type *UNION_OBJ = &union_obj;
 Type *IDENT_OBJ = &ident_obj;
 Type *ANONIDENT_OBJ = &anonident_obj;
 Type *DEFAULT_OBJ = &default_obj;
@@ -390,66 +387,6 @@ static bool funcargs_same(const Obj *o1, const Obj *o2) {
     return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
 }
 
-static void struct_destroy(Obj *o1) {
-    Struct *v1 = (Struct *)o1;
-    while (v1->argc != 0) {
-        --v1->argc;
-        free((char *)v1->param[v1->argc].cfname.data);
-        free((char *)v1->param[v1->argc].init.data);
-    }
-    free(v1->param);
-    val_destroy((Obj *)v1->names);
-}
-
-static void struct_garbage(Obj *o1, int i) {
-    Struct *v1 = (Struct *)o1;
-    Obj *v;
-    switch (i) {
-    case -1:
-        ((Obj *)v1->names)->refcount--;
-        return;
-    case 0:
-        while (v1->argc != 0) {
-            --v1->argc;
-            free((char *)v1->param[v1->argc].cfname.data);
-            free((char *)v1->param[v1->argc].init.data);
-        }
-        free(v1->param);
-        return;
-    case 1:
-        v = (Obj *)v1->names;
-        if ((v->refcount & SIZE_MSB) != 0) {
-            v->refcount -= SIZE_MSB - 1;
-            v->obj->garbage(v, 1);
-        } else v->refcount++;
-        return;
-    }
-}
-
-static bool struct_same(const Obj *o1, const Obj *o2) {
-    const Struct *v1 = (const Struct *)o1, *v2 = (const Struct *)o2;
-    size_t i;
-    if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc) return false;
-    if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return false;
-    for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init) != 0) return false;
-    }
-    return true;
-}
-
-static MUST_CHECK Obj *struct_size(Obj *o1, linepos_t UNUSED(epoint)) {
-    Struct *v1 = (Struct *)o1;
-    return (Obj *)int_from_size(v1->size);
-}
-
-static MUST_CHECK Obj *struct_calc2(oper_t op) {
-    if (op->op == &o_MEMBER) {
-        return namespace_member(op, ((Struct *)op->v1)->names);
-    }
-    return obj_oper_error(op);
-}
-
 void obj_init(Type *obj) {
     obj->create = invalid_create;
     obj->destroy = invalid_destroy;
@@ -504,20 +441,6 @@ void objects_init(void) {
     mfunc_obj.garbage = mfunc_garbage;
     mfunc_obj.same = mfunc_same;
     mfunc_obj.calc2 = mfunc_calc2;
-    new_type(&struct_obj, T_STRUCT, "struct", sizeof(Struct));
-    obj_init(&struct_obj);
-    struct_obj.destroy = struct_destroy;
-    struct_obj.garbage = struct_garbage;
-    struct_obj.same = struct_same;
-    struct_obj.size = struct_size;
-    struct_obj.calc2 = struct_calc2;
-    new_type(&union_obj, T_UNION, "union", sizeof(Union));
-    obj_init(&union_obj);
-    union_obj.destroy = struct_destroy;
-    union_obj.garbage = struct_garbage;
-    union_obj.same = struct_same;
-    union_obj.size = struct_size;
-    union_obj.calc2 = struct_calc2;
     new_type(&ident_obj, T_IDENT, "ident", sizeof(Ident));
     obj_init(&ident_obj);
     ident_obj.calc2 = ident_calc2;
