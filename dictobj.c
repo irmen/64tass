@@ -267,7 +267,9 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     b = avltree_lookup(&pair.node, &v1->members, pair_compare);
     if (b != NULL) {
         const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
-        return val_reference(p->data);
+        if (p->data != NULL) {
+            return val_reference(p->data);
+        }
     }
     if (v1->def != NULL) {
         return val_reference(v1->def);

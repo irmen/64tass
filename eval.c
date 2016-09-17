@@ -901,7 +901,10 @@ static bool get_val2(struct eval_context_s *ev) {
                     unsigned int j;
                     vsp -= args;
                     for (j = 0; j < args; j++) {
+                        Obj *key, *data;
                         Error *err;
+                        struct pair_s *p, *p2;
+                        struct avltree_node *b;
                         v2 = &values[vsp + j];
                         if (v2->val->obj == NONE_OBJ || v2->val->obj == ERROR_OBJ) {
                             val_destroy(v1->val); v1->val = val_reference(v2->val);
@@ -909,38 +912,42 @@ static bool get_val2(struct eval_context_s *ev) {
                         }
                         if (v2->val->obj == COLONLIST_OBJ) {
                             Colonlist *list = (Colonlist *)v2->val;
-                            Obj *key = list->data[0];
-                            struct pair_s *p, *p2;
-                            struct avltree_node *b;
-                            if (key->obj == DEFAULT_OBJ) {
-                                if (dict->def != NULL) val_destroy(dict->def);
-                                dict->def = val_reference(list->data[1]);
-                            } else {
-                                p = (struct pair_s *)mallocx(sizeof *p);
-                                err = key->obj->hash(key, &p->hash, &v2->epoint);
-                                if (err != NULL) {
-                                    free(p);
-                                    val_destroy(v1->val); v1->val = &err->v;
-                                    break;
-                                }
-                                p->key = key;
-                                b = avltree_insert(&p->node, &dict->members, pair_compare);
-                                if (b != NULL) {
-                                    p2 = avltree_container_of(b, struct pair_s, node);
-                                    val_replace(&p2->data, list->data[1]);
-                                    free(p);
-                                } else {
-                                    p->key = val_reference(p->key);
-                                    p->data = val_reference(list->data[1]);
-                                    dict->len++;
-                                }
+                            if (list->len != 2 || list->data[1]->obj == DEFAULT_OBJ) {
+                                err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
+                                err->u.objname = v2->val->obj->name;
+                                val_destroy(v1->val); v1->val = (Obj *)err;
+                                break;
                             }
+                            key = list->data[0];
+                            data = list->data[1];
+                        } else { 
+                            key = v2->val;
+                            data = NULL;
+                        }
+                        if (key->obj == DEFAULT_OBJ) {
+                            if (dict->def != NULL) val_destroy(dict->def);
+                            dict->def = (data == NULL) ? NULL : val_reference(data);
                             continue;
                         }
-                        err = new_error(ERROR__NOT_KEYVALUE, &v1->epoint);
-                        err->u.objname = v1->val->obj->name;
-                        val_destroy(v1->val); v1->val = (Obj *)err;
-                        break;
+                        p = (struct pair_s *)mallocx(sizeof *p);
+                        err = key->obj->hash(key, &p->hash, &v2->epoint);
+                        if (err != NULL) {
+                            free(p);
+                            val_destroy(v1->val); v1->val = &err->v;
+                            break;
+                        }
+                        p->key = key;
+                        b = avltree_insert(&p->node, &dict->members, pair_compare);
+                        if (b != NULL) {
+                            free(p);
+                            p2 = avltree_container_of(b, struct pair_s, node);
+                            if (p2->data != NULL) val_destroy(p2->data);
+                            p = p2;
+                        } else {
+                            p->key = val_reference(p->key);
+                            dict->len++;
+                        }
+                        p->data = (data == NULL) ? NULL : val_reference(data);
                     }
                 }
                 continue;
