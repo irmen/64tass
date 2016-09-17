@@ -25,15 +25,17 @@
 #include "file.h"
 #include "listing.h"
 #include "error.h"
+#include "longjump.h"
+#include "arguments.h"
+#include "optimizer.h"
+
 #include "addressobj.h"
 #include "listobj.h"
 #include "registerobj.h"
 #include "codeobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
-#include "longjump.h"
-#include "arguments.h"
-#include "optimizer.h"
+#include "errorobj.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */

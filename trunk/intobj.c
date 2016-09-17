@@ -35,6 +35,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "errorobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
 #define MASK (~(digit_t)0)
