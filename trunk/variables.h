@@ -20,50 +20,30 @@
 #define VARIABLES_H
 #include "stdbool.h"
 #include "inttypes.h"
-#include "obj.h"
-
-extern struct Type *LABEL_OBJ;
 
 struct Namespace;
-
-typedef struct Label {
-    Obj v;
-    str_t name;
-    str_t cfname;
-
-    Obj *value;
-    struct file_list_s *file_list;
-    struct linepos_s epoint;
-    bool ref;
-    bool shadowcheck;
-    bool update_after;
-    bool constant;
-    bool owner;
-    uint8_t usepass;
-    uint8_t defpass;
-    uint8_t strength;
-} Label;
-
-extern void labelobj_init(void);
+struct Label;
+struct Obj;
+struct Mfunc;
 
 extern void push_context(struct Namespace *);
 extern bool pop_context(void);
 extern void reset_context(void);
-extern void get_namespaces(Mfunc *);
+extern void get_namespaces(struct Mfunc *);
 extern size_t context_get_bottom(void);
 extern void context_set_bottom(size_t);
 
 extern struct Namespace *current_context, *cheap_context, *root_namespace;
-extern Label *find_label(const str_t *, struct Namespace **);
-extern Label *find_label2(const str_t *, struct Namespace *);
-extern Label *find_label3(const str_t *, struct Namespace *, uint8_t);
-extern Label *find_anonlabel(int32_t);
-extern Label *find_anonlabel2(int32_t, struct Namespace *);
-extern Label *new_label(const str_t *, struct Namespace *, uint8_t, bool *);
+extern struct Label *find_label(const str_t *, struct Namespace **);
+extern struct Label *find_label2(const str_t *, struct Namespace *);
+extern struct Label *find_label3(const str_t *, struct Namespace *, uint8_t);
+extern struct Label *find_anonlabel(int32_t);
+extern struct Label *find_anonlabel2(int32_t, struct Namespace *);
+extern struct Label *new_label(const str_t *, struct Namespace *, uint8_t, bool *);
 extern void labelprint(void);
 extern void shadow_check(struct Namespace *);
 extern void destroy_variables(void);
 extern void init_variables(void);
 extern void destroy_lastlb(void);
-extern void new_builtin(const char *, Obj *);
+extern void new_builtin(const char *, struct Obj *);
 #endif

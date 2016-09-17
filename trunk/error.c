@@ -26,19 +26,20 @@
 #endif
 #include "misc.h"
 #include "file.h"
-#include "variables.h"
 #include "64tass.h"
 #include "macro.h"
-#include "strobj.h"
 #include "unicode.h"
+#include "eval.h"
+#include "values.h"
+#include "arguments.h"
+
+#include "strobj.h"
 #include "addressobj.h"
 #include "registerobj.h"
 #include "namespaceobj.h"
 #include "operobj.h"
 #include "typeobj.h"
-#include "eval.h"
-#include "values.h"
-#include "arguments.h"
+#include "labelobj.h"
 
 static Type obj;
 

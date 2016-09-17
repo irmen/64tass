@@ -141,6 +141,7 @@ linecpos_t calcpos(const uint8_t *line, size_t pos, bool utf8) {
 }
 
 void tfree(void) {
+    destroy_lastlb();
     destroy_eval();
     destroy_variables();
     destroy_section();

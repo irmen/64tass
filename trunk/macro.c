@@ -27,12 +27,14 @@
 #include "64tass.h"
 #include "listing.h"
 #include "error.h"
+#include "arguments.h"
+#include "optimizer.h"
+
 #include "listobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
 #include "namespaceobj.h"
-#include "arguments.h"
-#include "optimizer.h"
+#include "labelobj.h"
 
 static Type macro_obj;
 static Type segment_obj;

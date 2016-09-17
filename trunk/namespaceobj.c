@@ -20,13 +20,15 @@
 #include <string.h>
 #include "variables.h"
 #include "eval.h"
+#include "error.h"
+
 #include "intobj.h"
 #include "listobj.h"
-#include "error.h"
 #include "strobj.h"
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "labelobj.h"
 
 static Type obj;
 
