@@ -723,6 +723,8 @@ static MUST_CHECK Oper *oper_from_token(int wht) {
 
 static MUST_CHECK Oper *oper_from_token2(int wht) {
     switch (wht) {
+    case '&': return &o_LAND;
+    case '|': return &o_LOR;
     case '>': return &o_RSHIFT;
     case '<': return &o_LSHIFT;
     case '.': return &o_CONCAT;
