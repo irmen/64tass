@@ -882,7 +882,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (tmp.op == NULL) break;
                     epoint3 = lpoint;
                     lpoint.pos += 2;
-                } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                } else if (wht == wht2 && pline[lpoint.pos + 2] == '=') {
                     tmp.op = oper_from_token2(wht2);
                     if (tmp.op == NULL) break;
                     epoint3 = lpoint;
@@ -2771,7 +2771,7 @@ Obj *compile(struct file_list_s *cflist)
                                         if (tmp.op == NULL) break;
                                         epoint3 = lpoint;
                                         lpoint.pos += 2;
-                                    } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                                    } else if (wht == wht2 && pline[lpoint.pos + 2] == '=') {
                                         tmp.op = oper_from_token2(wht2);
                                         if (tmp.op == NULL) break;
                                         epoint3 = lpoint;
