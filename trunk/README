@@ -1142,7 +1142,8 @@ with .var they can't update constants, only variables.
 *=  multiply    /=  divide
 %=  modulo      **= raise to power
 |=  binary or   ^=  binary xor
-&=  binary and  <<= shift left
+&=  binary and  ||= logical or
+&&= logical and <<= shift left
 >>= shift right ..= concat
 x=  repeat      :=  assign
 
