@@ -1518,12 +1518,19 @@ Obj *compile(struct file_list_s *cflist)
                 goto breakerr;
             }
             break;
+        case '|':
+        case '&':
+            if ((waitfor->skip & 1) != 0) {
+                if (pline[lpoint.pos + 1] == wht && pline[lpoint.pos + 2] == '=' && !arguments.tasmcomp) {
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                    goto breakerr;
+                }
+            }
+            /* fall through */
         case '+':
         case '-':
         case '/':
         case '%':
-        case '|':
-        case '&':
         case '^':
         case ':':
             if ((waitfor->skip & 1) != 0) {
