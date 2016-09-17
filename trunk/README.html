@@ -2229,13 +2229,13 @@ statement.</p>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
 <dl class="dir">
-<dt><code><b class="k">.for</b></code> [&lt;variable&gt;=&lt;expression&gt;], [&lt;condition expression&gt;], [&lt;variable&gt;=&lt;expression&gt;]<a name="d_for" href="#d_for"></a>
+<dt><code><b class="k">.for</b></code> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_for" href="#d_for"></a>
 <dt><code><b class="k">.next</b></code><a name="d_next" href="#d_next"></a>
 <dd>Loop while the condition is true. If there's no condition then it's an infinite loop and <a href="#d_break"><code>.break</code></a> must be used to terminate it.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
         <b>lda</b> #<span>32</span>
-lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <span>$800</span>, <u>ue</u> = <u>ue</u> + <span>$100</span>
+lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <span>$800</span>, <u>ue</u> += <span>$100</span>
         <b>sta</b> <u>ue</u>,x
 	<b class="k">.next</b>
         <b>dex</b>

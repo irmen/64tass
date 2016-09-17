@@ -701,6 +701,36 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     val_destroy(val);
 }
 
+static MUST_CHECK Oper *oper_from_token(int wht) {
+    switch (wht) {
+    case 'X':
+        if (arguments.caseinsensitive == 0) {
+            return NULL;
+        }
+        /* fall through */
+    case 'x': return &o_X;
+    case '*': return &o_MUL;
+    case '+': return &o_ADD;
+    case '-': return &o_SUB;
+    case '/': return &o_DIV;
+    case '%': return &o_MOD;
+    case '|': return &o_OR;
+    case '&': return &o_AND;
+    case '^': return &o_XOR;
+    default: return NULL;
+    }
+}
+
+static MUST_CHECK Oper *oper_from_token2(int wht) {
+    switch (wht) {
+    case '>': return &o_RSHIFT;
+    case '<': return &o_LSHIFT;
+    case '.': return &o_CONCAT;
+    case '*': return &o_EXP;
+    default: return NULL;
+    }
+}
+
 Obj *compile(struct file_list_s *cflist)
 {
     int wht,w;
@@ -830,120 +860,78 @@ Obj *compile(struct file_list_s *cflist)
             ignore();wht = here();
             if ((waitfor->skip & 1) == 0) {epoint = lpoint; goto jn;} /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
-            switch (wht) {
-            case ':':
-                if (pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) {
-                    if (labelname.data[0] == '*') {
-                        lpoint.pos++;
-                        goto starassign;
-                    }
-                    lpoint.pos += 2;
-                    ignore();
-                    goto itsvar;
-                }
-                break;
-            case '>':
-            case '<':
-                if (pline[lpoint.pos + 1] == wht && pline[lpoint.pos + 2] == '=' && !arguments.tasmcomp) {
-                    goto shifting;
-                }
-                break;
-            case 'X':
-                if (arguments.caseinsensitive != 0 && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) {
-                    goto reptop;
-                }
-                break;
-            case '*':
-                if (pline[lpoint.pos + 1] == wht && pline[lpoint.pos + 2] == '=' && !arguments.tasmcomp) {
-                    wht = '=';
-                    goto shifting;
-                }
-                /* fall through */
-            case 'x':
-            case '+':
-            case '-':
-            case '/':
-            case '%':
-            case '|':
-            case '&':
-            case '^':
-                if (pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) {
-                    Label *label;
-                    bool oldreferenceit;
-                    struct oper_s tmp;
-                    Obj *result2;
-                    struct linepos_s epoint2, epoint3;
-                    if (true) {
-                    reptop:
-                        epoint3 = lpoint;
-                        lpoint.pos += 2;
-                    } else {
-                    shifting:
-                        epoint3 = lpoint;
-                        lpoint.pos += 3;
-                    }
-                    ignore();
-                    epoint2 = lpoint;
-                    oldreferenceit = referenceit;
-                    if (labelname.data[0] == '*') {
-                        label = NULL;
-                        if (diagnostics.optimize) cpu_opt_invalidate();
-                        tmp.v1 = get_star_value(current_section->l_address_val);
-                    } else {
-                        label = find_label2(&labelname, mycontext);
-                        if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
-                        tmp.v1 = label->value;
-                    }
-                    if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
-                    else {
-                        struct linepos_s epoints[3];
-                        referenceit &= 1; /* not good... */
-                        if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
-                        val = get_vals_addrlist(epoints);
-                        referenceit = oldreferenceit;
-                    }
-                    oaddr = current_section->address;
-                    switch (wht) {
-                    default:
-                    case '+': tmp.op = &o_ADD; break;
-                    case '-': tmp.op = &o_SUB; break;
-                    case '*': tmp.op = &o_MUL; break;
-                    case '/': tmp.op = &o_DIV; break;
-                    case '%': tmp.op = &o_MOD; break;
-                    case '|': tmp.op = &o_OR; break;
-                    case '&': tmp.op = &o_AND; break;
-                    case '^': tmp.op = &o_XOR; break;
-                    case '<': tmp.op = &o_LSHIFT; break;
-                    case '>': tmp.op = &o_RSHIFT; break;
-                    case '.': tmp.op = &o_CONCAT; break;
-                    case '=': tmp.op = &o_EXP; break;
-                    case 'X':
-                    case 'x': tmp.op = &o_X; break;
-                    }
-                    tmp.v2 = val;
-                    tmp.epoint = &epoint;
-                    tmp.epoint2 = &epoint2;
-                    tmp.epoint3 = &epoint3;
-                    result2 = tmp.v1->obj->calc2(&tmp);
-                    if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
-                    val_destroy(val);
-                    if (label != NULL) {
-                        listing_equal(result2);
-                        if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
-                        else {
-                            label->file_list = cflist;
-                            label->epoint = epoint;
-                            if (label->defpass != pass) label->ref = false;
-                            var_assign(label, result2, fixeddig);
+            while (wht != 0 && !arguments.tasmcomp) {
+                Label *label;
+                bool oldreferenceit;
+                struct oper_s tmp;
+                Obj *result2;
+                struct linepos_s epoint2, epoint3;
+                int wht2 = pline[lpoint.pos + 1];
+
+                if (wht2 == '=') {
+                    if (wht == ':') {
+                        if (labelname.data[0] == '*') {
+                            lpoint.pos++;
+                            goto starassign;
                         }
-                        val_destroy(result2);
-                    } else {
-                        val_destroy(tmp.v1);
-                        starhandle(result2, &epoint, &epoint2);
+                        lpoint.pos += 2;
+                        ignore();
+                        goto itsvar;
                     }
-                    goto finish;
+                    tmp.op = oper_from_token(wht);
+                    if (tmp.op == NULL) break;
+                    epoint3 = lpoint;
+                    lpoint.pos += 2;
+                } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                    tmp.op = oper_from_token2(wht2);
+                    if (tmp.op == NULL) break;
+                    epoint3 = lpoint;
+                    lpoint.pos += 3;
+                } else break;
+
+                ignore();
+                epoint2 = lpoint;
+                oldreferenceit = referenceit;
+                if (labelname.data[0] == '*') {
+                    label = NULL;
+                    if (diagnostics.optimize) cpu_opt_invalidate();
+                    tmp.v1 = get_star_value(current_section->l_address_val);
+                } else {
+                    label = find_label2(&labelname, mycontext);
+                    if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
+                    if (label->constant) {err_msg_double_defined(label, &labelname, &epoint); goto breakerr;}
+                    tmp.v1 = label->value;
                 }
-                break;
+                if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
+                else {
+                    struct linepos_s epoints[3];
+                    referenceit &= 1; /* not good... */
+                    if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
+                    val = get_vals_addrlist(epoints);
+                    referenceit = oldreferenceit;
+                }
+                oaddr = current_section->address;
+                tmp.v2 = val;
+                tmp.epoint = &epoint;
+                tmp.epoint2 = &epoint2;
+                tmp.epoint3 = &epoint3;
+                result2 = tmp.v1->obj->calc2(&tmp);
+                if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                val_destroy(val);
+                if (label != NULL) {
+                    listing_equal(result2);
+                    label->file_list = cflist;
+                    label->epoint = epoint;
+                    if (label->defpass != pass) label->ref = false;
+                    var_assign(label, result2, fixeddig);
+                    val_destroy(result2);
+                } else {
+                    val_destroy(tmp.v1);
+                    starhandle(result2, &epoint, &epoint2);
+                }
+                goto finish;
+            }
+            switch (wht) {
             case '=': 
                 { /* variable */
                     struct linepos_s epoints[3];
@@ -1003,9 +991,6 @@ Obj *compile(struct file_list_s *cflist)
                     goto finish;
                 }
             case '.':
-                if (pline[lpoint.pos + 1] == wht && pline[lpoint.pos + 2] == '=') {
-                    goto shifting;
-                }
                 cmdpoint = lpoint;
                 prm = get_command();
                 ignore();
@@ -2683,6 +2668,8 @@ Obj *compile(struct file_list_s *cflist)
                     line_t lin, xlin;
                     struct linepos_s apoint, bpoint = {0, 0};
                     int nopos = -1;
+                    struct oper_s tmp;
+                    struct linepos_s epoint2, epoint3;
                     uint8_t *expr;
                     Label *label;
                     Obj *nf = NULL;
@@ -2704,7 +2691,11 @@ Obj *compile(struct file_list_s *cflist)
                         if (varname.len != 0) {
                             struct values_s *vs;
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
-                            ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                            ignore(); wht = here();
+                            if (wht != '=') {
+                                if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) lpoint.pos++;
+                                else {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                            }
                             lpoint.pos++;
                             if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) goto breakerr;
                             vs = get_val(); val = vs->val;
@@ -2746,6 +2737,7 @@ Obj *compile(struct file_list_s *cflist)
                     memcpy(expr, pline, lentmp); label = NULL;
                     new_waitfor(W_NEXT2, &epoint);
                     waitfor->breakout = false;
+                    tmp.op = NULL;
                     for (;;) {
                         lpoint = apoint;
                         if (here() != ',' && here() != 0) {
@@ -2766,24 +2758,52 @@ Obj *compile(struct file_list_s *cflist)
                                 varname.data = pline + lpoint.pos; varname.len = get_label();
                                 if (varname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);break;}
                                 if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
-                                ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"="); break;}
-                                lpoint.pos++;ignore();
-                                label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
-                                if (labelexists) {
-                                    if (label->constant) {
-                                        err_msg_double_defined(label, &varname, &epoint);
-                                        break;
+                                ignore(); wht = here();
+                                while (wht != 0 && !arguments.tasmcomp) {
+                                    int wht2 = pline[lpoint.pos + 1];
+                                    if (wht2 == '=') {
+                                        if (wht == ':') {
+                                            wht = '=';
+                                            lpoint.pos++;
+                                            break;
+                                        }
+                                        tmp.op = oper_from_token(wht);
+                                        if (tmp.op == NULL) break;
+                                        epoint3 = lpoint;
+                                        lpoint.pos += 2;
+                                    } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                                        tmp.op = oper_from_token2(wht2);
+                                        if (tmp.op == NULL) break;
+                                        epoint3 = lpoint;
+                                        lpoint.pos += 3;
+                                    } else break;
+                                    ignore();
+                                    epoint2 = lpoint;
+                                    tmp.epoint = &epoint;
+                                    tmp.epoint2 = &epoint2;
+                                    tmp.epoint3 = &epoint3;
+                                }
+                                if (tmp.op == NULL) {
+                                    if (wht != '=') {err_msg(ERROR______EXPECTED,"="); break;}
+                                    lpoint.pos++;ignore();
+                                    label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
+                                    if (labelexists) {
+                                        if (label->constant) { err_msg_double_defined(label, &varname, &epoint); break; }
+                                        label->owner = false;
+                                        label->file_list = cflist;
+                                        label->epoint = epoint;
+                                        if (label->defpass != pass) label->ref = false;
+                                    } else {
+                                        label->constant = false;
+                                        label->owner = false;
+                                        label->value = (Obj *)ref_none();
+                                        label->file_list = cflist;
+                                        label->epoint = epoint;
                                     }
-                                    label->owner = false;
-                                    label->file_list = cflist;
-                                    label->epoint = epoint;
-                                    if (label->defpass != pass) label->ref = false;
                                 } else {
-                                    label->constant = false;
-                                    label->owner = false;
-                                    label->value = (Obj *)ref_none();
-                                    label->file_list = cflist;
-                                    label->epoint = epoint;
+                                    label = find_label2(&varname, (varname.data[0] == '_') ? cheap_context : current_context);
+                                    if (label == NULL) {err_msg_not_definedx(&varname, &epoint); break;}
+                                    if (label->constant) {err_msg_double_defined(label, &varname, &epoint); break;}
                                 }
                                 bpoint = lpoint; nopos = 1;
                             }
@@ -2801,6 +2821,15 @@ Obj *compile(struct file_list_s *cflist)
                             lpoint = bpoint;
                             if (!get_exp(&w, 0, cfile, 0, 0, &bpoint)) break;
                             val = get_vals_addrlist(epoints);
+                            if (tmp.op != NULL) {
+                                Obj *result2;
+                                tmp.v1 = label->value;
+                                tmp.v2 = val;
+                                result2 = tmp.v1->obj->calc2(&tmp);
+                                if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                                val_destroy(val);
+                                val = result2;
+                            }
                             var_assign(label, val, fixeddig);
                             val_destroy(val);
                         }
