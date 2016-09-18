@@ -34,12 +34,6 @@ typedef struct Dict {
 extern void dictobj_init(void);
 extern void dictobj_names(void);
 
-static inline MUST_CHECK Dict *new_dict(void) {
-    Dict *v = (Dict *)val_alloc(DICT_OBJ);
-    avltree_init(&v->members);
-    return v;
-}
-
 struct pair_s {
     int hash;
     Obj *key;
@@ -47,5 +41,6 @@ struct pair_s {
     struct avltree_node node;
 };
 
-extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
+extern Obj *dictobj_parse(struct values_s *, unsigned int);
+
 #endif
