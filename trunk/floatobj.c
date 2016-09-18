@@ -176,8 +176,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 }
 
 static bool almost_equal(double a, double b) {
-    if (a > b) return a - b <= a * 0.0000000005;
-    return b - a <= b * 0.0000000005;
+    double aa = fabs(a);
+    double ab = fabs(b);
+    return fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005;
 }
 
 MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
