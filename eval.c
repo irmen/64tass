@@ -1030,7 +1030,7 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_SPLAT:   /* *  */
             if (i + 1 < ev->outp) {
                 Obj *o = ev->o_out[i + 1].val;
-                if (o != &o_PARENT.v && o != &o_BRACKET.v && o != &o_BRACE.v && o != &o_FUNC.v && o != &o_INDEX.v && o != &o_COMMA.v) {
+                if (o != &o_RPARENT.v && o != &o_RBRACKET.v && o != &o_RBRACE.v && o != &o_FUNC.v && o != &o_INDEX.v && o != &o_COMMA.v) {
                     err_msg2(ERROR_EXPRES_SYNTAX, NULL, &o_out->epoint);
                     val_replace(&v1->val, (Obj *)none_value);
                     continue;
