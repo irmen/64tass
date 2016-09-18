@@ -887,68 +887,13 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_DICT:
             {
                 unsigned int args = 0;
-                Dict *dict;
                 while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != O_BRACE) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp - 1 - args];
                 }
-                dict = new_dict();
-                v1->val = (Obj *)dict;
-                dict->len = 0;
-                dict->def = NULL;
-                if (args != 0) {
-                    unsigned int j;
-                    vsp -= args;
-                    for (j = 0; j < args; j++) {
-                        Obj *key, *data;
-                        Error *err;
-                        struct pair_s *p;
-                        struct avltree_node *b;
-                        v2 = &values[vsp + j];
-                        if (v2->val->obj == NONE_OBJ || v2->val->obj == ERROR_OBJ) {
-                            val_destroy(v1->val); v1->val = val_reference(v2->val);
-                            break;
-                        }
-                        if (v2->val->obj == COLONLIST_OBJ) {
-                            Colonlist *list = (Colonlist *)v2->val;
-                            if (list->len != 2 || list->data[1]->obj == DEFAULT_OBJ) {
-                                err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
-                                err->u.objname = v2->val->obj->name;
-                                val_destroy(v1->val); v1->val = (Obj *)err;
-                                break;
-                            }
-                            key = list->data[0];
-                            data = list->data[1];
-                        } else { 
-                            key = v2->val;
-                            data = NULL;
-                        }
-                        if (key->obj == DEFAULT_OBJ) {
-                            if (dict->def != NULL) val_destroy(dict->def);
-                            dict->def = (data == NULL) ? NULL : val_reference(data);
-                            continue;
-                        }
-                        p = (struct pair_s *)mallocx(sizeof *p);
-                        err = key->obj->hash(key, &p->hash, &v2->epoint);
-                        if (err != NULL) {
-                            free(p);
-                            val_destroy(v1->val); v1->val = &err->v;
-                            break;
-                        }
-                        p->key = key;
-                        b = avltree_insert(&p->node, &dict->members, pair_compare);
-                        if (b != NULL) {
-                            free(p);
-                            p = avltree_container_of(b, struct pair_s, node);
-                            if (p->data != NULL) val_destroy(p->data);
-                        } else {
-                            p->key = val_reference(p->key);
-                            dict->len++;
-                        }
-                        p->data = (data == NULL) ? NULL : val_reference(data);
-                    }
-                }
+                vsp -= args;
+                v1->val = dictobj_parse(&values[vsp], args);
                 continue;
             }
         case O_COND:

@@ -91,6 +91,14 @@ static void destroy(Obj *o1) {
     if (v1->def != NULL) val_destroy(v1->def);
 }
 
+static MUST_CHECK Dict *new_dict(void) {
+    Dict *v = (Dict *)val_alloc(DICT_OBJ);
+    avltree_init(&v->members);
+    v->len = 0;
+    v->def = NULL;
+    return v;
+}
+
 static void garbage(Obj *o1, int i) {
     Dict *v1 = (Dict *)o1;
     Obj *v;
@@ -113,6 +121,25 @@ static void garbage(Obj *o1, int i) {
         } else v->refcount++;
         return;
     }
+}
+
+static struct oper_s pair_oper;
+
+static int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
+    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
+    Obj *result;
+    int h = a->hash - b->hash;
+
+    if (h != 0) return h;
+    pair_oper.v1 = a->key;
+    pair_oper.v2 = b->key;
+    result = pair_oper.v1->obj->calc2(&pair_oper);
+    if (result->obj == INT_OBJ) h = ((Int *)result)->len;
+    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
+    val_destroy(result);
+    return h;
 }
 
 static bool same(const Obj *o1, const Obj *o2) {
@@ -320,23 +347,59 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static struct oper_s pair_oper;
+Obj *dictobj_parse(struct values_s *values, unsigned int args) {
+    unsigned int j;
+    Dict *dict = new_dict();
 
-int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
-    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    Obj *result;
-    int h = a->hash - b->hash;
+    for (j = 0; j < args; j++) {
+        Obj *data;
+        Error *err;
+        struct pair_s *p;
+        struct avltree_node *b;
+        struct values_s *v2 = &values[j];
+        Obj *key = v2->val;
 
-    if (h != 0) return h;
-    pair_oper.v1 = a->key;
-    pair_oper.v2 = b->key;
-    result = pair_oper.v1->obj->calc2(&pair_oper);
-    if (result->obj == INT_OBJ) h = ((Int *)result)->len;
-    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
-    val_destroy(result);
-    return h;
+        if (key->obj == NONE_OBJ || key->obj == ERROR_OBJ) {
+            val_destroy(&dict->v); 
+            return val_reference(key);
+        }
+        if (key->obj != COLONLIST_OBJ) data = NULL;
+        else {
+            Colonlist *list = (Colonlist *)key;
+            if (list->len != 2 || list->data[1]->obj == DEFAULT_OBJ) {
+                err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
+                err->u.objname = key->obj->name;
+                val_destroy(&dict->v);
+                return &err->v;
+            }
+            key = list->data[0];
+            data = list->data[1];
+        }
+        if (key->obj == DEFAULT_OBJ) {
+            if (dict->def != NULL) val_destroy(dict->def);
+            dict->def = (data == NULL) ? NULL : val_reference(data);
+            continue;
+        }
+        p = (struct pair_s *)mallocx(sizeof *p);
+        err = key->obj->hash(key, &p->hash, &v2->epoint);
+        if (err != NULL) {
+            free(p);
+            val_destroy(&dict->v); 
+            return &err->v;
+        }
+        p->key = key;
+        b = avltree_insert(&p->node, &dict->members, pair_compare);
+        if (b != NULL) {
+            free(p);
+            p = avltree_container_of(b, struct pair_s, node);
+            if (p->data != NULL) val_destroy(p->data);
+        } else {
+            p->key = val_reference(p->key);
+            dict->len++;
+        }
+        p->data = (data == NULL) ? NULL : val_reference(data);
+    }
+    return &dict->v;
 }
 
 void dictobj_init(void) {
