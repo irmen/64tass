@@ -61,7 +61,8 @@ struct diagnostics_s diagnostics = {
     true,        /* label_left */
     false,       /* branch_page */
     true,        /* deprecated */
-    false        /* old_equal */
+    false,       /* old_equal */
+    true         /* portable */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -75,7 +76,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* label_left */
     false,       /* branch_page */
     false,       /* deprecated */
-    false        /* old_equal */
+    false,       /* old_equal */
+    false        /* portable */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -90,7 +92,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* label_left */
     false,       /* branch_page */
     true,        /* deprecated */
-    true         /* old_equal */
+    true,        /* old_equal */
+    true         /* portable */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -105,7 +108,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* label_left */
     true,        /* branch_page */
     true,        /* deprecated */
-    true         /* old_equal */
+    true,        /* old_equal */
+    true         /* portable */
 };
 
 struct w_options_s {
@@ -125,6 +129,7 @@ static const struct w_options_s w_options[] = {
     {"branch-page",  &diagnostics.branch_page},
     {"deprecated",   &diagnostics.deprecated},
     {"old-equal",    &diagnostics.old_equal},
+    {"portable",     &diagnostics.portable},
     {NULL,           NULL}
 };
 
@@ -342,6 +347,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Wno-pc-wrap          No PC overflow warning\n"
            "  -Wold-equal           Warn about old equal operator\n"
            "  -Woptimize            Optimization warnings\n"
+           "  -Wno-portable         No portability warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"
            "\n"

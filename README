@@ -2808,6 +2808,12 @@ default, the others are disabled.
     missed. Most CPUs are supported with the notable exception of 65816 and
     65EL02, but this could improve in later versions.
 
+-Wno-portable
+    Don't warn about source portability problems.
+
+    Improper use of file names may cause portability problems, like assuming
+    case insensitivity of file system. This option disables such warnings.
+
 -Wshadow
     Warn about symbol shadowing.
 
@@ -3084,6 +3090,8 @@ possibly redundant indexing with a constant value
     indexing
 processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank
+the file's real name is not '?'
+    check if all characters match including their case
 
 Errors
 

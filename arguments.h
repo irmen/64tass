@@ -68,6 +68,7 @@ struct diagnostics_s {
     bool branch_page;
     bool deprecated;
     bool old_equal;
+    bool portable;
 };
 
 extern int testarg(int, char **, struct file_s *);

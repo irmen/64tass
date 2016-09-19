@@ -3223,6 +3223,11 @@ analysis done. Currently it's easy to fool with these constructs:</p>
 missed. Most CPUs are supported with the notable exception of 65816 and 65EL02,
 but this could improve in later versions.</p>
 
+<dt><b>-Wno-portable</b><a name="o_Wportable" href="#o_Wportable"></a>
+<dd>Don't warn about source portability problems.
+<p>Improper use of file names may cause portability problems, like assuming
+case insensitivity of file system. This option disables such warnings.</p>
+
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
 <dd>Warn about symbol shadowing.
 <p>Checks if local variables <q>shadow</q> other variables of same name in upper scopes in
@@ -3502,6 +3507,7 @@ will display without them.</p>
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility detected
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
+<dt>the file's real name is not '?'<dd>check if all characters match including their case
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
