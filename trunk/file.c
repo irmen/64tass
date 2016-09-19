@@ -48,6 +48,21 @@ struct include_list_s *include_list_last = &include_list;
 
 static struct avltree file_tree;
 
+static void portability_characters(const char *name, linepos_t epoint) {
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    if (strchr(name, '\\')) err_msg2(ERROR_____BACKSLASH, name, epoint);
+#else
+    const char *c = name;
+    while (*c != 0) {
+        if (strchr("\\:*?\"<>|", *c)) {
+            err_msg2(ERROR__RESERVED_CHR, name, epoint);
+            break;
+        }
+        c++;
+    }
+#endif
+}
+
 void include_list_add(const char *path)
 {
     size_t i, j, len;
@@ -133,7 +148,7 @@ static MUST_CHECK wchar_t *convert_name(const char *name) {
     return wname;
 }
 
-static void portability_warning(const char *name, linepos_t epoint) {
+static void portability_casesensitive(const char *name, linepos_t epoint) {
     wchar_t *wname = convert_name(name);
     size_t len = wcslen(wname) + 1;
     wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
@@ -317,9 +332,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     f = file_open(path, "rb");
                     i = i->next;
                 }
+                if (f != NULL) {
 #ifdef _WIN32
-                if (f != NULL) portability_warning(name, epoint);
+                    portability_casesensitive(name, epoint);
 #endif
+                    portability_characters(name, epoint);
+                }
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");
             }

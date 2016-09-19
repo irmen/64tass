@@ -222,7 +222,14 @@ static const char *terr_warning[] = {
     "deprecated directive, only for TASM compatible mode",
     "possibly redundant if last 'jsr' is changed to 'jmp'",
     "possibly redundant indexing with a constant value",
-    "the file's real name is not '"
+#ifdef _WIN32
+    "the file's real name is not '",
+#endif
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    "use '/' for path separation '",
+#else
+    "this name uses reserved characters '",
+#endif
 };
 
 static const char *terr_error[] = {
@@ -343,12 +350,17 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             break;
 #ifdef _WIN32
         case ERROR___INSENSITIVE:
+#endif
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+        case ERROR_____BACKSLASH:
+#else
+        case ERROR__RESERVED_CHR:
+#endif
             new_error_msg2(diagnostic_errors.portable, epoint);
             adderror(terr_warning[no]);
             adderror((const char *)prm);
             adderror("' [-Wportable]");
             break;
-#endif
         default: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror(terr_warning[no]);
