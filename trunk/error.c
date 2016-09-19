@@ -221,7 +221,8 @@ static const char *terr_warning[] = {
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
     "possibly redundant if last 'jsr' is changed to 'jmp'",
-    "possibly redundant indexing with a constant value"
+    "possibly redundant indexing with a constant value",
+    "the file's real name is not '"
 };
 
 static const char *terr_error[] = {
@@ -340,6 +341,14 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             break;
+#ifdef _WIN32
+        case ERROR___INSENSITIVE:
+            new_error_msg2(diagnostic_errors.portable, epoint);
+            adderror(terr_warning[no]);
+            adderror((const char *)prm);
+            adderror("' [-Wportable]");
+            break;
+#endif
         default: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror(terr_warning[no]);

@@ -22,6 +22,7 @@
 #include <errno.h>
 #ifdef _WIN32
 #include <locale.h>
+#include <windows.h>
 #endif
 #include "64tass.h"
 #include "unicode.h"
@@ -110,11 +111,9 @@ char *get_path(const Str *v, const char *base) {
     return path;
 }
 
-FILE *file_open(const char *name, const char *mode)
-{
-    FILE *f;
 #ifdef _WIN32
-    wchar_t *wname, *c2, wmode[3];
+static MUST_CHECK wchar_t *convert_name(const char *name) {
+    wchar_t *wname, *c2;
     const uint8_t *c;
     uint32_t ch;
     size_t len = strlen(name) + 1;
@@ -131,6 +130,26 @@ FILE *file_open(const char *name, const char *mode)
         } else *c2++ = REPLACEMENT_CHARACTER;
     }
     *c2++ = 0;
+    return wname;
+}
+
+static void portability_warning(const char *name, linepos_t epoint) {
+    wchar_t *wname = convert_name(name);
+    size_t len = wcslen(wname) + 1;
+    wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
+    GetLongPathNameW(wname, wname2, len);
+    if (wcscmp(wname, wname2)) err_msg2(ERROR___INSENSITIVE, name, epoint);
+    free(wname2);
+    free(wname);
+}
+#endif
+
+FILE *file_open(const char *name, const char *mode) {
+    FILE *f;
+#ifdef _WIN32
+    wchar_t *wname, *c2, wmode[3];
+    const uint8_t *c;
+    wname = convert_name(name);
     c2 = wmode; c = (uint8_t *)mode;
     while ((*c2++=(wchar_t)*c++) != 0);
     f = _wfopen(wname, wmode);
@@ -268,15 +287,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         if (command_line == NULL) command_line = lastfi;
     }
     if (b == NULL) { /* new file */
-	enum filecoding_e type = E_UNKNOWN;
+        enum filecoding_e type = E_UNKNOWN;
         FILE *f;
         uint32_t c = 0;
         size_t fp = 0;
 
-	lastfi->line = NULL;
-	lastfi->lines = 0;
-	lastfi->data = NULL;
-	lastfi->len = 0;
+        lastfi->line = NULL;
+        lastfi->lines = 0;
+        lastfi->data = NULL;
+        lastfi->len = 0;
         lastfi->open = 0;
         lastfi->err_no = 0;
         lastfi->read_error = false;
@@ -298,6 +317,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     f = file_open(path, "rb");
                     i = i->next;
                 }
+#ifdef _WIN32
+                if (f != NULL) portability_warning(name, epoint);
+#endif
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");
             }

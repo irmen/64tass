@@ -33,6 +33,9 @@ enum errors_e {
     ERROR______OLD_GOTO,
     ERROR_____TAIL_CALL,
     ERROR___CONST_INDEX,
+#ifdef _WIN32
+    ERROR___INSENSITIVE,
+#endif
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR_____REMOVABLE,
