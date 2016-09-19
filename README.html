@@ -3225,8 +3225,13 @@ but this could improve in later versions.</p>
 
 <dt><b>-Wno-portable</b><a name="o_Wportable" href="#o_Wportable"></a>
 <dd>Don't warn about source portability problems.
-<p>Improper use of file names may cause portability problems, like assuming
-case insensitivity of file system. This option disables such warnings.</p>
+<p>These cross platform development annoyances are checked for:</p>
+
+<ul>
+<li>Case insensitive use of file names or use of short names.
+<li>Use of backslashes for path separation instead of forward slashes.
+<li>Use of reserved characters in file names.
+</ul>
 
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
 <dd>Warn about symbol shadowing.
@@ -3508,6 +3513,8 @@ will display without them.</p>
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
 <dt>the file's real name is not '?'<dd>check if all characters match including their case
+<dt>use '/' for path separation '?'<dd>backslash is not a path separator on all systems while slash is
+<dt>this name uses reserved characters '?'<dd>Do not use \ : * ? " &lt &gt; | in file names
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>

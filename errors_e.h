@@ -36,6 +36,11 @@ enum errors_e {
 #ifdef _WIN32
     ERROR___INSENSITIVE,
 #endif
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    ERROR_____BACKSLASH,
+#else
+    ERROR__RESERVED_CHR,
+#endif
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR_____REMOVABLE,
