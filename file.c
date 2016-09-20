@@ -143,12 +143,13 @@ static MUST_CHECK wchar_t *convert_name(const char *name) {
 
 static void portability(const char *name, linepos_t epoint) {
 #ifdef _WIN32
+    DWORD ret;
     wchar_t *wname = convert_name(name);
     size_t len = wcslen(wname) + 1;
     wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
     bool different;
-    GetLongPathNameW(wname, wname2, len);
-    different = wcscmp(wname, wname2) != 0;
+    ret = GetLongPathNameW(wname, wname2, len);
+    different = ret != 0 && memcmp(wname, wname2, ret * sizeof *wname2) != 0;
     free(wname2);
     free(wname);
     if (different) {
