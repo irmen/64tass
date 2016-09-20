@@ -41,6 +41,7 @@ enum errors_e {
 #else
     ERROR__RESERVED_CHR,
 #endif
+    ERROR_ABSOLUTE_PATH,
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR_____REMOVABLE,

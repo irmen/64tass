@@ -226,10 +226,11 @@ static const char *terr_warning[] = {
     "the file's real name is not '",
 #endif
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    "use '/' for path separation '",
+    "use '/' as path separation '",
 #else
     "this name uses reserved characters '",
 #endif
+    "use relative path for '"
 };
 
 static const char *terr_error[] = {
@@ -356,6 +357,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
 #else
         case ERROR__RESERVED_CHR:
 #endif
+        case ERROR_ABSOLUTE_PATH:
             new_error_msg2(diagnostic_errors.portable, epoint);
             adderror(terr_warning[no]);
             adderror((const char *)prm);

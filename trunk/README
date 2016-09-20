@@ -2816,6 +2816,7 @@ default, the others are disabled.
       + Case insensitive use of file names or use of short names.
       + Use of backslashes for path separation instead of forward slashes.
       + Use of reserved characters in file names.
+      + Absolute paths
 -Wshadow
     Warn about symbol shadowing.
 
@@ -3094,10 +3095,12 @@ processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank
 the file's real name is not '?'
     check if all characters match including their case
-use '/' for path separation '?'
-    backslash is not a path separator on all systems while slash is
 this name uses reserved characters '?'
     Do not use \ : * ? " < > | in file names
+use '/' as path separation '?'
+    backslash is not a path separator on all systems while slash is
+use relative path for '?'
+    File's path is absolute and depends on the file system layout
 
 Errors
 
