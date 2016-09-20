@@ -67,6 +67,13 @@ void include_list_add(const char *path)
     if (i != j) memcpy(include_list_last->path + i, "/", 2);
 }
 
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+static inline bool is_driveletter(const char *name) {
+    uint8_t c = name[0] | 0x20;
+    return c >= 'a' && c <= 'z' && name[1] == ':';
+}
+#endif
+
 char *get_path(const Str *v, const char *base) {
     char *path;
     size_t i, len;
@@ -74,7 +81,7 @@ char *get_path(const Str *v, const char *base) {
     size_t j;
 
     i = strlen(base);
-    j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
+    j = is_driveletter(base) ? 2 : 0;
     while (i > j) {
         if (base[i - 1] == '/' || base[i - 1] == '\\') break;
         i--;
@@ -96,7 +103,7 @@ char *get_path(const Str *v, const char *base) {
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = j;
-    else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
+    else if (v->len > 1 && is_driveletter((const char *)v->data)) i = 0;
 #else
     if (v->len != 0 && v->data[0] == '/') i = 0;
 #endif
@@ -149,7 +156,7 @@ static void portability(const char *name, linepos_t epoint) {
         err_msg2(ERROR_____BACKSLASH, name, epoint);
         return;
     }
-    if (name[0] == '/' || (name[1] == ':' && (name[0] | 0x20) >= 'a' && (name[0] | 0x20) <= 'z')) {
+    if (name[0] == '/' || is_driveletter(name)) {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
     }
 #else
