@@ -146,10 +146,15 @@ static void portability(const char *name, linepos_t epoint) {
     wchar_t *wname = convert_name(name);
     size_t len = wcslen(wname) + 1;
     wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
+    bool different;
     GetLongPathNameW(wname, wname2, len);
-    if (wcscmp(wname, wname2)) err_msg2(ERROR___INSENSITIVE, name, epoint);
+    different = wcscmp(wname, wname2) != 0;
     free(wname2);
     free(wname);
+    if (different) {
+        err_msg2(ERROR___INSENSITIVE, name, epoint);
+        return;
+    }
 #endif
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     if (strchr(name, '\\')) {
