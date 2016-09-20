@@ -48,21 +48,6 @@ struct include_list_s *include_list_last = &include_list;
 
 static struct avltree file_tree;
 
-static void portability_characters(const char *name, linepos_t epoint) {
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    if (strchr(name, '\\')) err_msg2(ERROR_____BACKSLASH, name, epoint);
-#else
-    const char *c = name;
-    while (*c != 0) {
-        if (strchr("\\:*?\"<>|", *c)) {
-            err_msg2(ERROR__RESERVED_CHR, name, epoint);
-            break;
-        }
-        c++;
-    }
-#endif
-}
-
 void include_list_add(const char *path)
 {
     size_t i, j, len;
@@ -147,8 +132,10 @@ static MUST_CHECK wchar_t *convert_name(const char *name) {
     *c2++ = 0;
     return wname;
 }
+#endif
 
-static void portability_casesensitive(const char *name, linepos_t epoint) {
+static void portability(const char *name, linepos_t epoint) {
+#ifdef _WIN32
     wchar_t *wname = convert_name(name);
     size_t len = wcslen(wname) + 1;
     wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
@@ -156,8 +143,29 @@ static void portability_casesensitive(const char *name, linepos_t epoint) {
     if (wcscmp(wname, wname2)) err_msg2(ERROR___INSENSITIVE, name, epoint);
     free(wname2);
     free(wname);
-}
 #endif
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    if (strchr(name, '\\')) {
+        err_msg2(ERROR_____BACKSLASH, name, epoint);
+        return;
+    }
+    if (name[0] == '/' || (name[1] == ':' && (name[0] | 0x20) >= 'a' && (name[0] | 0x20) <= 'z')) {
+        err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+    }
+#else
+    const char *c = name;
+    while (*c != 0) {
+        if (strchr("\\:*?\"<>|", *c)) {
+            err_msg2(ERROR__RESERVED_CHR, name, epoint);
+            return;
+        }
+        c++;
+    }
+    if (name[0] == '/') {
+        err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+    }
+#endif
+}
 
 FILE *file_open(const char *name, const char *mode) {
     FILE *f;
@@ -332,11 +340,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     f = file_open(path, "rb");
                     i = i->next;
                 }
-                if (f != NULL) {
-#ifdef _WIN32
-                    portability_casesensitive(name, epoint);
-#endif
-                    portability_characters(name, epoint);
+                if (f != NULL && diagnostics.portable) {
+                    portability(name, epoint);
                 }
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");

@@ -3231,6 +3231,7 @@ but this could improve in later versions.</p>
 <li>Case insensitive use of file names or use of short names.
 <li>Use of backslashes for path separation instead of forward slashes.
 <li>Use of reserved characters in file names.
+<li>Absolute paths
 </ul>
 
 <dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
@@ -3513,8 +3514,9 @@ will display without them.</p>
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
 <dt>the file's real name is not '?'<dd>check if all characters match including their case
-<dt>use '/' for path separation '?'<dd>backslash is not a path separator on all systems while slash is
 <dt>this name uses reserved characters '?'<dd>Do not use \ : * ? " &lt &gt; | in file names
+<dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
+<dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
