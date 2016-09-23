@@ -119,32 +119,36 @@ char *get_path(const Str *v, const char *base) {
 }
 
 #ifdef _WIN32
-static MUST_CHECK wchar_t *convert_name(const char *name) {
-    wchar_t *wname, *c2;
-    const uint8_t *c;
+static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
+    wchar_t *wname;
     uint32_t ch;
-    size_t len = strlen(name) + 1;
+    size_t i = 0, j = 0, len = (max != SIZE_MAX) ? max : (strlen(name) + 1);
     if (len > SIZE_MAX / sizeof *wname) err_msg_out_of_memory();
     wname = (wchar_t *)mallocx(len * sizeof *wname);
-    c2 = wname; c = (uint8_t *)name;
-    while (*c != 0) {
-        ch = *c;
-        if ((ch & 0x80) != 0) c += utf8in(c, &ch); else c++;
-        if (ch < 0x10000) *c2++ = ch;
-        else if (ch < 0x110000) {
-            *c2++ = (ch >> 10) + 0xd7c0;
-            *c2++ = (ch & 0x3ff) | 0xdc00;
-        } else *c2++ = REPLACEMENT_CHARACTER;
+    while (name[i] != 0 && i < max) {
+        ch = name[i];
+        if ((ch & 0x80) != 0) i += utf8in((const uint8_t *)name + i, &ch); else i++;
+        if (j + 3 > len) {
+            len += 64;
+            if (len > SIZE_MAX / sizeof *wname) err_msg_out_of_memory();
+            wname = (wchar_t *)reallocx(wname, len * sizeof *wname);
+        }
+        if (ch < 0x10000) {
+        } else if (ch < 0x110000) {
+            wname[j++] = (ch >> 10) + 0xd7c0;
+            ch = (ch & 0x3ff) | 0xdc00;
+        } else ch = REPLACEMENT_CHARACTER;
+        wname[j++] = ch;
     }
-    *c2++ = 0;
+    wname[j] = 0;
     return wname;
 }
 #endif
 
-static void portability(const char *name, linepos_t epoint) {
+static void portability(const Str *name, linepos_t epoint) {
 #ifdef _WIN32
     DWORD ret;
-    wchar_t *wname = convert_name(name);
+    wchar_t *wname = convert_name((const char *)name->data, name->len);
     size_t len = wcslen(wname) + 1;
     wchar_t *wname2 = (wchar_t *)mallocx(len * sizeof *wname2);
     bool different;
@@ -158,23 +162,23 @@ static void portability(const char *name, linepos_t epoint) {
     }
 #endif
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    if (strchr(name, '\\')) {
+    if (memchr(name->data, '\\', name->len) != NULL) {
         err_msg2(ERROR_____BACKSLASH, name, epoint);
         return;
     }
-    if (name[0] == '/' || is_driveletter(name)) {
+    if ((name->len > 0 && name->data[0] == '/') || (name->len > 1 && is_driveletter((const char *)name->data))) {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
     }
 #else
-    const char *c = name;
-    while (*c != 0) {
-        if (strchr("\\:*?\"<>|", *c)) {
+    size_t i;
+    const uint8_t *c = name->data;
+    for (i = 0; i < name->len; i++) {
+        if (strchr("\\:*?\"<>|", c[i])) {
             err_msg2(ERROR__RESERVED_CHR, name, epoint);
             return;
         }
-        c++;
     }
-    if (name[0] == '/') {
+    if (name->len > 0 && name->data[0] == '/') {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
     }
 #endif
@@ -185,7 +189,7 @@ FILE *file_open(const char *name, const char *mode) {
 #ifdef _WIN32
     wchar_t *wname, *c2, wmode[3];
     const uint8_t *c;
-    wname = convert_name(name);
+    wname = convert_name(name, SIZE_MAX);
     c2 = wmode; c = (uint8_t *)mode;
     while ((*c2++=(wchar_t)*c++) != 0);
     f = _wfopen(wname, wmode);
@@ -354,7 +358,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     i = i->next;
                 }
                 if (f != NULL && diagnostics.portable) {
-                    portability(name, epoint);
+                    portability(val, epoint);
                 }
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");

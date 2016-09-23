@@ -360,7 +360,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR_ABSOLUTE_PATH:
             new_error_msg2(diagnostic_errors.portable, epoint);
             adderror(terr_warning[no]);
-            adderror((const char *)prm);
+            adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             adderror("' [-Wportable]");
             break;
         default: 
