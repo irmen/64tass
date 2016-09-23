@@ -122,7 +122,7 @@ char *get_path(const Str *v, const char *base) {
 static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     wchar_t *wname;
     uint32_t ch;
-    size_t i = 0, j = 0, len = (max != SIZE_MAX) ? max : (strlen(name) + 1);
+    size_t i = 0, j = 0, len = ((max != SIZE_MAX) ? max : strlen(name)) + 2;
     if (len > SIZE_MAX / sizeof *wname) err_msg_out_of_memory();
     wname = (wchar_t *)mallocx(len * sizeof *wname);
     while (name[i] != 0 && i < max) {
