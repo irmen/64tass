@@ -87,24 +87,26 @@ static Obj **lnew(List *v, size_t len) {
     return v->val;
 }
 
+static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ) {
+    size_t i, ln;
+    Obj **vals, **data = v1->data;
+    Tuple *v = (Tuple *)val_alloc(typ);
+
+    v->len = ln = v1->len;
+    v->data = vals = lnew(v, ln);
+
+    for (i = 0; i < ln; i++) {
+        vals[i] = val_reference(data[i]);
+    }
+    return &v->v;
+}
+
 static MUST_CHECK Obj *list_create(Obj *o1, linepos_t epoint) {
-    Tuple *v1;
-    List *v;
-    Obj **vals;
-    size_t i;
     switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_LIST: return val_reference(o1);
-    case T_TUPLE:
-        v1 = (Tuple *)o1;
-        v = new_list();
-        v->data = vals = lnew(v, v1->len);
-        for (i = 0;i < v1->len; i++) {
-            vals[i] = val_reference(v1->data[i]);
-        }
-        v->len = i;
-        return &v->v;
+    case T_TUPLE: return tuple_from_list((List *)o1, LIST_OBJ);
     case T_CODE: return tuple_from_code((Code *)o1, LIST_OBJ, epoint);
     default: break;
     }
@@ -113,23 +115,11 @@ static MUST_CHECK Obj *list_create(Obj *o1, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *tuple_create(Obj *o1, linepos_t epoint) {
-    List *v1;
-    Tuple *v;
-    Obj **vals;
-    size_t i;
     switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE: return val_reference(o1);
-    case T_LIST:
-        v1 = (List *)o1;
-        v = new_tuple();
-        v->data = vals = lnew(v, v1->len);
-        for (i = 0;i < v1->len; i++) {
-            vals[i] = val_reference(v1->data[i]);
-        }
-        v->len = i;
-        return &v->v;
+    case T_LIST: return tuple_from_list((List *)o1, TUPLE_OBJ);
     case T_CODE: return tuple_from_code((Code *)o1, TUPLE_OBJ, epoint);
     default: break;
     }
