@@ -47,7 +47,7 @@ static void section_free(struct avltree_node *aa)
     avltree_destroy(&a->members, section_free);
     longjump_destroy(&a->longjump);
     destroy_memblocks(&a->mem);
-    if (a->l_address_val != NULL) val_destroy(a->l_address_val);
+    val_destroy(a->l_address_val);
     cpu_opt_destroy(a->optimizer);
     free(a);
 }
@@ -94,7 +94,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->parent = current_section;
         lastsc->provides = ~(uval_t)0;lastsc->requires = lastsc->conflicts = 0;
         lastsc->end = lastsc->address = lastsc->l_address.address = lastsc->l_address.bank = lastsc->size = 0;
-        lastsc->l_address_val = NULL;
+        lastsc->l_address_val = (Obj *)ref_int(int_value[0]);
         lastsc->dooutput = true;
         lastsc->defpass = 0;
         lastsc->usepass = 0;
@@ -120,7 +120,7 @@ struct section_s *new_section(const str_t *name) {
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
     section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
-    if (section->l_address_val != NULL) val_destroy(section->l_address_val);
+    val_destroy(section->l_address_val);
     section->l_address_val = (Obj *)ref_int(int_value[0]);
     section->dooutput = true;
     section->structrecursion = 0;
@@ -139,7 +139,7 @@ void init_section2(struct section_s *section) {
     section->next = NULL;
     section->optimizer = NULL;
     init_memblocks(&section->mem);
-    section->l_address_val = NULL;
+    section->l_address_val = (Obj *)ref_int(int_value[0]);
     avltree_init(&section->members);
     avltree_init(&section->longjump);
 }
@@ -153,10 +153,8 @@ void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
     longjump_destroy(&section->longjump);
     destroy_memblocks(&section->mem);
-    if (section->l_address_val != NULL) {
-        val_destroy(section->l_address_val);
-        section->l_address_val = NULL;
-    }
+    val_destroy(section->l_address_val);
+    section->l_address_val = NULL;
     cpu_opt_destroy(section->optimizer);
     section->optimizer = NULL;
 }

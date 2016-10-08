@@ -271,9 +271,6 @@ void touch_label(Label *tmp) {
 }
 
 MUST_CHECK Obj *get_star_value(Obj *val) {
-    if (val == NULL) {
-        return (Obj *)int_from_uval(star);
-    }
     switch (val->obj->type) {
     case T_BITS: return (Obj *)bits_from_uval(star, (all_mem == 0xffff) ? 16 : 24);
     default:

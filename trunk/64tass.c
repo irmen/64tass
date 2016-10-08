@@ -669,7 +669,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             }
             current_section->l_address.address = uval & 0xffff;
             current_section->l_address.bank = uval & all_mem & ~0xffff;
-            if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
+            val_destroy(current_section->l_address_val);
             current_section->l_address_val = val;
             if (current_section->address != (address_t)uval) {
                 current_section->address = (address_t)uval;
@@ -694,7 +694,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
         }
         current_section->l_address.address = uval & 0xffff;
         current_section->l_address.bank = uval & all_mem & ~0xffff;
-        if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
+        val_destroy(current_section->l_address_val);
         current_section->l_address_val = val;
         return;
     } while (false);
@@ -1273,7 +1273,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->end = olds.end;current_section->start = olds.start;current_section->restart = olds.restart;
                         current_section->l_restart = olds.l_restart;current_section->address = olds.address;current_section->l_address = olds.l_address;
                         current_section->dooutput = olds.dooutput;memjmp(&current_section->mem, current_section->address);
-                        if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
+                        val_destroy(current_section->l_address_val);
                         current_section->l_address_val = olds.l_address_val;
                         if (current_section->l_address.bank > all_mem) {
                             current_section->l_address.bank &= all_mem;
@@ -1840,7 +1840,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->l_address.bank &= all_mem;
                         err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
                     }
-                    if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
+                    val_destroy(current_section->l_address_val);
                     current_section->l_address_val = waitfor->val; waitfor->val = NULL;
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_HERE2);
@@ -2039,7 +2039,7 @@ Obj *compile(struct file_list_s *cflist)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
-                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = (current_section->l_address_val != NULL) ? val_reference(current_section->l_address_val) : NULL;
+                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = val_reference(current_section->l_address_val);
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
@@ -2055,7 +2055,7 @@ Obj *compile(struct file_list_s *cflist)
                         else {
                             current_section->l_address.address = uval & 0xffff;
                             current_section->l_address.bank = uval & ~0xffff;
-                            if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
+                            val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
                         }
                     } while (false);
@@ -3116,8 +3116,8 @@ Obj *compile(struct file_list_s *cflist)
                         tmp3->l_unionend = current_section->l_unionend;
                         tmp3->structrecursion = current_section->structrecursion;
                         tmp3->logicalrecursion = current_section->logicalrecursion;
-                        if (tmp3->l_address_val != NULL) val_destroy(tmp3->l_address_val); /* TODO: restart as well */
-                        tmp3->l_address_val = (current_section->l_address_val != NULL) ? val_reference(current_section->l_address_val) : NULL;
+                        val_destroy(tmp3->l_address_val); /* TODO: restart as well */
+                        tmp3->l_address_val = val_reference(current_section->l_address_val);
                         tmp3->file_list = cflist;
                         tmp3->epoint = epoint;
                         if (tmp3->usepass == pass) {
