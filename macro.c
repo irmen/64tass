@@ -657,8 +657,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         current_section->conflicts = oldsection->conflicts;
         current_section->l_address.address = star & 0xffff; /* TODO */
         current_section->l_address.bank = star & ~0xffff;
-        if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
-        current_section->l_address_val = (oldsection->l_address_val != NULL) ? val_reference(oldsection->l_address_val) : NULL;
+        val_destroy(current_section->l_address_val);
+        current_section->l_address_val = val_reference(oldsection->l_address_val);
         current_section->dooutput = false;
         functionrecursion++;
         retval = compile(cflist);
