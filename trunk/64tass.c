@@ -1273,7 +1273,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->end = olds.end;current_section->start = olds.start;current_section->restart = olds.restart;
                         current_section->l_restart = olds.l_restart;current_section->address = olds.address;current_section->l_address = olds.l_address;
                         current_section->dooutput = olds.dooutput;memjmp(&current_section->mem, current_section->address);
-                        val_destroy(current_section->l_address_val);
+                        if (current_section->l_address_val != NULL) val_destroy(current_section->l_address_val);
                         current_section->l_address_val = olds.l_address_val;
                         if (current_section->l_address.bank > all_mem) {
                             current_section->l_address.bank &= all_mem;
