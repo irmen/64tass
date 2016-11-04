@@ -3264,6 +3264,12 @@ booleans. This is convenient but may cause mistakes.</p>
 <li>Numeric expressions like <q><code>1 + (lbl &gt; 3)</code></q>. It's better as <q><code>(lbl &gt; 3) ? 2 : 1</code></q>.
 </ul>
 
+<dt><b>-Wunused</b><a name="o_Wunused" href="#o_Wunused"></a>
+<dd>Warn about unused constant symbols.
+<p>Symbols which have no references to them are likely redundant. Before
+removing them check if there's any conditionally compiled out code which might
+still need them.</p>
+
 </dl>
 
 <h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>

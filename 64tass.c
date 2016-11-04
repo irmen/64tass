@@ -951,7 +951,10 @@ Obj *compile(struct file_list_s *cflist)
                     if (here() == 0 || here() == ';') {
                         val = (Obj *)ref_addrlist(null_addrlist);
                     } else {
-                        if (label != NULL && !label->ref) referenceit = false;
+                        if (label != NULL && !label->ref) {
+                            if (diagnostics.unused) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
+                            referenceit = false;
+                        }
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         val = get_vals_addrlist(epoints);
                         referenceit = oldreferenceit;
@@ -1063,6 +1066,7 @@ Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
+                                if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
                                 var_assign(label, &lbl->v, false);
                             }
                             val_destroy(&lbl->v);
@@ -1109,6 +1113,7 @@ Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
+                                if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
                                 var_assign(label, &macro->v, false);
                                 val_destroy(&macro->v);
                                 waitfor->val = val_reference(label->value);
@@ -1158,6 +1163,7 @@ Obj *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 get_func_params(mfunc, cfile);
                                 get_namespaces(mfunc);
+                                if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
                                 var_assign(label, &mfunc->v, false);
                             }
                             val_destroy(&mfunc->v);
@@ -1224,6 +1230,7 @@ Obj *compile(struct file_list_s *cflist)
                                     structure->size = 0;
                                     structure->names = new_namespace(cflist, &epoint);
                                 }
+                                if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
                                 var_assign(label, &structure->v, false);
                                 val_destroy(&structure->v);
                                 structure = (Struct *)label->value;
@@ -1382,12 +1389,13 @@ Obj *compile(struct file_list_s *cflist)
                     if (!newlabel->update_after) {
                         Obj *tmp;
                         if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
+                        if (diagnostics.unused && !newlabel->ref) err_msg2(ERROR_UNUSED_SYMBOL, &newlabel->name, &epoint);
                         tmp = get_star_value(current_section->l_address_val);
                         code = (Code *)newlabel->value;
                         if (!tmp->obj->same(tmp, code->addr)) {
                             val_destroy(code->addr); code->addr = tmp;
                             if (newlabel->usepass >= pass) {
-                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                                 fixeddig = false;
                             }
                         } else val_destroy(tmp);
@@ -1395,7 +1403,7 @@ Obj *compile(struct file_list_s *cflist)
                             code->requires = current_section->requires;
                             code->conflicts = current_section->conflicts;
                             if (newlabel->usepass >= pass) {
-                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                                 fixeddig = false;
                             }
                         }

@@ -312,6 +312,20 @@ static void err_msg_variable(Obj *val, linepos_t epoint) {
     }
 }
 
+static void str_name(const uint8_t *data, size_t len) {
+    adderror(" '");
+    if (len != 0) {
+        if (data[0] == '-') {
+            adderror("-");
+        } else if (data[0] == '+') {
+            adderror("+");
+        } else if (data[0] == '.' || data[0] == '#') {
+            adderror("<anonymous>");
+        } else adderror2(data, len);
+    }
+    adderror("'");
+}
+
 void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
 
     if (no < 0x40) {
@@ -362,6 +376,12 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             adderror(terr_warning[no]);
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             adderror("' [-Wportable]");
+            break;
+        case ERROR_UNUSED_SYMBOL:
+            new_error_msg2(diagnostic_errors.unused, epoint);
+            adderror("unused symbol ");
+            str_name(((str_t *)prm)->data, ((str_t *)prm)->len);
+            adderror(" [-Wunused]");
             break;
         default: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
@@ -435,20 +455,6 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
 
 void err_msg(enum errors_e no, const void* prm) {
     err_msg2(no, prm, &lpoint);
-}
-
-static void str_name(const uint8_t *data, size_t len) {
-    adderror(" '");
-    if (len != 0) {
-        if (data[0] == '-') {
-            adderror("-");
-        } else if (data[0] == '+') {
-            adderror("+");
-        } else if (data[0] == '.' || data[0] == '#') {
-            adderror("<anonymous>");
-        } else adderror2(data, len);
-    }
-    adderror("'");
 }
 
 static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
