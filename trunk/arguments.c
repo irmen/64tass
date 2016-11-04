@@ -62,7 +62,8 @@ struct diagnostics_s diagnostics = {
     false,       /* branch_page */
     true,        /* deprecated */
     false,       /* old_equal */
-    true         /* portable */
+    true,        /* portable */
+    false        /* unused */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -77,7 +78,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* branch_page */
     false,       /* deprecated */
     false,       /* old_equal */
-    false        /* portable */
+    false,       /* portable */
+    false        /* unused */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -93,7 +95,8 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* branch_page */
     true,        /* deprecated */
     true,        /* old_equal */
-    true         /* portable */
+    true,        /* portable */
+    false        /* unused */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -109,7 +112,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* branch_page */
     true,        /* deprecated */
     true,        /* old_equal */
-    true         /* portable */
+    true,        /* portable */
+    true         /* unused */
 };
 
 struct w_options_s {
@@ -130,6 +134,7 @@ static const struct w_options_s w_options[] = {
     {"deprecated",   &diagnostics.deprecated},
     {"old-equal",    &diagnostics.old_equal},
     {"portable",     &diagnostics.portable},
+    {"unused",       &diagnostics.unused},
     {NULL,           NULL}
 };
 
@@ -350,6 +355,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Wno-portable         No portability warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"
+           "  -Wunused              Warn about unused symbols\n"
            "\n"
            " Output selection:\n"
            "  -o, --output=<file>   Place output into <file>\n"

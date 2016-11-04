@@ -2849,6 +2849,12 @@ default, the others are disabled.
         operators.
       + Numeric expressions like `1 + (lbl > 3)'. It's better as `(lbl > 3) ? 2
         : 1'.
+-Wunused
+    Warn about unused constant symbols.
+
+    Symbols which have no references to them are likely redundant. Before
+    removing them check if there's any conditionally compiled out code which
+    might still need them.
 
 Target selection on command line
 
