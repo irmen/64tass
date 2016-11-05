@@ -65,7 +65,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_DOUBLEWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_CASENOTE, SV_DOUBLEWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct errorentry_s {
@@ -108,6 +108,7 @@ static bool close_error(void) {
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
+        case SV_CASENOTE:
         case SV_DOUBLENOTE: return false;
         default: break;
         }
@@ -126,6 +127,7 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     switch (severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
+    case SV_CASENOTE:
     case SV_DOUBLENOTE:
         if (dupl) return true;
         line_len = 0;
@@ -379,7 +381,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             break;
         case ERROR_UNUSED_SYMBOL:
             new_error_msg2(diagnostic_errors.unused, epoint);
-            adderror("unused symbol ");
+            adderror("unused symbol");
             str_name(((str_t *)prm)->data, ((str_t *)prm)->len);
             adderror(" [-Wunused]");
             break;
@@ -686,6 +688,17 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     if (name != NULL) str_name(name->data, name->len);
 }
 
+void err_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
+    new_error_msg2(diagnostic_errors.case_symbol, epoint);
+    adderror("symbol case mismatch");
+    str_name(labelname1->data, labelname1->len);
+    adderror(" [-Wcase-symbol]");
+    if (new_error_msg(SV_CASENOTE, l->file_list, &l->epoint)) return;
+    adderror("previous definition of");
+    str_name(l->name.data, l->name.len);
+    adderror(" was here");
+}
+
 static void err_msg_double_defined2(const char *msg, enum severity_e severity, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error_msg(severity, cflist, epoint2);
     adderror(msg);
@@ -869,6 +882,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     switch (err->severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
+    case SV_CASENOTE:
     case SV_DOUBLENOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
     case SV_DOUBLEWARNING:
     case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
@@ -925,6 +939,7 @@ bool error_print() {
         case SV_NONEERROR: anyerr = true; break;
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
+        case SV_CASENOTE:
         case SV_DOUBLENOTE:
         case SV_DOUBLEWARNING:
         case SV_WARNING:
@@ -966,6 +981,8 @@ bool error_print() {
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
+            break;
+        case SV_CASENOTE:
             break;
         case SV_DOUBLEWARNING:
         case SV_WARNING: 
@@ -1101,6 +1118,7 @@ bool error_serious(void) {
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
+        case SV_CASENOTE:
         case SV_DOUBLENOTE:
         case SV_DOUBLEWARNING:
         case SV_WARNING: break;

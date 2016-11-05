@@ -70,6 +70,7 @@ struct diagnostics_s {
     bool old_equal;
     bool portable;
     bool unused;
+    bool case_symbol;
 };
 
 extern int testarg(int, char **, struct file_s *);

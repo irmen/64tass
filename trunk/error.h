@@ -57,6 +57,7 @@ extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
+extern void err_symbol_case(const str_t *, struct Label *, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
