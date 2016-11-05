@@ -114,8 +114,9 @@ misc.o: misc.c misc.h stdbool.h inttypes.h section.h avl.h mem.h \
 my_getopt.o: my_getopt.c my_getopt.h stdbool.h unicode.h inttypes.h \
  unicodedata.h
 namespaceobj.o: namespaceobj.c namespaceobj.h obj.h stdbool.h inttypes.h \
- avl.h variables.h eval.h error.h errors_e.h intobj.h values.h listobj.h \
- strobj.h operobj.h typeobj.h noneobj.h labelobj.h errorobj.h
+ avl.h variables.h eval.h error.h errors_e.h arguments.h intobj.h \
+ values.h listobj.h strobj.h operobj.h typeobj.h noneobj.h labelobj.h \
+ errorobj.h
 noneobj.o: noneobj.c noneobj.h obj.h stdbool.h inttypes.h eval.h values.h \
  typeobj.h errorobj.h errors_e.h
 obj.o: obj.c obj.h stdbool.h inttypes.h misc.h eval.h error.h errors_e.h \
