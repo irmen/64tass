@@ -3172,6 +3172,13 @@ disable them. The options below with this prefix are enabled by default, the oth
 <dd>Warns if a branch is crossing a page.
 <p>Page crossing branches execute with a penalty cycle. This option helps to locate them easily.</p>
 
+<dt><b>-Wcase-symbol</b><a name="o_Wcase-symbol" href="#o_Wcase-symbol"></a>
+<dd>Warn if symbol letter case is used inconsistently.
+<p>This option can be used to enforce letter case matching of symbols in case
+insensitive mode. This gives similar results to the case sensitive mode (symbols
+must match exactly) with the main difference of disallowing symbol name
+definitions differing only in case (these are reported as duplicates).</p>
+
 <dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
 <dd>Warns if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>
@@ -3519,8 +3526,10 @@ will display without them.</p>
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility detected
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
+<dt>symbol case mismatch '?'<dd>it's matching case insensitively but it's not exactly the same
 <dt>the file's real name is not '?'<dd>check if all characters match including their case
 <dt>this name uses reserved characters '?'<dd>Do not use \ : * ? " &lt &gt; | in file names
+<dt>unused symbol '?'<dd>this symbol has is not referred anywhere
 <dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
 <dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout
 </dl>

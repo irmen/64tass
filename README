@@ -2747,6 +2747,14 @@ default, the others are disabled.
     Page crossing branches execute with a penalty cycle. This option helps to
     locate them easily.
 
+-Wcase-symbol
+    Warn if symbol letter case is used inconsistently.
+
+    This option can be used to enforce letter case matching of symbols in case
+    insensitive mode. This gives similar results to the case sensitive mode
+    (symbols must match exactly) with the main difference of disallowing symbol
+    name definitions differing only in case (these are reported as duplicates).
+
 -Wimplied-reg
     Warns if implied addressing is used instead of register.
 
@@ -3099,10 +3107,14 @@ possibly redundant indexing with a constant value
     indexing
 processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank
+symbol case mismatch '?'
+    it's matching case insensitively but it's not exactly the same
 the file's real name is not '?'
     check if all characters match including their case
 this name uses reserved characters '?'
     Do not use \ : * ? " < > | in file names
+unused symbol '?'
+    this symbol has is not referred anywhere
 use '/' as path separation '?'
     backslash is not a path separator on all systems while slash is
 use relative path for '?'

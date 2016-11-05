@@ -63,7 +63,8 @@ struct diagnostics_s diagnostics = {
     true,        /* deprecated */
     false,       /* old_equal */
     true,        /* portable */
-    false        /* unused */
+    false,       /* unused */
+    false        /* case_symbol */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -79,7 +80,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* deprecated */
     false,       /* old_equal */
     false,       /* portable */
-    false        /* unused */
+    false,       /* unused */
+    false        /* case_symbol */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -96,7 +98,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* deprecated */
     true,        /* old_equal */
     true,        /* portable */
-    false        /* unused */
+    false,       /* unused */
+    false        /* case_symbol */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -113,7 +116,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* deprecated */
     true,        /* old_equal */
     true,        /* portable */
-    true         /* unused */
+    true,        /* unused */
+    true         /* case_symbol */
 };
 
 struct w_options_s {
@@ -135,6 +139,7 @@ static const struct w_options_s w_options[] = {
     {"old-equal",    &diagnostics.old_equal},
     {"portable",     &diagnostics.portable},
     {"unused",       &diagnostics.unused},
+    {"case-symbol",  &diagnostics.case_symbol},
     {NULL,           NULL}
 };
 
@@ -344,6 +349,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Werror=<name>        Make a diagnostic to an error\n"
            "  -Wno-error=<name>     Make a diagnostic to a warning\n"
            "  -Wbranch-page         Warn if a branch crosses a page\n"
+           "  -Wcase-symbol         Warn on mismatch of symbol case\n"
+           "  -Wcase-token          Warn on mismatch of token case\n"
            "  -Wimplied-reg         No implied register aliases\n"
            "  -Wno-deprecated       No deprecated feature warnings\n"
            "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
@@ -420,6 +427,9 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     case OUTPUT_FLAT: all_mem2 = 0xffffffff; break;
     case OUTPUT_APPLE:
     case OUTPUT_XEX: all_mem2 = 0xffff; break;
+    }
+    if (arguments.caseinsensitive == 0) {
+        diagnostics.case_symbol = false;
     }
     if (dash_name(arguments.output)) arguments.quiet = false;
     if (fin->lines != max_lines) {
