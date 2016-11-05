@@ -413,7 +413,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                     s = out_pb(s, ((int8_t)(adr >> 8)) + current_section->l_address.address);
                     break;
                 case ADR_REL_L: if (ln > 0) s = out_pb(s, ((int16_t)(adr + (((cod & 0x0F) == 3) ? -1 : 0))) + current_section->l_address.address); else s--; break;
-                case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr);
+                case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr); break;
                 case ADR_LEN: break;/* not an addressing mode */
                 }
                 while (*post != 0) *s++ = *post++;

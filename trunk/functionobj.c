@@ -145,6 +145,7 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     case 3: 
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
         if (err != NULL) return &err->v; 
+        /* fall through */
     case 2: 
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
         if (err != NULL) return &err->v; 
@@ -201,10 +202,10 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         state[1] = (((uint64_t)0xc03bbc75) << 32) | (uint64_t)0x3f671f6f;
 
         switch (v1->len) {
-        case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof *v1->data));
-        case 3: state[1] ^= v1->data[2];
-        case 2: state[0] ^= ((uint64_t)v1->data[1] << (8 * sizeof *v1->data));
-        case 1: state[0] ^= v1->data[0];
+        case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof *v1->data)); /* fall through */
+        case 3: state[1] ^= v1->data[2]; /* fall through */
+        case 2: state[0] ^= ((uint64_t)v1->data[1] << (8 * sizeof *v1->data)); /* fall through */
+        case 1: state[0] ^= v1->data[0]; /* fall through */
         case 0: break;
         default:
             err = new_error(ERROR_____CANT_UVAL, epoint);
@@ -232,6 +233,7 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
     case 3: 
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
         if (err != NULL) return &err->v; 
+        /* fall through */
     case 2: 
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
         if (err != NULL) return &err->v; 
@@ -496,6 +498,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);

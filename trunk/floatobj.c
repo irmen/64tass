@@ -157,10 +157,10 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     double v1 = ((Float *)op->v1)->real;
     ival_t val = v1;
     switch (op->op->op) {
-    case O_BANK: val >>= 8;
-    case O_HIGHER: val >>= 8;
+    case O_BANK: val >>= 8; /* fall through */
+    case O_HIGHER: val >>= 8; /* fall through */
     case O_LOWER: return (Obj *)bytes_from_u8(val);
-    case O_HWORD: val >>= 8;
+    case O_HWORD: val >>= 8; /* fall through */
     case O_WORD: return (Obj *)bytes_from_u16(val);
     case O_BSWORD: return (Obj *)bytes_from_u16((uint8_t)(val >> 8) | (uint16_t)(val << 8));
     case O_INV: return float_from_double(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1, op->epoint);

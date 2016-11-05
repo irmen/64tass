@@ -107,6 +107,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             default: break;
             }
         }
+        break;
     case T_FUNCARGS:
         if (op->op == &o_FUNC) {
             args = ((Funcargs *)o2)->len;
@@ -146,6 +147,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);
