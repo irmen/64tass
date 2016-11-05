@@ -691,6 +691,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (op->op != &o_MEMBER) {
             return v2->obj->rcalc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);
@@ -741,6 +742,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (op->op != &o_IN) {
             return v1->obj->calc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);

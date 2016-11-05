@@ -222,7 +222,7 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	switch (unbalanced->balance) {
 	case  1: case -1:
 		tree->height++;
-		/* fall through */
+		break;
 	case 0:
 		break;
 	case 2: {

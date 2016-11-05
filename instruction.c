@@ -111,10 +111,11 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint)
         uint32_t temp = adr;
         pokeb(cod);
         switch (ln) {
-        case 4: pokeb((uint8_t)temp); temp >>= 8;
-        case 3: pokeb((uint8_t)temp); temp >>= 8;
-        case 2: pokeb((uint8_t)temp); temp >>= 8;
-        case 1: pokeb((uint8_t)temp);
+        case 4: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
+        case 3: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
+        case 2: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
+        case 1: pokeb((uint8_t)temp); /* fall through */
+        default: break;
         }
     }
     listing_instr(cod, adr, ln);

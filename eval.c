@@ -186,6 +186,7 @@ static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
             real = toreal_destroy(v, &lpoint);
             return get_exponent(real, epoint);
         }
+        break;
     default: break;
     }
     return v;
@@ -568,6 +569,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
             default:
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
                 val_replace(&v1->val, (Obj *)none_value); 
+                break;
             case T_ERROR:
             case T_NONE:break;
             }
@@ -1291,7 +1293,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
                 if (o == &o_SPLAT || o == &o_POS || o == &o_NEG) goto tryanon;
             }
             lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
-        case '.': if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
+        case '.': if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) goto tryanon; /* fall through */
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_float(&epoint), &epoint);
             goto other;

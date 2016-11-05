@@ -365,6 +365,7 @@ static MUST_CHECK Obj *ident_calc2(oper_t op) {
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);

@@ -167,6 +167,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
         return (Obj *)ref_bool(true_value);
     case TRUTH_ANY:
         if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
+        /* fall through */
     default:
         return truth_reference(to_bool(v1));
     }
@@ -314,10 +315,10 @@ MUST_CHECK Bytes *bytes_from_uval(uval_t i, int bytes) {
     Bytes *v = new_bytes(bytes);
     v->len = bytes;
     switch (bytes) {
-    default: v->data[3] = i >> 24;
-    case 3: v->data[2] = i >> 16;
-    case 2: v->data[1] = i >> 8;
-    case 1: v->data[0] = i;
+    default: v->data[3] = i >> 24; /* fall through */
+    case 3: v->data[2] = i >> 16; /* fall through */
+    case 2: v->data[1] = i >> 8; /* fall through */
+    case 1: v->data[0] = i; /* fall through */
     case 0: break;
     }
     return v;
@@ -379,6 +380,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
         return ref_bytes(null_bytes);
     case 1:
         if (v1->data[0] < 256) return bytes_from_u8(v1->data[0]);
+        break;
     default:
         break;
     }
@@ -969,6 +971,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (op->op != &o_MEMBER) {
             return o2->obj->rcalc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);
@@ -1010,6 +1013,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (op->op != &o_IN) {
             return o1->obj->calc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op); 

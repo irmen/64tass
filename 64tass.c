@@ -819,6 +819,7 @@ Obj *compile(struct file_list_s *cflist)
             default:
                 lpoint.pos--;
             }
+            break;
         default:
             break;
         }
@@ -3308,6 +3309,7 @@ Obj *compile(struct file_list_s *cflist)
                 }
                 break;
             }
+            break;
         default:
             if ((waitfor->skip & 1) != 0) {
                 str_t opname;

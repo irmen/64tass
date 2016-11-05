@@ -102,7 +102,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
         case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
         case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
-        case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+';
+        case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+'; /* fall through */
         case A_IMMEDIATE: buffer2[--ind] = '#';break;
         }
         addrtype <<= 4;
@@ -373,6 +373,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (op->op != &o_IN) {
             return op->v2->obj->calc2(op);
         }
+        break;
     default: break;
     }
     return obj_oper_error(op);
