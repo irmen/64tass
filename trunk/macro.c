@@ -295,7 +295,6 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0, 0};
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -306,7 +305,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
         star_tree = &s->tree;vline = 0;
         cflist = enterfile(macro->file_list->file, epoint);
         lpoint.line = macro->line;
-        new_waitfor(t, &nopoint);
+        new_waitfor(t, epoint);
         if (context != NULL) push_context(context);
         val = compile(cflist);
         if (context != NULL) pop_context();
@@ -382,7 +381,6 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0, 0};
         size_t oldbottom;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
@@ -394,7 +392,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
         star_tree = &s->tree;vline = 0;
         cflist = enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
-        new_waitfor(t, &nopoint);
+        new_waitfor(t, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);
@@ -632,7 +630,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
-        struct linepos_s nopoint = {0, 0};
         size_t oldbottom;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
@@ -643,7 +640,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         s->addr = star;
         star_tree = &s->tree;vline = 0;
         lpoint.line = mfunc->line;
-        new_waitfor(W_ENDF2, &nopoint);
+        new_waitfor(W_ENDF2, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);
