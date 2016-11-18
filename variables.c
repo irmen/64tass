@@ -134,8 +134,8 @@ void get_namespaces(Mfunc *mfunc) {
     if (len > SIZE_MAX / sizeof *mfunc->namespaces) err_msg_out_of_memory(); /* overflow */
     mfunc->nslen = len;
     mfunc->namespaces = (Namespace **)mallocx(len * sizeof *mfunc->namespaces);
-    for (i = context_stack.bottom; i < context_stack.p; i++) {
-        mfunc->namespaces[i] = ref_namespace(context_stack.stack[i].normal);
+    for (i = 0; i < len; i++) {
+        mfunc->namespaces[i] = ref_namespace(context_stack.stack[context_stack.bottom + i].normal);
     }
 }
 
