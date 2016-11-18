@@ -2749,8 +2749,7 @@ Obj *compile(struct file_list_s *cflist)
 
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
                     if (starexists && s->addr != star) {
-                        struct linepos_s nopoint = {0, 0};
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &nopoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = false;
                     }
                     s->addr = star;
