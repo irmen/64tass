@@ -721,16 +721,26 @@ static MUST_CHECK Oper *oper_from_token(int wht) {
     }
 }
 
-static MUST_CHECK Oper *oper_from_token2(int wht) {
-    switch (wht) {
-    case '&': return &o_LAND;
-    case '|': return &o_LOR;
-    case '>': return &o_RSHIFT;
-    case '<': return &o_LSHIFT;
-    case '.': return &o_CONCAT;
-    case '*': return &o_EXP;
-    default: return NULL;
+static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
+    if (wht == wht2) {
+        switch (wht) {
+        case '&': return &o_LAND;
+        case '|': return &o_LOR;
+        case '>': return &o_RSHIFT;
+        case '<': return &o_LSHIFT;
+        case '.': return &o_CONCAT;
+        case '*': return &o_EXP;
+        default: return NULL;
+        }
     }
+    if (wht2 == '?') {
+        switch (wht) {
+        case '<': return &o_MIN;
+        case '>': return &o_MAX;
+        default: return NULL;
+        }
+    }
+    return NULL;
 }
 
 Obj *compile(struct file_list_s *cflist)
@@ -886,8 +896,8 @@ Obj *compile(struct file_list_s *cflist)
                     if (tmp.op == NULL) break;
                     epoint3 = lpoint;
                     lpoint.pos += 2;
-                } else if (wht == wht2 && pline[lpoint.pos + 2] == '=') {
-                    tmp.op = oper_from_token2(wht2);
+                } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                    tmp.op = oper_from_token2(wht, wht2);
                     if (tmp.op == NULL) break;
                     epoint3 = lpoint;
                     lpoint.pos += 3;
@@ -922,6 +932,9 @@ Obj *compile(struct file_list_s *cflist)
                 tmp.epoint3 = &epoint3;
                 result2 = tmp.v1->obj->calc2(&tmp);
                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
+                    val_replace(&result2, ((Bool *)result2)->boolean ? tmp.v1 : tmp.v2);
+                }
                 val_destroy(val);
                 if (label != NULL) {
                     listing_equal(result2);
@@ -2833,8 +2846,8 @@ Obj *compile(struct file_list_s *cflist)
                                         if (tmp.op == NULL) break;
                                         epoint3 = lpoint;
                                         lpoint.pos += 2;
-                                    } else if (wht == wht2 && pline[lpoint.pos + 2] == '=') {
-                                        tmp.op = oper_from_token2(wht2);
+                                    } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                                        tmp.op = oper_from_token2(wht, wht2);
                                         if (tmp.op == NULL) break;
                                         epoint3 = lpoint;
                                         lpoint.pos += 3;
@@ -2891,6 +2904,9 @@ Obj *compile(struct file_list_s *cflist)
                                 tmp.v2 = val;
                                 result2 = tmp.v1->obj->calc2(&tmp);
                                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                                else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
+                                    val_replace(&result2, ((Bool *)result2)->boolean ? tmp.v1 : tmp.v2);
+                                }
                                 val_destroy(val);
                                 val = result2;
                             }

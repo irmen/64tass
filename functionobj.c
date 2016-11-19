@@ -425,8 +425,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 return (Obj *)ref_int(int_value[v1->func > v2->func]);
             case O_EQ: return truth_reference(v1->func == v2->func);
             case O_NE: return truth_reference(v1->func != v2->func);
+            case O_MIN:
             case O_LT: return truth_reference(v1->func < v2->func);
             case O_LE: return truth_reference(v1->func <= v2->func);
+            case O_MAX: 
             case O_GT: return truth_reference(v1->func > v2->func);
             case O_GE: return truth_reference(v1->func >= v2->func);
             default: break;

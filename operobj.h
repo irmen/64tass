@@ -65,6 +65,8 @@ enum oper_e {
     O_GT,            /* >     */
     O_GE,            /* >=    */
     O_LE,            /* <=    */
+    O_MIN,           /* <?    */
+    O_MAX,           /* >?    */
     O_OR,            /* |     */
     O_XOR,           /* ^     */
     O_AND,           /* &     */
@@ -145,6 +147,8 @@ extern Oper o_LT;
 extern Oper o_GT;
 extern Oper o_GE;
 extern Oper o_LE;
+extern Oper o_MIN;
+extern Oper o_MAX;
 extern Oper o_OR;
 extern Oper o_XOR;
 extern Oper o_AND;
