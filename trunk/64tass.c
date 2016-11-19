@@ -1307,7 +1307,7 @@ Obj *compile(struct file_list_s *cflist)
                             current_section->l_address.bank &= all_mem;
                             err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
                         }
-                        goto finish;
+                        goto breakerr;
                     }
                 case CMD_SECTION:
                     {
@@ -1538,7 +1538,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->unionmode = old_unionmode;
                         current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                         current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
-                        goto finish;
+                        goto breakerr;
                     }
                 case CMD_SECTION:
                     waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
@@ -3127,7 +3127,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                 }
-                break;
+                goto breakerr;
             case CMD_DUNION: if ((waitfor->skip & 1) != 0)
                 { /* .dunion */
                     bool old_unionmode = current_section->unionmode;
@@ -3150,7 +3150,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                 }
-                break;
+                goto breakerr;
             case CMD_DSECTION: if ((waitfor->skip & 1) != 0)
                 { /* .dsection */
                     struct section_s *tmp3;
