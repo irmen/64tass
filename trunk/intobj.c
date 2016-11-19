@@ -632,6 +632,10 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
                 }
             }
             if (v0 != tmp1.val) free(v0);
+            if (a == tmp3.val) {
+                memcpy(&vv->val, a, k * sizeof *a);
+                a = vv->val;
+            }
             return normalize(vv, a, k, neg);
         }
 
@@ -641,6 +645,10 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         } 
 
         if (a != tmp3.val) free(a);
+        if (v0 == tmp1.val) {
+            memcpy(&vv->val, v0, len2 * sizeof *v0);
+            v0 = vv->val;
+        }
         return normalize(vv, v0, len2, negr);
     }
 }
