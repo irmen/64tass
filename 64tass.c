@@ -1214,6 +1214,7 @@ Obj *compile(struct file_list_s *cflist)
                         structure->line = epoint.line;
                         get_macro_params(&structure->v);
                         if (labelexists) {
+                            if (label->value->obj == obj) structure->retval = ((Struct *)label->value)->retval;
                             if (label->defpass == pass) {
                                 doubledef = true;
                                 structure->size = 0;
@@ -1242,6 +1243,7 @@ Obj *compile(struct file_list_s *cflist)
                                 structure = (Struct *)label->value;
                             }
                         } else {
+                            structure->retval = false;
                             if (!constcreated && temporary_label_branch == 0) {
                                 if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                 constcreated = true;
@@ -1462,6 +1464,7 @@ Obj *compile(struct file_list_s *cflist)
                         bool old_unionmode = current_section->unionmode;
                         struct values_s *vs;
                         Type *obj;
+                        Namespace *context;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
 
@@ -1479,7 +1482,38 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->unionmode = (prm==CMD_DUNION);
                         current_section->unionstart = current_section->unionend = current_section->address;
                         current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, ((Code *)newlabel->value)->names, &epoint);
+                        if (((Struct *)val)->retval) {
+                            context = ((Code *)newlabel->value)->names;
+                        } else {
+                            Label *label;
+                            bool labelexists;
+                            str_t tmpname;
+                            if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
+                            else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                            anonident2.type = '#';
+                            anonident2.star_tree = star_tree;
+                            anonident2.vline = vline;
+                            tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                            label = new_label(&tmpname, mycontext, strength, &labelexists);
+                            if (labelexists) {
+                                if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                                label->constant = true;
+                                label->owner = true;
+                                label->defpass = pass;
+                                if (label->value->obj != NAMESPACE_OBJ) {
+                                    val_destroy(label->value);
+                                    label->value = (Obj *)new_namespace(cflist, &epoint);
+                                }
+                            } else {
+                                label->constant = true;
+                                label->owner = true;
+                                label->value = (Obj *)new_namespace(cflist, &epoint);
+                                label->file_list = cflist;
+                                label->epoint = epoint;
+                            } 
+                            context = (Namespace *)label->value;
+                        }
+                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, context, &epoint);
                         if (val != NULL) {
                             if (newlabel != NULL) {
                                 newlabel->update_after = true;
@@ -1778,14 +1812,19 @@ Obj *compile(struct file_list_s *cflist)
                 break;
             case CMD_ENDS: /* .ends */
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
-                if (close_waitfor(W_ENDS)) {
+                if (waitfor->what==W_ENDS) {
+                    if (waitfor->val != NULL) ((Struct *)waitfor->val)->retval = (here() != 0 && here() != ';');
+                    close_waitfor(W_ENDS);
                     goto breakerr;
                 } else if (close_waitfor(W_ENDS2)) {
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(&w, 0, cfile, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     }
-                } else err_msg2(ERROR______EXPECTED,".struct", &epoint);
+                } else {
+                    err_msg2(ERROR______EXPECTED,".struct", &epoint);
+                    goto breakerr;
+                }
                 break;
             case CMD_SEND: /* .send */
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
