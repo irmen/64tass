@@ -651,7 +651,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     }
     listing_line(epoint->pos);
     do {
-        if (current_section->structrecursion != 0 && !current_section->dooutput) {
+        if (current_section->structrecursion != 0 || !current_section->dooutput) {
             err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
             break;
         }
@@ -1318,6 +1318,7 @@ Obj *compile(struct file_list_s *cflist)
                         opoint = lpoint;
                         sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                         if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
+                        if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", &epoint); goto breakerr;}
                         tmp = find_new_section(&sectionname);
                         if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
                             if (tmp->usepass != 0 && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &opoint); goto breakerr;}
@@ -2110,7 +2111,7 @@ Obj *compile(struct file_list_s *cflist)
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
+                    if (current_section->structrecursion != 0 || !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
                     else do {
                         atype_t am;
                         if (toaddress(vs->val, &uval, 24, &am, &vs->epoint)) break;
@@ -2241,7 +2242,7 @@ Obj *compile(struct file_list_s *cflist)
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
                     if (!get_exp(&w, 0, cfile, 1, 2, &epoint)) goto breakerr;
-                    if (prm == CMD_ALIGN && current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
+                    if (prm == CMD_ALIGN && (current_section->structrecursion != 0 || !current_section->dooutput)) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
                     vs = get_val();
                     if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
                     if (prm == CMD_ALIGN) {
@@ -3158,7 +3159,7 @@ Obj *compile(struct file_list_s *cflist)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
-                    if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".dsection", &epoint);
+                    if (current_section->structrecursion != 0 || !current_section->dooutput) { err_msg2(ERROR___NOT_ALLOWED, ".dsection", &epoint); goto breakerr; }
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
@@ -3238,6 +3239,7 @@ Obj *compile(struct file_list_s *cflist)
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
+                    if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", &epoint); goto breakerr;}
                     tmp = find_new_section(&sectionname);
                     if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
                         if (tmp->usepass != 0 && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &epoint); goto breakerr;}
