@@ -48,9 +48,9 @@ typedef struct Struct {
     struct macro_param_s *param;
     struct file_list_s *file_list;
     line_t line;
+    bool retval;
     size_t size; /* first part same as macro! */
     struct Namespace *names;
-    bool retval;
 } Struct;
 typedef struct Struct Union;
 
