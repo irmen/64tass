@@ -1119,6 +1119,26 @@ static bool get_val2(struct eval_context_s *ev) {
             }
             val_destroy(val);
             continue;
+        case O_MIN: /* <? */
+        case O_MAX: /* >? */
+            v2 = v1; v1 = &values[--vsp - 1];
+            if (vsp == 0) goto syntaxe;
+            oper.op = op2;
+            oper.v1 = v1->val;
+            oper.v2 = v2->val;
+            oper.epoint = &v1->epoint;
+            oper.epoint2 = &v2->epoint;
+            oper.epoint3 = &o_out->epoint;
+            val = oper.v1->obj->calc2(&oper);
+            if (val->obj != BOOL_OBJ) {
+                val_destroy(v1->val); v1->val = val;
+                continue;
+            }
+            if (!((Bool *)val)->boolean) {
+                val_replace(&v1->val, v2->val);
+            }
+            val_destroy(val);
+            continue;
         default: break;
         }
         v2 = v1; v1 = &values[--vsp - 1];
@@ -1540,6 +1560,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
             switch (pline[lpoint.pos + 1]) {
             case '>': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); lpoint.pos += 2;op = &o_NE; break;
             case '<': lpoint.pos += 2;op = &o_LSHIFT; break;
+            case '?': lpoint.pos += 2;op = &o_MIN; break;
             case '=': if (pline[lpoint.pos + 2] == '>') {lpoint.pos += 3; op = &o_CMP;} else {lpoint.pos += 2; op = &o_LE;} break;
             default: lpoint.pos++;op = &o_LT; break;
             }
@@ -1548,6 +1569,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
             switch (pline[lpoint.pos + 1]) {
             case '<': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); lpoint.pos += 2;op = &o_NE; break;
             case '>': lpoint.pos += 2;op = &o_RSHIFT; break;
+            case '?': lpoint.pos += 2;op = &o_MAX; break;
             case '=': lpoint.pos += 2;op = &o_GE; break;
             default: lpoint.pos++;op = &o_GT; break;
             }

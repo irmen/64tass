@@ -239,8 +239,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_CMP:
             case O_EQ:
             case O_NE:
+            case O_MIN:
             case O_LT:
             case O_LE:
+            case O_MAX:
             case O_GT:
             case O_GE:
                 if (am == v2->type) {
@@ -257,8 +259,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 case O_EQ: return (Obj *)ref_bool(false_value);
                 case O_NE: return (Obj *)ref_bool(true_value);
                 case O_LE:
+                case O_MIN:
                 case O_LT: return truth_reference(am < v2->type);
                 case O_GE:
+                case O_MAX:
                 case O_GT: return truth_reference(am > v2->type);
                 }
             case O_ADD:

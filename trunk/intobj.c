@@ -1422,8 +1422,10 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         return (Obj *)ref_int(int_value[cmp > 0]);
     case O_EQ: return truth_reference(icmp(v1, v2) == 0);
     case O_NE: return truth_reference(icmp(v1, v2) != 0);
+    case O_MIN:
     case O_LT: return truth_reference(icmp(v1, v2) < 0);
     case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+    case O_MAX:
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
     case O_ADD:

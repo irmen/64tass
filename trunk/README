@@ -1106,6 +1106,8 @@ x ^^ y      if both false or true then false otherwise x || y
 x && y      if x is true then y otherwise x
 !x          if x is true then false otherwise true
 c ? x : y   if c is true then x otherwise y
+x <? y      if x is smaller then x otherwise y
+x >? y      if x is greater then x otherwise y
 
 ;Silly example for 1=>"simple", 2=>"advanced", else "normal"
         .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
@@ -1145,6 +1147,7 @@ with .var they can't update constants, only variables.
 &=  binary and  ||= logical or
 &&= logical and <<= shift left
 >>= shift right ..= concat
+<?= smaller     >?= greater
 x=  repeat      :=  assign
 
 v       := 1            ; same as 'v .var 1'

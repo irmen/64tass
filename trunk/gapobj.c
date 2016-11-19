@@ -89,7 +89,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_LE:
         case O_EQ: return (Obj *)ref_bool(true_value);
         case O_NE:
+        case O_MIN:
         case O_LT:
+        case O_MAX:
         case O_GT: return (Obj *)ref_bool(false_value);
         case O_ADD:
         case O_SUB:

@@ -127,7 +127,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static int rcmp(Register *v1, Register *v2) {
+static int icmp(Register *v1, Register *v2) {
     int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h != 0) return h;
     if (v1->len < v2->len) return -1;
@@ -139,15 +139,17 @@ static MUST_CHECK Obj *calc2_register(oper_t op) {
     int val;
     switch (op->op->op) {
     case O_CMP:
-        val = rcmp(v1, v2);
+        val = icmp(v1, v2);
         if (val < 0) return (Obj *)ref_int(minus1_value);
         return (Obj *)ref_int(int_value[val > 0]);
-    case O_EQ: return truth_reference(rcmp(v1, v2) == 0);
-    case O_NE: return truth_reference(rcmp(v1, v2) != 0);
-    case O_LT: return truth_reference(rcmp(v1, v2) < 0);
-    case O_LE: return truth_reference(rcmp(v1, v2) <= 0);
-    case O_GT: return truth_reference(rcmp(v1, v2) > 0);
-    case O_GE: return truth_reference(rcmp(v1, v2) >= 0);
+    case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+    case O_NE: return truth_reference(icmp(v1, v2) != 0);
+    case O_MIN:
+    case O_LT: return truth_reference(icmp(v1, v2) < 0);
+    case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+    case O_MAX:
+    case O_GT: return truth_reference(icmp(v1, v2) > 0);
+    case O_GE: return truth_reference(icmp(v1, v2) >= 0);
     default: break;
     }
     return obj_oper_error(op);

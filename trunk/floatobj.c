@@ -190,8 +190,10 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
         return (Obj *)ref_int(int_value[1]);
     case O_EQ: return truth_reference(almost_equal(v1, v2));
     case O_NE: return truth_reference(!almost_equal(v1, v2));
+    case O_MIN:
     case O_LT: return truth_reference(v1 < v2 && !almost_equal(v1, v2));
     case O_LE: return truth_reference(v1 < v2 || almost_equal(v1, v2));
+    case O_MAX:
     case O_GT: return truth_reference(v1 > v2 && !almost_equal(v1, v2));
     case O_GE: return truth_reference(v1 > v2 || almost_equal(v1, v2));
     case O_ADD: return float_from_double(v1 + v2, op->epoint3);
