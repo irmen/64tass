@@ -50,6 +50,7 @@ typedef struct Struct {
     line_t line;
     size_t size; /* first part same as macro! */
     struct Namespace *names;
+    bool retval;
 } Struct;
 typedef struct Struct Union;
 
