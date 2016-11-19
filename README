@@ -1112,6 +1112,8 @@ x >? y      if x is greater then x otherwise y
 ;Silly example for 1=>"simple", 2=>"advanced", else "normal"
         .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
         .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
+;Limit result to 0 .. 8
+light   .byte 0 >? range(-16, 101)/6 <? 8
 
 Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.

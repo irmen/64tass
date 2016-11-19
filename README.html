@@ -1461,6 +1461,8 @@ operands as the result.</p>
 <i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
         <b class="d">.text</b> <u>MODE</u> == <span>1</span> &amp;&amp; <span class="s">"simple"</span> || <u>MODE</u> == <span>2</span> &amp;&amp; <span class="s">"advanced"</span> || <span class="s">"normal"</span>
         <b class="d">.text</b> <u>MODE</u> == <span>1</span> ? <span class="s">"simple"</span> : <u>MODE</u> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
+<i>;Limit result to 0 .. 8</i>
+light   <b class="d">.byte</b> <span>0</span> &gt;? <span class="k">range</span>(<span>-16</span>, <span>101</span>)/<span>6</span> &lt;? <span>8</span>
 </pre>
 
 <p>Please note that these are not short circuiting operations and both sides are
