@@ -651,7 +651,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     }
     listing_line(epoint->pos);
     do {
-        if (current_section->structrecursion != 0 || !current_section->dooutput) {
+        if (current_section->structrecursion != 0 && !current_section->dooutput) {
             err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
             break;
         }
@@ -2116,7 +2116,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (current_section->structrecursion != 0 || !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
+                    if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
                     else do {
                         atype_t am;
                         if (toaddress(vs->val, &uval, 24, &am, &vs->epoint)) break;
@@ -2247,7 +2247,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
                     if (!get_exp(&w, 0, cfile, 1, 2, &epoint)) goto breakerr;
-                    if (prm == CMD_ALIGN && (current_section->structrecursion != 0 || !current_section->dooutput)) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
+                    if (prm == CMD_ALIGN && (current_section->structrecursion != 0 && !current_section->dooutput)) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
                     vs = get_val();
                     if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
                     if (prm == CMD_ALIGN) {
