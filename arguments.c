@@ -64,7 +64,8 @@ struct diagnostics_s diagnostics = {
     false,       /* old_equal */
     true,        /* portable */
     false,       /* unused */
-    false        /* case_symbol */
+    false,       /* case_symbol */
+    false        /* switch_case */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -81,7 +82,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* old_equal */
     false,       /* portable */
     false,       /* unused */
-    false        /* case_symbol */
+    false,       /* case_symbol */
+    false        /* switch_case */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -99,7 +101,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* old_equal */
     true,        /* portable */
     false,       /* unused */
-    false        /* case_symbol */
+    false,       /* case_symbol */
+    true         /* switch_case */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -117,7 +120,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* old_equal */
     true,        /* portable */
     true,        /* unused */
-    true         /* case_symbol */
+    true,        /* case_symbol */
+    true         /* switch_case */
 };
 
 struct w_options_s {
@@ -140,6 +144,7 @@ static const struct w_options_s w_options[] = {
     {"portable",     &diagnostics.portable},
     {"unused",       &diagnostics.unused},
     {"case-symbol",  &diagnostics.case_symbol},
+    {"switch-case",  &diagnostics.switch_case},
     {NULL,           NULL}
 };
 
@@ -362,6 +367,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Wno-portable         No portability warnings\n"
            "  -Wshadow              Check symbol shadowing\n"
            "  -Wstrict-bool         No implicit bool conversions\n"
+           "  -Wswitch-case         Warn about ignored cases\n"
            "  -Wunused              Warn about unused symbols\n"
            "\n"
            " Output selection:\n"
