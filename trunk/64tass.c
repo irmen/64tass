@@ -1751,7 +1751,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (waitfor->what == W_SWITCH) { err_msg2(ERROR______EXPECTED,".endswitch", &epoint); goto breakerr; }
                     if (waitfor->what != W_SWITCH2) { err_msg2(ERROR______EXPECTED,".switch", &epoint); goto breakerr; }
                     waitfor->epoint = epoint;
-                    if (skwait==2) {
+                    if (skwait==2 || diagnostics.switch_case) {
                         struct values_s *vs;
                         Obj *result2;
                         struct oper_s tmp;
@@ -1768,6 +1768,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             result2 = tmp.v1->obj->calc2(&tmp);
                             truth = (result2->obj == BOOL_OBJ && ((Bool *)result2)->boolean);
                             val_destroy(result2);
+                            if (truth && diagnostics.switch_case && skwait != 2) {
+                                err_msg2(ERROR_DUPLICATECASE, NULL, &vs->epoint);
+                                truth = false;
+                                break;
+                            }
                         }
                     }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);

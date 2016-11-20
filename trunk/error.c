@@ -361,6 +361,10 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             new_error_msg2(diagnostic_errors.old_equal, epoint);
             adderror("deprecated equal operator, use '==' instead [-Wold-equal]");
             break;
+        case ERROR_DUPLICATECASE:
+            new_error_msg2(diagnostic_errors.switch_case, epoint);
+            adderror("case ignored, value already handled [-Wswitch-case]");
+            break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);

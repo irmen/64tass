@@ -71,6 +71,7 @@ struct diagnostics_s {
     bool portable;
     bool unused;
     bool case_symbol;
+    bool switch_case;
 };
 
 extern int testarg(int, char **, struct file_s *);
