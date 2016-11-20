@@ -1496,7 +1496,7 @@ Obj *compile(struct file_list_s *cflist)
                         current_section->unionmode = (prm==CMD_DUNION);
                         current_section->unionstart = current_section->unionend = current_section->address;
                         current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                        if (((Struct *)val)->retval) {
+                        if (!((Struct *)val)->retval && newlabel->value->obj == CODE_OBJ) {
                             context = ((Code *)newlabel->value)->names;
                         } else {
                             Label *label;
@@ -1965,7 +1965,7 @@ Obj *compile(struct file_list_s *cflist)
                         struct values_s *vs;
                         size_t i;
                         struct linepos_s epoint2;
-                        if (newlabel != NULL) {
+                        if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
                         if (prm==CMD_PTEXT) ch2=0;
@@ -1996,7 +1996,7 @@ Obj *compile(struct file_list_s *cflist)
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
                         int bits;
                         struct values_s *vs;
-                        if (newlabel != NULL) {
+                        if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             signed char dtype;
                             switch (prm) {
                             case CMD_DINT: dtype = D_DINT;break;
@@ -2037,7 +2037,7 @@ Obj *compile(struct file_list_s *cflist)
                         struct values_s *vs;
 
                         if (fsize == 0) fsize = all_mem2; /* overflow */
-                        if (newlabel != NULL) {
+                        if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
                         if (!get_exp(&w, 0, cfile, 1, 3, &epoint)) goto breakerr;
@@ -2155,7 +2155,7 @@ Obj *compile(struct file_list_s *cflist)
                 { /* .block */
                     listing_line(epoint.pos);
                     new_waitfor(W_BEND2, &epoint);
-                    if (newlabel != NULL) {
+                    if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         push_context(((Code *)newlabel->value)->names);
                         waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                         newlabel = NULL;
@@ -2238,7 +2238,7 @@ Obj *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct values_s *vs;
                     if (diagnostics.optimize) cpu_opt_invalidate();
-                    if (newlabel != NULL) {
+                    if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
                     if (!get_exp(&w, 0, cfile, 1, 2, &epoint)) goto breakerr;
@@ -2695,7 +2695,7 @@ Obj *compile(struct file_list_s *cflist)
                         reffile = f->uid;
                         listing_file(";******  Processing file: ", f->realname);
                         if (prm == CMD_BINCLUDE) {
-                            if (newlabel != NULL) {
+                            if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                                 push_context(((Code *)newlabel->value)->names);
                             } else {
                                 Label *label;
@@ -3294,7 +3294,7 @@ Obj *compile(struct file_list_s *cflist)
                 listing_line_cut(epoint.pos);
                 if (val->obj == MACRO_OBJ) {
                     Namespace *context;
-                    if (newlabel != NULL && !((Macro *)val)->retval) {
+                    if (newlabel != NULL && !((Macro *)val)->retval && newlabel->value->obj == CODE_OBJ) {
                         context = ((Code *)newlabel->value)->names;
                     } else {
                         Label *label;
