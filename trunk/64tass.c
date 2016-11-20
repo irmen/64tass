@@ -743,7 +743,7 @@ static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
     return NULL;
 }
 
-Obj *compile(struct file_list_s *cflist)
+MUST_CHECK Obj *compile(struct file_list_s *cflist)
 {
     int wht,w;
     int prm = 0;
@@ -2726,9 +2726,10 @@ Obj *compile(struct file_list_s *cflist)
                                 }
                                 push_context((Namespace *)label->value);
                             }
-                            compile(cflist2);
+                            val = compile(cflist2);
                             pop_context();
-                        } else compile(cflist2);
+                        } else val = compile(cflist2);
+                        if (val != NULL) val_destroy(val);
                         lpoint.line = lin; vline = vlin;
                         star_tree = stree_old;
                         backr = old_backr; forwr = old_forwr;
@@ -3080,7 +3081,8 @@ Obj *compile(struct file_list_s *cflist)
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (current_section->structrecursion<100) {
                         waitfor->what = W_ENDS2;waitfor->skip = 1;
-                        compile(cflist);
+                        val = compile(cflist);
+                        if (val != NULL) val_destroy(val);
                     } else err_msg2(ERROR__MACRECURSION, NULL, &epoint);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
@@ -3101,7 +3103,8 @@ Obj *compile(struct file_list_s *cflist)
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (current_section->structrecursion < 100) {
                         waitfor->what = W_ENDU2;waitfor->skip = 1;
-                        compile(cflist);
+                        val = compile(cflist);
+                        if (val != NULL) val_destroy(val);
                     } else err_msg2(ERROR__MACRECURSION, NULL, &epoint);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
@@ -3510,6 +3513,7 @@ static int main2(int argc, char *argv[]) {
         restart_memblocks(&root_section.mem, 0);
         if (diagnostics.optimize) cpu_opt_invalidate();
         for (i = opts - 1; i<argc; i++) {
+            Obj *val;
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
@@ -3524,7 +3528,8 @@ static int main2(int argc, char *argv[]) {
                     cflist = enterfile(fin, &nopoint);
                     star_tree = &fin->star;
                     reffile = fin->uid;
-                    compile(cflist);
+                    val = compile(cflist);
+                    if (val != NULL) val_destroy(val);
                     exitfile();
                 }
                 restart_memblocks(&root_section.mem, 0);
@@ -3536,7 +3541,8 @@ static int main2(int argc, char *argv[]) {
                 cflist = enterfile(cfile, &nopoint);
                 star_tree = &cfile->star;
                 reffile = cfile->uid;
-                compile(cflist);
+                val = compile(cflist);
+                if (val != NULL) val_destroy(val);
                 closefile(cfile);
                 exitfile();
             }
@@ -3556,6 +3562,7 @@ static int main2(int argc, char *argv[]) {
         if (diagnostics.optimize) cpu_opt_invalidate();
         listing_open(arguments.list, argc, argv);
         for (i = opts - 1; i<argc; i++) {
+            Obj *val;
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
@@ -3571,7 +3578,8 @@ static int main2(int argc, char *argv[]) {
                     star_tree = &fin->star;
                     reffile = fin->uid;
                     listing_file(";******  Command line definitions", NULL);
-                    compile(cflist);
+                    val = compile(cflist);
+                    if (val != NULL) val_destroy(val);
                     exitfile();
                 }
                 restart_memblocks(&root_section.mem, 0);
@@ -3585,7 +3593,8 @@ static int main2(int argc, char *argv[]) {
                 star_tree = &cfile->star;
                 reffile = cfile->uid;
                 listing_file(";******  Processing input file: ", argv[i]);
-                compile(cflist);
+                val = compile(cflist);
+                if (val != NULL) val_destroy(val);
                 closefile(cfile);
                 exitfile();
             }
