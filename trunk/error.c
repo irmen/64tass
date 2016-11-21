@@ -365,6 +365,10 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             new_error_msg2(diagnostic_errors.switch_case, epoint);
             adderror("case ignored, value already handled [-Wswitch-case]");
             break;
+        case ERROR_NONIMMEDCONST:
+            new_error_msg2(diagnostic_errors.immediate, epoint);
+            adderror("immediate addressing mode suggested [-Wimmediate]");
+            break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);

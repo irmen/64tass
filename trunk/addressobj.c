@@ -37,6 +37,13 @@ Type *ADDRESS_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_BYTES:
+    case T_STR:
+        return (Obj *)new_address(val_reference(v1), A_NONE);
     case T_NONE:
     case T_ERROR:
     case T_ADDRESS: return val_reference(v1);

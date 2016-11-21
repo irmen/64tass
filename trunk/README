@@ -2760,6 +2760,22 @@ default, the others are disabled.
     (symbols must match exactly) with the main difference of disallowing symbol
     name definitions differing only in case (these are reported as duplicates).
 
+-Wimmediate
+    Warns for cases where immediate addressing is more likely.
+
+    It may be hard to notice if a `#' was missed. The code still compiles but
+    there's a huge difference between `cpx #const' and `cpx const'. Unless the
+    right sort of garbage was on zero page at the time of testing...
+
+    This check might have a lot of false positives if zero page locations are
+    accessed by using small numbers, which is a popular coding style. But there
+    are ways to reduce them.
+
+    For "known" fixed locations address(x) can be used, preferably bound to a
+    symbol. Automatic allocation of zero page variables works too (e.g. zpstuff
+    .byte ?). And basically everything which is a traditional "label" or
+    derived from a label with an offset.
+
 -Wimplied-reg
     Warns if implied addressing is used instead of register.
 

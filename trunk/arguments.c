@@ -65,7 +65,8 @@ struct diagnostics_s diagnostics = {
     true,        /* portable */
     false,       /* unused */
     false,       /* case_symbol */
-    false        /* switch_case */
+    false,       /* switch_case */
+    false        /* immediate */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -83,7 +84,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* portable */
     false,       /* unused */
     false,       /* case_symbol */
-    false        /* switch_case */
+    false,       /* switch_case */
+    false        /* immediate */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -102,7 +104,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* portable */
     false,       /* unused */
     false,       /* case_symbol */
-    true         /* switch_case */
+    true,        /* switch_case */
+    false        /* immediate */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -121,7 +124,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* portable */
     true,        /* unused */
     true,        /* case_symbol */
-    true         /* switch_case */
+    true,        /* switch_case */
+    true         /* immediate */
 };
 
 struct w_options_s {
@@ -145,6 +149,7 @@ static const struct w_options_s w_options[] = {
     {"unused",       &diagnostics.unused},
     {"case-symbol",  &diagnostics.case_symbol},
     {"switch-case",  &diagnostics.switch_case},
+    {"immediate",    &diagnostics.immediate},
     {NULL,           NULL}
 };
 
