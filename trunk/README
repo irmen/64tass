@@ -3120,6 +3120,8 @@ deprecated not equal operator, use '!=' instead
     non-standard not equal operators, update source
 directive ignored
     an assembler directive was ignored for compatibility reasons.
+immediate addressing mode suggested
+    numeric constant address which was likely meant as an immediate value
 label not on left side
     check if an instruction name was not mistyped and if the current CPU has
     it, or remove white space before label
