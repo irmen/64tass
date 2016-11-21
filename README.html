@@ -3185,6 +3185,22 @@ insensitive mode. This gives similar results to the case sensitive mode (symbols
 must match exactly) with the main difference of disallowing symbol name
 definitions differing only in case (these are reported as duplicates).</p>
 
+<dt><b>-Wimmediate</b><a name="o_Wimmediate" href="#o_Wimmediate"></a>
+<dd>Warns for cases where immediate addressing is more likely.
+<p>It may be hard to notice if a <q>#</q> was missed. The code still compiles but
+there's a huge difference between <q><code>cpx #const</code></q> and
+<q><code>cpx const</code></q>. Unless the right sort of garbage was on zero
+page at the time of testing...</p>
+
+<p>This check might have a lot of false positives if zero page locations are
+accessed by using small numbers, which is a popular coding style. But there are
+ways to reduce them.</p>
+
+<p>For "known" fixed locations <code>address(x)</code> can be used, preferably
+bound to a symbol. Automatic allocation of zero page variables works too
+(e.g. <code>zpstuff .byte ?</code>). And basically everything which is a
+traditional "label" or derived from a label with an offset.</p>
+
 <dt><b>-Wimplied-reg</b><a name="o_Wimplied-reg" href="#o_Wimplied-reg"></a>
 <dd>Warns if implied addressing is used instead of register.
 <p>Some instructions have implied aliases like <q><code>asl</code></q>

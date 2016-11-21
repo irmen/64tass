@@ -741,7 +741,10 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
             if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
-            else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
+                if (diagnostics.immediate && opr == ADR_ZP && cnmemonic[ADR_IMMEDIATE] != ____ && val->obj != CODE_OBJ && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                adr = uval - dpage; w = 0;
+            }
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
             else {
