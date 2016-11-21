@@ -172,6 +172,7 @@ static bool woption(const char *n, const char *s) {
         s2 += 6;
         while (w->name != NULL) {
             if (strcmp(w->name, s2) == 0) {
+                if (!no) *w->opt = true;
                 b = w->opt - &diagnostics.shadow + &diagnostic_errors.shadow;
                 *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_error_all.shadow;
