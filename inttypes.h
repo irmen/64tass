@@ -21,6 +21,9 @@
 
 #ifndef _MSC_VER
 #include <unistd.h>
+#elif _MSC_VER >= 1200
+#include <basetsd.h>
+typedef SSIZE_T ssize_t;
 #endif
 #include <inttypes.h>
 #include <stdint.h>
