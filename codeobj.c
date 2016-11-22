@@ -403,19 +403,11 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD:
     case O_BSWORD:
     case O_STRING:
-        op->v1 = v1->addr;
-        v = (Code *)op->v1->obj->calc1(op);
-        op->v1 = &v1->v;
-        return &v->v;
     case O_INV:
     case O_NEG:
     case O_POS:
         op->v1 = v1->addr;
-        v = new_code();
-        memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v1) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
-        v->names = ref_namespace(v1->names);
-        v->addr = op->v1->obj->calc1(op);
-        if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
+        v = (Code *)op->v1->obj->calc1(op);
         op->v1 = &v1->v;
         return &v->v;
     default: break;

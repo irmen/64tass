@@ -236,6 +236,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         op->v1 = v1->val;
         result = op->v1->obj->calc1(op);
         op->v1 = &v1->v;
+        if (am == A_NONE) return result;
         if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
         return (Obj *)new_address(result, am);
     default: break;
