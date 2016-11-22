@@ -362,6 +362,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
            "  -Wbranch-page         Warn if a branch crosses a page\n"
            "  -Wcase-symbol         Warn on mismatch of symbol case\n"
            "  -Wcase-token          Warn on mismatch of token case\n"
+           "  -Wimmediate           Suggest immediate addressing\n"
            "  -Wimplied-reg         No implied register aliases\n"
            "  -Wno-deprecated       No deprecated feature warnings\n"
            "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
