@@ -209,10 +209,11 @@ static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, li
 static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *result;
     Address *v1 = (Address *)op->v1;
-    atype_t am;
+    atype_t am = v1->type;
     switch (op->op->op) {
+    case O_LNOT:
     case O_STRING: 
-        if (v1->type != A_NONE) break;
+        if (am != A_NONE) break;
         /* fall through */
     case O_BANK:
     case O_HIGHER:
@@ -220,7 +221,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-        am = v1->type;
         if (am == A_NONE) {
             op->v1 = v1->val;
             result = op->v1->obj->calc1(op);
@@ -231,7 +231,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV:
     case O_NEG:
     case O_POS:
-        am = v1->type;
         if (check_addr2(am)) break;
     ok:
         op->v1 = v1->val;
