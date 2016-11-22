@@ -211,23 +211,34 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Address *v1 = (Address *)op->v1;
     atype_t am;
     switch (op->op->op) {
+    case O_STRING: 
+        if (v1->type != A_NONE) break;
+        /* fall through */
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
+        am = v1->type;
+        if (am == A_NONE) {
+            op->v1 = v1->val;
+            result = op->v1->obj->calc1(op);
+            op->v1 = &v1->v;
+            return result;
+        }
+        goto ok;
     case O_INV:
     case O_NEG:
     case O_POS:
         am = v1->type;
         if (check_addr2(am)) break;
+    ok:
         op->v1 = v1->val;
         result = op->v1->obj->calc1(op);
         op->v1 = &v1->v;
         if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
         return (Obj *)new_address(result, am);
-    case O_STRING: break;
     default: break;
     }
     return obj_oper_error(op);
@@ -280,6 +291,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 result = op->v1->obj->calc2(op);
                 op->v1 = &v1->v;
                 op->v2 = &v2->v;
+                if (am == A_NONE && v2->type == A_NONE) return result;
                 if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
                 v = new_address(result, am);
                 am = v2->type;
@@ -332,6 +344,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         switch (op->op->op) {
         default:
             am = v1->type;
+            if (am == A_NONE) {
+                op->v1 = v1->val;
+                result = op->v1->obj->calc2(op);
+                op->v1 = &v1->v;
+                return result;
+            }
             if (check_addr2(am)) break;
             goto ok;
         case O_ADD:
@@ -369,15 +387,25 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_STR:
     case T_GAP:
         switch (op->op->op) {
+        default:
+            am = v2->type;
+            if (am == A_NONE) {
+                op->v2 = v2->val;
+                result = o1->obj->calc2(op);
+                op->v2 = &v2->v;
+                return result;
+            }
+            if (check_addr2(am)) break;
+            goto ok;
         case O_ADD:
             am = v2->type;
             if (check_addr(am)) break;
+        ok:
             op->v2 = v2->val;
             result = o1->obj->calc2(op);
             op->v2 = &v2->v;
             if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
             return (Obj *)new_address(result, am);
-        default: break;
         }
         break;
     case T_CODE:
