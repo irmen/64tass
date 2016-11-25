@@ -3617,7 +3617,7 @@ static int main2(int *argc2, char **argv2[]) {
 
     if (error_serious()) {status();return EXIT_FAILURE;}
 
-    output_mem(&root_section.mem);
+    output_mem(&root_section.mem, &arguments.output);
 
     {
         bool e = error_serious();

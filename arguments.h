@@ -32,6 +32,12 @@ enum label_mode_e {
 
 struct file_s;
 
+struct output_s {
+    const char *name;
+    enum output_mode_e mode;
+    bool longaddr;
+};
+
 struct arguments_s {
     bool warning;
     bool caret;
@@ -41,17 +47,15 @@ struct arguments_s {
     bool source;
     bool linenum;
     bool longbranch;
-    bool longaddr;
     bool tasmcomp;
     bool verbose;
     uint8_t caseinsensitive;
-    const char *output;
+    struct output_s output;
     const struct cpu_s *cpumode;
     const char *label;
     const char *list;
     const char *make;
     const char *error;
-    enum output_mode_e output_mode;
     uint8_t tab_size;
     enum label_mode_e label_mode;
 };

@@ -79,9 +79,9 @@ static void memcomp(struct memblocks_s *memblocks) {
         }
     }
     if (memblocks->p < 2) return;
-    if (arguments.output_mode == OUTPUT_XEX ||
-            arguments.output_mode == OUTPUT_IHEX ||
-            arguments.output_mode == OUTPUT_SREC) return;
+    if (arguments.output.mode == OUTPUT_XEX ||
+            arguments.output.mode == OUTPUT_IHEX ||
+            arguments.output.mode == OUTPUT_SREC) return;
 
     for (k = j = 0; j < memblocks->p; j++) {
         struct memblock_s *bj = &memblocks->data[j];
@@ -194,21 +194,21 @@ static void padding(size_t size, FILE *f) {
 err:while ((size--) != 0) if (putc(0, f) == EOF) break;
 }
 
-static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks, const struct output_s *output) {
     address_t pos, end;
     unsigned int i;
 
     if (memblocks->p != 0) {
         pos = memblocks->data[0].addr;
-        if (arguments.output_mode == OUTPUT_CBM || arguments.output_mode == OUTPUT_APPLE) {
+        if (output->mode == OUTPUT_CBM || output->mode == OUTPUT_APPLE) {
             putlw(pos, fout);
         }
-        if (arguments.output_mode == OUTPUT_APPLE) {
+        if (output->mode == OUTPUT_APPLE) {
             end = memblocks->data[memblocks->p - 1].addr + memblocks->data[memblocks->p - 1].len;
             end -= pos;
             putlw(end, fout);
-        } else if (arguments.output_mode == OUTPUT_CBM) {
-            if (arguments.longaddr) putc(pos >> 16,fout);
+        } else if (output->mode == OUTPUT_CBM) {
+            if (output->longaddr) putc(pos >> 16,fout);
         }
         for (i = 0; i < memblocks->p; i++) {
             const struct memblock_s *block = &memblocks->data[i];
@@ -219,7 +219,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
     }
 }
 
-static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks, bool longaddr) {
     address_t start;
     size_t size;
     unsigned int i, last;
@@ -233,9 +233,9 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
             const struct memblock_s *block = &memblocks->data[i];
             if (block->addr != start + size) {
                 putlw(size,fout);
-                if (arguments.longaddr) putc(size >> 16,fout);
+                if (longaddr) putc(size >> 16,fout);
                 putlw(start,fout);
-                if (arguments.longaddr) putc(start >> 16,fout);
+                if (longaddr) putc(start >> 16,fout);
                 while (last < i) {
                     const struct memblock_s *b = &memblocks->data[last++];
                     if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
@@ -246,16 +246,16 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
             size += block->len;
         }
         putlw(size,fout);
-        if (arguments.longaddr) putc(size >> 16, fout);
+        if (longaddr) putc(size >> 16, fout);
         putlw(start, fout);
-        if (arguments.longaddr) putc(start >> 16,fout);
+        if (longaddr) putc(start >> 16,fout);
         while (last < i) {
             const struct memblock_s *b = &memblocks->data[last++];
             if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
         }
     }
     putlw(0, fout);
-    if (arguments.longaddr) putc(0, fout);
+    if (longaddr) putc(0, fout);
 }
 
 static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
@@ -464,40 +464,40 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
     }
 }
 
-void output_mem(struct memblocks_s *memblocks) {
+void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
     FILE* fout;
     struct linepos_s nopoint = {0, 0};
 
     memcomp(memblocks);
 
     if (memblocks->mem.p != 0) {
-        bool binary = (arguments.output_mode != OUTPUT_IHEX) && (arguments.output_mode != OUTPUT_SREC);
+        bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
         int err;
-        if (dash_name(arguments.output)) {
+        if (dash_name(output->name)) {
 #ifdef _WIN32
             if (binary) setmode(fileno(stdout), O_BINARY);
 #endif
             fout = stdout;
         } else {
-            if ((fout = file_open(arguments.output, binary ? "wb" : "wt")) == NULL) {
-                err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+            if ((fout = file_open(output->name, binary ? "wb" : "wt")) == NULL) {
+                err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
                 return;
             }
         }
         clearerr(fout);
-        switch (arguments.output_mode) {
+        switch (output->mode) {
         case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
-        case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks); break;
+        case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
         case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
         case OUTPUT_RAW:
         case OUTPUT_APPLE:
-        case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
+        case OUTPUT_CBM: output_mem_c64(fout, memblocks, output); break;
         case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
         case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
         }
         err = ferror(fout);
         err |= (fout != stdout) ? fclose(fout) : fflush(fout);
-        if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+        if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif
