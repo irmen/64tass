@@ -3486,17 +3486,19 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
     return retval;
 }
 
-static int main2(int argc, char *argv[]) {
+static int main2(int *argc2, char **argv2[]) {
     int opts, i;
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     struct linepos_s nopoint = {0, 0};
+    char **argv = *argv2;
+    int argc = *argc2;
 
     tinit((argc != 0) ? argv[0] : "<command line>");
 
     fin = openfile(NULL, "", 0, NULL, &nopoint);
-    opts = testarg(argc,argv, fin);
+    opts = testarg(argc2, argv2, fin); argc = *argc2; argv = *argv2;
     if (opts <= 0) {
         tfree();
         free_macro();
@@ -3517,7 +3519,7 @@ static int main2(int argc, char *argv[]) {
         listing_pccolumn = false; fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         if (diagnostics.optimize) cpu_opt_invalidate();
-        for (i = opts - 1; i<argc; i++) {
+        for (i = opts - 1; i < argc; i++) {
             Obj *val;
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
@@ -3566,7 +3568,7 @@ static int main2(int argc, char *argv[]) {
         restart_memblocks(&root_section.mem, 0);
         if (diagnostics.optimize) cpu_opt_invalidate();
         listing_open(arguments.list, argc, argv);
-        for (i = opts - 1; i<argc; i++) {
+        for (i = opts - 1; i < argc; i++) {
             Obj *val;
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
@@ -3679,7 +3681,7 @@ int wmain(int argc, wchar_t *argv2[]) {
 	argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
 	if (argv[i] == NULL) err_msg_out_of_memory2();
     }
-    r = main2(argc, argv);
+    r = main2(&argc, &argv);
 
     for (i = 0; i < argc; i++) free(argv[i]);
     free(argv);
@@ -3726,7 +3728,7 @@ int main(int argc, char *argv[]) {
         *p++ = 0;
         uargv[i] = (char *)data;
     }
-    r = main2(argc, uargv);
+    r = main2(&argc, &uargv);
 
     for (i = 0; i < argc; i++) free(uargv[i]);
     free(uargv);

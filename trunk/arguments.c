@@ -19,12 +19,14 @@
 
 #include "arguments.h"
 #include <string.h>
+#include <ctype.h>
 #include "64tass.h"
 #include "opcodes.h"
 #include "my_getopt.h"
 #include "file.h"
 #include "error.h"
 #include "unicode.h"
+#include "wchar.h"
 
 struct arguments_s arguments = {
     true,        /* warning */
@@ -249,187 +251,297 @@ static const struct my_option long_options[] = {
     {NULL               , my_no_argument      , NULL,  0}
 };
 
-int testarg(int argc,char *argv[], struct file_s *fin) {
+static MUST_CHECK char *read_one(FILE *f) {
+    bool q, q2, q3;
+    char *read;
+    size_t i, ln, n, j, len;
+    int c;
+    mbstate_t ps;
+    uint8_t *p, *data;
+
+    do {
+        c = getc(f);
+        if (c == EOF) break;
+    } while (c == 0 || isspace(c));
+    if (c == EOF) return NULL;
+    read = NULL;
+    i = ln = 0;
+    q = q2 = q3 = false;
+    do {
+        if (!q3 && c == '\\') q3 = true;
+        else if (!q3 && !q2 && c == '"') q = !q;
+        else if (!q3 && !q && c == '\'') q2 = !q2;
+        else {
+            q3 = false;
+            if (i >= ln) {
+                ln += 16;
+                read = realloc(read, ln);
+                if (ln < 16 || read == NULL) err_msg_out_of_memory2();
+            }
+            read[i++] = c;
+        }
+        c = getc(f);
+        if (c == EOF || c == 0) break;
+    } while (q || q2 || q3 || !isspace(c));
+    if (i >= ln) {
+        ln++;
+        if (ln < 1) err_msg_out_of_memory2();
+        read = realloc(read, ln);
+    } else if (ln != i + 1) {
+        read = realloc(read, i + 1);
+    }
+    if (read == NULL) err_msg_out_of_memory2();
+    read[i] = 0;
+
+    n = i, j = 0;
+    len = n + 64;
+    data = (uint8_t *)malloc(len);
+    if (data == NULL || len < 64) err_msg_out_of_memory2();
+
+    memset(&ps, 0, sizeof ps);
+    p = data;
+    for (;;) {
+        ssize_t l;
+        wchar_t w;
+        uint32_t ch;
+        if (p + 6*6 + 1 > data + len) {
+            size_t o = p - data;
+            len += 1024;
+            data = (uint8_t*)realloc(data, len);
+            if (data == NULL) err_msg_out_of_memory2();
+            p = data + o;
+        }
+        l = mbrtowc(&w, read + j, n - j,  &ps);
+        if (l < 1) break;
+        j += l;
+        ch = w;
+        if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+    }
+    *p++ = 0;
+    free(read);
+    return (char *)data;
+}
+
+int testarg(int *argc2, char **argv2[], struct file_s *fin) {
+    int argc = *argc2;
+    char **argv = *argv2;
     int opt, tab;
     size_t max_lines = 0, fp = 0;
+    int max = 10;
+    bool again;
 
-    for (;;) {
-        opt = my_getopt_long(argc, argv, short_options, long_options, NULL);
-        if (opt == -1) break;
-        switch (opt) {
-        case 'W':
-            if (woption(argv[0], my_optarg)) goto exit;
-            break;
-        case 'w':arguments.warning = false;break;
-        case 'q':arguments.quiet = false;break;
-        case 'X':arguments.longaddr = true;break;
-        case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
-        case 0x107:arguments.output_mode = OUTPUT_XEX;break;
-        case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
-        case 0x10e:arguments.output_mode = OUTPUT_IHEX;break;
-        case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
-        case 0x10c:arguments.output_mode = OUTPUT_CBM;break;
-        case 'b':arguments.output_mode = OUTPUT_RAW;break;
-        case 'f':arguments.output_mode = OUTPUT_FLAT;break;
-        case 'a':arguments.toascii = true;break;
-        case 'T':arguments.tasmcomp = true;break;
-        case 'o':arguments.output = my_optarg;break;
-        case 0x10a:arguments.caret = false;break;
-        case 'D':
-            {
-                size_t len = strlen(my_optarg) + 1;
+    do {
+        again = false;
+        int i;
+        for (;;) {
+            opt = my_getopt_long(argc, argv, short_options, long_options, NULL);
+            if (opt == -1) break;
+            switch (opt) {
+            case 'W':
+                if (woption(argv[0], my_optarg)) goto exit;
+                break;
+            case 'w':arguments.warning = false;break;
+            case 'q':arguments.quiet = false;break;
+            case 'X':arguments.longaddr = true;break;
+            case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
+            case 0x107:arguments.output_mode = OUTPUT_XEX;break;
+            case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
+            case 0x10e:arguments.output_mode = OUTPUT_IHEX;break;
+            case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
+            case 0x10c:arguments.output_mode = OUTPUT_CBM;break;
+            case 'b':arguments.output_mode = OUTPUT_RAW;break;
+            case 'f':arguments.output_mode = OUTPUT_FLAT;break;
+            case 'a':arguments.toascii = true;break;
+            case 'T':arguments.tasmcomp = true;break;
+            case 'o':arguments.output = my_optarg;break;
+            case 0x10a:arguments.caret = false;break;
+            case 'D':
+                {
+                    size_t len = strlen(my_optarg) + 1;
 
-                if (fin->lines >= max_lines) {
-                    max_lines += 1024;
-                    if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof *fin->line) err_msg_out_of_memory(); /* overflow */
-                    fin->line = (size_t *)reallocx(fin->line, max_lines * sizeof *fin->line);
+                    if (fin->lines >= max_lines) {
+                        max_lines += 1024;
+                        if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof *fin->line) err_msg_out_of_memory(); /* overflow */
+                        fin->line = (size_t *)reallocx(fin->line, max_lines * sizeof *fin->line);
+                    }
+                    fin->line[fin->lines++] = fp;
+
+                    if (len < 1 || fp + len < len) err_msg_out_of_memory();
+                    if (fp + len > fin->len) {
+                        fin->len = fp + len + 1024;
+                        if (fin->len < 1024) err_msg_out_of_memory();
+                        fin->data = (uint8_t*)reallocx(fin->data, fin->len);
+                    }
+                    memcpy(fin->data + fp, my_optarg, len);
+                    fp += len;
                 }
-                fin->line[fin->lines++] = fp;
+                break;
+            case 'B': arguments.longbranch = true;break;
+            case 0x101: arguments.cpumode = &c6502;break;
+            case 'i': arguments.cpumode = &c6502i;break;
+            case 'c': arguments.cpumode = &c65c02;break;
+            case 0x106: arguments.cpumode = &c65ce02;break;
+            case 'x': arguments.cpumode = &w65816;break;
+            case 't': arguments.cpumode = &c65dtv02;break;
+            case 'e': arguments.cpumode = &c65el02;break;
+            case 0x104: arguments.cpumode = &r65c02;break;
+            case 0x105: arguments.cpumode = &w65c02;break;
+            case 0x111: arguments.cpumode = &c4510;break;
+            case 'l': arguments.label = my_optarg;break;
+            case 0x10b: arguments.label_mode = LABEL_VICE; break;
+            case 0x10d: arguments.label_mode = LABEL_DUMP; break;
+            case 'E': arguments.error = my_optarg;break;
+            case 'L': arguments.list = my_optarg;break;
+            case 'M': arguments.make = my_optarg;break;
+            case 'I': include_list_add(my_optarg);break;
+            case 'm': arguments.monitor = false;break;
+            case 's': arguments.source = false;break;
+            case 0x112: arguments.linenum = true;break;
+            case 'C': arguments.caseinsensitive = 0;break;
+            case 0x110: arguments.verbose = true;break;
+            case 0x109:tab = atoi(my_optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
+            case 0x102:puts(
+             /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
+               "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
+               "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
+               "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
+               "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
+               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
+               "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
+               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
+               "        [--dump-labels] [--list=<file>] [--no-monitor] [--no-source]\n"
+               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
+               "        [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
+               "        [--version] SOURCES");
+                   return 0;
 
-                if (len < 1 || fp + len < len) err_msg_out_of_memory();
-                if (fp + len > fin->len) {
-                    fin->len = fp + len + 1024;
-                    if (fin->len < 1024) err_msg_out_of_memory();
-                    fin->data = (uint8_t*)reallocx(fin->data, fin->len);
-                }
-                memcpy(fin->data + fp, my_optarg, len);
-                fp += len;
-            }
-            break;
-        case 'B': arguments.longbranch = true;break;
-        case 0x101: arguments.cpumode = &c6502;break;
-        case 'i': arguments.cpumode = &c6502i;break;
-        case 'c': arguments.cpumode = &c65c02;break;
-        case 0x106: arguments.cpumode = &c65ce02;break;
-        case 'x': arguments.cpumode = &w65816;break;
-        case 't': arguments.cpumode = &c65dtv02;break;
-        case 'e': arguments.cpumode = &c65el02;break;
-        case 0x104: arguments.cpumode = &r65c02;break;
-        case 0x105: arguments.cpumode = &w65c02;break;
-        case 0x111: arguments.cpumode = &c4510;break;
-        case 'l': arguments.label = my_optarg;break;
-        case 0x10b: arguments.label_mode = LABEL_VICE; break;
-        case 0x10d: arguments.label_mode = LABEL_DUMP; break;
-        case 'E': arguments.error = my_optarg;break;
-        case 'L': arguments.list = my_optarg;break;
-        case 'M': arguments.make = my_optarg;break;
-        case 'I': include_list_add(my_optarg);break;
-        case 'm': arguments.monitor = false;break;
-        case 's': arguments.source = false;break;
-        case 0x112: arguments.linenum = true;break;
-        case 'C': arguments.caseinsensitive = 0;break;
-        case 0x110: arguments.verbose = true;break;
-        case 0x109:tab = atoi(my_optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
-        case 0x102:puts(
-         /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
-           "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
-           "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
-           "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
-           "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
-           "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
-           "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-           "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
-           "        [--dump-labels] [--list=<file>] [--no-monitor] [--no-source]\n"
-           "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
-           "        [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
-           "        [--version] SOURCES");
+            case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
+                     return 0;
+            case 0x103:
+            case '?':if (my_optopt == '?' || opt == 0x103) { puts(
+               "Usage: 64tass [OPTIONS...] SOURCES\n"
+               "64tass Turbo Assembler Macro V" VERSION "\n"
+               "\n"
+               "  -a, --ascii           Source is not in PETASCII\n"
+               "  -B, --long-branch     Automatic bxx *+3 jmp $xxxx\n"
+               "  -C, --case-sensitive  Case sensitive labels\n"
+               "  -D <label>=<value>    Define <label> to <value>\n"
+               "  -E, --error=<file>    Place errors into <file>\n"
+               "  -I <path>             Include search path\n"
+               "  -M <file>             Makefile dependencies to <file>\n"
+               "  -q, --quiet           Do not output summary and header\n"
+               "  -T, --tasm-compatible Enable TASM compatible mode\n"
+               "  -w, --no-warn         Suppress warnings\n"
+               "      --no-caret-diag   Suppress source line display\n"
+               "\n"
+               " Diagnostic options:\n"
+               "  -Wall                 Enable most diagnostic warnings\n"
+               "  -Werror               Diagnostic warnings to errors\n"
+               "  -Werror=<name>        Make a diagnostic to an error\n"
+               "  -Wno-error=<name>     Make a diagnostic to a warning\n"
+               "  -Wbranch-page         Warn if a branch crosses a page\n"
+               "  -Wcase-symbol         Warn on mismatch of symbol case\n"
+               "  -Wcase-token          Warn on mismatch of token case\n"
+               "  -Wimmediate           Suggest immediate addressing\n"
+               "  -Wimplied-reg         No implied register aliases\n"
+               "  -Wno-deprecated       No deprecated feature warnings\n"
+               "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
+               "  -Wno-label-left       No warning about strange labels\n"
+               "  -Wno-mem-wrap         No offset overflow warning\n"
+               "  -Wno-pc-wrap          No PC overflow warning\n"
+               "  -Wold-equal           Warn about old equal operator\n"
+               "  -Woptimize            Optimization warnings\n"
+               "  -Wno-portable         No portability warnings\n"
+               "  -Wshadow              Check symbol shadowing\n"
+               "  -Wstrict-bool         No implicit bool conversions\n"
+               "  -Wswitch-case         Warn about ignored cases\n"
+               "  -Wunused              Warn about unused symbols\n"
+               "\n"
+               " Output selection:\n"
+               "  -o, --output=<file>   Place output into <file>\n"
+               "  -b, --nostart         Strip starting address\n"
+               "  -f, --flat            Generate flat output file\n"
+               "  -n, --nonlinear       Generate nonlinear output file\n"
+               "  -X, --long-address    Use 3 byte start/len address\n"
+               "      --cbm-prg         Output CBM program file\n"
+               "      --atari-xex       Output Atari XEX file\n"
+               "      --apple-ii        Output Apple II file\n"
+               "      --intel-hex       Output Intel HEX file\n"
+               "      --s-record        Output Motorola S-record file\n"
+               "\n"
+               " Target CPU selection:\n"
+               "      --m65xx           Standard 65xx (default)\n"
+               "  -c, --m65c02          CMOS 65C02\n"
+               "      --m65ce02         CSG 65CE02\n"
+               "  -e, --m65el02         65EL02\n"
+               "  -i, --m6502           NMOS 65xx\n"
+               "  -t, --m65dtv02        65DTV02\n"
+               "  -x, --m65816          W65C816\n"
+               "      --mr65c02         R65C02\n"
+               "      --mw65c02         W65C02\n"
+               "      --m4510           CSG 4510\n"
+               "\n"
+               " Source listing and labels:\n"
+               "  -l, --labels=<file>   List labels into <file>\n"
+               "      --vice-labels     Labels in VICE format\n"
+               "      --dump-labels     Dump for debugging\n"
+               "  -L, --list=<file>     List into <file>\n"
+               "  -m, --no-monitor      Don't put monitor code into listing\n"
+               "  -s, --no-source       Don't put source code into listing\n"
+               "      --line-numbers    Put line numbers into listing\n"
+               "      --tab-size=<n>    Override the default tab size (8)\n"
+               "      --verbose-list    List unused lines as well\n"
+               "\n"
+               " Misc:\n"
+               "  -?, --help            Give this help list\n"
+               "      --usage           Give a short usage message\n"
+               "  -V, --version         Print program version\n"
+               "\n"
+               "Mandatory or optional arguments to long options are also mandatory or optional\n"
+               "for any corresponding short options.\n"
+               "\n"
+               "Report bugs to <soci" "\x40" "c64.rulez.org>.");
                return 0;
+            }
+                /* fall through */
+            default:
+            exit:
+                fputs("Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
+                return -1;
+            }
+        }
 
-        case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
-                 return 0;
-        case 0x103:
-        case '?':if (my_optopt == '?' || opt == 0x103) { puts(
-           "Usage: 64tass [OPTIONS...] SOURCES\n"
-           "64tass Turbo Assembler Macro V" VERSION "\n"
-           "\n"
-           "  -a, --ascii           Source is not in PETASCII\n"
-           "  -B, --long-branch     Automatic bxx *+3 jmp $xxxx\n"
-           "  -C, --case-sensitive  Case sensitive labels\n"
-           "  -D <label>=<value>    Define <label> to <value>\n"
-           "  -E, --error=<file>    Place errors into <file>\n"
-           "  -I <path>             Include search path\n"
-           "  -M <file>             Makefile dependencies to <file>\n"
-           "  -q, --quiet           Do not output summary and header\n"
-           "  -T, --tasm-compatible Enable TASM compatible mode\n"
-           "  -w, --no-warn         Suppress warnings\n"
-           "      --no-caret-diag   Suppress source line display\n"
-           "\n"
-           " Diagnostic options:\n"
-           "  -Wall                 Enable most diagnostic warnings\n"
-           "  -Werror               Diagnostic warnings to errors\n"
-           "  -Werror=<name>        Make a diagnostic to an error\n"
-           "  -Wno-error=<name>     Make a diagnostic to a warning\n"
-           "  -Wbranch-page         Warn if a branch crosses a page\n"
-           "  -Wcase-symbol         Warn on mismatch of symbol case\n"
-           "  -Wcase-token          Warn on mismatch of token case\n"
-           "  -Wimmediate           Suggest immediate addressing\n"
-           "  -Wimplied-reg         No implied register aliases\n"
-           "  -Wno-deprecated       No deprecated feature warnings\n"
-           "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
-           "  -Wno-label-left       No warning about strange labels\n"
-           "  -Wno-mem-wrap         No offset overflow warning\n"
-           "  -Wno-pc-wrap          No PC overflow warning\n"
-           "  -Wold-equal           Warn about old equal operator\n"
-           "  -Woptimize            Optimization warnings\n"
-           "  -Wno-portable         No portability warnings\n"
-           "  -Wshadow              Check symbol shadowing\n"
-           "  -Wstrict-bool         No implicit bool conversions\n"
-           "  -Wswitch-case         Warn about ignored cases\n"
-           "  -Wunused              Warn about unused symbols\n"
-           "\n"
-           " Output selection:\n"
-           "  -o, --output=<file>   Place output into <file>\n"
-           "  -b, --nostart         Strip starting address\n"
-           "  -f, --flat            Generate flat output file\n"
-           "  -n, --nonlinear       Generate nonlinear output file\n"
-           "  -X, --long-address    Use 3 byte start/len address\n"
-           "      --cbm-prg         Output CBM program file\n"
-           "      --atari-xex       Output Atari XEX file\n"
-           "      --apple-ii        Output Apple II file\n"
-           "      --intel-hex       Output Intel HEX file\n"
-           "      --s-record        Output Motorola S-record file\n"
-           "\n"
-           " Target CPU selection:\n"
-           "      --m65xx           Standard 65xx (default)\n"
-           "  -c, --m65c02          CMOS 65C02\n"
-           "      --m65ce02         CSG 65CE02\n"
-           "  -e, --m65el02         65EL02\n"
-           "  -i, --m6502           NMOS 65xx\n"
-           "  -t, --m65dtv02        65DTV02\n"
-           "  -x, --m65816          W65C816\n"
-           "      --mr65c02         R65C02\n"
-           "      --mw65c02         W65C02\n"
-           "      --m4510           CSG 4510\n"
-           "\n"
-           " Source listing and labels:\n"
-           "  -l, --labels=<file>   List labels into <file>\n"
-           "      --vice-labels     Labels in VICE format\n"
-           "      --dump-labels     Dump for debugging\n"
-           "  -L, --list=<file>     List into <file>\n"
-           "  -m, --no-monitor      Don't put monitor code into listing\n"
-           "  -s, --no-source       Don't put source code into listing\n"
-           "      --line-numbers    Put line numbers into listing\n"
-           "      --tab-size=<n>    Override the default tab size (8)\n"
-           "      --verbose-list    List unused lines as well\n"
-           "\n"
-           " Misc:\n"
-           "  -?, --help            Give this help list\n"
-           "      --usage           Give a short usage message\n"
-           "  -V, --version         Print program version\n"
-           "\n"
-           "Mandatory or optional arguments to long options are also mandatory or optional\n"
-           "for any corresponding short options.\n"
-           "\n"
-           "Report bugs to <soci" "\x40" "c64.rulez.org>.");
-           return 0;
+        if (my_optind > 1 && !strcmp(argv[my_optind - 1], "--")) break;
+        for (i = my_optind; i < argc; i++) {
+            char *arg = argv[i];
+            if (arg[0] == '@' && arg[1] != 0) {
+                FILE *f = fopen(arg+1, "rb");
+                if (f != NULL) {
+                    int j;
+                    free(arg);
+                    argc--;
+                    for (j = i; j < argc; j++) {
+                        argv[j] = argv[j + 1];
+                    }
+                    while (!feof(f)) {
+                        char *read = read_one(f);
+                        if (read == NULL) break;
+                        *argv2 = argv = (char **)reallocx(argv, (argc + 1) * sizeof *argv);
+                        for (j = argc; j > i; j--) {
+                            argv[j] = argv[j - 1];
+                        }
+                        argc++;
+                        argv[i++] = read;
+                        again = true;
+                    }
+                    fclose(f);
+                    *argc2 = argc;
+                    break;
+                }
+            }
         }
-            /* fall through */
-        default:
-        exit:
-            fputs("Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
-            return -1;
-        }
-    }
+        max--;
+    } while (again && max > 0);
 
     switch (arguments.output_mode) {
     case OUTPUT_RAW:
