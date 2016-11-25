@@ -3495,7 +3495,7 @@ static int main2(int *argc2, char **argv2[]) {
     char **argv = *argv2;
     int argc = *argc2;
 
-    tinit((argc != 0) ? argv[0] : "<command line>");
+    tinit(argv[0]);
 
     fin = openfile(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc2, argv2, fin); argc = *argc2; argv = *argv2;
@@ -3647,7 +3647,7 @@ int wmain(int argc, wchar_t *argv2[]) {
         atexit(myexit);
     }
 
-    argv = (char **)malloc(argc * sizeof *argv);
+    argv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
 	uint32_t c = 0, lastchar;
@@ -3681,6 +3681,12 @@ int wmain(int argc, wchar_t *argv2[]) {
 	argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
 	if (argv[i] == NULL) err_msg_out_of_memory2();
     }
+    if (argc < 1) {
+        argv[0] = (char *)malloc(7);
+        if (argv[0] == NULL) err_msg_out_of_memory2();
+        strcpy(argv[0], "64tass");
+        argc = 1;
+    }
     r = main2(&argc, &argv);
 
     for (i = 0; i < argc; i++) free(argv[i]);
@@ -3695,7 +3701,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC, "C");
 
-    uargv = (char **)malloc(argc * sizeof *uargv);
+    uargv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *uargv);
     if (uargv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         const char *s = argv[i];
@@ -3727,6 +3733,12 @@ int main(int argc, char *argv[]) {
         }
         *p++ = 0;
         uargv[i] = (char *)data;
+    }
+    if (argc < 1) {
+        argv[0] = (char *)malloc(7);
+        if (argv[0] == NULL) err_msg_out_of_memory2();
+        strcpy(argv[0], "64tass");
+        argc = 1;
     }
     r = main2(&argc, &uargv);
 

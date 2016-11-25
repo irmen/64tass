@@ -543,6 +543,12 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         max--;
     } while (again && max > 0);
 
+    if (again && max <= 0) {
+        printable_print((const uint8_t *)argv[0], stderr);
+        fputs(": fatal error: too many @-files encountered\n", stderr);
+        return -1;
+    }
+
     switch (arguments.output_mode) {
     case OUTPUT_RAW:
     case OUTPUT_NONLINEAR:
