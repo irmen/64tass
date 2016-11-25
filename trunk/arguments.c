@@ -275,7 +275,7 @@ static MUST_CHECK char *read_one(FILE *f) {
             q3 = false;
             if (i >= ln) {
                 ln += 16;
-                read = realloc(read, ln);
+                read = (char *)realloc(read, ln);
                 if (ln < 16 || read == NULL) err_msg_out_of_memory2();
             }
             read[i++] = c;
@@ -285,12 +285,9 @@ static MUST_CHECK char *read_one(FILE *f) {
     } while (q || q2 || q3 || !isspace(c));
     if (i >= ln) {
         ln++;
-        if (ln < 1) err_msg_out_of_memory2();
-        read = realloc(read, ln);
-    } else if (ln != i + 1) {
-        read = realloc(read, i + 1);
+        read = (char *)realloc(read, ln);
+        if (ln < 1 || read == NULL) err_msg_out_of_memory2();
     }
-    if (read == NULL) err_msg_out_of_memory2();
     read[i] = 0;
 
     n = i, j = 0;
