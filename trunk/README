@@ -2469,7 +2469,7 @@ get a related error move the respective label out of the .block.
 
 Command line options
 
-Short command line options consist of `-' and a letter. Long options start with
+Short command line options consist of `-' and a letter, long options start with
 `--'.'
 
 If `--' is encountered then further options are not recognized and are assumed

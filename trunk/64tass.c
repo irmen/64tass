@@ -3505,7 +3505,7 @@ static int main2(int *argc2, char **argv2[]) {
         free(waitfors);
         return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
-    init_encoding(arguments.toascii);
+    init_encoding(arguments.to_ascii);
 
     if (arguments.quiet) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"

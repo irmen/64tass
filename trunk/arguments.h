@@ -36,7 +36,7 @@ struct arguments_s {
     bool warning;
     bool caret;
     bool quiet;
-    bool toascii;
+    bool to_ascii;
     bool monitor;
     bool source;
     bool linenum;

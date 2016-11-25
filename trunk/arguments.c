@@ -32,7 +32,7 @@ struct arguments_s arguments = {
     true,        /* warning */
     true,        /* caret */
     true,        /* quiet */
-    false,       /* toascii */
+    false,       /* to_ascii */
     true,        /* monitor */
     true,        /* source */
     false,       /* linenum */
@@ -351,7 +351,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 0x10c:arguments.output_mode = OUTPUT_CBM;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
-            case 'a':arguments.toascii = true;break;
+            case 'a':arguments.to_ascii = true;break;
             case 'T':arguments.tasmcomp = true;break;
             case 'o':arguments.output = my_optarg;break;
             case 0x10a:arguments.caret = false;break;

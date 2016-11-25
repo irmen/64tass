@@ -461,7 +461,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         if (bp == bl) break;
                         lastchar = c;
                         c = buffer[bp]; bp = (bp + 1) % (BUFSIZ * 2);
-                        if (!arguments.toascii) {
+                        if (!arguments.to_ascii) {
                             if (c == 10) {
                                 if (lastchar == 13) continue;
                                 break;

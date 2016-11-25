@@ -87,7 +87,7 @@ size_t get_label(void) {
         s++;
         break;
     case 3:
-        if (!arguments.toascii) return 0;
+        if (!arguments.to_ascii) return 0;
         l = utf8in(s, &ch);
         prop = uget_property(ch);
         if ((prop->property & id_Start) == 0) return 0;
@@ -101,7 +101,7 @@ size_t get_label(void) {
         case 1:
         case 2: s++; continue;
         case 3:
-            if (!arguments.toascii) break;
+            if (!arguments.to_ascii) break;
             l = utf8in(s, &ch);
             prop = uget_property(ch);
             if ((prop->property & (id_Continue | id_Start)) == 0) break;
