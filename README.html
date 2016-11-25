@@ -2904,6 +2904,20 @@ you get a related error move the respective label out of the <a href="#d_block">
 <hr>
 <h2>Command line options<a name="commandline-options" href="#commandline-options"></a></h2>
 
+<p>Short command line options consist of <q>-</q> and a letter, long options
+start with <q>--</q>.</q>
+
+<p>If <q>--</q> is encountered then further options are not recognized and are
+assumed to be file names.</p>
+
+<p>Options requiring file names are marked with <q>&lt;filename&gt;</q>a. A
+single <q>-</q> as name means standard input or output. File name quoting is
+system specific.</p>
+
+<p><q>@filename</q> can be used to read additional command line options from a
+file. Options must be separated with white space. White space can be included
+by single or double quotes. A backslash quotes a single character and must be quoted by itself.</p>
+
 <h3>Output options<a name="commandline-output" href="#commandline-output"></a></h3>
 
 <dl class="dir">
