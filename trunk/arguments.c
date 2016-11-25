@@ -37,17 +37,19 @@ struct arguments_s arguments = {
     true,        /* source */
     false,       /* linenum */
     false,       /* longbranch */
-    false,       /* longaddr */
     false,       /* tasmcomp */
     false,       /* verbose */
     0x20,        /* caseinsensitive */
-    "a.out",     /* output */
+    {            /* output */
+        "a.out",     /* file_name */
+        OUTPUT_CBM,  /* output_mode */
+        false        /* longaddr */
+    },
     &c6502,      /* cpumode */
     NULL,        /* label */
     NULL,        /* list */
     NULL,        /* make */
     NULL,        /* error */
-    OUTPUT_CBM,  /* output_mode */
     8,           /* tab_size */
     LABEL_64TASS /* label_mode */
 };
@@ -339,18 +341,18 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 break;
             case 'w':arguments.warning = false;break;
             case 'q':arguments.quiet = false;break;
-            case 'X':arguments.longaddr = true;break;
-            case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
-            case 0x107:arguments.output_mode = OUTPUT_XEX;break;
-            case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
-            case 0x10e:arguments.output_mode = OUTPUT_IHEX;break;
-            case 0x10f:arguments.output_mode = OUTPUT_SREC;break;
-            case 0x10c:arguments.output_mode = OUTPUT_CBM;break;
-            case 'b':arguments.output_mode = OUTPUT_RAW;break;
-            case 'f':arguments.output_mode = OUTPUT_FLAT;break;
+            case 'X':arguments.output.longaddr = true;break;
+            case 'n':arguments.output.mode = OUTPUT_NONLINEAR;break;
+            case 0x107:arguments.output.mode = OUTPUT_XEX;break;
+            case 0x108:arguments.output.mode = OUTPUT_APPLE;break;
+            case 0x10e:arguments.output.mode = OUTPUT_IHEX;break;
+            case 0x10f:arguments.output.mode = OUTPUT_SREC;break;
+            case 0x10c:arguments.output.mode = OUTPUT_CBM;break;
+            case 'b':arguments.output.mode = OUTPUT_RAW;break;
+            case 'f':arguments.output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
             case 'T':arguments.tasmcomp = true;break;
-            case 'o':arguments.output = my_optarg;break;
+            case 'o':arguments.output.name = my_optarg;break;
             case 0x10a:arguments.caret = false;break;
             case 'D':
                 {
@@ -546,10 +548,10 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         return -1;
     }
 
-    switch (arguments.output_mode) {
+    switch (arguments.output.mode) {
     case OUTPUT_RAW:
     case OUTPUT_NONLINEAR:
-    case OUTPUT_CBM: all_mem2 = arguments.longaddr ? 0xffffff : 0xffff; break;
+    case OUTPUT_CBM: all_mem2 = arguments.output.longaddr ? 0xffffff : 0xffff; break;
     case OUTPUT_IHEX:
     case OUTPUT_SREC:
     case OUTPUT_FLAT: all_mem2 = 0xffffffff; break;
@@ -559,7 +561,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     if (arguments.caseinsensitive == 0) {
         diagnostics.case_symbol = false;
     }
-    if (dash_name(arguments.output)) arguments.quiet = false;
+    if (dash_name(arguments.output.name)) arguments.quiet = false;
     if (fin->lines != max_lines) {
         fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof *fin->line);
     }

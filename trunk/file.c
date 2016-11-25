@@ -766,8 +766,8 @@ void makefile(int argc, char *argv[]) {
         return;
     }
     clearerr(f);
-    path = get_path(NULL, arguments.output);
-    len = argv_print(arguments.output + strlen(path), f) + 1;
+    path = get_path(NULL, arguments.output.name);
+    len = argv_print(arguments.output.name + strlen(path), f) + 1;
     free(path);
     putc(':', f);
 
