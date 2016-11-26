@@ -3335,25 +3335,35 @@ can't write label file
     cannot write the label file
 can't write listing file
     cannot write the list file
-can't write object file
-    cannot write the result
 can't write make file
     cannot write the make rule file
+can't write object file
+    cannot write the result
 error reading file
     error while reading
 file recursion
     wrong use of .include
-macro recursion too deep
-    wrong use of nested macros
 function recursion too deep
     wrong use of nested functions
-unknown option '?'
-    option not known
+macro recursion too deep
+    wrong use of nested macros
+option '?' doesn't allow an argument
+    command line option doesn't need any argument
+option '?' is ambiguous
+    command line option abbreviation is too short
+option '?' not recognized
+    no such command line option
+option '?' requires an argument
+    command line option needs an argument
 out of memory
     won't happen ;)
+scope '?' for label listing not found
+    the scope given on command line couldn't be found
 too many passes
     with a carefully crafted source file it's possible to create unresolvable
     situations. Fix your code.
+unknown option '?'
+    option not known
 
 -------------------------------------------------------------------------------
 

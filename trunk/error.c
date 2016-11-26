@@ -458,6 +458,11 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
         adderror("'");
         break;
+    case ERROR____LABEL_ROOT:
+        adderror("scope '");
+        adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+        adderror("' for label listing not found");
+        break;
     default:
         adderror(terr_fatal[no - 0xc0]);
     }
