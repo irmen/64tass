@@ -3487,6 +3487,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 }
 
 static int main2(int *argc2, char **argv2[]) {
+    size_t j;
     int opts, i;
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
@@ -3612,7 +3613,7 @@ static int main2(int *argc2, char **argv2[]) {
 
     set_cpumode(arguments.cpumode);
 
-    if (arguments.label != NULL) labelprint();
+    for (j = 0; j < arguments.symbol_output_len; j++) labelprint(&arguments.symbol_output[j]);
     if (arguments.make != NULL) makefile(argc - opts, argv + opts);
 
     if (error_serious()) {status();return EXIT_FAILURE;}
