@@ -643,13 +643,22 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
                     break;
                 }
             }
+            if (n == NULL) {
+                labelname.data = pline;
+                labelname.len = lpoint.pos;
+                err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
+                space = NULL;
+                break;
+            }
             lpoint.pos++;
         } while (labelname.data[labelname.len] == '.');
     }
-    if (output->mode == LABEL_DUMP) {
-        labeldump(space, flab);
-    } else {
-        labelprint2(&space->members, flab, output->mode);
+    if (space != NULL) {
+        if (output->mode == LABEL_DUMP) {
+            labeldump(space, flab);
+        } else {
+            labelprint2(&space->members, flab, output->mode);
+        }
     }
     free(label_stack.stack);
     referenceit = oldreferenceit;
