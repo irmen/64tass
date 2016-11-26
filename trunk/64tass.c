@@ -3613,7 +3613,15 @@ static int main2(int *argc2, char **argv2[]) {
 
     set_cpumode(arguments.cpumode);
 
-    for (j = 0; j < arguments.symbol_output_len; j++) labelprint(&arguments.symbol_output[j]);
+    for (j = 0; j < arguments.symbol_output_len; j++) {
+        const struct symbol_output_s *s = &arguments.symbol_output[j];
+        size_t k;
+        for (k = 0; k < j; k++) {
+            const struct symbol_output_s *s2 = &arguments.symbol_output[k];
+            if (!strcmp(s->name, s2->name)) break;
+        }
+        if (labelprint(s, k != j)) break;
+    }
     if (arguments.make != NULL) makefile(argc - opts, argv + opts);
 
     if (error_serious()) {status();return EXIT_FAILURE;}

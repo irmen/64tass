@@ -591,17 +591,17 @@ static void labeldump(Namespace *members, FILE *flab) {
     }
 }
 
-void labelprint(const struct symbol_output_s *output) {
+bool labelprint(const struct symbol_output_s *output, bool append) {
     bool oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
     struct Namespace *space;
 
-    flab = dash_name(output->name) ? stdout : file_open(output->name, "wt");
+    flab = dash_name(output->name) ? stdout : file_open(output->name, append ? "at" : "wt");
     if (flab == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
-        return;
+        return true;
     }
     clearerr(flab);
     referenceit = false;
@@ -655,7 +655,11 @@ void labelprint(const struct symbol_output_s *output) {
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
-    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
+    if (err != 0 && errno != 0) {
+        err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
+        return true;
+    }
+    return false;
 }
 
 void new_builtin(const char *ident, Obj *val) {
