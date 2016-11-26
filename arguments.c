@@ -520,7 +520,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             }
         }
 
-        if (my_optind > 1 && !strcmp(argv[my_optind - 1], "--")) break;
+        if (my_optind > 1 && strcmp(argv[my_optind - 1], "--") == 0) break;
         for (i = my_optind; i < argc; i++) {
             char *arg = argv[i];
             if (arg[0] == '@' && arg[1] != 0) {

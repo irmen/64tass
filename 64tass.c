@@ -3618,7 +3618,7 @@ static int main2(int *argc2, char **argv2[]) {
         size_t k;
         for (k = 0; k < j; k++) {
             const struct symbol_output_s *s2 = &arguments.symbol_output[k];
-            if (!strcmp(s->name, s2->name)) break;
+            if (strcmp(s->name, s2->name) == 0) break;
         }
         if (labelprint(s, k != j)) break;
     }
