@@ -757,7 +757,7 @@ void makefile(int argc, char *argv[]) {
     char *path;
     struct linepos_s nopoint = {0, 0};
     struct avltree_node *n;
-    size_t len;
+    size_t len = 0;
     int i, err;
 
     f = dash_name(arguments.make) ? stdout : file_open(arguments.make, "wt");
@@ -766,33 +766,38 @@ void makefile(int argc, char *argv[]) {
         return;
     }
     clearerr(f);
-    path = get_path(NULL, arguments.output.name);
-    len = argv_print(arguments.output.name + strlen(path), f) + 1;
-    free(path);
-    putc(':', f);
-
-    for (i = 0; i < argc; i++) {
-        if (dash_name(argv[i])) continue;
-        if (len > 64) {
-            fputs(" \\\n", f);
-            len = 0;
-        }
-        putc(' ', f);
-        len += argv_print(argv[i], f) + 1;
+    if (!dash_name(arguments.output.name)) {
+        path = get_path(NULL, arguments.output.name);
+        len += argv_print(arguments.output.name + strlen(path), f);
+        free(path);
     }
+    if (len > 0) {
+        len++;
+        putc(':', f);
 
-    for (n = avltree_first(&file_tree); n != NULL; n = avltree_next(n)) {
-        const struct file_s *a = cavltree_container_of(n, struct file_s, node);
-        if (a->type != 0) {
+        for (i = 0; i < argc; i++) {
+            if (dash_name(argv[i])) continue;
             if (len > 64) {
                 fputs(" \\\n", f);
                 len = 0;
             }
             putc(' ', f);
-            len += argv_print(a->realname, f) + 1;
+            len += argv_print(argv[i], f) + 1;
         }
+
+        for (n = avltree_first(&file_tree); n != NULL; n = avltree_next(n)) {
+            const struct file_s *a = cavltree_container_of(n, struct file_s, node);
+            if (a->type != 0) {
+                if (len > 64) {
+                    fputs(" \\\n", f);
+                    len = 0;
+                }
+                putc(' ', f);
+                len += argv_print(a->realname, f) + 1;
+            }
+        }
+        putc('\n', f);
     }
-    putc('\n', f);
 
     err = ferror(f);
     err |= (f != stdout) ? fclose(f) : fflush(f);
