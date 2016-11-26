@@ -463,33 +463,48 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         default:break;
         }
         if (labelmode == LABEL_VICE) {
-            if (l->value->obj == CODE_OBJ) {
-                Error *err;
-                Code *code = (Code *)l->value;
-                uval_t uv;
-                struct linepos_s epoint;
-                size_t i, j = l->name.len;
-                const uint8_t *d = l->name.data;
-                for (i = 0; i < j; i++) {
-                    uint8_t c = d[i];
-                    if (c < '0') break;
-                    if (c <= '9') continue;
-                    if (c == '_') continue;
-                    c |= 0x20;
-                    if (c < 'a') break;
-                    if (c <= 'z') continue;
-                    break;
-                }
-                if (i != j) continue;
+            Obj *val = NULL;
+            Error *err;
+            uval_t uv;
+            struct linepos_s epoint;
+            size_t i, j;
+            const uint8_t *d;
 
-                err = l->value->obj->uval(l->value, &uv, 24, &epoint);
-                if (err != NULL) {
-                    val_destroy(&err->v);
-                    continue;
-                }
-                fprintf(flab, "al %" PRIx32 " .", uv);
-                labelname_print(l, flab, ':');
-                putc('\n', flab);
+            if (l->value->obj == ADDRESS_OBJ) {
+                Address *adr = (Address *)l->value;
+                if (adr->type == A_NONE) val = adr->val;
+            } else if (l->value->obj == CODE_OBJ) {
+                Code *code = (Code *)l->value;
+                val = code->addr;
+            }
+            if (val == NULL) continue;
+
+            j = l->name.len;
+            d = l->name.data;
+            for (i = 0; i < j; i++) {
+                uint8_t c = d[i];
+                if (c < '0') break;
+                if (c <= '9') continue;
+                if (c == '_') continue;
+                c |= 0x20;
+                if (c < 'a') break;
+                if (c <= 'z') continue;
+                break;
+            }
+            if (i != j) continue;
+
+            err = val->obj->uval(val, &uv, 24, &epoint);
+            if (err != NULL) {
+                val_destroy(&err->v);
+                continue;
+            }
+
+            fprintf(flab, "al %" PRIx32 " .", uv);
+            labelname_print(l, flab, ':');
+            putc('\n', flab);
+
+            if (l->value->obj == CODE_OBJ) {
+                Code *code = (Code *)l->value;
                 if (code->names->len != 0 && l->owner) {
                     size_t ln = code->names->len;
                     code->names->len = 0;

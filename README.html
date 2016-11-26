@@ -3417,14 +3417,21 @@ label           = $1000
 
 <dt><b>--vice-labels</b><a name="o_vice-labels" href="#o_vice-labels"></a>
 <dd>List labels in a VICE readable format.
+<p>This format may be used to translate memory locations to something readable in
+VICE monitor. Therefore simple numeric constants will not show up unless
+converted to an address first.</p>
+<p>VICE symbols may only contain ASCII letters, numbers and underscore. Symbols
+not meeting this requirement will be omitted.</p>
 <pre width=80>
-64tass --vice-labels -l labels.txt a.asm
+64tass --vice-labels -l labels.l a.asm
 *       <b>=</b> <span>$1000</span>
 label   <b>jmp</b> <u>label</u>
 
-result (labels.txt):
+result (labels.l):
 al 1000 .label
 </pre>
+<p><b>For now colons are used as scope delimiter due to a VICE limitation, but
+this will be changed to dots in the future.</b></p>
 
 <dt><b>--dump-labels</b><a name="o_dump-labels" href="#o_dump-labels"></a>
 <dd>List labels for debugging.
