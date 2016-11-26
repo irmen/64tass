@@ -2992,12 +2992,22 @@ Source listing options
 --vice-labels
     List labels in a VICE readable format.
 
-    64tass --vice-labels -l labels.txt a.asm
+    This format may be used to translate memory locations to something readable
+    in VICE monitor. Therefore simple numeric constants will not show up unless
+    converted to an address first.
+
+    VICE symbols may only contain ASCII letters, numbers and underscore.
+    Symbols not meeting this requirement will be omitted.
+
+    64tass --vice-labels -l labels.l a.asm
     *       = $1000
     label   jmp label
 
-    result (labels.txt):
+    result (labels.l):
     al 1000 .label
+
+    For now colons are used as scope delimiter due to a VICE limitation, but
+    this will be changed to dots in the future.
 
 --dump-labels
     List labels for debugging.
