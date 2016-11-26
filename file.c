@@ -772,6 +772,7 @@ void makefile(int argc, char *argv[]) {
     putc(':', f);
 
     for (i = 0; i < argc; i++) {
+        if (dash_name(argv[i])) continue;
         if (len > 64) {
             fputs(" \\\n", f);
             len = 0;
