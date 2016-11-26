@@ -65,7 +65,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_SHADOWWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_NOTE, SV_NOTE2, SV_WARNING, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct errorentry_s {
@@ -101,35 +101,28 @@ static bool check_duplicate(const struct errorentry_s *nerr) {
     return false;
 }
 
-static bool close_error(void) {
+static void close_error(void) {
     if (error_list.header_pos < error_list.len) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
-        case SV_NOTDEFGNOTE:
-        case SV_NOTDEFLNOTE:
-        case SV_DOUBLENOTE: return false;
+        case SV_NOTE2:
+        case SV_NOTE: return;
         default: break;
         }
         if (check_duplicate(err)) {
             error_list.len = error_list.header_pos;
-            return true;
         }
     }
-    return false;
 }
 
 static bool new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct errorentry_s *err;
     size_t line_len;
-    bool dupl = close_error();
+    close_error();
     switch (severity) {
-    case SV_NOTDEFGNOTE:
-    case SV_NOTDEFLNOTE:
-    case SV_DOUBLENOTE:
-        if (dupl) return true;
-        line_len = 0;
-        break;
+    case SV_NOTE2:
+    case SV_NOTE: line_len = 0; break;
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
     }
     error_list.header_pos = ALIGN(error_list.len);
@@ -538,7 +531,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
         }
     }
 
-    new_error_msg(SV_NOTDEFERROR, current_file_list, epoint);
+    new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("not defined");
     if (name->data != NULL) {
         str_name(name->data, name->len);
@@ -553,10 +546,10 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     }
 
     if (l->file_list == NULL) {
-        if (new_error_msg(SV_NOTDEFGNOTE, current_file_list, epoint)) return;
+        if (new_error_msg(SV_NOTE2, current_file_list, epoint)) return;
         adderror("searched in the global scope");
     } else {
-        if (new_error_msg(SV_NOTDEFLNOTE, l->file_list, &l->epoint)) return;
+        if (new_error_msg(SV_NOTE, l->file_list, &l->epoint)) return;
         if (down) adderror("searched in this scope and in all it's parents");
         else adderror("searched in this object only");
     }
@@ -694,13 +687,13 @@ void err_msg_not_defined(const str_t *name, linepos_t epoint) {
 }
 
 void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
-    new_error_msg(SV_NOTDEFERROR, current_file_list, epoint);
+    new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("not defined");
     if (name != NULL) str_name(name->data, name->len);
 }
 
 static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
-    if (new_error_msg(SV_DOUBLENOTE, cflist, epoint)) return;
+    if (new_error_msg(SV_NOTE, cflist, epoint)) return;
     adderror("original definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
@@ -722,24 +715,24 @@ static void err_msg_double_defined2(const char *msg, enum severity_e severity, s
 }
 
 void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_ERROR, current_file_list, labelname2, epoint2);
     err_msg_double_note(l->file_list, &l->epoint, labelname2);
 }
 
 void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_ERROR, current_file_list, labelname2, epoint2);
     err_msg_double_note(cflist, epoint, labelname2);
 }
 
 void err_msg_shadow_defined(Label *l, Label *l2) {
-    err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_SHADOWWARNING, l2->file_list, &l2->name, &l2->epoint);
+    err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l2->file_list, &l2->name, &l2->epoint);
     adderror(" [-Wshadow]");
     if (!arguments.warning && !diagnostic_errors.shadow) return;
     err_msg_double_note(l->file_list, &l->epoint, &l2->name);
 }
 
 void err_msg_shadow_defined2(Label *l) {
-    new_error_msg(diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_SHADOWWARNING, l->file_list, &l->epoint);
+    new_error_msg(diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l->file_list, &l->epoint);
     adderror("shadow definition of built-in");
     str_name(l->name.data, l->name.len);
     adderror(" [-Wshadow]");
@@ -896,13 +889,9 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
         fputs(": ", f);
     }
     switch (err->severity) {
-    case SV_NOTDEFGNOTE:
-    case SV_NOTDEFLNOTE:
-    case SV_DOUBLENOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
-    case SV_SHADOWWARNING:
+    case SV_NOTE2:
+    case SV_NOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
     case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
-    case SV_DOUBLEERROR:
-    case SV_NOTDEFERROR:
     case SV_NONEERROR:
     case SV_ERROR: if (print_use_color) fputs("\33[31m", f); fputs("error: ", f); bold = true; break;
     case SV_FATAL: if (print_use_color) fputs("\33[31m", f); fputs("fatal error: ", f); bold = true; break;
@@ -912,21 +901,19 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     printable_print2(((uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
     if (print_use_color && bold) fputs("\33[m\33[K", f);
     putc('\n', f);
-    if (text && arguments.caret) {
-        if (err->severity != SV_NOTDEFGNOTE) {
-            putc(' ', f);
-            printable_print(line, f);
-            fputs(print_use_color ? "\n\33[01;32m\33[K " : "\n ", f);
-            caret_print(line, f, epoint->pos);
-            fputs(print_use_color ? "^\33[m\33[K\n" : "^\n", f);
-        }
+    if (text && arguments.caret && err->severity != SV_NOTE2) {
+        putc(' ', f);
+        printable_print(line, f);
+        fputs(print_use_color ? "\n\33[01;32m\33[K " : "\n ", f);
+        caret_print(line, f, epoint->pos);
+        fputs(print_use_color ? "^\33[m\33[K\n" : "^\n", f);
     }
 }
 
 bool error_print() {
-    const struct errorentry_s *err, *err2;
-    size_t pos, pos2;
-    bool noneerr = false, anyerr = false;
+    const struct errorentry_s *err, *err2, *err3;
+    size_t pos;
+    bool noneerr = false, anyerr = false, usenote;
     FILE *ferr;
     struct linepos_s nopoint = {0, 0};
 
@@ -952,65 +939,61 @@ bool error_print() {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NONEERROR: anyerr = true; break;
-        case SV_NOTDEFGNOTE:
-        case SV_NOTDEFLNOTE:
-        case SV_DOUBLENOTE:
-        case SV_SHADOWWARNING:
+        case SV_NOTE2:
+        case SV_NOTE:
         case SV_WARNING:
             break;
         default: noneerr = true; anyerr = true; break;
         }
     }
 
+    err2 = err3 = NULL;
+    usenote = false;
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFGNOTE:
-        case SV_NOTDEFLNOTE:
-            pos2 = pos; err2 = err;
-            do {
-                pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
-                err2 = (const struct errorentry_s *)&error_list.data[pos2];
-                if (pos2 >= error_list.len) break;
-            } while (noneerr && err2->severity == SV_NONEERROR);
-            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
-            do {
-                pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
-                err2 = (const struct errorentry_s *)&error_list.data[pos2];
-                if (pos2 >= error_list.len) break;
-            } while (noneerr && err2->severity == SV_NONEERROR);
-            if (pos2 >= error_list.len) break;
-            if (err2->severity != SV_NOTDEFGNOTE && err2->severity != SV_NOTDEFLNOTE) break;
-            if (err->severity != err2->severity) break;
-            if (err->severity == SV_NOTDEFGNOTE) continue;
-            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
-                err->epoint.pos == err2->epoint.pos) continue;
-            break;
-        case SV_DOUBLENOTE:
-            pos2 = ALIGN(pos + (sizeof *err2) + err->line_len + err->error_len);
-            err2 = (const struct errorentry_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || (err2->severity != SV_DOUBLEERROR && err2->severity != SV_SHADOWWARNING)) break;
-            pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
-            err2 = (const struct errorentry_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
-            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
-                err->epoint.pos == err2->epoint.pos) continue;
-            break;
-        case SV_SHADOWWARNING:
+        case SV_NOTE2:
+        case SV_NOTE:
+            if (!usenote) continue;
+            if (err3 != NULL) {
+                if (err->severity != err3->severity || err->file_list != err3->file_list ||
+                        err->line_len != err3->line_len || err->error_len != err3->error_len ||
+                        err->epoint.line != err3->epoint.line || err->epoint.pos != err3->epoint.pos ||
+                        memcmp(err + 1, err3 + 1, err->line_len + err->error_len) != 0) {
+                    print_error(ferr, err3);
+                }
+            }
+            err3 = err2;
+            err2 = err;
+            continue;
         case SV_WARNING: 
-            if (!arguments.warning) continue; 
+            if (!arguments.warning) {
+                usenote = false;
+                continue; 
+            }
             warnings++; 
-            if (anyerr) continue; 
+            if (anyerr) {
+                usenote = false;
+                continue; 
+            }
             break;
         case SV_NONEERROR: 
-             if (noneerr) continue; 
-             /* fall through */
+            if (noneerr) {
+                usenote = false;
+                continue; 
+            }
+            /* fall through */
         default: 
-             errors++; 
-             break;
+            errors++; 
+            break;
         }
-        print_error(ferr, err);
+        if (err3 != NULL) print_error(ferr, err3);
+        err3 = err2;
+        err2 = err;
+        usenote = true;
     }
+    if (err3 != NULL) print_error(ferr, err3);
+    if (err2 != NULL) print_error(ferr, err2);
 #ifdef COLOR_OUTPUT
     print_use_color = false;
 #endif
@@ -1128,10 +1111,8 @@ bool error_serious(void) {
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFGNOTE:
-        case SV_NOTDEFLNOTE:
-        case SV_DOUBLENOTE:
-        case SV_SHADOWWARNING:
+        case SV_NOTE2:
+        case SV_NOTE:
         case SV_WARNING: break;
         default: return true;
         }
