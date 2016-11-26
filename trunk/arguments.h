@@ -38,6 +38,12 @@ struct output_s {
     bool longaddr;
 };
 
+struct symbol_output_s {
+    const char *name;
+    enum label_mode_e mode;
+    const char *space;
+};
+
 struct arguments_s {
     bool warning;
     bool caret;
@@ -52,12 +58,12 @@ struct arguments_s {
     uint8_t caseinsensitive;
     struct output_s output;
     const struct cpu_s *cpumode;
-    const char *label;
+    struct symbol_output_s *symbol_output;
+    size_t symbol_output_len;
     const char *list;
     const char *make;
     const char *error;
     uint8_t tab_size;
-    enum label_mode_e label_mode;
 };
 
 struct diagnostics_s {

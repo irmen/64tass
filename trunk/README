@@ -102,7 +102,8 @@ Table of Contents
       + Operation options
       + Diagnostic options
       + Target selection on command line
-      + Source listing options
+      + Symbol listing
+      + Assembly listing
       + Other options
   * Messages
       + Warnings
@@ -2977,10 +2978,10 @@ using the .cpu directive in the source.
             map
             eom
 
-Source listing options
+Symbol listing
 
 -l <file>, --labels=<file>
-    List labels into <file>. List global used labels to a file.
+    List symbols into <file>.
 
     64tass -l labels.txt a.asm
     *       = $1000
@@ -2988,6 +2989,14 @@ Source listing options
 
     result (labels.txt):
     label           = $1000
+
+    This option may be used multiple times. In this case the format and root
+    scope options must be placed before using this option.
+
+    64tass --vice-labels -l all.l --labels-root=export -l myexport.inc source.asm
+
+    This writes symbols for VICE into `all.l' and symbols from scope `export'
+    into `myexport.inc'.
 
 --vice-labels
     List labels in a VICE readable format.
@@ -3011,6 +3020,17 @@ Source listing options
 
 --dump-labels
     List labels for debugging.
+
+    The output will contain symbol locations and paths.
+
+--labels-root=<path>
+    Specify the scope to list labels from
+
+    This option can be used to limit the output to only a subset of labels. The
+    parameter is a dot separated path to a scope started from the global scope.
+
+Assembly listing
+
 -L <file>, --list=<file>
     List into <file>. Dumps source code and compiled code into file. Useful for
     debugging, it's much easier to identify the code in memory within the

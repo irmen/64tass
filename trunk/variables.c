@@ -27,6 +27,7 @@
 #include "error.h"
 #include "values.h"
 #include "arguments.h"
+#include "eval.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -590,31 +591,71 @@ static void labeldump(Namespace *members, FILE *flab) {
     }
 }
 
-void labelprint(void) {
+void labelprint(const struct symbol_output_s *output) {
     bool oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
+    struct Namespace *space;
 
-    flab = dash_name(arguments.label) ? stdout : file_open(arguments.label, "wt");
+    flab = dash_name(output->name) ? stdout : file_open(output->name, "wt");
     if (flab == NULL) {
-        err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
+        err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
         return;
     }
     clearerr(flab);
     referenceit = false;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
-    if (arguments.label_mode == LABEL_DUMP) {
-        labeldump(root_namespace, flab);
+    space = root_namespace;
+    if (output->space != NULL) {
+        str_t labelname;
+        const struct avltree_node *n;
+        pline = (uint8_t *)output->space;
+        lpoint.pos = 0;
+        do {
+            labelname.data = pline + lpoint.pos; labelname.len = get_label();
+
+            for (n = avltree_first(&space->members); n != NULL; n = avltree_next(n)) {
+                const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
+                Label *l2 = l->key;
+                Obj *o  = l2->value;
+                Namespace *ns;
+
+                switch (o->obj->type) {
+                case T_CODE:
+                    ns = ((Code *)o)->names;
+                    break;
+                case T_UNION:
+                case T_STRUCT:
+                    ns = ((Struct *)o)->names;
+                    break;
+                case T_NAMESPACE:
+                    ns = (Namespace *)o;
+                    break;
+                default: 
+                    ns = NULL;
+                    break;
+                }
+
+                if (ns != NULL && l2->name.len == labelname.len && !memcmp(l2->name.data, labelname.data, l2->name.len)) {
+                    space = ns;
+                    break;
+                }
+            }
+            lpoint.pos++;
+        } while (labelname.data[labelname.len] == '.');
+    }
+    if (output->mode == LABEL_DUMP) {
+        labeldump(space, flab);
     } else {
-        labelprint2(&root_namespace->members, flab, arguments.label_mode);
+        labelprint2(&space->members, flab, output->mode);
     }
     free(label_stack.stack);
     referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
-    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LBL, arguments.label, &nopoint);
+    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
 }
 
 void new_builtin(const char *ident, Obj *val) {

@@ -211,7 +211,8 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#commandline-operation">Operation options</a>
   <li><a href="#commandline-diagnostic">Diagnostic options</a>
   <li><a href="#commandline-target">Target selection on command line</a>
-  <li><a href="#commandline-listing">Source listing options</a>
+  <li><a href="#commandline-symbol">Symbol listing</a>
+  <li><a href="#commandline-assembly">Assembly listing</a>
   <li><a href="#commandline-other">Other options</a>
  </ul>
  <li><a href="#messages">Messages</a>
@@ -3401,11 +3402,11 @@ disk drive code, etc.
 </pre>
 </dl>
 
-<h3>Source listing options<a name="commandline-listing" href="#commandline-listing"></a></h3>
+<h3>Symbol listing<a name="commandline-symbol" href="#commandline-symbol"></a></h3>
 
 <dl class="dir">
 <dt><b>-l</b> &lt;file&gt;, <b>--labels</b>=&lt;file&gt;<a name="o_labels" href="#o_labels"></a>
-<dd>List labels into &lt;file&gt;. List global used labels to a file.
+<dd>List symbols into &lt;file&gt;.
 <pre width=80>
 64tass -l labels.txt a.asm
 *       <b>=</b> <span>$1000</span>
@@ -3414,6 +3415,13 @@ label   <b>jmp</b> <u>label</u>
 result (labels.txt):
 label           = $1000
 </pre>
+<p>This option may be used multiple times. In this case the format and root scope
+options must be placed before using this option.</p>
+<pre width=80>
+64tass --vice-labels -l all.l --labels-root=export -l myexport.inc source.asm
+</pre>
+<p>This writes symbols for VICE into <q>all.l</q> and symbols from scope
+<q>export</q> into <q>myexport.inc</q>.</p>
 
 <dt><b>--vice-labels</b><a name="o_vice-labels" href="#o_vice-labels"></a>
 <dd>List labels in a VICE readable format.
@@ -3435,7 +3443,17 @@ this will be changed to dots in the future.</b></p>
 
 <dt><b>--dump-labels</b><a name="o_dump-labels" href="#o_dump-labels"></a>
 <dd>List labels for debugging.
+<p>The output will contain symbol locations and paths.</p>
 
+<dt><b>--labels-root</b>=&lt;path&gt;<a name="o_labels-root" href="#o_labels-root"></a>
+<dd>Specify the scope to list labels from
+<p>This option can be used to limit the output to only a subset of labels. The
+parameter is a dot separated path to a scope started from the global scope.</p>
+</dl>
+
+<h3>Assembly listing<a name="commandline-assembly" href="#commandline-assembly"></a></h3>
+
+<dl class="dir">
 <dt><b>-L</b> &lt;file&gt;, <b>--list</b>=&lt;file&gt;<a name="o_list" href="#o_list"></a>
 <dd>List into &lt;file&gt;. Dumps source code and compiled code into file.
 Useful for debugging, it's much easier to identify the code in memory within

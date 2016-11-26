@@ -41,17 +41,17 @@ struct arguments_s arguments = {
     false,       /* verbose */
     0x20,        /* caseinsensitive */
     {            /* output */
-        "a.out",     /* file_name */
-        OUTPUT_CBM,  /* output_mode */
+        "a.out",     /* name */
+        OUTPUT_CBM,  /* mode */
         false        /* longaddr */
     },
     &c6502,      /* cpumode */
-    NULL,        /* label */
+    NULL,        /* symbol_output */
+    0,           /* symbol_output_len */
     NULL,        /* list */
     NULL,        /* make */
     NULL,        /* error */
     8,           /* tab_size */
-    LABEL_64TASS /* label_mode */
 };
 
 struct diagnostics_s diagnostics = {
@@ -240,6 +240,7 @@ static const struct my_option long_options[] = {
     {"error"            , my_required_argument, NULL, 'E'},
     {"vice-labels"      , my_no_argument      , NULL,  0x10b},
     {"dump-labels"      , my_no_argument      , NULL,  0x10d},
+    {"labels-root"      , my_required_argument, NULL,  0x113},
     {"list"             , my_required_argument, NULL, 'L'},
     {"verbose-list"     , my_no_argument      , NULL,  0x110},
     {"no-monitor"       , my_no_argument      , NULL, 'm'},
@@ -328,6 +329,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     size_t max_lines = 0, fp = 0;
     int max = 10;
     bool again;
+    struct symbol_output_s symbol_output = { NULL, LABEL_64TASS, NULL };
 
     do {
         again = false;
@@ -386,9 +388,16 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 0x104: arguments.cpumode = &r65c02;break;
             case 0x105: arguments.cpumode = &w65c02;break;
             case 0x111: arguments.cpumode = &c4510;break;
-            case 'l': arguments.label = my_optarg;break;
-            case 0x10b: arguments.label_mode = LABEL_VICE; break;
-            case 0x10d: arguments.label_mode = LABEL_DUMP; break;
+            case 'l': symbol_output.name = my_optarg;
+                      arguments.symbol_output_len++;
+                      arguments.symbol_output = (struct symbol_output_s *)reallocx(arguments.symbol_output, arguments.symbol_output_len * sizeof *arguments.symbol_output);
+                      arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
+                      symbol_output.mode = LABEL_64TASS;
+                      symbol_output.space = NULL;
+                      break;
+            case 0x10b: symbol_output.mode = LABEL_VICE; break;
+            case 0x10d: symbol_output.mode = LABEL_DUMP; break;
+            case 0x113: symbol_output.space = my_optarg; break;
             case 'E': arguments.error = my_optarg;break;
             case 'L': arguments.list = my_optarg;break;
             case 'M': arguments.make = my_optarg;break;
@@ -484,6 +493,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -l, --labels=<file>   List labels into <file>\n"
                "      --vice-labels     Labels in VICE format\n"
                "      --dump-labels     Dump for debugging\n"
+               "      --labels-root=<l> List from scope <l> only\n"
                "  -L, --list=<file>     List into <file>\n"
                "  -m, --no-monitor      Don't put monitor code into listing\n"
                "  -s, --no-source       Don't put source code into listing\n"
@@ -546,6 +556,11 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         printable_print((const uint8_t *)argv[0], stderr);
         fputs(": fatal error: too many @-files encountered\n", stderr);
         return -1;
+    }
+
+    if (arguments.symbol_output_len > 0) {
+        if (symbol_output.mode != LABEL_64TASS) arguments.symbol_output[arguments.symbol_output_len - 1].mode = symbol_output.mode;
+        if (symbol_output.space != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].space = symbol_output.space;
     }
 
     switch (arguments.output.mode) {
