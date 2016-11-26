@@ -704,7 +704,6 @@ void err_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     adderror("symbol case mismatch");
     str_name(labelname1->data, labelname1->len);
     adderror(" [-Wcase-symbol]");
-    if (!arguments.warning && !diagnostic_errors.case_symbol) return;
     err_msg_double_note(l->file_list, &l->epoint, &l->name);
 }
 
@@ -727,7 +726,6 @@ void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const
 void err_msg_shadow_defined(Label *l, Label *l2) {
     err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l2->file_list, &l2->name, &l2->epoint);
     adderror(" [-Wshadow]");
-    if (!arguments.warning && !diagnostic_errors.shadow) return;
     err_msg_double_note(l->file_list, &l->epoint, &l2->name);
 }
 
