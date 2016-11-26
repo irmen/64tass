@@ -96,23 +96,29 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     addrtype = v1->type;
     ind = 99;
     buffer2[ind] = '\0';
-    while ((addrtype & 0xfff) != 0) {
-        switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
-        case A_NONE:break;
-        case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
-        case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
-        case A_ZR: buffer[ind2++] = ','; buffer[ind2++] = 'z';break;
-        case A_SR: buffer[ind2++] = ','; buffer[ind2++] = 's';break;
-        case A_RR: buffer[ind2++] = ','; buffer[ind2++] = 'r';break;
-        case A_DR: buffer[ind2++] = ','; buffer[ind2++] = 'd';break;
-        case A_BR: buffer[ind2++] = ','; buffer[ind2++] = 'b';break;
-        case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
-        case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
-        case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
-        case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+'; /* fall through */
-        case A_IMMEDIATE: buffer2[--ind] = '#';break;
+    if (addrtype == A_NONE) {
+        ind -= 8;
+        memcpy(&buffer2[ind], "address(", 8);
+        buffer[ind2++] = ')';
+    } else {
+        while ((addrtype & 0xfff) != 0) {
+            switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+            case A_NONE:break;
+            case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
+            case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
+            case A_ZR: buffer[ind2++] = ','; buffer[ind2++] = 'z';break;
+            case A_SR: buffer[ind2++] = ','; buffer[ind2++] = 's';break;
+            case A_RR: buffer[ind2++] = ','; buffer[ind2++] = 'r';break;
+            case A_DR: buffer[ind2++] = ','; buffer[ind2++] = 'd';break;
+            case A_BR: buffer[ind2++] = ','; buffer[ind2++] = 'b';break;
+            case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
+            case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
+            case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
+            case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+'; /* fall through */
+            case A_IMMEDIATE: buffer2[--ind] = '#';break;
+            }
+            addrtype <<= 4;
         }
-        addrtype <<= 4;
     }
     b2 = buffer2 + ind;
     ind = 99 - ind;
