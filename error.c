@@ -65,7 +65,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_CASENOTE, SV_DOUBLEWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_SHADOWWARNING, SV_WARNING, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct errorentry_s {
@@ -108,7 +108,6 @@ static bool close_error(void) {
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
-        case SV_CASENOTE:
         case SV_DOUBLENOTE: return false;
         default: break;
         }
@@ -127,7 +126,6 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     switch (severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
-    case SV_CASENOTE:
     case SV_DOUBLENOTE:
         if (dupl) return true;
         line_len = 0;
@@ -701,42 +699,47 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     if (name != NULL) str_name(name->data, name->len);
 }
 
+static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
+    if (new_error_msg(SV_DOUBLENOTE, cflist, epoint)) return;
+    adderror("original definition of");
+    str_name(labelname2->data, labelname2->len);
+    adderror(" was here");
+}
+
 void err_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.case_symbol, epoint);
     adderror("symbol case mismatch");
     str_name(labelname1->data, labelname1->len);
     adderror(" [-Wcase-symbol]");
-    if (new_error_msg(SV_CASENOTE, l->file_list, &l->epoint)) return;
-    adderror("previous definition of");
-    str_name(l->name.data, l->name.len);
-    adderror(" was here");
+    if (!arguments.warning && !diagnostic_errors.case_symbol) return;
+    err_msg_double_note(l->file_list, &l->epoint, &l->name);
 }
 
-static void err_msg_double_defined2(const char *msg, enum severity_e severity, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, enum severity_e severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error_msg(severity, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
-    if (new_error_msg(SV_DOUBLENOTE, cflist1, epoint1)) return;
-    adderror("previous definition of");
-    str_name(labelname2->data, labelname2->len);
-    adderror(" was here");
 }
 
 void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, l->file_list, &l->epoint, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, current_file_list, labelname2, epoint2);
+    err_msg_double_note(l->file_list, &l->epoint, labelname2);
 }
 
 void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, cflist, epoint, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", SV_DOUBLEERROR, current_file_list, labelname2, epoint2);
+    err_msg_double_note(cflist, epoint, labelname2);
 }
 
 void err_msg_shadow_defined(Label *l, Label *l2) {
-    err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_DOUBLEWARNING, l->file_list, &l->epoint, l2->file_list, &l2->name, &l2->epoint);
+    err_msg_double_defined2("shadow definition", diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_SHADOWWARNING, l2->file_list, &l2->name, &l2->epoint);
     adderror(" [-Wshadow]");
+    if (!arguments.warning && !diagnostic_errors.shadow) return;
+    err_msg_double_note(l->file_list, &l->epoint, &l2->name);
 }
 
 void err_msg_shadow_defined2(Label *l) {
-    new_error_msg(diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_DOUBLEWARNING, l->file_list, &l->epoint);
+    new_error_msg(diagnostic_errors.shadow ? SV_DOUBLEERROR : SV_SHADOWWARNING, l->file_list, &l->epoint);
     adderror("shadow definition of built-in");
     str_name(l->name.data, l->name.len);
     adderror(" [-Wshadow]");
@@ -895,9 +898,8 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     switch (err->severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
-    case SV_CASENOTE:
     case SV_DOUBLENOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
-    case SV_DOUBLEWARNING:
+    case SV_SHADOWWARNING:
     case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
     case SV_DOUBLEERROR:
     case SV_NOTDEFERROR:
@@ -952,9 +954,8 @@ bool error_print() {
         case SV_NONEERROR: anyerr = true; break;
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
-        case SV_CASENOTE:
         case SV_DOUBLENOTE:
-        case SV_DOUBLEWARNING:
+        case SV_SHADOWWARNING:
         case SV_WARNING:
             break;
         default: noneerr = true; anyerr = true; break;
@@ -988,16 +989,14 @@ bool error_print() {
         case SV_DOUBLENOTE:
             pos2 = ALIGN(pos + (sizeof *err2) + err->line_len + err->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || (err2->severity != SV_DOUBLEERROR && err2->severity != SV_DOUBLEWARNING)) break;
+            if (pos2 >= error_list.len || (err2->severity != SV_DOUBLEERROR && err2->severity != SV_SHADOWWARNING)) break;
             pos2 = ALIGN(pos2 + (sizeof *err2) + err2->line_len + err2->error_len);
             err2 = (const struct errorentry_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
-        case SV_CASENOTE:
-            break;
-        case SV_DOUBLEWARNING:
+        case SV_SHADOWWARNING:
         case SV_WARNING: 
             if (!arguments.warning) continue; 
             warnings++; 
@@ -1131,9 +1130,8 @@ bool error_serious(void) {
         switch (err->severity) {
         case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
-        case SV_CASENOTE:
         case SV_DOUBLENOTE:
-        case SV_DOUBLEWARNING:
+        case SV_SHADOWWARNING:
         case SV_WARNING: break;
         default: return true;
         }
