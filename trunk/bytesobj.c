@@ -37,6 +37,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "addressobj.h"
 
 static Type obj;
 
@@ -64,6 +65,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_STR: return bytes_from_str((Str *)v1, epoint, BYTES_MODE_TEXT);
     case T_INT: return (Obj *)bytes_from_int((Int *)v1);
     case T_CODE: return bytes_from_code((Code *)v1, epoint);
+    case T_ADDRESS: return bytes_from_address((Address *)v1, epoint);
     case T_FLOAT: 
          err = (Obj *)int_from_float((Float *)v1);
          if (err->obj != INT_OBJ) return err;

@@ -56,5 +56,9 @@ static inline MUST_CHECK Address *new_address(Obj *val, atype_t type) {
     return v;
 }
 
+extern MUST_CHECK Obj *int_from_address(Address *, linepos_t);
+extern MUST_CHECK Obj *float_from_address(Address *, linepos_t);
+extern MUST_CHECK Obj *bits_from_address(Address *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_address(Address *, linepos_t);
 extern bool check_addr(atype_t);
 #endif
