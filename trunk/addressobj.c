@@ -124,8 +124,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         memcpy(&buffer2[ind], "address(", 8);
         buffer[ind2++] = ')';
     } else {
-        while ((addrtype & 0xfff) != 0) {
-            switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+        while ((addrtype & MAX_ADDRESS_MASK) != 0) {
+            switch ((enum atype_e)((addrtype & 0xf000) >> 12)) {
             case A_NONE:break;
             case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
             case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
@@ -404,7 +404,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (check_addr(v2->type)) break;
                 {
                     atype_t am1 = A_NONE, am2 = v2->type;
-                    for (; (am & 0xfff) != 0; am <<= 4) { 
+                    for (; (am & MAX_ADDRESS_MASK) != 0; am <<= 4) { 
                         atype_t amc = (am >> 8) & 0xf;
                         atype_t am3, am4;
                         if (amc == A_NONE) continue;

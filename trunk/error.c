@@ -559,9 +559,9 @@ static void err_msg_no_addressing(enum severity_e severity, atype_t addrtype, li
     new_error_msg(severity, current_file_list, epoint);
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
-    for (; (addrtype & 0xfff) != 0; addrtype <<= 4) {
+    for (; (addrtype & MAX_ADDRESS_MASK) != 0; addrtype <<= 4) {
         const char *txt = "?";
-        switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+        switch ((enum atype_e)((addrtype & 0xf000) >> 12)) {
         case A_NONE: continue;
         case A_IMMEDIATE: txt = " immediate"; break;
         case A_IMMEDIATE_SIGNED: txt = " signed immediate"; break;
