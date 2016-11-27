@@ -1448,6 +1448,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     newlabel->epoint = epoint;
                     code->addr = get_star_value(current_section->l_address_val);
                     code->size = 0;
+                    code->offs = 0;
                     code->dtype = D_NONE;
                     code->pass = 0;
                     code->apass = pass;
