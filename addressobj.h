@@ -21,6 +21,8 @@
 #include "obj.h"
 #include "values.h"
 
+#define MAX_ADDRESS_MASK 0xffff
+
 extern struct Type *ADDRESS_OBJ;
 
 enum atype_e {

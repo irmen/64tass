@@ -99,7 +99,7 @@ static atype_t get_address_mode(Obj *v1, linepos_t epoint) {
 
 MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
     Error *v;
-    if (am > 0xFFF) return new_error(ERROR__ADDR_COMPLEX, epoint);
+    if (am > MAX_ADDRESS_MASK) return new_error(ERROR__ADDR_COMPLEX, epoint);
     v = new_error(ERROR_NO_ADDRESSING, epoint);
     v->u.addressing = am;
     return v;
@@ -186,12 +186,14 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     adrgen = (am == A_IMMEDIATE) ? (longaccu ? AG_WORD : AG_BYTE) : (longaccu ? AG_SINT : AG_CHAR);
                 }
                 break;
+            case (A_IMMEDIATE << 4) | A_BR: /* lda #$ffff,b */
             case A_BR:
                 if (cnmemonic[ADR_ADDR] != ____ && cnmemonic[ADR_ADDR] != 0x4C && cnmemonic[ADR_ADDR] != 0x20 && cnmemonic[ADR_ADDR] != 0xF4) {/* jmp $ffff, jsr $ffff, pea */
                     adrgen = AG_WORD; opr = ADR_ADDR; /* lda $ffff,b */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 4) | A_KR:
             case A_KR:
                 if (cnmemonic[ADR_REL] != ____) {
                     ln = 1; opr = ADR_REL;
@@ -207,18 +209,21 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 4) | A_DR:           /* lda #$ff,d */
             case A_DR:
                 if (cnmemonic[ADR_ZP] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP; /* lda $ff,d */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_BR << 4) | A_XR: /* lda #$ffff,b,x */
             case (A_BR << 4) | A_XR:
                 if (cnmemonic[ADR_ADDR_X] != ____) {
                     adrgen = AG_WORD; opr = ADR_ADDR_X; /* lda $ffff,b,x */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_DR << 4) | A_XR: /* lda #$ff,d,x */
             case (A_DR << 4) | A_XR:
                 if (cnmemonic[ADR_ZP_X] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_X; /* lda $ff,d,x */
@@ -231,12 +236,14 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_BR << 4) | A_YR:/* ldx #$ffff,b,y */
             case (A_BR << 4) | A_YR:
                 if (cnmemonic[ADR_ADDR_Y] != ____) {
                     adrgen = AG_WORD; opr = ADR_ADDR_Y; /* ldx $ffff,b,y */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_DR << 4) | A_YR:/* ldx #$ff,d,y */
             case (A_DR << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_Y] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_Y; /* ldx $ff,d,y */
@@ -249,18 +256,21 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 4) | A_SR:           /* lda #$ff,s */
             case A_SR:
                 if (cnmemonic[ADR_ZP_S] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_S; /* lda $ff,s */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 4) | A_RR:           /* lda #$ff,r */
             case A_RR:
                 if (cnmemonic[ADR_ZP_R] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_R; /* lda $ff,r */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,d),y */
             case (A_DR << 8) | (A_I << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_I_Y] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_I_Y; /* lda ($ff,d),y */
@@ -273,6 +283,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_ZR:/* lda (#$ff,d),z */
             case (A_DR << 8) | (A_I << 4) | A_ZR:
                 if (cnmemonic[ADR_ZP_I_Z] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_I_Z; /* lda ($ff,d),z */
@@ -285,18 +296,21 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,s),y */
             case (A_SR << 8) | (A_I << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_RR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,r),y */
             case (A_RR << 8) | (A_I << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_R_I_Y] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_R_I_Y; /* lda ($ff,r),y */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_LI << 4) | A_YR:/* lda [#$ff,d],y */
             case (A_DR << 8) | (A_LI << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_LI_Y] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_LI_Y; /* lda [$ff,d],y */
@@ -319,12 +333,14 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_KR << 8) | (A_XR << 4) | A_I: /* jmp (#$ffff,k,x) */
             case (A_KR << 8) | (A_XR << 4) | A_I:
                 if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
                     adrgen = AG_WORD; opr = ADR_ADDR_X_I; /* jmp ($ffff,k,x) */
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_XR << 4) | A_I:/* lda (#$ff,d,x) */
             case (A_DR << 8) | (A_XR << 4) | A_I:
                 if (cnmemonic[ADR_ZP_X_I] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_X_I; /* lda ($ff,d,x) */
@@ -341,6 +357,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_DR << 4) | A_I: /* lda (#$ff,d) */
             case (A_DR << 4) | A_I:
                 if (cnmemonic[ADR_ZP_I] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_I; /* lda ($ff,d) */
@@ -357,6 +374,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE << 8) | (A_DR << 4) | A_LI: /* lda [#$ff,d] */
             case (A_DR << 4) | A_LI:
                 if (cnmemonic[ADR_ZP_LI] != ____) {
                     adrgen = AG_BYTE; opr = ADR_ZP_LI; /* lda [$ff,d] */
@@ -366,7 +384,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             case A_NONE:
                 goto noneaddr;
             default:
-                if (am > 0xFFF) return new_error(ERROR__ADDR_COMPLEX, epoint2);
+                if (am > MAX_ADDRESS_MASK) return new_error(ERROR__ADDR_COMPLEX, epoint2);
                 return err_addressing(am, epoint); /* non-existing */
             }
             break;

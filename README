@@ -585,25 +585,25 @@ addr,addr,addr direct page bit relative jump        bbs 5,$12,$1234
 (addr,x)       x indexed indirect                   lda ($12,x) jmp ($1234,x)
 [addr]         long indirect                        lda [$12] jmp [$1234]
 [addr],y       long indirect y indexed              lda [$12],y
-addr,b         data bank indexed                    lda 0,b
-addr,b,x       data bank x indexed                  lda 0,b,x
-addr,b,y       data bank y indexed                  lda 0,b,y
-addr,d         direct page indexed                  lda 0,d
-addr,d,x       direct page x indexed                lda 0,d,x
-addr,d,y       direct page y indexed                ldx 0,d,y
-(addr,d)       direct page indirect                 lda ($12,d)
-(addr,d,x)     direct page x indexed indirect       lda ($12,d,x)
-(addr,d),y     direct page indirect y indexed       lda ($12,d),y
-(addr,d),z     direct page indirect z indexed       lda ($12,d),z
-[addr,d]       direct page long indirect            lda [$12,d]
-[addr,d],y     direct page long indirect y indexed  lda [$12,d],y
-addr,k         program bank indexed                 jsr 0,k
-(addr,k,x)     program bank x indexed indirect      jmp ($1234,k,x)
-addr,r         data stack indexed                   lda 1,r
-(addr,r),y     data stack indexed indirect y        lda ($12,r),y
+#addr,b        data bank indexed                    lda #0,b
+#addr,b,x      data bank x indexed                  lda #0,b,x
+#addr,b,y      data bank y indexed                  lda #0,b,y
+#addr,d        direct page indexed                  lda #0,d
+#addr,d,x      direct page x indexed                lda #0,d,x
+#addr,d,y      direct page y indexed                ldx #0,d,y
+(#addr,d)      direct page indirect                 lda (#$12,d)
+(#addr,d,x)    direct page x indexed indirect       lda (#$12,d,x)
+(#addr,d),y    direct page indirect y indexed       lda (#$12,d),y
+(#addr,d),z    direct page indirect z indexed       lda (#$12,d),z
+[#addr,d]      direct page long indirect            lda [#$12,d]
+[#addr,d],y    direct page long indirect y indexed  lda [#$12,d],y
+#addr,k        program bank indexed                 jsr #0,k
+(#addr,k,x)    program bank x indexed indirect      jmp (#$1234,k,x)
+#addr,r        data stack indexed                   lda #1,r
+(#addr,r),y    data stack indexed indirect y        lda #($12,r),y
                indexed
-addr,s         stack indexed                        lda 1,s
-(addr,s),y     stack indexed indirect y indexed     lda ($12,s),y
+#addr,s        stack indexed                        lda #1,s
+(#addr,s),y    stack indexed indirect y indexed     lda (#$12,s),y
 addr,x         x indexed                            lda $12,x
 addr,y         y indexed                            lda $12,y
 
@@ -613,17 +613,23 @@ address ranges set up by .dpage, .databank and the current program counter
 address. Therefore the `,d', `,b' and `,k' indexing is only used in very
 special cases.
 
-The direct page indexed (,d) addressing mode is not affected by the .dpage
-directive and always forces the 8 bit address as is. It's only usable for
-direct/zero page instructions.
+The immediate direct page indexed `#0,d' addressing mode is usable for direct
+page access. The 8 bit constant is a direct offset from the start of actual
+direct page.
 
-The data bank indexed (,b) addressing mode is not affected by the .databank
-directive and always forces the 16 bit address as is. It's only usable with
-data bank accessing instructions.
+The immediate data bank indexed `#0,b' addressing mode is usable for data bank
+access. The 16 bit constant is a direct offset from the start of actual data
+bank.
 
-The program bank indexed (,k) addressing mode is not affected by the current
-program bank and always generates the 16 bit constant value as is. It's only
-usable with jump instructions.
+The immediate program bank indexed `#0,k' addressing mode is usable for program
+bank jumps, braches and calls. The 16 bit constant is a direct offset from the
+start of actual program bank.
+
+The immediate stack indexed `#0,s' and data stack indexed `#0,r' accept 8 bit
+constants as an offset from the start of (data) stack. These are sometimes
+written without the immediate notation, but this makes it more clear what's
+going on. For the same reason the move instructions are written with an
+immediate addressing mode `#0,#0' as well.
 
 The immediate (#) addressing mode expects unsigned values of byte or word size.
 Therefore it only accepts constants of 1 byte or in range 0-255 or 2 bytes or
@@ -643,12 +649,12 @@ Normally addressing mode operators are used in expressions right after
 instructions. They can also be used for defining stack variable symbols when
 using a 65816, or to force a specific addressing mode.
 
-param   = 1,s             ;define a stack variable
+param   = #1,s            ;define a stack variable
 const   = #1              ;immediate constant
-        lda 0,b           ;always "absolute" lda $0000
-        lda param         ;results in lda $01,s
-        lda param+1       ;results in lda $02,s
-        lda (param),y     ;results in lda ($01,s),y
+        lda #0,b          ;always "absolute" lda $0000
+        lda param         ;results in lda #$01,s
+        lda param+1       ;results in lda #$02,s
+        lda (param),y     ;results in lda (#$01,s),y
         ldx const         ;results in ldx #$01
         lda #-2           ;negative constant, $fe
 
@@ -2184,7 +2190,7 @@ routine .word print
             lda $101234     ;results in $ad, $34, $12
             .databank ?     ;no data bank
             lda $1234       ;direct page or long addressing
-            lda $1234,b     ;results in $ad, $34, $12
+            lda #$1234,b    ;results in $ad, $34, $12
 
 .dpage <expression>
     Direct (zero) page addressing is only used for addresses falling into a
@@ -2198,7 +2204,7 @@ routine .word print
             lda $456        ;results in $a5, $56
             .dpage ?        ;no direct page
             lda $56         ;data bank or long addressing
-            lda $56,d       ;results in $a5, $56
+            lda #$56,d      ;results in $a5, $56
 
 Controlling errors
 
@@ -2956,7 +2962,7 @@ using the .cpu directive in the source.
     you'll need `--nostart' as well.
 
     64tass --m65el02 a.asm
-            lda 0,r
+            lda #0,r
 
 --mr65c02
     R65C02. Enables extra opcodes and addressing modes specific to this CPU.

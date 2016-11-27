@@ -1466,25 +1466,28 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
             llen = get_label();
             if (llen == 1) {
                 switch (pline[epoint.pos + 1] | arguments.caseinsensitive) {
-                case 'x': op = &o_COMMAX; prec = o_WORD.prio; break;
-                case 'y': op = &o_COMMAY; prec = o_WORD.prio; break;
-                case 'z': op = &o_COMMAZ; prec = o_WORD.prio; break;
-                case 'r': op = &o_COMMAR; prec = o_WORD.prio; break;
-                case 's': op = &o_COMMAS; prec = o_WORD.prio; break;
-                case 'd': op = &o_COMMAD; prec = o_WORD.prio; break;
-                case 'b': op = &o_COMMAB; prec = o_WORD.prio; break;
-                case 'k': op = &o_COMMAK; prec = o_WORD.prio; break;
-                default: op = &o_COMMA; prec = op->prio; break;
+                case 'x': op = &o_COMMAX; break;
+                case 'y': op = &o_COMMAY; break;
+                case 'z': op = &o_COMMAZ; break;
+                case 'r': op = &o_COMMAR; break;
+                case 's': op = &o_COMMAS; break;
+                case 'd': op = &o_COMMAD; break;
+                case 'b': op = &o_COMMAB; break;
+                case 'k': op = &o_COMMAK; break;
+                default: op = &o_COMMA; break;
+                }
+            } else op = &o_COMMA;
+            prec = op->prio;
+            if (op == &o_COMMA) {
+                while (operp != 0 && prec <= o_oper[operp - 1].val->prio) {
+                    operp--;
+                    push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
                 }
             } else {
-                op = &o_COMMA;
-                prec = op->prio;
-            }
-            while (operp != 0 && prec <= o_oper[operp - 1].val->prio) {
-                operp--;
-                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
-            }
-            if (op != &o_COMMA) {
+                while (operp != 0 && prec <= o_oper[operp - 1].val->prio && o_oper[operp - 1].val != &o_COLON2 && o_oper[operp - 1].val != &o_COND) {
+                    operp--;
+                    push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
+                }
                 o_oper[operp].epoint = epoint;
                 o_oper[operp++].val = op;
                 goto other;

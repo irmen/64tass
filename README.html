@@ -782,24 +782,24 @@ modes of the supported CPUs.</b></p>
 <tr><td><code>(<u>addr</u>,x)</code><td>x indexed indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,x) <b>jmp</b>&nbsp;(<span>$1234</span>,x)</code>
 <tr><td><code>[<u>addr</u>]</code><td>long indirect<td><code><b>lda</b>&nbsp;[<span>$12</span>] <b>jmp</b>&nbsp;[<span>$1234</span>]</code>
 <tr><td><code>[<u>addr</u>],y</code><td>long indirect y indexed<td><code><b>lda</b>&nbsp;[<span>$12</span>],y</code>
-<tr><td><code><u>addr</u>,b</code><td>data bank indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b</code>
-<tr><td><code><u>addr</u>,b,x</code><td>data bank x indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b,x</code>
-<tr><td><code><u>addr</u>,b,y</code><td>data bank y indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b,y</code>
-<tr><td><code><u>addr</u>,d</code><td>direct page indexed<td><code><b>lda</b>&nbsp;<span>0</span>,d</code>
-<tr><td><code><u>addr</u>,d,x</code><td>direct page x indexed<td><code><b>lda</b>&nbsp;<span>0</span>,d,x</code>
-<tr><td><code><u>addr</u>,d,y</code><td>direct page y indexed<td><code><b>ldx</b>&nbsp;<span>0</span>,d,y</code>
-<tr><td><code>(<u>addr</u>,d)</code><td>direct page indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,d)</code>
-<tr><td><code>(<u>addr</u>,d,x)</code><td>direct page x indexed indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,d,x)</code>
-<tr><td><code>(<u>addr</u>,d),y</code><td>direct page indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,d),y</code>
-<tr><td><code>(<u>addr</u>,d),z</code><td>direct page indirect z indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,d),z</code>
-<tr><td><code>[<u>addr</u>,d]</code><td>direct page long indirect<td><code><b>lda</b>&nbsp;[<span>$12</span>,d]</code>
-<tr><td><code>[<u>addr</u>,d],y</code><td>direct page long indirect y indexed<td><code><b>lda</b>&nbsp;[<span>$12</span>,d],y</code>
-<tr><td><code><u>addr</u>,k</code><td>program bank indexed<td><code><b>jsr</b>&nbsp;<span>0</span>,k</code>
-<tr><td><code>(<u>addr</u>,k,x)</code><td>program bank x indexed indirect<td><code><b>jmp</b>&nbsp;(<span>$1234</span>,k,x)</code>
-<tr><td><code><u>addr</u>,r</code><td>data stack indexed<td><code><b>lda</b>&nbsp;<span>1</span>,r</code>
-<tr><td><code>(<u>addr</u>,r),y</code><td>data stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,r),y</code>
-<tr><td><code><u>addr</u>,s</code><td>stack indexed<td><code><b>lda</b>&nbsp;<span>1</span>,s</code>
-<tr><td><code>(<u>addr</u>,s),y</code><td>stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,s),y</code>
+<tr><td><code>#<u>addr</u>,b</code><td>data bank indexed<td><code><b>lda</b>&nbsp;#<span>0</span>,b</code>
+<tr><td><code>#<u>addr</u>,b,x</code><td>data bank x indexed<td><code><b>lda</b>&nbsp;#<span>0</span>,b,x</code>
+<tr><td><code>#<u>addr</u>,b,y</code><td>data bank y indexed<td><code><b>lda</b>&nbsp;#<span>0</span>,b,y</code>
+<tr><td><code>#<u>addr</u>,d</code><td>direct page indexed<td><code><b>lda</b>&nbsp;#<span>0</span>,d</code>
+<tr><td><code>#<u>addr</u>,d,x</code><td>direct page x indexed<td><code><b>lda</b>&nbsp;#<span>0</span>,d,x</code>
+<tr><td><code>#<u>addr</u>,d,y</code><td>direct page y indexed<td><code><b>ldx</b>&nbsp;#<span>0</span>,d,y</code>
+<tr><td><code>(#<u>addr</u>,d)</code><td>direct page indirect<td><code><b>lda</b>&nbsp;(#<span>$12</span>,d)</code>
+<tr><td><code>(#<u>addr</u>,d,x)</code><td>direct page x indexed indirect<td><code><b>lda</b>&nbsp;(#<span>$12</span>,d,x)</code>
+<tr><td><code>(#<u>addr</u>,d),y</code><td>direct page indirect y indexed<td><code><b>lda</b>&nbsp;(#<span>$12</span>,d),y</code>
+<tr><td><code>(#<u>addr</u>,d),z</code><td>direct page indirect z indexed<td><code><b>lda</b>&nbsp;(#<span>$12</span>,d),z</code>
+<tr><td><code>[#<u>addr</u>,d]</code><td>direct page long indirect<td><code><b>lda</b>&nbsp;[#<span>$12</span>,d]</code>
+<tr><td><code>[#<u>addr</u>,d],y</code><td>direct page long indirect y indexed<td><code><b>lda</b>&nbsp;[#<span>$12</span>,d],y</code>
+<tr><td><code>#<u>addr</u>,k</code><td>program bank indexed<td><code><b>jsr</b>&nbsp;#<span>0</span>,k</code>
+<tr><td><code>(#<u>addr</u>,k,x)</code><td>program bank x indexed indirect<td><code><b>jmp</b>&nbsp;(#<span>$1234</span>,k,x)</code>
+<tr><td><code>#<u>addr</u>,r</code><td>data stack indexed<td><code><b>lda</b>&nbsp;#<span>1</span>,r</code>
+<tr><td><code>(#<u>addr</u>,r),y</code><td>data stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;#(<span>$12</span>,r),y</code>
+<tr><td><code>#<u>addr</u>,s</code><td>stack indexed<td><code><b>lda</b>&nbsp;#<span>1</span>,s</code>
+<tr><td><code>(#<u>addr</u>,s),y</code><td>stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;(#<span>$12</span>,s),y</code>
 <tr><td><code><u>addr</u>,x</code><td>x indexed<td><code><b>lda</b>&nbsp;<span>$12</span>,x</code>
 <tr><td><code><u>addr</u>,y</code><td>y indexed<td><code><b>lda</b>&nbsp;<span>$12</span>,y</code>
 </tbody>
@@ -811,17 +811,21 @@ the address ranges set up by <a href="#d_dpage"><code>.dpage</code></a>, <a href
 and the current program counter address. Therefore the <q>,d</q>,
 <q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
 
-<p>The direct page indexed (<code>,d</code>) addressing mode is not affected by the
-<a href="#d_dpage"><code>.dpage</code></a> directive and always forces the 8&nbsp;bit address as
-is. It's only usable for direct/zero page instructions.</p>
+<p>The immediate direct page indexed <q><code>#0,d</code></q> addressing mode
+is usable for direct page access. The 8&nbsp;bit constant is a direct offset from the start of actual direct page.</p>
 
-<p>The data bank indexed (<code>,b</code>) addressing mode is not affected by the
-<a href="#d_databank"><code>.databank</code></a> directive and always forces the 16&nbsp;bit address
-as is. It's only usable with data bank accessing instructions.</p>
+<p>The immediate data bank indexed <q><code>#0,b</code></q> addressing mode
+is usable for data bank access. The 16&nbsp;bit constant is a direct offset from the start of actual data bank.</p>
 
-<p>The program bank indexed (<code>,k</code>) addressing mode is not affected by the
-current program bank and always generates the 16&nbsp;bit constant value as
-is. It's only usable with jump instructions.</p>
+<p>The immediate program bank indexed <q><code>#0,k</code></q> addressing mode
+is usable for program bank jumps, braches and calls. The 16&nbsp;bit constant
+is a direct offset from the start of actual program bank.</p>
+
+<p>The immediate stack indexed <q><code>#0,s</code></q> and data stack indexed
+<q><code>#0,r</code></q> accept 8&nbsp;bit constants as an offset from the
+start of (data) stack. These are sometimes written without the immediate
+notation, but this makes it more clear what's going on. For the same reason the
+move instructions are written with an immediate addressing mode <q><code>#0,#0</code></q> as well.</p>
 
 <p>The immediate (<code>#</code>) addressing mode expects unsigned values of byte or
 word size. Therefore it only accepts constants of 1 byte or in range 0&ndash;255
@@ -844,12 +848,12 @@ instructions. They can also be used for defining stack variable symbols when
 using a 65816, or to force a specific addressing mode.</p>
 
 <pre width=80>
-param   <b>=</b> <span>1</span>,s             <i>;define a stack variable</i>
+param   <b>=</b> #<span>1</span>,s            <i>;define a stack variable</i>
 const   <b>=</b> #<span>1</span>              <i>;immediate constant</i>
-        <b>lda</b> <span>0</span>,b           <i>;always "absolute" lda $0000</i>
-        <b>lda</b> <u>param</u>         <i>;results in lda $01,s</i>
-        <b>lda</b> <u>param</u>+<span>1</span>       <i>;results in lda $02,s</i>
-        <b>lda</b> (<u>param</u>),y     <i>;results in lda ($01,s),y</i>
+        <b>lda</b> #<span>0</span>,b          <i>;always "absolute" lda $0000</i>
+        <b>lda</b> <u>param</u>         <i>;results in lda #$01,s</i>
+        <b>lda</b> <u>param</u>+<span>1</span>       <i>;results in lda #$02,s</i>
+        <b>lda</b> (<u>param</u>),y     <i>;results in lda (#$01,s),y</i>
         <b>ldx</b> <u>const</u>         <i>;results in ldx #$01</i>
         <b>lda</b> #<span>-2</span>           <i>;negative constant, $fe</i>
 </pre>
@@ -2587,7 +2591,7 @@ bank. The default is 0, which means addresses in bank zero.
         <b>lda</b> <span>$101234</span>     <i>;results in $ad, $34, $12</i>
         <b class="k">.databank</b> <span>?</span>     <i>;no data bank</i>
         <b>lda</b> <span>$1234</span>       <i>;direct page or long addressing</i>
-        <b>lda</b> <span>$1234</span>,b     <i>;results in $ad, $34, $12</i>
+        <b>lda</b> #<span>$1234</span>,b    <i>;results in $ad, $34, $12</i>
 </pre>
 
 <dt><code><b class="k">.dpage</b></code> &lt;expression&gt;<a name="d_dpage" href="#d_dpage"></a>
@@ -2599,7 +2603,7 @@ into a specific 256 byte address range. The default is 0, which is the first pag
         <b>lda</b> <span>$456</span>        <i>;results in $a5, $56</i>
         <b class="k">.dpage</b> <span>?</span>        <i>;no direct page</i>
         <b>lda</b> <span>$56</span>         <i>;data bank or long addressing</i>
-        <b>lda</b> <span>$56</span>,d       <i>;results in $a5, $56</i>
+        <b>lda</b> #<span>$56</span>,d      <i>;results in $a5, $56</i>
 </pre>
 
 </dl>
@@ -3376,7 +3380,7 @@ disk drive code, etc.
 <dd>65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.
 <pre width=80>
 64tass --m65el02 a.asm
-        <b>lda</b> <span>0</span>,r
+        <b>lda</b> #<span>0</span>,r
 </pre>
 
 <dt><b>--mr65c02</b><a name="o_mr65c02" href="#o_mr65c02"></a>
