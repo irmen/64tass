@@ -1389,10 +1389,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (wht == '.') {
                             epoint = cmdpoint;
                             goto as_command;
-                        } else {
-                            epoint = lpoint;
-                            goto jn;
                         }
+                        epoint = lpoint;
+                        goto jn;
                     }
                     if (!newlabel->update_after && newlabel->value->obj != CODE_OBJ) {
                         val_destroy(newlabel->value);

@@ -36,6 +36,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "addressobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
 #define MASK (~(digit_t)0)
@@ -64,6 +65,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_BOOL: return (Obj *)int_from_bool((Bool *)v1);
     case T_BYTES: return (Obj *)int_from_bytes((Bytes *)v1);
     case T_BITS: return (Obj *)int_from_bits((Bits *)v1);
+    case T_ADDRESS: return int_from_address((Address *)v1, epoint);
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);

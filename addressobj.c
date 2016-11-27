@@ -30,6 +30,9 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "floatobj.h"
+#include "bitsobj.h"
+#include "bytesobj.h"
 
 static Type obj;
 
@@ -80,6 +83,26 @@ static void garbage(Obj *o1, int i) {
 static bool same(const Obj *o1, const Obj *o2) {
     const Address *v1 = (const Address *)o1, *v2 = (const Address *)o2;
     return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
+}
+
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->truth(o1, type, epoint);
+    }
+    v = v1->val;
+    return v->obj->truth(v, type, epoint);
+}
+
+static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v = v1->val;
+    Error *err = v->obj->hash(v, hs, epoint);
+    if (err == NULL) {
+        *hs = (*hs + v1->type) & ((~(unsigned int)0) >> 1);
+    }
+    return err;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
@@ -210,6 +233,78 @@ static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, li
         *am |= v1->type;
     }
     return err;
+}
+
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->ival(o1, iv, bits, epoint);
+    }
+    v = v1->val;
+    return v->obj->ival(v, iv, bits, epoint);
+}
+
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->uval(o1, uv, bits, epoint);
+    }
+    v = v1->val;
+    return v->obj->uval(v, uv, bits, epoint);
+}
+
+MUST_CHECK Obj *float_from_address(Address *v1, linepos_t epoint) {
+    if (v1->type != A_NONE) {
+        err_msg_wrong_type(&v1->v, NULL, epoint);
+        return (Obj *)ref_none();
+    }
+    return FLOAT_OBJ->create(v1->val, epoint);
+}
+
+MUST_CHECK Obj *int_from_address(Address *v1, linepos_t epoint) {
+    if (v1->type != A_NONE) {
+        err_msg_wrong_type(&v1->v, NULL, epoint);
+        return (Obj *)ref_none();
+    }
+    return INT_OBJ->create(v1->val, epoint);
+}
+
+MUST_CHECK Obj *bits_from_address(Address *v1, linepos_t epoint) {
+    if (v1->type != A_NONE) {
+        err_msg_wrong_type(&v1->v, NULL, epoint);
+        return (Obj *)ref_none();
+    }
+    return BITS_OBJ->create(v1->val, epoint);
+}
+
+MUST_CHECK Obj *bytes_from_address(Address *v1, linepos_t epoint) {
+    if (v1->type != A_NONE) {
+        err_msg_wrong_type(&v1->v, NULL, epoint);
+        return (Obj *)ref_none();
+    }
+    return BYTES_OBJ->create(v1->val, epoint);
+}
+
+static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->sign(o1, epoint);
+    }
+    v = v1->val;
+    return v->obj->sign(v, epoint);
+}
+
+static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->absolute(o1, epoint);
+    }
+    v = v1->val;
+    return v->obj->absolute(v, epoint);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -431,8 +526,14 @@ void addressobj_init(void) {
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
+    obj.truth = truth;
+    obj.hash = hash;
     obj.repr = repr;
     obj.address = address;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.sign = sign;
+    obj.absolute = absolute;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

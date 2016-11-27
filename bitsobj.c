@@ -37,6 +37,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "addressobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
@@ -60,6 +61,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_BYTES: return (Obj *)bits_from_bytes((Bytes *)v1);
     case T_INT: return bits_from_int((Int *)v1);
     case T_CODE: return bits_from_code((Code *)v1, epoint);
+    case T_ADDRESS: return bits_from_address((Address *)v1, epoint);
     case T_FLOAT: 
          err = (Obj *)int_from_float((Float *)v1);
          if (err->obj != INT_OBJ) return err;
