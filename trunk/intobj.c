@@ -238,11 +238,11 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
     Error *v;
     switch (v1->len) {
     case 1: *iv = v1->data[0];
-            if (bits < SHIFT - 1 && ((uval_t)*iv >> (bits - 1)) != 0) break;
+            if (bits <= SHIFT && ((uval_t)*iv >> (bits - 1)) != 0) break;
             return NULL;
     case 0: *iv = 0; return NULL;
     case -1: *iv = -v1->data[0];
-             if (bits < SHIFT - 1 && ((uval_t)~*iv >> (bits - 1)) != 0) break;
+             if (bits <= SHIFT && ((uval_t)~*iv >> (bits - 1)) != 0) break;
              return NULL;
     default: break;
     }
