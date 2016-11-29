@@ -568,7 +568,7 @@ These operations are only available after instructions and functions to not
 interfere with their normal use in expressions.
 
 Several addressing mode operators can be combined together. Currently the
-complexity is limited to 3 operators. This is enough to describe all addressing
+complexity is limited to 4 operators. This is enough to describe all addressing
 modes of the supported CPUs.
 
                   Valid addressing mode operator combinations
