@@ -305,9 +305,9 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     ln = calc_size(v1) / ln2;
 
     if (v1->offs >= 0) {
-        offs0 = (v1->offs + ln2 - 1) / ln2;
+        offs0 = ((uval_t)v1->offs + ln2 - 1) / ln2;
     } else {
-        offs0 = -((-v1->offs + ln2 - 1) / ln2);
+        offs0 = -(((uval_t)(-v1->offs) + ln2 - 1) / ln2);
     }
     if (o2->obj == LIST_OBJ) {
         List *list = (List *)o2;
@@ -486,7 +486,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_SUB:
             {
                 ival_t iv;
-                err = o2->obj->ival(o2, &iv, (sizeof iv)*8, op->epoint2);
+                err = o2->obj->ival(o2, &iv, 31, op->epoint2);
                 if (err != NULL) {
                     op->v1 = &v1->v;
                     return &err->v;
@@ -500,6 +500,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 case O_SUB: v->offs -= iv; break;
                 default: break;
                 }
+                if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
+                if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
                 if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
                 op->v1 = &v1->v;
                 return &v->v;
@@ -601,25 +603,23 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         err = access_check(v2, op->epoint2);
         if (err != NULL) return &err->v;
         op->v2 = v2->addr;
-        switch (op->op->op) {
-        case O_ADD:
-            {
-                ival_t iv;
-                err = o1->obj->ival(o1, &iv, (sizeof iv)*8, op->epoint2);
-                if (err != NULL) {
-                    op->v2 = &v2->v;
-                    return &err->v;
-                }
-                v = new_code();
-                memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v2) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
-                v->names = ref_namespace(v2->names);
-                v->addr = op->v1->obj->calc2(op);
-                v->offs = v2->offs + iv;
-                if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
+        if (op->op == &o_ADD) {
+            ival_t iv;
+            err = o1->obj->ival(o1, &iv, 31, op->epoint2);
+            if (err != NULL) {
                 op->v2 = &v2->v;
-                return &v->v;
+                return &err->v;
             }
-        default: break;
+            v = new_code();
+            memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v2) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
+            v->names = ref_namespace(v2->names);
+            v->addr = op->v1->obj->calc2(op);
+            v->offs = v2->offs + iv;
+            if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
+            if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
+            if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
+            op->v2 = &v2->v;
+            return &v->v;
         }
         v = (Code *)op->v1->obj->calc2(op);
         op->v2 = &v2->v;

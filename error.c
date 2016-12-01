@@ -255,6 +255,7 @@ static const char *terr_error[] = {
     "requirements not met",
     "conflict",
     "index out of range",
+    "offset out of range",
     "not hashable",
     "not a key and value pair",
     "can't convert to a %u bit signed integer",
