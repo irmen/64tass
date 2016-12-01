@@ -487,9 +487,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BYTES:
     case T_STR:
     case T_GAP:
-        switch (op->op->op) {
-        default:
-            am = v2->type;
+        am = v2->type;
+        if (op->op == &o_ADD) {
+            if (check_addr(am)) break;
+        } else {
             if (am == A_NONE) {
                 op->v2 = v2->val;
                 result = o1->obj->calc2(op);
@@ -497,18 +498,12 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
                 return result;
             }
             if (check_addr2(am)) break;
-            goto ok;
-        case O_ADD:
-            am = v2->type;
-            if (check_addr(am)) break;
-        ok:
-            op->v2 = v2->val;
-            result = o1->obj->calc2(op);
-            op->v2 = &v2->v;
-            if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
-            return (Obj *)new_address(result, am);
         }
-        break;
+        op->v2 = v2->val;
+        result = o1->obj->calc2(op);
+        op->v2 = &v2->v;
+        if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
+        return (Obj *)new_address(result, am);
     case T_CODE:
         if (op->op != &o_IN) {
             return op->v2->obj->calc2(op);
