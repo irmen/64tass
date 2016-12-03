@@ -184,7 +184,7 @@ that the resulting file is directly runnable without additional compression:
 
 *       = $0801
         .word (+), 2005  ;pointer, line number
-        .null $9e, ^start;will be sys 4096
+        .null $9e, format("%d", start);will be sys 4096
 +       .word 0          ;basic line end
 
 *       = $1000
@@ -1053,6 +1053,10 @@ arguments and their meaning might slightly vary depending on the type.
 ! not                  ~ invert
 * convert to arguments ^ decimal string
 
+The `^' decimal string operator will be changed to mean the bank byte soon.
+Please update your sources to use format("%d", xxx) instead! This is done to be
+in line with it's use in most other assemblers.
+
         Binary operators
 +  add         -  subtract
 *  multiply    /  divide
@@ -1063,7 +1067,7 @@ arguments and their meaning might slightly vary depending on the type.
 .. concat      x  repeat
 in contains
 
-There's a ternary operator (?:) which gives the second value if the first is
+There's a ternary operator (? :) which gives the second value if the first is
 true or the third if the first is false.
 
 Parenthesis (( )) can be used to override operator precedence. Don't forget
@@ -1428,7 +1432,6 @@ using the current encoding.
     >1006  17 33     .text 23, $33  ; bytes
     >1008  0d 0a     .text $0a0d    ; $0d, $0a, little endian!
     >100a  1f        .text %00011111; more bytes
-    >100b  32 33     .text ^OEU     ; the decimal value as string (^23 is $32,$33)
 
 .fill <length>[, <fill>]
     Reserve space (using uninitialized data), or fill with repeated bytes.
@@ -2048,7 +2051,7 @@ start of .dsection is not allowed.
 ;--------------------
         .section code
         .word ss, 2005
-        .null $9e, ^start
+        .null $9e, format("%d", start)
 ss      .word 0
 
 start   sei
@@ -2077,7 +2080,7 @@ p3      .word ?         ;a pointer
 The compiled code will look like:
 
 >0801    0b 08 d5 07                            .word ss, 2005
->0805    9e 32 30 36 31 00                      .null $9e, ^start
+>0805    9e 32 30 36 31 00                      .null $9e, format("%d", start)
 >080b    00 00                          ss      .word 0
 
 .080d    78                             start   sei
@@ -3168,6 +3171,8 @@ deprecated modulo operator, use '%' instead
     double slash for modulo is going away soon, update source
 deprecated not equal operator, use '!=' instead
     non-standard not equal operators, update source
+deprecated ^ operator, use format("%d", ...) instead
+    this operator will be changed, update your sources
 directive ignored
     an assembler directive was ignored for compatibility reasons.
 immediate addressing mode suggested
