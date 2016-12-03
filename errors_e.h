@@ -31,6 +31,7 @@ enum errors_e {
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,
     ERROR______OLD_GOTO,
+    ERROR____OLD_STRING,
     ERROR_____TAIL_CALL,
     ERROR___CONST_INDEX,
 #ifdef _WIN32

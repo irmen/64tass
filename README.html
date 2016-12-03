@@ -316,7 +316,7 @@ compression:</p>
 <pre width=80>
 *       <b>=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
-        <b class="d">.null</b> <span>$9e</span>, ^<u>start</u><i>;will be sys 4096</i>
+        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)<i>;will be sys 4096</i>
 +	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
 *       <b>=</b> <span>$1000</span>
@@ -1351,8 +1351,8 @@ mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <
 
 <h4>Operators<a name="operators" href="#operators"></a></h4>
 
-The following operators are available. Not all are defined for all types of
-arguments and their meaning might slightly vary depending on the type.
+<p>The following operators are available. Not all are defined for all types of
+arguments and their meaning might slightly vary depending on the type.</p>
 
 <div><table border="0">
 <caption>Unary operators</caption>
@@ -1362,9 +1362,13 @@ arguments and their meaning might slightly vary depending on the type.
 <tr><td><code>!</code><td>not
 <td><code>~</code><td>invert
 <tr><td><code>&lowast;</code><td>convert to arguments
-<td><code>^</code><td>decimal string
+<td><code>^</code><td><i>decimal string</i>
 </tbody>
 </table></div>
+
+<p><b>The <q>^</q> decimal string operator will be changed to mean the
+bank byte soon. Please update your sources to use format("%d", xxx) instead!</b>
+This is done to be in line with it's use in most other assemblers.</p>
 
 <div><table border="0">
 <caption>Binary operators</caption>
@@ -1388,7 +1392,7 @@ arguments and their meaning might slightly vary depending on the type.
 </tbody>
 </table></div>
 
-<p>There's a ternary operator (<code>?:</code>) which gives the second value if the first is
+<p>There's a ternary operator (<code>? :</code>) which gives the second value if the first is
 true or the third if the first is false.</p>
 
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
@@ -1789,7 +1793,6 @@ are converted using the current encoding.</p>
 &gt;1006  17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
 &gt;1008  0d 0a     <b class="d">.text</b> <span>$0a0d</span>	<i>; $0d, $0a, little endian!</i>
 &gt;100a  1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
-&gt;100b  32 33     <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
 <dt><code><b class="d">.fill</b></code> &lt;length&gt;[, &lt;fill&gt;]<a name="d_fill" href="#d_fill"></a>
@@ -2443,7 +2446,7 @@ start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.</p>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;</i>
         <b class="k">.section</b> <u>code</u>
         <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-        <b class="d">.null</b> <span>$9e</span>, ^<u>start</u>
+        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)
 ss	<b class="d">.word</b> <span>0</span>
 
 start   <b>sei</b>
@@ -2472,7 +2475,7 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 <p>The compiled code will look like:</p>
 <pre width=80>
 &gt;0801	 0b 08 d5 07			        <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, ^<u>start</u>
+&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)
 &gt;080b	 00 00				ss      <b class="d">.word</b> <span>0</span>
 
 .080d	 78				start   <b>sei</b>
@@ -3589,6 +3592,7 @@ will display without them.</p>
 <dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators, update source
+<dt>deprecated ^ operator, use format("%d", ...) instead<dd>this operator will be changed, update your sources
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
 <dt>immediate addressing mode suggested<dd>numeric constant address which was likely meant as an immediate value
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label

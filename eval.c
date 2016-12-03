@@ -1302,7 +1302,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '>': if (pline[lpoint.pos + 1] == '`') {lpoint.pos++;op = &o_HWORD;} else if (pline[lpoint.pos + 1] == '<') {lpoint.pos++;op = &o_BSWORD;} else op = &o_HIGHER; break;
         case '#': op = &o_HASH; break;
         case '`': op = &o_BANK; break;
-        case '^': op = &o_STRING; break;
+        case '^': op = &o_STRING; if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint); break;
         case '$': push_oper(get_hex(&epoint), &epoint);goto other;
         case '%': if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { push_oper(get_bin(&epoint), &epoint);goto other; }
                   goto tryanon;
