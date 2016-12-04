@@ -1421,9 +1421,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 fixeddig = false;
                             }
                         } else val_destroy(tmp);
-                        if (code->requires != current_section->requires || code->conflicts != current_section->conflicts) {
+                        if (code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
                             code->requires = current_section->requires;
                             code->conflicts = current_section->conflicts;
+                            code->offs = 0;
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                                 fixeddig = false;
