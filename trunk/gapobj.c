@@ -60,6 +60,10 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
     return &v->v;
 }
 
+static MUST_CHECK Obj *absolute(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
+    return (Obj *)ref_gap();
+}
+
 static MUST_CHECK Obj *calc1(oper_t op) {
     switch (op->op->op) {
     case O_BANK: 
@@ -71,8 +75,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV:
     case O_NEG:
     case O_POS:
-    case O_STRING:
-    case O_LNOT:
         return (Obj *)ref_gap();
     default: break;
     }
@@ -119,6 +121,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         switch (op->op->op) {
         case O_EQ: return (Obj *)ref_bool(false_value);
         case O_NE: return (Obj *)ref_bool(true_value);
+        case O_ADD:
+        case O_SUB:
+        case O_MUL:
+        case O_DIV:
+        case O_MOD:
+        case O_EXP:
+        case O_AND:
+        case O_OR:
+        case O_XOR:
+        case O_LSHIFT:
+        case O_RSHIFT: return (Obj *)ref_gap();
         default: break;
         }
         break;
@@ -152,6 +165,15 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         switch (op->op->op) {
         case O_EQ: return (Obj *)ref_bool(false_value);
         case O_NE: return (Obj *)ref_bool(true_value);
+        case O_ADD:
+        case O_SUB:
+        case O_MUL:
+        case O_DIV:
+        case O_MOD:
+        case O_EXP:
+        case O_AND:
+        case O_OR:
+        case O_XOR: return (Obj *)ref_gap();
         default: break;
         }
         break;
@@ -171,6 +193,7 @@ void gapobj_init(void) {
     obj.create = create;
     obj.hash = hash;
     obj.repr = repr;
+    obj.absolute = absolute;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
