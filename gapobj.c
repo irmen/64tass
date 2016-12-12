@@ -150,7 +150,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Obj *v1 = op->v1, *v2 = op->v2;
+    Obj *v1 = op->v1;
     switch (v1->obj->type) {
     case T_GAP: return calc2(op);
     case T_STR:
@@ -181,7 +181,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        return v2->obj->calc2(op);
+        return v1->obj->calc2(op);
     default: break;
     }
     return obj_oper_error(op);
