@@ -251,14 +251,14 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
       else {
         opt = '?';
         if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                       fputs(": fatal error: option '--", stderr);
+                       fputs(": fatal error: option '", stderr);
                        printable_print((const uint8_t *)argv[my_optind++], stderr);
                        fputs("' not recognized\n", stderr); }
       }
     } else {
       opt = '?';
       if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                     fputs(": fatal error: option '--", stderr);
+                     fputs(": fatal error: option '", stderr);
                      printable_print((const uint8_t *)argv[my_optind++], stderr);
                      fputs("' is ambiguous\n", stderr); }
     }
