@@ -42,7 +42,11 @@ syn match tass64Oper3 /\./ contained nextgroup=tass64Label
 syn match tass64Assign /\v%([<>*.]{2}|[<>]\?|[-+%*/^&|x:])?\=/ skipwhite contained nextgroup=@tass64Expression
 
 " Macro invocation
-syn match tass64Macro /\v[#.][[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*/ skipwhite contained contains=tass64PreProc,tass64PreCondit,tass64Include,tass64Define,tass64Structure,tass64Type,tass64Debug nextgroup=@tass64Expression
+syn match tass64Macro /\v[#.][[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>/ skipwhite contained contains=tass64PreProc,tass64PreCondit,tass64Include,tass64Define,tass64Structure,tass64Type,tass64Debug nextgroup=@tass64Expression
+syn match tass64Macro /\v[#.][[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>\.@=/ contained nextgroup=tass64Oper4
+syn match tass64Macro2 /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Macro2 /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>\.@=/ contained nextgroup=tass64Oper4
+syn match tass64Oper4 /\./ contained nextgroup=tass64Macro2
 
 " Comment
 syn keyword tass64Todo TODO FIXME XXX NOTE contained
@@ -225,6 +229,7 @@ hi link tass64Hex       Number
 hi link tass64Gap       Number
 hi link tass64String    String
 hi link tass64Macro     Macro
+hi link tass64Macro2    Macro
 hi link tass64Ident     Identifier
 hi link tass64Anon      Identifier
 hi link tass64MacroRef  PreProc
