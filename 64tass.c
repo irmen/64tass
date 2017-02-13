@@ -222,7 +222,7 @@ static void status(void) {
     bool errors = error_print();
     if (arguments.quiet) {
         error_status();
-        printf("Passes:            %u\n",pass);
+        printf("Passes: %12u\n",pass);
         if (!errors) sectionprint();
     }
     tfree();
