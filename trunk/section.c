@@ -172,27 +172,30 @@ static void sectionprint2(const struct section_s *l) {
     }
 }
 
-void sectionprint(void) {
-    struct section_s *l;
-    char temp[10], temp2[10];
-
-    l = &root_section;
+static void printrange(const struct section_s *l) {
+    char temp[10], temp2[10], temp3[10];
+    sprintf(temp, "$%04" PRIaddress, l->start);
+    temp2[0] = 0;
     if (l->size != 0) {
-        sprintf(temp, "$%04" PRIaddress, l->start);
-        sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
-        printf("Section:       %9s-%-7s\n", temp, temp2);
+        sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->start + l->size - 1));
+    } 
+    sprintf(temp3, "$%04" PRIxSIZE "", l->size);
+    printf("Section: %15s%-8s %-7s", temp, temp2, temp3);
+}
+
+void sectionprint(void) {
+    struct section_s *l = &root_section;
+
+    if (l->size != 0) {
+        printrange(l);
+        putchar('\n');
     }
     memprint(&l->mem);
     l = root_section.next;
     while (l != NULL) {
         if (l->defpass == pass) {
-            if (l->size != 0) {
-                sprintf(temp, "$%04" PRIaddress, l->start);
-                sprintf(temp2, "$%04" PRIaddress, (address_t)(l->start + l->size - 1));
-                printf("Section:       %9s-%-7s ", temp, temp2);
-            } else {
-                printf("Section:                         ");
-            }
+            printrange(l);
+            putchar(' ');
             sectionprint2(l->parent);
             printable_print2(l->name.data, stdout, l->name.len);
             putchar('\n');

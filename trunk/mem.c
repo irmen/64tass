@@ -150,32 +150,36 @@ void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
     block->addr = memblocks->lastaddr;
 }
 
+static void printrange(address_t start, address_t end) {
+    char temp[10], temp2[10];
+    sprintf(temp, "$%04" PRIaddress, start);
+    sprintf(temp2, "$%04" PRIaddress, end-1);
+    printf("Memory range: %10s-%-7s $%04" PRIaddress "\n", temp, temp2, end-start);
+}
+
 void memprint(struct memblocks_s *memblocks) {
-    char temp[10];
     unsigned int i;
     bool over;
     address_t start, end;
 
     memcomp(memblocks);
 
-    if (memblocks->p != 0) {
-        i = 0;
-        start = memblocks->data[i].addr;
-        end = memblocks->data[i].addr + memblocks->data[i].len;
-        over = end < start;
-        for (i++; i < memblocks->p; i++) {
-            const struct memblock_s *block = &memblocks->data[i];
-            if (block->addr != end || over) {
-                sprintf(temp, "$%04" PRIaddress, start);
-                printf("Memory range:  %9s-$%04" PRIaddress "\n", temp, end-1);
-                start = block->addr;
-            }
-            end = block->addr + block->len;
-            over = end < block->addr;
+    if (memblocks->p == 0) return;
+
+    i = 0;
+    start = memblocks->data[i].addr;
+    end = memblocks->data[i].addr + memblocks->data[i].len;
+    over = end < start;
+    for (i++; i < memblocks->p; i++) {
+        const struct memblock_s *block = &memblocks->data[i];
+        if (block->addr != end || over) {
+            printrange(start, end);
+            start = block->addr;
         }
-        sprintf(temp, "$%04" PRIaddress, start);
-        printf("Memory range:  %9s-$%04" PRIaddress "\n", temp, end-1);
+        end = block->addr + block->len;
+        over = end < block->addr;
     }
+    printrange(start, end);
 }
 
 static void putlw(unsigned int w, FILE *f) {
