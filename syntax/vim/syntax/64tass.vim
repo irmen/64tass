@@ -31,7 +31,7 @@ syn cluster tass64Expression contains=tass64Float,tass64Dec,tass64Hex,tass64Bin,
 syn cluster tass64Expression2 contains=tass64Oper2,tass64Comment
 
 " Line start
-syn match tass64start /^/ skipwhite nextgroup=@tass64Statements,tass64Label
+syn match tass64start /^/ skipwhite nextgroup=@tass64Statements,tass64Label,tass64Array
 
 " Labels
 syn match tass64Label /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>:?|[+-]%([ \t;]@=|$)|\*%([ \t;=]@=|$)/ skipwhite contained nextgroup=tass64Assign,@tass64Statements
@@ -51,6 +51,9 @@ syn match tass64Oper4 /\./ contained nextgroup=tass64Macro2
 " Comment
 syn keyword tass64Todo TODO FIXME XXX NOTE contained
 syn match tass64Comment ';.*$' contained contains=@Spell,tass64Todo
+
+" Multiline array
+syn match tass64Array /\v[({[]/ skipwhite contained contains=tass64Oper1 nextgroup=@tass64Expression
 
 " 6502 Mnemonics
 syn match tass64Mne /\v%(adc|and|asl|bcc|bcs|beq|bit|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx)>:@!/ skipwhite contained nextgroup=@tass64Expression
@@ -205,6 +208,7 @@ syn match tass64Oper1   /\v[#*!~<>`^([{:]|([-+])%(\1|\s*[)\]};,:]|\s*$)@!/ skipw
 syn match tass64Oper1   /\v[)\]}]/ skipwhite contained nextgroup=@tass64Expression2
 
 syn match tass64Oper2   /\v[<>&^|*.]{2}|[>=<!]\=|[><]\?|[-+/*%^|&,.?:<>=[(]|%(in|x)>/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Oper2   /\v[<>&|*.<>]{2}\=|[><]\?\=|[-+/*%^|&:x]\=/ skipwhite contained nextgroup=@tass64Expression
 syn match tass64Oper2   /\v,[xyzrsdbk]>|[\])}]/ skipwhite contained nextgroup=@tass64Expression2
 
 " Functions
