@@ -3494,10 +3494,10 @@ static int main2(int *argc2, char **argv2[]) {
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     struct linepos_s nopoint = {0, 0};
-    char **argv = *argv2;
-    int argc = *argc2;
+    char **argv;
+    int argc;
 
-    tinit(argv[0]);
+    tinit(argv2[0]);
 
     fin = openfile(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc2, argv2, fin); argc = *argc2; argv = *argv2;
