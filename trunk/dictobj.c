@@ -269,24 +269,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     return &str->v;
 }
 
-
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint2) {
     struct pair_s pair;
     const struct avltree_node *b;
-    Obj *o2 = op->v2;
-    Dict *v1 = (Dict *)o1;
     Error *err;
-    Funcargs *args = (Funcargs *)o2;
-    linepos_t epoint2;
-
-    if (args->len < 1 || args->len > indx + 1) {
-        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
-        return (Obj *)ref_none();
-    }
-    o2 = args->val[indx].val;
-    epoint2 = &args->val[indx].epoint;
-
-    if (o2->obj == NONE_OBJ) return val_reference(o2);
 
     pair.key = o2;
     err = pair.key->obj->hash(pair.key, &pair.hash, epoint2);
@@ -304,6 +290,53 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     err = new_error(ERROR_____KEY_ERROR, epoint2);
     err->u.key = val_reference(o2);
     return &err->v; 
+}
+
+static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+    Obj *o2 = op->v2, *vv;
+    Dict *v1 = (Dict *)o1;
+    Funcargs *args = (Funcargs *)o2;
+    bool more = args->len > indx + 1;
+    linepos_t epoint2;
+
+    if (args->len < 1) {
+        err_msg_argnum(args->len, 1, 0, op->epoint2);
+        return (Obj *)ref_none();
+    }
+
+    o2 = args->val[indx].val;
+    epoint2 = &args->val[indx].epoint;
+
+    if (o2->obj == NONE_OBJ) return val_reference(o2);
+    if (o2->obj == LIST_OBJ) {
+        size_t i;
+        List *v2 = (List *)o2, *v;
+        Obj **vals;
+        bool error;
+        if (v2->len == 0) {
+            return val_reference(&null_list->v);
+        }
+        v = (List *)val_alloc(LIST_OBJ);
+        v->data = vals = list_create_elements(v, v2->len);
+        error = true;
+        for (i = 0; i < v2->len; i++) {
+            vv = findit(v1, v2->data[i], epoint2);
+            if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
+            if (vv->obj == ERROR_OBJ) {
+                if (error) {err_msg_output((Error *)vv); error = false;} 
+                val_destroy(vv);
+                vals[i] = (Obj *)ref_none();
+                continue;
+            }
+            vals[i] = vv;
+        }
+        v->len = i;
+        return &v->v;
+    }
+
+    vv = findit(v1, o2, epoint2);
+    if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
+    return vv;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
