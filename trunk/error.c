@@ -102,21 +102,22 @@ static bool check_duplicate(const struct errorentry_s *nerr) {
 }
 
 static void close_error(void) {
+    static bool duplicate;
     if (error_list.header_pos < error_list.len) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
         case SV_NOTE2:
-        case SV_NOTE: return;
-        default: break;
+        case SV_NOTE: break;
+        default: duplicate = check_duplicate(err);
         }
-        if (check_duplicate(err)) {
+        if (duplicate) {
             error_list.len = error_list.header_pos;
         }
     }
 }
 
-static bool new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
+static void new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct errorentry_s *err;
     size_t line_len;
     close_error();
@@ -143,7 +144,6 @@ static bool new_error_msg(enum severity_e severity, const struct file_list_s *fl
     err->file_list = flist;
     err->epoint = *epoint;
     if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof *err], pline, line_len);
-    return false;
 }
 
 static void new_error_msg2(bool type, linepos_t epoint) {
@@ -549,10 +549,10 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     }
 
     if (l->file_list == NULL) {
-        if (new_error_msg(SV_NOTE2, current_file_list, epoint)) return;
+        new_error_msg(SV_NOTE2, current_file_list, epoint);
         adderror("searched in the global scope");
     } else {
-        if (new_error_msg(SV_NOTE, l->file_list, &l->epoint)) return;
+        new_error_msg(SV_NOTE, l->file_list, &l->epoint);
         if (down) adderror("searched in this scope and in all it's parents");
         else adderror("searched in this object only");
     }
@@ -696,7 +696,7 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
 }
 
 static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
-    if (new_error_msg(SV_NOTE, cflist, epoint)) return;
+    new_error_msg(SV_NOTE, cflist, epoint);
     adderror("original definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
@@ -966,6 +966,7 @@ bool error_print() {
             }
             err3 = err2;
             err2 = err;
+            usenote = false;
             continue;
         case SV_WARNING: 
             if (!arguments.warning) {
