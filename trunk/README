@@ -506,7 +506,10 @@ string keys are accepted, the value can be anything.
 x[i]   value lookup {"1":2}["1"] is 2
 y in x is a key     1 in {1:2} is true
 
+; Simple lookup
         .text {1:"one", 2:"two"}[2]; "two"
+; 16 element "fader" table 1->15->12->11->0
+        .byte {1:15, 15:12, 12:11, :0}[range(16)]
 
 Code
 
@@ -1018,6 +1021,7 @@ random([<expression>, ...])
 
             .seed 1234      ; default is boring, seed the generator
             .byte random(256); a pseudo random byte (0..255)
+            .byte random([16] x 8); 8 pseudo random bytes (0..15)
 
 range(<expression>[, <expression>, ...])
     Returns a list of integers in a range, with optional stepping.
@@ -1233,7 +1237,7 @@ And it works for list of indexes, negative indexes, stepped ranges, reversing,
 etc. on all axes in too many ways to show all possibilities.
 
 Basically it's just the indexing and slicing applied on nested constructs,
-where each nesting level is separated by a colon.
+where each nesting level is separated by a comma.
 
 -------------------------------------------------------------------------------
 
