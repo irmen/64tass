@@ -256,6 +256,7 @@ static const char *terr_error[] = {
     "requirements not met",
     "conflict",
     "index out of range",
+    "key error",
     "offset out of range",
     "not hashable",
     "not a key and value pair",
@@ -605,9 +606,9 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepo
     adderror(msg2);
 }
 
-static void err_msg_key_error(Obj *val, linepos_t epoint) {
+static void err_msg_key_error(Obj *val, const char *msg, linepos_t epoint) {
     new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror("key error");
+    adderror(msg);
     err_msg_variable(val, epoint);
 }
 
@@ -622,7 +623,6 @@ void err_msg_output(const Error *val) {
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
-    case ERROR___INDEX_RANGE:
     case ERROR_CONSTNT_LARGE:
     case ERROR_NUMERIC_OVERF:
     case ERROR_NEGFRAC_POWER:
@@ -653,7 +653,8 @@ void err_msg_output(const Error *val) {
     case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
     case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
     case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
-    case ERROR_____KEY_ERROR: err_msg_key_error(val->u.key, &val->epoint);break;
+    case ERROR___INDEX_RANGE:
+    case ERROR_____KEY_ERROR: err_msg_key_error(val->u.key, terr_error[val->num - 0x40], &val->epoint);break;
     default: break;
     }
 }

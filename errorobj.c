@@ -45,6 +45,7 @@ static void destroy(Obj *o1) {
     case ERROR___NOT_DEFINED: 
         val_destroy((Obj *)v1->u.notdef.names);
         return;
+    case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: 
         val_destroy(v1->u.key);
         return;
@@ -86,6 +87,7 @@ static void garbage(Obj *o1, int i) {
     case ERROR___NOT_DEFINED: 
         v = &v1->u.notdef.names->v;
         break;
+    case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: 
         v = v1->u.key;
         break;
