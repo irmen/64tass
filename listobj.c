@@ -186,11 +186,16 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
             return NULL;
         }
         for (i = 0;i < llen; i++) {
-            val = v1->data[i]->obj->repr(v1->data[i], epoint, maxsize - chars);
-            if (val == NULL || val->obj != STR_OBJ) {
-                list->len = i;
-                val_destroy(&list->v);
-                return val;
+            Obj *o2 = v1->data[i];
+            if (o2->obj == DEFAULT_OBJ && o1->obj == COLONLIST_OBJ) {
+                val = (Obj *)ref_str(null_str);
+            } else {
+                val = o2->obj->repr(o2, epoint, maxsize - chars);
+                if (val == NULL || val->obj != STR_OBJ) {
+                    list->len = i;
+                    val_destroy(&list->v);
+                    return val;
+                }
             }
             v = (Str *)val;
             len += v->len;
