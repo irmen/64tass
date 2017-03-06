@@ -45,6 +45,9 @@ static void destroy(Obj *o1) {
     case ERROR___NOT_DEFINED: 
         val_destroy((Obj *)v1->u.notdef.names);
         return;
+    case ERROR___MATH_DOMAIN:
+    case ERROR_LOG_NON_POSIT:
+    case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: 
         val_destroy(v1->u.key);
@@ -87,6 +90,9 @@ static void garbage(Obj *o1, int i) {
     case ERROR___NOT_DEFINED: 
         v = &v1->u.notdef.names->v;
         break;
+    case ERROR___MATH_DOMAIN:
+    case ERROR_LOG_NON_POSIT:
+    case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: 
         v = v1->u.key;
@@ -112,6 +118,14 @@ MUST_CHECK Error *new_error(enum errors_e num, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;
     v->epoint = *epoint;
+    return v;
+}
+
+MUST_CHECK Error *new_error_key(enum errors_e num, Obj *v1, linepos_t epoint) {
+    Error *v = (Error *)val_alloc(ERROR_OBJ);
+    v->num = num;
+    v->epoint = *epoint;
+    v->u.key = val_reference(v1);
     return v;
 }
 

@@ -308,19 +308,19 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     case F_CEIL: real = ceil(real);break;
     case F_SQRT: 
         if (real < 0.0) {
-            return (Obj *)new_error(ERROR_SQUARE_ROOT_N, epoint);
+            return (Obj *)new_error_key(ERROR_SQUARE_ROOT_N, o1, epoint);
         }
         real = sqrt(real);
         break;
     case F_LOG10: 
         if (real <= 0.0) {
-            return (Obj *)new_error(ERROR_LOG_NON_POSIT, epoint);
+            return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
         }
         real = log10(real);
         break;
     case F_LOG: 
         if (real <= 0.0) {
-            return (Obj *)new_error(ERROR_LOG_NON_POSIT, epoint);
+            return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
         }
         real = log(real);
         break;
@@ -330,13 +330,13 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     case F_TAN: real = tan(real);break;
     case F_ACOS: 
         if (real < -1.0 || real > 1.0) {
-            return (Obj *)new_error(ERROR___MATH_DOMAIN, epoint);
+            return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
         }
         real = acos(real);
         break;
     case F_ASIN: 
         if (real < -1.0 || real > 1.0) {
-            return (Obj *)new_error(ERROR___MATH_DOMAIN, epoint);
+            return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
         }
         real = asin(real);
         break;
