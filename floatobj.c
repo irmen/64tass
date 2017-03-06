@@ -217,7 +217,7 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     case O_OR: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) | (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
     case O_XOR: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) ^ (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
     case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2), op->epoint3);
-    case O_RSHIFT: return (Obj *)new_float(v1 * pow(2.0, -v2));
+    case O_RSHIFT: return float_from_double(v1 * pow(2.0, -v2), op->epoint3);
     case O_EXP: 
         if (v1 == 0.0) {
             if (v2 < 0.0) {
