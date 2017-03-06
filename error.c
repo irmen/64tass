@@ -626,9 +626,6 @@ void err_msg_output(const Error *val) {
     case ERROR_CONSTNT_LARGE:
     case ERROR_NUMERIC_OVERF:
     case ERROR_NEGFRAC_POWER:
-    case ERROR_SQUARE_ROOT_N:
-    case ERROR_LOG_NON_POSIT:
-    case ERROR___MATH_DOMAIN:
     case ERROR___EMPTY_RANGE:
     case ERROR__EMPTY_STRING:
     case ERROR__BYTES_NEEDED:
@@ -653,6 +650,9 @@ void err_msg_output(const Error *val) {
     case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
     case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
     case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
+    case ERROR___MATH_DOMAIN:
+    case ERROR_LOG_NON_POSIT:
+    case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: err_msg_key_error(val->u.key, terr_error[val->num - 0x40], &val->epoint);break;
     default: break;

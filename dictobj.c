@@ -287,9 +287,7 @@ static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint2) {
     if (v1->def != NULL) {
         return val_reference(v1->def);
     }
-    err = new_error(ERROR_____KEY_ERROR, epoint2);
-    err->u.key = val_reference(o2);
-    return &err->v; 
+    return (Obj *)new_error_key(ERROR_____KEY_ERROR, o2, epoint2);
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
