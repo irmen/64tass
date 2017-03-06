@@ -124,14 +124,9 @@ static MUST_CHECK Int *get_dec(void) {
 }
 
 static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
-    int base;
+    uint8_t base = here() | 0x20;
 
-    switch (here() | 0x20) {
-    case 'p': base = 2; break;
-    case 'e': base = 10; break;
-    default: base = 0;
-    }
-    if (base != 0) {
+    if (base == 'p' || base == 'e') {
         bool neg = false;
         neg = (pline[lpoint.pos + 1] == '-');
         if (neg || pline[lpoint.pos + 1] == '+') {
@@ -145,13 +140,13 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             lpoint.pos++;
 
             v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
-            err = v->obj->ival(v, &expo, 8 * sizeof expo, &lpoint);
+            err = v->obj->ival(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)), &lpoint);
             val_destroy(v);
-            if (err != NULL) return &err->v;
             lpoint.pos += len;
+            if (err != NULL) return &err->v;
 
             if (neg) expo = -expo;
-            if (expo != 0) real *= pow(base, expo);
+            if (expo != 0) real = (base == 'e') ? real * pow(10.0, (double)expo) : ldexp(real, expo);
         }
     }
     return float_from_double(real, epoint);
@@ -208,7 +203,7 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += real2 * pow(16.0, -(double)len2);
+        if (real2 != 0.0) real += ldexp(real2, -4*len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
@@ -231,7 +226,7 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += real2 * pow(2.0, -(double)len2);
+        if (real2 != 0.0) real += ldexp(real2, -len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
