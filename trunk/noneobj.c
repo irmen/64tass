@@ -79,7 +79,7 @@ static MUST_CHECK Obj *sign(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_none();
 }
 
-static MUST_CHECK Obj *absolute(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *UNUSED(v1), enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_none();
 }
 
@@ -105,7 +105,7 @@ void noneobj_init(void) {
     obj.uval = uval;
     obj.address = address;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.len = len;
     obj.size = size;
 

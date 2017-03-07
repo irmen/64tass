@@ -169,13 +169,13 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
     if (err != NULL) return &err->v;
     v = v1->addr;
-    return v->obj->absolute(v, epoint);
+    return v->obj->function(v, f, epoint);
 }
 
 MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
@@ -642,7 +642,7 @@ void codeobj_init(void) {
     obj.uval = uval;
     obj.address = address;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.len = len;
     obj.size = size;
     obj.calc1 = calc1;

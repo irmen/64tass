@@ -34,6 +34,10 @@ enum type_e {
     T_LABEL, T_NAMESPACE
 };
 
+enum tfunc_e {
+    TF_ABS, TF_TRUNC, TF_CEIL, TF_FLOOR, TF_ROUND
+};
+
 struct Error;
 
 typedef struct Type {
@@ -56,7 +60,7 @@ typedef struct Type {
     struct Error *(*uval)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*absolute)(Obj *, linepos_t) MUST_CHECK;
+    Obj *(*function)(Obj *, enum tfunc_e, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
     Iter *(*getiter)(Obj *) MUST_CHECK;

@@ -297,14 +297,14 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
     Address *v1 = (Address *)o1;
     Obj *v;
     if (v1->type != A_NONE) {
-        return DEFAULT_OBJ->absolute(o1, epoint);
+        return DEFAULT_OBJ->function(o1, f, epoint);
     }
     v = v1->val;
-    return v->obj->absolute(v, epoint);
+    return v->obj->function(v, f, epoint);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -528,7 +528,7 @@ void addressobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

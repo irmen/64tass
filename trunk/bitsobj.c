@@ -360,10 +360,10 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[len > 0]);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
     Bits *v1 = (Bits *)o1;
     Obj *tmp = (Obj *)int_from_bits(v1);
-    Obj *ret = tmp->obj->absolute(tmp, epoint);
+    Obj *ret = tmp->obj->function(tmp, f, epoint);
     val_destroy(tmp);
     return ret;
 }
@@ -1333,7 +1333,7 @@ void bitsobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.len = len;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
