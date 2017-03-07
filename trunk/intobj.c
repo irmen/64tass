@@ -292,9 +292,9 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[v1->len > 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
     Int *v1 = (Int *)o1;
-    return (v1->len >= 0) ? (Obj *)ref_int(v1) : (Obj *)negate(v1);
+    return (v1->len >= 0 || f != TF_ABS) ? (Obj *)ref_int(v1) : (Obj *)negate(v1);
 }
 
 static void iadd(const Int *, const Int *, Int *);
