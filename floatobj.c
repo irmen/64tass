@@ -153,7 +153,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
 static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
     double r = ((Float *)o1)->real;
     switch (f) {
-    case TF_ABS: if (r >= 0.0) return val_reference(o1); break; 
+    case TF_ABS: if (r >= 0.0) return val_reference(o1); r = -r; break; 
     case TF_TRUNC: r = trunc(r); break; 
     case TF_ROUND: r = round(r); break; 
     case TF_FLOOR: r = floor(r); break; 
