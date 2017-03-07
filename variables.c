@@ -638,7 +638,7 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
                     break;
                 }
 
-                if (ns != NULL && l2->name.len == labelname.len && !memcmp(l2->name.data, labelname.data, l2->name.len)) {
+                if (ns != NULL && l2->name.len == labelname.len && memcmp(l2->name.data, labelname.data, l2->name.len) == 0) {
                     space = ns;
                     break;
                 }

@@ -265,7 +265,7 @@ static MUST_CHECK char *read_one(FILE *f) {
     do {
         c = getc(f);
         if (c == EOF) break;
-    } while (c == 0 || isspace(c));
+    } while (c == 0 || isspace(c) != 0);
     if (c == EOF) return NULL;
     read = NULL;
     i = ln = 0;
@@ -285,7 +285,7 @@ static MUST_CHECK char *read_one(FILE *f) {
         }
         c = getc(f);
         if (c == EOF || c == 0) break;
-    } while (q || q2 || q3 || !isspace(c));
+    } while (q || q2 || q3 || isspace(c) == 0);
     if (i >= ln) {
         ln++;
         read = (char *)realloc(read, ln);
@@ -532,7 +532,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                     for (j = i; j < argc; j++) {
                         argv[j] = argv[j + 1];
                     }
-                    while (!feof(f)) {
+                    while (feof(f) == 0) {
                         char *read = read_one(f);
                         if (read == NULL) break;
                         *argv2 = argv = (char **)reallocx(argv, (argc + 1) * sizeof *argv);

@@ -104,7 +104,8 @@ bool mtranslate(struct file_s *cfile) {
                 memcpy((char *)mline->data + p, param[j].data, param[j].len);
                 p += param[j].len;
                 lpoint.pos++;continue;
-            } else if (ch == '@') {
+            }
+            if (ch == '@') {
                 /* \@ gives complete parameter list */
                 str_t *all = &macro_parameters.current->all;
                 if (p + all->len > mline->len) {
@@ -182,7 +183,8 @@ bool mtranslate(struct file_s *cfile) {
                     p += param[j].len;
                 }
                 lpoint.pos++;continue;
-            } else ch = '@';
+            }
+            ch = '@';
         }
     ok:
         if (p + 1 > mline->len) {
