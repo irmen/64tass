@@ -173,7 +173,7 @@ static void portability(const Str *name, linepos_t epoint) {
     size_t i;
     const uint8_t *c = name->data;
     for (i = 0; i < name->len; i++) {
-        if (strchr("\\:*?\"<>|", c[i])) {
+        if (strchr("\\:*?\"<>|", c[i]) != NULL) {
             err_msg2(ERROR__RESERVED_CHR, name, epoint);
             return;
         }
@@ -465,7 +465,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (c == 10) {
                                 if (lastchar == 13) continue;
                                 break;
-                            } else if (c == 13) {
+                            }
+                            if (c == 13) {
                                 break;
                             }
                             if (c != 0 && c < 0x80) *p++ = c; else p = utf8out(c, p);
@@ -585,7 +586,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (c == 10) {
                                 if (lastchar == 13) continue;
                                 break;
-                            } else if (c == 13) {
+                            }
+                            if (c == 13) {
                                 break;
                             }
                             cclass = 0;
