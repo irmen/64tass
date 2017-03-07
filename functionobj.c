@@ -291,7 +291,11 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     switch (func) {
     case F_SIZE: return o1->obj->size(o1, epoint);
     case F_SIGN: return o1->obj->sign(o1, epoint);
-    case F_ABS: return o1->obj->absolute(o1, epoint);
+    case F_CEIL: return o1->obj->function(o1, TF_CEIL, epoint);
+    case F_FLOOR: return o1->obj->function(o1, TF_FLOOR, epoint);
+    case F_ROUND: return o1->obj->function(o1, TF_ROUND, epoint);
+    case F_TRUNC: return o1->obj->function(o1, TF_TRUNC, epoint);
+    case F_ABS: return o1->obj->function(o1, TF_ABS, epoint);
     case F_REPR: return o1->obj->repr(o1, epoint, SIZE_MAX);
     default: break;
     }
@@ -304,8 +308,6 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
         val_destroy(err);
     }
     switch (func) {
-    case F_FLOOR: real = floor(real);break;
-    case F_CEIL: real = ceil(real);break;
     case F_SQRT: 
         if (real < 0.0) {
             return (Obj *)new_error_key(ERROR_SQUARE_ROOT_N, o1, epoint);
@@ -342,8 +344,6 @@ static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
         break;
     case F_ATAN: real = atan(real);break;
     case F_CBRT: real = cbrt(real);break;
-    case F_ROUND: real = round(real);break;
-    case F_TRUNC: real = trunc(real);break;
     case F_FRAC: real -= trunc(real);break;
     case F_RAD: real = real * M_PI / 180.0;break;
     case F_DEG: real = real * 180.0 / M_PI;break;

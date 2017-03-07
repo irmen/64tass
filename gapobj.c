@@ -60,7 +60,7 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
     return &v->v;
 }
 
-static MUST_CHECK Obj *absolute(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *UNUSED(v1), enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_gap();
 }
 
@@ -193,7 +193,7 @@ void gapobj_init(void) {
     obj.create = create;
     obj.hash = hash;
     obj.repr = repr;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

@@ -179,7 +179,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return ret;
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e UNUSED(f), linepos_t epoint) {
     Str *v1 = (Str *)o1;
     return int_from_str(v1, epoint);
 }
@@ -762,7 +762,7 @@ void strobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
     obj.next = next;

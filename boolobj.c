@@ -106,9 +106,9 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return (Obj *)int_from_bool(v1);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
-    if (diagnostics.strict_bool) err_msg_bool(ERROR______CANT_ABS, o1, epoint);
+    if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
     return (Obj *)int_from_bool(v1);
 }
 
@@ -221,7 +221,7 @@ void boolobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

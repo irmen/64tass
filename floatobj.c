@@ -150,9 +150,17 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[v1->real > 0.0]);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t UNUSED(epoint)) {
-    Float *v1 = (Float *)o1;
-    return (v1->real < 0.0) ? (Obj *)new_float(-v1->real) : val_reference(o1);
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
+    double r = ((Float *)o1)->real;
+    switch (f) {
+    case TF_ABS: if (r >= 0.0) return val_reference(o1); break; 
+    case TF_TRUNC: r = trunc(r); break; 
+    case TF_ROUND: r = round(r); break; 
+    case TF_FLOOR: r = floor(r); break; 
+    case TF_CEIL: r = ceil(r); break; 
+    default: break;
+    }
+    return (Obj *)new_float(r);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -307,7 +315,7 @@ void floatobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

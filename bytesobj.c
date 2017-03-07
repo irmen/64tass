@@ -504,9 +504,12 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[0]);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
     Bytes *v1 = (Bytes *)o1;
-    return (Obj *)int_from_bytes(v1);
+    Obj *tmp = (Obj *)int_from_bytes(v1);
+    Obj *ret = tmp->obj->function(tmp, f, epoint);
+    val_destroy(tmp);
+    return ret;
 }
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
@@ -1035,7 +1038,7 @@ void bytesobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
     obj.next = next;

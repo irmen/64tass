@@ -187,8 +187,8 @@ static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
-static MUST_CHECK Obj *invalid_abs(Obj *v1, linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, ERROR______CANT_ABS);
+static MUST_CHECK Obj *invalid_function(Obj *v1, enum tfunc_e f, linepos_t epoint) {
+    return (Obj *)generic_invalid(v1, epoint, (f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
 }
 
 static MUST_CHECK Obj *invalid_len(Obj *v1, linepos_t epoint) {
@@ -404,7 +404,7 @@ void obj_init(Type *obj) {
     obj->uval = invalid_uval;
     obj->address = invalid_address;
     obj->sign = invalid_sign;
-    obj->absolute = invalid_abs;
+    obj->function = invalid_function;
     obj->len = invalid_len;
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;

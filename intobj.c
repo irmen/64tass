@@ -292,7 +292,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[v1->len > 0]);
 }
 
-static MUST_CHECK Obj *absolute(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
     Int *v1 = (Int *)o1;
     return (v1->len >= 0) ? (Obj *)ref_int(v1) : (Obj *)negate(v1);
 }
@@ -1596,7 +1596,7 @@ void intobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
-    obj.absolute = absolute;
+    obj.function = function;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
