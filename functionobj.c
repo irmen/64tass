@@ -298,7 +298,7 @@ static int sortcomp(const void *a, const void *b) {
                     }
                     if (i == v1->len) {
                         val_destroy(result);
-                        return (a > b) ? 1 : -1;
+                        return (aa > bb) ? 1 : -1;
                     }
                 }
                 sort_error = obj_oper_error(&sort_tmp);
@@ -306,7 +306,7 @@ static int sortcomp(const void *a, const void *b) {
         }
     }
     val_destroy(result);
-    if (ret == 0) return (a > b) ? 1 : -1;
+    if (ret == 0) return (aa > bb) ? 1 : -1;
     return ret;
 }
 
