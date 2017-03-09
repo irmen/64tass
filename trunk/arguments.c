@@ -256,7 +256,7 @@ static const struct my_option long_options[] = {
 
 static MUST_CHECK char *read_one(FILE *f) {
     bool q, q2, q3;
-    char *read;
+    char *line;
     size_t i, ln, n, j, len;
     int c;
     mbstate_t ps;
@@ -267,7 +267,7 @@ static MUST_CHECK char *read_one(FILE *f) {
         if (c == EOF) break;
     } while (c == 0 || isspace(c) != 0);
     if (c == EOF) return NULL;
-    read = NULL;
+    line = NULL;
     i = ln = 0;
     q = q2 = q3 = false;
     do {
@@ -278,20 +278,20 @@ static MUST_CHECK char *read_one(FILE *f) {
             q3 = false;
             if (i >= ln) {
                 ln += 16;
-                read = (char *)realloc(read, ln);
-                if (ln < 16 || read == NULL) err_msg_out_of_memory2();
+                line = (char *)realloc(line, ln);
+                if (ln < 16 || line == NULL) err_msg_out_of_memory2();
             }
-            read[i++] = c;
+            line[i++] = c;
         }
         c = getc(f);
         if (c == EOF || c == 0) break;
     } while (q || q2 || q3 || isspace(c) == 0);
     if (i >= ln) {
         ln++;
-        read = (char *)realloc(read, ln);
-        if (ln < 1 || read == NULL) err_msg_out_of_memory2();
+        line = (char *)realloc(line, ln);
+        if (ln < 1 || line == NULL) err_msg_out_of_memory2();
     }
-    read[i] = 0;
+    line[i] = 0;
 
     n = i, j = 0;
     len = n + 64;
@@ -311,14 +311,14 @@ static MUST_CHECK char *read_one(FILE *f) {
             if (data == NULL) err_msg_out_of_memory2();
             p = data + o;
         }
-        l = mbrtowc(&w, read + j, n - j,  &ps);
+        l = mbrtowc(&w, line + j, n - j,  &ps);
         if (l < 1) break;
         j += l;
         ch = w;
         if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
     }
     *p++ = 0;
-    free(read);
+    free(line);
     return (char *)data;
 }
 
@@ -533,14 +533,14 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                         argv[j] = argv[j + 1];
                     }
                     while (feof(f) == 0) {
-                        char *read = read_one(f);
-                        if (read == NULL) break;
+                        char *onepar = read_one(f);
+                        if (onepar == NULL) break;
                         *argv2 = argv = (char **)reallocx(argv, (argc + 1) * sizeof *argv);
                         for (j = argc; j > i; j--) {
                             argv[j] = argv[j - 1];
                         }
                         argc++;
-                        argv[i++] = read;
+                        argv[i++] = onepar;
                         again = true;
                     }
                     fclose(f);
