@@ -266,6 +266,82 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
     return (Obj *)new_error(ERROR___EMPTY_RANGE, epoint);
 }
 
+static struct oper_s sort_tmp;
+static Obj *sort_error;
+static Obj **sort_vals;
+
+static int sortcomp(const void *a, const void *b) {
+    int ret;
+    Obj *result;
+    size_t aa = *(size_t *)a, bb = *(size_t *)b;
+    sort_tmp.v1 = sort_vals[aa];
+    sort_tmp.v2 = sort_vals[bb];
+    result = sort_tmp.v1->obj->calc2(&sort_tmp);
+    if (result->obj == INT_OBJ) ret = ((Int *)result)->len;
+    else {
+        ret = 0;
+        if (sort_error == NULL) {
+            if (result->obj == ERROR_OBJ) sort_error = val_reference(result);
+            else {
+                if (result->obj == TUPLE_OBJ || result->obj == LIST_OBJ) {
+                    List *v1 = (List *)result;
+                    size_t i;
+                    for (i = 0; i < v1->len; i++) {
+                        Obj *v2 = v1->data[i];
+                        if (v2->obj == INT_OBJ) {
+                            ret = ((Int *)v2)->len;
+                            if (ret == 0) continue;
+                            val_destroy(result);
+                            return ret;
+                        }
+                        break;
+                    }
+                    if (i == v1->len) {
+                        val_destroy(result);
+                        return (a > b) - (a < b);
+                    }
+                }
+                sort_error = obj_oper_error(&sort_tmp);
+            } 
+        }
+    }
+    val_destroy(result);
+    if (ret == 0) return (a > b) - (a < b);
+    return ret;
+}
+
+/* sort() */
+static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
+    if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
+        List *v1 = (List *)o1, *v;
+        size_t ln = v1->len;
+        if (ln > 0) {
+            size_t i;
+            Obj **vals;
+            size_t *sort_index;
+            if (ln > SIZE_MAX / sizeof *sort_index) err_msg_out_of_memory(); /* overflow */
+            sort_index = (size_t *)mallocx(ln * sizeof *sort_index);
+            for (i = 0; i < ln; i++) sort_index[i] = i;
+            sort_vals = v1->data;
+            sort_error = NULL;
+            sort_tmp.op = &o_CMP;
+            sort_tmp.epoint = sort_tmp.epoint2 = sort_tmp.epoint3 = epoint;
+            qsort(sort_index, ln, sizeof *sort_index, sortcomp);
+            if (sort_error != NULL) {
+                free(sort_index);
+                return sort_error;
+            }
+            v = (List *)val_alloc(o1->obj);
+            v->data = vals = list_create_elements(v, ln);
+            v->len = ln;
+            for (i = 0; i < ln; i++) vals[i] = val_reference(v1->data[sort_index[i]]);
+            free(sort_index);
+            return &v->v;
+        }
+    }
+    return val_reference(o1);
+}
+
 static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
     Obj *err;
     double real;
@@ -485,6 +561,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     case F_ANY: return v[0].val->obj->truth(v[0].val, TRUTH_ANY, &v[0].epoint);
                     case F_ALL: return v[0].val->obj->truth(v[0].val, TRUTH_ALL, &v[0].epoint);
                     case F_LEN: return v[0].val->obj->len(v[0].val, &v[0].epoint);
+                    case F_SORT: return function_sort(v[0].val, &v[0].epoint);
                     default: return apply_func(v[0].val, func, &v[0].epoint);
                     }
                 }
@@ -535,6 +612,7 @@ static struct builtin_functions_s builtin_functions[] = {
     {"deg", F_DEG}, 
     {"exp", F_EXP}, 
     {"floor", F_FLOOR},
+    {"format", F_FORMAT}, 
     {"frac", F_FRAC}, 
     {"hypot", F_HYPOT}, 
     {"len", F_LEN},
@@ -550,11 +628,11 @@ static struct builtin_functions_s builtin_functions[] = {
     {"sin", F_SIN}, 
     {"sinh", F_SINH}, 
     {"size", F_SIZE},
+    {"sort", F_SORT}, 
     {"sqrt", F_SQRT}, 
     {"tan", F_TAN}, 
     {"tanh", F_TANH}, 
     {"trunc", F_TRUNC}, 
-    {"format", F_FORMAT}, 
     {NULL, F_NONE}
 };
 

@@ -1349,6 +1349,20 @@ mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <
         <b>ldx</b> #<span class="k">size</span>(<u>var</u>) <i>; size to x</i>
 </pre>
 
+<dt><code><b>sort(</b>&lt;list&gt;<b>)</b></code><a name="f_sort" href="#f_sort"></a>
+<dd>Returns a sorted list or tuple.
+
+<p>If the original list contains further lists then these must
+be all of the same length. In this case the order of lists is determined by
+comparing their elements from the start until a difference is found. The sort is stable.</p>
+
+<pre width=80>
+<i>; sort IRQ routines by their raster lines</i>
+sorted  <b>=</b> <span class="k">sort</span>([(<span>60</span>, <u>irq1</u>), (<span>50</span>, <u>irq2</u>)])
+lines   <b class="d">.byte</b> <u>sorted</u>[:, <span>0</span>] <i>; 50, 60</i>
+irqs    <b class="d">.addr</b> <u>sorted</u>[:, <span>1</span>] <i>; irq2, irq1</i>
+</pre>
+
 </dl>
 
 <h3>Expressions<a name="expressions" href="#expressions"></a></h3>
@@ -4819,6 +4833,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#f_sin">sin</a>
 <a href="#f_sinh">sinh</a>
 <a href="#f_size">size</a>
+<a href="#f_sort">sort</a>
 <a href="#f_sqrt">sqrt</a>
 <a href="#f_tan">tan</a>
 <a href="#f_tanh">tanh</a>

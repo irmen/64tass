@@ -1045,6 +1045,19 @@ size(<expression>)
 
             ldx #size(var) ; size to x
 
+sort(<list>)
+    Returns a sorted list or tuple.
+
+    If the original list contains further lists then these must be all of the
+    same length. In this case the order of lists is determined by comparing
+    their elements from the start until a difference is found. The sort is
+    stable.
+
+    ; sort IRQ routines by their raster lines
+    sorted  = sort([(60, irq1), (50, irq2)])
+    lines   .byte sorted[:, 0] ; 50, 60
+    irqs    .addr sorted[:, 1] ; irq2, irq1
+
 Expressions
 
 Operators
@@ -3892,8 +3905,8 @@ Assembler directives
 Built-in functions
 
 abs acos all any asin atan atan2 cbrt ceil cos cosh deg exp floor format frac
-hypot len log log10 pow rad random range repr round sign sin sinh size sqrt tan
-tanh trunc
+hypot len log log10 pow rad random range repr round sign sin sinh size sort
+sqrt tan tanh trunc
 
 Built-in types
 
