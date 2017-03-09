@@ -271,6 +271,7 @@
                         <FUNCTION>sin</FUNCTION>
                         <FUNCTION>sinh</FUNCTION>
                         <FUNCTION>size</FUNCTION>
+                        <FUNCTION>sort</FUNCTION>
                         <FUNCTION>sqrt</FUNCTION>
                         <FUNCTION>str</FUNCTION>
                         <FUNCTION>tan</FUNCTION>
