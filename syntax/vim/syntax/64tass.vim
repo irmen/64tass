@@ -212,7 +212,7 @@ syn match tass64Oper2   /\v[<>&|*.<>]{2}\=|[><]\?\=|[-+/*%^|&:x]\=/ skipwhite co
 syn match tass64Oper2   /\v,[xyzrsdbk]>|[\])}]/ skipwhite contained nextgroup=@tass64Expression2
 
 " Functions
-syn match tass64Function /\v\.@!<%(abs|acos|all|any|asin|atan|atan2|cbrt|ceil|cos|cosh|deg|exp|floor|format|frac|hypot|len|log|log10|pow|rad|random|range|repr|round|sign|sin|sinh|size|sqrt|tan|tanh|trunc)>/ contained
+syn match tass64Function /\v\.@!<%(abs|acos|all|any|asin|atan|atan2|cbrt|ceil|cos|cosh|deg|exp|floor|format|frac|hypot|len|log|log10|pow|rad|random|range|repr|round|sign|sin|sinh|size|sort|sqrt|tan|tanh|trunc)>/ contained
 syn match tass64Function /\v\.@!<%(address|bits|bool|bytes|code|dict|float|gap|int|list|str|tuple|type)>/ contained
 
 " Colors
