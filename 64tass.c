@@ -1321,10 +1321,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", &epoint); goto breakerr;}
                         tmp = find_new_section(&sectionname);
                         if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
-                            if (tmp->usepass != 0 && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &opoint); goto breakerr;}
                             tmp->end = tmp->start = tmp->restart = tmp->address = 0;
                             tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &opoint);
+                            if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
+                            else if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &opoint);
                             fixeddig = false;
                             tmp->defpass = pass - 1;
                             restart_memblocks(&tmp->mem, tmp->address);
