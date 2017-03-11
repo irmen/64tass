@@ -610,40 +610,31 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
     space = root_namespace;
     if (output->space != NULL) {
         str_t labelname;
-        const struct avltree_node *n;
+        Label *l;
         pline = (uint8_t *)output->space;
         lpoint.pos = 0;
         do {
             labelname.data = pline + lpoint.pos; labelname.len = get_label();
-
-            for (n = avltree_first(&space->members); n != NULL; n = avltree_next(n)) {
-                const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
-                Label *l2 = l->key;
-                Obj *o  = l2->value;
-                Namespace *ns;
-
+            l = find_label2(&labelname, space);
+            if (l != NULL) {
+                Obj *o  = l->value;
                 switch (o->obj->type) {
                 case T_CODE:
-                    ns = ((Code *)o)->names;
+                    space = ((Code *)o)->names;
                     break;
                 case T_UNION:
                 case T_STRUCT:
-                    ns = ((Struct *)o)->names;
+                    space = ((Struct *)o)->names;
                     break;
                 case T_NAMESPACE:
-                    ns = (Namespace *)o;
+                    space = (Namespace *)o;
                     break;
                 default: 
-                    ns = NULL;
-                    break;
-                }
-
-                if (ns != NULL && l2->name.len == labelname.len && memcmp(l2->name.data, labelname.data, l2->name.len) == 0) {
-                    space = ns;
+                    l = NULL;
                     break;
                 }
             }
-            if (n == NULL) {
+            if (l == NULL) {
                 labelname.data = pline;
                 labelname.len = lpoint.pos;
                 err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
