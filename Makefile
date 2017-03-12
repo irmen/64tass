@@ -96,7 +96,8 @@ isnprintf.o: isnprintf.c isnprintf.h inttypes.h unicode.h unicodedata.h \
  eval.h obj.h stdbool.h error.h errors_e.h avl.h floatobj.h values.h \
  strobj.h intobj.h typeobj.h noneobj.h errorobj.h
 labelobj.o: labelobj.c labelobj.h obj.h stdbool.h inttypes.h values.h \
- error.h errors_e.h avl.h strobj.h typeobj.h noneobj.h
+ error.h errors_e.h avl.h unicode.h unicodedata.h strobj.h typeobj.h \
+ noneobj.h
 listing.o: listing.c listing.h inttypes.h stdbool.h file.h avl.h error.h \
  errors_e.h obj.h 64tass.h wait_e.h opcodes.h unicode.h unicodedata.h \
  section.h mem.h instruction.h values.h arguments.h
