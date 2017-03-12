@@ -413,6 +413,7 @@ void var_assign(Label *label, Obj *val, bool fix) {
 
 static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max, linepos_t epoint2) {
     Iter *iter;
+    iter_next_t iter_next;
     Obj *val2 = NULL;
     uval_t uval;
     bool warn = false;
@@ -477,7 +478,8 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
         iter = val->obj->getiter(val);
     }
 
-    while ((val2 = iter->v.obj->next(iter)) != NULL) {
+    iter_next = iter->v.obj->next;
+    while ((val2 = iter_next(iter)) != NULL) {
         switch (val2->obj->type) {
         case T_BITS:
             {
@@ -546,6 +548,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
 
 static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
     Iter *iter;
+    iter_next_t iter_next;
     Obj *val2;
     uint32_t ch2;
     uval_t uv;
@@ -563,7 +566,8 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t
         goto doit;
     }
     iter = type->getiter(val);
-    while ((val2 = iter->v.obj->next(iter)) != NULL) {
+    iter_next = iter->v.obj->next;
+    while ((val2 = iter_next(iter)) != NULL) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE:

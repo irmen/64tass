@@ -517,8 +517,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Obj *o1 = op->v1;
     Code *v2 = (Code *)op->v2, *v;
+    Obj *o1 = op->v1;
     Error *err;
     if (op->op == &o_IN) {
         struct oper_s oper;
@@ -613,7 +613,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             v = new_code();
             memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v2) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
             v->names = ref_namespace(v2->names);
-            v->addr = op->v1->obj->calc2(op);
+            v->addr = o1->obj->calc2(op);
             v->offs = v2->offs + iv;
             if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
             if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
@@ -621,7 +621,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             op->v2 = &v2->v;
             return &v->v;
         }
-        v = (Code *)op->v1->obj->calc2(op);
+        v = (Code *)o1->obj->calc2(op);
         op->v2 = &v2->v;
         return &v->v;
     default: break;

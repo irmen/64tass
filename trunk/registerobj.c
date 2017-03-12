@@ -156,8 +156,8 @@ static MUST_CHECK Obj *calc2_register(oper_t op) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    Obj *v2 = op->v2;
-    switch (v2->obj->type) {
+    Type *t2 = op->v2->obj;
+    switch (t2->type) {
     case T_REGISTER: return calc2_register(op);
     case T_NONE:
     case T_ERROR:
@@ -165,7 +165,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_LIST:
     case T_DICT:
         if (op->op != &o_MEMBER && op->op != &o_X) {
-            return v2->obj->rcalc2(op);
+            return t2->rcalc2(op);
         }
         break;
     default: break;
@@ -174,14 +174,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Obj *v1 = op->v1;
-    switch (v1->obj->type) {
+    Type *t1 = op->v1->obj;
+    switch (t1->type) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
+            return t1->calc2(op);
         }
         break;
     default: break;
