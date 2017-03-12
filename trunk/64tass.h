@@ -33,6 +33,7 @@ struct file_list_s;
 struct Label;
 struct Obj;
 
+extern linepos_t poke_pos;
 extern address_t all_mem, all_mem2;
 extern uint8_t outputeor;
 extern int temporary_label_branch;
