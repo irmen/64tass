@@ -109,6 +109,7 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint)
     if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
         uint32_t temp = adr;
+        poke_pos = epoint;
         pokeb(cod);
         switch (ln) {
         case 4: pokeb((uint8_t)temp); temp >>= 8; /* fall through */

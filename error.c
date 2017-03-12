@@ -821,15 +821,15 @@ void err_msg_jmp_bug(linepos_t epoint) {
     adderror( "possible jmp ($xxff) bug [-Wjmp-bug]");
 }
 
-void err_msg_pc_wrap(void) {
+void err_msg_pc_wrap(linepos_t epoint) {
     if (!diagnostics.pc_wrap) return;
-    new_error_msg2(diagnostic_errors.pc_wrap, &lpoint);
+    new_error_msg2(diagnostic_errors.pc_wrap, epoint);
     adderror("processor program counter overflow [-Wpc-wrap]");
 }
 
-void err_msg_mem_wrap(void) {
+void err_msg_mem_wrap(linepos_t epoint) {
     if (!diagnostics.mem_wrap) return;
-    new_error_msg2(diagnostic_errors.mem_wrap, &lpoint);
+    new_error_msg2(diagnostic_errors.mem_wrap, epoint);
     adderror("compile offset overflow [-Wmem-wrap]");
 }
 

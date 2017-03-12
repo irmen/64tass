@@ -73,6 +73,7 @@
 #include "macroobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
+linepos_t poke_pos;
 line_t vline;      /* current line */
 address_t all_mem, all_mem2;
 uint8_t pass = 0, max_pass = MAX_PASS;         /* pass */
@@ -307,15 +308,15 @@ static bool tobool(const struct values_s *v1, bool *truth) {
 /*
  * Skip memory
  */
-static void memskip(address_t db) {
+static void memskip(address_t db) { /* poke_pos! */
     if (current_section->moved) {
-        if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {err_msg_mem_wrap();current_section->wrapwarn = false;}
+        if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+        if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
         current_section->moved = false;
     }
     if (current_section->l_address.address > 0xffff || db > 0x10000 - current_section->l_address.address) {
         current_section->l_address.address = ((current_section->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg_pc_wrap();
+        err_msg_pc_wrap(poke_pos);
     } else current_section->l_address.address += db;
     if (db > (~current_section->address & all_mem2)) {
         if (db - 1 + current_section->address == all_mem2) {
@@ -323,11 +324,11 @@ static void memskip(address_t db) {
             if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
             current_section->address = 0;
         } else {
-            if (current_section->start != 0) err_msg(ERROR_OUTOF_SECTION, NULL);
+            if (current_section->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
             if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
             current_section->moved = false;
             current_section->address = (current_section->address + db) & all_mem2;
-            err_msg_mem_wrap();current_section->wrapwarn = false;
+            err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;
         }
     } else current_section->address += db;
     memjmp(&current_section->mem, current_section->address);
@@ -337,16 +338,15 @@ static void memskip(address_t db) {
 /*
  * output one byte
  */
-void pokeb(uint8_t byte)
-{
+void pokeb(uint8_t byte) { /* poke_pos! */
     if (current_section->moved) {
-        if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {err_msg_mem_wrap();current_section->wrapwarn = false;}
+        if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+        if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
         current_section->moved = false;
     }
     if (current_section->l_address.address > 0xffff) {
         current_section->l_address.address = 0;
-        err_msg_pc_wrap();
+        err_msg_pc_wrap(poke_pos);
     }
     if (current_section->dooutput) write_mem(&current_section->mem, byte ^ outputeor);
     current_section->address++;current_section->l_address.address++;
@@ -861,7 +861,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 lpoint.pos++; islabel = true; epoint = lpoint;
                 labelname.data = pline + lpoint.pos; labelname.len = get_label();
                 if (labelname.len == 0) {
-                    if ((waitfor->skip & 1) != 0) err_msg2(ERROR_GENERL_SYNTAX, NULL, &lpoint);
+                    if ((waitfor->skip & 1) != 0) err_msg(ERROR_GENERL_SYNTAX, NULL);
                     goto breakerr;
                 }
             }
@@ -1970,20 +1970,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     mark_mem(&current_section->mem, current_section->address, star);
+                    poke_pos = &epoint;
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2=-1;
                         struct values_s *vs;
-                        size_t i;
-                        struct linepos_s epoint2;
                         if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
-                        i = get_val_remaining();
                         while ((vs = get_val()) != NULL) {
-                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
-                            if ((--i) == 0) epoint2 = vs->epoint;
+                            poke_pos = &vs->epoint;
+                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
                         }
                         if (uninit != 0) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
@@ -1992,7 +1990,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             pokeb(ch2); sum++;
                         } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                             if (uninit != 0) {
-                                err_msg2(ERROR___NO_LAST_GAP, NULL, &epoint2);
+                                err_msg2(ERROR___NO_LAST_GAP, NULL, poke_pos);
                             } else {
                                 err_msg2(ERROR__BYTES_NEEDED, NULL, &epoint);
                             }
@@ -2035,7 +2033,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
-                            if (byterecursion(vs->val, prm, &uninit, bits, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
+                            poke_pos = &vs->epoint;
+                            if (byterecursion(vs->val, prm, &uninit, bits, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
                         }
                         if (uninit != 0) memskip(uninit);
                     } else if (prm==CMD_BINARY) { /* .binary */
@@ -2103,7 +2102,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (ival != 0) {
                         if (current_section->structrecursion != 0) {
                             if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".offs", &epoint);
-                            else if (ival != 0) memskip(ival);
+                            else if (ival != 0) {
+                                poke_pos = &epoint;
+                                memskip(ival);
+                            }
                         } else current_section->address += ival;
                         current_section->address &= all_mem2;
                         memjmp(&current_section->mem, current_section->address);
@@ -2264,6 +2266,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
                         val = vs->val;
+                        poke_pos = &vs->epoint;
                         if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db != 0) memskip(db);}
                         else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); if (db != 0) memskip(db);}
                         else {
@@ -2272,7 +2275,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             int ch2=-1;
                             get_mem(&current_section->mem, &memp, &membp);
 
-                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
+                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
                             sum += uninit;
                             if (ch2 >= 0 && sum < db) {
                                 pokeb(ch2); sum++;
@@ -2303,7 +2306,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             if (uninit != 0) memskip(uninit);
                         }
-                    } else if (db != 0) memskip(db);
+                    } else if (db != 0) {
+                        poke_pos = &epoint;
+                        memskip(db);
+                    }
                     if (nolisting == 0) {
                         list_mem(&current_section->mem, current_section->dooutput);
                     }
@@ -3238,7 +3244,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
-                        if (t != 0) memskip(t);
+                        if (t != 0) {
+                            poke_pos = &epoint;
+                            memskip(t);
+                        }
                         memref(&current_section->mem, &tmp3->mem);
                     }
                 }
