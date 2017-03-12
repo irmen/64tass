@@ -20,6 +20,7 @@
 #include <string.h>
 #include "values.h"
 #include "error.h"
+#include "unicode.h"
 
 #include "strobj.h"
 #include "typeobj.h"
@@ -91,7 +92,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     len2 = len + 10;
     if (len2 > maxlen) return NULL;
     v = new_str(len2);
-    v->chars = len2; /* UTF8! */
+    v->chars = utf8_chars(v1->name.data, len);
     s = v->data;
     memcpy(s, "<label '", 8);
     s += 8;

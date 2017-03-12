@@ -799,3 +799,12 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         l--; 
     }
 }
+
+size_t utf8_chars(const uint8_t *s, size_t max) {
+    size_t i, sz;
+    for (i = sz = 0; i < max; i += utf8len(s[i])) {
+        sz++;
+    }
+    return sz;
+}
+
