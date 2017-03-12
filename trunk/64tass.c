@@ -411,7 +411,7 @@ void var_assign(Label *label, Obj *val, bool fix) {
     fixeddig = fix;
 }
 
-static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max, linepos_t epoint2) {
+static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max) {
     Iter *iter;
     iter_next_t iter_next;
     Obj *val2 = NULL;
@@ -430,7 +430,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
             case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
             default: m = BYTES_MODE_TEXT; break;
             }
-            tmp = bytes_from_str((Str *)val, epoint2, m);
+            tmp = bytes_from_str((Str *)val, poke_pos, m);
             iter = tmp->obj->getiter(tmp);
             val_destroy(tmp);
             break;
@@ -455,7 +455,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
                 val2 = val;
                 goto doit;
             }
-            tmp = BYTES_OBJ->create(val, epoint2);
+            tmp = BYTES_OBJ->create(val, poke_pos);
             iter = tmp->obj->getiter(tmp);
             val_destroy(tmp);
             break;
@@ -492,7 +492,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
         case T_TUPLE:
         case T_STR:
         rec:
-            if (textrecursion(val2, prm, ch2, uninit, sum, max, epoint2)) warn = true;
+            if (textrecursion(val2, prm, ch2, uninit, sum, max)) warn = true;
             break;
         case T_GAP:
         dogap:
@@ -517,18 +517,18 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
                 if (*uninit != 0) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
-            if (touval(val2, &uval, 8, epoint2)) uval = 256 + '?';
+            if (touval(val2, &uval, 8, poke_pos)) uval = 256 + '?';
             switch (prm) {
             case CMD_SHIFT:
-                if ((uval & 0x80) != 0) err_msg2(ERROR___NO_HIGH_BIT, NULL, epoint2);
+                if ((uval & 0x80) != 0) err_msg2(ERROR___NO_HIGH_BIT, NULL, poke_pos);
                 *ch2 = uval & 0x7f;
                 break;
             case CMD_SHIFTL:
-                if ((uval & 0x80) != 0) err_msg2(ERROR___NO_HIGH_BIT, NULL, epoint2);
+                if ((uval & 0x80) != 0) err_msg2(ERROR___NO_HIGH_BIT, NULL, poke_pos);
                 *ch2 = (uval << 1) & 0xfe;
                 break;
             case CMD_NULL:
-                if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, epoint2);
+                if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, poke_pos);
                 /* fall through */
             default:
                 *ch2 = uval & 0xff;
@@ -546,7 +546,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
     return warn;
 }
 
-static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
+static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
     Iter *iter;
     iter_next_t iter_next;
     Obj *val2;
@@ -571,7 +571,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE:
-            if (byterecursion(val2, prm, uninit, bits, epoint)) warn = true;
+            if (byterecursion(val2, prm, uninit, bits)) warn = true;
             val_destroy(val2);
             continue;
         case T_GAP:
@@ -581,32 +581,32 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am;
-                if (toaddress(val2, &uv, 24, &am, epoint)) ch2 = 0;
+                if (toaddress(val2, &uv, 24, &am, poke_pos)) ch2 = 0;
                 else {
                     switch (am) {
                     case A_NONE:
-                        if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                        if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, poke_pos);
                         break;
                     case A_KR:
                         if (uv > 0xffff) {
-                            Error *v = new_error(ERROR_____CANT_UVAL, epoint);
+                            Error *v = new_error(ERROR_____CANT_UVAL, poke_pos);
                             v->u.intconv.bits = 16;
                             v->u.intconv.val = val_reference(val2);
                             err_msg_output_and_destroy(v);
                         }
                         break;
                     default:
-                        err_msg_output_and_destroy(err_addressing(am, epoint));
+                        err_msg_output_and_destroy(err_addressing(am, poke_pos));
                     }
                     ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
                 }
                 break;
             }
             if (bits >= 0) {
-                if (touval(val2, &uv, bits, epoint)) uv = 0;
+                if (touval(val2, &uv, bits, poke_pos)) uv = 0;
                 ch2 = uv;
             } else {
-                if (toival(val2, &iv, -bits, epoint)) iv = 0;
+                if (toival(val2, &iv, -bits, poke_pos)) iv = 0;
                 ch2 = iv;
             }
             break;
@@ -1981,7 +1981,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
                             poke_pos = &vs->epoint;
-                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
+                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX)) err_msg_still_none(NULL, poke_pos);
                         }
                         if (uninit != 0) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
@@ -2034,7 +2034,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
                             poke_pos = &vs->epoint;
-                            if (byterecursion(vs->val, prm, &uninit, bits, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
+                            if (byterecursion(vs->val, prm, &uninit, bits)) err_msg_still_none(NULL, poke_pos);
                         }
                         if (uninit != 0) memskip(uninit);
                     } else if (prm==CMD_BINARY) { /* .binary */
@@ -2268,14 +2268,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         val = vs->val;
                         poke_pos = &vs->epoint;
                         if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db != 0) memskip(db);}
-                        else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); if (db != 0) memskip(db);}
+                        else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, poke_pos); if (db != 0) memskip(db);}
                         else {
                             size_t uninit = 0, sum = 0;
                             size_t memp, membp;
                             int ch2=-1;
                             get_mem(&current_section->mem, &memp, &membp);
 
-                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db, poke_pos)) err_msg_still_none(NULL, &vs->epoint);
+                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db)) err_msg_still_none(NULL, poke_pos);
                             sum += uninit;
                             if (ch2 >= 0 && sum < db) {
                                 pokeb(ch2); sum++;
@@ -2286,7 +2286,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 if (sum == 1 && uninit == 0) {
                                     while ((db--) != 0) pokeb(ch2); /* single byte shortcut */
                                 } else if (sum == uninit) {
-                                    if (sum == 0) err_msg2(ERROR__BYTES_NEEDED, NULL, &vs->epoint);
+                                    if (sum == 0) err_msg2(ERROR__BYTES_NEEDED, NULL, poke_pos);
                                     uninit += db; /* gap shortcut */
                                 } else {
                                     size_t offs = 0;
