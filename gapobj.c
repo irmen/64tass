@@ -181,7 +181,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        return v1->obj->calc2(op);
+        if (op->op != &o_IN) {
+            return v1->obj->calc2(op);
+        }
+        break;
     default: break;
     }
     return obj_oper_error(op);
