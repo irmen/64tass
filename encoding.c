@@ -602,6 +602,7 @@ bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint
     struct escape_s *b, tmp;
     Obj *val2;
     Iter *iter;
+    iter_next_t iter_next;
     uval_t uval;
     size_t i, len;
     uint8_t *odata = NULL, *d;
@@ -630,7 +631,8 @@ bool new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
 
-    while ((val2 = iter->v.obj->next(iter)) != NULL) {
+    iter_next = iter->v.obj->next;
+    while ((val2 = iter_next(iter)) != NULL) {
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
         if (err != NULL) {
             err_msg_output_and_destroy(err);

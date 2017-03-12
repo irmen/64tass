@@ -701,9 +701,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Str *v2 = (Str *)op->v2;
-    Obj *v1 = op->v1;
+    Type *t1 = op->v1->obj;
     Obj *tmp;
-    switch (v1->obj->type) {
+    switch (t1->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
@@ -722,7 +722,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             default: tmp = int_from_str(v2, op->epoint2);
             }
             op->v2 = tmp;
-            result = v1->obj->calc2(op);
+            result = t1->calc2(op);
             op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
@@ -732,7 +732,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             Obj *result;
             tmp = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v2 = tmp;
-            result = v1->obj->calc2(op);
+            result = t1->calc2(op);
             op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
@@ -742,7 +742,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_NONE:
     case T_ERROR:
         if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
+            return t1->calc2(op);
         }
         break;
     default: break;

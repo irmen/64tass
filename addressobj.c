@@ -474,10 +474,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Obj *o1 = op->v1, *result;
+    Obj *result;
+    Type *t1 = op->v1->obj;
     Address *v2 = (Address *)op->v2;
     atype_t am;
-    switch (o1->obj->type) {
+    switch (t1->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
@@ -493,20 +494,20 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         } else {
             if (am == A_NONE) {
                 op->v2 = v2->val;
-                result = o1->obj->calc2(op);
+                result = t1->calc2(op);
                 op->v2 = &v2->v;
                 return result;
             }
             if (check_addr2(am)) break;
         }
         op->v2 = v2->val;
-        result = o1->obj->calc2(op);
+        result = t1->calc2(op);
         op->v2 = &v2->v;
         if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
         return (Obj *)new_address(result, am);
     case T_CODE:
         if (op->op != &o_IN) {
-            return op->v2->obj->calc2(op);
+            return t1->calc2(op);
         }
         break;
     default: break;

@@ -524,7 +524,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             val = op->v1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, ((Bool *)val)->boolean ? op->v1 : op->v2);
+                val_replace(&val, ((Bool *)val)->boolean ? op->v1 : o2);
             }
             vals[i] = val;
         }
@@ -571,10 +571,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         for (;i < v2->len; i++) {
             Obj *val;
             op->v2 = v2->data[i];
-            val = op->v1->obj->calc2(op);
+            val = o1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, ((Bool *)val)->boolean ? op->v1 : op->v2);
+                val_replace(&val, ((Bool *)val)->boolean ? o1 : op->v2);
             }
             vals[i] = val;
         }

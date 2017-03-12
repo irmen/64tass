@@ -200,11 +200,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     const Bool *v2 = (Bool *)op->v2;
-    switch (op->v1->obj->type) {
-    case T_BOOL: return calc2_bool(op, ((Bool *)op->v1)->boolean, v2->boolean);
+    Obj *o1 = op->v1;
+    switch (o1->obj->type) {
+    case T_BOOL: return calc2_bool(op, ((Bool *)o1)->boolean, v2->boolean);
     default:
         if (op->op != &o_IN) {
-            return op->v1->obj->calc2(op);
+            return o1->obj->calc2(op);
         }
     }
     return obj_oper_error(op);
