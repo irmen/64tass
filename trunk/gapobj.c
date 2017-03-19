@@ -21,6 +21,7 @@
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
+#include "values.h"
 
 #include "strobj.h"
 #include "operobj.h"

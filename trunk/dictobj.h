@@ -19,7 +19,6 @@
 #ifndef DICTOBJ_H
 #define DICTOBJ_H
 #include "obj.h"
-#include "values.h"
 #include "avl.h"
 
 extern struct Type *DICT_OBJ;
