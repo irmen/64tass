@@ -19,6 +19,7 @@
 #ifndef EVAL_H
 #define EVAL_H
 #include "obj.h"
+#include "stdbool.h"
 
 struct file_s;
 struct List;

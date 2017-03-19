@@ -19,6 +19,7 @@
 #ifndef BITSOBJ_H
 #define BITSOBJ_H
 #include "obj.h"
+#include "stdbool.h"
 
 extern struct Type *BITS_OBJ;
 

@@ -18,8 +18,6 @@
 */
 #ifndef OBJ_H
 #define OBJ_H
-#include "stdbool.h"
-#include "str.h"
 #include "inttypes.h"
 
 struct oper_s;
@@ -52,18 +50,6 @@ typedef struct Funcargs {
     struct values_s *val;
 } Funcargs;
 
-typedef struct Ident {
-    Obj v;
-    str_t name;
-    struct linepos_s epoint;
-} Ident;
-
-typedef struct Anonident {
-    Obj v;
-    int32_t count;
-    struct linepos_s epoint;
-} Anonident;
-
 typedef struct Default {
     Obj v;
     int *dummy;
@@ -80,8 +66,6 @@ extern void objects_destroy(void);
 extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern struct Type *LBL_OBJ;
-extern struct Type *IDENT_OBJ;
-extern struct Type *ANONIDENT_OBJ;
 extern struct Type *DEFAULT_OBJ;
 extern struct Type *ITER_OBJ;
 extern struct Type *FUNCARGS_OBJ;
@@ -90,6 +74,4 @@ extern Default *default_value;
 static inline Default *ref_default(void) {
     default_value->v.refcount++; return default_value;
 }
-
-extern bool referenceit;
 #endif

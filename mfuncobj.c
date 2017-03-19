@@ -29,11 +29,11 @@
 #include "errorobj.h"
 #include "listobj.h"
 
-static Type mfunc_obj;
+static Type obj;
 
-Type *MFUNC_OBJ = &mfunc_obj;
+Type *MFUNC_OBJ = &obj;
 
-static void mfunc_destroy(Obj *o1) {
+static void destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
     while ((i--) != 0) {
@@ -49,7 +49,7 @@ static void mfunc_destroy(Obj *o1) {
     free(v1->param);
 }
 
-static void mfunc_garbage(Obj *o1, int j) {
+static void garbage(Obj *o1, int j) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
     Obj *v ;
@@ -95,7 +95,7 @@ static void mfunc_garbage(Obj *o1, int j) {
     }
 }
 
-static bool mfunc_same(const Obj *o1, const Obj *o2) {
+static bool same(const Obj *o1, const Obj *o2) {
     const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
     size_t i;
     if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return false;
@@ -111,7 +111,7 @@ static bool mfunc_same(const Obj *o1, const Obj *o2) {
     return true;
 }
 
-static MUST_CHECK Obj *mfunc_calc2(oper_t op) {
+static MUST_CHECK Obj *calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_FUNCARGS: 
         switch (op->op->op) {
@@ -146,11 +146,11 @@ static MUST_CHECK Obj *mfunc_calc2(oper_t op) {
 }
 
 void mfuncobj_init(void) {
-    new_type(&mfunc_obj, T_MFUNC, "function", sizeof(Mfunc));
-    obj_init(&mfunc_obj);
-    mfunc_obj.destroy = mfunc_destroy;
-    mfunc_obj.garbage = mfunc_garbage;
-    mfunc_obj.same = mfunc_same;
-    mfunc_obj.calc2 = mfunc_calc2;
+    new_type(&obj, T_MFUNC, "function", sizeof(Mfunc));
+    obj_init(&obj);
+    obj.destroy = destroy;
+    obj.garbage = garbage;
+    obj.same = same;
+    obj.calc2 = calc2;
 }
 

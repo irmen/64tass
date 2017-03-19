@@ -19,6 +19,7 @@
 #ifndef REGISTEROBJ_H
 #define REGISTEROBJ_H
 #include "obj.h"
+#include "stdbool.h"
 
 extern struct Type *REGISTER_OBJ;
 

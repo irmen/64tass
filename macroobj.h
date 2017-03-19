@@ -19,6 +19,8 @@
 #ifndef MACROOBJ_H
 #define MACROOBJ_H
 #include "obj.h"
+#include "str.h"
+#include "stdbool.h"
 
 extern struct Type *MACRO_OBJ;
 extern struct Type *SEGMENT_OBJ;

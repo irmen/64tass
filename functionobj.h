@@ -19,6 +19,7 @@
 #ifndef FUNCTIONOBJ_H
 #define FUNCTIONOBJ_H
 #include "obj.h"
+#include "str.h"
 
 extern struct Type *FUNCTION_OBJ;
 

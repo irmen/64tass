@@ -23,6 +23,7 @@
 #include "errors_e.h"
 #include "avl.h"
 #include "obj.h"
+#include "str.h"
 
 struct file_s;
 

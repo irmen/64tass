@@ -19,6 +19,8 @@
 #ifndef LABELOBJ_H
 #define LABELOBJ_H
 #include "obj.h"
+#include "str.h"
+#include "stdbool.h"
 
 extern struct Type *LABEL_OBJ;
 

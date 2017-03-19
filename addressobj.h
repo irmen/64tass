@@ -20,6 +20,7 @@
 #define ADDRESSOBJ_H
 #include "obj.h"
 #include "values.h"
+#include "stdbool.h"
 
 #define MAX_ADDRESS_MASK 0xffff
 

@@ -19,6 +19,7 @@
 #ifndef BOOLOBJ_H
 #define BOOLOBJ_H
 #include "obj.h"
+#include "stdbool.h"
 
 extern struct Type *BOOL_OBJ;
 

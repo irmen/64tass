@@ -44,19 +44,14 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "mfuncobj.h"
-
-bool referenceit = true;
+#include "identobj.h"
 
 static Type lbl_obj;
-static Type ident_obj;
-static Type anonident_obj;
 static Type default_obj;
 static Type iter_obj;
 static Type funcargs_obj;
 
 Type *LBL_OBJ = &lbl_obj;
-Type *IDENT_OBJ = &ident_obj;
-Type *ANONIDENT_OBJ = &anonident_obj;
 Type *DEFAULT_OBJ = &default_obj;
 Type *ITER_OBJ = &iter_obj;
 Type *FUNCARGS_OBJ = &funcargs_obj;
@@ -242,28 +237,6 @@ static MUST_CHECK Obj *iter_next(Iter *v1) {
     return v1->data->obj->next(v1);
 }
 
-static MUST_CHECK Obj *ident_calc2(oper_t op) {
-    switch (op->v2->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_TUPLE:
-    case T_LIST:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return op->v2->obj->rcalc2(op);
-        }
-        break;
-    default: break;
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK Obj *ident_rcalc2(oper_t op) {
-    if (op->op == &o_MEMBER) {
-        return op->v1->obj->calc2(op);
-    }
-    return obj_oper_error(op);
-}
-
 static bool lbl_same(const Obj *o1, const Obj *o2) {
     const Lbl *v1 = (const Lbl *)o1, *v2 = (const Lbl *)o2;
     return o2->obj == LBL_OBJ && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
@@ -319,18 +292,11 @@ void objects_init(void) {
     typeobj_init();
     noneobj_init();
     mfuncobj_init();
+    identobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     obj_init(&lbl_obj);
     lbl_obj.same = lbl_same;
-    new_type(&ident_obj, T_IDENT, "ident", sizeof(Ident));
-    obj_init(&ident_obj);
-    ident_obj.calc2 = ident_calc2;
-    ident_obj.rcalc2 = ident_rcalc2;
-    new_type(&anonident_obj, T_ANONIDENT, "anonident", sizeof(Anonident));
-    obj_init(&anonident_obj);
-    anonident_obj.calc2 = ident_calc2;
-    anonident_obj.rcalc2 = ident_rcalc2;
     new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
     obj_init(&default_obj);
     new_type(&iter_obj, T_ITER, "iter", sizeof(Iter));
