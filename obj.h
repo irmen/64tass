@@ -30,23 +30,6 @@ typedef struct Obj {
     size_t refcount;
 } Obj;
 
-struct mfunc_param_s {
-    str_t name;
-    str_t cfname;
-    Obj *init;
-    struct linepos_s epoint;
-};
-
-typedef struct Mfunc {
-    Obj v;
-    size_t argc;
-    struct mfunc_param_s *param; 
-    struct file_list_s *file_list;
-    line_t line;
-    size_t nslen;
-    struct Namespace **namespaces;
-} Mfunc;
-
 typedef struct Lbl_s {
     Obj v;
     line_t sline;
@@ -96,7 +79,6 @@ extern void objects_destroy(void);
 extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern struct Type *LBL_OBJ;
-extern struct Type *MFUNC_OBJ;
 extern struct Type *IDENT_OBJ;
 extern struct Type *ANONIDENT_OBJ;
 extern struct Type *DEFAULT_OBJ;

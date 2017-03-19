@@ -71,6 +71,7 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "macroobj.h"
+#include "mfuncobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 linepos_t poke_pos;
