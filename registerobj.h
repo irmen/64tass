@@ -19,7 +19,6 @@
 #ifndef REGISTEROBJ_H
 #define REGISTEROBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *REGISTER_OBJ;
 
@@ -37,9 +36,5 @@ extern bool registerobj_createnames(uint32_t);
 
 static inline Register *ref_register(Register *v1) {
     v1->v.refcount++; return v1;
-}
-
-static inline MUST_CHECK Register *new_register(void) {
-    return (Register *)val_alloc(REGISTER_OBJ);
 }
 #endif

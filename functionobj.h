@@ -19,8 +19,6 @@
 #ifndef FUNCTIONOBJ_H
 #define FUNCTIONOBJ_H
 #include "obj.h"
-#include "values.h"
-struct values_s;
 
 extern struct Type *FUNCTION_OBJ;
 
@@ -41,9 +39,5 @@ typedef struct Function {
 extern void functionobj_init(void);
 extern void functionobj_names(void);
 extern void random_reseed(Obj *, linepos_t);
-
-static inline MUST_CHECK Function *new_function(void) {
-    return (Function *)val_alloc(FUNCTION_OBJ);
-}
 
 #endif

@@ -39,6 +39,12 @@ Bool *true_value;
 Bool *false_value;
 Bool *bool_value[2];
 
+static inline MUST_CHECK Bool *new_boolean(bool boolean) {
+    Bool *v = (Bool *)val_alloc(BOOL_OBJ);
+    v->boolean = boolean;
+    return v;
+}
+
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:

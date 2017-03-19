@@ -19,7 +19,6 @@
 #ifndef INTOBJ_H
 #define INTOBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *INT_OBJ;
 
@@ -42,10 +41,6 @@ extern void intobj_destroy(void);
 
 static inline Int *ref_int(Int *v1) {
     v1->v.refcount++; return v1;
-}
-
-static inline MUST_CHECK Int *new_int(void) {
-    return (Int *)val_alloc(INT_OBJ);
 }
 
 struct Str;

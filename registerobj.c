@@ -21,6 +21,7 @@
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
+#include "values.h"
 
 #include "boolobj.h"
 #include "strobj.h"
@@ -37,6 +38,10 @@ Type *REGISTER_OBJ = &obj;
 static void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
     if (v1->val != v1->data) free(v1->data);
+}
+
+static inline MUST_CHECK Register *new_register(void) {
+    return (Register *)val_alloc(REGISTER_OBJ);
 }
 
 static uint8_t *rnew(Register *v, size_t len) {

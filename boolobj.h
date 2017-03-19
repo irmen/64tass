@@ -19,7 +19,6 @@
 #ifndef BOOLOBJ_H
 #define BOOLOBJ_H
 #include "obj.h"
-#include "values.h"
 
 extern struct Type *BOOL_OBJ;
 
@@ -38,12 +37,6 @@ extern void boolobj_destroy(void);
 
 static inline Bool *ref_bool(Bool *v1) {
     v1->v.refcount++; return v1;
-}
-
-static inline MUST_CHECK Bool *new_boolean(bool boolean) {
-    Bool *v = (Bool *)val_alloc(BOOL_OBJ);
-    v->boolean = boolean;
-    return v;
 }
 
 static inline MUST_CHECK Obj *truth_reference(bool i) {

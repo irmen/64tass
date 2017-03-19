@@ -77,6 +77,10 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
+static inline MUST_CHECK Int *new_int(void) {
+    return (Int *)val_alloc(INT_OBJ);
+}
+
 static digit_t *inew(Int *v, size_t len) {
     if (len > lenof(v->val)) {
         if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */

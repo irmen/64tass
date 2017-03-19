@@ -39,6 +39,10 @@ static Type obj;
 
 Type *FUNCTION_OBJ = &obj;
 
+static inline MUST_CHECK Function *new_function(void) {
+    return (Function *)val_alloc(FUNCTION_OBJ);
+}
+
 static bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
     return o2->obj == FUNCTION_OBJ && v1->func == v2->func;
