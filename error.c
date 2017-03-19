@@ -24,7 +24,6 @@
 #ifdef _WIN32
 #include <locale.h>
 #endif
-#include "misc.h"
 #include "file.h"
 #include "64tass.h"
 #include "macro.h"
@@ -874,7 +873,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 if (print_use_color) fputs("\33[01m", f);
                 printable_print((uint8_t *)included_from->parent->file->realname, f);
-                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, calcpos(line, included_from->epoint.pos, included_from->parent->file->coding == E_UTF8));
+                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, ((included_from->parent->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, included_from->epoint.pos) : included_from->epoint.pos) + 1);
                 included_from = included_from->parent;
                 if (print_use_color) fputs("\33[m\33[K", f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
@@ -884,7 +883,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
         line = (err->line_len != 0) ? ((uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         if (print_use_color) fputs("\33[01m", f);
         printable_print((uint8_t *)cflist->file->realname, f);
-        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
+        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
     } else {
         if (print_use_color) fputs("\33[01m", f);
         printable_print((uint8_t *)prgname, f);

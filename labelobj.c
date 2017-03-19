@@ -72,10 +72,8 @@ static void garbage(Obj *o1, int i) {
 static bool same(const Obj *o1, const Obj *o2) {
     const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
     return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
-        && v1->name.len == v2->name.len
-        && v1->cfname.len == v2->cfname.len
-        && (v1->name.data == v2->name.data || memcmp(v1->name.data, v2->name.data, v1->name.len) == 0)
-        && (v1->cfname.data == v2->cfname.data || memcmp(v1->cfname.data, v2->cfname.data, v1->cfname.len) == 0)
+        && str_cmp(&v1->name, &v2->name) == 0
+        && str_cmp(&v1->cfname, &v2->cfname) == 0
         && v1->file_list == v2->file_list
         && v1->epoint.pos == v2->epoint.pos
         && v1->epoint.line == v2->epoint.line
@@ -92,7 +90,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     len2 = len + 10;
     if (len2 > maxlen) return NULL;
     v = new_str(len2);
-    v->chars = utf8_chars(v1->name.data, len);
+    v->chars = calcpos(v1->name.data, len);
     s = v->data;
     memcpy(s, "<label '", 8);
     s += 8;

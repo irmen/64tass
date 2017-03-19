@@ -18,7 +18,6 @@
 */
 #include "macro.h"
 #include <string.h>
-#include "misc.h"
 #include "file.h"
 #include "eval.h"
 #include "values.h"

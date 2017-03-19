@@ -29,6 +29,9 @@
 #define VERSION "1.52." REVISION
 #define MAX_PASS 20
 
+#define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
+#define here() pline[lpoint.pos]
+
 struct file_list_s;
 struct Label;
 struct Obj;

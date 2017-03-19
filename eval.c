@@ -26,7 +26,6 @@
 #include "macro.h"
 #include "variables.h"
 #include "64tass.h"
-#include "misc.h"
 #include "unicode.h"
 #include "listing.h"
 #include "error.h"
@@ -380,7 +379,7 @@ rest:
         ident.len = lpoint.pos - epoint.pos;
         l = find_label(&ident, NULL);
         if (l != NULL) {
-            if (diagnostics.case_symbol && (ident.len != l->name.len || memcmp(ident.data, l->name.data, ident.len) != 0)) err_symbol_case(&ident, l, &epoint);
+            if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_symbol_case(&ident, l, &epoint);
             touch_label(l);
             l->shadowcheck = true;
             push_oper(val_reference(l->value), &epoint);
@@ -1362,7 +1361,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
                 down = (ident.data[0] != '_');
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l != NULL) {
-                    if (diagnostics.case_symbol && (ident.len != l->name.len || memcmp(ident.data, l->name.data, ident.len) != 0)) err_symbol_case(&ident, l, &epoint);
+                    if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_symbol_case(&ident, l, &epoint);
                     touch_label(l);
                     if (down) l->shadowcheck = true;
                     push_oper(val_reference(l->value), &epoint);

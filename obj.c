@@ -18,7 +18,6 @@
 */
 #include "obj.h"
 #include <string.h>
-#include "misc.h"
 #include "eval.h"
 #include "error.h"
 #include "values.h"

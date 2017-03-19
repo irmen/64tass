@@ -16,20 +16,18 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MISC_H
-#define MISC_H
-#include "stdbool.h"
+#ifndef STR_H
+#define STR_H
 #include "inttypes.h"
 
-#define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
-#define here() pline[lpoint.pos]
+typedef struct {
+    size_t len;
+    const uint8_t *data;
+} str_t;
 
-extern void tfree(void);
-extern void tinit(const char *);
 extern int str_hash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);
 extern void str_cfcpy(str_t *, const str_t *);
 extern void str_cpy(str_t *, const str_t *);
-extern linecpos_t calcpos(const uint8_t *, size_t, bool);
 
 #endif

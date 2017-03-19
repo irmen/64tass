@@ -19,7 +19,6 @@
 #include "section.h"
 #include "unicode.h"
 #include "error.h"
-#include "misc.h"
 #include "64tass.h"
 #include "values.h"
 #include "intobj.h"

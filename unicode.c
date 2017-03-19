@@ -800,11 +800,13 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
     }
 }
 
-size_t utf8_chars(const uint8_t *s, size_t max) {
-    size_t i, sz;
-    for (i = sz = 0; i < max; i += utf8len(s[i])) {
-        sz++;
+size_t calcpos(const uint8_t *line, size_t pos) {
+    size_t s, l;
+    s = l = 0;
+    while (s < pos) {
+        if (line[s] == 0) return l;
+        s += utf8len(line[s]);
+        l++;
     }
-    return sz;
+    return l;
 }
-

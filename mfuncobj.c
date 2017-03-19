@@ -18,7 +18,6 @@
 */
 #include "mfuncobj.h"
 #include "values.h"
-#include "misc.h"
 #include "eval.h"
 #include "error.h"
 #include "macro.h"
