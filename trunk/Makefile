@@ -13,8 +13,17 @@ CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVIS
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 TARGET = 64tass
-PREFIX = $(DESTDIR)/usr/local
-BINDIR = $(PREFIX)/bin
+RM = rm -f
+INSTALL = /usr/bin/install -c
+INSTALL_PROGRAM = $(INSTALL)
+INSTALL_DATA = $(INSTALL) -m 644
+prefix = /usr/local
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
+datarootdir = $(prefix)/share
+mandir = $(datarootdir)/man
+man1dir = $(mandir)/man1
+docdir = $(datarootdir)/doc/$(TARGET)
 
 .SILENT:
 
@@ -182,7 +191,7 @@ variables.o: variables.c variables.h stdbool.h str.h inttypes.h unicode.h \
 wchar.o: wchar.c wchar.h
 wctype.o: wctype.c wctype.h
 
-.PHONY: all clean distclean install install-strip uninstall
+.PHONY: all clean distclean install install-strip uninstall install-man install-doc
 
 clean:
 	-rm -f $(OBJ)
@@ -190,11 +199,29 @@ clean:
 distclean: clean
 	-rm -f $(TARGET)
 
-install: $(TARGET)
-	install -D $(TARGET) $(BINDIR)/$(TARGET)
+install-man:
+	-$(INSTALL) -d $(DESTDIR)$(man1dir)
+	-$(INSTALL_DATA) $(TARGET).1 $(DESTDIR)$(man1dir)/$(TARGET).1
+	-gzip -9f $(DESTDIR)$(man1dir)/$(TARGET).1
 
-install-strip: $(TARGET)
-	install -D -s $(TARGET) $(BINDIR)/$(TARGET)
+install-doc:
+	-$(INSTALL) -d $(DESTDIR)$(docdir)
+	-$(INSTALL_DATA) LICENSE-GPL-2.0 LICENSE-LGPL-2.0 LICENSE-LGPL-2.1 LICENSE-my_getopt README.html $(DESTDIR)$(docdir)
+
+install: $(TARGET) install-man install-doc
+	-$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL_PROGRAM) $(TARGET) $(DESTDIR)$(bindir)/$(TARGET)
+
+install-strip: $(TARGET) install-man install-doc
+	-$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL_PROGRAM) -s $(TARGET) $(DESTDIR)$(bindir)/$(TARGET)
 
 uninstall:
-	-rm $(BINDIR)/$(TARGET)
+	-$(RM) $(DESTDIR)$(bindir)/$(TARGET)
+	-$(RM) $(DESTDIR)$(man1dir)/$(TARGET).1
+	-$(RM) $(DESTDIR)$(man1dir)/$(TARGET).1.gz
+	-$(RM) $(DESTDIR)$(docdir)/LICENSE-GPL-2.0
+	-$(RM) $(DESTDIR)$(docdir)/LICENSE-LGPL-2.0
+	-$(RM) $(DESTDIR)$(docdir)/LICENSE-LGPL-2.1
+	-$(RM) $(DESTDIR)$(docdir)/LICENSE-my_getopt
+	-$(RM) $(DESTDIR)$(docdir)/README.html
