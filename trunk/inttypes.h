@@ -88,7 +88,6 @@ typedef uint32_t linecpos_t;
 struct linepos_s {line_t line;linecpos_t pos;};
 #define PRIlinepos PRIu32
 typedef const struct linepos_s *linepos_t;
-typedef struct {size_t len;const uint8_t *data;} str_t;
 typedef int32_t ival_t;
 #define PRIdval PRId32
 typedef uint32_t uval_t;

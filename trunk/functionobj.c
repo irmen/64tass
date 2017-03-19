@@ -21,7 +21,6 @@
 #include "math.h"
 #include "isnprintf.h"
 #include "eval.h"
-#include "misc.h"
 #include "variables.h"
 #include "error.h"
 

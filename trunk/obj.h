@@ -19,6 +19,7 @@
 #ifndef OBJ_H
 #define OBJ_H
 #include "stdbool.h"
+#include "str.h"
 #include "inttypes.h"
 
 struct oper_s;

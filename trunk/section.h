@@ -20,6 +20,7 @@
 #define SECTION_H
 #include "avl.h"
 #include "stdbool.h"
+#include "str.h"
 #include "inttypes.h"
 #include "mem.h"
 

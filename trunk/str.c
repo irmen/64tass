@@ -17,22 +17,11 @@
 
 */
 
-#include "misc.h"
+#include "str.h"
 #include <string.h>
-#include "section.h"
-#include "longjump.h"
-#include "encoding.h"
-#include "file.h"
-#include "eval.h"
-#include "variables.h"
-#include "ternary.h"
 #include "unicode.h"
 #include "error.h"
-#include "values.h"
 #include "arguments.h"
-#include "opt_bit.h"
-
-#include "namespaceobj.h"
 
 int str_hash(const str_t *s) {
     size_t l = s->len;
@@ -127,47 +116,3 @@ void str_cpy(str_t *s1, const str_t *s2) {
         s1->data = s;
     } else s1->data = NULL;
 }
-
-linecpos_t calcpos(const uint8_t *line, size_t pos, bool utf8) {
-    size_t s, l;
-    if (utf8) return pos + 1;
-    s = l = 0;
-    while (s < pos) {
-        if (line[s] == 0) break;
-        s += utf8len(line[s]);
-        l++;
-    }
-    return l + 1;
-}
-
-void tfree(void) {
-    destroy_lastlb();
-    destroy_eval();
-    destroy_variables();
-    destroy_section();
-    destroy_longjump();
-    destroy_file();
-    err_destroy();
-    destroy_encoding();
-    destroy_values();
-    destroy_namespacekeys();
-    destroy_ternary();
-    destroy_opt_bit();
-    free(arguments.symbol_output);
-    unfc(NULL);
-    unfkc(NULL, NULL, 0);
-    str_cfcpy(NULL, NULL);
-}
-
-void tinit(const char *prgname) {
-    init_values();
-    objects_init();
-    err_init(prgname);
-    init_section();
-    init_file();
-    init_variables();
-    init_eval();
-    init_ternary();
-    init_opt_bit();
-}
-

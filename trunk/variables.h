@@ -19,6 +19,7 @@
 #ifndef VARIABLES_H
 #define VARIABLES_H
 #include "stdbool.h"
+#include "str.h"
 #include "inttypes.h"
 
 struct Namespace;
