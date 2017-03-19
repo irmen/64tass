@@ -37,6 +37,7 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "macroobj.h"
+#include "mfuncobj.h"
 
 static int functionrecursion;
 
