@@ -49,6 +49,7 @@ extern const uint8_t *pline;
 extern uint16_t reffile, curfile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
+extern bool referenceit;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
 extern void var_assign(struct Label *, struct Obj *, bool);

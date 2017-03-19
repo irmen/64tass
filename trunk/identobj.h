@@ -16,25 +16,26 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MACRO_H
-#define MACRO_H
+#ifndef IDENTOBJ_H
+#define IDENTOBJ_H
 #include "obj.h"
-#include "wait_e.h"
-#include "stdbool.h"
+#include "str.h"
+#include "inttypes.h"
 
-struct values_s;
-struct file_s;
+extern struct Type *IDENT_OBJ;
+extern struct Type *ANONIDENT_OBJ;
 
-struct Namespace;
-struct Mfunc;
+typedef struct Ident {
+    Obj v;
+    str_t name;
+    struct linepos_s epoint;
+} Ident;
 
-extern bool mtranslate(struct file_s *);
-extern Obj *macro_recurse(enum wait_e, Obj *, struct Namespace *, linepos_t);
-extern Obj *mfunc_recurse(enum wait_e, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
-extern Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, unsigned int, linepos_t);
-extern void init_macro(void);
-extern void free_macro(void);
-extern void get_macro_params(Obj *);
-extern void get_func_params(struct Mfunc *, struct file_s *);
-extern bool in_macro(void);
+typedef struct Anonident {
+    Obj v;
+    int32_t count;
+    struct linepos_s epoint;
+} Anonident;
+
+extern void identobj_init(void);
 #endif

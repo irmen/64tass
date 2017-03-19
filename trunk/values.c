@@ -19,6 +19,7 @@
 #include "values.h"
 #include <string.h>
 #include "obj.h"
+#include "64tass.h"
 
 #include "unicode.h"
 #include "error.h"

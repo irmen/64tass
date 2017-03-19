@@ -86,6 +86,7 @@ struct linepos_s lpoint;        /* position in current line */
 static uint8_t strength = 0;
 bool fixeddig, constcreated;
 uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
+bool referenceit = true;
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {

@@ -22,6 +22,7 @@
 #include "eval.h"
 #include "error.h"
 #include "arguments.h"
+#include "64tass.h"
 
 #include "intobj.h"
 #include "listobj.h"
@@ -31,6 +32,7 @@
 #include "noneobj.h"
 #include "labelobj.h"
 #include "errorobj.h"
+#include "identobj.h"
 
 static Type obj;
 

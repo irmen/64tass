@@ -19,6 +19,7 @@
 #ifndef MFUNCOBJ_H
 #define MFUNCOBJ_H
 #include "obj.h"
+#include "str.h"
 
 extern struct Type *MFUNC_OBJ;
 

@@ -19,6 +19,7 @@
 #ifndef TYPEOBJ_H
 #define TYPEOBJ_H
 #include "obj.h"
+#include "stdbool.h"
 
 extern struct Type *TYPE_OBJ;
 
