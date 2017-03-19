@@ -179,7 +179,7 @@ static void printrange(const struct section_s *l) {
     if (l->size != 0) {
         sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->start + l->size - 1));
     } 
-    sprintf(temp3, "$%04" PRIxSIZE "", l->size);
+    sprintf(temp3, "$%04" PRIxSIZE, l->size);
     printf("Section: %15s%-8s %-7s", temp, temp2, temp3);
 }
 
