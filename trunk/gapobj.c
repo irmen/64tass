@@ -193,7 +193,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void gapobj_init(void) {
     new_type(&obj, T_GAP, "gap", sizeof(Gap));
-    obj_init(&obj);
     obj.create = create;
     obj.hash = hash;
     obj.repr = repr;

@@ -72,13 +72,6 @@ typedef struct Type {
 
 extern void typeobj_init(void);
 extern void typeobj_names(void);
-
-static inline void new_type(Type *obj, enum type_e type, const char *name, size_t length) {
-    obj->v.obj = TYPE_OBJ;
-    obj->v.refcount = 1;
-    obj->type = type;
-    obj->length = length;
-    obj->name = name;
-}
+extern void new_type(Type *, enum type_e, const char *, size_t);
 
 #endif

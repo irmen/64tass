@@ -147,7 +147,6 @@ static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
 
 void errorobj_init(void) {
     new_type(&obj, T_ERROR, "error", sizeof(Error));
-    obj_init(&obj);
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.calc1 = calc1;

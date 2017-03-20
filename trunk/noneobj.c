@@ -93,7 +93,6 @@ static MUST_CHECK Obj *size(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
 
 void noneobj_init(void) {
     new_type(&obj, T_NONE, "none", sizeof(None));
-    obj_init(&obj);
     obj.truth = truth;
     obj.repr = repr;
     obj.hash = hash;

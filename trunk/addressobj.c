@@ -517,7 +517,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void addressobj_init(void) {
     new_type(&obj, T_ADDRESS, "address", sizeof(Address));
-    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;

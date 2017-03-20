@@ -631,7 +631,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void codeobj_init(void) {
     new_type(&obj, T_CODE, "code", sizeof(Code));
-    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;

@@ -219,7 +219,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void boolobj_init(void) {
     new_type(&obj, T_BOOL, "bool", sizeof(Bool));
-    obj_init(&obj);
     obj.create = create;
     obj.same = same;
     obj.truth = truth;

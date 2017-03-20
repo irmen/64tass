@@ -438,7 +438,6 @@ void dictobj_init(void) {
     static struct linepos_s nopoint;
 
     new_type(&obj, T_DICT, "dict", sizeof(Dict));
-    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;

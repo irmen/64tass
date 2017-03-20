@@ -358,7 +358,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
     case O_CMP:
         val = icmp(v1, v2);
         if (val < 0) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[val > 0]);
+        return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
     case O_EQ: return truth_reference(icmp(v1, v2) == 0);
     case O_NE: return truth_reference(icmp(v1, v2) != 0);
     case O_MIN:
@@ -752,7 +752,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void strobj_init(void) {
     new_type(&obj, T_STR, "str", sizeof(Str));
-    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;

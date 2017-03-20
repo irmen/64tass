@@ -295,17 +295,13 @@ void objects_init(void) {
     identobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
-    obj_init(&lbl_obj);
     lbl_obj.same = lbl_same;
     new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
-    obj_init(&default_obj);
     new_type(&iter_obj, T_ITER, "iter", sizeof(Iter));
-    obj_init(&iter_obj);
     iter_obj.destroy = iter_destroy;
     iter_obj.garbage = iter_garbage;
     iter_obj.next = iter_next;
     new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
-    obj_init(&funcargs_obj);
     funcargs_obj.same = funcargs_same;
 
     default_value = (Default *)val_alloc(DEFAULT_OBJ);

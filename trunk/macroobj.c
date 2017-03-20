@@ -118,22 +118,18 @@ static MUST_CHECK Obj *struct_calc2(oper_t op) {
 
 void macroobj_init(void) {
     new_type(&macro_obj, T_MACRO, "macro", sizeof(Macro));
-    obj_init(&macro_obj);
     macro_obj.destroy = macro_destroy;
     macro_obj.same = macro_same;
     new_type(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
-    obj_init(&segment_obj);
     segment_obj.destroy = macro_destroy;
     segment_obj.same = macro_same;
     new_type(&struct_obj, T_STRUCT, "struct", sizeof(Struct));
-    obj_init(&struct_obj);
     struct_obj.destroy = struct_destroy;
     struct_obj.garbage = struct_garbage;
     struct_obj.same = struct_same;
     struct_obj.size = struct_size;
     struct_obj.calc2 = struct_calc2;
     new_type(&union_obj, T_UNION, "union", sizeof(Union));
-    obj_init(&union_obj);
     union_obj.destroy = struct_destroy;
     union_obj.garbage = struct_garbage;
     union_obj.same = struct_same;
