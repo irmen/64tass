@@ -1462,7 +1462,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         get_mem(&current_section->mem, &newmemp, &newmembp);
                         code->apass = pass;
                         newlabel->defpass = pass;
-                        if (labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
                     }
                 } else {
                     if (diagnostics.optimize) cpu_opt_invalidate();
@@ -1486,7 +1485,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     code->requires = current_section->requires;
                     code->conflicts = current_section->conflicts;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
-                    if (labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
                 }
             }
             if (wht == '.') { /* .proc */
@@ -1638,7 +1636,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             break;
         case ';':
         case '\0':
-            if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
+            if ((waitfor->skip & 1) != 0) {
+                if (newlabel != NULL && newlabel->value->obj == CODE_OBJ && labelname.len != 0 && labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(((Code *)newlabel->value)->names);}
+                listing_line(epoint.pos);
+            }
             break;
         case '.':
             prm = get_command();
@@ -3426,6 +3427,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 str_t opname;
                 bool down;
 
+                if (newlabel != NULL && newlabel->value->obj == CODE_OBJ && labelname.len != 0 && labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(((Code *)newlabel->value)->names);}
                 opname.data = pline + lpoint.pos; opname.len = get_label();
                 if (opname.len == 3 && (prm = lookup_opcode(opname.data)) >= 0) {
                     Error *err;
