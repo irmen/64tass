@@ -597,24 +597,19 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0xE9: /* SBC #$12 */
     case 0xED: /* SBC $1234 */
     case 0xE5: /* SBC $12 */
-        {
-            unsigned int i;
         adcsbc:
-            for (i = 0; i < 8; i++) {
-                reset_bit(&cpu->a.a[i]);
-                reset_bit(&cpu->z1.a[i]);
-                reset_bit(&cpu->z2.a[i]);
-                reset_bit(&cpu->z3.a[i]);
-            }
-            reset_bit(&cpu->p.n);
-            reset_bit(&cpu->p.v);
-            reset_bit(&cpu->p.z);
-            reset_bit(&cpu->p.c);
-            cpu->zcmp = false;
-            cpu->ccmp = false;
-            if (altmode) goto constind;
-            break;
-        }
+        reset_reg8(cpu->a.a);
+        reset_reg8(cpu->z1.a);
+        reset_reg8(cpu->z2.a);
+        reset_reg8(cpu->z3.a);
+        reset_bit(&cpu->p.n);
+        reset_bit(&cpu->p.v);
+        reset_bit(&cpu->p.z);
+        reset_bit(&cpu->p.c);
+        cpu->zcmp = false;
+        cpu->ccmp = false;
+        if (altmode) goto constind;
+        break;
     case 0x29: /* AND #$12 */
         load_imm(adr, &alu);
         if (bincalc_reg(cpu, and_bit, &alu, &cpu->a)) {
@@ -1172,14 +1167,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         reset_bit(&cpu->p.z);
         reset_bit(&cpu->p.c);
         reset_bit(&cpu->cc);
-        {
-            unsigned int i;
-            for (i = 0; i < 8; i++) {
-                reset_bit(&cpu->z1.a[i]);
-                reset_bit(&cpu->z2.a[i]);
-                reset_bit(&cpu->z3.a[i]);
-            }
-        }
+        reset_reg8(cpu->z1.a);
+        reset_reg8(cpu->z2.a);
+        reset_reg8(cpu->z3.a);
         cpu->zcmp = false;
         cpu->ccmp = false;
         break;
@@ -1217,19 +1207,14 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu->call = true;
         cpu->zcmp = false;
         cpu->ccmp = false;
-        {
-            unsigned int i;
-            for (i = 0; i < 8; i++) {
-                reset_bit(&cpu->a.a[i]);
-                reset_bit(&cpu->x.a[i]);
-                reset_bit(&cpu->y.a[i]);
-                reset_bit(&cpu->z.a[i]);
-                reset_bit(&cpu->b.a[i]);
-                reset_bit(&cpu->z1.a[i]);
-                reset_bit(&cpu->z2.a[i]);
-                reset_bit(&cpu->z3.a[i]);
-            }
-        }
+        reset_reg8(cpu->a.a);
+        reset_reg8(cpu->x.a);
+        reset_reg8(cpu->y.a);
+        reset_reg8(cpu->z.a);
+        reset_reg8(cpu->b.a);
+        reset_reg8(cpu->z1.a);
+        reset_reg8(cpu->z2.a);
+        reset_reg8(cpu->z3.a);
         reset_bit(&cpu->p.n);
         reset_bit(&cpu->p.v);
         reset_bit(&cpu->p.e);
@@ -1761,18 +1746,16 @@ void cpu_opt_invalidate(void) {
         cpu->p.c = new_bitu();
         cpu->cc = new_bitu();
     } else {
-        for (i = 0; i < 8; i++) {
-            reset_bit(&cpu->a.a[i]);
-            reset_bit(&cpu->x.a[i]);
-            reset_bit(&cpu->y.a[i]);
-            reset_bit(&cpu->z.a[i]);
-            reset_bit(&cpu->s.a[i]);
-            reset_bit(&cpu->sh.a[i]);
-            reset_bit(&cpu->b.a[i]);
-            reset_bit(&cpu->z1.a[i]);
-            reset_bit(&cpu->z2.a[i]);
-            reset_bit(&cpu->z3.a[i]);
-        }
+        reset_reg8(cpu->a.a);
+        reset_reg8(cpu->x.a);
+        reset_reg8(cpu->y.a);
+        reset_reg8(cpu->z.a);
+        reset_reg8(cpu->s.a);
+        reset_reg8(cpu->sh.a);
+        reset_reg8(cpu->b.a);
+        reset_reg8(cpu->z1.a);
+        reset_reg8(cpu->z2.a);
+        reset_reg8(cpu->z3.a);
         reset_bit(&cpu->p.n);
         reset_bit(&cpu->p.v);
         reset_bit(&cpu->p.e);
