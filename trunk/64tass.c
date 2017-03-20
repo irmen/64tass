@@ -743,6 +743,7 @@ static MUST_CHECK Oper *oper_from_token(int wht) {
     case '|': return &o_OR;
     case '&': return &o_AND;
     case '^': return &o_XOR;
+    case '.': return &o_MEMBER;
     default: return NULL;
     }
 }
@@ -785,7 +786,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
     size_t oldwaitforp = waitfor_p;
     bool nobreak = true;
     str_t labelname;
-    struct {
+    struct anonident_s {
         uint8_t dir;
         uint8_t padding;
         uint16_t reffile;
@@ -929,6 +930,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     lpoint.pos += 3;
                 } else break;
 
+                if (labelname.data[0] == '-') {backr--;((struct anonident_s *)labelname.data)->count--;}
+                else if (labelname.data[0] == '+') {forwr--;((struct anonident_s *)labelname.data)->count--;}
                 ignore();
                 epoint2 = lpoint;
                 oldreferenceit = referenceit;
@@ -2729,7 +2732,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         cflist2 = enterfile(f, &epoint);
                         lpoint.line = vline = 0;
                         star_tree = &s->tree;
-                        backr = forwr = 0;
+                        backr = forwr = 1;
                         reffile = f->uid;
                         listing_file(";******  Processing file: ", f->realname);
                         if (prm == CMD_BINCLUDE) {
@@ -2892,6 +2895,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                         epoint3 = lpoint;
                                         lpoint.pos += 3;
                                     } else break;
+
                                     ignore();
                                     epoint2 = lpoint;
                                     tmp.epoint = &epoint;
@@ -3569,7 +3573,7 @@ static int main2(int *argc2, char **argv2[]) {
             set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
-            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 0;
+            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
             reset_context();
             current_section = &root_section;
             reset_section(current_section);
