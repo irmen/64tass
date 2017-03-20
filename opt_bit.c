@@ -160,6 +160,19 @@ void reset_bit(Bit **v) {
     *v = new_bitu();
 }
 
+void reset_reg8(Bit **v) {
+    size_t i;
+    for (i = 0; i < 8; i++) {
+        Bit *v2 = v[i];
+        if (v2->refcount == 1) {
+            v2->b = BU;
+            continue;
+        }
+        del_bit(v2);
+        v[i] = new_bitu();
+    }
+}
+
 bool eq_bit(const Bit *a, const Bit *b) {
     return a == b || (a->b == b->b && a->b != BU);
 }
