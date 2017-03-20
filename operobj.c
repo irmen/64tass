@@ -116,7 +116,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 
 void operobj_init(void) {
     new_type(&obj, T_OPER, "oper", sizeof(Oper));
-    obj_init(&obj);
     obj.repr = repr;
 }
 

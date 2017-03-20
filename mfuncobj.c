@@ -147,7 +147,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void mfuncobj_init(void) {
     new_type(&obj, T_MFUNC, "function", sizeof(Mfunc));
-    obj_init(&obj);
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;

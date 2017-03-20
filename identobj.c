@@ -52,11 +52,9 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void identobj_init(void) {
     new_type(&ident_obj, T_IDENT, "ident", sizeof(Ident));
-    obj_init(&ident_obj);
     ident_obj.calc2 = calc2;
     ident_obj.rcalc2 = rcalc2;
     new_type(&anonident_obj, T_ANONIDENT, "anonident", sizeof(Anonident));
-    obj_init(&anonident_obj);
     anonident_obj.calc2 = calc2;
     anonident_obj.rcalc2 = rcalc2;
 }

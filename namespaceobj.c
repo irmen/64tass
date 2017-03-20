@@ -242,7 +242,6 @@ void namespaceobj_init(void) {
     static struct linepos_s nopoint;
 
     new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
-    obj_init(&obj);
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;

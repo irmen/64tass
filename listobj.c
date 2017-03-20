@@ -602,21 +602,17 @@ static void init(Type *obj) {
 
 void listobj_init(void) {
     new_type(&list_obj, T_LIST, "list", sizeof(List));
-    obj_init(&list_obj);
     init(&list_obj);
     list_obj.create = list_create;
     new_type(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
-    obj_init(&tuple_obj);
     init(&tuple_obj);
     tuple_obj.create = tuple_create;
     new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
-    obj_init(&addrlist_obj);
     addrlist_obj.destroy = destroy;
     addrlist_obj.garbage = garbage;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
     new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
-    obj_init(&colonlist_obj);
     colonlist_obj.destroy = destroy;
     colonlist_obj.garbage = garbage;
     colonlist_obj.same = same;

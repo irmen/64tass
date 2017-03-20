@@ -34,6 +34,15 @@ static Type obj;
 
 Type *TYPE_OBJ = &obj;
 
+void new_type(Type *t, enum type_e type, const char *name, size_t length) {
+    t->v.obj = TYPE_OBJ;
+    t->v.refcount = 1;
+    t->type = type;
+    t->length = length;
+    t->name = name;
+    obj_init(t);
+}
+
 static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     switch (v1->obj->type) {
     case T_NONE:
@@ -92,20 +101,19 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_TYPE:
         {
             Type *v2 = (Type *)o2;
-            int val;
+            int val = icmp(v1, v2);
             switch (op->op->op) {
             case O_CMP:
-                val = icmp(v1, v2);
                 if (val < 0) return (Obj *)ref_int(minus1_value);
-                return (Obj *)ref_int(int_value[val > 0]);
-            case O_EQ: return truth_reference(icmp(v1, v2) == 0);
-            case O_NE: return truth_reference(icmp(v1, v2) != 0);
+                return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
+            case O_EQ: return truth_reference(val == 0);
+            case O_NE: return truth_reference(val != 0);
             case O_MIN:
-            case O_LT: return truth_reference(icmp(v1, v2) < 0);
-            case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+            case O_LT: return truth_reference(val < 0);
+            case O_LE: return truth_reference(val <= 0);
             case O_MAX:
-            case O_GT: return truth_reference(icmp(v1, v2) > 0);
-            case O_GE: return truth_reference(icmp(v1, v2) >= 0);
+            case O_GT: return truth_reference(val > 0);
+            case O_GE: return truth_reference(val >= 0);
             default: break;
             }
         }
@@ -158,7 +166,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void typeobj_init(void) {
     new_type(&obj, T_TYPE, "type", sizeof(Type));
-    obj_init(&obj);
     obj.create = create;
     obj.same = same;
     obj.hash = hash;

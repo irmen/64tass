@@ -293,7 +293,7 @@ MUST_CHECK Obj *float_from_int(const Int *v1, linepos_t epoint) {
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     Int *v1 = (Int *)o1;
     if (v1->len < 0) return (Obj *)ref_int(minus1_value);
-    return (Obj *)ref_int(int_value[v1->len > 0]);
+    return (Obj *)ref_int(int_value[(v1->len > 0) ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
@@ -1433,7 +1433,7 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
     case O_CMP:
         cmp = icmp(v1, v2);
         if (cmp < 0) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[cmp > 0]);
+        return (Obj *)ref_int(int_value[(cmp > 0) ? 1 : 0]);
     case O_EQ: return truth_reference(icmp(v1, v2) == 0);
     case O_NE: return truth_reference(icmp(v1, v2) != 0);
     case O_MIN:
@@ -1590,7 +1590,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void intobj_init(void) {
     new_type(&obj, T_INT, "int", sizeof(Int));
-    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;

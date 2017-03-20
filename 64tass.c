@@ -3622,7 +3622,7 @@ static int main2(int *argc2, char **argv2[]) {
             set_cpumode(arguments.cpumode);
             star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
             allowslowbranch = true;temporary_label_branch = 0;
-            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 0;
+            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
             reset_context();
             current_section = &root_section;
             reset_section(current_section);

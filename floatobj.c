@@ -306,7 +306,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void floatobj_init(void) {
     new_type(&obj, T_FLOAT, "float", sizeof(Float));
-    obj_init(&obj);
     obj.create = create;
     obj.same = same;
     obj.truth = truth;

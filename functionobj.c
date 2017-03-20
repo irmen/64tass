@@ -488,6 +488,13 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
     return float_from_double(pow(real, real2), epoint);
 }
 
+static inline int icmp(const Function *vv1, const Function *vv2) {
+    enum func_e v1 = vv1->func;
+    enum func_e v2 = vv2->func;
+    if (v1 < v2) return -1;
+    return (v1 > v2) ? 1 : 0;
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Function *v1 = (Function *)op->v1;
     Obj *o2 = op->v2;
@@ -498,18 +505,19 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_FUNCTION:
         {
             Function *v2 = (Function *)o2;
+            int val = icmp(v1, v2);
             switch (op->op->op) {
             case O_CMP:
-                if (v1->func < v2->func) return (Obj *)ref_int(minus1_value);
-                return (Obj *)ref_int(int_value[v1->func > v2->func]);
-            case O_EQ: return truth_reference(v1->func == v2->func);
-            case O_NE: return truth_reference(v1->func != v2->func);
+                if (val < 0) return (Obj *)ref_int(minus1_value);
+                return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
+            case O_EQ: return truth_reference(val == 0);
+            case O_NE: return truth_reference(val != 0);
             case O_MIN:
-            case O_LT: return truth_reference(v1->func < v2->func);
-            case O_LE: return truth_reference(v1->func <= v2->func);
-            case O_MAX: 
-            case O_GT: return truth_reference(v1->func > v2->func);
-            case O_GE: return truth_reference(v1->func >= v2->func);
+            case O_LT: return truth_reference(val < 0);
+            case O_LE: return truth_reference(val <= 0);
+            case O_MAX:
+            case O_GT: return truth_reference(val > 0);
+            case O_GE: return truth_reference(val >= 0);
             default: break;
             }
             break;
@@ -588,7 +596,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void functionobj_init(void) {
     new_type(&obj, T_FUNCTION, "function", sizeof(Function));
-    obj_init(&obj);
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;
