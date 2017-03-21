@@ -224,7 +224,6 @@ static bool shr(struct optimizer_s *cpu, Reg8 *r, Bit *b) {
 }
 
 static bool rol(struct optimizer_s *cpu, Reg8 *r) {
-    flag_c(cpu);
     return shl(cpu, r, ref_bit(cpu->p.c));
 }
 
@@ -233,7 +232,6 @@ static bool asl(struct optimizer_s *cpu, Reg8 *r) {
 }
 
 static bool ror(struct optimizer_s *cpu, Reg8 *r) {
-    flag_c(cpu);
     return shr(cpu, r, ref_bit(cpu->p.c));
 }
 
@@ -744,13 +742,17 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         if (asl(cpu, &cpu->a)) goto remove;
         break;
     case 0x2A: /* ROL A */
+        b = flag_c(cpu);
         if (rol(cpu, &cpu->a)) goto remove;
+        if (b == B0) {optname = "asl"; goto simplify;}
         break;
     case 0x4A: /* LSR A */
         if (lsr(cpu, &cpu->a)) goto remove;
         break;
     case 0x6A: /* ROR A */
+        b = flag_c(cpu);
         if (ror(cpu, &cpu->a)) goto remove;
+        if (b == B0) {optname = "lsr"; goto simplify;}
         break;
     case 0xC9: /* CMP #$12 */
         load_imm(adr, &alu);
@@ -815,9 +817,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0x2E: /* ROL $1234 */
     case 0x26: /* ROL $12 */
         load_mem(&alu);
+        b = flag_c(cpu);
         rol(cpu, &alu);
         del_reg(&alu);
         if (altmode) goto constind;
+        if (b == B0) {optname = "asl"; goto simplify;}
         break;
     case 0x5E: /* LSR $1234,x */
     case 0x56: /* LSR $12,x */
@@ -837,9 +841,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
     case 0x6E: /* ROR $1234 */
     case 0x66: /* ROR $12 */
         load_mem(&alu);
+        b = flag_c(cpu);
         ror(cpu, &alu);
         del_reg(&alu);
         if (altmode) goto constind;
+        if (b == B0) {optname = "lsr"; goto simplify;}
         break;
     case 0x10: /* BPL *+$12 */
     bpl:
@@ -1307,6 +1313,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
             case 0x33: /* RLA ($12),y */
             rla:
                 load_mem(&alu);
+                flag_c(cpu);
                 rol(cpu, &alu);
                 goto anda2;
             case 0x1B: /* SLO $1234,y */
@@ -1652,6 +1659,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
                 goto ldz;
             case 0xEB: /* ROW $1234 */
                 load_mem(&alu);
+                flag_c(cpu);
                 rol(cpu, &alu);
                 del_reg(&alu);
                 break;
@@ -1716,6 +1724,9 @@ constind:
     return;
 replace:
     err_msg2(ERROR___OPTIMIZABLE, optname, epoint);
+    return;
+simplify:
+    err_msg2(ERROR______SIMPLIFY, optname, epoint);
 }
 
 void cpu_opt_invalidate(void) {

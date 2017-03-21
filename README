@@ -3178,8 +3178,12 @@ case ignored, value already handled
     this value was already used in an earlier case
 compile offset overflow
     compile continues at the bottom ($0000)
-could be shorter by ...
-    an alternative equivalent instruction proposed by the optimizer
+could be shorter by using 'xxx' instead
+    a shorter instruction which gives the same result according to the
+    optimizer
+could be simpler by using 'xxx' instead
+    an instruction with the same result but with less dependencies according to
+    the optimizer
 deprecated directive, only for TASM compatible mode
     .goto and .lbl should only be used in TASM compatible mode
 deprecated equal operator, use '==' instead
