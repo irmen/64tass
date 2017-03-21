@@ -3605,7 +3605,8 @@ will display without them.</p>
 <dl class="errorlist">
 <dt>case ignored, value already handled<dd>this value was already used in an earlier case
 <dt>compile offset overflow<dd>compile continues at the bottom ($0000)
-<dt>could be shorter by ...<dd>an alternative equivalent instruction proposed by the optimizer
+<dt>could be shorter by using 'xxx' instead<dd>a shorter instruction which gives the same result according to the optimizer
+<dt>could be simpler by using 'xxx' instead<dd>an instruction with the same result but with less dependencies according to the optimizer
 <dt>deprecated directive, only for TASM compatible mode<dd>.goto and .lbl should only be used in TASM compatible mode
 <dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source

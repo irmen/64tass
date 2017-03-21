@@ -332,6 +332,13 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             adderror("' instead");
             adderror(" [-Woptimize]");
             break;
+        case ERROR______SIMPLIFY:
+            new_error_msg2(diagnostic_errors.optimize, epoint);
+            adderror("could be simpler by using '");
+            adderror((const char *)prm);
+            adderror("' instead");
+            adderror(" [-Woptimize]");
+            break;
         case ERROR_____REMOVABLE:
             new_error_msg2(diagnostic_errors.optimize, epoint);
             adderror("possibly redundant as ");
