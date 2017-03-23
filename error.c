@@ -370,6 +370,12 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             new_error_msg2(diagnostic_errors.immediate, epoint);
             adderror("immediate addressing mode suggested [-Wimmediate]");
             break;
+        case ERROR___FLOAT_EQUAL:
+            new_error_msg2(diagnostic_errors.float_equal, epoint);
+            adderror("uncertain floating point comparison '");
+            adderror((const char *)prm);
+            adderror("' [-Wfloat-equal]");
+            break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);

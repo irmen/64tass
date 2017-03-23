@@ -195,11 +195,16 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     double r;
     switch (op->op->op) {
     case O_CMP: 
+        if (diagnostics.float_equal && op->epoint3->line != 0) err_msg2(ERROR___FLOAT_EQUAL, "<=>", op->epoint3);
         if (almost_equal(v1, v2)) return (Obj *)ref_int(int_value[0]);
         if (v1 < v2) return (Obj *)ref_int(minus1_value);
         return (Obj *)ref_int(int_value[1]);
-    case O_EQ: return truth_reference(almost_equal(v1, v2));
-    case O_NE: return truth_reference(!almost_equal(v1, v2));
+    case O_EQ: 
+        if (diagnostics.float_equal) err_msg2(ERROR___FLOAT_EQUAL, "==", op->epoint3);
+        return truth_reference(almost_equal(v1, v2));
+    case O_NE: 
+        if (diagnostics.float_equal) err_msg2(ERROR___FLOAT_EQUAL, "!=", op->epoint3);
+        return truth_reference(!almost_equal(v1, v2));
     case O_MIN:
     case O_LT: return truth_reference(v1 < v2 && !almost_equal(v1, v2));
     case O_LE: return truth_reference(v1 < v2 || almost_equal(v1, v2));

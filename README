@@ -2801,6 +2801,12 @@ default, the others are disabled.
     (symbols must match exactly) with the main difference of disallowing symbol
     name definitions differing only in case (these are reported as duplicates).
 
+-Wfloat-equal
+    Warn if floating point numbers are checked for equality.
+
+    Floating point equality should be checked using an error window to avoid
+    unexpected results due to precision issues.
+
 -Wimmediate
     Warns for cases where immediate addressing is more likely.
 
@@ -3219,7 +3225,9 @@ symbol case mismatch '?'
 the file's real name is not '?'
     check if all characters match including their case
 this name uses reserved characters '?'
-    Do not use \ : * ? " < > | in file names
+    do not use \ : * ? " < > | in file names
+uncertain floating point comparison
+    floating point numbers can only be compared approximately
 unused symbol '?'
     this symbol has is not referred anywhere
 use '/' as path separation '?'

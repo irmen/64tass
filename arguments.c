@@ -70,7 +70,8 @@ struct diagnostics_s diagnostics = {
     false,       /* unused */
     false,       /* case_symbol */
     false,       /* switch_case */
-    false        /* immediate */
+    false,       /* immediate */
+    false        /* float_equal */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -89,7 +90,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* unused */
     false,       /* case_symbol */
     false,       /* switch_case */
-    false        /* immediate */
+    false,       /* immediate */
+    false        /* float_equal */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -109,7 +111,8 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* unused */
     false,       /* case_symbol */
     true,        /* switch_case */
-    false        /* immediate */
+    false,       /* immediate */
+    true         /* float_equal */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -129,7 +132,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* unused */
     true,        /* case_symbol */
     true,        /* switch_case */
-    true         /* immediate */
+    true,        /* immediate */
+    true         /* float_equal */
 };
 
 struct w_options_s {
@@ -154,6 +158,7 @@ static const struct w_options_s w_options[] = {
     {"case-symbol",  &diagnostics.case_symbol},
     {"switch-case",  &diagnostics.switch_case},
     {"immediate",    &diagnostics.immediate},
+    {"float-equal",  &diagnostics.float_equal},
     {NULL,           NULL}
 };
 

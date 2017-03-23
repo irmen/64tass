@@ -87,24 +87,6 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static struct oper_s pair_oper;
-static int namespacekey_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
-    const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
-    Obj *result;
-    int h = a->hash - b->hash;
-
-    if (h != 0) return h;
-    pair_oper.v1 = (Obj *)a->key;
-    pair_oper.v2 = (Obj *)b->key;
-    result = pair_oper.v1->obj->calc2(&pair_oper);
-    if (result->obj == INT_OBJ) h = ((Int *)result)->len;
-    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
-    val_destroy(result);
-    return h;
-}
-
 static bool same(const Obj *o1, const Obj *o2) {
     const Namespace *v1 = (const Namespace *)o1, *v2 = (const Namespace *)o2;
     const struct avltree_node *n;
@@ -113,7 +95,10 @@ static bool same(const Obj *o1, const Obj *o2) {
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n != NULL && n2 != NULL) {
-        if (namespacekey_compare(n, n2) != 0) return false;
+        const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
+        const struct namespacekey_s *p2 = cavltree_container_of(n2, struct namespacekey_s, node);
+        if ((p->key == NULL) != (p2->key == NULL)) return false;
+        if (p->key != NULL && p2->key != NULL && !p->key->v.obj->same((Obj *)p->key, (Obj *)p2->key)) return false;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
@@ -239,18 +224,11 @@ MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos
 }
 
 void namespaceobj_init(void) {
-    static struct linepos_s nopoint;
-
     new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
     obj.repr = repr;
-
-    pair_oper.op = &o_CMP;
-    pair_oper.epoint = &nopoint;
-    pair_oper.epoint2 = &nopoint;
-    pair_oper.epoint3 = &nopoint;
 }
 
 #define SLOTS 128
