@@ -152,10 +152,10 @@ static bool same(const Obj *o1, const Obj *o2) {
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n != NULL && n2 != NULL) {
-        const struct pair_s *p, *p2;
-        if (pair_compare(n, n2) != 0) return false;
-        p = cavltree_container_of(n, struct pair_s, node);
-        p2 = cavltree_container_of(n2, struct pair_s, node);
+        const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
+        const struct pair_s *p2 = cavltree_container_of(n2, struct pair_s, node);
+        if ((p->key == NULL) != (p2->key == NULL)) return false;
+        if (p->key != NULL && p2->key != NULL && !p->key->obj->same(p->key, p2->key)) return false;
         if ((p->data == NULL) != (p2->data == NULL)) return false;
         if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return false;
         n = avltree_next(n);
@@ -317,6 +317,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         v = (List *)val_alloc(LIST_OBJ);
         v->data = vals = list_create_elements(v, v2->len);
         error = true;
+        pair_oper.epoint3 = epoint2;
         for (i = 0; i < v2->len; i++) {
             vv = findit(v1, v2->data[i], epoint2);
             if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
@@ -332,6 +333,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return &v->v;
     }
 
+    pair_oper.epoint3 = epoint2;
     vv = findit(v1, o2, epoint2);
     if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
     return vv;
