@@ -2851,7 +2851,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     s->addr = star;
                     star_tree = &s->tree; lvline = vline = 0;
                     xlin = lin = lpoint.line; apoint = lpoint;
-                    lentmp = strlen((char *)pline) + 1;
+                    lentmp = strlen((const char *)pline) + 1;
                     expr = (uint8_t *)mallocx(lentmp);
                     memcpy(expr, pline, lentmp); label = NULL;
                     new_waitfor(W_NEXT2, &epoint);

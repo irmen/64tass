@@ -276,7 +276,7 @@ static Obj **sort_vals;
 static int sortcomp(const void *a, const void *b) {
     int ret;
     Obj *result;
-    size_t aa = *(size_t *)a, bb = *(size_t *)b;
+    size_t aa = *(const size_t *)a, bb = *(const size_t *)b;
     sort_tmp.v1 = sort_vals[aa];
     sort_tmp.v2 = sort_vals[bb];
     result = sort_tmp.v1->obj->calc2(&sort_tmp);

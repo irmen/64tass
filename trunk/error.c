@@ -123,7 +123,7 @@ static void new_error_msg(enum severity_e severity, const struct file_list_s *fl
     switch (severity) {
     case SV_NOTE2:
     case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((const char *)pline) + 1) : 0; break;
     }
     error_list.header_pos = ALIGN(error_list.len);
     error_list.len = error_list.header_pos + sizeof *err;
@@ -372,7 +372,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
-            adderror2(((Str *)prm)->data, ((Str *)prm)->len);
+            adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
             break;
 #ifdef _WIN32
         case ERROR___INSENSITIVE:
@@ -385,13 +385,13 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR_ABSOLUTE_PATH:
             new_error_msg2(diagnostic_errors.portable, epoint);
             adderror(terr_warning[no]);
-            adderror2(((Str *)prm)->data, ((Str *)prm)->len);
+            adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
             adderror("' [-Wportable]");
             break;
         case ERROR_UNUSED_SYMBOL:
             new_error_msg2(diagnostic_errors.unused, epoint);
             adderror("unused symbol");
-            str_name(((str_t *)prm)->data, ((str_t *)prm)->len);
+            str_name(((const str_t *)prm)->data, ((const str_t *)prm)->len);
             adderror(" [-Wunused]");
             break;
         default: 
@@ -420,19 +420,19 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             sprintf(line,"branch crosses page by %+d bytes", *(const int *)prm); adderror(line);
             break;
         case ERROR__USER_DEFINED:
-            adderror2(((Str *)prm)->data, ((Str *)prm)->len);
+            adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
             break;
         case ERROR______EXPECTED:
-            adderror((char *)prm);
+            adderror((const char *)prm);
             adderror(" expected");
             break;
         case ERROR___NOT_ALLOWED:
             adderror("not allowed here: ");
-            adderror((char *)prm);
+            adderror((const char *)prm);
             break;
         case ERROR_RESERVED_LABL:
             adderror("reserved symbol name '");
-            adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+            adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
             adderror("'");
             break;
         case ERROR_____NOT_BANK0:
@@ -456,12 +456,12 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     switch (no) {
     case ERROR_UNKNOWN_OPTIO:
         adderror("unknown option '");
-        adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+        adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
         adderror("'");
         break;
     case ERROR____LABEL_ROOT:
         adderror("scope '");
-        adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+        adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
         adderror("' for label listing not found");
         break;
     default:
@@ -764,11 +764,11 @@ static void err_msg_invalid_oper2(const Oper *op, const Obj *v1, const Obj *v2) 
 
 void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {
     if (v1->obj == ERROR_OBJ) {
-        err_msg_output((Error *)v1);
+        err_msg_output((const Error *)v1);
         return;
     }
     if (v2 != NULL && v2->obj == ERROR_OBJ) {
-        err_msg_output((Error *)v2);
+        err_msg_output((const Error *)v2);
         return;
     }
 
@@ -879,7 +879,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
                 line = get_line(included_from->parent->file, included_from->epoint.line);
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 if (print_use_color) fputs("\33[01m", f);
-                printable_print((uint8_t *)included_from->parent->file->realname, f);
+                printable_print((const uint8_t *)included_from->parent->file->realname, f);
                 fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, ((included_from->parent->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, included_from->epoint.pos) : included_from->epoint.pos) + 1);
                 included_from = included_from->parent;
                 if (print_use_color) fputs("\33[m\33[K", f);
@@ -887,13 +887,13 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
             }
             included_from = cflist;
         }
-        line = (err->line_len != 0) ? ((uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
+        line = (err->line_len != 0) ? ((const uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         if (print_use_color) fputs("\33[01m", f);
-        printable_print((uint8_t *)cflist->file->realname, f);
+        printable_print((const uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
     } else {
         if (print_use_color) fputs("\33[01m", f);
-        printable_print((uint8_t *)prgname, f);
+        printable_print((const uint8_t *)prgname, f);
         fputs(": ", f);
     }
     switch (err->severity) {
@@ -906,7 +906,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     default: bold = false;
     }
     if (print_use_color) fputs(bold ? "\33[m\33[01m" : "\33[m\33[K", f);
-    printable_print2(((uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
+    printable_print2(((const uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
     if (print_use_color && bold) fputs("\33[m\33[K", f);
     putc('\n', f);
     if (text && arguments.caret && err->severity != SV_NOTE2) {
@@ -1067,7 +1067,7 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     memset(&ps, 0, sizeof ps);
     while (i < n) {
         if (s[i] != 0 && (s[i] & 0x80) == 0) {
-            adderror2((uint8_t *)s + i, 1);
+            adderror2((const uint8_t *)s + i, 1);
             i++;
             continue;
         }
@@ -1090,7 +1090,7 @@ void error_status(void) {
 }
 
 linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i) {
-    if (epoint->line == lpoint.line && strlen((char *)pline) > epoint->pos) {
+    if (epoint->line == lpoint.line && strlen((const char *)pline) > epoint->pos) {
         uint8_t q = pline[epoint->pos];
         if (q == '"' || q == '\'') {
             linecpos_t pos = epoint->pos + 1;

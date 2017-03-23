@@ -707,7 +707,7 @@ static const struct zw32_s zw32[] = {
 };
 
 static int compw16(const void *aa, const void *bb) {
-    uint32_t key = *(uint32_t *)aa;
+    uint32_t key = *(const uint32_t *)aa;
     const struct zw16_s *b = (const struct zw16_s *)bb;
 
     if (key > b->end) return 1;
@@ -716,7 +716,7 @@ static int compw16(const void *aa, const void *bb) {
 }
 
 static int compw32(const void *aa, const void *bb) {
-    uint32_t key = *(uint32_t *)aa;
+    uint32_t key = *(const uint32_t *)aa;
     const struct zw32_s *b = (const struct zw32_s *)bb;
 
     if (key > b->end) return 1;
