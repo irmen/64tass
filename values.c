@@ -155,7 +155,7 @@ int val_print(Obj *v1, FILE *f) {
     err = v1->obj->repr(v1, &nopoint, SIZE_MAX);
     if (err != NULL) {
         if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);
-        else len = printable_print2((uint8_t *)err->obj->name, f, strlen(err->obj->name));
+        else len = printable_print2((const uint8_t *)err->obj->name, f, strlen(err->obj->name));
         val_destroy(err);
     } else len = 0;
     referenceit = oldreferenceit;

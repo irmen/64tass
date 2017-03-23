@@ -243,7 +243,7 @@ static bool lbl_same(const Obj *o1, const Obj *o2) {
 }
 
 static bool funcargs_same(const Obj *o1, const Obj *o2) {
-    Funcargs *v1 = (Funcargs *)o1, *v2 = (Funcargs *)o2;
+    const Funcargs *v1 = (const Funcargs *)o1, *v2 = (const Funcargs *)o2;
     return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
 }
 

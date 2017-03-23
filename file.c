@@ -197,7 +197,7 @@ FILE *file_open(const char *name, const char *mode) {
 #else
     size_t len = 0, max = strlen(name) + 1;
     char *newname = (char *)mallocx(max);
-    const uint8_t *c = (uint8_t *)name;
+    const uint8_t *c = (const uint8_t *)name;
     uint32_t ch;
     mbstate_t ps;
     memset(&ps, 0, sizeof ps);
