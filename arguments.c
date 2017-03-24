@@ -337,8 +337,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     struct symbol_output_s symbol_output = { NULL, LABEL_64TASS, NULL };
 
     do {
-        again = false;
         int i;
+        again = false;
         for (;;) {
             opt = my_getopt_long(argc, argv, short_options, long_options, NULL);
             if (opt == -1) break;
