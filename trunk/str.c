@@ -31,7 +31,7 @@ int str_hash(const str_t *s) {
     h = *s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= s->len;
-    return h & ((~(unsigned int)0) >> 1);
+    return h & ((~0U) >> 1);
 }
 
 int str_cmp(const str_t *s1, const str_t *s2) {

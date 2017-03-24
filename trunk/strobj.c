@@ -130,7 +130,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = *s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
-    *hs = h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~0U) >> 1);
     return NULL;
 }
 

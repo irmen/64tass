@@ -77,7 +77,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     r = v1->real;
 
     if (modf(r, &integer) == 0.0) {
-        *hs = ((unsigned int)integer) & ((~(unsigned int)0) >> 1);
+        *hs = ((unsigned int)integer) & ((~0U) >> 1);
         return NULL;
     }
     r = frexp(r, &expo);
@@ -85,7 +85,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = r; 
     r = (r - (double)h) * 2147483648.0;
     h ^= (int)r ^ (expo << 15);
-    *hs = h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~0U) >> 1);
     return NULL;
 }
 
