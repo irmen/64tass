@@ -130,9 +130,11 @@ static int pair_compare(const struct avltree_node *aa, const struct avltree_node
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
     Obj *result;
-    int h = a->hash - b->hash;
-
-    if (h != 0) return h;
+    int h;
+    if (a->key->obj == b->key->obj) {
+        h = a->hash - b->hash;
+        if (h != 0) return h;
+    }
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
     result = pair_oper.v1->obj->calc2(&pair_oper);
