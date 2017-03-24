@@ -100,7 +100,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
     Obj *v = v1->val;
     Error *err = v->obj->hash(v, hs, epoint);
     if (err == NULL) {
-        *hs = (*hs + v1->type) & ((~(unsigned int)0) >> 1);
+        *hs = (*hs + v1->type) & ((~0U) >> 1);
     }
     return err;
 }

@@ -143,9 +143,9 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     unsigned int h;
     
     switch (l) {
-    case -1: *hs = (-v1->val[0]) & ((~(unsigned int)0) >> 1); return NULL;
+    case -1: *hs = (-v1->val[0]) & ((~0U) >> 1); return NULL;
     case 0: *hs = 0; return NULL;
-    case 1: *hs = v1->val[0]; return NULL;
+    case 1: *hs = v1->val[0] & ((~0U) >> 1); return NULL;
     }
     h = 0;
     if (l > 0) {
@@ -157,7 +157,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
             h -= v1->val[-l];
         }
     }
-    *hs = h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~0U) >> 1);
     return NULL;
 }
 
