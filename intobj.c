@@ -51,7 +51,7 @@ Int *minus1_value;
 
 static inline size_t intlen(const Int *v1) {
     ssize_t len = v1->len;
-    return (len < 0) ? -len : len;
+    return (len < 0) ? (size_t)-len : (size_t)len;
 }
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -110,7 +110,7 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, bool neg) {
     }
     v->data = d;
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
-    v->len = neg ? -sz : sz;
+    v->len = neg ? -(ssize_t)sz : (ssize_t)sz;
     return &v->v;
 }
 
@@ -280,11 +280,11 @@ MUST_CHECK Obj *float_from_int(const Int *v1, linepos_t epoint) {
     case 0: d = 0.0; break;
     case 1: d = v1->data[0]; break;
     default:
-        len1 = intlen(v1); d = 0.0;
-        for (i = 0; i < len1; i++) {
-            if (v1->len < 0) d -= ldexp(v1->data[i], i * SHIFT);
-            else d += ldexp(v1->data[i], i * SHIFT);
+        len1 = intlen(v1); d = v1->data[0];
+        for (i = 1; i < len1; i++) {
+            d += ldexp(v1->data[i], (int)(i * SHIFT));
         }
+        if (v1->len < 0) d = -d;
         return float_from_double(d, epoint);
     }
     return (Obj *)new_float(d);
@@ -461,7 +461,7 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
     }
     if (vv == vv1 || vv == vv2) destroy(&vv->v);
     vv->data = v;
-    vv->len = neg ? -i : i;
+    vv->len = neg ? -(ssize_t)i : (ssize_t)i;
 }
 
 static void imul(const Int *vv1, const Int *vv2, Int *vv) {
@@ -508,7 +508,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
         v = vv->val;
     }
     vv->data = v;
-    vv->len = i;
+    vv->len = (ssize_t)i;
 }
 
 static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t epoint) {
@@ -742,7 +742,7 @@ static MUST_CHECK Int *irshift(Int *vv1, uval_t s) {
 
     if (neg) {
         vv->data = v;
-        vv->len = sz;
+        vv->len = (ssize_t)sz;
         iadd(int_value[1], vv, vv);
         vv->len = -vv->len;
         return vv;
@@ -1161,7 +1161,7 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
 
     v = new_int();
     d = inew(v, sz);
-    v->len = neg ? (ssize_t)-sz : (ssize_t)sz;
+    v->len = neg ? -(ssize_t)sz : (ssize_t)sz;
     v->data = d;
 
     frac = ldexp(frac, (expo - 1) % SHIFT + 1);
