@@ -37,7 +37,7 @@ struct oper_s {
 };
 typedef struct oper_s *oper_t;
 
-extern bool get_exp(unsigned int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
+extern bool get_exp(int, struct file_s *, unsigned int, unsigned int, linepos_t);
 extern bool get_exp_var(struct file_s *, linepos_t);
 extern struct values_s *get_val(void);
 extern Obj *pull_val(struct linepos_s *);
