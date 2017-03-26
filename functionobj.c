@@ -161,10 +161,10 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     }
     if (step > 0) {
         if (end < start) end = start;
-        len2 = (end - start + step - 1) / step;
+        len2 = (uval_t)(end - start + step - 1) / (uval_t)step;
     } else {
         if (end > start) end = start;
-        len2 = (start - end - step - 1) / -step;
+        len2 = (uval_t)(start - end - step - 1) / (uval_t)-step;
     }
     new_value = new_list();
     val = list_create_elements(new_value, len2);
@@ -229,7 +229,7 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
 
     switch (vals->len) {
     case 0:
-        return (Obj *)new_float((random64() & ((((uint64_t)1) << 53) - 1)) * ldexp(1, -53));
+        return (Obj *)new_float((random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
     case 1: 
         err = v[0].val->obj->ival(v[0].val, &end, 8 * sizeof end, &v[0].epoint);
         break;
@@ -249,10 +249,10 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
     }
     if (step > 0) {
         if (end < start) end = start;
-        len2 = (end - start + step - 1) / step;
+        len2 = (uval_t)(end - start + step - 1) / (uval_t)step;
     } else {
         if (end > start) end = start;
-        len2 = (start - end - step - 1) / -step;
+        len2 = (uval_t)(start - end - step - 1) / (uval_t)-step;
     }
     if (len2 != 0) {
         if (step != 1 || (len2 & (len2 - 1)) != 0) {
@@ -260,11 +260,11 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
             uval_t b = a * len2;
             uval_t r;
             do {
-                r = random64();
+                r = (uval_t)random64();
             } while (r >= b);
-            return (Obj *)int_from_ival(start + (r / a) * step);
+            return (Obj *)int_from_ival(start + (ival_t)(r / a) * step);
         }
-        return (Obj *)int_from_ival(start + (random64() & (len2 - 1)));
+        return (Obj *)int_from_ival(start + (ival_t)(random64() & (len2 - 1)));
     }
     return (Obj *)new_error(ERROR___EMPTY_RANGE, epoint);
 }

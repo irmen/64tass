@@ -190,7 +190,7 @@ static size_t calc_size(const Code *v1) {
         return v1->size - (uval_t)v1->offs;
     }
     if (v1->size + (size_t)-v1->offs < v1->size) return ~(size_t)0;
-    return v1->size - v1->offs;
+    return v1->size + (size_t)-v1->offs;
 }
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
@@ -224,13 +224,29 @@ MUST_CHECK Obj *bytes_from_code(Code *v1, linepos_t epoint) {
     return BYTES_OBJ->create(v1->addr, epoint);
 }
 
+static MUST_CHECK Obj *code_item(const Code *v1, ssize_t offs2, size_t ln2) {
+    int r;
+    size_t i2, offs;
+    uval_t val;
+    if (offs2 < 0) return (Obj *)ref_gap();
+    offs = (size_t)offs2 * ln2;
+    r = -1;
+    for (val = i2 = 0; i2 < ln2; i2++, offs++) {
+        r = read_mem(v1->mem, v1->memp, v1->membp, offs);
+        if (r < 0) return (Obj *)ref_gap();
+        val |= (uval_t)r << (i2 * 8);
+    }
+    if (v1->dtype < 0 && (r & 0x80) != 0) {
+        for (; i2 < sizeof val; i2++) val |= (uval_t)0xff << (i2 * 8);
+    }
+    return (v1->dtype < 0) ? (Obj *)int_from_ival((ival_t)val) : (Obj *)int_from_uval(val);
+}
+
 MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
-    size_t ln, ln2, i, i2, offs2;
+    size_t ln, ln2, i;
     ssize_t offs;
     List *v;
     Obj **vals;
-    int r;
-    uval_t val;
 
     if (v1->pass != pass) {
         return (Obj *)new_error(ERROR____NO_FORWARD, epoint);
@@ -247,42 +263,23 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
     v = (List *)val_alloc(typ);
     v->len = ln;
     v->data = vals = list_create_elements(v, ln);
-    i = 0;
     if (v1->offs >= 0) {
-        offs = ((uval_t)v1->offs + ln2 - 1) / ln2;
+        offs = (ssize_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
     } else {
-        offs = -(((uval_t)-v1->offs + ln2 - 1) / ln2);
+        offs = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
     }
-    while (ln > i) {
-        offs2 = (i + offs) * ln2;
-        val = 0;
-        r = -1;
-        for (i2 = 0; i2 < ln2; i2++) {
-            r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
-            if (r < 0) break;
-            val |= (uval_t)r << (i2 * 8);
-        }
-        if (v1->dtype < 0 && (r & 0x80) != 0) {
-            for (; i2 < sizeof val; i2++) {
-                val |= (uval_t)0xff << (i2 * 8);
-            }
-        }
-        if (r < 0) vals[i] = (Obj *)ref_gap();
-        else if (v1->dtype < 0) vals[i] = (Obj *)int_from_ival((ival_t)val);
-        else vals[i] = (Obj *)int_from_uval(val);
-        i++;
+    for (i = 0; i < ln; i++, offs++) {
+        vals[i] = code_item(v1, offs, ln2);
     }
     return &v->v;
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     Obj **vals;
-    size_t i, i2;
+    size_t i;
     size_t ln, ln2;
-    size_t offs1, offs2;
+    size_t offs1;
     ssize_t offs0;
-    int r;
-    uval_t val;
     Code *v1 = (Code *)o1;
     Obj *o2 = op->v2;
     Error *err;
@@ -305,9 +302,9 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     ln = calc_size(v1) / ln2;
 
     if (v1->offs >= 0) {
-        offs0 = ((uval_t)v1->offs + ln2 - 1) / ln2;
+        offs0 = (ssize_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
     } else {
-        offs0 = -(((uval_t)-v1->offs + ln2 - 1) / ln2);
+        offs0 = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
     }
     if (o2->obj == LIST_OBJ) {
         List *list = (List *)o2;
@@ -329,22 +326,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 vals[i] = (Obj *)ref_none();
                 continue;
             }
-            offs2 = (offs1 + offs0) * ln2;
-            val = 0;
-            r = -1;
-            for (i2 = 0; i2 < ln2; i2++) {
-                r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
-                if (r < 0) break;
-                val |= (uval_t)r << (i2 * 8);
-            }
-            if (v1->dtype < 0 && (r & 0x80) != 0) {
-                for (; i2 < sizeof val; i2++) {
-                    val |= (uval_t)0xff << (i2 * 8);
-                }
-            }
-            if (r < 0) vals[i] = (Obj *)ref_gap();
-            else if (v1->dtype < 0) vals[i] = (Obj *)int_from_ival((ival_t)val);
-            else vals[i] = (Obj *)int_from_uval(val);
+            vals[i] = code_item(v1, (ssize_t)offs1 + offs0, ln2);
         }
         v->len = i;
         return &v->v;
@@ -367,23 +349,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         vals = list_create_elements(v, length);
         i = 0;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            offs2 = (offs + offs0) * ln2;
-            val = 0;
-            r = -1;
-            for (i2 = 0; i2 < ln2; i2++) {
-                r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
-                if (r < 0) break;
-                val |= (uval_t)r << (i2 * 8);
-            }
-            if (v1->dtype < 0 && (r & 0x80) != 0) {
-                for (; i2 < sizeof val; i2++) {
-                    val |= (uval_t)0xff << (i2 * 8);
-                }
-            }
-            if (r < 0) vals[i] = (Obj *)ref_gap();
-            else if (v1->dtype < 0) vals[i] = (Obj *)int_from_ival((ival_t)val);
-            else vals[i] = (Obj *)int_from_uval(val);
-            i++; offs += step;
+            vals[i++] = code_item(v1, offs + offs0, ln2);
+            offs += step;
         }
         v->len = length;
         v->data = vals;
@@ -392,22 +359,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     err = indexoffs(o2, ln, &offs1, epoint2);
     if (err != NULL) return &err->v;
 
-    offs2 = (offs1 + offs0) * ln2;
-    val = 0;
-    r = -1;
-    for (i2 = 0; i2 < ln2; i2++) {
-        r = read_mem(v1->mem, v1->memp, v1->membp, offs2++);
-        if (r < 0) break;
-        val |= (uval_t)r << (i2 * 8);
-    }
-    if (v1->dtype < 0 && (r & 0x80) != 0) {
-        for (; i2 < sizeof val; i2++) {
-            val |= (uval_t)0xff << (i2 * 8);
-        }
-    }
-    if (r < 0) return (Obj *)ref_gap();
-    if (v1->dtype < 0) return (Obj *)int_from_ival((ival_t)val);
-    return (Obj *)int_from_uval(val);
+    return code_item(v1, (ssize_t)offs1 + offs0, ln2);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -522,11 +474,9 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Error *err;
     if (op->op == &o_IN) {
         struct oper_s oper;
-        size_t ln, ln2, i, i2, offs2;
+        size_t ln, ln2, i;
         ssize_t offs;
         Obj *tmp;
-        int r;
-        uval_t val;
 
         if (v2->pass != pass) {
             return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint2);
@@ -540,11 +490,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return (Obj *)ref_bool(false_value);
         }
 
-        i = 0;
         if (v2->offs >= 0) {
-            offs = (v2->offs + ln2 - 1) / ln2;
+            offs = (ssize_t)(((uval_t)v2->offs + ln2 - 1) / ln2);
         } else {
-            offs = -((-v2->offs + ln2 - 1) / ln2);
+            offs = -(ssize_t)(((uval_t)-v2->offs + ln2 - 1) / ln2);
         }
 
         oper.op = &o_EQ;
@@ -552,24 +501,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         oper.epoint = op->epoint;
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
-        while (ln > i) {
-            offs2 = (i + offs) * ln2;
-            val = 0;
-            r = -1;
-            for (i2 = 0; i2 < ln2; i2++) {
-                r = read_mem(v2->mem, v2->memp, v2->membp, offs2++);
-                if (r < 0) break;
-                val |= (uval_t)r << (i2 * 8);
-            }
-            if (v2->dtype < 0 && (r & 0x80) != 0) {
-                for (; i2 < sizeof val; i2++) {
-                    val |= (uval_t)0xff << (i2 * 8);
-                }
-            }
-            if (r < 0) tmp = (Obj *)ref_gap();
-            else if (v2->dtype < 0) tmp = (Obj *)int_from_ival((ival_t)val);
-            else tmp = (Obj *)int_from_uval(val);
-            i++;
+        for (i = 0; i < ln; i++) {
+            tmp = code_item(v2, (ssize_t)i + offs, ln2);
             oper.v1 = tmp;
             o1 = tmp->obj->calc2(&oper);
             val_destroy(tmp);
