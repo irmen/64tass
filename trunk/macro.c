@@ -428,7 +428,6 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
     Mfunc new_mfunc;
     size_t len = 0, i, j;
     str_t label;
-    unsigned int w;
     bool stard = false;
 
     new_mfunc.param = NULL;
@@ -468,7 +467,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
             if (here() == '=') {
                 Obj *val;
                 lpoint.pos++;
-                if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) {
+                if (!get_exp(1, cfile, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }

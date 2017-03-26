@@ -323,7 +323,7 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
     eval->o_out[eval->outp++].epoint = *epoint;
 }
 
-static bool get_exp_compat(unsigned int *wd, int stop) {/* length in bytes, defined */
+static bool get_exp_compat(int stop) {/* length in bytes, defined */
     char ch;
 
     Obj *conv, *conv2;
@@ -338,8 +338,6 @@ static bool get_exp_compat(unsigned int *wd, int stop) {/* length in bytes, defi
     str_t ident;
     Label *l;
 
-    *wd = 3;    /* 0=byte 1=word 2=long 3=negative/too big */
-
     eval->outp = 0;
     o_oper[0].val = &o_COMMA;
 rest:
@@ -352,7 +350,6 @@ rest:
     switch (here()) {
     case 0:
     case ';': return true;
-    case '!':*wd = 1;lpoint.pos++;break;
     case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break; 
     case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break; 
     }
@@ -1188,7 +1185,7 @@ size_t get_val_remaining(void) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-static bool get_exp2(unsigned int *wd, int stop, struct file_s *cfile) {
+static bool get_exp2(int stop, struct file_s *cfile) {
     char ch;
 
     Oper *op;
@@ -1206,29 +1203,17 @@ static bool get_exp2(unsigned int *wd, int stop, struct file_s *cfile) {
     eval->values_p = eval->values_len = 0;
 
     if (arguments.tasmcomp) {
-        if (get_exp_compat(wd, stop)) return get_val2_compat(eval);
+        if (get_exp_compat(stop)) return get_val2_compat(eval);
         return false;
     }
     eval->outp = 0;
     o_oper[0].val = &o_COMMA;
 
-    *wd = 3;    /* 0=byte 1=word 2=long 3=negative/too big */
     openclose = identlist = 0;
 
     ignore();
-    switch (here()) {
-    case 0:
-    case ';': return true;
-    case '@':
-        switch (pline[++lpoint.pos] | arguments.caseinsensitive) {
-        case 'b':*wd = 0;break;
-        case 'w':*wd = 1;break;
-        case 'l':*wd = 2;break;
-        default:err_msg2(ERROR______EXPECTED, "@b or @w or @l", &lpoint); return false;
-        }
-        lpoint.pos++;
-        break;
-    }
+    ch = here();
+    if (ch == 0 || ch == ';') return true;
     for (;;) {
         ignore(); ch = here(); epoint = lpoint;
         switch (ch) {
@@ -1663,8 +1648,8 @@ static bool get_exp2(unsigned int *wd, int stop, struct file_s *cfile) {
     return false;
 }
 
-bool get_exp(unsigned int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
-    if (!get_exp2(wd, stop, cfile)) {
+bool get_exp(int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+    if (!get_exp2(stop, cfile)) {
         return false;
     }
     if (eval->values_len < min || (max != 0 && eval->values_len > max)) {
@@ -1676,8 +1661,7 @@ bool get_exp(unsigned int *wd, int stop, struct file_s *cfile, unsigned int min,
 
 
 bool get_exp_var(struct file_s *cfile, linepos_t epoint) {
-    unsigned int w;
-    return get_exp(&w, 2, cfile, 1, 1, epoint);
+    return get_exp(2, cfile, 1, 1, epoint);
 }
 
 Obj *get_vals_tuple(void) {
