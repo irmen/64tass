@@ -76,38 +76,28 @@ struct DATA {
   const char *pfend;
 /* FLAGS */
   int width, precision;
-  int justify; char pad;
-  int square, space, star_w, star_p;
+  uint8_t pad;
+  bool left, square, space, plus, star_w, star_p, dot;
 };
 
 /* those are defines specific to snprintf to hopefully
  * make the code clearer :-)
  */
-#define RIGHT 1
-#define LEFT  0
 #define NOT_FOUND (-1)
-#define FOUND 1
-#define MAX_FIELD 15
-
-/* the conversion flags */
-#define isflag(c) ((c) == '#' || (c) == ' ' || \
-                   (c) == '*' || (c) == '+' || \
-                   (c) == '-' || (c) == '.' || \
-                   ((c) >= '0' && (c) <= '9'))
 
 static size_t listp;
 static const struct values_s *list;
 static size_t largs;
 static struct values_s dummy = {NULL, {0, 0}};
 
-static inline const struct values_s *next_arg(void) {
+static const struct values_s *next_arg(void) {
     if (none == 0 && largs > listp) return &list[listp++];
     listp++;
     dummy.val = &none_value->v;
     return &dummy;
 }
 
-static inline void PUT_CHAR(uint32_t c) {
+static void PUT_CHAR(uint32_t c) {
     uint8_t *p = (uint8_t *)return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
@@ -115,9 +105,9 @@ static inline void PUT_CHAR(uint32_t c) {
         p = (uint8_t *)reallocx(p, returnsize);
         return_value.data = p;
     }
-    if (c != 0 && c < 0x80) p[return_value.len++] = c; else {
+    if (c != 0 && c < 0x80) p[return_value.len++] = (uint8_t)c; else {
         p = utf8out(c, p + return_value.len);
-        return_value.len = p - return_value.data;
+        return_value.len = (size_t)(p - return_value.data);
     }
     return_value.chars++;
 }
@@ -125,55 +115,64 @@ static inline void PUT_CHAR(uint32_t c) {
 /* pad right */
 static inline void PAD_RIGHT(struct DATA *p)
 {
-    if (p->width > 0 && p->justify != LEFT) {
+    if (p->width > 0 && !p->left) {
         for (; p->width > 0; p->width--) PUT_CHAR(p->pad);
     }
 }
 
-static inline void PAD_RIGHT2(struct DATA *p, char c, bool minus)
+static void PAD_RIGHT2(struct DATA *p, uint8_t c, bool minus, size_t ln)
 {
-    if (minus || p->justify == RIGHT || p->space == FOUND) p->width--;
-    if (c != 0 && p->square == FOUND) p->width--;
+    size_t n = 0;
+    p->width -= ln;
+    if (p->precision > 0 && (size_t)p->precision > ln) {
+        n = (size_t)p->precision - ln;
+        p->width -= n;
+    }
+    if (minus || p->plus || p->space) p->width--;
+    if (c != 0 && p->square) p->width--;
     if (p->pad != '0') PAD_RIGHT(p);
     if (minus) PUT_CHAR('-');
-    else if (p->justify == RIGHT) PUT_CHAR('+');
-    else if (p->space == FOUND) PUT_CHAR(' ');
-    if (c != 0 && p->square == FOUND) PUT_CHAR(c);
+    else if (p->plus) PUT_CHAR('+');
+    else if (p->space) PUT_CHAR(' ');
+    if (c != 0 && p->square) PUT_CHAR(c);
     if (p->pad == '0') PAD_RIGHT(p);
+    for (;n > 0; n--) PUT_CHAR('0');
 }
 
 /* pad left */
-static inline void PAD_LEFT(struct DATA *p)
+static MUST_CHECK Obj *PAD_LEFT(struct DATA *p)
 {
-    if (p->width > 0 && p->justify == LEFT) {
+    if (p->width > 0 && p->left) {
         for (; p->width > 0; p->width--) PUT_CHAR((p)->pad);
     }
+    return NULL;
 }
 
 /* if width and prec. in the args */
 static MUST_CHECK Obj *star_args(struct DATA *p)
 {
-    uval_t uval;
+    ival_t ival;
     Error *err;
 
-    if (p->star_w == FOUND) {
+    if (p->star_w) {
         const struct values_s *v = next_arg();
         Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
-            err = val->obj->uval(val, &uval, 8 * (sizeof uval) - 1, &v->epoint);
+            err = val->obj->ival(val, &ival, 8 * (sizeof ival), &v->epoint);
             if (err != NULL) return &err->v;
-            p->width = uval;
+            p->width = abs(ival);
+            if (ival < 0) p->left = true;
         }
     }
-    if (p->star_p == FOUND) {
+    if (p->star_p) {
         const struct values_s *v = next_arg();
         Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
-            err = val->obj->uval(val, &uval, 8 * (sizeof uval) - 1, &v->epoint);
+            err = val->obj->ival(val, &ival, 8 * (sizeof ival), &v->epoint);
             if (err != NULL) return &err->v;
-            p->precision = uval;
+            p->precision = ival > 0 ? ival : 0;
         }
     }
     return NULL;
@@ -204,12 +203,10 @@ static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
 
     str = (Str *)err2;
     i = minus ? 1 : 0;
-    p->width -= str->len - i;
-    PAD_RIGHT2(p, 0, minus);
+    PAD_RIGHT2(p, 0, minus, str->len - i);
     for (; i < str->len; i++) PUT_CHAR(str->data[i]);
-    PAD_LEFT(p);
     val_destroy(&str->v);
-    return NULL;
+    return PAD_LEFT(p);
 }
 
 /* for %x %X hexadecimal representation */
@@ -232,7 +229,7 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
 
     integer = (Int *)err;
     minus = (integer->len < 0);
-    bp2 = minus ? -integer->len : integer->len;
+    bp2 = (size_t)(minus ? -integer->len : integer->len);
     bp = b = 0;
     do {
         if (bp == 0) {
@@ -243,21 +240,18 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
         b = (integer->data[bp2] >> bp) & 0xf;
     } while (b == 0);
 
-    p->width -= bp / 4 + bp2 * (sizeof(digit_t) * 2) + 1;
-    PAD_RIGHT2(p, '$', minus);
-    PUT_CHAR(hex[b]);
-    do {
+    PAD_RIGHT2(p, '$', minus, bp / 4 + bp2 * (sizeof(digit_t) * 2) + 1);
+    for (;;) {
+        PUT_CHAR((uint8_t)hex[b]);
         if (bp == 0) {
             if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 4;
         } else bp -= 4;
         b = (integer->data[bp2] >> bp) & 0xf;
-        PUT_CHAR(hex[b]);
-    } while (true);
-    PAD_LEFT(p);
+    }
     val_destroy(&integer->v);
-    return NULL;
+    return PAD_LEFT(p);
 }
 
 /* for %b binary representation */
@@ -279,7 +273,7 @@ static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
 
     integer = (Int *)err;
     minus = (integer->len < 0);
-    bp2 = minus ? -integer->len : integer->len;
+    bp2 = (size_t)(minus ? -integer->len : integer->len);
     bp = b = 0;
     do {
         if (bp == 0) {
@@ -290,21 +284,18 @@ static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
         b = (integer->data[bp2] >> bp) & 1;
     } while (b == 0);
 
-    p->width -= bp + bp2 * (sizeof(digit_t) * 8) + 1;
-    PAD_RIGHT2(p, '%', minus);
-    PUT_CHAR('0' + b);
-    do {
+    PAD_RIGHT2(p, '%', minus, bp + bp2 * (sizeof(digit_t) * 8) + 1);
+    for (;;) {
+        PUT_CHAR('0' + b);
         if (bp == 0) {
             if (bp2 == 0) break;
             bp2--;
             bp = 8 * sizeof(digit_t) - 1;
         } else bp--;
         b = (integer->data[bp2] >> bp) & 1;
-        PUT_CHAR('0' + b);
-    } while (true);
-    PAD_LEFT(p);
+    }
     val_destroy(&integer->v);
-    return NULL;
+    return PAD_LEFT(p);
 }
 
 /* %c chars */
@@ -352,18 +343,19 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
 
     str = (Str *)err;
     tmp = str->data;
-    i = str->chars;
-    if (p->precision != NOT_FOUND) /* the smallest number */
+    i = (int)str->chars;
+    if (p->dot) { /* the smallest number */
         i = (i < p->precision ? i : p->precision);
+    }
+    if (i < 0) i = 0;
     p->width -= i;
     PAD_RIGHT(p);
     while (i-- > 0) { /* put the string */
         if ((*tmp & 0x80) != 0) tmp += utf8in(tmp, &ch); else ch = *tmp++;
         PUT_CHAR(ch);
     }
-    PAD_LEFT(p);
     val_destroy(&str->v);
-    return NULL;
+    return PAD_LEFT(p);
 }
 
 /* %f or %g  floating point representation */
@@ -373,6 +365,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
     bool minus;
     double d;
     Obj *val = v->val, *err;
+    int l;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
@@ -384,66 +377,24 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
         val_destroy(err);
     }
     if (d < 0.0) { d = -d; minus = true;} else minus = false;
-    if (p->precision == NOT_FOUND) p->precision = 6;
+    if (!p->dot) p->precision = 6;
     t = form;
     *t++ = '%';
-    if (p->square == FOUND) *t++ = '#';
+    if (p->square) *t++ = '#';
     *t++ = '.';
     *t++ = '*';
     *t++ = *p->pf;
     *t++ = 0;
-    snprintf(tmp, sizeof tmp, form, (p->precision < 80) ? p->precision : 80, d);
+    l = snprintf(tmp, sizeof tmp, form, (p->precision < 80) ? (p->precision > 0 ? p->precision : 0) : 80, d);
     t = tmp;
 
-    p->width -= strlen(tmp);
-    PAD_RIGHT2(p, 0, minus);
+    p->precision = 0;
+    PAD_RIGHT2(p, 0, minus, (l > 0) ? (size_t)l : 0);
     while (*t != 0) { /* the integral */
-        PUT_CHAR(*t);
+        PUT_CHAR((uint8_t)*t);
         t++;
     }
-    PAD_LEFT(p);
-    return NULL;
-}
-
-/* initialize the conversion specifiers */
-static void conv_flag(char *s, struct DATA *p)
-{
-    int number;
-
-    /* reset the flags.  */
-    p->precision = p->width = NOT_FOUND;
-    p->star_w = p->star_p = NOT_FOUND;
-    p->square = p->space = NOT_FOUND;
-    p->justify = NOT_FOUND;
-    p->pad = ' ';
-
-    for(;s != NULL && *s != 0; s++) {
-        switch(*s) {
-        case ' ': p->space = FOUND; break;
-        case '#': p->square = FOUND; break;
-        case '*': if (p->width == NOT_FOUND)
-                      p->width = p->star_w = FOUND;
-                  else
-                      p->precision = p->star_p = FOUND;
-                  break;
-        case '+': p->justify = RIGHT; break;
-        case '-': p->justify = LEFT; break;
-        case '.': if (p->width == NOT_FOUND)
-                      p->width = 0;
-                  break;
-        case '0': p->pad = '0'; break;
-        case '1': case '2': case '3':
-        case '4': case '5': case '6':
-        case '7': case '8': case '9':     /* gob all the digits */
-                  for (number = 0; *s >= '0' && *s <= '9'; s++) {
-                      number = number*10 + *s - '0';
-                  }
-                  if (p->width == NOT_FOUND) p->width = number;
-                  else p->precision = number;
-                  s--;   /* went to far go back */
-                  break;
-        }
-    }
+    return PAD_LEFT(p);
 }
 
 MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
@@ -453,9 +404,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     Obj *err;
     Str *str;
     struct DATA data;
-    char conv_field[MAX_FIELD];
     int state;
-    int i;
 
     if (args < 1) {
         err_msg_argnum(args, 1, 0, epoint);
@@ -483,10 +432,17 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     none = returnsize = 0;
 
     for (; data.pf < data.pfend; data.pf++) {
-        if ( *data.pf == '%' ) { /* we got a magic % cookie */
-            conv_flag(NULL, &data); /* initialise format flags */
+        char c = *data.pf;
+        if (c == '%') { /* we got a magic % cookie */
+            /* reset the flags.  */
+            data.precision = data.width = NOT_FOUND;
+            data.star_w = data.star_p = false;
+            data.square = data.plus = data.space = false;
+            data.left = false; data.dot = false;
+            data.pad = ' ';
             for (state = 1; data.pf < data.pfend - 1 && state != 0;) {
-                switch (*(++data.pf)) {
+                c = *(++data.pf);
+                switch (c) {
                 case 'e':
                 case 'E':  /* Exponent double */
                 case 'f':  /* float, double */
@@ -540,27 +496,61 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                     PUT_CHAR('%');
                     state = 0;
                     break;
-                case '#': case ' ': case '+': case '*':
-                case '-': case '.': case '0': case '1':
+                case ' ': 
+                    data.space = true; 
+                    break;
+                case '#': 
+                    data.square = true; 
+                    break;
+                case '*': 
+                    if (data.width == NOT_FOUND) {
+                        data.width = 0;
+                        data.star_w = true;
+                    } else if (data.dot && data.precision == NOT_FOUND) {
+                        data.precision = 0;
+                        data.star_p = true;
+                    }
+                    break;
+                case '+':
+                    data.plus = true;
+                    break;
+                case '-': 
+                    data.left = true; 
+                    break;
+                case '.': 
+                    data.dot = true; 
+                    if (data.width == NOT_FOUND) data.width = 0;
+                    break;
+                case '0': 
+                    if (data.width == NOT_FOUND) {
+                        data.pad = '0'; 
+                        break;
+                    }
+                    /* fall through */
+                case '1':
                 case '2': case '3': case '4': case '5':
                 case '6': case '7': case '8': case '9':
-                    /* initialize width and precision */
-                    for (i = 0; data.pf < data.pfend && isflag(*data.pf); i++, data.pf++) {
-                        if (i < MAX_FIELD - 1) conv_field[i] = *data.pf;
+                    c -= '0';
+                    if (data.dot && !data.star_p) {
+                        data.precision = ((data.precision == NOT_FOUND) ? 0 : data.precision * 10) + c;
+                        if (data.precision > 100000) goto error2;
+                    } else if (!data.star_w) {
+                        data.width = ((data.width == NOT_FOUND) ? 0 : data.width * 10) + c;
+                        if (data.width > 100000) goto error2;
                     }
-                    conv_field[i] = '\0';
-                    conv_flag(conv_field, &data);
-                    data.pf--;   /* went to far go back */
+                    else goto error2;
                     break;
                 default:
                     {
-                        struct linepos_s epoint2 = v[0].epoint;
+                        struct linepos_s epoint2;
                         uint32_t ch;
                         str_t msg;
-                        epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, data.pf - (char *)((Str *)v[0].val)->data - 1);
-                        msg.data = (uint8_t *)data.pf - 1;
+                    error2:
+                        epoint2 = v[0].epoint;
+                        epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, (size_t)(data.pf - (char *)((Str *)v[0].val)->data));
+                        msg.data = (uint8_t *)data.pf;
                         ch = (uint8_t)*data.pf;
-                        if ((ch & 0x80) != 0) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
+                        if ((ch & 0x80) != 0) msg.len = utf8in((const uint8_t *)data.pf, &ch); else msg.len = 1;
                         err_msg_not_defined(&msg, &epoint2);
                         err = star_args(&data);
                         if (err != NULL) goto error;
@@ -568,12 +558,12 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                         PUT_CHAR('%');
                         PUT_CHAR(ch);
                         state = 0;
-                        data.pf += msg.len - 2;
+                        data.pf += msg.len - 1;
                     }
                 } /* end switch */
             } /* end of for state */
         } else { /* not % */
-            PUT_CHAR(*data.pf);  /* add the char the string */
+            PUT_CHAR((uint8_t)c);  /* add the char the string */
         }
     }
     if (listp != largs) {
