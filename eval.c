@@ -1340,10 +1340,12 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
                     default: mode = BYTES_MODE_NULL_CHECK; break;
                     }
                     if (mode != BYTES_MODE_NULL_CHECK) {
-                        Obj *str = get_string();
-                        epoint.pos++;
+                        Obj *str = get_string(), *val;
                         if (str->obj == STR_OBJ) {
-                            push_oper(bytes_from_str((Str *)str, &epoint, mode), &epoint);
+                            epoint.pos++;
+                            val = bytes_from_str((Str *)str, &epoint, mode);
+                            epoint.pos--;
+                            push_oper(val, &epoint);
                             val_destroy(str);
                         } else push_oper(str, &epoint);
                         goto other;
