@@ -38,7 +38,7 @@ struct Obj;
 
 extern linepos_t poke_pos;
 extern address_t all_mem, all_mem2;
-extern uint8_t outputeor;
+extern unsigned int outputeor;
 extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint; 
@@ -53,5 +53,5 @@ extern bool referenceit;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
 extern void var_assign(struct Label *, struct Obj *, bool);
-extern void pokeb(uint8_t);
+extern void pokeb(unsigned int);
 #endif
