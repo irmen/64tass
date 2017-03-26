@@ -847,9 +847,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case '\0':
                 if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof anonident);
                 else anonident.padding = 0;
-                anonident.dir = wht;
+                anonident.dir = (uint8_t)wht;
                 anonident.reffile = reffile;
-                anonident.count = (wht == '-') ? backr++ : forwr++;
+                anonident.count = (int32_t)((wht == '-') ? backr++ : forwr++);
 
                 labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof anonident;
                 goto hh;
@@ -2132,7 +2132,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 poke_pos = &epoint;
                                 memskip((uval_t)ival);
                             }
-                        } else current_section->address += ival;
+                        } else current_section->address = (address_t)((int)current_section->address + ival);
                         current_section->address &= all_mem2;
                         memjmp(&current_section->mem, current_section->address);
                     }
@@ -3784,17 +3784,17 @@ int main(int argc, char *argv[]) {
             wchar_t w;
             uint32_t ch;
             if (p + 6*6 + 1 > data + len) {
-                size_t o = p - data;
+                size_t o = (size_t)(p - data);
                 len += 1024;
                 data = (uint8_t*)realloc(data, len);
                 if (data == NULL) err_msg_out_of_memory2();
                 p = data + o;
             }
-            l = mbrtowc(&w, s + j, n - j,  &ps);
+            l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
             if (l < 1) break;
-            j += l;
+            j += (size_t)l;
             ch = w;
-            if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+            if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
         }
         *p++ = 0;
         uargv[i] = (char *)data;

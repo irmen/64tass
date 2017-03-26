@@ -271,7 +271,7 @@ Label *find_anonlabel(int32_t count) {
 
     anon_idents.dir = (count >= 0) ? '+' : '-';
     anon_idents.reffile = reffile;
-    anon_idents.count = ((count >= 0) ? forwr : backr) + count;
+    anon_idents.count = (int32_t)((count >= 0) ? forwr : backr) + count;
 
     tmp.key = &label;
     tmp.key->cfname.data = (const uint8_t *)&anon_idents;
@@ -299,7 +299,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 
     anon_idents.dir = (count >= 0) ? '+' : '-';
     anon_idents.reffile = reffile;
-    anon_idents.count = ((count >= 0) ? forwr : backr) + count;
+    anon_idents.count = (int32_t)((count >= 0) ? forwr : backr) + count;
 
     tmp.key = &label;
     tmp.key->cfname.data = (const uint8_t *)&anon_idents;

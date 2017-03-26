@@ -711,10 +711,10 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
 
     if (step > 0) {
         if (offs > end) offs = end;
-        *olen = (end - offs + step - 1) / step;
+        *olen = (uval_t)(end - offs + step - 1) / (uval_t)step;
     } else {
         if (end > offs) end = offs;
-        *olen = (offs - end - step - 1) / -step;
+        *olen = (uval_t)(offs - end - step - 1) / (uval_t)-step;
     }
 
     *offs2 = offs;
