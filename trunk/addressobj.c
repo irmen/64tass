@@ -100,7 +100,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
     Obj *v = v1->val;
     Error *err = v->obj->hash(v, hs, epoint);
     if (err == NULL) {
-        *hs = (*hs + v1->type) & ((~0U) >> 1);
+        *hs = ((unsigned int)*hs + v1->type) & ((~0U) >> 1);
     }
     return err;
 }
@@ -111,7 +111,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     size_t len, chars;
     char buffer[100], buffer2[100], *b2;
     atype_t addrtype;
-    int ind, ind2;
+    unsigned int ind, ind2;
     Obj *tmp;
     Str *v, *str;
 

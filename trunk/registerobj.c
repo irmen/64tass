@@ -93,7 +93,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
         *hs = 0;
         return NULL;
     }
-    h = *s2 << 7;
+    h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
     *hs = h & ((~0U) >> 1);
@@ -104,7 +104,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Register *v1 = (Register *)o1;
     size_t i2, i;
     uint8_t *s, *s2;
-    char q;
+    uint8_t q;
     size_t chars;
     Str *v;
     i = str_quoting(v1->data, v1->len, &q);
@@ -212,7 +212,7 @@ static uint32_t register_names;
 
 bool registerobj_createnames(uint32_t registers) {
     uint32_t regs = registers & ~register_names;
-    char name[2];
+    uint8_t name[2];
 
     if (regs == 0) return false;
     register_names |= regs;
@@ -225,7 +225,7 @@ bool registerobj_createnames(uint32_t registers) {
         reg->data = reg->val;
         reg->len = 1;
         reg->chars = 1;
-        new_builtin(name, &reg->v);
+        new_builtin((const char *)name, &reg->v);
     }
     return true;
 }

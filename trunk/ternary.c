@@ -90,7 +90,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
                     curr->eqkid = (ternary_tree) data;
                 return (void *) curr->eqkid;
             }
-            if (s == end) spchar = ~0;
+            if (s == end) spchar = ~(uint32_t)0;
             else {
                 spchar = *s;
                 if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
@@ -116,7 +116,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
             curr->eqkid = (ternary_tree) data;
             return data;
         }
-        if (s == end) spchar = ~0;
+        if (s == end) spchar = ~(uint32_t)0;
         else {
             spchar = *s;
             if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
@@ -151,7 +151,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     while (curr != NULL) {
         if (spchar == curr->splitchar) {
             if ((~spchar) == 0) return (void *)curr->eqkid;
-            if (s == end) spchar = ~0;
+            if (s == end) spchar = ~(uint32_t)0;
             else {
                 spchar = *s;
                 if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;

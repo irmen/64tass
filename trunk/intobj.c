@@ -482,7 +482,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
             vv->len = 2;
             return;
         }
-        v[0] = c;
+        v[0] = (digit_t)c;
         vv->len = (v[0] != 0) ? 1 : 0;
         return;
     }
@@ -556,7 +556,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
             h = (digit_t)(r / n);
             r -= (twodigits_t)h * n;
         }
-        return (Obj *)return_int(r, negr);
+        return (Obj *)return_int((digit_t)r, negr);
     } else {
         size_t i, k;
         int d;
@@ -602,7 +602,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
             for (e = i = 0; i < len2; i++) {
                 digit_t t;
                 e += (twodigits_t)q * w0[i];
-                t = e; e >>= SHIFT;
+                t = (digit_t)e; e >>= SHIFT;
                 if (c) {
                     c = (vk[i] <= t);
                     vk[i] = vk[i] - t - 1;
@@ -665,7 +665,7 @@ static MUST_CHECK Int *power(const Int *vv1, const Int *vv2) {
     size_t i;
     Int *v = int_from_int(1);
 
-    for (i = vv2->len; (i--) != 0;) {
+    for (i = (size_t)vv2->len; (i--) != 0;) {
         digit_t d = vv2->data[i];
         for (j = SHIFT - 1; j >= 0; j--) {
             imul(v, v, v);
@@ -681,7 +681,7 @@ static MUST_CHECK Int *power(const Int *vv1, const Int *vv2) {
 
 static MUST_CHECK Int *ilshift(const Int *vv1, uval_t s) {
     size_t i, len1, sz;
-    int word, bit;
+    unsigned int word, bit;
     digit_t *v1, *v, *v2;
     Int *vv;
 
@@ -804,7 +804,7 @@ static MUST_CHECK Int *iand(const Int *vv1, const Int *vv2) {
             }
             if (c2) {
                 if (c) for (; i < len1; i++) v[i] = 0;
-                else for (; i < len1; i++) v[i] = ~0;
+                else for (; i < len1; i++) v[i] = ~(digit_t)0;
             } else {
                 for (; i < len1; i++) {
                     digit_t e = v1[i], g;
@@ -1100,11 +1100,11 @@ MUST_CHECK Int *int_from_int(int i) {
     Int *v = new_int();
     v->data = v->val;
     if (i < 0) {
-        v->val[0] = -i;
+        v->val[0] = (unsigned int)-i;
         v->len = -1;
         return v;
     }
-    v->val[0] = i;
+    v->val[0] = (unsigned int)i;
     v->len = (i != 0) ? 1 : 0;
     return v;
 }
@@ -1122,7 +1122,7 @@ MUST_CHECK Int *int_from_size(size_t i) {
         if (i == 0) break;
         v->val[j] = i;
     }
-    v->len = j;
+    v->len = (ssize_t)j;
     return v;
 }
 
@@ -1134,11 +1134,11 @@ MUST_CHECK Int *int_from_ival(ival_t i) {
     Int *v = new_int();
     v->data = v->val;
     if (i < 0) {
-        v->val[0] = -i;
+        v->val[0] = (uval_t)-i;
         v->len = -1;
         return v;
     }
-    v->val[0] = i;
+    v->val[0] = (uval_t)i;
     v->len = (i != 0) ? 1 : 0;
     return v;
 }
@@ -1154,14 +1154,14 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
     neg = (f < 0.0);
     if (neg) f = -f;
 
-    if (f < (double)(~(digit_t)0) + 1.0) return return_int(f, neg);
+    if (f < (double)(~(digit_t)0) + 1.0) return return_int((digit_t)f, neg);
 
     frac = frexp(f, &expo);
     sz = (expo - 1) / SHIFT + 1;
 
     v = new_int();
     d = inew(v, sz);
-    v->len = neg ? -sz : +sz;
+    v->len = neg ? (ssize_t)-sz : (ssize_t)sz;
     v->data = d;
 
     frac = ldexp(frac, (expo - 1) % SHIFT + 1);
@@ -1189,7 +1189,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
     }
 
     inv = v1->len < 0;
-    len1 = inv ? -v1->len : v1->len; /* it's - for the additional length  */
+    len1 = inv ? (size_t)-v1->len : (size_t)v1->len; /* it's - for the additional length  */
     sz = len1 / sizeof *d;
     if ((len1 % sizeof *d) != 0) sz++;
 
@@ -1201,14 +1201,14 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
         uint8_t c = 0xff;
         for (;c == 0xff && i < len1 - 1; i++) {
             c = v1->data[i];
-            uv |= ((uint8_t)(c + 1)) << bits;
+            uv |= (digit_t)((uint8_t)(c + 1)) << bits;
             if (bits == SHIFT - 8) {
                 d[j++] = uv;
                 bits = uv = 0;
             } else bits += 8;
         }
         for (; i < len1 - 1; i++) {
-            uv |= v1->data[i] << bits;
+            uv |= (digit_t)v1->data[i] << bits;
             if (bits == SHIFT - 8) {
                 d[j++] = uv;
                 bits = uv = 0;
@@ -1218,7 +1218,7 @@ MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
         d[j] = uv;
     } else {
         for (;i < len1; i++) {
-            uv |= v1->data[i] << bits;
+            uv |= (digit_t)v1->data[i] << bits;
             if (bits == SHIFT - 8) {
                 d[j++] = uv;
                 bits = uv = 0;
@@ -1244,7 +1244,7 @@ MUST_CHECK Int *int_from_bits(const Bits *v1) {
     }
 
     inv = v1->len < 0;
-    sz = inv ? -v1->len : v1->len; /* it's - for the additional length  */
+    sz = inv ? (size_t)-v1->len : (size_t)v1->len; /* it's - for the additional length  */
     if (sz == 0 && inv) err_msg_out_of_memory(); /* overflow */
     v = new_int();
     d = inew(v, sz);
@@ -1294,7 +1294,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     uv = bits = j = 0;
     encode_string_init(v1, epoint);
     while ((ch = encode_string()) != EOF) {
-        uv |= (uint8_t)ch << bits;
+        uv |= (digit_t)(ch & 0xff) << bits;
         if (bits == SHIFT - 8) {
             if (j >= sz) {
                 if (v->val == d) {
@@ -1337,7 +1337,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
         }
     }
     v->data = d;
-    v->len = osz;
+    v->len = (ssize_t)osz;
     return &v->v;
 }
 
@@ -1415,11 +1415,11 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
                 }
                 end2 = d + sz - 1;
             }
-            *end2++ = a;
+            *end2++ = (digit_t)a;
         }
     }
 
-    sz = end2 - d;
+    sz = (size_t)(end2 - d);
     return (Int *)normalize(v, d, sz, false);
 }
 
@@ -1504,12 +1504,12 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         err = ival((Obj *)v2, &shift, 8 * sizeof shift, op->epoint2);
         if (err != NULL) return &err->v;
         if (shift == 0) return val_reference(&v1->v);
-        return (shift < 0) ? (Obj *)irshift(v1, -shift) : (Obj *)ilshift(v1, shift);
+        return (shift < 0) ? (Obj *)irshift(v1, (uval_t)-shift) : (Obj *)ilshift(v1, (uval_t)shift);
     case O_RSHIFT:
         err = ival((Obj *)v2, &shift, 8 * sizeof shift, op->epoint2);
         if (err != NULL) return &err->v;
         if (shift == 0) return val_reference(&v1->v);
-        return (shift < 0) ? (Obj *)ilshift(v1, -shift) : (Obj *)irshift(v1, shift);
+        return (shift < 0) ? (Obj *)ilshift(v1, (uval_t)-shift) : (Obj *)irshift(v1, (uval_t)shift);
     case O_AND: return (Obj *)iand(v1, v2);
     case O_OR: return (Obj *)ior(v1, v2);
     case O_XOR: return (Obj *)ixor(v1, v2);

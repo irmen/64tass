@@ -70,7 +70,7 @@ static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
     return ret;
 }
 
-size_t str_quoting(const uint8_t *data, size_t ln, char *q) {
+size_t str_quoting(const uint8_t *data, size_t ln, uint8_t *q) {
     size_t i, sq = 0, dq = 0;
     for (i = 0; i < ln; i++) {
         switch (data[i]) {
@@ -94,7 +94,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v1 = (Str *)o1;
     size_t i2, i, chars;
     uint8_t *s, *s2;
-    char q;
+    uint8_t q;
     Str *v;
     i = str_quoting(v1->data, v1->len, &q);
 
@@ -127,7 +127,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
         *hs = 0;
         return NULL;
     }
-    h = *s2 << 7;
+    h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
     *hs = h & ((~0U) >> 1);
@@ -199,7 +199,7 @@ static MUST_CHECK Iter *getiter(Obj *v1) {
 
 static MUST_CHECK Obj *next(Iter *v1) {
     const Str *str = (Str *)v1->data;
-    int ln;
+    unsigned int ln;
     Str *v;
     const uint8_t *s;
     if (v1->val >= str->len) return NULL;
@@ -242,9 +242,10 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln) {
         while (j != 0) {
             p2 = (const uint8_t *)memchr(p, ch, j);
             if (p2 != NULL) {
-                memcpy(d, p, p2 - p + 1);
-                j -= p2 - p + 2;
-                d += p2 - p + 1; p = p2 + 2;
+                size_t l = (size_t)(p2 - p);
+                memcpy(d, p, l + 1);
+                j -= l + 2;
+                d += l + 1; p = p2 + 2;
             } else {
                 memcpy(d, p, j);
                 j = 0;
@@ -394,7 +395,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             c2 = v2->data;
             e = c2 + v2->len - v1->len;
             for (;;) {
-                c = (uint8_t *)memchr(c2, v1->data[0], e - c2 + 1);
+                c = (uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
                 if (c == NULL) return (Obj *)ref_bool(false_value);
                 if (memcmp(c, v1->data, v1->len) == 0) return (Obj *)ref_bool(true_value);
                 c2 = c + 1;
@@ -483,7 +484,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             p = v1->data;
 
             for (i = 0; i < v2->len; i++) {
-                int k;
+                unsigned int k;
                 err = indexoffs(v2->data[i], len1, &offs2, epoint2);
                 if (err != NULL) {
                     v->data = o;
@@ -500,7 +501,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     }
                 }
                 k = utf8len(*p);
-                if ((size_t)(p2 + k - o) > m) {
+                if ((size_t)(p2 - o) + k > m) {
                     const uint8_t *r = o;
                     m += 4096;
                     if (m < 4096) err_msg_out_of_memory(); /* overflow */
@@ -514,7 +515,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 memcpy(p2, p, k);p2 += k;
             }
             len1 = i;
-            len2 = p2 - o;
+            len2 = (size_t)(p2 - o);
             if (o != v->val) {
                 if (len2 <= sizeof v->val) {
                     memcpy(v->val, o, len2);
@@ -552,11 +553,12 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 for (i = 0; i < offs; i++) {
                     p += utf8len(*p);
                 }
-                offs = p - v1->data;
+                len2 = (size_t)(p - v1->data);
+                offs = (ival_t)len2;
                 for (; i < end; i++) {
                     p += utf8len(*p);
                 }
-                len2 = p - v1->data - offs;
+                len2 = (size_t)(p - v1->data) - len2;
             }
             v = new_str(len2);
             v->chars = length;
@@ -571,7 +573,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 offs += step;
             }
         } else {
-            ival_t i, j, k;
+            ival_t i, k;
+            size_t j;
             uint8_t *o;
             v = new_str(v1->len);
             o = p2 = v->data;
@@ -595,7 +598,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
                 }
             }
-            len2 = p2 - o;
+            len2 = (size_t)(p2 - o);
             if (o != v->val) {
                 if (len2 <= sizeof v->val) {
                     memcpy(v->val, o, len2);

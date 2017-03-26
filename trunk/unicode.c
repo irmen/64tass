@@ -76,18 +76,18 @@ unsigned int utf8rin(const uint8_t *c, uint32_t *out) { /* only for internal use
 
 uint8_t *utf8out(uint32_t i, uint8_t *c) {
     if (i < 0x800) {
-        *c++=0xc0 | (i >> 6);
+        *c++=0xc0 | (uint8_t)(i >> 6);
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
     if (i < 0x10000) {
-        *c++=0xe0 | (i >> 12);
+        *c++=0xe0 | (uint8_t)(i >> 12);
         *c++=0x80 | ((i >> 6) & 0x3f);
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
     if (i < 0x200000) {
-        *c++=0xf0 | (i >> 18);
+        *c++=0xf0 | (uint8_t)(i >> 18);
         *c++=0x80 | ((i >> 12) & 0x3f);
         *c++=0x80 | ((i >> 6) & 0x3f);
         *c++=0x80 | (i & 0x3f);
@@ -151,7 +151,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             const int16_t *p = &usequences[-prop->casefold];
             for (;;) {
                 if (d->p >= d->len) extbuff(d);
-                d->data[d->p++] = abs(*p);
+                d->data[d->p++] = (uint16_t)abs(*p);
                 if (*p < 0) return;
                 p++;
             }
@@ -159,7 +159,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             const int32_t *p = &usequences2[-prop->casefold - 16384];
             for (;;) {
                 if (d->p >= d->len) extbuff(d);
-                d->data[d->p++] = abs(*p);
+                d->data[d->p++] = (uint32_t)abs(*p);
                 if (*p < 0) return;
                 p++;
             }
@@ -174,14 +174,14 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
             if (prop->decompose > -16384) {
                 const int16_t *p = &usequences[-prop->decompose];
                 for (;;) {
-                    udecompose(abs(*p), d, options);
+                    udecompose((uint16_t)abs(*p), d, options);
                     if (*p < 0) return;
                     p++;
                 }
             } else {
                 const int32_t *p = &usequences2[-prop->decompose - 16384];
                 for (;;) {
-                    udecompose(abs(*p), d, options);
+                    udecompose((uint32_t)abs(*p), d, options);
                     if (*p < 0) return;
                     p++;
                 }
@@ -326,7 +326,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
                 s = dd + o;
                 m = dd + l;
             }
-            *s++ = ch;
+            *s++ = (uint8_t)ch;
             continue;
         }
         if (s + utf8outlen(ch) > m) {

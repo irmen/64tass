@@ -28,7 +28,7 @@ int str_hash(const str_t *s) {
     const uint8_t *s2 = s->data;
     unsigned int h;
     if (l == 0) return 0;
-    h = *s2 << 7;
+    h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= s->len;
     return h & ((~0U) >> 1);

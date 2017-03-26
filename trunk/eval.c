@@ -110,8 +110,8 @@ size_t get_label(void) {
         }
         break;
     }
-    lpoint.pos = s - pline;
-    return s - e;
+    lpoint.pos = (linecpos_t)(s - pline);
+    return (size_t)(s - e);
 }
 
 static MUST_CHECK Int *get_dec(void) {
@@ -203,7 +203,7 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += ldexp(real2, -4*len2);
+        if (real2 != 0.0) real += ldexp(real2, -(int)(4*len2));
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
@@ -226,7 +226,7 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += ldexp(real2, -len2);
+        if (real2 != 0.0) real += ldexp(real2, -(int)len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
@@ -324,7 +324,7 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
 }
 
 static bool get_exp_compat(int stop) {/* length in bytes, defined */
-    char ch;
+    uint8_t ch;
 
     Obj *conv, *conv2;
     struct {
@@ -528,7 +528,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                         v1->val = &err->v;
                         break;
                     }
-                    val1 = uval;
+                    val1 = (uint16_t)uval;
 
                     switch (op) {
                     case O_HASH:
@@ -599,14 +599,14 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                         v1->val = &err->v;
                         continue;
                     }
-                    val1 = uval;
+                    val1 = (uint16_t)uval;
                     err = v2->val->obj->uval(v2->val, &uval, 8 * sizeof uval, &v2->epoint);
                     if (err != NULL) {
                         val_destroy(v1->val);
                         v1->val = &err->v;
                         continue;
                     }
-                    val2 = uval;
+                    val2 = (uint16_t)uval;
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
@@ -651,13 +651,14 @@ MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint)
     if (err != NULL) return err;
 
     if (ival >= 0) {
-        if ((size_t)ival < len) {
-            *offs = ival;
+        if ((uval_t)ival < len) {
+            *offs = (uval_t)ival;
             return NULL;
         }
     } else {
-        if ((size_t)-ival <= len) {
-            *offs = len + ival;
+        ival = -ival;
+        if ((uval_t)ival <= len) {
+            *offs = len - (uval_t)ival;
             return NULL;
         }
     }
@@ -687,11 +688,11 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
             err = v2->data[1]->obj->ival(v2->data[1], &end, 8 * sizeof end, epoint);
             if (err != NULL) return &err->v;
             if (end >= 0) {
-                if (end > (ival_t)len) end = len;
+                if ((uval_t)end > len) end = len;
             } else {
-                if (end < 0) end += len;
+                end += len;
+                if (end < -1) end = -1;
             }
-            if (end < -1) end = -1;
         }
     } else end = len;
     if (v2->data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
@@ -703,7 +704,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
         if (offs >= 0) {
             if (offs > (ival_t)len + minus) offs = len + minus;
         } else {
-            if (offs < 0) offs += len;
+            offs += len;
         }
         if (offs < minus) offs = minus;
     }
@@ -1186,14 +1187,15 @@ size_t get_val_remaining(void) {
 /* 4 - opcode, with defaults */
 
 static bool get_exp2(int stop, struct file_s *cfile) {
-    char ch;
+    uint8_t ch;
 
     Oper *op;
     struct {
         Oper *val;
         struct linepos_s epoint;
     } o_oper[256];
-    uint8_t operp = 0, prec, db;
+    uint8_t operp = 0, db;
+    unsigned int prec;
     struct linepos_s epoint;
     size_t llen;
     size_t openclose, identlist;

@@ -54,9 +54,9 @@ extern MUST_CHECK Bytes *new_bytes(size_t);
 
 struct Str;
 
-extern MUST_CHECK Bytes *bytes_from_u8(uint8_t);
-extern MUST_CHECK Bytes *bytes_from_u16(uint16_t);
-extern MUST_CHECK Bytes *bytes_from_uval(uval_t, int);
+extern MUST_CHECK Bytes *bytes_from_u8(unsigned int);
+extern MUST_CHECK Bytes *bytes_from_u16(unsigned int);
+extern MUST_CHECK Bytes *bytes_from_uval(uval_t, unsigned int);
 extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, enum bytes_mode_e);
 extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);
 #endif
