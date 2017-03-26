@@ -112,10 +112,10 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
         poke_pos = epoint;
         pokeb(cod);
         switch (ln) {
-        case 4: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
-        case 3: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
-        case 2: pokeb((uint8_t)temp); temp >>= 8; /* fall through */
-        case 1: pokeb((uint8_t)temp); /* fall through */
+        case 4: pokeb(temp); temp >>= 8; /* fall through */
+        case 3: pokeb(temp); temp >>= 8; /* fall through */
+        case 2: pokeb(temp); temp >>= 8; /* fall through */
+        case 1: pokeb(temp); /* fall through */
         default: break;
         }
     }
@@ -539,7 +539,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     }
                     if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (adr == 0) {
-                            dump_instr(cnmemonic[ADR_REL] | 0x100, 0, -1, epoint);
+                            dump_instr(cnmemonic[ADR_REL], 0, -1, epoint);
                             err = NULL;
                             goto branchend;
                         } 

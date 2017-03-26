@@ -508,13 +508,13 @@ void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
     }
 }
 
-void write_mem(struct memblocks_s *memblocks, uint8_t c) {
+void write_mem(struct memblocks_s *memblocks, unsigned int c) {
     if (memblocks->mem.p >= memblocks->mem.len) {
         memblocks->mem.len += 0x1000;
         if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
         memblocks->mem.data = (uint8_t *)reallocx(memblocks->mem.data, memblocks->mem.len);
     }
-    memblocks->mem.data[memblocks->mem.p++] = c;
+    memblocks->mem.data[memblocks->mem.p++] = (uint8_t)c;
 }
 
 static unsigned int omemp;
@@ -533,7 +533,7 @@ void get_mem(const struct memblocks_s *memblocks, size_t *memp, size_t *membp) {
     *membp = memblocks->p;
 }
 
-int16_t read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp, size_t offs) {
+int read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp, size_t offs) {
     size_t len;
     if (memp >= memblocks->mem.p) return -1;
     for (;;) {
@@ -556,8 +556,8 @@ int16_t read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp,
     }
 }
 
-void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
-    memblocks->mem.data[ptextaddr] = c;
+void write_mark_mem(struct memblocks_s *memblocks, unsigned int c) {
+    memblocks->mem.data[ptextaddr] = (uint8_t)c;
 }
 
 void list_mem(const struct memblocks_s *memblocks, bool dooutput) { 

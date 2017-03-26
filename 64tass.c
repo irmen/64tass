@@ -85,7 +85,7 @@ const uint8_t *pline;           /* current line data */
 struct linepos_s lpoint;        /* position in current line */
 static uint8_t strength = 0;
 bool fixeddig, constcreated;
-uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
+unsigned int outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 bool referenceit = true;
 
 static size_t waitfor_p, waitfor_len;
@@ -360,7 +360,7 @@ static void memskip(address_t db) { /* poke_pos! */
 /*
  * output one byte
  */
-void pokeb(uint8_t byte) { /* poke_pos! */
+void pokeb(unsigned int byte) { /* poke_pos! */
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
         if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
@@ -520,7 +520,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
         dogap:
             if (*ch2 >= 0) {
                 if (*uninit != 0) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
-                pokeb(*ch2); (*sum)++;
+                pokeb((unsigned int)*ch2); (*sum)++;
             }
             *ch2 = -1; (*uninit)++;
             if (iter == NULL) return warn;
@@ -537,7 +537,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
         doit:
             if (*ch2 >= 0) {
                 if (*uninit != 0) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
-                pokeb(*ch2); (*sum)++;
+                pokeb((unsigned int)*ch2); (*sum)++;
             }
             if (touval(val2, &uval, 8, poke_pos)) uval = 256 + '?';
             switch (prm) {
@@ -579,7 +579,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
     Type *type = val->obj;
     if (type != LIST_OBJ && type != TUPLE_OBJ) {
         if (type == GAP_OBJ) {
-            *uninit += abs(bits) / 8;
+            *uninit += (unsigned int)abs(bits) / 8;
             return false;
         }
         iter = NULL;
@@ -597,7 +597,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
             val_destroy(val2);
             continue;
         case T_GAP:
-            *uninit += abs(bits) / 8; val_destroy(val2);
+            *uninit += (unsigned int)abs(bits) / 8; val_destroy(val2);
             continue;
         default:
         doit:
@@ -625,11 +625,11 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
                 break;
             }
             if (bits >= 0) {
-                if (touval(val2, &uv, bits, poke_pos)) uv = 0;
+                if (touval(val2, &uv, (unsigned int)bits, poke_pos)) uv = 0;
                 ch2 = uv;
             } else {
-                if (toival(val2, &iv, -bits, poke_pos)) iv = 0;
-                ch2 = iv;
+                if (toival(val2, &iv, (unsigned int)-bits, poke_pos)) iv = 0;
+                ch2 = (uint32_t)iv;
             }
             break;
         case T_NONE:
@@ -638,10 +638,10 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
             ch2 = 0;
         }
         if (*uninit != 0) {memskip(*uninit);*uninit = 0;}
-        pokeb((uint8_t)ch2);
-        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+        pokeb(ch2);
+        if (prm>=CMD_RTA) pokeb(ch2 >> 8);
+        if (prm>=CMD_LINT) pokeb(ch2 >> 16);
+        if (prm>=CMD_DINT) pokeb(ch2 >> 24);
         if (iter == NULL) return warn;
         val_destroy(val2);
     }
@@ -694,7 +694,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
                 break;
             }
             current_section->l_address.address = uval & 0xffff;
-            current_section->l_address.bank = uval & all_mem & ~0xffff;
+            current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_section->l_address_val);
             current_section->l_address_val = val;
             if (current_section->address != (address_t)uval) {
@@ -719,7 +719,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             memjmp(&current_section->mem, current_section->address);
         }
         current_section->l_address.address = uval & 0xffff;
-        current_section->l_address.bank = uval & all_mem & ~0xffff;
+        current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
         val_destroy(current_section->l_address_val);
         current_section->l_address_val = val;
         return;
@@ -1582,7 +1582,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             if (labelname.len == 3 && !newlabel->ref && epoint.pos != 0 && diagnostics.label_left) {
                 unsigned int i;
                 for (i = 0; i < 3; i++) {
-                    char c = labelname.data[i] | arguments.caseinsensitive;
+                    uint8_t c = labelname.data[i] | arguments.caseinsensitive;
                     if ((c < 'a') || (c > 'z')) break;
                 }
                 if (i == 3) err_msg_label_left(&epoint);
@@ -1939,7 +1939,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (current_section->address > waitfor->addr) {
                         if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
                     }
-                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~0xffff)) & all_mem;
+                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~(address_t)0xffff)) & all_mem;
                     if (current_section->l_address.bank > all_mem) {
                         current_section->l_address.bank &= all_mem;
                         err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
@@ -2013,7 +2013,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (ch2 >= 0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
-                            pokeb(ch2); sum++;
+                            pokeb((unsigned int)ch2); sum++;
                         } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                             if (uninit != 0) {
                                 err_msg2(ERROR___NO_LAST_GAP, NULL, poke_pos);
@@ -2130,7 +2130,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".offs", &epoint);
                             else if (ival != 0) {
                                 poke_pos = &epoint;
-                                memskip(ival);
+                                memskip((uval_t)ival);
                             }
                         } else current_section->address += ival;
                         current_section->address &= all_mem2;
@@ -2160,7 +2160,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, vs->val, &vs->epoint);
                         else {
                             current_section->l_address.address = uval & 0xffff;
-                            current_section->l_address.bank = uval & ~0xffff;
+                            current_section->l_address.bank = uval & ~(address_t)0xffff;
                             val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
                         }
@@ -2304,7 +2304,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db)) err_msg_still_none(NULL, poke_pos);
                             sum += uninit;
                             if (ch2 >= 0 && sum < db) {
-                                pokeb(ch2); sum++;
+                                pokeb((unsigned int)ch2); sum++;
                             }
 
                             db -= sum;
@@ -2317,13 +2317,13 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 } else {
                                     size_t offs = 0;
                                     while (db != 0) { /* pattern repeat */
-                                        int16_t ch;
+                                        int ch;
                                         db--;
                                         ch = read_mem(&current_section->mem, memp, membp, offs);
                                         if (ch < 0) uninit++;
                                         else {
                                             if (uninit != 0) {memskip(uninit); uninit = 0;}
-                                            pokeb(ch);
+                                            pokeb((unsigned int)ch);
                                         }
                                         offs++;
                                         if (offs >= sum) offs = 0;
@@ -3766,7 +3766,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC, "C");
 
-    uargv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *uargv);
+    uargv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *uargv);
     if (uargv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         const char *s = argv[i];
