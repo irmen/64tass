@@ -2457,61 +2457,49 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         bool tryit = true;
                         uval_t uval;
                         struct values_s *vs;
+                        linepos_t opoint;
 
                         vs = get_val();
                         if (vs == NULL) break;
 
+                        opoint = &vs->epoint;
                         val = vs->val;
-                        switch (val->obj->type) {
-                        case T_BOOL:
-                        case T_FLOAT:
-                        case T_INT:
-                        case T_BITS:
-                            if (touval(val, &uval, 24, &vs->epoint)) uval = 0;
-                            tmp.start = uval;
-                            break;
-                        case T_STR:
-                            {
-                                Str *str = (Str *)val;
-                                if (str->len == 0) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
-                                else {
-                                    ch = str->data[0];
-                                    if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
-                                    tmp.start = ch;
-                                }
-                                if (str->len > i) {
-                                    ch = str->data[i];
-                                    if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
-                                    if (tmp.start > ch) {
-                                        tmp.end = tmp.start;
-                                        tmp.start = ch;
-                                    } else tmp.end = ch;
-                                    endok = true;
-                                }
-                                if (str->len > i) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
-                                break;
+                        if (val->obj == STR_OBJ) {
+                            Str *str = (Str *)val;
+                            if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
+                            else {
+                                ch = str->data[0];
+                                if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
+                                tmp.start = ch;
                             }
-                        case T_NONE:
-                            err_msg_still_none(NULL, &vs->epoint);
-                            tryit = false;
-                            break;
-                        case T_ERROR:
-                            err_msg_output((Error *)val);
-                            tryit = false;
-                            break;
-                        default:
-                            err_msg_wrong_type(val, NULL, &vs->epoint);
-                            goto breakerr;
+                            if (str->len > i) {
+                                ch = str->data[i];
+                                if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
+                                tmp.end = ch;
+                                endok = true;
+                            }
+                            if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
+                        } else {
+                            if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
+                            tmp.start = uval;
                         }
                         if (!endok) {
                             vs = get_val();
                             if (vs == NULL) { err_msg_argnum(len, len + 2, 0, &epoint); goto breakerr; }
-                            if (touval(vs->val, &uval, 24, &vs->epoint)) tryit = false;
-                            else {
-                                if (tmp.start > (uint32_t)uval) {
-                                    tmp.end = tmp.start;
-                                    tmp.start = uval;
-                                } else tmp.end = uval;
+
+                            val = vs->val;
+                            if (val->obj == STR_OBJ) {
+                                Str *str = (Str *)val;
+                                if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
+                                else {
+                                    ch = str->data[0];
+                                    if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
+                                    tmp.end = ch;
+                                }
+                                if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
+                            } else {
+                                if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
+                                tmp.end = uval;
                             }
                         }
                         vs = get_val();
@@ -2519,9 +2507,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else if (tryit) {
                             tmp.offset = uval;
+                            if (tmp.start > tmp.end) {
+                                tmp.end ^= tmp.start;
+                                tmp.start ^= tmp.end;
+                                tmp.end ^= tmp.start;
+                            }
                             t = new_trans(&tmp, actual_encoding);
                             if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
-                                err_msg2(ERROR__DOUBLE_RANGE, NULL, &vs->epoint); goto breakerr;
+                                err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
                             }
                         }
                     }
@@ -2549,7 +2542,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         v = vs->val;
                         switch (v->obj->type) {
                         case T_STR:
-                            if (((Str *)v)->len == 0) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
+                            if (((Str *)v)->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                             break;
                         case T_NONE:
                             err_msg_still_none(NULL, &vs->epoint);
