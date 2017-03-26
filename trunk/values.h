@@ -27,7 +27,7 @@ struct Obj;
 extern struct Obj *val_alloc(struct Type *);
 extern void val_destroy(struct Obj *);
 extern void val_replace(struct Obj **, struct Obj *);
-extern int val_print(struct Obj *, FILE *);
+extern size_t val_print(struct Obj *, FILE *);
 
 extern void destroy_values(void);
 extern void garbage_collect(void);

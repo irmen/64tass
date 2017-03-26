@@ -28,7 +28,7 @@
 
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
-    int i, j;
+    unsigned int i, j;
     ch = c[0];
 
     if (ch < 0xe0) {
@@ -52,7 +52,7 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
 
 unsigned int utf8rin(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
-    int i, j;
+    unsigned int i, j;
 
     if (c[-2] < 0xe0) {
         ch = c[-2] ^ 0xc0;i = 2;
@@ -101,7 +101,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
-    if ((i & ~0x7fffffff) != 0) return c;
+    if ((i & ~(uint32_t)0x7fffffff) != 0) return c;
     *c++=0xfc | (i >> 30);
     *c++=0x80 | ((i >> 24) & 0x3f);
     *c++=0x80 | ((i >> 18) & 0x3f);
@@ -319,7 +319,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
         ch = dbuf2.data[i];
         if (ch != 0 && ch < 0x80) {
             if (s >= m) {
-                size_t o = s - dd;
+                size_t o = (size_t)(s - dd);
                 l += 16;
                 if (l < 16) err_msg_out_of_memory();
                 dd = (uint8_t *)reallocx(dd, l);
@@ -330,7 +330,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
             continue;
         }
         if (s + utf8outlen(ch) > m) {
-            size_t o = s - dd;
+            size_t o = (size_t)(s - dd);
             l += 16;
             if (l < 16) err_msg_out_of_memory();
             dd = (uint8_t *)reallocx(dd, l);
@@ -339,7 +339,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
         }
         s = utf8out(ch, s);
     }
-    s1->len = s - dd;
+    s1->len = (size_t)(s - dd);
     s1->data = dd;
 }
 
@@ -454,7 +454,7 @@ size_t argv_print(const char *line, FILE *f) {
                 }
             }
             ln2 = fprintf(f, ch < 0x10000 ? "$'\\u%" PRIx32 "'" : "$'\\U%" PRIx32 "'", ch);
-            if (ln2 > 0) len += ln2;
+            if (ln2 > 0) len += (size_t)ln2;
             continue;
         }
         if (ch == 0) break;
@@ -470,7 +470,7 @@ size_t argv_print(const char *line, FILE *f) {
         i++;
         if (isprint(ch) == 0) {
             int ln = fprintf(f, "$'\\x%" PRIx32 "'", ch);
-            if (ln > 0) len += ln;
+            if (ln > 0) len += (size_t)ln;
             continue;
         }
         len++;putc(ch, f);
@@ -588,7 +588,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i += ln;
             l = i;
             err = unknown_print(f, ch);
-            if (err >= 0) len += err;
+            if (err > 0) len += (size_t)err;
             continue;
         }
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
@@ -596,7 +596,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i++;
             l = i;
             err = unknown_print(f, ch);
-            if (err >= 0) len += err;
+            if (err > 0) len += (size_t)err;
             continue;
         }
         i++;
@@ -624,7 +624,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
                 }
             }
             err = unknown_print(f, ch);
-            if (err >= 0) len += err;
+            if (err > 0) len += (size_t)err;
             continue;
         }
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
@@ -632,7 +632,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i++;
             l = i;
             err = unknown_print(f, ch);
-            if (err >= 0) len += err;
+            if (err > 0) len += (size_t)err;
             continue;
         }
         i++;
