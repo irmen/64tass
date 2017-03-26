@@ -342,12 +342,12 @@ MUST_CHECK Obj *float_from_bits(const Bits *v1, linepos_t epoint) {
     case 0: d = 0.0; break;
     case 1: d = v1->data[0]; break;
     default:
-        d = (v1->len < 0) ? -1.0 : 0.0;
+        d = ((v1->len < 0) ? 1.0 : 0.0) + v1->data[0];
         len1 = bitslen(v1);
-        for (i = 0; i < len1; i++) {
-            if (v1->len < 0) d -= ldexp(v1->data[i], (int)(i * SHIFT));
-            else d += ldexp(v1->data[i], (int)(i * SHIFT));
+        for (i = 1; i < len1; i++) {
+            d += ldexp(v1->data[i], (int)(i * SHIFT));
         }
+        if (v1->len < 0) d = -d;
         return float_from_double(d, epoint);
     }
     return (Obj *)new_float(d);

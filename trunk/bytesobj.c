@@ -484,12 +484,12 @@ MUST_CHECK Obj *float_from_bytes(const Bytes *v1, linepos_t epoint) {
     case 2: d = (v1->data[0] + v1->data[1] * 256); break;
     case 3: d = (v1->data[0] + v1->data[1] * 256 + v1->data[2] * 65536); break;
     default:
-        d = (v1->len < 0) ? -1.0 : 0.0;
+        d = ((v1->len < 0) ? 1 : 0) + v1->data[0];
         len1 = byteslen(v1);
-        for (i = 0; i < len1; i++) {
-            if (v1->len < 0) d -= ldexp(v1->data[i], (int)(i * 8));
-            else d += ldexp(v1->data[i], (int)(i * 8));
+        for (i = 1; i < len1; i++) {
+            d += ldexp(v1->data[i], (int)(i * 8));
         }
+        if (v1->len < 0) d = -d;
         return float_from_double(d, epoint);
     }
     return (Obj *)new_float(d);
