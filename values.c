@@ -162,10 +162,6 @@ int val_print(Obj *v1, FILE *f) {
     return len;
 }
 
-void init_values(void)
-{
-}
-
 void destroy_values(void)
 {
     size_t j;
