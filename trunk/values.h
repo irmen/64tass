@@ -30,6 +30,5 @@ extern void val_replace(struct Obj **, struct Obj *);
 extern int val_print(struct Obj *, FILE *);
 
 extern void destroy_values(void);
-extern void init_values(void);
 extern void garbage_collect(void);
 #endif

@@ -3530,7 +3530,6 @@ static int main2(int *argc2, char **argv2[]) {
     char **argv;
     int argc;
 
-    init_values();
     objects_init();
     err_init(*argv2[0]);
     init_section();
