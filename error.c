@@ -552,7 +552,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     if (name->data != NULL) {
         str_name(name->data, name->len);
     } else {
-        ssize_t count = name->len;
+        ssize_t count = (ssize_t)name->len;
         adderror(" '");
         while (count != 0) {
             adderror((count > 0) ? "+" : "-");
@@ -1077,11 +1077,11 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
             i++;
             continue;
         }
-        l = mbrtowc(&w, s + i, n - i,  &ps);
+        l = (ssize_t)mbrtowc(&w, s + i, n - i,  &ps);
         if (l <= 0) break;
         s2[utf8out(w, s2) - s2] = 0;
         adderror((char *)s2);
-        i += l;
+        i += (size_t)l;
     }
 #ifdef _WIN32
     setlocale(LC_ALL, "C");

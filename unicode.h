@@ -39,7 +39,7 @@ extern size_t printable_print2(const uint8_t *, FILE *, size_t);
 extern void caret_print(const uint8_t *, FILE *, size_t);
 extern size_t calcpos(const uint8_t *, size_t);
 
-static inline int utf8len(uint8_t ch) {
+static inline unsigned int utf8len(uint8_t ch) {
     if (ch < 0x80) return 1;
     if (ch < 0xe0) return 2;
     if (ch < 0xf0) return 3;

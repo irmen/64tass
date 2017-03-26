@@ -536,7 +536,7 @@ static void load_mem(Reg8 *r) {
     for (i = 0; i < 8; i++) r->a[i] = new_bitu();
 }
 
-static void load_imm(uint8_t v, Reg8 *r) {
+static void load_imm(uint32_t v, Reg8 *r) {
     unsigned int i;
     for (i = 0; i < 8; i++, v >>= 1) r->a[i] = ((v & 1) == 1) ? new_bit1() : new_bit0();
 }
@@ -557,7 +557,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
         cpu_opt_invalidate();
         cpu->pc = current_section->l_address.address;
     }
-    cpu->pc = (cpu->pc + ln + 1) & 0xffff;
+    cpu->pc = ((int)cpu->pc + ln + 1) & 0xffff;
 
     if (cpu->call) {
         if (cod == 0x60) err_msg2(ERROR_____TAIL_CALL, NULL, epoint);
