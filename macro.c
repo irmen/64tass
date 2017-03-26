@@ -208,7 +208,7 @@ bool mtranslate(struct file_s *cfile) {
 static size_t macro_param_find(void) {
     uint8_t q = 0, ch;
     uint8_t pp = 0;
-    char par[256];
+    uint8_t par[256];
 
     struct linepos_s opoint2, npoint2;
     opoint2.pos = lpoint.pos;
@@ -664,7 +664,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         current_section->requires = oldsection->requires;
         current_section->conflicts = oldsection->conflicts;
         current_section->l_address.address = star & 0xffff; /* TODO */
-        current_section->l_address.bank = star & ~0xffff;
+        current_section->l_address.bank = star & ~(address_t)0xffff;
         val_destroy(current_section->l_address_val);
         current_section->l_address_val = val_reference(oldsection->l_address_val);
         current_section->dooutput = false;

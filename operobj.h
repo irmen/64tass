@@ -98,7 +98,7 @@ typedef struct Oper {
     Obj v;
     const char *name;
     enum oper_e op;
-    int prio;
+    unsigned int prio;
 } Oper;
 
 extern void operobj_init(void);

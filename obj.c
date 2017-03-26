@@ -173,7 +173,7 @@ static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), unsigned int 
 
 static MUST_CHECK Error *invalid_address(Obj *v1, uval_t *uv, int bits, uint32_t *UNUSED(am), linepos_t epoint) {
     if (uv == NULL) return NULL;
-    return (bits >= 0) ? v1->obj->uval(v1, uv, bits, epoint) : v1->obj->ival(v1, (ival_t *)uv, -bits, epoint);
+    return (bits >= 0) ? v1->obj->uval(v1, uv, (unsigned int)bits, epoint) : v1->obj->ival(v1, (ival_t *)uv, (unsigned int)-bits, epoint);
 }
 
 static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {

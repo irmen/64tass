@@ -82,9 +82,9 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     }
     r = frexp(r, &expo);
     r *= 2147483648.0; 
-    h = r; 
+    h = (unsigned int)r; 
     r = (r - (double)h) * 2147483648.0;
-    h ^= (int)r ^ (expo << 15);
+    h ^= (unsigned int)r ^ ((unsigned int)expo << 15);
     *hs = h & ((~0U) >> 1);
     return NULL;
 }
@@ -115,7 +115,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
         v->u.intconv.val = val_reference(o1);
         return v;
     }
-    *iv = v1->real;
+    *iv = (ival_t)v1->real;
     if ((((*iv >= 0) ? *iv : (~*iv)) >> (bits - 1)) != 0) {
         v = new_error(ERROR_____CANT_IVAL, epoint);
         v->u.intconv.bits = bits;
@@ -134,7 +134,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
         v->u.intconv.val = val_reference(o1);
         return v;
     }
-    *uv = v1->real;
+    *uv = (uval_t)v1->real;
     if (bits < 8 * sizeof *uv && (*uv >> bits) != 0) {
         v = new_error(ERROR_____CANT_UVAL, epoint);
         v->u.intconv.bits = bits;
@@ -165,7 +165,7 @@ static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint
 
 static MUST_CHECK Obj *calc1(oper_t op) {
     double v1 = ((Float *)op->v1)->real;
-    ival_t val = v1;
+    uval_t val = (uval_t)((ival_t)v1);
     switch (op->op->op) {
     case O_BANK: val >>= 8; /* fall through */
     case O_HIGHER: val >>= 8; /* fall through */

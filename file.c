@@ -89,7 +89,7 @@ char *get_path(const Str *v, const char *base) {
 #else
     const char *c;
     c = strrchr(base, '/');
-    i = (c != NULL) ? (c - base + 1) : 0;
+    i = (c != NULL) ? (size_t)(c - base) + 1 : 0;
 #endif
 
     if (v == NULL) {
@@ -204,19 +204,19 @@ FILE *file_open(const char *name, const char *mode) {
     if (max < 1) err_msg_out_of_memory();
     do {
         char temp[64];
-        int l;
+        ssize_t l;
         ch = *c;
         if ((ch & 0x80) != 0) c += utf8in(c, &ch); else c++;
-        l = wcrtomb(temp, (wchar_t)ch, &ps);
+        l = (ssize_t)wcrtomb(temp, (wchar_t)ch, &ps);
         if (l <= 0) l = sprintf(temp, "{$%" PRIx32 "}", ch);
-        len += l;
+        len += (size_t)l;
         if (len < (size_t)l) err_msg_out_of_memory();
         if (len > max) {
             max = len + 64;
             if (max < 64) err_msg_out_of_memory();
             newname = (char *)reallocx(newname, max);
         }
-        memcpy(newname + len - l, temp, l);
+        memcpy(newname + len - l, temp, (size_t)l);
     } while (ch != 0);
     f = fopen(newname, mode);
     free(newname);
@@ -271,7 +271,7 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
         return p;
     }
     for (i = 0; i < ubuff->p; i++) {
-        size_t o = p - tmp->data;
+        size_t o = (size_t)(p - tmp->data);
         uint32_t ch;
         if (o + 6*6 + 1 > tmp->len) {
             tmp->len += 4096;
@@ -280,29 +280,31 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
             p = tmp->data + o;
         }
         ch = ubuff->data[i];
-        if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+        if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
     }
     return p;
 }
 
-static uint32_t fromiso2(uint8_t c) {
+static uint32_t fromiso2(unsigned int c) {
     static mbstate_t ps;
     wchar_t w;
     int olderrno;
     ssize_t l;
+    uint8_t c2 = (uint8_t)(c | 0x80);
 
     memset(&ps, 0, sizeof ps);
     olderrno = errno;
-    l = mbrtowc(&w, (char *)&c, 1,  &ps);
+    l = (ssize_t)mbrtowc(&w, (char *)&c2, 1,  &ps);
     errno = olderrno;
-    if (l < 0) w = c;
+    if (l < 0) return c2;
     return w;
 }
 
-static inline uint32_t fromiso(uint8_t c) {
+static inline uint32_t fromiso(unsigned int c) {
     static uint32_t conv[128];
-    if (conv[c - 0x80] == 0) conv[c - 0x80] = fromiso2(c);
-    return conv[c - 0x80];
+    c &= 0x7f;
+    if (conv[c] == 0) conv[c] = fromiso2(c);
+    return conv[c];
 }
 
 static struct file_s *command_line = NULL;
@@ -382,8 +384,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
                     if (len >= 0) {
-                        tmp->data = (uint8_t *)mallocx(len);
-                        tmp->len = len;
+                        size_t len2 = (size_t)len;
+                        tmp->data = (uint8_t *)mallocx(len2);
+                        tmp->len = len2;
                     }
                     rewind(f);
                 }
@@ -409,11 +412,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
                     if (len >= 0) {
-                        len += 4096;
-                        if (len < 4096) err_msg_out_of_memory(); /* overflow */
-                        tmp->data = (uint8_t *)mallocx(len);
-                        tmp->len = len;
-                        max_lines = (len / 20 + 1024) & ~1023;
+                        size_t len2 = (size_t)len + 4096;
+                        if (len2 < 4096) err_msg_out_of_memory(); /* overflow */
+                        tmp->data = (uint8_t *)mallocx(len2);
+                        tmp->len = len2;
+                        max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
                         if (max_lines > SIZE_MAX / sizeof *tmp->line) err_msg_out_of_memory(); /* overflow */
                         tmp->line = (size_t *)mallocx(max_lines * sizeof *tmp->line);
                     }
@@ -425,7 +428,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 setlocale(LC_CTYPE, "");
 #endif
                 do {
-                    int i, j;
+                    size_t k;
                     uint8_t *p;
                     uint32_t lastchar;
                     bool qc = true;
@@ -441,7 +444,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     ubuff.p = 0;
                     p = tmp->data + fp;
                     for (;;) {
-                        size_t o = p - tmp->data;
+                        unsigned int i, j;
+                        size_t o = (size_t)(p - tmp->data);
                         uint8_t ch2;
                         if (o + 6*6 + 1 > tmp->len) {
                             tmp->len += 4096;
@@ -469,7 +473,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (c == 13) {
                                 break;
                             }
-                            if (c != 0 && c < 0x80) *p++ = c; else p = utf8out(c, p);
+                            if (c != 0 && c < 0x80) *p++ = (uint8_t)c; else p = utf8out(c, p);
                             continue;
                         }
                         switch (type) {
@@ -548,7 +552,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             break;
                         case E_UTF16LE:
                             if (bp == bl) goto invalid;
-                            c |= buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
+                            c |= (uint32_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
                                 type = E_UTF16BE;
                                 continue;
@@ -596,7 +600,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 qc = true;
                             }
                             if (ubuff.p == 1) {
-                                if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                             } else {
                                 p = flushubuff(&ubuff, p, tmp);
                                 ubuff.p = 1;
@@ -619,7 +623,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                     qc = true; 
                                 }
                                 if (ubuff.p == 1) {
-                                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                                 } else {
                                     p = flushubuff(&ubuff, p, tmp);
                                     ubuff.p = 1;
@@ -632,11 +636,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 eof:
                     if (!qc) unfc(&ubuff);
                     p = flushubuff(&ubuff, p, tmp);
-                    i = (p - tmp->data) - fp;
+                    k = (size_t)(p - tmp->data) - fp;
                     p = tmp->data + fp;
-                    while (i != 0 && (p[i-1]==' ' || p[i-1]=='\t')) i--;
-                    p[i++] = 0;
-                    fp += i;
+                    while (k != 0 && (p[k-1]==' ' || p[k-1]=='\t')) k--;
+                    p[k++] = 0;
+                    fp += k;
                 } while (bp != bl);
 #ifdef _WIN32
                 setlocale(LC_CTYPE, "C");

@@ -192,7 +192,7 @@ static void padding(size_t size, FILE *f) {
         if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
         size -= 0x40000000;
     }
-    if ((long)size > 256 && fseek(f, size, SEEK_CUR) == 0) {
+    if ((long)size > 256 && fseek(f, (long)size, SEEK_CUR) == 0) {
         return;
     }
 err:while ((size--) != 0) if (putc(0, f) == EOF) break;
@@ -309,9 +309,9 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
     }
 }
 
-static void hexput(FILE *fout, uint8_t b) {
+static void hexput(FILE *fout, unsigned int b) {
     const char *hex = "0123456789ABCDEF";
-    putc(hex[b >> 4], fout);
+    putc(hex[(b >> 4) & 0xf], fout);
     putc(hex[b & 0xf], fout);
 }
 
@@ -340,17 +340,17 @@ static void output_mem_ihex_line(FILE *fout, unsigned int length, address_t addr
 static void output_mem_ihex_data(struct ihex_s *ihex) {
     uint8_t *data = ihex->data;
     if ((ihex->address & 0xffff) + ihex->length > 0x10000) {
-        uint16_t length = -ihex->address;
+        uint16_t length = (uint16_t)-ihex->address;
         unsigned int remains = ihex->length - length;
         ihex->length = length;
         output_mem_ihex_data(ihex);
         data += length;
         ihex->length = remains;
     }
-    if (((ihex->address ^ ihex->segment) & ~0xffff) != 0) {
+    if (((ihex->address ^ ihex->segment) & ~(address_t)0xffff) != 0) {
         uint8_t ez[2];
-        ez[0] = ihex->address >> 24;
-        ez[1] = ihex->address >> 16;
+        ez[0] = (uint8_t)(ihex->address >> 24);
+        ez[1] = (uint8_t)(ihex->address >> 16);
         output_mem_ihex_line(ihex->file, sizeof ez, 0, 4, ez);
         ihex->segment = ihex->address;
     }
@@ -396,7 +396,7 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
 
 struct srecord_s {
     FILE *file;
-    int type;
+    unsigned int type;
     address_t address;
     uint8_t data[32];
     unsigned int length;
@@ -404,7 +404,7 @@ struct srecord_s {
 
 static void output_mem_srec_line(struct srecord_s *srec) {
     unsigned int i;
-    uint8_t sum = srec->length + srec->address + (srec->address >> 8) + (srec->address >> 16) + (srec->address >> 24);
+    unsigned int sum = srec->length + srec->address + (srec->address >> 8) + (srec->address >> 16) + (srec->address >> 24);
     putc('S', srec->file);
     putc(srec->length ? ('1' + srec->type) : ('9' - srec->type), srec->file);
     sum += srec->type + 3;
@@ -586,7 +586,7 @@ void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
                 }
             }
         }
-        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~0xffff));
+        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
         print = false;
         ptextaddr += len;
     }
