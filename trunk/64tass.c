@@ -2442,7 +2442,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 { /* .cdef */
                     struct trans_s tmp, *t;
                     struct encoding_s *old = actual_encoding;
-                    uint32_t ch;
                     bool rc;
                     size_t len;
                     listing_line(epoint.pos);
@@ -2453,7 +2452,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!rc) goto breakerr;
                     for (;;) {
                         bool endok = false;
-                        size_t i = 0;
+                        size_t i;
                         bool tryit = true;
                         uval_t uval;
                         struct values_s *vs;
@@ -2468,17 +2467,17 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             Str *str = (Str *)val;
                             if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                             else {
-                                ch = str->data[0];
+                                uint32_t ch = str->data[0];
                                 if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                 tmp.start = ch;
+                                if (str->len > i) {
+                                    ch = str->data[i];
+                                    if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
+                                    tmp.end = ch;
+                                    endok = true;
+                                    if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
+                                }
                             }
-                            if (str->len > i) {
-                                ch = str->data[i];
-                                if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
-                                tmp.end = ch;
-                                endok = true;
-                            }
-                            if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
                         } else {
                             if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
                             tmp.start = uval;
@@ -2492,11 +2491,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 Str *str = (Str *)val;
                                 if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                                 else {
-                                    ch = str->data[0];
+                                    uint32_t ch = str->data[0];
                                     if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                     tmp.end = ch;
+                                    if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
                                 }
-                                if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
                             } else {
                                 if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
                                 tmp.end = uval;
