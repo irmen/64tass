@@ -2507,9 +2507,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         else if (tryit) {
                             tmp.offset = uval;
                             if (tmp.start > tmp.end) {
-                                tmp.end ^= tmp.start;
-                                tmp.start ^= tmp.end;
-                                tmp.end ^= tmp.start;
+                                uint32_t tmpe = tmp.start;
+                                tmp.start = tmp.end;
+                                tmp.end = tmpe;
                             }
                             t = new_trans(&tmp, actual_encoding);
                             if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
