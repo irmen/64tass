@@ -449,7 +449,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
                             if (exists && lj->defpass == pass) {
-                                if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
+                                if ((current_section->l_address.bank ^ lj->dest) <= 0xffff) {
                                     uint16_t adrk = lj->dest - current_section->l_address.address - 2;
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
                                         adr = adrk;
@@ -474,7 +474,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 goto branchok;
                             }
                             if (exists && lj->defpass == pass) {
-                                if (((uval_t)current_section->l_address.bank ^ (uval_t)lj->dest) <= 0xffff) {
+                                if ((current_section->l_address.bank ^ lj->dest) <= 0xffff) {
                                     uint16_t adrk = lj->dest - current_section->l_address.address - 3;
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
                                         adr = adrk;

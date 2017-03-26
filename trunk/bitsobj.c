@@ -141,7 +141,7 @@ static MUST_CHECK Obj *negate(Bits *v1) {
         }
         if (i == v1->bits / SHIFT) {
             if (bs == 0) return NULL;
-            if (v1->data[i] == (bdigit_t)~((~(v1->data[i] >> bs)) << bs)) return NULL;
+            if (v1->data[i] == ~((~(v1->data[i] >> bs)) << bs)) return NULL;
         }
         v = new_bits(ext ? sz + 1 : sz);
         if (ext) {
