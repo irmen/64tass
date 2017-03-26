@@ -541,7 +541,7 @@ static void load_imm(uint32_t v, Reg8 *r) {
     for (i = 0; i < 8; i++, v >>= 1) r->a[i] = ((v & 1) == 1) ? new_bit1() : new_bit0();
 }
 
-void cpu_opt(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint) {
+void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     struct optimizer_s *cpu = current_section->optimizer;
     const char *optname;
     Reg8 alu;

@@ -286,7 +286,7 @@ static MUST_CHECK char *read_one(FILE *f) {
                 line = (char *)realloc(line, ln);
                 if (ln < 16 || line == NULL) err_msg_out_of_memory2();
             }
-            line[i++] = c;
+            line[i++] = (char)c;
         }
         c = getc(f);
         if (c == EOF || c == 0) break;
@@ -310,17 +310,17 @@ static MUST_CHECK char *read_one(FILE *f) {
         wchar_t w;
         uint32_t ch;
         if (p + 6*6 + 1 > data + len) {
-            size_t o = p - data;
+            size_t o = (size_t)(p - data);
             len += 1024;
             data = (uint8_t*)realloc(data, len);
             if (data == NULL) err_msg_out_of_memory2();
             p = data + o;
         }
-        l = mbrtowc(&w, line + j, n - j,  &ps);
+        l = (ssize_t)mbrtowc(&w, line + j, n - j,  &ps);
         if (l < 1) break;
-        j += l;
+        j += (size_t)l;
         ch = w;
-        if (ch != 0 && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+        if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
     }
     *p++ = 0;
     free(line);
@@ -412,7 +412,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 0x112: arguments.linenum = true;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case 0x110: arguments.verbose = true;break;
-            case 0x109:tab = atoi(my_optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
+            case 0x109:tab = atoi(my_optarg); if (tab > 0 && tab <= 64) arguments.tab_size = (unsigned int)tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
@@ -540,7 +540,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                     while (feof(f) == 0) {
                         char *onepar = read_one(f);
                         if (onepar == NULL) break;
-                        *argv2 = argv = (char **)reallocx(argv, (argc + 1) * sizeof *argv);
+                        *argv2 = argv = (char **)reallocx(argv, ((size_t)argc + 1) * sizeof *argv);
                         for (j = argc; j > i; j--) {
                             argv[j] = argv[j - 1];
                         }

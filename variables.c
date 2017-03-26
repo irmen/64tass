@@ -429,9 +429,9 @@ static Label *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp
     return NULL;
 }
 
-static inline void padding(int l, int t, FILE *f) {
+static inline void padding(size_t l, size_t t, FILE *f) {
     if (arguments.tab_size > 1) {
-        int l2 = l - l % arguments.tab_size;
+        size_t l2 = l - l % arguments.tab_size;
         while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', f);} 
     }
     while (l < t) { l++; putc(' ', f);} 

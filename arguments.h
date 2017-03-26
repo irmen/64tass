@@ -63,7 +63,7 @@ struct arguments_s {
     const char *list;
     const char *make;
     const char *error;
-    uint8_t tab_size;
+    unsigned int tab_size;
 };
 
 struct diagnostics_s {

@@ -428,7 +428,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
     Mfunc new_mfunc;
     size_t len = 0, i, j;
     str_t label;
-    int w;
+    unsigned int w;
     bool stard = false;
 
     new_mfunc.param = NULL;
