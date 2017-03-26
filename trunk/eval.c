@@ -323,7 +323,7 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
     eval->o_out[eval->outp++].epoint = *epoint;
 }
 
-static bool get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
+static bool get_exp_compat(unsigned int *wd, int stop) {/* length in bytes, defined */
     char ch;
 
     Obj *conv, *conv2;
@@ -1188,7 +1188,7 @@ size_t get_val_remaining(void) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
+static bool get_exp2(unsigned int *wd, int stop, struct file_s *cfile) {
     char ch;
 
     Oper *op;
@@ -1663,7 +1663,7 @@ static bool get_exp2(int *wd, int stop, struct file_s *cfile) {
     return false;
 }
 
-bool get_exp(int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+bool get_exp(unsigned int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
     if (!get_exp2(wd, stop, cfile)) {
         return false;
     }
@@ -1676,7 +1676,7 @@ bool get_exp(int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned
 
 
 bool get_exp_var(struct file_s *cfile, linepos_t epoint) {
-    int w;
+    unsigned int w;
     return get_exp(&w, 2, cfile, 1, 1, epoint);
 }
 

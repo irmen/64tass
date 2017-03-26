@@ -649,7 +649,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
     return warn;
 }
 
-static bool instrecursion(List *val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
+static bool instrecursion(List *val, int prm, unsigned int w, linepos_t epoint, struct linepos_s *epoints) {
     size_t i;
     Error *err;
     bool was = false;
@@ -772,7 +772,8 @@ static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
 
 MUST_CHECK Obj *compile(struct file_list_s *cflist)
 {
-    int wht,w;
+    int wht;
+    unsigned int w;
     int prm = 0;
     Obj *val;
 

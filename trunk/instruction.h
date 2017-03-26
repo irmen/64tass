@@ -25,7 +25,7 @@ struct cpu_s;
 struct Error;
 struct Obj;
 
-extern MUST_CHECK struct Error *instruction(int, int, struct Obj *, linepos_t, struct linepos_s *);
+extern MUST_CHECK struct Error *instruction(int, unsigned int, struct Obj *, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const uint8_t *);
 extern MUST_CHECK bool touval(struct Obj *, uval_t *, unsigned int, linepos_t);

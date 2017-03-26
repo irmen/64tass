@@ -51,14 +51,14 @@ bool allowslowbranch = true;
 int lookup_opcode(const uint8_t *s) {
     int32_t s4;
     unsigned int also, felso, elozo, no;
-    uint32_t name;
+    int32_t name;
 
-    name = ((uint32_t)s[0] << 16) | (s[1] << 8) | s[2];
+    name = (s[0] << 16) | (s[1] << 8) | s[2];
     if (arguments.caseinsensitive != 0) name |= 0x202020;
     also = 0;
     no = (felso = last_mnem) / 2;
     for (;;) {  /* do binary search */
-        if ((s4 = name - mnemonic[no]) == 0) return no;
+        if ((s4 = name - (int32_t)mnemonic[no]) == 0) return (int)no;
         elozo = no;
         if (elozo == (no = ((s4 > 0) ? (felso + (also = no)) : (also + (felso = no))) / 2)) break;
     }
@@ -105,7 +105,7 @@ MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
     return v;
 }
 
-static Error *dump_instr(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint)  {
+static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
     if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
         uint32_t temp = adr;
@@ -123,12 +123,12 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int8_t ln, linepos_t epoint)
     return NULL;
 }
 
-MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struct linepos_s *epoints) {
+MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE } adrgen;
     enum opr_e opr;
     enum reg_e reg;
     const uint8_t *cnmemonic; /* current nmemonic */
-    int8_t ln;
+    unsigned int ln;
     uint8_t cod, longbranch;
     uint32_t adr;
     uval_t uval;
@@ -886,6 +886,6 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
 
     cod = cnmemonic[opr];
     if (opr == ADR_REG) cod = regopcode_table[cod][reg];
-    return dump_instr(cod ^ longbranch, adr, ln, epoint);
+    return dump_instr(cod ^ longbranch, adr, (int)ln, epoint);
 }
 
