@@ -23,21 +23,21 @@
 
 extern struct Type *TYPE_OBJ;
 
-enum truth_e {
+typedef enum Truth_types {
     TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY
-};
+} Truth_types;
 
-enum type_e {
+typedef enum Type_types {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
     T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
     T_LABEL, T_NAMESPACE
-};
+} Type_types;
 
-enum tfunc_e {
+typedef enum Func_types {
     TF_ABS, TF_TRUNC, TF_CEIL, TF_FLOOR, TF_ROUND
-};
+} Func_types;
 
 struct Error;
 
@@ -45,14 +45,14 @@ typedef MUST_CHECK Obj *(*iter_next_t)(Iter *);
 
 typedef struct Type {
     Obj v;
-    enum type_e type;
+    Type_types type;
     const char *name;
     size_t length;
     Obj *(*create)(Obj *, linepos_t) MUST_CHECK;
     void (*destroy)(Obj *);
     void (*garbage)(Obj *, int);
     bool (*same)(const Obj *, const Obj *);
-    Obj *(*truth)(Obj *, enum truth_e, linepos_t) MUST_CHECK;
+    Obj *(*truth)(Obj *, Truth_types, linepos_t) MUST_CHECK;
     struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t, size_t) MUST_CHECK;
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
@@ -63,7 +63,7 @@ typedef struct Type {
     struct Error *(*uval)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*function)(Obj *, enum tfunc_e, linepos_t) MUST_CHECK;
+    Obj *(*function)(Obj *, Func_types, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
     Iter *(*getiter)(Obj *) MUST_CHECK;
@@ -72,6 +72,6 @@ typedef struct Type {
 
 extern void typeobj_init(void);
 extern void typeobj_names(void);
-extern void new_type(Type *, enum type_e, const char *, size_t);
+extern void new_type(Type *, Type_types, const char *, size_t);
 
 #endif

@@ -21,17 +21,17 @@
 #include "inttypes.h"
 
 #define ____ 0x69
-enum opr_e {
+typedef enum Adr_types {
     ADR_REG = 0, ADR_IMPLIED, ADR_IMMEDIATE, ADR_LONG, ADR_ADDR, ADR_ZP,
     ADR_LONG_X, ADR_ADDR_X, ADR_ZP_X, ADR_ADDR_X_I, ADR_ZP_X_I, ADR_ZP_S,
     ADR_ZP_S_I_Y, ADR_ADDR_Y, ADR_ZP_Y, ADR_ZP_LI_Y, ADR_ZP_I_Y, ADR_ZP_I_Z,
     ADR_ADDR_LI, ADR_ZP_LI, ADR_ADDR_I, ADR_ZP_I, ADR_REL_L, ADR_REL,
     ADR_MOVE, ADR_ZP_R, ADR_ZP_R_I_Y, ADR_BIT_ZP, ADR_BIT_ZP_REL, ADR_LEN
-};
+} Adr_types;
 
-enum reg_e {
+typedef enum Reg_types {
     REG_A, REG_X, REG_Y, REG_S, REG_D, REG_R, REG_I, REG_Z, REG_B, REG_K, REG_P, REG_LEN
-};
+} Reg_types;
 
 struct cpu_s {
     const uint32_t *mnemonic;

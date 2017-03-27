@@ -61,7 +61,7 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
     return &v->v;
 }
 
-static MUST_CHECK Obj *function(Obj *UNUSED(v1), enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *UNUSED(v1), Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_gap();
 }
 

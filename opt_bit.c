@@ -25,7 +25,7 @@
 
 typedef struct Bit {
     size_t refcount;
-    uint8_t b;
+    Bit_types b;
     struct Bit *r;
 } Bit;
 
@@ -91,7 +91,7 @@ Bit *new_bitu(void) {
     return v;
 }
 
-Bit *new_bit(uint8_t b) {
+Bit *new_bit(Bit_types b) {
     switch (b) {
     case B0: return new_bit0();
     case B1: return new_bit1();
@@ -128,7 +128,7 @@ Bit *inv_bit(Bit *v) {
     return ref_bit(v->r);
 }
 
-void mod_bit(Bit *v, uint8_t b) {
+void mod_bit(Bit *v, Bit_types b) {
     v->b = b;
     if (v->r == NULL) return;
     v = v->r;
@@ -139,7 +139,7 @@ void mod_bit(Bit *v, uint8_t b) {
     }
 }
 
-uint8_t get_bit(const Bit *v) {
+Bit_types get_bit(const Bit *v) {
     if (v->r != NULL) {
         switch(v->r->b) {
         case B0: return B1;

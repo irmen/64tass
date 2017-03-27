@@ -22,7 +22,7 @@
 
 extern struct Type *OPER_OBJ;
 
-enum oper_e {
+typedef enum Oper_types {
     O_FUNC,          /* a(    */
     O_INDEX,         /* a[    */
     O_BRACE,         /* {a}   */
@@ -92,12 +92,12 @@ enum oper_e {
     O_RBRACE,        /* }     */
     O_QUEST,         /* ?     */
     O_COLON          /* :     */
-};
+} Oper_types;
 
 typedef struct Oper {
     Obj v;
     const char *name;
-    enum oper_e op;
+    Oper_types op;
     unsigned int prio;
 } Oper;
 

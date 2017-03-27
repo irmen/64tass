@@ -60,7 +60,7 @@ static bool same(const Obj *o1, const Obj *o2) {
             v1->data == v2->data || memcmp(v1->data, v2->data, v2->len) == 0);
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     Str *v1 = (Str *)o1;
     Obj *tmp, *ret;
     if (diagnostics.strict_bool && type != TRUTH_BOOL) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
@@ -179,7 +179,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return ret;
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e UNUSED(f), linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types UNUSED(f), linepos_t epoint) {
     Str *v1 = (Str *)o1;
     return int_from_str(v1, epoint);
 }

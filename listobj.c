@@ -138,7 +138,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return true;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     List *v1 = (List *)o1;
     size_t i;
     Obj *val;

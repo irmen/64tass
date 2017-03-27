@@ -50,7 +50,7 @@ extern uint16_t reffile, curfile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
-extern void new_waitfor(enum wait_e, linepos_t);
+extern void new_waitfor(Wait_types, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
 extern void var_assign(struct Label *, struct Obj *, bool);
 extern void pokeb(unsigned int);

@@ -722,7 +722,7 @@ void encode_string_init(const Str *v, linepos_t epoint) {
     encode_state.err = false;
 }
 
-void encode_error(enum errors_e no) {
+void encode_error(Error_types no) {
     if (!encode_state.err) {
         struct linepos_s epoint = *encode_state.epoint;
         epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i2);

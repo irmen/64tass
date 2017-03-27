@@ -63,7 +63,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return o2->obj == FLOAT_OBJ && v1->real == v2->real;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     Float *v1 = (Float *)o1;
     if (diagnostics.strict_bool && type != TRUTH_BOOL) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
     return truth_reference(v1->real != 0.0);
@@ -150,7 +150,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[v1->real > 0.0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t UNUSED(epoint)) {
     double r = ((Float *)o1)->real;
     switch (f) {
     case TF_ABS: if (r >= 0.0) return val_reference(o1); r = -r; break; 

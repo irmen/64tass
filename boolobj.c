@@ -59,7 +59,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return o2->obj == BOOL_OBJ && v1->boolean == v2->boolean;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types UNUSED(type), linepos_t UNUSED(epoint)) {
     return val_reference(o1);
 }
 
@@ -112,7 +112,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return (Obj *)int_from_bool(v1);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Bool *v1 = (Bool *)o1;
     if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
     return (Obj *)int_from_bool(v1);

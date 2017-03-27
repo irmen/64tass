@@ -18,24 +18,23 @@
 */
 #ifndef OPT_BIT_H
 #define OPT_BIT_H
-#include "inttypes.h"
 #include "stdbool.h"
 
 struct Bit;
 
-#define BU 0
-#define B0 1
-#define B1 2
+typedef enum Bit_types {
+    BU, B0, B1
+} Bit_types;
 
 extern struct Bit *new_bit0(void);
 extern struct Bit *new_bit1(void);
 extern struct Bit *new_bitu(void);
-extern struct Bit *new_bit(uint8_t);
+extern struct Bit *new_bit(Bit_types);
 extern void del_bit(struct Bit *);
 extern struct Bit *ref_bit(struct Bit *);
 extern struct Bit *inv_bit(struct Bit *);
-extern void mod_bit(struct Bit *, uint8_t);
-extern uint8_t get_bit(const struct Bit *);
+extern void mod_bit(struct Bit *, Bit_types);
+extern Bit_types get_bit(const struct Bit *);
 extern void reset_bit(struct Bit **);
 extern void reset_reg8(struct Bit **);
 extern bool eq_bit(const struct Bit *, const struct Bit *);

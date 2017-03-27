@@ -226,7 +226,7 @@ static size_t macro_param_find(void) {
     return npoint2.pos - opoint2.pos;
 }
 
-Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoint) {
+Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint) {
     bool inmacro;
     Obj *val;
     Macro *macro = (Macro *)tmp2;
@@ -327,7 +327,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
     return val;
 }
 
-Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t epoint, uint8_t strength) {
+Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epoint, uint8_t strength) {
     size_t i;
     Label *label;
     Obj *val;

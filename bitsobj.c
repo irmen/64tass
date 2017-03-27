@@ -191,7 +191,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     const Bits *v1 = (const Bits *)o1;
     size_t i, sz, sz2;
     bdigit_t b, inv;
@@ -360,7 +360,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[(len > 0) ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Bits *v1 = (Bits *)o1;
     Obj *tmp = (Obj *)int_from_bits(v1);
     Obj *ret = tmp->obj->function(tmp, f, epoint);

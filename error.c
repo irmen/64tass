@@ -63,12 +63,12 @@ struct errorbuffer_s {
 static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
-enum severity_e {
+typedef enum Severity_types {
     SV_NOTE, SV_NOTE2, SV_WARNING, SV_NONEERROR, SV_ERROR, SV_FATAL
-};
+} Severity_types;
 
 struct errorentry_s {
-    enum severity_e severity;
+    Severity_types severity;
     size_t error_len;
     size_t line_len;
     const struct file_list_s *file_list;
@@ -116,7 +116,7 @@ static void close_error(void) {
     }
 }
 
-static void new_error_msg(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
+static void new_error_msg(Severity_types severity, const struct file_list_s *flist, linepos_t epoint) {
     struct errorentry_s *err;
     size_t line_len;
     close_error();
@@ -321,7 +321,7 @@ static void str_name(const uint8_t *data, size_t len) {
     adderror("'");
 }
 
-void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
+void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
 
     if (no < 0x40) {
         switch (no) {
@@ -475,7 +475,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
     }
 }
 
-void err_msg(enum errors_e no, const void* prm) {
+void err_msg(Error_types no, const void* prm) {
     err_msg2(no, prm, &lpoint);
 }
 
@@ -569,13 +569,13 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool do
     }
 }
 
-static void err_msg_no_addressing(enum severity_e severity, atype_t addrtype, linepos_t epoint) {
+static void err_msg_no_addressing(Severity_types severity, atype_t addrtype, linepos_t epoint) {
     new_error_msg(severity, current_file_list, epoint);
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
     for (; (addrtype & MAX_ADDRESS_MASK) != 0; addrtype <<= 4) {
         const char *txt = "?";
-        switch ((enum atype_e)((addrtype & 0xf000) >> 12)) {
+        switch ((Address_types)((addrtype & 0xf000) >> 12)) {
         case A_NONE: continue;
         case A_IMMEDIATE: txt = " immediate"; break;
         case A_IMMEDIATE_SIGNED: txt = " signed immediate"; break;
@@ -721,7 +721,7 @@ void err_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     err_msg_double_note(l->file_list, &l->epoint, &l->name);
 }
 
-static void err_msg_double_defined2(const char *msg, enum severity_e severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, Severity_types severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error_msg(severity, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
@@ -801,7 +801,7 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     }
 }
 
-void err_msg_bool(enum errors_e no, Obj *o, linepos_t epoint) {
+void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
     const char *name = o->obj->name;
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
     adderror(terr_error[no - 0x40]);
@@ -809,7 +809,7 @@ void err_msg_bool(enum errors_e no, Obj *o, linepos_t epoint) {
     adderror(" [-Wstrict-bool]");
 }
 
-void err_msg_bool_val(enum errors_e no, unsigned int bits, Obj *o, linepos_t epoint) {
+void err_msg_bool_val(Error_types no, unsigned int bits, Obj *o, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
     err_msg_big_integer(terr_error[no - 0x40], bits, o, epoint);
     adderror(" [-Wstrict-bool]");
@@ -884,7 +884,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 if (print_use_color) fputs("\33[01m", f);
                 printable_print((const uint8_t *)included_from->parent->file->realname, f);
-                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, ((included_from->parent->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, included_from->epoint.pos) : included_from->epoint.pos) + 1);
+                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, ((included_from->parent->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, included_from->epoint.pos) : included_from->epoint.pos) + 1);
                 included_from = included_from->parent;
                 if (print_use_color) fputs("\33[m\33[K", f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
@@ -894,7 +894,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
         line = (err->line_len != 0) ? ((const uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)cflist->file->realname, f);
-        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->coding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
+        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
     } else {
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)prgname, f);
@@ -1050,7 +1050,7 @@ void err_msg_out_of_memory(void)
     err_msg_out_of_memory2();
 }
 
-void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
+void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
     mbstate_t ps;
     const char *s;
     wchar_t w;

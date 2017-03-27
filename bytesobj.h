@@ -36,7 +36,7 @@ extern void bytesobj_init(void);
 extern void bytesobj_names(void);
 extern void bytesobj_destroy(void);
 
-enum bytes_mode_e {
+typedef enum Textconv_types {
     BYTES_MODE_TEXT,
     BYTES_MODE_SHIFT_CHECK,
     BYTES_MODE_SHIFT,
@@ -44,7 +44,7 @@ enum bytes_mode_e {
     BYTES_MODE_NULL_CHECK,
     BYTES_MODE_NULL,
     BYTES_MODE_PTEXT
-};
+} Textconv_types;
 
 static inline Bytes *ref_bytes(Bytes *v1) {
     v1->v.refcount++; return v1;
@@ -57,6 +57,6 @@ struct Str;
 extern MUST_CHECK Bytes *bytes_from_u8(unsigned int);
 extern MUST_CHECK Bytes *bytes_from_u16(unsigned int);
 extern MUST_CHECK Bytes *bytes_from_uval(uval_t, unsigned int);
-extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, enum bytes_mode_e);
+extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, Textconv_types);
 extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);
 #endif

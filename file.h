@@ -23,9 +23,9 @@
 #include "inttypes.h"
 #include "avl.h"
 
-enum filecoding_e {
+typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO
-};
+} Encoding_types;
 
 struct file_s {
     const char *name;
@@ -40,7 +40,7 @@ struct file_s {
     int type;
     int err_no;
     bool read_error;
-    enum filecoding_e coding;
+    Encoding_types encoding;
     struct avltree star;
     struct avltree_node node;
 };

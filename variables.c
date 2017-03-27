@@ -552,7 +552,7 @@ static void labeldump(Namespace *members, FILE *flab) {
                     const struct file_s *file = l2->file_list->file;
                     linepos_t epoint = &l2->epoint;
                     printable_print((const uint8_t *)file->realname, flab);
-                    fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((file->coding == E_UTF8) ? (linecpos_t)calcpos(get_line(file, epoint->line), epoint->pos) : epoint->pos) + 1);
+                    fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((file->encoding == E_UTF8) ? (linecpos_t)calcpos(get_line(file, epoint->line), epoint->pos) : epoint->pos) + 1);
                     labelname_print(l2, flab, '.');
                     fputs(l2->constant ? " = " : " := ", flab);
                     printable_print2(val->data, flab, val->len);

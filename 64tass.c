@@ -90,7 +90,7 @@ bool referenceit = true;
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
-    enum wait_e what;
+    Wait_types what;
     struct linepos_s epoint;
     address_t addr;
     address2_t laddr;
@@ -203,7 +203,7 @@ static const char* command[] = { /* must be sorted, first char is the ID */
     "\x23" "xs",
 };
 
-enum command_e {
+typedef enum Command_types {
     CMD_TEXT = 0, CMD_PTEXT, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_BYTE, CMD_CHAR,
     CMD_RTA, CMD_ADDR, CMD_SINT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT,
     CMD_DWORD, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
@@ -219,7 +219,7 @@ enum command_e {
     CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT,
     CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
     CMD_MANSIZ, CMD_SEED
-};
+} Command_types;
 
 /* --------------------------------------------------------------------------- */
 static void tfree(void) {
@@ -253,7 +253,7 @@ static void status(void) {
     free(waitfors);
 }
 
-void new_waitfor(enum wait_e what, linepos_t epoint) {
+void new_waitfor(Wait_types what, linepos_t epoint) {
     waitfor_p++;
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
@@ -277,7 +277,7 @@ static void reset_waitfor(void) {
     prevwaitfor = waitfor;
 }
 
-static bool close_waitfor(enum wait_e what) {
+static bool close_waitfor(Wait_types what) {
     if (waitfor->what == what) {
         if (waitfor->val != NULL) val_destroy(waitfor->val);
         waitfor_p--;
@@ -445,7 +445,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
     case T_STR:
         {
             Obj *tmp;
-            enum bytes_mode_e m;
+            Textconv_types m;
             switch (prm) {
             case CMD_SHIFTL:
             case CMD_SHIFT: m = BYTES_MODE_SHIFT_CHECK; break;

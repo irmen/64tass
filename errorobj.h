@@ -31,7 +31,7 @@ struct Register;
 
 typedef struct Error {
     Obj v;
-    enum errors_e num;
+    Error_types num;
     struct linepos_s epoint;
     union {
         struct {
@@ -62,7 +62,7 @@ typedef struct Error {
 
 extern void errorobj_init(void);
 
-extern MUST_CHECK Error *new_error(enum errors_e, linepos_t);
-extern MUST_CHECK Error *new_error_key(enum errors_e, Obj *, linepos_t);
+extern MUST_CHECK Error *new_error(Error_types, linepos_t);
+extern MUST_CHECK Error *new_error_key(Error_types, Obj *, linepos_t);
 
 #endif

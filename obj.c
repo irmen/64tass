@@ -92,7 +92,7 @@ static bool invalid_same(const Obj *v1, const Obj *v2) {
     return v1->obj == v2->obj;
 }
 
-static MUST_CHECK Error *generic_invalid(Obj *v1, linepos_t epoint, enum errors_e num) {
+static MUST_CHECK Error *generic_invalid(Obj *v1, linepos_t epoint, Error_types num) {
     Error *err;
     if (v1->obj == ERROR_OBJ) {
         return (Error *)val_reference(v1);
@@ -102,7 +102,7 @@ static MUST_CHECK Error *generic_invalid(Obj *v1, linepos_t epoint, enum errors_
     return err;
 }
 
-static MUST_CHECK Obj *invalid_truth(Obj *v1, enum truth_e UNUSED(type), linepos_t epoint) {
+static MUST_CHECK Obj *invalid_truth(Obj *v1, Truth_types UNUSED(type), linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_BOOL);
 }
 
@@ -180,7 +180,7 @@ static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
-static MUST_CHECK Obj *invalid_function(Obj *v1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *invalid_function(Obj *v1, Func_types f, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, (f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
 }
 
