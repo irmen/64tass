@@ -1707,7 +1707,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     switch (prm) {
                     case CMD_IF:
                         if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
-                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
@@ -1718,14 +1718,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             val_destroy(err);
                             waitfor->skip = 0; break;
                         }
-                        waitfor->skip = ((((Int *)err)->len == 0) != (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        waitfor->skip = ((((Int *)err)->len == 0) != (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
                         val_destroy(err);
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
                             if (toival(val, &ival, 8 * sizeof ival, &vs->epoint)) { waitfor->skip = 0; break; }
-                            waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
                         } else {
                             err = val->obj->sign(val, &vs->epoint);
                             if (err->obj != INT_OBJ) {
@@ -1734,7 +1734,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 val_destroy(err);
                                 waitfor->skip = 0; break;
                             }
-                            waitfor->skip = ((((Int *)err)->len >= 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = ((((Int *)err)->len >= 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
                             val_destroy(err);
                         }
                         break;
@@ -1771,7 +1771,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
                     } else val = (Obj *)none_value;
                     waitfor->val = val_reference(val);
-                    waitfor->skip = (val->obj == NONE_OBJ) ? 0 : ((prevwaitfor->skip & 1) << 1);
+                    waitfor->skip = (val->obj == NONE_OBJ) ? 0 : (uint8_t)((prevwaitfor->skip & 1) << 1);
                 }
                 break;
             case CMD_CASE: /* .case */

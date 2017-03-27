@@ -173,7 +173,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
-        if (len != 0) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
+        if (len != 0) len = (size_t)sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0] = '0';len = 1;}
         if (len > maxsize) return NULL;
         v = new_str(len);
@@ -240,13 +240,16 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Int *v1 = (Int *)o1;
     Error *v;
+    digit_t d;
     switch (v1->len) {
-    case 1: *iv = v1->data[0];
-            if (bits <= SHIFT && ((uval_t)*iv >> (bits - 1)) != 0) break;
+    case 1: d = v1->data[0];
+            *iv = (ival_t)d;
+            if (bits <= SHIFT && (d >> (bits - 1)) != 0) break;
             return NULL;
     case 0: *iv = 0; return NULL;
-    case -1: *iv = -v1->data[0];
-             if (bits <= SHIFT && ((uval_t)~*iv >> (bits - 1)) != 0) break;
+    case -1: d = -v1->data[0];
+             *iv = (ival_t)d;
+             if (bits <= SHIFT && (~d >> (bits - 1)) != 0) break;
              return NULL;
     default: break;
     }
@@ -559,7 +562,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         return (Obj *)return_int((digit_t)r, negr);
     } else {
         size_t i, k;
-        int d;
+        unsigned int d;
         digit_t wm1, wm2, *v0, *vk, *w0, *ak, *a;
         Int tmp1, tmp2, tmp3;
 
@@ -708,7 +711,7 @@ static MUST_CHECK Int *ilshift(const Int *vv1, uval_t s) {
 
 static MUST_CHECK Int *irshift(Int *vv1, uval_t s) {
     size_t i, sz;
-    int word, bit;
+    unsigned int word, bit;
     bool neg;
     digit_t *v1, *v;
     Int *vv;
@@ -720,14 +723,14 @@ static MUST_CHECK Int *irshift(Int *vv1, uval_t s) {
         vv = new_int();
         isub(vv1, int_value[1], vv);
         vv1 = vv;
-        if (vv->len <= word) {
+        if ((size_t)vv->len <= word) {
             val_destroy(&vv->v);
             return ref_int(minus1_value);
         }
-        sz = vv->len - word;
+        sz = (size_t)vv->len - word;
     } else {
-        if (vv1->len <= word) return ref_int(int_value[0]);
-        sz = vv1->len - word;
+        if ((size_t)vv1->len <= word) return ref_int(int_value[0]);
+        sz = (size_t)vv1->len - word;
         vv = new_int();
     }
     v = inew(vv, sz);
@@ -1145,7 +1148,7 @@ MUST_CHECK Int *int_from_ival(ival_t i) {
 
 MUST_CHECK Int *int_from_float(const Float *v1) {
     bool neg;
-    int expo;
+    unsigned int expo;
     double frac, f = v1->real;
     size_t sz;
     digit_t *d;
@@ -1156,7 +1159,7 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
 
     if (f < (double)(~(digit_t)0) + 1.0) return return_int((digit_t)f, neg);
 
-    frac = frexp(f, &expo);
+    frac = frexp(f, (int *)&expo);
     sz = (expo - 1) / SHIFT + 1;
 
     v = new_int();
