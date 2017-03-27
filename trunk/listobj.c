@@ -147,7 +147,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
             if (val->obj != BOOL_OBJ) return val;
-            if (!((Bool *)val)->boolean) return val;
+            if ((Bool *)val != true_value) return val;
             val_destroy(val);
         }
         return (Obj *)ref_bool(true_value);
@@ -155,7 +155,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
             if (val->obj != BOOL_OBJ) return val;
-            if (((Bool *)val)->boolean) return val;
+            if ((Bool *)val == true_value) return val;
             val_destroy(val);
         }
         return (Obj *)ref_bool(false_value);
@@ -320,7 +320,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         val = op->v1->obj->calc2(op);
                         if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
                         else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                            val_replace(&val, ((Bool *)val)->boolean ? op->v1 : op->v2);
+                            val_replace(&val, (Bool *)val == true_value ? op->v1 : op->v2);
                         }
                         vals[i] = val;
                     }
@@ -524,7 +524,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             val = op->v1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, ((Bool *)val)->boolean ? op->v1 : o2);
+                val_replace(&val, (Bool *)val == true_value ? op->v1 : o2);
             }
             vals[i] = val;
         }
@@ -547,7 +547,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             Obj *result;
             op->v2 = v2->data[i];
             result = o1->obj->calc2(op);
-            if (result->obj == BOOL_OBJ && ((Bool *)result)->boolean) {
+            if ((Bool *)result == true_value) {
                 op->op = &o_IN;
                 op->v2 = o2;
                 return result;
@@ -574,7 +574,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             val = o1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, ((Bool *)val)->boolean ? o1 : op->v2);
+                val_replace(&val, (Bool *)val == true_value ? o1 : op->v2);
             }
             vals[i] = val;
         }

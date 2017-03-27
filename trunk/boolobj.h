@@ -25,7 +25,7 @@ extern struct Type *BOOL_OBJ;
 
 typedef struct Bool {
     Obj v;
-    bool boolean;
+    int *dummy;
 } Bool;
 
 extern Bool *true_value;

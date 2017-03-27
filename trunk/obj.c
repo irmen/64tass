@@ -242,6 +242,10 @@ static bool lbl_same(const Obj *o1, const Obj *o2) {
     return o2->obj == LBL_OBJ && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
 }
 
+static bool default_same(const Obj *o1, const Obj *o2) {
+    return o1 == o2;
+}
+
 static bool funcargs_same(const Obj *o1, const Obj *o2) {
     const Funcargs *v1 = (const Funcargs *)o1, *v2 = (const Funcargs *)o2;
     return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
@@ -297,6 +301,7 @@ void objects_init(void) {
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     lbl_obj.same = lbl_same;
     new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
+    default_obj.same = default_same;
     new_type(&iter_obj, T_ITER, "iter", sizeof(Iter));
     iter_obj.destroy = iter_destroy;
     iter_obj.garbage = iter_garbage;
