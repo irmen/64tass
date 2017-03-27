@@ -90,10 +90,10 @@ static bool is_known(const Reg8 *r) {
     return true;
 }
 
-static uint8_t flag_c(struct optimizer_s *cpu) {
+static Bit_types flag_c(struct optimizer_s *cpu) {
     unsigned int i;
     Bit *co;
-    uint8_t b = get_bit(cpu->p.c);
+    Bit_types b = get_bit(cpu->p.c);
     if (b != BU || !cpu->ccmp) return b;
     co = new_bit(B1);
     for (i = 0; i < 8; i++) {
@@ -151,7 +151,7 @@ static bool calc_z(struct optimizer_s *cpu, Reg8 *r) {
     bool eq = true, neq = false, ret = true;
     Bit *b;
     for (i = 0; i < 8; i++) {
-        uint8_t v = get_bit(r->a[i]);
+        Bit_types v = get_bit(r->a[i]);
         if (ret && !eq_bit(r->a[i], cpu->z1.a[i])) ret = false;
         change_bit(&cpu->z1.a[i], r->a[i]);
         if (eq && v != B0) eq = false;
@@ -184,7 +184,7 @@ static bool transreg(Reg8 *b, Reg8 *r) {
     return ret;
 }
 
-static bool set_flag(uint8_t v, Bit **b) {
+static bool set_flag(Bit_types v, Bit **b) {
     if (get_bit(*b) == v) return true;
     set_bit(b, new_bit(v));
     return false;
@@ -304,7 +304,7 @@ static bool cmp(struct optimizer_s *cpu, Reg8 *s, Reg8 *v, const char **cc) {
     Reg8 tmp;
     bool ret2 = true, ret, ret3;
     Bit *co = new_bit(B1);
-    uint8_t b;
+    Bit_types b;
 
     for (i = 0; i < 8; i++) {
         Bit *c, *r = inv_bit(v->a[i]);
@@ -470,7 +470,7 @@ static bool sbx(struct optimizer_s *cpu, Reg8 *s1, Reg8 *s2, Reg8 *v, const char
     unsigned int i;
     bool ret2 = true, ret = true, ret3;
     Bit *co = new_bit(B1);
-    uint8_t b;
+    Bit_types b;
 
     for (i = 0; i < 8; i++) {
         Bit *s = and_bit(s1->a[i], s2->a[i]);
@@ -545,7 +545,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     struct optimizer_s *cpu = current_section->optimizer;
     const char *optname;
     Reg8 alu;
-    uint8_t b;
+    Bit_types b;
     bool altmode = false;
 
     if (cpu == NULL) {
@@ -931,7 +931,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == BU) mod_bit(cpu->p.c, B0); else set_bit(&cpu->p.c, new_bit0());
         if (cpu->ccmp) {
             unsigned int i, j;
-            uint8_t bb;
+            Bit_types bb;
             for (i = 0; i < 8; i++) {
                 j = i ^ 7;
                 bb = get_bit(cpu->z3.a[j]);

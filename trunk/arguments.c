@@ -592,7 +592,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             fin->data = (uint8_t*)reallocx(fin->data, fin->len);
         }
     }
-    fin->coding = E_UTF8;
+    fin->encoding = E_UTF8;
     if (argc <= my_optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try '64tass --help' or '64tass --usage' for more information.\n", stderr);

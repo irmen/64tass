@@ -23,7 +23,7 @@
 
 extern struct Type *CODE_OBJ;
 
-enum dtype_e {
+typedef enum Code_types {
     D_DINT = -4,
     D_LINT = -3,
     D_SINT = -2,
@@ -33,7 +33,7 @@ enum dtype_e {
     D_WORD = 2,
     D_LONG = 3,
     D_DWORD = 4
-};
+} Code_types;
 
 struct Namespace;
 

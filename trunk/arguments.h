@@ -21,26 +21,26 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
-enum output_mode_e {
+typedef enum Output_types {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX,
     OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC
-};
+} Output_types;
 
-enum label_mode_e {
+typedef enum Symbollist_types {
     LABEL_64TASS, LABEL_VICE, LABEL_DUMP
-};
+} Symbollist_types;
 
 struct file_s;
 
 struct output_s {
     const char *name;
-    enum output_mode_e mode;
+    Output_types mode;
     bool longaddr;
 };
 
 struct symbol_output_s {
     const char *name;
-    enum label_mode_e mode;
+    Symbollist_types mode;
     const char *space;
 };
 

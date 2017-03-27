@@ -29,8 +29,8 @@ struct Namespace;
 struct Mfunc;
 
 extern bool mtranslate(struct file_s *);
-extern Obj *macro_recurse(enum wait_e, Obj *, struct Namespace *, linepos_t);
-extern Obj *mfunc_recurse(enum wait_e, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
+extern Obj *macro_recurse(Wait_types, Obj *, struct Namespace *, linepos_t);
+extern Obj *mfunc_recurse(Wait_types, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
 extern Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);

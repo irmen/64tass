@@ -114,14 +114,14 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-MUST_CHECK Error *new_error(enum errors_e num, linepos_t epoint) {
+MUST_CHECK Error *new_error(Error_types num, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;
     v->epoint = *epoint;
     return v;
 }
 
-MUST_CHECK Error *new_error_key(enum errors_e num, Obj *v1, linepos_t epoint) {
+MUST_CHECK Error *new_error_key(Error_types num, Obj *v1, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;
     v->epoint = *epoint;

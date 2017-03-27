@@ -345,7 +345,7 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
     return val_reference(o1);
 }
 
-static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
+static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint) {
     Obj *err;
     double real;
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
@@ -489,8 +489,8 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
 }
 
 static inline int icmp(const Function *vv1, const Function *vv2) {
-    enum func_e v1 = vv1->func;
-    enum func_e v2 = vv2->func;
+    Function_types v1 = vv1->func;
+    Function_types v2 = vv2->func;
     if (v1 < v2) return -1;
     return (v1 > v2) ? 1 : 0;
 }
@@ -498,7 +498,7 @@ static inline int icmp(const Function *vv1, const Function *vv2) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     Function *v1 = (Function *)op->v1;
     Obj *o2 = op->v2;
-    enum func_e func;
+    Function_types func;
     struct values_s *v;
     size_t args;
     switch (o2->obj->type) {
@@ -604,7 +604,7 @@ void functionobj_init(void) {
 
 struct builtin_functions_s {
     const char *name;
-    enum func_e func;
+    Function_types func;
 };
 
 static struct builtin_functions_s builtin_functions[] = {

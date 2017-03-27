@@ -154,7 +154,7 @@ static bool to_bool(const Bytes *v1) {
     return false;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     const Bytes *v1 = (const Bytes *)o1;
     size_t i, sz;
     uint8_t inv;
@@ -221,7 +221,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_e mode) {
+MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types mode) {
     size_t len = v1->len, len2 = (mode == BYTES_MODE_PTEXT || mode == BYTES_MODE_NULL) ? 1 : 0;
     uint8_t *s;
     Bytes *v;
@@ -506,7 +506,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Bytes *v1 = (Bytes *)o1;
     Obj *tmp = (Obj *)int_from_bytes(v1);
     Obj *ret = tmp->obj->function(tmp, f, epoint);

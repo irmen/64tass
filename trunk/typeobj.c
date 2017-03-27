@@ -34,7 +34,7 @@ static Type obj;
 
 Type *TYPE_OBJ = &obj;
 
-void new_type(Type *t, enum type_e type, const char *name, size_t length) {
+void new_type(Type *t, Type_types type, const char *name, size_t length) {
     t->v.obj = TYPE_OBJ;
     t->v.refcount = 1;
     t->type = type;
@@ -86,8 +86,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 }
 
 static inline int icmp(const Type *vv1, const Type *vv2) {
-    enum type_e v1 = vv1->type;
-    enum type_e v2 = vv2->type;
+    Type_types v1 = vv1->type;
+    Type_types v2 = vv2->type;
     if (v1 < v2) return -1;
     return (v1 > v2) ? 1 : 0;
 }

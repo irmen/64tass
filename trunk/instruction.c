@@ -125,8 +125,8 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
 
 MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE } adrgen;
-    enum opr_e opr;
-    enum reg_e reg;
+    Adr_types opr;
+    Reg_types reg;
     const uint8_t *cnmemonic; /* current nmemonic */
     unsigned int ln;
     uint8_t cod, longbranch;
@@ -396,7 +396,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (cod != 0 && cpureg->len == 1) {
                     const char *ind = strchr(reg_names, cpureg->data[0]);
                     if (ind != NULL) {
-                        reg = (enum reg_e)(ind - reg_names);
+                        reg = (Reg_types)(ind - reg_names);
                         if (regopcode_table[cod][reg] != ____) {
                             adrgen = AG_IMP;
                             break;
@@ -796,7 +796,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             default: return new_error(ERROR__NO_LONG_ADDR, epoint); /* can't happen */
             }
         }
-        opr = (enum opr_e)(opr - w); ln = w + 1;
+        opr = (Adr_types)(opr - w); ln = w + 1;
         break;
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
@@ -828,7 +828,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             default: return new_error(ERROR__NO_LONG_ADDR, epoint);
             }
         }
-        opr = (enum opr_e)(opr - w); ln = w + 1;
+        opr = (Adr_types)(opr - w); ln = w + 1;
         break;
     case AG_SINT:
     case AG_WORD: /* word only */
@@ -875,7 +875,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             default: return new_error(ERROR__NO_BYTE_ADDR, epoint);
             }
         }
-        opr = (enum opr_e)(opr - w); ln = w + 1;
+        opr = (Adr_types)(opr - w); ln = w + 1;
         break;
     case AG_IMP:
         ln = 0;

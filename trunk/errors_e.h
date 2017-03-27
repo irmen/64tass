@@ -25,7 +25,7 @@
    $80-$bf fatal
 */
 
-enum errors_e {
+typedef enum Error_types {
     ERROR___LONG_BRANCH = 0x00,
     ERROR_DIRECTIVE_IGN,
     ERROR____OLD_MODULO,
@@ -134,5 +134,5 @@ enum errors_e {
     ERROR_TOO_MANY_PASS,
     ERROR_UNKNOWN_OPTIO,
     ERROR____LABEL_ROOT
-};
+} Error_types;
 #endif

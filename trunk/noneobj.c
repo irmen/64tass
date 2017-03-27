@@ -28,7 +28,7 @@ static Type obj;
 Type *NONE_OBJ = &obj;
 None *none_value;
 
-static MUST_CHECK Obj *truth(Obj *UNUSED(v1), enum truth_e UNUSED(type), linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *UNUSED(v1), Truth_types UNUSED(type), linepos_t epoint) {
     return (Obj *)new_error(ERROR____STILL_NONE, epoint);
 }
 
@@ -79,7 +79,7 @@ static MUST_CHECK Obj *sign(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_none();
 }
 
-static MUST_CHECK Obj *function(Obj *UNUSED(v1), enum tfunc_e UNUSED(f), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *UNUSED(v1), Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_none();
 }
 

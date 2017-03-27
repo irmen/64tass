@@ -26,7 +26,7 @@
 
 extern struct Type *ADDRESS_OBJ;
 
-enum atype_e {
+typedef enum Address_types {
     A_NONE,             /*       */
     A_IMMEDIATE,        /* #     */
     A_IMMEDIATE_SIGNED, /* #+    */
@@ -40,7 +40,7 @@ enum atype_e {
     A_KR,               /* ,k    */
     A_I,                /* )     */
     A_LI                /* ]     */
-};
+} Address_types;
 
 typedef uint32_t atype_t;
 typedef struct Address {

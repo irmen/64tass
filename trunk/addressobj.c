@@ -85,7 +85,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     Address *v1 = (Address *)o1;
     Obj *v;
     if (v1->type != A_NONE) {
@@ -125,7 +125,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         buffer[ind2++] = ')';
     } else {
         while ((addrtype & MAX_ADDRESS_MASK) != 0) {
-            switch ((enum atype_e)((addrtype & 0xf000) >> 12)) {
+            switch ((Address_types)((addrtype & 0xf000) >> 12)) {
             case A_NONE:break;
             case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
             case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
@@ -177,7 +177,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 
 bool check_addr(atype_t type) {
     while (type != A_NONE) {
-        switch ((enum atype_e)(type & 0xf)) {
+        switch ((Address_types)(type & 0xf)) {
         case A_I:
         case A_LI: return true;
         case A_IMMEDIATE:
@@ -199,7 +199,7 @@ bool check_addr(atype_t type) {
 
 static inline bool check_addr2(atype_t type) {
     while (type != A_NONE) {
-        switch ((enum atype_e)(type & 0xf)) {
+        switch ((Address_types)(type & 0xf)) {
         case A_KR:
         case A_DR:
         case A_BR:
@@ -297,7 +297,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Address *v1 = (Address *)o1;
     Obj *v;
     if (v1->type != A_NONE) {
@@ -396,7 +396,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
                 v = new_address(result, am);
                 am = v2->type;
-                while ((enum atype_e)(am & 0xf) != A_NONE) { v->type <<= 4; am >>= 4; }
+                while ((Address_types)(am & 0xf) != A_NONE) { v->type <<= 4; am >>= 4; }
                 v->type |= v2->type;
                 return &v->v;
             case O_SUB:

@@ -104,7 +104,7 @@ static bool same(const Obj *o1, const Obj *o2) {
         && (v1->names == v2->names || v1->names->v.obj->same(&v1->names->v, &v2->names->v));
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err;
@@ -169,7 +169,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);

@@ -330,7 +330,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         if (command_line == NULL) command_line = lastfi;
     }
     if (b == NULL) { /* new file */
-        enum filecoding_e type = E_UNKNOWN;
+        Encoding_types encoding = E_UNKNOWN;
         FILE *f;
         uint32_t c = 0;
         size_t fp = 0;
@@ -424,7 +424,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     rewind(f);
                 }
                 bl = fread(buffer, 1, BUFSIZ, f);
-                if (bl != 0 && buffer[0] == 0) type = E_UTF16BE; /* most likely */
+                if (bl != 0 && buffer[0] == 0) encoding = E_UTF16BE; /* most likely */
 #ifdef _WIN32
                 setlocale(LC_CTYPE, "");
 #endif
@@ -477,15 +477,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (c != 0 && c < 0x80) *p++ = (uint8_t)c; else p = utf8out(c, p);
                             continue;
                         }
-                        switch (type) {
+                        switch (encoding) {
                         case E_UNKNOWN:
                         case E_UTF8:
                             if (c < 0x80) goto done;
                             if (c < 0xc0) {
                             invalid:
-                                if (type == E_UNKNOWN) {
+                                if (encoding == E_UNKNOWN) {
                                     c = fromiso(c);
-                                    type = E_ISO; break;
+                                    encoding = E_ISO; break;
                                 }
                                 c = REPLACEMENT_CHARACTER; break;
                             } 
@@ -506,9 +506,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 if ((c ^ 0xfc) == 0 && (uint8_t)(ch2 - 0x84) >= 0x3c) goto invalid;
                                 c ^= 0xfc; i = 5;
                             } else {
-                                if (type != E_UNKNOWN) goto invalid;
-                                if (c == 0xff && ch2 == 0xfe) type = E_UTF16LE;
-                                else if (c == 0xfe && ch2 == 0xff) type = E_UTF16BE;
+                                if (encoding != E_UNKNOWN) goto invalid;
+                                if (c == 0xff && ch2 == 0xfe) encoding = E_UTF16LE;
+                                else if (c == 0xfe && ch2 == 0xff) encoding = E_UTF16BE;
                                 else goto invalid;
                                 bp = (bp + 1) % (BUFSIZ * 2);
                                 continue;
@@ -523,10 +523,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                         continue;
                                     }
                                 }
-                                if (type != E_UNKNOWN) {
+                                if (encoding != E_UNKNOWN) {
                                     c = REPLACEMENT_CHARACTER;break;
                                 }
-                                type = E_ISO;
+                                encoding = E_ISO;
                                 i = (j - i) * 6;
                                 qc = false;
                                 if (ubuff.p >= ubuff.len) {
@@ -549,13 +549,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 bp = (bp + 1) % (BUFSIZ * 2);
                                 break;
                             }
-                            if (j != 0) type = E_UTF8;
+                            if (j != 0) encoding = E_UTF8;
                             break;
                         case E_UTF16LE:
                             if (bp == bl) goto invalid;
                             c |= (uint32_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
-                                type = E_UTF16BE;
+                                encoding = E_UTF16BE;
                                 continue;
                             }
                             break;
@@ -563,7 +563,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             if (bp == bl) goto invalid;
                             c = (c << 8) | buffer[bp]; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
-                                type = E_UTF16LE;
+                                encoding = E_UTF16LE;
                                 continue;
                             }
                             break;
@@ -572,7 +572,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             goto done;
                         }
                         if (c == 0xfeff) continue;
-                        if (type != E_UTF8) {
+                        if (encoding != E_UTF8) {
                             if (c >= 0xd800 && c < 0xdc00) {
                                 if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
                                 c = REPLACEMENT_CHARACTER;
@@ -663,7 +663,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             }
             tmp->len = fp;
             tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
-            tmp->coding = type;
+            tmp->encoding = encoding;
         } else {
             const char *cmd_name = "<command line>";
             size_t cmdlen = strlen(cmd_name) + 1;
@@ -671,7 +671,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
             s[0] = 0; tmp->name = s;
             s = (char *)mallocx(cmdlen);
             memcpy(s, cmd_name, cmdlen); tmp->realname = s;
-            tmp->coding = E_UNKNOWN;
+            tmp->encoding = E_UNKNOWN;
         }
 
         tmp->uid = (ftype != 1) ? curfnum++ : 0;

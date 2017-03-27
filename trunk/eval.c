@@ -464,7 +464,7 @@ static struct values_s *extend_values(struct eval_context_s *ev, size_t by) {
 
 static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     size_t vsp = 0;
-    enum oper_e op;
+    Oper_types op;
     Oper *op2;
     size_t i;
     Obj *val;
@@ -723,7 +723,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
     return NULL;
 }
 
-static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
+static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am) {
     switch (o1->obj->type) {
     case T_ADDRESS:
         {
@@ -755,7 +755,7 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
 static bool get_val2(struct eval_context_s *ev) {
     size_t vsp = 0;
     size_t i;
-    enum oper_e op;
+    Oper_types op;
     Oper *op2;
     struct values_s *v1, *v2;
     bool stop = (ev->gstop == 3 || ev->gstop == 4);
@@ -763,7 +763,7 @@ static bool get_val2(struct eval_context_s *ev) {
     Obj *val;
     struct values_s *values;
     struct oper_s oper;
-    enum atype_e am;
+    Address_types am;
 
     ev->values_p = 0;
     values = ev->values;
@@ -1317,7 +1317,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 str_t ident;
             as_ident:
                 if (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'') {
-                    enum bytes_mode_e mode;
+                    Textconv_types mode;
                     switch (pline[epoint.pos] | arguments.caseinsensitive) {
                     case 'n': mode = BYTES_MODE_NULL; break;
                     case 's': mode = BYTES_MODE_SHIFT; break;
@@ -1716,7 +1716,7 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
         Obj *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
         if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }
         else if (val2->obj == REGISTER_OBJ && ((Register *)val2)->len == 1 && i != 0) {
-            enum atype_e am;
+            Address_types am;
             switch (((Register *)val2)->data[0]) {
             case 's': am = A_SR; break;
             case 'r': am = A_RR; break;

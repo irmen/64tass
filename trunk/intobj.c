@@ -131,7 +131,7 @@ static bool same(const Obj *o1, const Obj *o2) {
     return memcmp(v1->data, v2->data, intlen(v1) * sizeof *v1->data) == 0;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     const Int *v1 = (const Int *)o1;
     if (diagnostics.strict_bool && type != TRUTH_BOOL) err_msg_bool(ERROR_____CANT_BOOL, o1, epoint);
     return truth_reference(v1->len != 0);
@@ -296,7 +296,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[(v1->len > 0) ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, enum tfunc_e f, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t UNUSED(epoint)) {
     Int *v1 = (Int *)o1;
     return (v1->len >= 0 || f != TF_ABS) ? (Obj *)ref_int(v1) : (Obj *)negate(v1);
 }
