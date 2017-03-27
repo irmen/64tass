@@ -229,7 +229,8 @@ static int star_compare(const struct avltree_node *aa, const struct avltree_node
     const struct star_s *a = cavltree_container_of(aa, struct star_s, node);
     const struct star_s *b = cavltree_container_of(bb, struct star_s, node);
 
-    return a->line - b->line;
+    if (a->line != b->line) return a->line > b->line ? 1 : -1;
+    return 0;
 }
 
 static int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)

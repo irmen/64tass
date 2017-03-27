@@ -153,9 +153,9 @@ static int file_list_compare(const struct avltree_node *aa, const struct avltree
 {
     const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
     const struct file_list_s *b = cavltree_container_of(bb, struct file_list_s, node);
-    if (a->file->uid != b->file->uid) return a->file->uid - b->file->uid;
-    if (a->epoint.line != b->epoint.line) return a->epoint.line - b->epoint.line;
-    return a->epoint.pos - b->epoint.pos;
+    if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
+    if (a->epoint.pos != b->epoint.pos) return a->epoint.pos > b->epoint.pos ? 1 : -1;
+    return a->file->uid - b->file->uid;
 }
 
 static void file_list_free(struct avltree_node *aa)
@@ -504,10 +504,8 @@ static int notdefines_compare(const struct avltree_node *aa, const struct avltre
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
     int h = a->file_list - b->file_list;
     if (h != 0) return h;
-    h = a->epoint.line - b->epoint.line;
-    if (h != 0) return h;
-    h = a->epoint.pos - b->epoint.pos;
-    if (h != 0) return h;
+    if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
+    if (a->epoint.pos != b->epoint.pos) return a->epoint.pos > b->epoint.pos ? 1 : -1;
     return str_cmp(&a->cfname, &b->cfname);
 }
 
@@ -861,7 +859,7 @@ void err_msg_unknown_char(uint32_t ch, const str_t *name, linepos_t epoint) {
     uint8_t line[256], *s = line;
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("can't encode character '");
-    if (ch != 0 && ch < 0x80) *s++ = ch; else s = utf8out(ch, s);
+    if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s = utf8out(ch, s);
     sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror((char *)line);
     adderror2(name->data, name->len);
     adderror("'");

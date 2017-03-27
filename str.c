@@ -35,7 +35,7 @@ int str_hash(const str_t *s) {
 }
 
 int str_cmp(const str_t *s1, const str_t *s2) {
-    if (s1->len != s2->len) return s1->len - s2->len;
+    if (s1->len != s2->len) return s1->len > s2->len ? 1 : -1;
     if (s1->data == s2->data) return 0;
     return memcmp(s1->data, s2->data, s1->len);
 }

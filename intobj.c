@@ -390,7 +390,7 @@ static void iadd(const Int *vv1, const Int *vv2, Int *vv) {
     }
     if (vv == vv1 || vv == vv2) destroy(&vv->v);
     vv->data = v;
-    vv->len = i;
+    vv->len = (ssize_t)i;
 }
 
 static void isub(const Int *vv1, const Int *vv2, Int *vv) {
@@ -1372,7 +1372,7 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
         }
         return ref_int(int_value[val]);
     }
-    sz = (double)i * 0.11073093649624542178511177326072356663644313812255859375 + 1;
+    sz = (size_t)((double)i * 0.11073093649624542178511177326072356663644313812255859375) + 1;
 
     v = new_int();
     d = inew(v, sz);
