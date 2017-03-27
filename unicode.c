@@ -144,7 +144,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     if ((options & U_CASEFOLD) != 0 && prop->casefold != 0) {
         if (prop->casefold > 0) {
             if (d->p >= d->len) extbuff(d);
-            d->data[d->p++] = prop->casefold;
+            d->data[d->p++] = (uint16_t)prop->casefold;
             return;
         }
         if (prop->casefold > -16384) {
@@ -168,7 +168,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     if (prop->decompose != 0) {
         if ((prop->property & pr_compat) == 0 || (options & U_COMPAT) != 0) {
             if (prop->decompose > 0) {
-                udecompose(prop->decompose, d, options);
+                udecompose((uint16_t)prop->decompose, d, options);
                 return;
             } 
             if (prop->decompose > -16384) {
@@ -447,7 +447,7 @@ size_t argv_print(const char *line, FILE *f) {
                 char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, ch, &ps);
+                ln = wcrtomb(temp, (wchar_t)ch, &ps);
                 if (ln != (size_t)-1) {
                     len += fwrite(temp, ln, 1, f);
                     continue;
@@ -541,7 +541,7 @@ void printable_print(const uint8_t *line, FILE *f) {
                 char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, ch, &ps);
+                ln = wcrtomb(temp, (wchar_t)ch, &ps);
                 if (ln != (size_t)-1) {
                     fwrite(temp, ln, 1, f);
                     continue;
@@ -617,7 +617,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
                 char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, ch, &ps);
+                ln = wcrtomb(temp, (wchar_t)ch, &ps);
                 if (ln != (size_t)-1) {
                     len += fwrite(temp, ln, 1, f); /* 1 character */
                     continue;
@@ -772,7 +772,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 char temp[64];
                 mbstate_t ps;
                 memset(&ps, 0, sizeof ps);
-                if (wcrtomb(temp, ch, &ps) != (size_t)-1) {
+                if (wcrtomb(temp, (wchar_t)ch, &ps) != (size_t)-1) {
                     l += charwidth(ch);
                     continue;
                 }

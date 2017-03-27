@@ -1117,8 +1117,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 return (Obj *)ref_bits(vv1); /* original bits */
             }
 
-            bo = offs % SHIFT;
-            wo = offs / SHIFT;
+            bo = (uval_t)offs % SHIFT;
+            wo = (uval_t)offs / SHIFT;
             bl = length % SHIFT;
             wl = length / SHIFT;
 
@@ -1154,8 +1154,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             sz = bits = 0;
             l = bitslen(vv1);
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
-                wo = offs / SHIFT;
-                if (wo < l && ((vv1->data[wo] >> (offs % SHIFT)) & 1) != 0) {
+                wo = (uval_t)offs / SHIFT;
+                if (wo < l && ((vv1->data[wo] >> ((uval_t)offs % SHIFT)) & 1) != 0) {
                     uv ^= 1 << bits;
                 }
                 bits++;
