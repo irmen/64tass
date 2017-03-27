@@ -340,7 +340,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
     }
     for (i = 0; i < mfunc->argc; i++) {
         bool labelexists;
-        if (mfunc->param[i].init != NULL && mfunc->param[i].init->obj == DEFAULT_OBJ) {
+        if (mfunc->param[i].init == &default_value->v) {
             size_t j = 0;
             tuple = new_tuple();
             tuple->len = get_val_remaining();
@@ -591,7 +591,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
     tuple = NULL;
     for (i = 0; i < mfunc->argc; i++) {
         bool labelexists;
-        if (mfunc->param[i].init != NULL && mfunc->param[i].init->obj == DEFAULT_OBJ) {
+        if (mfunc->param[i].init == &default_value->v) {
             tuple = new_tuple();
             if (i < args) {
                 size_t j = i;

@@ -600,7 +600,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                 break;
             }
-            if (val->obj == NONE_OBJ) {
+            if (val == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
@@ -640,10 +640,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 opr = ADR_BIT_ZP;
                 break;
             }
-            if (addrlist->data[0]->obj == NONE_OBJ) {
+            if (addrlist->data[0] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
-            if (addrlist->data[1]->obj == NONE_OBJ) {
+            if (addrlist->data[1] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, &epoints[1]);
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
@@ -683,19 +683,19 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             /* fall through */
         default: 
             addrlist = (Addrlist *)vals;
-            if (addrlist->data[0]->obj == NONE_OBJ) {
+            if (addrlist->data[0] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
-            if (addrlist->data[1]->obj == NONE_OBJ) {
+            if (addrlist->data[1] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, &epoints[1]);
             }
-            if (addrlist->data[2]->obj == NONE_OBJ) {
+            if (addrlist->data[2] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, &epoints[2]);
             }
             {
                 size_t i;
                 for (i = 3; i < addrlist->len; i++) {
-                    if (addrlist->data[i]->obj == NONE_OBJ) {
+                    if (addrlist->data[i] == &none_value->v) {
                         return new_error(ERROR____STILL_NONE, epoint);
                     }
                 }

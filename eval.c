@@ -156,7 +156,7 @@ static double toreal_destroy(Obj *v, linepos_t epoint) {
     Obj *err = FLOAT_OBJ->create(v, epoint);
     double real;
     if (err->obj != FLOAT_OBJ) {
-        if (err->obj == NONE_OBJ) err_msg_still_none(NULL, epoint);
+        if (err == &none_value->v) err_msg_still_none(NULL, epoint);
         else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
         real = 0;
     } else {
@@ -674,7 +674,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
     }
     end = (ival_t)len;
     if (v2->len > 2) {
-        if (v2->data[2]->obj != DEFAULT_OBJ) {
+        if (v2->data[2] != &default_value->v) {
             err = v2->data[2]->obj->ival(v2->data[2], &step, 8 * sizeof step, epoint);
             if (err != NULL) return &err->v;
             if (step == 0) {
@@ -683,7 +683,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
         }
     }
     if (v2->len > 1) {
-        if (v2->data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
+        if (v2->data[1] == &default_value->v) end = (step > 0) ? (ival_t)len : -1;
         else {
             err = v2->data[1]->obj->ival(v2->data[1], &end, 8 * sizeof end, epoint);
             if (err != NULL) return &err->v;
@@ -695,7 +695,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
             }
         }
     } else end = len;
-    if (v2->data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
+    if (v2->data[0] == &default_value->v) offs = (step > 0) ? 0 : len - 1;
     else {
         ival_t minus;
         err = v2->data[0]->obj->ival(v2->data[0], &offs, 8 * sizeof offs, epoint);

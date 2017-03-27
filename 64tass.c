@@ -1517,7 +1517,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(1, cfile, 1, 0, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); goto finish; }
-                        if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &vs->epoint); goto finish;}
+                        if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); goto finish;}
                         obj = (prm == CMD_DSTRUCT) ? STRUCT_OBJ : UNION_OBJ;
                         if (val->obj != obj) {err_msg_wrong_type(val, obj, &vs->epoint); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
@@ -1704,7 +1704,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); waitfor->skip = 0; break;}
-                    if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &vs->epoint); waitfor->skip = 0; break;}
+                    if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); waitfor->skip = 0; break;}
                     switch (prm) {
                     case CMD_IF:
                         if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
@@ -1714,7 +1714,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     case CMD_IFEQ:
                         err = val->obj->sign(val, &vs->epoint);
                         if (err->obj != INT_OBJ) {
-                            if (err->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
+                            if (err == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                             else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
                             val_destroy(err);
                             waitfor->skip = 0; break;
@@ -1730,7 +1730,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         } else {
                             err = val->obj->sign(val, &vs->epoint);
                             if (err->obj != INT_OBJ) {
-                                if (err->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
+                                if (err == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                                 else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
                                 val_destroy(err);
                                 waitfor->skip = 0; break;
@@ -1769,10 +1769,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(0, cfile, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = (Obj *)none_value; }
-                        else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
+                        else if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                     } else val = (Obj *)none_value;
                     waitfor->val = val_reference(val);
-                    waitfor->skip = (val->obj == NONE_OBJ) ? 0 : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                    waitfor->skip = (val == &none_value->v) ? 0 : (uint8_t)((prevwaitfor->skip & 1) << 1);
                 }
                 break;
             case CMD_CASE: /* .case */
@@ -1794,7 +1794,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         while (!truth && (vs = get_val()) != NULL) {
                             val = vs->val;
                             if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); continue; }
-                            if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &vs->epoint);continue; }
+                            if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint);continue; }
                             tmp.v2 = val;
                             tmp.epoint2 = &vs->epoint;
                             result2 = tmp.v1->obj->calc2(&tmp);
@@ -2079,7 +2079,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(0, cfile, 1, 3, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
-                        else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
+                        else if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                         else if (val->obj != STR_OBJ) err_msg_wrong_type(val, STR_OBJ, &vs->epoint);
                         else {
                             val2 = (Str *)val;
@@ -2295,7 +2295,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         val = vs->val;
                         poke_pos = &vs->epoint;
                         if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db != 0) memskip(db);}
-                        else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, poke_pos); if (db != 0) memskip(db);}
+                        else if (val == &none_value->v) {err_msg_still_none(NULL, poke_pos); if (db != 0) memskip(db);}
                         else {
                             size_t uninit = 0, sum = 0;
                             size_t memp, membp;
@@ -2395,11 +2395,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         tmp->data = vals = list_create_elements(tmp, len);
                         for (i = 0; i < len; i++) {
                             vs = get_val(); val = vs->val;
-                            if (val->obj == NONE_OBJ) val = (Obj *)ref_str(null_str);
+                            if (val == &none_value->v) val = (Obj *)ref_str(null_str);
                             else {
                                 val = STR_OBJ->create(val, &vs->epoint);
                                 if (val->obj != STR_OBJ) {
-                                    if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &vs->epoint);
+                                    if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                                     else if (val->obj == ERROR_OBJ) err_msg_output((Error *)val); 
                                     val_destroy(val);
                                     val = (Obj *)ref_str(null_str); 
@@ -2559,7 +2559,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         vs2 = get_val();
                         if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr; }
                         val = vs2->val;
-                        if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &vs2->epoint);
+                        if (val == &none_value->v) err_msg_still_none(NULL, &vs2->epoint);
                         else if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
                         else if (tryit && new_escape((Str *)v, val, actual_encoding, &vs2->epoint)) {
                             err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); goto breakerr;
@@ -2698,7 +2698,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr;}
-                    if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
+                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
                     if (val->obj != STR_OBJ) {err_msg_wrong_type(val, STR_OBJ, &vs->epoint);goto breakerr;}
                     path = get_path((Str *)val, cfile->realname);
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
@@ -3021,7 +3021,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &epoint);
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); break; }
-                    if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); break; }
+                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); break; }
                     if (val->obj != LBL_OBJ) {err_msg_wrong_type(val, LBL_OBJ, &vs->epoint); break;}
                     lbl = (Lbl *)val;
                     if (lbl->file_list == cflist && lbl->parent == current_context) {
@@ -3158,7 +3158,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(1, cfile, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                    if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
+                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->obj != STRUCT_OBJ) {err_msg_wrong_type(val, STRUCT_OBJ, &vs->epoint); goto breakerr;}
                     current_section->structrecursion++;
@@ -3180,7 +3180,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(1, cfile, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                    if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
+                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->obj != UNION_OBJ) {err_msg_wrong_type(val, UNION_OBJ, &vs->epoint); goto breakerr;}
                     current_section->structrecursion++;
@@ -3330,7 +3330,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if (!get_exp_var(cfile, &epoint)) goto breakerr;
                 vs = get_val(); val = vs->val;
                 if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
+                if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
                 if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, NULL, &vs->epoint); goto breakerr;}
             as_macro:
                 listing_line_cut(epoint.pos);

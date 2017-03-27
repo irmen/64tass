@@ -307,7 +307,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     o2 = args->val[indx].val;
     epoint2 = &args->val[indx].epoint;
 
-    if (o2->obj == NONE_OBJ) return val_reference(o2);
+    if (o2 == &none_value->v) return val_reference(o2);
     if (o2->obj == LIST_OBJ) {
         size_t i;
         List *v2 = (List *)o2, *v;
@@ -395,14 +395,14 @@ Obj *dictobj_parse(struct values_s *values, unsigned int args) {
         struct values_s *v2 = &values[j];
         Obj *key = v2->val;
 
-        if (key->obj == NONE_OBJ || key->obj == ERROR_OBJ) {
+        if (key == &none_value->v || key->obj == ERROR_OBJ) {
             val_destroy(&dict->v); 
             return val_reference(key);
         }
         if (key->obj != COLONLIST_OBJ) data = NULL;
         else {
             Colonlist *list = (Colonlist *)key;
-            if (list->len != 2 || list->data[1]->obj == DEFAULT_OBJ) {
+            if (list->len != 2 || list->data[1] == &default_value->v) {
                 err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
                 err->u.objname = key->obj->name;
                 val_destroy(&dict->v);
@@ -411,7 +411,7 @@ Obj *dictobj_parse(struct values_s *values, unsigned int args) {
             key = list->data[0];
             data = list->data[1];
         }
-        if (key->obj == DEFAULT_OBJ) {
+        if (key == &default_value->v) {
             if (dict->def != NULL) val_destroy(dict->def);
             dict->def = (data == NULL) ? NULL : val_reference(data);
             continue;

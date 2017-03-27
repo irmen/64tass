@@ -122,7 +122,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             Obj *val;
             size_t i, max = 0, args = v2->len;
             for (i = 0; i < args; i++) {
-                if (v2->val[i].val->obj == NONE_OBJ || v2->val[i].val->obj == ERROR_OBJ) {
+                if (v2->val[i].val == &none_value->v || v2->val[i].val->obj == ERROR_OBJ) {
                     return val_reference(v2->val[i].val);
                 }
             }
