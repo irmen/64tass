@@ -94,8 +94,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
     char line[100]; 
     int i = 0;
-    size_t len;
-    len = sprintf(line, "%.10g", v1->real);
+    size_t len = (size_t)sprintf(line, "%.10g", v1->real);
     while (line[i] != 0 && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
     if (line[i] == 0) {line[i++] = '.';line[i++] = '0';len += 2;}
     if (len > maxsize) return NULL;

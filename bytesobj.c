@@ -349,7 +349,7 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
     v->len = inv ? (ssize_t)~sz : (ssize_t)sz;
     d = v->data;
 
-    len1 = v1->len;
+    len1 = inv ? (size_t)~v1->len : (size_t)v1->len;
     i = 0;
     if (len1 != 0) {
         bdigit_t b = v1->data[0];
