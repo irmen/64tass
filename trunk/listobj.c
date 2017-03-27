@@ -187,7 +187,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
         }
         for (i = 0;i < llen; i++) {
             Obj *o2 = v1->data[i];
-            if (o2->obj == DEFAULT_OBJ && o1->obj == COLONLIST_OBJ) {
+            if (o2 == &default_value->v && o1->obj == COLONLIST_OBJ) {
                 val = (Obj *)ref_str(null_str);
             } else {
                 val = o2->obj->repr(o2, epoint, maxsize - chars);
@@ -511,7 +511,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (o1->obj == o2->obj && (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ)) {
         return calc2_list(op);
     }
-    if (o2->obj == NONE_OBJ || o2->obj == ERROR_OBJ) {
+    if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
         return o2->obj->rcalc2(op);
     }
     if (v1->len != 0) {
@@ -561,7 +561,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     if (o1->obj == o2->obj && (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ)) {
         return calc2_list(op);
     }
-    if (o1->obj == NONE_OBJ || o1->obj == ERROR_OBJ) {
+    if (o1 == &none_value->v || o1->obj == ERROR_OBJ) {
         return o1->obj->calc2(op);
     }
     if (v2->len != 0) {

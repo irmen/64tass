@@ -157,7 +157,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
     if (p->star_w) {
         const struct values_s *v = next_arg();
         Obj *val = v->val;
-        if (val->obj == NONE_OBJ) none = listp;
+        if (val == &none_value->v) none = listp;
         else {
             err = val->obj->ival(val, &ival, 8 * (sizeof ival), &v->epoint);
             if (err != NULL) return &err->v;
@@ -168,7 +168,7 @@ static MUST_CHECK Obj *star_args(struct DATA *p)
     if (p->star_p) {
         const struct values_s *v = next_arg();
         Obj *val = v->val;
-        if (val->obj == NONE_OBJ) none = listp;
+        if (val == &none_value->v) none = listp;
         else {
             err = val->obj->ival(val, &ival, 8 * (sizeof ival), &v->epoint);
             if (err != NULL) return &err->v;
@@ -188,7 +188,7 @@ static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
     Str *str;
     size_t i;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         err = (Obj *)ref_int(int_value[0]);
     } else {
@@ -219,7 +219,7 @@ static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
     unsigned int bp, b;
     size_t bp2;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         err = (Obj *)ref_int(int_value[0]);
     } else {
@@ -263,7 +263,7 @@ static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
     unsigned int bp, b;
     size_t bp2;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         err = (Obj *)ref_int(int_value[0]);
     } else {
@@ -305,7 +305,7 @@ static inline MUST_CHECK Obj *chars(const struct values_s *v)
     Obj *val = v->val;
     Error *err;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         uval = 0;
     } else {
@@ -326,14 +326,14 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
     Obj *val = v->val, *err;
     Str *str;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         return NULL;
     }
     if (*p->pf == 'r') err = val->obj->repr(val, &v->epoint, SIZE_MAX);
     else err = STR_OBJ->create(val, &v->epoint);
     if (err->obj != STR_OBJ) {
-        if (err->obj == NONE_OBJ) {
+        if (err == &none_value->v) {
             none = listp;
             val_destroy(err);
             return NULL;
@@ -367,7 +367,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
     Obj *val = v->val, *err;
     int l;
 
-    if (val->obj == NONE_OBJ) {
+    if (val == &none_value->v) {
         none = listp;
         d = 0;
     } else {
