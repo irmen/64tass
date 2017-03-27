@@ -314,16 +314,17 @@ static bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
 static bool tobool(const struct values_s *v1, bool *truth) {
     Obj *val = v1->val;
     Obj *err = val->obj->truth(val, TRUTH_BOOL, &v1->epoint);
-    if (err->obj != BOOL_OBJ) {
+    bool error = err->obj != BOOL_OBJ;
+    if (error) {
         if (err->obj == ERROR_OBJ) {
-            err_msg_output_and_destroy((Error *)err);
+            err_msg_output((Error *)err);
         }
-        return true;
+    } else {
+        *truth = (Bool *)err == true_value;
+        if (diagnostics.strict_bool && val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
     }
-    *truth = ((Bool *)err)->boolean;
     val_destroy(err);
-    if (diagnostics.strict_bool && val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
-    return false;
+    return error;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -962,7 +963,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 result2 = tmp.v1->obj->calc2(&tmp);
                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
                 else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
-                    val_replace(&result2, ((Bool *)result2)->boolean ? tmp.v1 : tmp.v2);
+                    val_replace(&result2, (Bool *)result2 == true_value ? tmp.v1 : tmp.v2);
                 }
                 val_destroy(val);
                 if (label != NULL) {
@@ -1797,7 +1798,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             tmp.v2 = val;
                             tmp.epoint2 = &vs->epoint;
                             result2 = tmp.v1->obj->calc2(&tmp);
-                            truth = (result2->obj == BOOL_OBJ && ((Bool *)result2)->boolean);
+                            truth = (Bool *)result2 == true_value;
                             val_destroy(result2);
                             if (truth && diagnostics.switch_case && skwait != 2) {
                                 err_msg2(ERROR_DUPLICATECASE, NULL, &vs->epoint);
@@ -2248,12 +2249,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     vs = get_val();
                     switch (prm) {
                     case CMD_DATABANK:
-                        if (vs->val->obj == GAP_OBJ) databank = 256;
+                        if (vs->val == &gap_value->v) databank = 256;
                         else if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else databank = uval;
                         break;
                     case CMD_DPAGE:
-                        if (vs->val->obj == GAP_OBJ) dpage = 65536;
+                        if (vs->val == &gap_value->v) dpage = 65536;
                         else if (touval(vs->val, &uval, 16, &vs->epoint)) {}
                         else dpage = uval;
                         break;
@@ -2942,7 +2943,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 result2 = tmp.v1->obj->calc2(&tmp);
                                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
                                 else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
-                                    val_replace(&result2, ((Bool *)result2)->boolean ? tmp.v1 : tmp.v2);
+                                    val_replace(&result2, (Bool *)result2 == true_value ? tmp.v1 : tmp.v2);
                                 }
                                 val_destroy(val);
                                 val = result2;

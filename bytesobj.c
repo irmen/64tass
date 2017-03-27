@@ -60,7 +60,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_BYTES: return val_reference(v1);
-    case T_BOOL: return (Obj *)bytes_from_u8(((Bool *)v1)->boolean ? 1 : 0);
+    case T_BOOL: return (Obj *)bytes_from_u8((Bool *)v1 == true_value ? 1 : 0);
     case T_BITS: return (Obj *)bytes_from_bits((Bits *)v1);
     case T_STR: return bytes_from_str((Str *)v1, epoint, BYTES_MODE_TEXT);
     case T_INT: return (Obj *)bytes_from_int((Int *)v1);

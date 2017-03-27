@@ -39,12 +39,6 @@ Bool *true_value;
 Bool *false_value;
 Bool *bool_value[2];
 
-static inline MUST_CHECK Bool *new_boolean(bool boolean) {
-    Bool *v = (Bool *)val_alloc(BOOL_OBJ);
-    v->boolean = boolean;
-    return v;
-}
-
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
@@ -55,8 +49,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 }
 
 static bool same(const Obj *o1, const Obj *o2) {
-    const Bool *v1 = (const Bool *)o1, *v2 = (const Bool *)o2;
-    return o2->obj == BOOL_OBJ && v1->boolean == v2->boolean;
+    return o1 == o2;
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, Truth_types UNUSED(type), linepos_t UNUSED(epoint)) {
@@ -64,42 +57,38 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types UNUSED(type), linepos_t UNUSED
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    Bool *v1 = (Bool *)o1;
-    *hs = v1->boolean ? 1 : 0;
+    *hs = (Bool *)o1 == true_value ? 1 : 0;
     return NULL;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    Bool *v1 = (Bool *)o1;
     Str *v;
-    size_t len = v1->boolean ? 4 : 5;
+    size_t len = (Bool *)o1 == true_value ? 4 : 5;
     if (len > maxsize) return NULL;
     v = new_str(len);
-    v->chars =len;
-    memcpy(v->data, v1->boolean ? "true" : "false", len);
+    v->chars = len;
+    memcpy(v->data, len == 4 ? "true" : "false", len);
     return &v->v;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    Bool *v1 = (Bool *)o1;
     if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_IVAL, bits, o1, epoint);
-    *iv = v1->boolean ? 1 : 0;
+    *iv = (Bool *)o1 == true_value ? 1 : 0;
     return NULL;
 }
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Bool *v1 = (Bool *)o1;
     if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_UVAL, bits, o1, epoint);
-    *uv = v1->boolean ? 1 : 0;
+    *uv = (Bool *)o1 == true_value ? 1 : 0;
     return NULL;
 }
 
 MUST_CHECK Float *float_from_bool(const Bool *v1) {
-    return new_float(v1->boolean ? 1.0 : 0.0);
+    return new_float(v1 == true_value ? 1.0 : 0.0);
 }
 
 MUST_CHECK Int *int_from_bool(const Bool *v1) {
-    return ref_int(int_value[v1->boolean ? 1 : 0]);
+    return ref_int(int_value[v1 == true_value ? 1 : 0]);
 }
 
 static inline MUST_CHECK Obj *int_from_bool2(bool i) {
@@ -107,37 +96,35 @@ static inline MUST_CHECK Obj *int_from_bool2(bool i) {
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
-    Bool *v1 = (Bool *)o1;
     if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_SIGN, o1, epoint);
-    return (Obj *)int_from_bool(v1);
+    return (Obj *)int_value[(Bool *)o1 == true_value ? 1 : 0];
 }
 
 static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
-    Bool *v1 = (Bool *)o1;
     if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
-    return (Obj *)int_from_bool(v1);
+    return (Obj *)int_value[(Bool *)o1 == true_value ? 1 : 0];
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
-    Bool *v1 = (Bool *)op->v1;
+    bool v1 = (Bool *)op->v1 == true_value;
     Str *v;
     if (diagnostics.strict_bool && op->op != &o_LNOT) err_msg_bool_oper(op);
     switch (op->op->op) {
     case O_BANK:
     case O_HIGHER: return (Obj *)bytes_from_u8(0);
-    case O_LOWER: return (Obj *)bytes_from_u8(v1->boolean ? 1 : 0);
+    case O_LOWER: return (Obj *)bytes_from_u8(v1 ? 1 : 0);
     case O_HWORD: return (Obj *)bytes_from_u16(0);
-    case O_WORD: return (Obj *)bytes_from_u16(v1->boolean ? 1 : 0);
-    case O_BSWORD: return (Obj *)bytes_from_u16(v1->boolean ? 0x100 : 0);
-    case O_INV: return (Obj *)ibits_from_bool(v1->boolean);
-    case O_NEG: return (Obj *)ref_int(v1->boolean ? minus1_value : int_value[0]);
-    case O_POS: return (Obj *)int_from_bool(v1);
+    case O_WORD: return (Obj *)bytes_from_u16(v1 ? 1 : 0);
+    case O_BSWORD: return (Obj *)bytes_from_u16(v1 ? 0x100 : 0);
+    case O_INV: return (Obj *)ibits_from_bool(v1);
+    case O_NEG: return (Obj *)ref_int(v1 ? minus1_value : int_value[0]);
+    case O_POS: return (Obj *)ref_int(int_value[v1 ? 1 : 0]);
     case O_STRING:
         v = new_str(1);
         v->chars = 1;
-        v->data[0] = v1->boolean ? '1' : '0';
+        v->data[0] = v1 ? '1' : '0';
         return &v->v;
-    case O_LNOT: return truth_reference(!v1->boolean);
+    case O_LNOT: return truth_reference(!v1);
     default: break;
     }
     return obj_oper_error(op);
@@ -182,33 +169,33 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    Bool *v1 = (Bool *)op->v1;
+    bool v1 = (Bool *)op->v1 == true_value;
+    Obj *o2 = op->v2;
 
     if (op->op == &o_LAND) {
-        if (diagnostics.strict_bool && op->v2->obj != BOOL_OBJ) err_msg_bool_oper(op);
-        return val_reference(v1->boolean ? op->v2 : &v1->v);
+        if (diagnostics.strict_bool && o2->obj != BOOL_OBJ) err_msg_bool_oper(op);
+        return val_reference(v1 ? o2 : &false_value->v);
     }
     if (op->op == &o_LOR) {
-        if (diagnostics.strict_bool && op->v2->obj != BOOL_OBJ) err_msg_bool_oper(op);
-        return val_reference(v1->boolean ? &v1->v : op->v2);
+        if (diagnostics.strict_bool && o2->obj != BOOL_OBJ) err_msg_bool_oper(op);
+        return val_reference(v1 ? &true_value->v : o2);
     }
-    switch (op->v2->obj->type) {
+    switch (o2->obj->type) {
     case T_BOOL: 
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        return calc2_bool(op, v1->boolean, ((Bool *)op->v2)->boolean);
+        return calc2_bool(op, v1, (Bool *)o2 == true_value);
     default: 
         if (op->op != &o_MEMBER && op->op != &o_X) {
-            return op->v2->obj->rcalc2(op);
+            return o2->obj->rcalc2(op);
         }
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    const Bool *v2 = (Bool *)op->v2;
     Obj *o1 = op->v1;
     switch (o1->obj->type) {
-    case T_BOOL: return calc2_bool(op, ((Bool *)o1)->boolean, v2->boolean);
+    case T_BOOL: return calc2_bool(op, (Bool *)o1 == true_value, (Bool *)op->v2 == true_value);
     default:
         if (op->op != &o_IN) {
             return o1->obj->calc2(op);
@@ -232,8 +219,8 @@ void boolobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 
-    bool_value[0] = false_value = new_boolean(false);
-    bool_value[1] = true_value = new_boolean(true);
+    bool_value[0] = false_value = (Bool *)val_alloc(BOOL_OBJ);
+    bool_value[1] = true_value = (Bool *)val_alloc(BOOL_OBJ);
 }
 
 void boolobj_names(void) {

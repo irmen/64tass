@@ -28,6 +28,10 @@ static Type obj;
 Type *NONE_OBJ = &obj;
 None *none_value;
 
+static bool same(const Obj *o1, const Obj *o2) {
+    return o1 == o2;
+}
+
 static MUST_CHECK Obj *truth(Obj *UNUSED(v1), Truth_types UNUSED(type), linepos_t epoint) {
     return (Obj *)new_error(ERROR____STILL_NONE, epoint);
 }
@@ -93,6 +97,7 @@ static MUST_CHECK Obj *size(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
 
 void noneobj_init(void) {
     new_type(&obj, T_NONE, "none", sizeof(None));
+    obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
     obj.hash = hash;

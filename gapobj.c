@@ -47,6 +47,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
+static bool same(const Obj *o1, const Obj *o2) {
+    return o1 == o2;
+}
+
 static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
     *hs = 0; /* whatever, there's only one */
     return NULL;
@@ -194,6 +198,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 void gapobj_init(void) {
     new_type(&obj, T_GAP, "gap", sizeof(Gap));
     obj.create = create;
+    obj.same = same;
     obj.hash = hash;
     obj.repr = repr;
     obj.function = function;

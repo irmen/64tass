@@ -401,7 +401,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
         bool i;
         if (result->obj != BOOL_OBJ) return result;
-        i = ((Bool *)result)->boolean != (op->op == &o_LOR);
+        i = ((Bool *)result == true_value) != (op->op == &o_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? o2 : &v1->v);
@@ -506,7 +506,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             oper.v1 = tmp;
             o1 = tmp->obj->calc2(&oper);
             val_destroy(tmp);
-            if (o1->obj == BOOL_OBJ && ((Bool *)o1)->boolean) return o1;
+            if ((Bool *)o1 == true_value) return o1;
             val_destroy(o1);
         }
         return (Obj *)ref_bool(false_value);
