@@ -517,7 +517,7 @@ void write_mem(struct memblocks_s *memblocks, unsigned int c) {
     memblocks->mem.data[memblocks->mem.p++] = (uint8_t)c;
 }
 
-static unsigned int omemp;
+static size_t omemp;
 static size_t ptextaddr;
 static address_t oaddr, oaddr2;
 

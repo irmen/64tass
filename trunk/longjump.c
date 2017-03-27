@@ -24,7 +24,8 @@ static int longjump_compare(const struct avltree_node *aa, const struct avltree_
 {
     const struct longjump_s *a = cavltree_container_of(aa, struct longjump_s, node);
     const struct longjump_s *b = cavltree_container_of(bb, struct longjump_s, node);
-    return a->address - b->address;
+    if (a->address != b->address) return a->address > b->address ? 1 : -1;
+    return 0;
 }
 
 static void longjump_free(struct avltree_node *aa)
