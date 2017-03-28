@@ -63,11 +63,11 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
-    size_t len = (Bool *)o1 == true_value ? 4 : 5;
+    size_t len = o1 == &true_value->v ? 4 : 5;
     if (len > maxsize) return NULL;
     v = new_str(len);
     v->chars = len;
-    memcpy(v->data, len == 4 ? "true" : "false", len);
+    memcpy(v->data, ((Bool *)o1)->name, len);
     return &v->v;
 }
 
@@ -97,12 +97,12 @@ static inline MUST_CHECK Obj *int_from_bool2(bool i) {
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_SIGN, o1, epoint);
-    return (Obj *)int_value[(Bool *)o1 == true_value ? 1 : 0];
+    return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
-    return (Obj *)int_value[(Bool *)o1 == true_value ? 1 : 0];
+    return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -118,7 +118,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_BSWORD: return (Obj *)bytes_from_u16(v1 ? 0x100 : 0);
     case O_INV: return (Obj *)ibits_from_bool(v1);
     case O_NEG: return (Obj *)ref_int(v1 ? minus1_value : int_value[0]);
-    case O_POS: return (Obj *)ref_int(int_value[v1 ? 1 : 0]);
+    case O_POS: return int_from_bool2(v1);
     case O_STRING:
         v = new_str(1);
         v->chars = 1;
@@ -130,12 +130,14 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
+static MUST_CHECK Obj *calc2_bool(oper_t op) {
+    bool v1 = op->v1 == &true_value->v;
+    bool v2 = op->v2 == &true_value->v;
     switch (op->op->op) {
     case O_SUB:
     case O_CMP: 
         if (!v1 && v2) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[(v1 != v2) ? 1 : 0]);
+        return int_from_bool2(v1 != v2);
     case O_EQ: return truth_reference(v1 == v2);
     case O_NE: return truth_reference(v1 != v2);
     case O_MIN:
@@ -169,37 +171,36 @@ static MUST_CHECK Obj *calc2_bool(oper_t op, bool v1, bool v2) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    bool v1 = (Bool *)op->v1 == true_value;
+    Obj *o1 = op->v1;
     Obj *o2 = op->v2;
+    bool is_bool = o2->obj == BOOL_OBJ;
+    Oper *oper = op->op;
 
-    if (op->op == &o_LAND) {
-        if (diagnostics.strict_bool && o2->obj != BOOL_OBJ) err_msg_bool_oper(op);
-        return val_reference(v1 ? o2 : &false_value->v);
+    if (oper == &o_LAND) {
+        if (diagnostics.strict_bool && !is_bool) err_msg_bool_oper(op);
+        return val_reference(o1 == &true_value->v ? o2 : o1);
     }
-    if (op->op == &o_LOR) {
-        if (diagnostics.strict_bool && o2->obj != BOOL_OBJ) err_msg_bool_oper(op);
-        return val_reference(v1 ? &true_value->v : o2);
+    if (oper == &o_LOR) {
+        if (diagnostics.strict_bool && !is_bool) err_msg_bool_oper(op);
+        return val_reference(o1 == &true_value->v ? o1 : o2);
     }
-    switch (o2->obj->type) {
-    case T_BOOL: 
+    if (is_bool) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        return calc2_bool(op, v1, (Bool *)o2 == true_value);
-    default: 
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return o2->obj->rcalc2(op);
-        }
+        return calc2_bool(op);
+    }
+    if (oper != &o_MEMBER && oper != &o_X) {
+        return o2->obj->rcalc2(op);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *o1 = op->v1;
-    switch (o1->obj->type) {
-    case T_BOOL: return calc2_bool(op, (Bool *)o1 == true_value, (Bool *)op->v2 == true_value);
-    default:
-        if (op->op != &o_IN) {
-            return o1->obj->calc2(op);
-        }
+    if (o1->obj == BOOL_OBJ) {
+        return calc2_bool(op);
+    }
+    if (op->op != &o_IN) {
+        return o1->obj->calc2(op);
     }
     return obj_oper_error(op);
 }
@@ -220,7 +221,9 @@ void boolobj_init(void) {
     obj.rcalc2 = rcalc2;
 
     bool_value[0] = false_value = (Bool *)val_alloc(BOOL_OBJ);
+    false_value->name = "false";
     bool_value[1] = true_value = (Bool *)val_alloc(BOOL_OBJ);
+    true_value->name = "true";
 }
 
 void boolobj_names(void) {

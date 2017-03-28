@@ -312,16 +312,22 @@ static bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
 }
 
 static bool tobool(const struct values_s *v1, bool *truth) {
-    Obj *val = v1->val;
-    Obj *err = val->obj->truth(val, TRUTH_BOOL, &v1->epoint);
-    bool error = err->obj != BOOL_OBJ;
+    Obj *val = v1->val, *err;
+    Type *obj = val->obj;
+    bool error;
+    if (obj == BOOL_OBJ) {
+        *truth = val == &true_value->v;
+        return false;
+    }
+    err = obj->truth(val, TRUTH_BOOL, &v1->epoint);
+    error = err->obj != BOOL_OBJ;
     if (error) {
         if (err->obj == ERROR_OBJ) {
             err_msg_output((Error *)err);
         }
     } else {
         *truth = (Bool *)err == true_value;
-        if (diagnostics.strict_bool && val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
     }
     val_destroy(err);
     return error;
@@ -962,8 +968,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 tmp.epoint3 = &epoint3;
                 result2 = tmp.v1->obj->calc2(&tmp);
                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
-                else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
-                    val_replace(&result2, (Bool *)result2 == true_value ? tmp.v1 : tmp.v2);
+                else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
+                    if (result2 == &true_value->v) val_replace(&result2, tmp.v1);
+                    else if (result2 == &false_value->v) val_replace(&result2, tmp.v2);
                 }
                 val_destroy(val);
                 if (label != NULL) {
@@ -2788,7 +2795,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     Obj *nf = NULL;
                     struct star_s *s;
                     struct avltree *stree_old;
-                    bool truth;
                     line_t ovline, lvline;
                     bool starexists;
                     size_t lentmp;
@@ -2854,6 +2860,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         lpoint = apoint;
                         if (here() != ',' && here() != 0) {
                             struct values_s *vs;
+                            bool truth;
                             if (!get_exp(1, cfile, 1, 1, &apoint)) break;
                             vs = get_val();
                             if (tobool(vs, &truth)) break;
@@ -2942,8 +2949,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 tmp.v2 = val;
                                 result2 = tmp.v1->obj->calc2(&tmp);
                                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
-                                else if (result2->obj == BOOL_OBJ && (tmp.op == &o_MIN || tmp.op == &o_MAX)) {
-                                    val_replace(&result2, (Bool *)result2 == true_value ? tmp.v1 : tmp.v2);
+                                else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
+                                    if (result2 == &true_value->v) val_replace(&result2, tmp.v1);
+                                    else if (result2 == &false_value->v) val_replace(&result2, tmp.v2);
                                 }
                                 val_destroy(val);
                                 val = result2;
