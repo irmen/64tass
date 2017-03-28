@@ -79,7 +79,7 @@ static inline size_t bitslen(const Bits *v1) {
     return (len < 0) ? (size_t)~len : (size_t)len;
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Bits *v1 = (Bits *)o1;
     if (v1->val != v1->data) free(v1->data);
 }
@@ -185,7 +185,7 @@ static MUST_CHECK Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
     return vv;
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Bits *v1 = (const Bits *)o1, *v2 = (const Bits *)o2;
     if (o2->obj != BITS_OBJ || v1->len != v2->len || v1->bits != v2->bits) return false;
     return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;

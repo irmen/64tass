@@ -72,7 +72,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Int *v1 = (Int *)o1;
     if (v1->val != v1->data) free(v1->data);
 }
@@ -125,7 +125,7 @@ static MUST_CHECK Int *return_int(digit_t c, bool neg) {
     return vv;
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Int *v1 = (const Int *)o1, *v2 = (const Int *)o2;
     if (o2->obj != INT_OBJ || v1->len != v2->len) return false;
     return memcmp(v1->data, v2->data, intlen(v1) * sizeof *v1->data) == 0;

@@ -78,7 +78,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Bytes *v1 = (Bytes *)o1;
     if (v1->val != v1->data) free(v1->data);
 }
@@ -137,7 +137,7 @@ static MUST_CHECK Obj *negate(Bytes *v1) {
     return &v->v;
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Bytes *v1 = (const Bytes *)o1, *v2 = (const Bytes *)o2;
     return o2->obj == BYTES_OBJ && v1->len == v2->len && (
             v1->data == v2->data ||

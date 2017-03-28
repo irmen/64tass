@@ -85,7 +85,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Dict *v1 = (Dict *)o1;
     avltree_destroy(&v1->members, dict_free);
     if (v1->def != NULL) val_destroy(v1->def);
@@ -99,7 +99,7 @@ static MUST_CHECK Dict *new_dict(void) {
     return v;
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Dict *v1 = (Dict *)o1;
     Obj *v;
     switch (i) {
@@ -144,7 +144,7 @@ static int pair_compare(const struct avltree_node *aa, const struct avltree_node
     return h;
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Dict *v1 = (const Dict *)o1, *v2 = (const Dict *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;

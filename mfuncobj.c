@@ -33,7 +33,7 @@ static Type obj;
 
 Type *MFUNC_OBJ = &obj;
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
     while ((i--) != 0) {
@@ -49,7 +49,7 @@ static void destroy(Obj *o1) {
     free(v1->param);
 }
 
-static void garbage(Obj *o1, int j) {
+static FAST_CALL void garbage(Obj *o1, int j) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
     Obj *v ;
@@ -95,7 +95,7 @@ static void garbage(Obj *o1, int j) {
     }
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
     size_t i;
     if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return false;

@@ -41,14 +41,14 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Label *v1 = (Label *)o1;
     free((char *)v1->name.data);
     if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
     val_destroy(v1->value);
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Label *v1 = (Label *)o1;
     Obj *v;
     switch (i) {
@@ -69,7 +69,7 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
     return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
         && str_cmp(&v1->name, &v2->name) == 0

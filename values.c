@@ -35,50 +35,47 @@ typedef struct Slot {
     struct Slot *next;
 } Slot;
 
-static Slot *values_free[32];
-
 typedef struct Slotcoll {
     struct Slotcoll *next;
 } Slotcoll;
 
 static Slotcoll *slotcoll[32];
 
-static inline void value_free(Obj *val) {
-    size_t p = (val->obj->length + (ALIGN - 1)) / ALIGN;
-    Slot *slot = (Slot *)val, **c = &values_free[p];
+static NO_INLINE void value_free(Obj *val) {
+    Slot *slot = (Slot *)val, **c = val->obj->slot;
     slot->next = *c;
-    val->obj = NONE_OBJ;
+    val->obj = NULL;
     *c = slot;
 }
 
-Obj *val_alloc(Type *obj) {
-    size_t p = (obj->length + (ALIGN - 1)) / ALIGN;
-    Slot **c = &values_free[p];
-    Obj *val = (Obj *)*c;
-    if (val == NULL) {
-        size_t i, size = p * ALIGN;
-        Slot *slot;
-        Slotcoll **s = &slotcoll[p];
-        Slotcoll *n = (Slotcoll *)mallocx(size * SLOTS + sizeof *n);
-        n->next = *s; *s = n;
-        slot = (Slot *)(n + 1);
-        val = (Obj *)slot;
-        for (i = 0; i < (SLOTS - 1); i++, slot = (Slot *)(((const char *)slot) + size)) {
-            slot->v.obj = NONE_OBJ;
-            slot->v.refcount = 1;
-            slot->next = (Slot *)(((const char *)slot) + size);
-        }
-        slot->v.obj = NONE_OBJ;
-        slot->v.refcount = 1;
-        slot->next = NULL;
+static FAST_CALL NO_INLINE Obj *value_alloc(Type *obj) {
+    size_t p = obj->length;
+    size_t i, size = p * ALIGN;
+    Slot *slot, *slot2;
+    Slotcoll **s = &slotcoll[p];
+    Slotcoll *n = (Slotcoll *)mallocx(size * SLOTS + sizeof *n);
+    n->next = *s; *s = n;
+    slot2 = slot = (Slot *)(n + 1);
+    for (i = 0; i < (SLOTS - 1); i++, slot2 = slot2->next) {
+        slot2->v.obj = NULL;
+        slot2->v.refcount = 1;
+        slot2->next = (Slot *)(((const char *)slot2) + size);
     }
-    *c = ((Slot *)val)->next;
-    val->obj = obj;
-    return val;
+    slot2->v.obj = NULL;
+    slot2->v.refcount = 1;
+    slot2->next = NULL;
+
+    slot->v.obj = obj;
+    *obj->slot = slot->next;
+    return &slot->v;
 }
 
-static inline void obj_destroy(Obj *v1) {
-    v1->obj->destroy(v1);
+FAST_CALL Obj *val_alloc(Type *obj) {
+    Slot *slot = *obj->slot;
+    if (slot == NULL) return value_alloc(obj);
+    slot->v.obj = obj;
+    *obj->slot = slot->next;
+    return &slot->v;
 }
 
 void garbage_collect(void) {
@@ -90,7 +87,7 @@ void garbage_collect(void) {
         for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
             for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
-                if (val->obj->garbage != NULL) {
+                if (val->obj != NULL && val->obj->garbage != NULL) {
                     val->obj->garbage(val, -1);
                     val->refcount |= SIZE_MSB;
                 }
@@ -103,7 +100,7 @@ void garbage_collect(void) {
         for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
             for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
-                if (val->obj->garbage != NULL) {
+                if (val->obj != NULL && val->obj->garbage != NULL) {
                     if (val->refcount > SIZE_MSB) {
                         val->refcount -= SIZE_MSB;
                         val->obj->garbage(val, 1);
@@ -121,7 +118,7 @@ void garbage_collect(void) {
                 if ((val->refcount & ~SIZE_MSB) == 0) {
                     val->refcount = 1;
                     if (val->obj->garbage != NULL) val->obj->garbage(val, 0);
-                    else obj_destroy(val);
+                    else if (val->obj->destroy != NULL) val->obj->destroy(val);
                     value_free(val);
                 }
             }
@@ -129,18 +126,20 @@ void garbage_collect(void) {
     }
 }
 
-void val_destroy(Obj *val) {
-    if (val->refcount == 0) {
-        obj_destroy(val);
-        return;
-    }
-    if (val->refcount == 1) {
-        obj_destroy(val);
+FAST_CALL void val_destroy(Obj *val) {
+    switch (val->refcount) {
+    case 1:
+        if (val->obj->destroy != NULL) val->obj->destroy(val);
         value_free(val);
-    } else val->refcount--;
+        return;
+    case 0:
+        return;
+    default:
+        val->refcount--;
+    }
 }
 
-void val_replace(Obj **val, Obj *val2) {
+FAST_CALL void val_replace(Obj **val, Obj *val2) {
     if (*val == val2) return;
     val_destroy(*val);
     *val = val_reference(val2);
@@ -177,7 +176,7 @@ void destroy_values(void)
         for (vals = slotcoll[j]; vals; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
             for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
-                if (val->obj != NONE_OBJ) {
+                if (val->obj != NULL) {
                     val_print(val, stderr);
                     fprintf(stderr, " %s %" PRIuSIZE " %" PRIxPTR "\n", val->obj->name, val->refcount, (uintptr_t)val);
                 }

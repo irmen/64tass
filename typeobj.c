@@ -34,11 +34,16 @@ static Type obj;
 
 Type *TYPE_OBJ = &obj;
 
+static struct Slot *values_free[32];
+
+#define ALIGN sizeof(int *)
+
 void new_type(Type *t, Type_types type, const char *name, size_t length) {
     t->v.obj = TYPE_OBJ;
     t->v.refcount = 1;
     t->type = type;
-    t->length = length;
+    t->length = (length + (ALIGN - 1)) / ALIGN;
+    t->slot = &values_free[t->length];
     t->name = name;
     obj_init(t);
 }
@@ -53,7 +58,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     return val_reference(&v1->obj->v);
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 

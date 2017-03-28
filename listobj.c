@@ -45,7 +45,7 @@ Tuple *null_tuple;
 List *null_list;
 Addrlist *null_addrlist;
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     List *v1 = (List *)o1;
     size_t i;
     for (i = 0; i < v1->len; i++) {
@@ -54,7 +54,7 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static void garbage(Obj *o1, int j) {
+static FAST_CALL void garbage(Obj *o1, int j) {
     List *v1 = (List *)o1;
     size_t i;
     Obj *v;
@@ -127,7 +127,7 @@ static MUST_CHECK Obj *tuple_create(Obj *o1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const List *v1 = (const List *)o1, *v2 = (const List *)o2;
     size_t i;
     if (o1->obj != o2->obj || v1->len != v2->len) return false;
