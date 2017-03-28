@@ -319,8 +319,9 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         op->v2 = v2->data[i];
                         val = op->v1->obj->calc2(op);
                         if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                        else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                            val_replace(&val, (Bool *)val == true_value ? op->v1 : op->v2);
+                        else if (op->op == &o_MIN || op->op == &o_MAX) {
+                            if (val == &true_value->v) val_replace(&val, op->v1);
+                            else if (val == &false_value->v) val_replace(&val, op->v2);
                         }
                         vals[i] = val;
                     }
@@ -523,8 +524,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             op->v1 = v1->data[i];
             val = op->v1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-            else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, (Bool *)val == true_value ? op->v1 : o2);
+            else if (op->op == &o_MIN || op->op == &o_MAX) {
+                if (val == &true_value->v) val_replace(&val, op->v1);
+                else if (val == &false_value->v) val_replace(&val, o2);
             }
             vals[i] = val;
         }
@@ -573,8 +575,9 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             op->v2 = v2->data[i];
             val = o1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-            else if (val->obj == BOOL_OBJ && (op->op == &o_MIN || op->op == &o_MAX)) {
-                val_replace(&val, (Bool *)val == true_value ? o1 : op->v2);
+            else if (op->op == &o_MIN || op->op == &o_MAX) {
+                if (val == &true_value->v) val_replace(&val, o1);
+                else if (val == &false_value->v) val_replace(&val, op->v2);
             }
             vals[i] = val;
         }

@@ -146,7 +146,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     Float *v1 = (Float *)o1;
     if (v1->real < 0.0) return (Obj *)ref_int(minus1_value);
-    return (Obj *)ref_int(int_value[v1->real > 0.0]);
+    return (Obj *)ref_int(int_value[(v1->real > 0.0) ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t UNUSED(epoint)) {
