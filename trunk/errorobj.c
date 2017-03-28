@@ -28,7 +28,7 @@ static Type obj;
 
 Type *ERROR_OBJ = &obj;
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Error *v1 = (Error *)o1;
     switch (v1->num) {
     case ERROR__INVALID_OPER:
@@ -56,7 +56,7 @@ static void destroy(Obj *o1) {
     }
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Error *v1 = (Error *)o1;
     Obj *v;
     switch (v1->num) {

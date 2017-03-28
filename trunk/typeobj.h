@@ -47,11 +47,12 @@ typedef struct Type {
     Obj v;
     Type_types type;
     const char *name;
+    struct Slot **slot;
     size_t length;
     Obj *(*create)(Obj *, linepos_t) MUST_CHECK;
-    void (*destroy)(Obj *);
-    void (*garbage)(Obj *, int);
-    bool (*same)(const Obj *, const Obj *);
+    void (*destroy)(Obj *) FAST_CALL;
+    void (*garbage)(Obj *, int) FAST_CALL;
+    bool (*same)(const Obj *, const Obj *) FAST_CALL;
     Obj *(*truth)(Obj *, Truth_types, linepos_t) MUST_CHECK;
     struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t, size_t) MUST_CHECK;

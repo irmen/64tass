@@ -67,12 +67,12 @@ static void garbage2(struct avltree_node *aa)
     } else v->refcount++;
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Namespace *v1 = (Namespace *)o1;
     avltree_destroy(&v1->members, namespace_free);
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Namespace *v1 = (Namespace *)o1;
     switch (i) {
     case -1:
@@ -87,7 +87,7 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Namespace *v1 = (const Namespace *)o1, *v2 = (const Namespace *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;

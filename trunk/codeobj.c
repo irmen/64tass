@@ -55,13 +55,13 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Code *v1 = (Code *)o1;
     val_destroy(v1->addr);
     val_destroy(&v1->names->v);
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Code *v1 = (Code *)o1;
     Obj *v;
     switch (i) {
@@ -96,7 +96,7 @@ static MUST_CHECK Error *access_check(const Code *v1, linepos_t epoint) {
     return NULL;
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Code *v1 = (const Code *)o1, *v2 = (const Code *)o2;
     return o2->obj == CODE_OBJ && (v1->addr == v2->addr || v1->addr->obj->same(v1->addr, v2->addr))
         && v1->size == v2->size && v1->offs == v2->offs && v1->dtype == v2->dtype

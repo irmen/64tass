@@ -35,7 +35,7 @@ Type *SEGMENT_OBJ = &segment_obj;
 Type *STRUCT_OBJ = &struct_obj;
 Type *UNION_OBJ = &union_obj;
 
-static void macro_destroy(Obj *o1) {
+static FAST_CALL void macro_destroy(Obj *o1) {
     Macro *v1 = (Macro *)o1;
     while (v1->argc != 0) {
         --v1->argc;
@@ -45,7 +45,7 @@ static void macro_destroy(Obj *o1) {
     free(v1->param);
 }
 
-static bool macro_same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool macro_same(const Obj *o1, const Obj *o2) {
     const Macro *v1 = (const Macro *)o1, *v2 = (const Macro *)o2;
     size_t i;
     if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return false;
@@ -56,7 +56,7 @@ static bool macro_same(const Obj *o1, const Obj *o2) {
     return true;
 }
 
-static void struct_destroy(Obj *o1) {
+static FAST_CALL void struct_destroy(Obj *o1) {
     Struct *v1 = (Struct *)o1;
     while (v1->argc != 0) {
         --v1->argc;
@@ -67,7 +67,7 @@ static void struct_destroy(Obj *o1) {
     val_destroy((Obj *)v1->names);
 }
 
-static void struct_garbage(Obj *o1, int i) {
+static FAST_CALL void struct_garbage(Obj *o1, int i) {
     Struct *v1 = (Struct *)o1;
     Obj *v;
     switch (i) {
@@ -92,7 +92,7 @@ static void struct_garbage(Obj *o1, int i) {
     }
 }
 
-static bool struct_same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool struct_same(const Obj *o1, const Obj *o2) {
     const Struct *v1 = (const Struct *)o1, *v2 = (const Struct *)o2;
     size_t i;
     if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return false;

@@ -56,12 +56,12 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Address *v1 = (Address *)o1;
     val_destroy(v1->val);
 }
 
-static void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int i) {
     Address *v1 = (Address *)o1;
     Obj *v;
     switch (i) {
@@ -80,7 +80,7 @@ static void garbage(Obj *o1, int i) {
     }
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Address *v1 = (const Address *)o1, *v2 = (const Address *)o2;
     return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
 }

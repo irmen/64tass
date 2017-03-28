@@ -35,7 +35,7 @@ static Type obj;
 
 Type *REGISTER_OBJ = &obj;
 
-static void destroy(Obj *o1) {
+static FAST_CALL void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
     if (v1->val != v1->data) free(v1->data);
 }
@@ -77,7 +77,7 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static bool same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Register *v1 = (const Register *)o1, *v2 = (const Register *)o2;
     return o2->obj == REGISTER_OBJ && v1->len == v2->len && (
             v1->data == v2->data ||

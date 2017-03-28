@@ -130,6 +130,20 @@ typedef uint32_t uval_t;
 # define NO_RETURN
 #endif
 
+#ifdef FAST_CALL
+#elif defined(__GNUC__)
+# define FAST_CALL  __attribute__((regparm(3)))
+#else
+# define FAST_CALL
+#endif
+
+#ifdef NO_INLINE
+#elif defined(__GNUC__)
+# define NO_INLINE  __attribute__((noinline))
+#else
+# define NO_INLINE
+#endif
+
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L
 #elif __GNUC__ >= 3

@@ -75,9 +75,6 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
     return &err->v;
 }
 
-static void invalid_destroy(Obj *UNUSED(v1)) {
-}
-
 static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
@@ -88,7 +85,7 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static bool invalid_same(const Obj *v1, const Obj *v2) {
+static FAST_CALL bool invalid_same(const Obj *v1, const Obj *v2) {
     return v1->obj == v2->obj;
 }
 
@@ -206,13 +203,13 @@ static MUST_CHECK Obj *invalid_next(Iter *v1) {
     return val_reference(v1->data);
 }
 
-static void iter_destroy(Obj *o1) {
+static FAST_CALL void iter_destroy(Obj *o1) {
     Iter *v1 = (Iter *)o1;
     if (v1->iter != &v1->val) free(v1->iter);
     val_destroy(v1->data);
 }
 
-static void iter_garbage(Obj *o1, int i) {
+static FAST_CALL void iter_garbage(Obj *o1, int i) {
     Iter *v1 = (Iter *)o1;
     Obj *v;
     switch (i) {
@@ -237,23 +234,23 @@ static MUST_CHECK Obj *iter_next(Iter *v1) {
     return v1->data->obj->next(v1);
 }
 
-static bool lbl_same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool lbl_same(const Obj *o1, const Obj *o2) {
     const Lbl *v1 = (const Lbl *)o1, *v2 = (const Lbl *)o2;
     return o2->obj == LBL_OBJ && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
 }
 
-static bool default_same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool default_same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
-static bool funcargs_same(const Obj *o1, const Obj *o2) {
+static FAST_CALL bool funcargs_same(const Obj *o1, const Obj *o2) {
     const Funcargs *v1 = (const Funcargs *)o1, *v2 = (const Funcargs *)o2;
     return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
 }
 
 void obj_init(Type *obj) {
     obj->create = invalid_create;
-    obj->destroy = invalid_destroy;
+    obj->destroy = NULL;
     obj->garbage = NULL;
     obj->same = invalid_same;
     obj->truth = invalid_truth;
