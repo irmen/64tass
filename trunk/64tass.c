@@ -1710,8 +1710,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (skwait != 1) { waitfor->skip = 0; break; }
                     if (!get_exp(0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                     vs = get_val(); val = vs->val;
-                    if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); waitfor->skip = 0; break;}
-                    if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); waitfor->skip = 0; break;}
                     switch (prm) {
                     case CMD_IF:
                         if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
@@ -2085,10 +2083,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(0, cfile, 1, 3, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
-                        if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
-                        else if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
-                        else if (val->obj != STR_OBJ) err_msg_wrong_type(val, STR_OBJ, &vs->epoint);
-                        else {
+                        switch (val->obj->type) {
+                        case T_ERROR: err_msg_output((Error *)val); break;
+                        case T_NONE: err_msg_still_none(NULL, &vs->epoint); break;
+                        default: err_msg_wrong_type(val, STR_OBJ, &vs->epoint); break;
+                        case T_STR:
                             val2 = (Str *)val;
                             path = get_path(val2, cfile->realname);
                         }
@@ -2697,21 +2696,24 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_INCLUDE:
             case CMD_BINCLUDE: if ((waitfor->skip & 1) != 0)
                 { /* .include, .binclude */
-                    struct file_s *f;
+                    struct file_s *f = NULL;
                     struct values_s *vs;
                     char *path;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(epoint.pos);
                     if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
-                    if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr;}
-                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
-                    if (val->obj != STR_OBJ) {err_msg_wrong_type(val, STR_OBJ, &vs->epoint);goto breakerr;}
-                    path = get_path((Str *)val, cfile->realname);
+                    switch (val->obj->type) {
+                    case T_ERROR: err_msg_output((Error *)val); break;
+                    case T_NONE: err_msg_still_none(NULL, &vs->epoint); break;
+                    default: err_msg_wrong_type(val, STR_OBJ, &vs->epoint); break;
+                    case T_STR:
+                        path = get_path((Str *)val, cfile->realname);
+                        f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
+                        free(path);
+                    }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
-                    f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
-                    free(path);
                     if (f == NULL) goto breakerr;
                     if (f->open>1) {
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
@@ -3337,9 +3339,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             as_macro2:
                 if (!get_exp_var(cfile, &epoint)) goto breakerr;
                 vs = get_val(); val = vs->val;
-                if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
-                if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, NULL, &vs->epoint); goto breakerr;}
+                switch (val->obj->type) {
+                case T_ERROR: err_msg_output((Error *)val); goto breakerr;
+                case T_NONE: err_msg_still_none(NULL, &vs->epoint); goto breakerr;
+                default : err_msg_wrong_type(val, NULL, &vs->epoint); goto breakerr;
+                case T_MACRO:
+                case T_SEGMENT:
+                case T_MFUNC: break;
+                }
             as_macro:
                 listing_line_cut(epoint.pos);
                 if (val->obj == MACRO_OBJ) {
