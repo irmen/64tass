@@ -894,26 +894,33 @@ static bool get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp - 1]; vsp--;
             if (vsp == 0) goto syntaxe;
-            val = values[vsp - 1].val->obj->truth(values[vsp - 1].val, TRUTH_BOOL, &values[vsp - 1].epoint);
-            if (val->obj != BOOL_OBJ) {
-                val_destroy(values[vsp - 1].val);
-                values[vsp - 1].val = val;
+            val = values[vsp - 1].val;
+            if (val == &true_value->v) {
+            cond_true:
+                values[vsp - 1].val = v1->val;
+                values[vsp - 1].epoint = v1->epoint;
+                v1->val = val;
+                continue;
+            } 
+            if (val == &false_value->v) {
+            cond_false:
+                values[vsp - 1].val = v2->val;
+                values[vsp - 1].epoint = v2->epoint;
+                v2->val = val;
                 continue;
             }
-            if (diagnostics.strict_bool && values[vsp - 1].val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, values[vsp - 1].val, &values[vsp - 1].epoint);
-            if ((Bool *)val == true_value) {
-                Obj *tmp = values[vsp - 1].val;
-                values[vsp - 1].val = v1->val;
-                v1->val = tmp;
-                values[vsp - 1].epoint = v1->epoint;
-            } else {
-                Obj *tmp = values[vsp - 1].val;
-                values[vsp - 1].val = v2->val;
-                v2->val = tmp;
-                values[vsp - 1].epoint = v2->epoint;
+            {
+                Obj *tmp = val->obj->truth(val, TRUTH_BOOL, &values[vsp - 1].epoint);
+                if (tmp->obj != BOOL_OBJ) {
+                    val_destroy(val);
+                    values[vsp - 1].val = tmp;
+                    continue;
+                }
+                val_destroy(tmp);
+                if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, val, &values[vsp - 1].epoint);
+                if (tmp == &true_value->v) goto cond_true;
+                goto cond_false;
             }
-            val_destroy(val);
-            continue;
         case O_QUEST:
             vsp--;
             if (vsp == 0) goto syntaxe;
@@ -1127,7 +1134,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 val_destroy(v1->val); v1->val = val;
                 continue;
             }
-            if ((Bool *)val != true_value) {
+            if (val != &true_value->v) {
                 val_replace(&v1->val, v2->val);
             }
             val_destroy(val);

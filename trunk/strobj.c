@@ -644,7 +644,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);
         bool i;
         if (result->obj != BOOL_OBJ) return result;
-        i = ((Bool *)result == true_value) != (op->op == &o_LOR);
+        i = (result == &true_value->v) != (op->op == &o_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? v2 : &v1->v);
