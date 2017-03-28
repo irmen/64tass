@@ -489,6 +489,10 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
             val_destroy(tmp);
             break;
         }
+    case T_ERROR:
+        err_msg_output((Error *)val);
+        if (*ch2 < -1) *ch2 = -1;
+        return false;
     case T_NONE:
         return true;
     case T_BYTES:
@@ -2004,7 +2008,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     mark_mem(&current_section->mem, current_section->address, star);
                     poke_pos = &epoint;
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
-                        int ch2=-1;
+                        int ch2 = -2;
                         struct values_s *vs;
                         if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
@@ -2013,7 +2017,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!get_exp(0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
                             poke_pos = &vs->epoint;
-                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX)) err_msg_still_none(NULL, poke_pos);
+                            if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX)) {
+                                err_msg_still_none(NULL, poke_pos);
+                                if (ch2 < -1)  ch2 = -1;
+                            }
                         }
                         if (uninit != 0) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
@@ -2023,7 +2030,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                             if (uninit != 0) {
                                 err_msg2(ERROR___NO_LAST_GAP, NULL, poke_pos);
-                            } else {
+                            } else if (ch2 == -2) {
                                 err_msg2(ERROR__BYTES_NEEDED, NULL, &epoint);
                             }
                         }
@@ -2298,47 +2305,45 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (db != 0 && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);goto breakerr;}
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
-                        val = vs->val;
+                        size_t uninit = 0, sum = 0;
+                        size_t memp, membp;
+                        int ch2 = -2;
+                        get_mem(&current_section->mem, &memp, &membp);
+
                         poke_pos = &vs->epoint;
-                        if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); if (db != 0) memskip(db);}
-                        else if (val == &none_value->v) {err_msg_still_none(NULL, poke_pos); if (db != 0) memskip(db);}
-                        else {
-                            size_t uninit = 0, sum = 0;
-                            size_t memp, membp;
-                            int ch2=-1;
-                            get_mem(&current_section->mem, &memp, &membp);
+                        if (textrecursion(vs->val, CMD_TEXT, &ch2, &uninit, &sum, db)) {
+                            err_msg_still_none(NULL, poke_pos);
+                            if (ch2 < -1)  ch2 = -1;
+                        }
+                        sum += uninit;
+                        if (ch2 >= 0 && sum < db) {
+                            pokeb((unsigned int)ch2); sum++;
+                        }
 
-                            if (textrecursion(val, CMD_TEXT, &ch2, &uninit, &sum, db)) err_msg_still_none(NULL, poke_pos);
-                            sum += uninit;
-                            if (ch2 >= 0 && sum < db) {
-                                pokeb((unsigned int)ch2); sum++;
-                            }
-
-                            db -= sum;
-                            if (db != 0) {
-                                if (sum == 1 && uninit == 0) {
-                                    while ((db--) != 0) pokeb(ch2); /* single byte shortcut */
-                                } else if (sum == uninit) {
-                                    if (sum == 0) err_msg2(ERROR__BYTES_NEEDED, NULL, poke_pos);
-                                    uninit += db; /* gap shortcut */
-                                } else {
-                                    size_t offs = 0;
-                                    while (db != 0) { /* pattern repeat */
-                                        int ch;
-                                        db--;
-                                        ch = read_mem(&current_section->mem, memp, membp, offs);
-                                        if (ch < 0) uninit++;
-                                        else {
-                                            if (uninit != 0) {memskip(uninit); uninit = 0;}
-                                            pokeb((unsigned int)ch);
-                                        }
-                                        offs++;
-                                        if (offs >= sum) offs = 0;
+                        db -= sum;
+                        if (db != 0) {
+                            if (sum == 1 && ch2 >= 0) {
+                                while ((db--) != 0) pokeb((unsigned int)ch2); /* single byte shortcut */
+                            } else if (sum == uninit) {
+                                if (ch2 == -2) err_msg2(ERROR__BYTES_NEEDED, NULL, poke_pos);
+                                uninit += db; /* gap shortcut */
+                            } else {
+                                size_t offs = 0;
+                                while (db != 0) { /* pattern repeat */
+                                    int ch;
+                                    db--;
+                                    ch = read_mem(&current_section->mem, memp, membp, offs);
+                                    if (ch < 0) uninit++;
+                                    else {
+                                        if (uninit != 0) {memskip(uninit); uninit = 0;}
+                                        pokeb((unsigned int)ch);
                                     }
+                                    offs++;
+                                    if (offs >= sum) offs = 0;
                                 }
                             }
-                            if (uninit != 0) memskip(uninit);
                         }
+                        if (uninit != 0) memskip(uninit);
                     } else if (db != 0) {
                         poke_pos = &epoint;
                         memskip(db);
