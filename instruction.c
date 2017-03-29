@@ -119,7 +119,7 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
         default: break;
         }
     }
-    listing_instr(cod, adr, ln);
+    listing_instr(listing, cod, adr, ln);
     return NULL;
 }
 

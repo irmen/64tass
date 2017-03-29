@@ -39,91 +39,125 @@
 #define HEX_WIDTH 16
 #define MONITOR_WIDTH 16
 
-static struct {
-    size_t addr, laddr, hex, monitor, source;
-} columns;
-
 bool listing_pccolumn;
 unsigned int nolisting;   /* listing */
 const uint8_t *llist = NULL;
-static FILE* flist = NULL;      /* listfile */
-static const char *hex = "0123456789abcdef";
-static uint16_t lastfile;
 
-static size_t padding(size_t l, size_t t) {
-    if (l >= t) {putc('\n', flist); l = 0;}
-    if (arguments.tab_size > 1) {
-        size_t l2 = l - l % arguments.tab_size;
-        while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', flist);} 
+typedef struct Listing {
+    size_t c;
+    unsigned int i;
+    char s[3*16];
+    char hex[16];
+    const uint16_t *disasm;
+    const uint32_t *mnemonic;
+    struct {
+        size_t addr, laddr, hex, monitor, source;
+    } columns;
+    FILE *flist;
+    uint16_t lastfile;
+    const char *filename;
+    unsigned int tab_size;
+    bool linenum, verbose, monitor, pccolumn, source;
+} Listing;
+
+static void newline(Listing *ls) {
+    putc('\n', ls->flist);
+    ls->c = 0;
+}
+
+static void padding(Listing *ls, size_t t) {
+    if (ls->c >= t) newline(ls);
+    if (ls->tab_size > 1) {
+        ls->c -= ls->c % ls->tab_size;
+        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; putc('\t', ls->flist);} 
     }
-    while (l < t) { l++; putc(' ', flist);} 
-    return l;
+    while (ls->c < t) { ls->c++; putc(' ', ls->flist);} 
 }
 
-static inline char *out_hex(char *s, unsigned int c) {
-    *s++ = hex[(c >> 4) & 15];
-    *s++ = hex[c & 15];
-    return s;
+static inline void out_hex(Listing *ls, unsigned int c) {
+    ls->s[ls->i++] = ls->hex[(c >> 4) & 15];
+    ls->s[ls->i++] = ls->hex[c & 15];
 }
 
-static char *out_byte(char *s, unsigned int adr) {
-    *s++ = '$';
-    return out_hex(s, adr);
+static void out_byte(Listing *ls, unsigned int adr) {
+    ls->s[ls->i++] = '$';
+    out_hex(ls, adr);
 }
 
-static char *out_word(char *s, unsigned int adr) {
-    s = out_byte(s, adr >> 8);
-    return out_hex(s, adr);
+static void out_word(Listing *ls, unsigned int adr) {
+    out_byte(ls, adr >> 8);
+    out_hex(ls, adr);
 }
 
-static char *out_long(char *s, unsigned int adr) {
-    s = out_word(s, adr >> 8);
-    return out_hex(s, adr);
+static void out_long(Listing *ls, unsigned int adr) {
+    out_word(ls, adr >> 8);
+    out_hex(ls, adr);
 }
 
-static char *out_zp(char *s, unsigned int c) {
-    unsigned int adr = (uint16_t)(((uint8_t)c) + dpage);
-    return (adr >= 0x100) ? out_word(s, adr) : out_byte(s, adr);
+static void out_zp(Listing *ls, unsigned int adr) {
+    adr = (uint16_t)(((uint8_t)adr) + dpage);
+    if (adr > 0xff) out_word(ls, adr);
+    else out_byte(ls, adr);
 }
 
-static char *out_db(char *s, unsigned int adr) {
-    *s++ = '$';
-    if (databank != 0) s = out_hex(s, databank);
-    s = out_hex(s, adr >> 8);
-    return out_hex(s, adr);
+static void out_db(Listing *ls, unsigned int adr) {
+    ls->s[ls->i++] = '$';
+    if (databank != 0) out_hex(ls, databank);
+    out_hex(ls, adr >> 8);
+    out_hex(ls, adr);
 }
 
-static char *out_pb(char *s, unsigned int adr) {
-    *s++ = '$';
-    if (current_section->l_address.bank != 0) s = out_hex(s, current_section->l_address.bank >> 16);
-    s = out_hex(s, adr >> 8);
-    return out_hex(s, adr);
+static void out_pb(Listing *ls, unsigned int adr) {
+    ls->s[ls->i++] = '$';
+    if (current_section->l_address.bank != 0) out_hex(ls, current_section->l_address.bank >> 16);
+    out_hex(ls, adr >> 8);
+    out_hex(ls, adr);
 }
 
-static char *out_bit(char *s, unsigned int cod, unsigned int c) {
-    *s++ = 0x30 + ((cod >> 4) & 7); 
-    *s++ = ',';
-    return out_zp(s, c);
+static void out_bit(Listing *ls, unsigned int cod, unsigned int c) {
+    ls->s[ls->i++] = 0x30 + ((cod >> 4) & 7); 
+    ls->s[ls->i++] = ',';
+    out_zp(ls, c);
 }
 
-void listing_open(const char *filename, int argc, char *argv[]) {
+static void out_txt(Listing *ls, const char *s) {
+    fputs(s, ls->flist);
+    ls->c += strlen(s);
+}
+
+MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
+    Listing *ls;
     struct linepos_s nopoint = {0, 0};
     time_t t;
     const char *prgname;
     int i;
-    size_t l;
-
-    columns.addr = arguments.linenum ? LINE_WIDTH : 0;
-    columns.laddr = columns.addr + ADDR_WIDTH;
-    columns.hex = columns.laddr + (listing_pccolumn ? LADDR_WIDTH : 0);
-    columns.monitor = columns.hex + HEX_WIDTH;
-    columns.source = columns.monitor + (arguments.monitor ? MONITOR_WIDTH : 0);
+    FILE *flist;
 
     flist = dash_name(filename) ? stdout : file_open(filename, "wt");
     if (flist == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
-        return;
+        return NULL;
     }
+
+    ls = (Listing *)mallocx(sizeof *ls);
+
+    memcpy(ls->hex, "0123456789abcdef", 16);
+    ls->filename = filename;
+    ls->flist = flist;
+    ls->linenum = arguments.linenum;
+    ls->pccolumn = listing_pccolumn;
+    ls->columns.addr = arguments.linenum ? LINE_WIDTH : 0;
+    ls->columns.laddr = ls->columns.addr + ADDR_WIDTH;
+    ls->columns.hex = ls->columns.laddr + (ls->pccolumn ? LADDR_WIDTH : 0);
+    ls->columns.monitor = ls->columns.hex + HEX_WIDTH;
+    ls->columns.source = ls->columns.monitor + (arguments.monitor ? MONITOR_WIDTH : 0);
+    ls->tab_size = arguments.tab_size;
+    ls->verbose = arguments.verbose;
+    ls->monitor = arguments.monitor;
+    ls->source = arguments.source;
+    ls->lastfile = 0;
+    ls->i = 0;
+
     fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
     prgname = *argv;
     if (prgname != NULL) {
@@ -140,390 +174,376 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     }
     fputs("\n; ", flist);
     time(&t); fputs(ctime(&t), flist);
-    lastfile = 0;
-    putc('\n', flist);
-    l = 0;
-    if (arguments.linenum) {
-        fputs(";Line", flist); l += 5;
-        l = padding(l, columns.addr);
+    newline(ls);
+    if (ls->linenum) {
+        out_txt(ls, ";Line");
+        padding(ls, ls->columns.addr);
     }
-    fputs(";Offset", flist); l += 7;
-    if (listing_pccolumn) {
-        l = padding(l, columns.laddr);
-        fputs(";PC", flist); l += 3;
+    out_txt(ls, ";Offset");
+    if (ls->pccolumn) {
+        padding(ls, ls->columns.laddr);
+        out_txt(ls, ";PC");
     }
-    l = padding(l, columns.hex);
-    fputs(";Hex", flist); l += 4;
-    if (arguments.monitor) {
-        l = padding(l, columns.monitor);
-        fputs(";Monitor", flist); l += 8;
+    padding(ls, ls->columns.hex);
+    out_txt(ls, ";Hex");
+    if (ls->monitor) {
+        padding(ls, ls->columns.monitor);
+        out_txt(ls, ";Monitor");
     }
-    if (arguments.source) {
-        padding(l, columns.source);
-        fputs(";Source", flist);
+    if (ls->source) {
+        padding(ls, ls->columns.source);
+        out_txt(ls, ";Source");
     }
-    putc('\n', flist);
+    newline(ls);
+    return ls;
 }
 
-void listing_close(const char *filename) {
+void listing_close(Listing *ls) {
     struct linepos_s nopoint = {0, 0};
-    if (flist != NULL) {
-        int err;
-        fputs("\n;******  End of listing\n", flist);
-        err = ferror(flist);
-        err |= (flist != stdout) ? fclose(flist) : fflush(flist);
-        if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
-    }
-    flist = NULL;
+    int err;
+    if (ls == NULL) return;
+
+    fputs("\n;******  End of listing\n", ls->flist);
+    err = ferror(ls->flist);
+    err |= (ls->flist != stdout) ? fclose(ls->flist) : fflush(ls->flist);
+    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LST, ls->filename, &nopoint);
+    free(ls);
 }
 
-static void printllist(size_t l) {
-    if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
-        if (llist != NULL) {
-            const uint8_t *c = llist;
-            while (*c == 0x20 || *c == 0x09) c++;
-            if (*c != 0) {
-                padding(l, columns.source);
-                printable_print(llist, flist);
-            }
-            llist = NULL;
-        }
-        putc('\n', flist);
+static void printllist(Listing *ls) {
+    const uint8_t *c;
+    if (llist == NULL) return;
+    c = llist;
+    while (*c == 0x20 || *c == 0x09) c++;
+    if (*c != 0) {
+        padding(ls, ls->columns.source);
+        printable_print(llist, ls->flist);
     }
+    llist = NULL;
 }
 
-static size_t printline(void) {
+static void printline(Listing *ls) {
     int l2;
-    size_t l;
-    if (curfile < 2) return 0;
-    l2 = fprintf(flist, "%" PRIuline, lpoint.line);
-    l = (l2 > 0) ? (size_t)l2 : 0;
-    if (lastfile != curfile) {
-        l2 = fprintf(flist, ":%u", (unsigned int)(curfile - 1));
-        if (l2 > 0) l += (size_t)l2;
-        lastfile = curfile;
+    if (curfile < 2) return;
+    l2 = fprintf(ls->flist, "%" PRIuline, lpoint.line);
+    if (l2 > 0) ls->c += (unsigned int)l2;
+    if (ls->lastfile == curfile) return;
+    l2 = fprintf(ls->flist, ":%u", (unsigned int)curfile - 1);
+    if (l2 > 0) ls->c += (unsigned int)l2;
+    ls->lastfile = curfile;
+}
+
+FAST_CALL void listing_equal(Listing *ls, Obj *val) {
+    if (ls == NULL) return;
+    if (nolisting != 0 || !ls->source || temporary_label_branch != 0) return;
+    if (ls->linenum) {
+        printline(ls);
+        padding(ls, ls->columns.addr);
     }
-    return l;
+    putc('=', ls->flist);
+    ls->c += val_print(val, ls->flist) + 1;
+    printllist(ls);
+    newline(ls);
 }
 
-void listing_equal(Obj *val) {
-    size_t l;
-    if (nolisting != 0 || flist == NULL || !arguments.source || temporary_label_branch != 0) return;
-    if (arguments.linenum) {
-        l = printline();
-        l = padding(l, columns.addr);
-    } else l = 0;
-    putc('=', flist);
-    l += val_print(val, flist) + 1;
-    printllist(l);
+static void flushbuf(Listing *ls) {
+    ls->c += fwrite(ls->s, 1, ls->i, ls->flist);
+    ls->i = 0;
 }
 
-static size_t printaddr(char pre, address_t addr) {
-    char str[8], *s = str;
-    if (pre != 0) *s++ = pre;
-    if (addr > 0xffffff) s = out_hex(s, addr >> 24);
-    if (addr > 0xffff) s = out_hex(s, addr >> 16);
-    s = out_hex(s, addr >> 8);
-    s = out_hex(s, addr);
-    *s = 0;
-    fputs(str, flist);
-    return (size_t)(s - str);
-}
-
-void listing_line(linecpos_t pos) {
-    size_t i, l;
-    if (nolisting != 0 || !arguments.source || temporary_label_branch != 0 || llist == NULL) return;
-    if (flist == NULL) {
-        address_t addr;
-        if (!fixeddig || constcreated || listing_pccolumn) return;
-        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-        i = 0;
-        while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
-        if (i < pos && current_section->address != addr) listing_pccolumn = true;
-        return;
+static void printaddr(Listing *ls, char pre, address_t addr, address_t addr2) {
+    ls->s[ls->i++] = pre;
+    for (;;) {
+        if (addr > 0xffff) {
+            if (addr >> 24 != 0) out_hex(ls, addr >> 24);
+            out_hex(ls, addr >> 16);
+        }
+        out_hex(ls, addr >> 8);
+        out_hex(ls, addr);
+        flushbuf(ls);
+        if (addr2 == addr || !ls->pccolumn) return;
+        addr = addr2;
+        padding(ls, ls->columns.laddr);
     }
-    i = 0;
-    while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
-    if (i < pos) {
-        address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-        if (arguments.linenum) {
-            l = printline();
-            l = padding(l, columns.addr);
-        } else l = 0;
-        l += printaddr('.', current_section->address);
-        if (current_section->address != addr && listing_pccolumn) {
-            l = padding(l, columns.laddr);
-            l += printaddr('\0', addr);
-        }
-    } else l = 0;
-    if (arguments.verbose) {
-        if (llist[i] != 0) {
-            if (l == 0 && arguments.linenum) l = printline();
-            padding(l, columns.source);
-            printable_print(llist, flist);
-        }
-        putc('\n', flist);
-    } else {
-        if (l != 0) {
-            while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-            padding(l, columns.source);
-            printable_print2(llist, flist, pos);
-            putc('\n', flist);
-        }
-    }
-    llist = NULL;
 }
 
-void listing_line_cut(linecpos_t pos) {
+static void printhex(Listing *ls, unsigned int cod, unsigned int eor, int ln, uint32_t adr) {
+    padding(ls, ls->columns.hex);
+    out_hex(ls, cod ^ eor);
+    while (ln > 0) {
+        ls->s[ls->i++] = ' '; 
+        out_hex(ls, adr ^ eor); 
+        adr >>= 8;
+        ln--;
+    }
+    flushbuf(ls);
+}
+
+static void printhex2(Listing *ls, unsigned int ln, const uint8_t *data) {
+    unsigned int i = 0;
+    padding(ls, ls->columns.hex);
+    for (;;) {
+        out_hex(ls, data[i++]);
+        if (i >= ln) break;
+        ls->s[ls->i++] = ' '; 
+    }
+    flushbuf(ls);
+}
+
+static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
+    const char *post = "";
+    uint32_t mnem;
+
+    padding(ls, ls->columns.monitor);
+    mnem = ls->mnemonic[ls->disasm[cod] & 0xff];
+    ls->s[ls->i++] = (char)(mnem >> 16);
+    ls->s[ls->i++] = (char)(mnem >> 8);
+    ls->s[ls->i++] = (char)(mnem);
+    ls->s[ls->i++] = ' ';
+
+    switch ((Adr_types)(ls->disasm[cod] >> 8)) {
+    case ADR_IMPLIED: ls->i--; break;
+    case ADR_REG: post = "a"; break;
+    case ADR_IMMEDIATE:
+        switch (ln) {
+        default: ls->i--; break;
+        case 0: ls->s[ls->i++] = '#'; break;
+        case 1: ls->s[ls->i++] = '#'; out_byte(ls, adr); break;
+        case 2: ls->s[ls->i++] = '#'; out_word(ls, adr); break;
+        }
+        break;
+    case ADR_LONG: out_long(ls, adr); break;
+    case ADR_ADDR: if (cod == 0x20 || cod == 0x4c) out_pb(ls, adr); else out_db(ls, adr); break;
+    case ADR_ZP: out_zp(ls, adr); break;
+    case ADR_BIT_ZP: out_bit(ls, cod, adr); break;
+    case ADR_LONG_X: out_long(ls, adr); ls->s[ls->i++] = ','; ls->s[ls->i++] = 'x'; break;
+    case ADR_ADDR_X: out_db(ls, adr); post = ",x"; break;
+    case ADR_ZP_X: out_zp(ls, adr); post = ",x"; break;
+    case ADR_ADDR_X_I: ls->s[ls->i++] = '('; out_pb(ls, adr); ls->s[ls->i++] = ','; ls->s[ls->i++] = 'x'; ls->s[ls->i++] = ')'; break;
+    case ADR_ZP_X_I: ls->s[ls->i++] = '('; out_zp(ls, adr); post = ",x)"; break;
+    case ADR_ZP_S: out_byte(ls, adr); post = ",s"; break;
+    case ADR_ZP_S_I_Y: ls->s[ls->i++] = '('; out_byte(ls, adr); post = ",s),y"; break;
+    case ADR_ZP_R: out_byte(ls, adr); post = ",r"; break;
+    case ADR_ZP_R_I_Y: ls->s[ls->i++] = '('; out_byte(ls, adr); post = ",r),y"; break;
+    case ADR_ADDR_Y: out_db(ls, adr); post = ",y"; break;
+    case ADR_ZP_Y: out_zp(ls, adr); post = ",y"; break;
+    case ADR_ZP_LI_Y: ls->s[ls->i++] = '['; out_zp(ls, adr); post = "],y"; break;
+    case ADR_ZP_I_Y: ls->s[ls->i++] = '('; out_zp(ls, adr); post = "),y"; break;
+    case ADR_ZP_I_Z: ls->s[ls->i++] = '('; out_zp(ls, adr); post = "),z"; break;
+    case ADR_ADDR_LI: ls->s[ls->i++] = '['; out_word(ls, adr); post = "]"; break;
+    case ADR_ZP_LI: ls->s[ls->i++] = '['; out_zp(ls, adr); post = "]"; break;
+    case ADR_ADDR_I: ls->s[ls->i++] = '('; out_word(ls, adr); post = ")"; break;
+    case ADR_ZP_I: ls->s[ls->i++] = '('; out_zp(ls, adr); post = ")"; break;
+    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else ls->i--; break;
+    case ADR_BIT_ZP_REL: 
+        out_bit(ls, cod, adr);
+        ls->s[ls->i++] = ',';
+        out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_section->l_address.address));
+        break;
+    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_section->l_address.address); else ls->i--; break;
+    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; out_byte(ls, adr); break;
+    case ADR_LEN: break;/* not an addressing mode */
+    }
+    while (*post != 0) ls->s[ls->i++] = *post++;
+    flushbuf(ls);
+}
+
+static void printsource(Listing *ls, linecpos_t pos) {
+    while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
+    padding(ls, ls->columns.source);
+    printable_print2(llist, ls->flist, pos);
+    newline(ls);
+}
+
+void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
     size_t i;
-    if (nolisting != 0 || !arguments.source || temporary_label_branch != 0 || llist == NULL) return;
-    if (flist == NULL) {
+    if (nolisting != 0  || temporary_label_branch != 0 || llist == NULL) return;
+    if (ls == NULL) {
         address_t addr;
-        if (!fixeddig || constcreated || listing_pccolumn) return;
+        if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
         addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
         if (i < pos && current_section->address != addr) listing_pccolumn = true;
         return;
     }
+    if (!ls->source) return;
     i = 0;
     while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
     if (i < pos) {
-        address_t addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-        size_t l;
-        if (arguments.linenum) {
-            l = printline();
-            l = padding(l, columns.addr);
-        } else l = 0;
-        l += printaddr('.', current_section->address);
-        if (current_section->address != addr && listing_pccolumn) {
-            l = padding(l, columns.laddr);
-            l += printaddr('\0', addr);
+        if (ls->linenum) {
+            printline(ls);
+            padding(ls, ls->columns.addr);
         }
-        while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-        padding(l, columns.source);
-        printable_print2(llist, flist, pos);
-        putc('\n', flist);
+        printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+    }
+    if (ls->verbose) {
+        if (llist[i] != 0) {
+            if (ls->c == 0 && ls->linenum) printline(ls);
+            padding(ls, ls->columns.source);
+            printable_print(llist, ls->flist);
+        }
+        newline(ls);
+    } else {
+        if (ls->c != 0) printsource(ls, pos);
     }
     llist = NULL;
 }
 
-void listing_line_cut2(linecpos_t pos) {
-    if (arguments.verbose) {
-        if (nolisting == 0 && flist != NULL && arguments.source && temporary_label_branch == 0) {
-            if (llist != NULL) {
-                size_t l = arguments.linenum ? printline() : 0;
-                padding(l, columns.source);
-                caret_print(llist, flist, pos);
-                printable_print(llist + pos, flist);
-                putc('\n', flist);
-                llist = NULL;
-            }
+void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
+    size_t i;
+    if (nolisting != 0 || temporary_label_branch != 0 || llist == NULL) return;
+    if (ls == NULL) {
+        address_t addr;
+        if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
+        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        i = 0;
+        while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
+        if (i < pos && current_section->address != addr) listing_pccolumn = true;
+        return;
+    }
+    if (!ls->source) return;
+    i = 0;
+    while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
+    if (i < pos) {
+        if (ls->linenum) {
+            printline(ls);
+            padding(ls, ls->columns.addr);
         }
+        printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+        printsource(ls, pos);
+    }
+    llist = NULL;
+}
+
+void FAST_CALL listing_line_cut2(Listing *ls, linecpos_t pos) {
+    if (ls == NULL || !ls->verbose || llist == NULL) return;
+    if (nolisting == 0 && ls->source && temporary_label_branch == 0) {
+        if (ls->linenum) printline(ls);
+        padding(ls, ls->columns.source);
+        caret_print(llist, ls->flist, pos);
+        printable_print(llist + pos, ls->flist);
+        newline(ls);
+        llist = NULL;
     }
 }
 
-static const uint16_t *disasm;
-static const uint32_t *mnemonic;    /* mnemonics */
-
-void listing_set_cpumode(const struct cpu_s *cpumode) {
-    disasm = cpumode->disasm;
-    mnemonic = cpumode->mnemonic; 
+FAST_CALL void listing_set_cpumode(Listing *ls, const struct cpu_s *cpumode) {
+    if (ls == NULL) return;
+    ls->disasm = cpumode->disasm;
+    ls->mnemonic = cpumode->mnemonic; 
 }
 
-void listing_instr(uint8_t cod, uint32_t adr, int ln) {
-    int i;
-    size_t l;
+void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
     address_t addr, addr2;
     if (nolisting != 0 || temporary_label_branch != 0) return;
-    if (flist == NULL) {
+    if (ls == NULL) {
         if (!fixeddig || constcreated || listing_pccolumn) return;
         addr = (((int)current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
         addr2 = (address_t)((int)current_section->address - ln - 1) & all_mem2;
         if (addr2 != addr) listing_pccolumn = true;
         return;
     }
+    if (ls->linenum) {
+        if (llist != NULL) printline(ls);
+        padding(ls, ls->columns.addr);
+    }
     addr = (((int)current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
     addr2 = (address_t)((int)current_section->address - ln - 1) & all_mem2;
-    if (arguments.linenum) {
-        l = (llist != NULL) ? printline() : 0;
-        l = padding(l, columns.addr);
-    } else l = 0;
-    l += printaddr('.', addr2);
-    if (addr2 != addr && listing_pccolumn) {
-        l = padding(l, columns.laddr);
-        l += printaddr('\0', addr);
-    }
-    if (current_section->dooutput) {
-        char str[32], *s;
-        if (ln >= 0) {
-            uint32_t temp = adr;
-            l = padding(l, columns.hex);
-            s = out_hex(str, cod ^ outputeor);
-            for (i = 0; i < ln; i++) {*s++ = ' '; s = out_hex(s, temp); temp >>= 8;}
-            *s = 0;
-            fputs(str, flist);
-            l += (size_t)(s - str);
-        }
-        if (arguments.monitor) {
-            if (ln >= 0) {
-                const char *post = "";
-                uint32_t mnem = mnemonic[disasm[cod] & 0xff];
-                l = padding(l, columns.monitor);
-                s = str;
-                for (i = 16; i >= 0; i -= 8) *s++ = (char)(mnem >> i);
-                *s++ = ' ';
-
-                switch (disasm[cod] >> 8) {
-                case ADR_IMPLIED: s--; break;
-                case ADR_REG: post = "a"; break;
-                case ADR_IMMEDIATE:
-                    switch (ln) {
-                    default: s--; break;
-                    case 0: *s++ = '#'; break;
-                    case 1: *s++ = '#'; s = out_byte(s, adr); break;
-                    case 2: *s++ = '#'; s = out_word(s, adr); break;
-                    }
-                    break;
-                case ADR_LONG: s = out_long(s, adr); break;
-                case ADR_ADDR: s = (cod == 0x20 || cod == 0x4c) ? out_pb(s, adr) : out_db(s, adr); break;
-                case ADR_ZP: s = out_zp(s, adr); break;
-                case ADR_BIT_ZP: s = out_bit(s, cod, adr); break;
-                case ADR_LONG_X: s = out_long(s, adr); *s++ = ','; *s++ = 'x'; break;
-                case ADR_ADDR_X: s = out_db(s, adr); post = ",x"; break;
-                case ADR_ZP_X: s = out_zp(s, adr); post = ",x"; break;
-                case ADR_ADDR_X_I: *s++ = '('; s = out_pb(s, adr); *s++ = ','; *s++ = 'x'; *s++ = ')'; break;
-                case ADR_ZP_X_I: *s++ = '('; s = out_zp(s, adr); post = ",x)"; break;
-                case ADR_ZP_S: s = out_byte(s, adr); post = ",s"; break;
-                case ADR_ZP_S_I_Y: *s++ = '('; s = out_byte(s, adr); post = ",s),y"; break;
-                case ADR_ZP_R: s = out_byte(s, adr); post = ",r"; break;
-                case ADR_ZP_R_I_Y: *s++ = '('; s = out_byte(s, adr); post = ",r),y"; break;
-                case ADR_ADDR_Y: s = out_db(s, adr); post = ",y"; break;
-                case ADR_ZP_Y: s = out_zp(s, adr); post = ",y"; break;
-                case ADR_ZP_LI_Y: *s++ = '['; s = out_zp(s, adr); post = "],y"; break;
-                case ADR_ZP_I_Y: *s++ = '('; s = out_zp(s, adr); post = "),y"; break;
-                case ADR_ZP_I_Z: *s++ = '('; s = out_zp(s, adr); post = "),z"; break;
-                case ADR_ADDR_LI: *s++ = '['; s = out_word(s, adr); post = "]"; break;
-                case ADR_ZP_LI: *s++ = '['; s = out_zp(s, adr); post = "]"; break;
-                case ADR_ADDR_I: *s++ = '('; s = out_word(s, adr); post = ")"; break;
-                case ADR_ZP_I: *s++ = '('; s = out_zp(s, adr); post = ")"; break;
-                case ADR_REL: if (ln > 0) s = out_pb(s, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else s--; break;
-                case ADR_BIT_ZP_REL: 
-                    s = out_bit(s, cod, adr);
-                    *s++ = ',';
-                    s = out_pb(s, (address_t)((int8_t)(adr >> 8) + (int)current_section->l_address.address));
-                    break;
-                case ADR_REL_L: if (ln > 0) s = out_pb(s, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_section->l_address.address); else s--; break;
-                case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr); break;
-                case ADR_LEN: break;/* not an addressing mode */
-                }
-                while (*post != 0) *s++ = *post++;
-                *s = 0;
-                fputs(str, flist);
-                l += (size_t)(s - str);
-            }
+    printaddr(ls, '.', addr2, addr);
+    if (current_section->dooutput && ln >= 0) {
+        printhex(ls, cod, outputeor, ln, adr);
+        if (ls->monitor) {
+            printmon(ls, cod, ln, adr);
         }
     }
-    if (arguments.source) {
-        printllist(l);
-        return;
-    }
-    putc('\n', flist);
+    if (ls->source) printllist(ls);
+    newline(ls);
 }
 
-void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
-    bool print, exitnow = false;
-    size_t l;
+void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
+    bool print, exitnow;
     int lcol;
-    char str[3 * 16 + 1], prev[3 * 16 + 1], *s;
-    address_t omyaddr, omyaddr2, oomyaddr, oomyaddr2;
     unsigned int repeat;
+    struct {
+        uint8_t data[16];
+        unsigned int len;
+        address_t addr, addr2;
+    } prev, current;
     size_t p;
 
     if (nolisting != 0 || temporary_label_branch != 0) return;
-    if (flist == NULL) {
+    if (ls == NULL) {
          if (myaddr != myaddr2) listing_pccolumn = true;
          return;
     }
-    print = true;
-    oomyaddr = omyaddr = myaddr;
-    oomyaddr2 = omyaddr2 = myaddr2;
-    s = str; repeat = 0; p = 0;
+    print = true; exitnow = false;
+    prev.addr = current.addr = myaddr;
+    prev.addr2 = current.addr2 = myaddr2;
+    repeat = 0; p = 0; prev.len = current.len = 0;
     if (len != 0) {
-        lcol = arguments.source ? (arguments.monitor ? 8 : 4) : 16;
+        lcol = ls->source ? (ls->monitor ? 8 : 4) : 16;
         while (len != 0) {
             if ((lcol--) == 0) {
-                *s = 0;
-                if (print || strcmp(prev, str) != 0 || arguments.verbose) {
+                if (print || prev.len != current.len || memcmp(prev.data, current.data, current.len) != 0 || ls->verbose) {
                 flush:
                     if (repeat != 0) {
-                        l = arguments.linenum ? padding(0, columns.addr) : 0;
+                        if (ls->linenum) padding(ls, ls->columns.addr);
                         if (repeat == 1) {
-                            l += printaddr('>', oomyaddr);
-                            if (oomyaddr != oomyaddr2 && listing_pccolumn) {
-                                l = padding(l, columns.laddr);
-                                l += printaddr('\0', omyaddr2);
-                            }
-                            padding(l, columns.hex);
-                            fputs(prev + 1, flist);
-                            putc('\n', flist);
+                            printaddr(ls, '>', prev.addr, prev.addr2);
+                            printhex2(ls, prev.len, prev.data);
                         } else {
-                            putc(';', flist); l++;
-                            padding(l, columns.hex);
-                            fprintf(flist, "...repeated %u times (%u bytes)...\n", repeat, repeat * 16);
+                            putc(';', ls->flist); ls->c++;
+                            padding(ls, ls->columns.hex);
+                            fprintf(ls->flist, "...repeated %u times (%u bytes)...", repeat, repeat * 16);
                         }
+                        newline(ls);
                         repeat = 0;
                     }
-                    if (arguments.linenum) {
-                        l = print ? printline() : 0;
-                        l = padding(l, columns.addr);
-                    } else l = 0;
-                    l += printaddr('>', omyaddr);
-                    if (omyaddr != omyaddr2 && listing_pccolumn) {
-                        l = padding(l, columns.laddr);
-                        l += printaddr('\0', omyaddr2);
+                    if (ls->linenum) {
+                        if (print) printline(ls);
+                        padding(ls, ls->columns.addr);
                     }
-                    if (str[0] != 0) {
-                        l = padding(l, columns.hex);
-                        fputs(str + 1, flist);
-                        l += (size_t)(s - str - 1);
+                    printaddr(ls, '>', current.addr, current.addr2);
+                    if (current.len != 0) {
+                        printhex2(ls, current.len, current.data);
                     }
-                    memcpy(prev, str, sizeof prev);
-                    if (arguments.source && print) {
-                        printllist(l);
-                    } else putc('\n',flist);
+                    if (ls->source && print) printllist(ls);
+                    newline(ls);
                     if (exitnow) return;
+                    memcpy(&prev, &current, sizeof prev);
                     print = false;
-                } else repeat++;
-                s = str;
-                oomyaddr = omyaddr;
-                oomyaddr2 = omyaddr2;
-                omyaddr = myaddr;
-                omyaddr2 = myaddr2;
+                } else {
+                    repeat++;
+                    prev.addr = current.addr;
+                    prev.addr2 = current.addr2;
+                }
+                current.len = 0;
+                current.addr = myaddr;
+                current.addr2 = myaddr2;
                 lcol = 15;
             }
-            *s++ = ' ';
-            s = out_hex(s, data[p++]);
+            current.data[current.len++] = data[p++];
             myaddr = (myaddr + 1) & all_mem2;
             myaddr2 = ((myaddr2 + 1) & 0xffff) | (myaddr2 & ~(address_t)0xffff);
             len--;
         }
     }
-    *s = 0;
     exitnow = true;
     goto flush;
 }
 
-void listing_file(const char *txt, const char *name) {
-    if (flist != NULL) {
-        putc('\n', flist);
-        if (arguments.linenum) {
-            int l = (name != NULL) ? fprintf(flist, ":%u", (unsigned int)(curfile - 1)) : 0;
-            padding((l > 0) ? (size_t)l : 0, columns.addr);
-            lastfile = curfile;
-        };
-        fputs(txt, flist);
-        if (name != NULL) argv_print(name, flist);
-        fputs("\n\n", flist);
-    }
+void listing_file(Listing *ls, const char *txt, const char *name) {
+    if (ls == NULL) return;
+    newline(ls);
+    if (ls->linenum) {
+        int l = (name != NULL) ? fprintf(ls->flist, ":%u", (unsigned int)curfile - 1) : 0;
+        if (l > 0) ls->c += (unsigned int)l;
+        padding(ls, ls->columns.addr);
+        ls->lastfile = curfile;
+    };
+    fputs(txt, ls->flist);
+    if (name != NULL) argv_print(name, ls->flist);
+    newline(ls);
+    newline(ls);
 }
