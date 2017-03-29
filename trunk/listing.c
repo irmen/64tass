@@ -46,7 +46,7 @@ const uint8_t *llist = NULL;
 typedef struct Listing {
     size_t c;
     unsigned int i;
-    char s[ADDR_WIDTH + LADDR_WIDTH + 3*16];
+    char s[LINE_WIDTH + ADDR_WIDTH + LADDR_WIDTH + 3*16];
     char hex[16];
     const uint16_t *disasm;
     const uint32_t *mnemonic;
