@@ -46,7 +46,7 @@ const uint8_t *llist = NULL;
 typedef struct Listing {
     size_t c;
     unsigned int i;
-    char s[3*16];
+    char s[ADDR_WIDTH + LADDR_WIDTH + 3*16];
     char hex[16];
     const uint16_t *disasm;
     const uint32_t *mnemonic;
@@ -60,6 +60,11 @@ typedef struct Listing {
     bool linenum, verbose, monitor, pccolumn, source;
 } Listing;
 
+static void flushbuf(Listing *ls) {
+    ls->c += fwrite(ls->s, 1, ls->i, ls->flist);
+    ls->i = 0;
+}
+
 static void newline(Listing *ls) {
     putc('\n', ls->flist);
     ls->c = 0;
@@ -72,6 +77,17 @@ static void padding(Listing *ls, size_t t) {
         while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; putc('\t', ls->flist);} 
     }
     while (ls->c < t) { ls->c++; putc(' ', ls->flist);} 
+}
+
+static void padding2(Listing *ls, size_t t) {
+    if (ls->c + ls->i >= t) {ls->s[ls->i++] = '\n'; flushbuf(ls); ls->c = 0;}
+    ls->c += ls->i;
+    if (ls->tab_size > 1) {
+        ls->c -= ls->c % ls->tab_size;
+        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; ls->s[ls->i++] = '\t'; } 
+    }
+    while (ls->c < t) { ls->c++; ls->s[ls->i++] = ' '; } 
+    ls->c -= ls->i;
 }
 
 static inline void out_hex(Listing *ls, unsigned int c) {
@@ -246,11 +262,6 @@ FAST_CALL void listing_equal(Listing *ls, Obj *val) {
     newline(ls);
 }
 
-static void flushbuf(Listing *ls) {
-    ls->c += fwrite(ls->s, 1, ls->i, ls->flist);
-    ls->i = 0;
-}
-
 static void printaddr(Listing *ls, char pre, address_t addr, address_t addr2) {
     ls->s[ls->i++] = pre;
     for (;;) {
@@ -260,15 +271,14 @@ static void printaddr(Listing *ls, char pre, address_t addr, address_t addr2) {
         }
         out_hex(ls, addr >> 8);
         out_hex(ls, addr);
-        flushbuf(ls);
         if (addr2 == addr || !ls->pccolumn) return;
         addr = addr2;
-        padding(ls, ls->columns.laddr);
+        padding2(ls, ls->columns.laddr);
     }
 }
 
 static void printhex(Listing *ls, unsigned int cod, unsigned int eor, int ln, uint32_t adr) {
-    padding(ls, ls->columns.hex);
+    padding2(ls, ls->columns.hex);
     out_hex(ls, cod ^ eor);
     while (ln > 0) {
         ls->s[ls->i++] = ' '; 
@@ -276,25 +286,23 @@ static void printhex(Listing *ls, unsigned int cod, unsigned int eor, int ln, ui
         adr >>= 8;
         ln--;
     }
-    flushbuf(ls);
 }
 
 static void printhex2(Listing *ls, unsigned int ln, const uint8_t *data) {
     unsigned int i = 0;
-    padding(ls, ls->columns.hex);
+    padding2(ls, ls->columns.hex);
     for (;;) {
         out_hex(ls, data[i++]);
         if (i >= ln) break;
         ls->s[ls->i++] = ' '; 
     }
-    flushbuf(ls);
 }
 
 static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     const char *post = "";
     uint32_t mnem;
 
-    padding(ls, ls->columns.monitor);
+    padding2(ls, ls->columns.monitor);
     mnem = ls->mnemonic[ls->disasm[cod] & 0xff];
     ls->s[ls->i++] = (char)(mnem >> 16);
     ls->s[ls->i++] = (char)(mnem >> 8);
@@ -345,7 +353,6 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_LEN: break;/* not an addressing mode */
     }
     while (*post != 0) ls->s[ls->i++] = *post++;
-    flushbuf(ls);
 }
 
 static void printsource(Listing *ls, linecpos_t pos) {
@@ -373,9 +380,10 @@ void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
     if (i < pos) {
         if (ls->linenum) {
             printline(ls);
-            padding(ls, ls->columns.addr);
+            padding2(ls, ls->columns.addr);
         }
         printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+        flushbuf(ls);
     }
     if (ls->verbose) {
         if (llist[i] != 0) {
@@ -408,9 +416,10 @@ void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
     if (i < pos) {
         if (ls->linenum) {
             printline(ls);
-            padding(ls, ls->columns.addr);
+            padding2(ls, ls->columns.addr);
         }
         printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+        flushbuf(ls);
         printsource(ls, pos);
     }
     llist = NULL;
@@ -446,7 +455,7 @@ void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
     }
     if (ls->linenum) {
         if (llist != NULL) printline(ls);
-        padding(ls, ls->columns.addr);
+        padding2(ls, ls->columns.addr);
     }
     addr = (((int)current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
     addr2 = (address_t)((int)current_section->address - ln - 1) & all_mem2;
@@ -457,6 +466,7 @@ void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
             printmon(ls, cod, ln, adr);
         }
     }
+    flushbuf(ls);
     if (ls->source) printllist(ls);
     newline(ls);
 }
@@ -488,13 +498,15 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
                 if (print || prev.len != current.len || memcmp(prev.data, current.data, current.len) != 0 || ls->verbose) {
                 flush:
                     if (repeat != 0) {
-                        if (ls->linenum) padding(ls, ls->columns.addr);
+                        if (ls->linenum) padding2(ls, ls->columns.addr);
                         if (repeat == 1) {
                             printaddr(ls, '>', prev.addr, prev.addr2);
                             printhex2(ls, prev.len, prev.data);
+                            flushbuf(ls);
                         } else {
-                            putc(';', ls->flist); ls->c++;
-                            padding(ls, ls->columns.hex);
+                            ls->s[ls->i++] = ';';
+                            padding2(ls, ls->columns.hex);
+                            flushbuf(ls);
                             fprintf(ls->flist, "...repeated %u times (%u bytes)...", repeat, repeat * 16);
                         }
                         newline(ls);
@@ -502,12 +514,13 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
                     }
                     if (ls->linenum) {
                         if (print) printline(ls);
-                        padding(ls, ls->columns.addr);
+                        padding2(ls, ls->columns.addr);
                     }
                     printaddr(ls, '>', current.addr, current.addr2);
                     if (current.len != 0) {
                         printhex2(ls, current.len, current.data);
                     }
+                    flushbuf(ls);
                     if (ls->source && print) printllist(ls);
                     newline(ls);
                     if (exitnow) return;
