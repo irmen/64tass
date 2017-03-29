@@ -22,18 +22,19 @@
 #include "stdbool.h"
 struct cpu_s;
 struct Obj;
+struct Listing;
 
 extern bool listing_pccolumn;
 extern unsigned int nolisting;
 extern const uint8_t *llist;
-extern void listing_open(const char *, int, char *[]);
-extern void listing_close(const char *);
-extern void listing_equal(struct Obj *);
-extern void listing_line(linecpos_t);
-extern void listing_line_cut(linecpos_t);
-extern void listing_line_cut2(linecpos_t);
-extern void listing_set_cpumode(const struct cpu_s *);
-extern void listing_instr(uint8_t, uint32_t, int);
-extern void listing_mem(const uint8_t *, size_t, address_t, address_t);
-extern void listing_file(const char *, const char *);
+extern MUST_CHECK struct Listing *listing_open(const char *, int, char *[]);
+extern void listing_close(struct Listing *);
+extern FAST_CALL void listing_equal(struct Listing *, struct Obj *);
+extern FAST_CALL void listing_line(struct Listing *, linecpos_t);
+extern FAST_CALL void listing_line_cut(struct Listing *, linecpos_t);
+extern FAST_CALL void listing_line_cut2(struct Listing *, linecpos_t);
+extern FAST_CALL void listing_set_cpumode(struct Listing *, const struct cpu_s *);
+extern void listing_instr(struct Listing *, uint8_t, uint32_t, int);
+extern void listing_mem(struct Listing *, const uint8_t *, size_t, address_t, address_t);
+extern void listing_file(struct Listing *, const char *, const char *);
 #endif

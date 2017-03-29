@@ -1310,7 +1310,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         case 0:
         case ';': 
             if (openclose != 0) {
-                listing_line(0);
+                listing_line(listing, 0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
                     continue;
                 }
@@ -1624,7 +1624,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         case 0:
         case ';': 
             if (openclose != 0) {
-                listing_line(0);
+                listing_line(listing, 0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
                     goto other;
                 }

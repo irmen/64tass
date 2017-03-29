@@ -35,7 +35,9 @@
 struct file_list_s;
 struct Label;
 struct Obj;
+struct Listing;
 
+extern struct Listing *listing;
 extern linepos_t poke_pos;
 extern address_t all_mem, all_mem2;
 extern unsigned int outputeor;

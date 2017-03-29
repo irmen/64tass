@@ -586,7 +586,7 @@ void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
                 }
             }
         }
-        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
+        listing_mem(listing, memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
         print = false;
         ptextaddr += len;
     }
