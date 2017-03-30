@@ -65,8 +65,8 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
     return &v->v;
 }
 
-static MUST_CHECK Obj *function(Obj *UNUSED(v1), Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
-    return (Obj *)ref_gap();
+static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -80,7 +80,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV:
     case O_NEG:
     case O_POS:
-        return (Obj *)ref_gap();
+        return val_reference(op->v1);
     default: break;
     }
     return obj_oper_error(op);
@@ -110,7 +110,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_OR:
         case O_XOR:
         case O_LSHIFT:
-        case O_RSHIFT: return (Obj *)ref_gap();
+        case O_RSHIFT: return val_reference(op->v1);
         default: break;
         }
         break;
@@ -136,7 +136,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_OR:
         case O_XOR:
         case O_LSHIFT:
-        case O_RSHIFT: return (Obj *)ref_gap();
+        case O_RSHIFT: return val_reference(op->v1);
         default: break;
         }
         break;
@@ -178,7 +178,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         case O_EXP:
         case O_AND:
         case O_OR:
-        case O_XOR: return (Obj *)ref_gap();
+        case O_XOR: return val_reference(op->v2);
         default: break;
         }
         break;

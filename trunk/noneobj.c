@@ -40,31 +40,31 @@ static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint)
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t epoint, size_t UNUSED(maxsize)) {
+static MUST_CHECK Obj *repr(Obj *v1, linepos_t epoint, size_t UNUSED(maxsize)) {
     if (epoint == NULL) return NULL;
-    return (Obj *)ref_none();
+    return val_reference(v1);
 }
 
-static MUST_CHECK Obj *calc1(oper_t UNUSED(op)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *calc1(oper_t op) {
+    return val_reference(op->v1);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
-    return (Obj *)ref_none();
+    return val_reference(op->v1);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
-    return (Obj *)ref_none();
+    return val_reference(op->v2);
 }
 
-static MUST_CHECK Obj *slice(Obj *UNUSED(v1), oper_t UNUSED(op), size_t UNUSED(indx)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
+    return val_reference(v1);
 }
 
 static MUST_CHECK Error *ival(Obj *UNUSED(v1), ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
@@ -75,20 +75,20 @@ static MUST_CHECK Error *uval(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int 
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Obj *sign(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *sign(Obj *v1, linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
-static MUST_CHECK Obj *function(Obj *UNUSED(v1), Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
-static MUST_CHECK Obj *len(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *len(Obj *v1, linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
-static MUST_CHECK Obj *size(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
-    return (Obj *)ref_none();
+static MUST_CHECK Obj *size(Obj *v1, linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
 void noneobj_init(void) {
