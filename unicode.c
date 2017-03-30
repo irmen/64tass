@@ -26,7 +26,7 @@
 #define U_CASEFOLD 1
 #define U_COMPAT 2
 
-unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
+FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
     uchar_t ch;
     unsigned int i, j;
     ch = c[0];
@@ -50,7 +50,7 @@ unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use w
     return i;
 }
 
-unsigned int utf8rin(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
+FAST_CALL unsigned int utf8rin(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
     uchar_t ch;
     unsigned int i, j;
 
@@ -74,7 +74,7 @@ unsigned int utf8rin(const uint8_t *c, uchar_t *out) { /* only for internal use 
     return i;
 }
 
-uint8_t *utf8out(uchar_t i, uint8_t *c) {
+FAST_CALL uint8_t *utf8out(uchar_t i, uint8_t *c) {
     if (i < 0x800) {
         *c++=0xc0 | (uint8_t)(i >> 6);
         *c++=0x80 | (i & 0x3f);
