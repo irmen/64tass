@@ -19,7 +19,6 @@
 #ifndef MATH_H
 #define MATH_H
 #include <math.h>
-#include "attributes.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -34,6 +33,7 @@ extern double round(double);
 extern double trunc(double);
 extern double hypot(double, double);
 #else
+#include "attributes.h"
 static inline double cbrt(double a) {
     return (a > 0.0) ? pow(a, 1.0/3.0) : -pow(-a, 1.0/3.0);
 }
