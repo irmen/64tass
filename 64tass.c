@@ -368,7 +368,7 @@ static void memskip(address_t db) { /* poke_pos! */
 /*
  * output one byte
  */
-void pokeb(unsigned int byte) { /* poke_pos! */
+FAST_CALL void pokeb(unsigned int byte) { /* poke_pos! */
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
         if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
