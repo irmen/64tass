@@ -131,7 +131,7 @@ typedef uint32_t uval_t;
 #endif
 
 #ifdef FAST_CALL
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && defined(__i386__)
 # define FAST_CALL  __attribute__((regparm(3)))
 #else
 # define FAST_CALL
