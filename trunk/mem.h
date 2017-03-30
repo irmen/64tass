@@ -43,7 +43,7 @@ extern void memjmp(struct memblocks_s *, address_t);
 extern void memref(struct memblocks_s *, struct memblocks_s *);
 extern void memprint(struct memblocks_s *);
 extern void output_mem(struct memblocks_s *, const struct output_s *);
-extern void write_mem(struct memblocks_s *, unsigned int);
+extern FAST_CALL void write_mem(struct memblocks_s *, unsigned int);
 extern int read_mem(const struct memblocks_s *, size_t, size_t, size_t);
 extern void get_mem(const struct memblocks_s *, size_t *, size_t *);
 extern void restart_memblocks(struct memblocks_s *, address_t);

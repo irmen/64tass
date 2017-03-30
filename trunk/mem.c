@@ -508,7 +508,7 @@ void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
     }
 }
 
-void write_mem(struct memblocks_s *memblocks, unsigned int c) {
+FAST_CALL void write_mem(struct memblocks_s *memblocks, unsigned int c) {
     if (memblocks->mem.p >= memblocks->mem.len) {
         memblocks->mem.len += 0x1000;
         if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
