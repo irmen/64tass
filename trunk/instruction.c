@@ -79,22 +79,11 @@ MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint)
     return true;
 }
 
-MUST_CHECK bool toaddress(Obj *v1, uval_t *uv, int bits, atype_t *am, linepos_t epoint) {
-    Error *err;
-    if (am != NULL) *am = A_NONE;
-    err = v1->obj->address(v1, uv, bits, am, epoint);
+MUST_CHECK bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    Error *err = v1->obj->ival(v1, iv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
     return true;
-}
-
-static atype_t get_address_mode(Obj *v1, linepos_t epoint) {
-    atype_t am = A_NONE; 
-    Error *err = v1->obj->address(v1, NULL, 0, &am, epoint);
-    if (err != NULL) {
-        err_msg_output_and_destroy(err);
-    }
-    return am;
 }
 
 MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
@@ -157,7 +146,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             addrlist = (Addrlist *)vals;
             oval = val = addrlist->data[0];
         single:
-            am = get_address_mode(val, epoint2);
+            val = val->obj->address(val, &am);
             switch (am) {
             case A_IMMEDIATE_SIGNED:
             case A_IMMEDIATE:
@@ -418,7 +407,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 longbranch = 0;
                 if (false) {
             justrel2:
-                    if (toaddress(val, &uval, 16, NULL, epoint2)) uval = current_section->l_address.address + 1 + ln;
+                    if (touval(val, &uval, 16, epoint2)) uval = current_section->l_address.address + 1 + ln;
                     crossbank = false;
                 } else {
             justrel: 
@@ -609,13 +598,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         case 2:
             addrlist = (Addrlist *)vals;
             if (cnmemonic[ADR_MOVE] != ____) {
-                if (toaddress(addrlist->data[0], &uval, 8, &am, epoint2)) {}
+                val = addrlist->data[0];
+                if (touval(val->obj->address(val, &am), &uval, 8, epoint2)) {}
                 else {
                     if (am != A_NONE && am != A_IMMEDIATE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else adr = uval << 8;
                 }
                 epoint2 = &epoints[1];
-                if (toaddress(addrlist->data[1], &uval, 8, &am, epoint2)) {}
+                val = addrlist->data[1];
+                if (touval(val->obj->address(val, &am), &uval, 8, epoint2)) {}
                 else {
                     if (am != A_NONE && am != A_IMMEDIATE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else adr |= uval;
@@ -630,7 +621,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 else longbranch = (uval << 4) & 0x70;
                 val = addrlist->data[1];
                 epoint2 = &epoints[1];
-                am = get_address_mode(val, epoint2);
+                val = val->obj->address(val, &am);
                 if (am == A_DR) {
                     adrgen = AG_BYTE;
                 } else {
@@ -657,13 +648,13 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 else longbranch = (uval << 4) & 0x70;
                 val = addrlist->data[1];
                 epoint2 = &epoints[1];
-                am = get_address_mode(val, epoint2);
+                val = val->obj->address(val, &am);
                 if (am == A_DR) {
-                    if (toaddress(val, &uval, 8, NULL, epoint2)) {}
+                    if (touval(val, &uval, 8, epoint2)) {}
                     else adr = uval;
                 } else {
                     if (am != A_NONE) err_msg_output_and_destroy(err_addressing(am, epoint2));
-                    else if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                    else if (touval(val, &uval, 24, epoint2)) {}
                     else {
                         if (uval <= 0xffff) {
                             adr = (uint16_t)(uval - dpage);
@@ -674,7 +665,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 oval = val = addrlist->data[2];
                 epoint2 = &epoints[2];
                 ln = 2; opr = ADR_BIT_ZP_REL;
-                am = get_address_mode(val, epoint2);
+                val = val->obj->address(val, &am);
                 if (am == A_KR) {
                     goto justrel2;
                 }
@@ -709,7 +700,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_ZP: /* zero page address only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         ln = 1;
-        if (toaddress(val, &uval, 24, NULL, epoint2)) break;
+        if (touval(val, &uval, 24, epoint2)) break;
         if (uval <= 0xffff) {
             adr = (uint16_t)(uval - dpage);
             if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -720,7 +711,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_B0: /* bank 0 address only */
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         ln = 2;
-        if (toaddress(val, &uval, 24, NULL, epoint2)) break;
+        if (touval(val, &uval, 24, epoint2)) break;
         if (uval <= 0xffff) {
             adr = uval;
             if (diagnostics.jmp_bug && cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg_jmp_bug(epoint);/* jmp ($xxff) */
@@ -731,7 +722,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_PB: /* address in program bank */
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         ln = 2;
-        if (toaddress(val, &uval, 24, NULL, epoint2)) break;
+        if (touval(val, &uval, 24, epoint2)) break;
         if ((current_section->l_address.bank ^ uval) <= 0xffff) { 
             adr = uval;
             break; 
@@ -743,7 +734,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_BYTE: /* byte only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         ln = 1;
-        if (toaddress(val, &uval, (adrgen == AG_BYTE) ? 8 : -8, NULL, epoint2)) break;
+        if (adrgen == AG_BYTE) {
+            if (touval(val, &uval, 8, epoint2)) break;
+        } else {
+            if (toival(val, (ival_t *)&uval, 8, epoint2)) break;
+        }
         adr = uval;
         if (autosize && (opcode == c65el02.opcode || opcode == w65816.opcode)) {
             switch (cnmemonic[opr]) {
@@ -760,7 +755,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         break;
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
-            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
                 if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && val->obj != CODE_OBJ && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
                 adr = uval - dpage; w = 0;
@@ -775,7 +770,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             switch (w) {
             case 0:
                 if (cnmemonic[opr] == ____) return new_error(ERROR__NO_BYTE_ADDR, epoint);
-                if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -783,7 +778,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 break;
             case 1:
                 if (cnmemonic[opr - 1] == ____) return new_error(ERROR__NO_WORD_ADDR, epoint);
-                if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                if (touval(val, &uval, 24, epoint2)) {}
                 else {
                     adr = uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
@@ -791,7 +786,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 break;
             case 2:
                 if (cnmemonic[opr - 2] == ____) return new_error(ERROR__NO_LONG_ADDR, epoint);
-                if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                if (touval(val, &uval, 24, epoint2)) {}
                 else adr = uval;
                 break;
             default: return new_error(ERROR__NO_LONG_ADDR, epoint); /* can't happen */
@@ -801,7 +796,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         break;
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
-            if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else {
@@ -812,7 +807,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             switch (w) {
             case 0:
                 if (cnmemonic[opr] == ____) return new_error(ERROR__NO_BYTE_ADDR, epoint);
-                if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -820,7 +815,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 break;
             case 1:
                 if (cnmemonic[opr - 1] == ____) return new_error(ERROR__NO_WORD_ADDR, epoint);
-                if (toaddress(val, &uval, 24, NULL, epoint2)) {}
+                if (touval(val, &uval, 24, epoint2)) {}
                 else {
                     adr = uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
@@ -835,13 +830,17 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_WORD: /* word only */
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         ln = 2;
-        if (toaddress(val, &uval, (adrgen == AG_WORD) ? 16 : -16, NULL, epoint2)) break;
+        if (adrgen == AG_WORD) {
+            if (touval(val, &uval, 16, epoint2)) break;
+        } else {
+            if (toival(val, (ival_t *)&uval, 16, epoint2)) break;
+        }
         adr = uval;
         break;
     case AG_RELPB:
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         ln = 2;
-        if (toaddress(val, &uval, 16, NULL, epoint2)) break;
+        if (touval(val, &uval, 16, epoint2)) break;
         adr = uval - current_section->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
         break;
     case AG_RELL:
