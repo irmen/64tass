@@ -18,7 +18,7 @@
 */
 #include "floatobj.h"
 #include <string.h>
-#include <math.h>
+#include "math.h"
 #include "error.h"
 #include "eval.h"
 #include "variables.h"

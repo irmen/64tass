@@ -18,7 +18,7 @@
 */
 #include "intobj.h"
 #include <string.h>
-#include <math.h>
+#include "math.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "error.h"

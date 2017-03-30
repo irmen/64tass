@@ -57,7 +57,7 @@
 #endif
 
 #ifdef NO_INLINE
-#elif defined(__GNUC__)
+#elif __GNUC__ >= 3
 # define NO_INLINE  __attribute__((noinline))
 #else
 # define NO_INLINE
@@ -65,7 +65,7 @@
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L
-#elif __GNUC__ >= 3
+#elif defined(__GNUC__)
 # define inline __inline
 #elif _MSC_VER >= 900
 # define inline __inline
