@@ -41,8 +41,7 @@ static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint)
 }
 
 static MUST_CHECK Obj *repr(Obj *v1, linepos_t epoint, size_t UNUSED(maxsize)) {
-    if (epoint == NULL) return NULL;
-    return val_reference(v1);
+    return (epoint == NULL) ? NULL : val_reference(v1);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -50,17 +49,11 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    if (op->v2->obj == ERROR_OBJ) {
-        return ERROR_OBJ->rcalc2(op);
-    }
-    return val_reference(op->v1);
+    return val_reference(op->v2->obj->type == T_ERROR ? op->v2 : op->v1);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->calc2(op);
-    }
-    return val_reference(op->v2);
+    return val_reference(op->v1->obj->type == T_ERROR ? op->v1 : op->v2);
 }
 
 static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
