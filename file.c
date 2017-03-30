@@ -121,7 +121,7 @@ char *get_path(const Str *v, const char *base) {
 #ifdef _WIN32
 static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     wchar_t *wname;
-    uint32_t ch;
+    uchar_t ch;
     size_t i = 0, j = 0, len = ((max != SIZE_MAX) ? max : strlen(name)) + 2;
     if (len > SIZE_MAX / sizeof *wname) err_msg_out_of_memory();
     wname = (wchar_t *)mallocx(len * sizeof *wname);
@@ -198,7 +198,7 @@ FILE *file_open(const char *name, const char *mode) {
     size_t len = 0, max = strlen(name) + 1;
     char *newname = (char *)mallocx(max);
     const uint8_t *c = (const uint8_t *)name;
-    uint32_t ch;
+    uchar_t ch;
     mbstate_t ps;
     memset(&ps, 0, sizeof ps);
     if (max < 1) err_msg_out_of_memory();
@@ -268,12 +268,12 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
     size_t i;
     if (ubuff->data == NULL) {
         ubuff->len = 16;
-        ubuff->data = (uint32_t *)mallocx(16 * sizeof *ubuff->data);
+        ubuff->data = (uchar_t *)mallocx(16 * sizeof *ubuff->data);
         return p;
     }
     for (i = 0; i < ubuff->p; i++) {
         size_t o = (size_t)(p - tmp->data);
-        uint32_t ch;
+        uchar_t ch;
         if (o + 6*6 + 1 > tmp->len) {
             tmp->len += 4096;
             if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
@@ -286,7 +286,7 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
     return p;
 }
 
-static uint32_t fromiso2(unsigned int c) {
+static uchar_t fromiso2(uchar_t c) {
     static mbstate_t ps;
     wchar_t w;
     int olderrno;
@@ -301,8 +301,8 @@ static uint32_t fromiso2(unsigned int c) {
     return w;
 }
 
-static inline uint32_t fromiso(unsigned int c) {
-    static uint32_t conv[128];
+static inline uchar_t fromiso(uchar_t c) {
+    static uchar_t conv[128];
     c &= 0x7f;
     if (conv[c] == 0) conv[c] = fromiso2(c);
     return conv[c];
@@ -332,7 +332,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     if (b == NULL) { /* new file */
         Encoding_types encoding = E_UNKNOWN;
         FILE *f;
-        uint32_t c = 0;
+        uchar_t c = 0;
         size_t fp = 0;
 
         lastfi->line = NULL;
@@ -431,7 +431,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 do {
                     size_t k;
                     uint8_t *p;
-                    uint32_t lastchar;
+                    uchar_t lastchar;
                     bool qc = true;
                     uint8_t cclass = 0;
 
@@ -532,14 +532,14 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 if (ubuff.p >= ubuff.len) {
                                     ubuff.len += 16;
                                     if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof *ubuff.data) err_msg_out_of_memory(); /* overflow */
-                                    ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
+                                    ubuff.data = (uchar_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
                                 }
                                 ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
                                 for (;i != 0; i-= 6) {
                                     if (ubuff.p >= ubuff.len) {
                                         ubuff.len += 16;
                                         if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof *ubuff.data) err_msg_out_of_memory(); /* overflow */
-                                        ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
+                                        ubuff.data = (uchar_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
                                     }
                                     ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                 }
@@ -553,7 +553,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                             break;
                         case E_UTF16LE:
                             if (bp == bl) goto invalid;
-                            c |= (uint32_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
+                            c |= (uchar_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
                                 encoding = E_UTF16BE;
                                 continue;
@@ -615,7 +615,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 if (ubuff.p >= ubuff.len) {
                                     ubuff.len += 16;
                                     if (/*ubuff.len < 16 ||*/ ubuff.len > SIZE_MAX / sizeof *ubuff.data) err_msg_out_of_memory(); /* overflow */
-                                    ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
+                                    ubuff.data = (uchar_t *)reallocx(ubuff.data, ubuff.len * sizeof *ubuff.data);
                                 }
                                 ubuff.data[ubuff.p++] = c;
                             } else {

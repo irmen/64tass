@@ -268,7 +268,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             case BYTES_MODE_TEXT: break;
             }
         } else if (v1->chars == 1) {
-            uint32_t ch2 = v1->data[0];
+            uchar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return (Obj *)bytes_from_uval(ch2, 3);
         } else {

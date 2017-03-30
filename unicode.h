@@ -24,13 +24,13 @@
 #include "unicodedata.h"
 
 struct ubuff_s {
-    uint32_t *data;
+    uchar_t *data;
     size_t len, p;
 };
 
-extern unsigned int utf8in(const uint8_t *, uint32_t *);
-extern unsigned int utf8rin(const uint8_t *, uint32_t *);
-extern uint8_t *utf8out(uint32_t, uint8_t *);
+extern unsigned int utf8in(const uint8_t *, uchar_t *);
+extern unsigned int utf8rin(const uint8_t *, uchar_t *);
+extern uint8_t *utf8out(uchar_t, uint8_t *);
 extern void unfc(struct ubuff_s *);
 extern void unfkc(str_t *, const str_t *, int);
 extern size_t argv_print(const char *, FILE *);
@@ -39,7 +39,7 @@ extern size_t printable_print2(const uint8_t *, FILE *, size_t);
 extern void caret_print(const uint8_t *, FILE *, size_t);
 extern size_t calcpos(const uint8_t *, size_t);
 
-static inline unsigned int utf8len(uint8_t ch) {
+static inline unsigned int utf8len(uchar_t ch) {
     if (ch < 0x80) return 1;
     if (ch < 0xe0) return 2;
     if (ch < 0xf0) return 3;

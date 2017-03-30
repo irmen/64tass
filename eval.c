@@ -54,7 +54,7 @@
 #include "identobj.h"
 
 size_t get_label(void) {
-    uint32_t ch;
+    uchar_t ch;
     unsigned int l;
     const struct properties_s *prop;
     const uint8_t *s = pline + lpoint.pos;

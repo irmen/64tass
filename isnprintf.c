@@ -97,7 +97,7 @@ static const struct values_s *next_arg(void) {
     return &dummy;
 }
 
-static void PUT_CHAR(uint32_t c) {
+static void PUT_CHAR(uchar_t c) {
     uint8_t *p = (uint8_t *)return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
@@ -322,7 +322,7 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
 {
     int i;
     const uint8_t *tmp;
-    uint32_t ch;
+    uchar_t ch;
     Obj *val = v->val, *err;
     Str *str;
 
@@ -543,7 +543,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 default:
                     {
                         struct linepos_s epoint2;
-                        uint32_t ch;
+                        uchar_t ch;
                         str_t msg;
                     error2:
                         epoint2 = v[0].epoint;

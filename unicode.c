@@ -26,8 +26,8 @@
 #define U_CASEFOLD 1
 #define U_COMPAT 2
 
-unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
-    uint32_t ch;
+unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
+    uchar_t ch;
     unsigned int i, j;
     ch = c[0];
 
@@ -50,8 +50,8 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
     return i;
 }
 
-unsigned int utf8rin(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
-    uint32_t ch;
+unsigned int utf8rin(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
+    uchar_t ch;
     unsigned int i, j;
 
     if (c[-2] < 0xe0) {
@@ -74,7 +74,7 @@ unsigned int utf8rin(const uint8_t *c, uint32_t *out) { /* only for internal use
     return i;
 }
 
-uint8_t *utf8out(uint32_t i, uint8_t *c) {
+uint8_t *utf8out(uchar_t i, uint8_t *c) {
     if (i < 0x800) {
         *c++=0xc0 | (uint8_t)(i >> 6);
         *c++=0x80 | (i & 0x3f);
@@ -101,7 +101,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
-    if ((i & ~(uint32_t)0x7fffffff) != 0) return c;
+    if ((i & ~(uchar_t)0x7fffffff) != 0) return c;
     *c++=0xfc | (i >> 30);
     *c++=0x80 | ((i >> 24) & 0x3f);
     *c++=0x80 | ((i >> 18) & 0x3f);
@@ -111,7 +111,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
     return c;
 }
 
-static inline unsigned int utf8outlen(uint32_t i) {
+static inline unsigned int utf8outlen(uchar_t i) {
     if (i < 0x800) return 2;
     if (i < 0x10000) return 3;
     if (i < 0x200000) return 4;
@@ -122,13 +122,13 @@ static inline unsigned int utf8outlen(uint32_t i) {
 static void extbuff(struct ubuff_s *d) {
     d->len += 16;
     if (/*d->len < 16 ||*/ d->len > SIZE_MAX / sizeof *d->data) err_msg_out_of_memory(); /* overflow */
-    d->data = (uint32_t *)reallocx(d->data, d->len * sizeof *d->data);
+    d->data = (uchar_t *)reallocx(d->data, d->len * sizeof *d->data);
 }
 
-static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
+static void udecompose(uchar_t ch, struct ubuff_s *d, int options) {
     const struct properties_s *prop;
     if (ch >= 0xac00 && ch <= 0xd7a3) {
-        uint32_t ht, hs = ch - 0xac00;
+        uchar_t ht, hs = ch - 0xac00;
         if (d->p >= d->len) extbuff(d);
         d->data[d->p++] = 0x1100 + hs / 588;
         if (d->p >= d->len) extbuff(d);
@@ -198,7 +198,7 @@ static void unormalize(struct ubuff_s *d) {
     pos = 0;
     max = d->p - 1;
     while (pos < max) {
-        uint32_t ch1, ch2;
+        uchar_t ch1, ch2;
         uint8_t cc1, cc2;
         ch2 = d->data[pos + 1];
         cc2 = uget_property(ch2)->combclass;
@@ -220,7 +220,7 @@ static void unormalize(struct ubuff_s *d) {
 
 static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
     const struct properties_s *prop, *sprop = NULL;
-    uint32_t ch;
+    uchar_t ch;
     int mclass = -1;
     size_t i, sp = (size_t)-1;
     d->p = 0;
@@ -228,9 +228,9 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
         ch = buff->data[i];
         prop = uget_property(ch);
         if (sp != (size_t)-1 && prop->combclass > mclass) {
-            uint32_t sc = d->data[sp];
+            uchar_t sc = d->data[sp];
             if (sc >= 0xac00) {
-                uint32_t hs = sc - 0xac00;
+                uchar_t hs = sc - 0xac00;
                 if (hs < 588*19 && (hs % 28) == 0) {
                     if (ch >= 0x11a7 && ch < 0x11a7 + 28) {
                         d->data[sp] = sc + ch - 0x11a7;
@@ -294,7 +294,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     mode = ((mode != 0) ? U_CASEFOLD : 0) | U_COMPAT;
     d = s2->data;
     for (dbuf.p = i = 0; i < s2->len;) {
-        uint32_t ch;
+        uchar_t ch;
         ch = d[i];
         if ((ch & 0x80) != 0) {
             i += utf8in(d + i, &ch);
@@ -315,7 +315,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     dd = s = (uint8_t *)s1->data;
     m = dd + l;
     for (i = 0; i < dbuf2.p; i++) {
-        uint32_t ch;
+        uchar_t ch;
         ch = dbuf2.data[i];
         if (ch != 0 && ch < 0x80) {
             if (s >= m) {
@@ -366,7 +366,7 @@ size_t argv_print(const char *line, FILE *f) {
     }
     i = 0; back = 0;
     for (;;) {
-        uint32_t ch = (uint8_t)line[i];
+        uchar_t ch = (uint8_t)line[i];
         if ((ch & 0x80) != 0) {
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch) != 0) {
@@ -438,7 +438,7 @@ size_t argv_print(const char *line, FILE *f) {
     }
     i = 0;
     for (;;) {
-        uint32_t ch = (uint8_t)line[i];
+        uchar_t ch = (uint8_t)line[i];
         if ((ch & 0x80) != 0) {
             int ln2;
             i += utf8in((const uint8_t *)line + i, &ch);
@@ -480,7 +480,7 @@ size_t argv_print(const char *line, FILE *f) {
     return len;
 }
 
-static int unknown_print(FILE *f, uint32_t ch) {
+static int unknown_print(FILE *f, uchar_t ch) {
     char temp[64];
     const char *format = (ch >= 256) ? "<U+%" PRIX32 ">" : "<%02" PRIX32 ">";
     if (f != NULL) {
@@ -497,7 +497,7 @@ void printable_print(const uint8_t *line, FILE *f) {
 #ifdef _WIN32
     size_t i = 0, l = 0;
     for (;;) {
-        uint32_t ch = line[i];
+        uchar_t ch = line[i];
         if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
             i++;
             continue;
@@ -524,7 +524,7 @@ void printable_print(const uint8_t *line, FILE *f) {
 #else
     size_t i = 0, l = 0;
     for (;;) {
-        uint32_t ch = line[i];
+        uchar_t ch = line[i];
         if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
             i++;
             continue;
@@ -557,7 +557,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
-        uint32_t ch = line[i];
+        uchar_t ch = line[i];
         if ((ch & 0x80) != 0) {
             unsigned int ln;
             if (l != i) len += fwrite(line + l, 1, i - l, f);
@@ -595,7 +595,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
-        uint32_t ch = line[i];
+        uchar_t ch = line[i];
         if ((ch & 0x80) != 0) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
@@ -695,7 +695,7 @@ static const struct zw32_s zw32[] = {
 };
 
 static int compw16(const void *aa, const void *bb) {
-    uint32_t key = *(const uint32_t *)aa;
+    uchar_t key = *(const uchar_t *)aa;
     const struct zw16_s *b = (const struct zw16_s *)bb;
 
     if (key > b->end) return 1;
@@ -704,7 +704,7 @@ static int compw16(const void *aa, const void *bb) {
 }
 
 static int compw32(const void *aa, const void *bb) {
-    uint32_t key = *(const uint32_t *)aa;
+    uchar_t key = *(const uchar_t *)aa;
     const struct zw32_s *b = (const struct zw32_s *)bb;
 
     if (key > b->end) return 1;
@@ -712,7 +712,7 @@ static int compw32(const void *aa, const void *bb) {
     return 0;
 }
 
-static size_t charwidth(uint32_t ch) {
+static size_t charwidth(uchar_t ch) {
     if (ch < 0x300) return 1;
 
     if (ch < 0x10000) {
@@ -738,7 +738,7 @@ static size_t charwidth(uint32_t ch) {
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0;
     for (i = 0; i < max;) {
-        uint32_t ch = line[i];
+        uchar_t ch = line[i];
         if ((ch & 0x80) != 0) {
 #ifdef _WIN32
             unsigned int ln = utf8in(line + i, &ch);

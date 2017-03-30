@@ -78,6 +78,7 @@ typedef SSIZE_T ssize_t;
 #endif
 #endif
 
+typedef uint32_t uchar_t;
 typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
