@@ -23,6 +23,7 @@
 #include "inttypes.h"
 #include <ctype.h>
 #include "wctype.h"
+#include "attributes.h"
 #include <dpmi.h>
 #include <go32.h>
 
