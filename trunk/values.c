@@ -70,7 +70,7 @@ static FAST_CALL NO_INLINE Obj *value_alloc(Type *obj) {
     return &slot->v;
 }
 
-FAST_CALL Obj *val_alloc(Type *obj) {
+FAST_CALL MALLOC Obj *val_alloc(Type *obj) {
     Slot *slot = *obj->slot;
     if (slot == NULL) return value_alloc(obj);
     slot->v.obj = obj;

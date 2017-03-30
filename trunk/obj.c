@@ -189,7 +189,7 @@ static MUST_CHECK Obj *invalid_size(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIZE);
 }
 
-MUST_CHECK Iter *invalid_getiter(Obj *v1) {
+static MUST_CHECK Iter *invalid_getiter(Obj *v1) {
     Iter *v = (Iter *)val_alloc(ITER_OBJ);
     v->data = val_reference(v1);
     v->iter = NULL;

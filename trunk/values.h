@@ -19,12 +19,12 @@
 #ifndef VALUES_H
 #define VALUES_H
 #include <stdio.h>
-#include "inttypes.h"
+#include "attributes.h"
 
 struct Type;
 struct Obj;
 
-extern FAST_CALL struct Obj *val_alloc(struct Type *);
+extern FAST_CALL MALLOC struct Obj *val_alloc(struct Type *);
 extern FAST_CALL void val_destroy(struct Obj *);
 extern FAST_CALL void val_replace(struct Obj **, struct Obj *);
 extern size_t val_print(struct Obj *, FILE *);

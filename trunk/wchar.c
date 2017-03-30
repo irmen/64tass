@@ -415,6 +415,7 @@ size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #else
 #include <errno.h>
+#include "attributes.h"
 
 size_t mbrtowc(wchar_t *wc, const char *s, size_t n, mbstate_t *UNUSED(ps)) {
     uint8_t ch;

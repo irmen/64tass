@@ -214,7 +214,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
     }
 }
 
-MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
+MALLOC Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
     Namespace *val = (Namespace *)val_alloc(NAMESPACE_OBJ);
     avltree_init(&val->members);
     val->file_list = file_list;

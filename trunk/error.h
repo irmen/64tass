@@ -18,8 +18,8 @@
 */
 #ifndef ERROR_H
 #define ERROR_H
+#include "attributes.h"
 #include "stdbool.h"
-#include "inttypes.h"
 #include "errors_e.h"
 #include "avl.h"
 #include "obj.h"
@@ -86,13 +86,13 @@ extern void error_status(void);
 extern bool error_serious(void);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
 
-static inline void *mallocx(size_t l) {
+static inline MALLOC void *mallocx(size_t l) {
     void *m = malloc(l);
     if (m == NULL) err_msg_out_of_memory();
     return m;
 }
 
-static inline void *reallocx(void *o, size_t l) {
+static inline MUST_CHECK void *reallocx(void *o, size_t l) {
     void *m = realloc(o, l);
     if (m == NULL) err_msg_out_of_memory();
     return m;

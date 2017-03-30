@@ -18,6 +18,7 @@
 */
 #ifndef ISNPRINTF_H
 #define ISNPRINTF_H
+#include "attributes.h"
 #include "inttypes.h"
 
 struct Funcargs;

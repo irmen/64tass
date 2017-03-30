@@ -45,7 +45,7 @@ static inline Namespace *ref_namespace(Namespace *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MUST_CHECK Namespace *new_namespace(const struct file_list_s *, linepos_t);
+extern MALLOC Namespace *new_namespace(const struct file_list_s *, linepos_t);
 extern MUST_CHECK Obj *namespace_member(struct oper_s *, Namespace *);
 
 extern void namespacekey_free(struct namespacekey_s *);

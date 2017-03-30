@@ -83,7 +83,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-MUST_CHECK Bytes *new_bytes(size_t ln) {
+MALLOC Bytes *new_bytes(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
     if (ln > sizeof v->val) {
         v->data = (uint8_t *)mallocx(ln);

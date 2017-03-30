@@ -18,6 +18,7 @@
 */
 #ifndef UNICODEDATA_H
 #define UNICODEDATA_H
+#include "attributes.h"
 #include "inttypes.h"
 
 #define pr_compat 1

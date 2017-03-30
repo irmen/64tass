@@ -19,6 +19,7 @@
 #ifndef FILE_H
 #define FILE_H
 #include <stdio.h>
+#include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
 #include "avl.h"

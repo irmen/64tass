@@ -20,7 +20,6 @@
 #define IDENTOBJ_H
 #include "obj.h"
 #include "str.h"
-#include "inttypes.h"
 
 extern struct Type *IDENT_OBJ;
 extern struct Type *ANONIDENT_OBJ;

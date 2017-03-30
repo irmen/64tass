@@ -91,7 +91,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if (v1->def != NULL) val_destroy(v1->def);
 }
 
-static MUST_CHECK Dict *new_dict(void) {
+static MALLOC Dict *new_dict(void) {
     Dict *v = (Dict *)val_alloc(DICT_OBJ);
     avltree_init(&v->members);
     v->len = 0;
