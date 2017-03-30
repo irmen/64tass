@@ -308,7 +308,7 @@ static MUST_CHECK char *read_one(FILE *f) {
     for (;;) {
         ssize_t l;
         wchar_t w;
-        uint32_t ch;
+        uchar_t ch;
         if (p + 6*6 + 1 > data + len) {
             size_t o = (size_t)(p - data);
             len += 1024;

@@ -855,7 +855,7 @@ void err_msg_branch_page(int by, linepos_t epoint) {
     adderror(msg2);
 }
 
-void err_msg_unknown_char(uint32_t ch, const str_t *name, linepos_t epoint) {
+void err_msg_unknown_char(uchar_t ch, const str_t *name, linepos_t epoint) {
     uint8_t line[256], *s = line;
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("can't encode character '");

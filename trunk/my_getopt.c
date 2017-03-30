@@ -82,7 +82,7 @@ static int my_getopt(int argc, char *argv[], const char *opts)
     }
     if (my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
                     fputs(": fatal error: option '-", stderr);
-                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len((uint8_t)my_optopt) : 1);
+                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len((unsigned int)my_optopt) : 1);
                     fputs("' not recognized\n", stderr);}
     opt = '?';
     if (argv[my_optind][++charind] == '\0') {

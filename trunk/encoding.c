@@ -732,7 +732,7 @@ void encode_error(Error_types no) {
 }
 
 int encode_string(void) {
-    uint32_t ch;
+    uchar_t ch;
     unsigned int ln;
     const struct escape_s *e;
     const struct avltree_node *c;

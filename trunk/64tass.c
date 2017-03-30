@@ -2474,7 +2474,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             Str *str = (Str *)val;
                             if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                             else {
-                                uint32_t ch = str->data[0];
+                                uchar_t ch = str->data[0];
                                 if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                 tmp.start = ch;
                                 if (str->len > i) {
@@ -2498,7 +2498,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 Str *str = (Str *)val;
                                 if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                                 else {
-                                    uint32_t ch = str->data[0];
+                                    uchar_t ch = str->data[0];
                                     if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                     tmp.end = ch;
                                     if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
@@ -2514,7 +2514,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         else if (tryit) {
                             tmp.offset = uval;
                             if (tmp.start > tmp.end) {
-                                uint32_t tmpe = tmp.start;
+                                uchar_t tmpe = tmp.start;
                                 tmp.start = tmp.end;
                                 tmp.end = tmpe;
                             }
@@ -3732,7 +3732,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     argv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
-	uint32_t c = 0, lastchar;
+	uchar_t c = 0, lastchar;
 	wchar_t *p = argv2[i];
 	uint8_t *c2;
 
@@ -3799,7 +3799,7 @@ int main(int argc, char *argv[]) {
         for (;;) {
             ssize_t l;
             wchar_t w;
-            uint32_t ch;
+            uchar_t ch;
             if (p + 6*6 + 1 > data + len) {
                 size_t o = (size_t)(p - data);
                 len += 1024;

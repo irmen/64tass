@@ -1277,7 +1277,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
 
     if (actual_encoding == NULL) {
         if (v1->chars == 1) {
-            uint32_t ch2 = v1->data[0];
+            uchar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return (Obj *)int_from_uval(ch2);
         }
