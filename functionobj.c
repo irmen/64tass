@@ -38,10 +38,6 @@ static Type obj;
 
 Type *FUNCTION_OBJ = &obj;
 
-static inline MUST_CHECK Function *new_function(void) {
-    return (Function *)val_alloc(FUNCTION_OBJ);
-}
-
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
     return o2->obj == FUNCTION_OBJ && v1->func == v2->func;
@@ -650,7 +646,7 @@ void functionobj_names(void) {
     int i;
 
     for (i = 0; builtin_functions[i].name != NULL; i++) {
-        Function *func = new_function();
+        Function *func = (Function *)val_alloc(FUNCTION_OBJ);
         func->name.data = (const uint8_t *)builtin_functions[i].name;
         func->name.len = strlen(builtin_functions[i].name);
         func->func = builtin_functions[i].func;

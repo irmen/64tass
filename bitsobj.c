@@ -84,7 +84,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static MUST_CHECK Bits *new_bits(size_t len) {
+static MALLOC Bits *new_bits(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
     if (len > lenof(v->val)) {
         if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
@@ -173,7 +173,7 @@ static MUST_CHECK Obj *negate(Bits *v1) {
     return normalize(v, ext ? sz + 1 : sz, v1->len > 0);
 }
 
-static MUST_CHECK Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
+static MALLOC Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
     ssize_t l;
     bdigit_t *v;
     Bits *vv = (Bits *)val_alloc(BITS_OBJ);

@@ -21,8 +21,8 @@
  */
 
 #include "avl.h"
+#include "attributes.h"
 #include "stdbool.h"
-#include "inttypes.h"
 
 static avltree_cmp_fn_t cmp_fn;
 /*

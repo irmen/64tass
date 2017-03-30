@@ -21,7 +21,6 @@
 #include "avl.h"
 #include "stdbool.h"
 #include "str.h"
-#include "inttypes.h"
 #include "errors_e.h"
 
 struct encoding_s;

@@ -50,7 +50,7 @@ static inline Bytes *ref_bytes(Bytes *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MUST_CHECK Bytes *new_bytes(size_t);
+extern MALLOC Bytes *new_bytes(size_t);
 
 struct Str;
 

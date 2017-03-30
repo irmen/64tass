@@ -18,6 +18,7 @@
 */
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
+#include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
 struct cpu_s;

@@ -18,6 +18,7 @@
 */
 #ifndef OBJ_H
 #define OBJ_H
+#include "attributes.h"
 #include "inttypes.h"
 
 struct oper_s;
@@ -63,7 +64,6 @@ extern MUST_CHECK Obj *obj_oper_error(struct oper_s *);
 extern void obj_init(struct Type *);
 extern void objects_init(void);
 extern void objects_destroy(void);
-extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern struct Type *LBL_OBJ;
 extern struct Type *DEFAULT_OBJ;

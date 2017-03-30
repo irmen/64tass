@@ -40,7 +40,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static inline MUST_CHECK Register *new_register(void) {
+static inline MALLOC Register *new_register(void) {
     return (Register *)val_alloc(REGISTER_OBJ);
 }
 

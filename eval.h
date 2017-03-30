@@ -18,6 +18,7 @@
 */
 #ifndef EVAL_H
 #define EVAL_H
+#include "attributes.h"
 #include "obj.h"
 #include "stdbool.h"
 

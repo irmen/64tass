@@ -18,6 +18,7 @@
 */
 #ifndef LISTING_H
 #define LISTING_H
+#include "attributes.h"
 #include "inttypes.h"
 #include "stdbool.h"
 struct cpu_s;

@@ -18,6 +18,7 @@
 */
 #ifndef MEM_H
 #define MEM_H
+#include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
 

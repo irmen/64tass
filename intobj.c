@@ -77,7 +77,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static inline MUST_CHECK Int *new_int(void) {
+static inline MALLOC Int *new_int(void) {
     return (Int *)val_alloc(INT_OBJ);
 }
 

@@ -19,6 +19,7 @@
 #ifndef OPT_BIT_H
 #define OPT_BIT_H
 #include "stdbool.h"
+#include "attributes.h"
 
 struct Bit;
 
@@ -28,7 +29,7 @@ typedef enum Bit_types {
 
 extern struct Bit *new_bit0(void);
 extern struct Bit *new_bit1(void);
-extern struct Bit *new_bitu(void);
+extern MALLOC struct Bit *new_bitu(void);
 extern struct Bit *new_bit(Bit_types);
 extern void del_bit(struct Bit *);
 extern struct Bit *ref_bit(struct Bit *);

@@ -51,7 +51,7 @@ static void bit_free(union bit_u *bit) {
 #endif
 }
 
-static Bit *bit_alloc(void) {
+static MALLOC Bit *bit_alloc(void) {
     Bit *bit;
 #ifdef DEBUG
     bit = (Bit *)mallocx(sizeof *bit);
@@ -83,7 +83,7 @@ Bit *new_bit1(void) {
     return &bit1;
 }
 
-Bit *new_bitu(void) {
+MALLOC Bit *new_bitu(void) {
     Bit *v = bit_alloc();
     v->refcount = 1;
     v->b = BU;

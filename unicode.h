@@ -19,7 +19,7 @@
 #ifndef UNICODE_H
 #define UNICODE_H
 #include <stdio.h>
-#include "inttypes.h"
+#include "attributes.h"
 #include "str.h"
 #include "unicodedata.h"
 

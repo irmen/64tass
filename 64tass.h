@@ -18,7 +18,7 @@
 */
 #ifndef _64TASS_H
 #define _64TASS_H
-#include <stdio.h>
+#include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
 #include "wait_e.h"
