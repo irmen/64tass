@@ -143,15 +143,17 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     return v->obj->uval(v, uv, bits, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+static FAST_CALL Obj *address(Obj *o1, uint32_t *am) {
     Code *v1 = (Code *)o1;
-    Obj *v;
-    if (uv != NULL) {
-        Error *err = access_check(v1, epoint);
-        if (err != NULL) return err;
+    Obj *v = v1->addr;
+    v = v->obj->address(v, am);
+    if ((v1->requires & ~current_section->provides) != 0) {
+        return o1;
     }
-    v = v1->addr;
-    return v->obj->address(v, uv, bits, am, epoint);
+    if ((v1->conflicts & current_section->provides) != 0) {
+        return o1;
+    }
+    return v;
 }
 
 MUST_CHECK Obj *float_from_code(Code *v1, linepos_t epoint) {

@@ -75,10 +75,6 @@ static MUST_CHECK Error *uval(Obj *UNUSED(v1), uval_t *UNUSED(uv), unsigned int 
     return new_error(ERROR____STILL_NONE, epoint);
 }
 
-static MUST_CHECK Error *address(Obj *UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), uint32_t *UNUSED(am), linepos_t epoint) {
-    return new_error(ERROR____STILL_NONE, epoint);
-}
-
 static MUST_CHECK Obj *sign(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
     return (Obj *)ref_none();
 }
@@ -107,7 +103,6 @@ void noneobj_init(void) {
     obj.slice = slice;
     obj.ival = ival;
     obj.uval = uval;
-    obj.address = address;
     obj.sign = sign;
     obj.function = function;
     obj.len = len;

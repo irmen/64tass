@@ -29,7 +29,7 @@ extern MUST_CHECK struct Error *instruction(int, unsigned int, struct Obj *, lin
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const uint8_t *);
 extern MUST_CHECK bool touval(struct Obj *, uval_t *, unsigned int, linepos_t);
-extern MUST_CHECK bool toaddress(struct Obj *, uval_t *, int, uint32_t *, linepos_t);
+extern MUST_CHECK bool toival(struct Obj *, ival_t *, unsigned int, linepos_t);
 extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
 
 extern bool longaccu, longindex, autosize;

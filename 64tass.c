@@ -305,13 +305,6 @@ static void set_size(const Label *label, size_t size, struct memblocks_s *mem, s
     code->membp = membp;
 }
 
-static bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    Error *err = v1->obj->ival(v1, iv, bits, epoint);
-    if (err == NULL) return false;
-    err_msg_output_and_destroy(err);
-    return true;
-}
-
 static bool tobool(const struct values_s *v1, bool *truth) {
     Obj *val = v1->val, *err;
     Type *obj = val->obj;
@@ -615,7 +608,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am;
-                if (toaddress(val2, &uv, 24, &am, poke_pos)) ch2 = 0;
+                if (touval(val2->obj->address(val2, &am), &uv, 24, poke_pos)) ch2 = 0;
                 else {
                     switch (am) {
                     case A_NONE:
@@ -693,7 +686,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
             break;
         }
-        if (toaddress(val, &uval, 8 * sizeof uval, &am, epoint2)) {
+        if (touval(val->obj->address(val, &am), &uval, 8 * sizeof uval, epoint2)) {
             break;
         }
         if (am != A_NONE && check_addr(am)) {
@@ -2167,7 +2160,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
                     else do {
                         atype_t am;
-                        if (toaddress(vs->val, &uval, 24, &am, &vs->epoint)) break;
+                        Obj *tmp = vs->val;
+                        if (touval(tmp->obj->address(tmp, &am), &uval, 24, &vs->epoint)) break;
                         if (am != A_NONE && check_addr(am)) {
                             err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
                             break;

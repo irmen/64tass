@@ -219,20 +219,18 @@ static inline bool check_addr2(atype_t type) {
     return false;
 }
 
-static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+static FAST_CALL Obj *address(Obj *o1, uint32_t *am) {
     const Address *v1 = (Address *)o1;
+    atype_t type;
     Obj *v = v1->val;
-    Error *err;
-    err = v->obj->address(v1->val, uv, bits, am, epoint);
-    if (am != NULL) {
-        atype_t type = v1->type;
-        while (type != A_NONE) {
-            *am <<= 4;
-            type >>= 4;
-        }
-        *am |= v1->type;
+    v = v->obj->address(v, am);
+    type = v1->type;
+    while (type != A_NONE) {
+        *am <<= 4;
+        type >>= 4;
     }
-    return err;
+    *am |= v1->type;
+    return v;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
