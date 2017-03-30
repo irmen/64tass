@@ -498,10 +498,14 @@ void printable_print(const uint8_t *line, FILE *f) {
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
+        if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
+            i++;
+            continue;
+        }
+        if (l != i) fwrite(line + l, 1, i - l, f);
+        if (ch == 0) break;
         if ((ch & 0x80) != 0) {
-            unsigned int ln;
-            if (l != i) fwrite(line + l, 1, i - l, f);
-            ln = utf8in(line + i, &ch);
+            unsigned int ln = utf8in(line + i, &ch);
             if (iswprint(ch) != 0) {
                 char tmp[64];
                 memcpy(tmp, line + i, ln);
@@ -513,29 +517,22 @@ void printable_print(const uint8_t *line, FILE *f) {
                 }
             }
             i += ln;
-            l = i;
-            unknown_print(f, ch);
-            continue;
-        }
-        if (ch == 0) break;
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
-            i++;
-            unknown_print(f, ch);
-            l = i;
-            continue;
-        }
-        i++;
+        } else i++;
+        l = i;
+        unknown_print(f, ch);
     }
-    if (i != l) fwrite(line + l, i - l, 1, f);
 #else
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
+        if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
+            i++;
+            continue;
+        }
+        if (l != i) fwrite(line + l, 1, i - l, f);
+        if (ch == 0) break;
         if ((ch & 0x80) != 0) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
-            l = i;
             if (iswprint(ch) != 0) {
                 mbstate_t ps;
                 char temp[64];
@@ -544,23 +541,14 @@ void printable_print(const uint8_t *line, FILE *f) {
                 ln = wcrtomb(temp, (wchar_t)ch, &ps);
                 if (ln != (size_t)-1) {
                     fwrite(temp, ln, 1, f);
+                    l = i;
                     continue;
                 }
             }
-            unknown_print(f, ch);
-            continue;
-        }
-        if (ch == 0) break;
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
-            i++;
-            unknown_print(f, ch);
-            l = i;
-            continue;
-        }
-        i++;
+        } else i++;
+        unknown_print(f, ch);
+        l = i;
     }
-    if (i != l) fwrite(line + l, i - l, 1, f);
 #endif
 }
 
