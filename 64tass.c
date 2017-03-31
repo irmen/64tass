@@ -425,13 +425,13 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     if (registerobj_createnames(cpumode->registers)) constcreated = true;
 }
 
-void var_assign(Label *label, Obj *val, bool fix) {
+FAST_CALL void const_assign(Label *label, Obj *val) {
     label->defpass = pass;
     if (val->obj->same(val, label->value)) return;
     val_replace(&label->value, val);
     if (label->usepass < pass) return;
-    if (fixeddig && !fix && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
-    fixeddig = fix;
+    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
+    fixeddig = false;
 }
 
 static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max) {
@@ -1030,7 +1030,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->owner = false;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            var_assign(label, val, false);
+                            const_assign(label, val);
                         }
                         val_destroy(val);
                     } else {
@@ -1125,7 +1125,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
-                                var_assign(label, &lbl->v, false);
+                                const_assign(label, &lbl->v);
                             }
                             val_destroy(&lbl->v);
                         } else {
@@ -1172,7 +1172,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
-                                var_assign(label, &macro->v, false);
+                                const_assign(label, &macro->v);
                                 val_destroy(&macro->v);
                                 waitfor->val = val_reference(label->value);
                             }
@@ -1222,7 +1222,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 get_func_params(mfunc, cfile);
                                 get_namespaces(mfunc);
                                 if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
-                                var_assign(label, &mfunc->v, false);
+                                const_assign(label, &mfunc->v);
                             }
                             val_destroy(&mfunc->v);
                         } else {
@@ -1290,7 +1290,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     structure->names = new_namespace(cflist, &epoint);
                                 }
                                 if (diagnostics.unused && !label->ref) err_msg2(ERROR_UNUSED_SYMBOL, &labelname, &epoint);
-                                var_assign(label, &structure->v, false);
+                                const_assign(label, &structure->v);
                                 val_destroy(&structure->v);
                                 structure = (Struct *)label->value;
                             }
@@ -1569,7 +1569,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (val != NULL) {
                             if (newlabel != NULL) {
                                 newlabel->update_after = true;
-                                var_assign(newlabel, val, false);
+                                const_assign(newlabel, val);
                             }
                             val_destroy(val);
                         }
@@ -3433,7 +3433,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if (val != NULL) {
                     if (newlabel != NULL) {
                         newlabel->update_after = true;
-                        var_assign(newlabel, val, false);
+                        const_assign(newlabel, val);
                     }
                     val_destroy(val);
                 }

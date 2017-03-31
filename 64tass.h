@@ -54,6 +54,6 @@ extern uint8_t pass, max_pass;
 extern bool referenceit;
 extern void new_waitfor(Wait_types, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
-extern void var_assign(struct Label *, struct Obj *, bool);
+extern FAST_CALL void const_assign(struct Label *, struct Obj *);
 extern FAST_CALL void pokeb(unsigned int);
 #endif
