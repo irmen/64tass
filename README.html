@@ -3350,9 +3350,26 @@ occurance will compile. A second match might be a mistake.</p>
 
 <dt><b>-Wunused</b><a name="o_Wunused" href="#o_Wunused"></a>
 <dd>Warn about unused constant symbols.
+
 <p>Symbols which have no references to them are likely redundant. Before
 removing them check if there's any conditionally compiled out code which might
 still need them.</p>
+
+<p>The following options can be used to be more specific:</p>
+
+<dl>
+<dt><b>-Wunused-macro</b><a name="o_Wunused-macro" href="#o_Wunused-macro"></a>
+<dd>Warn about unused macros.
+
+<dt><b>-Wunused-const</b><a name="o_Wunused-const" href="#o_Wunused-const"></a>
+<dd>Warn about unused constants.
+
+<dt><b>-Wunused-label</b><a name="o_Wunused-label" href="#o_Wunused-label"></a>
+<dd>Warn about unused labels.
+
+<dt><b>-Wunused-variable</b><a name="o_Wunused-variable" href="#o_Wunused-variable"></a>
+<dd>Warn about unused variables.
+</dl>
 
 </dl>
 

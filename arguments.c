@@ -67,7 +67,12 @@ struct diagnostics_s diagnostics = {
     true,        /* deprecated */
     false,       /* old_equal */
     true,        /* portable */
-    false,       /* unused */
+    {
+        false,   /* unused-macro */
+        false,   /* unused-const */
+        false,   /* unused-label */
+        false,   /* unused-variable */
+    },
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
@@ -87,7 +92,12 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* deprecated */
     false,       /* old_equal */
     false,       /* portable */
-    false,       /* unused */
+    {
+        false,   /* unused-macro */
+        false,   /* unused-const */
+        false,   /* unused-label */
+        false,   /* unused-variable */
+    },
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
@@ -108,7 +118,12 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* deprecated */
     true,        /* old_equal */
     true,        /* portable */
-    false,       /* unused */
+    {
+        false,   /* unused-macro */
+        false,   /* unused-const */
+        false,   /* unused-label */
+        false,   /* unused-variable */
+    },
     false,       /* case_symbol */
     true,        /* switch_case */
     false,       /* immediate */
@@ -129,7 +144,12 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* deprecated */
     true,        /* old_equal */
     true,        /* portable */
-    true,        /* unused */
+    {
+        true,    /* unused-macro */
+        true,    /* unused-const */
+        true,    /* unused-label */
+        true,    /* unused-variable */
+    },
     true,        /* case_symbol */
     true,        /* switch_case */
     true,        /* immediate */
@@ -142,30 +162,34 @@ struct w_options_s {
 };
 
 static const struct w_options_s w_options[] = {
-    {"optimize",      &diagnostics.optimize},
-    {"shadow",        &diagnostics.shadow},
-    {"strict-bool",   &diagnostics.strict_bool},
-    {"implied-reg",   &diagnostics.implied_reg},
-    {"jmp-bug",       &diagnostics.jmp_bug},
-    {"pc-wrap",       &diagnostics.pc_wrap},
-    {"mem-wrap",      &diagnostics.mem_wrap},
-    {"label-left",    &diagnostics.label_left},
-    {"branch-page",   &diagnostics.branch_page},
-    {"deprecated",    &diagnostics.deprecated},
-    {"old-equal",     &diagnostics.old_equal},
-    {"portable",      &diagnostics.portable},
-    {"unused",        &diagnostics.unused},
-    {"case-symbol",   &diagnostics.case_symbol},
-    {"switch-case",   &diagnostics.switch_case},
-    {"immediate",     &diagnostics.immediate},
-    {"float-compare", &diagnostics.float_compare},
-    {NULL,            NULL}
+    {"optimize",        &diagnostics.optimize},
+    {"shadow",          &diagnostics.shadow},
+    {"strict-bool",     &diagnostics.strict_bool},
+    {"implied-reg",     &diagnostics.implied_reg},
+    {"jmp-bug",         &diagnostics.jmp_bug},
+    {"pc-wrap",         &diagnostics.pc_wrap},
+    {"mem-wrap",        &diagnostics.mem_wrap},
+    {"label-left",      &diagnostics.label_left},
+    {"branch-page",     &diagnostics.branch_page},
+    {"deprecated",      &diagnostics.deprecated},
+    {"old-equal",       &diagnostics.old_equal},
+    {"portable",        &diagnostics.portable},
+    {"unused-macro",    &diagnostics.unused.macro},
+    {"unused-const",    &diagnostics.unused.consts},
+    {"unused-label",    &diagnostics.unused.label},
+    {"unused-variable", &diagnostics.unused.variable},
+    {"case-symbol",     &diagnostics.case_symbol},
+    {"switch-case",     &diagnostics.switch_case},
+    {"immediate",       &diagnostics.immediate},
+    {"float-compare",   &diagnostics.float_compare},
+    {NULL,              NULL}
 };
 
 static bool woption(const char *n, const char *s) {
     bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-'), *b;
     const struct w_options_s *w = w_options;
     const char *s2 = no ? s + 3 : s;
+    size_t m;
 
     if (strcmp(s2, "all") == 0) {
         memcpy(&diagnostics, no ? &diagnostic_no_all : &diagnostic_all, sizeof diagnostics);
@@ -177,10 +201,12 @@ static bool woption(const char *n, const char *s) {
         return false;
     }
 
+    m = strcmp(s2, "unused") == 0 ? strlen(s2) : SIZE_MAX;
+
     if (strncmp(s2, "error=", 6) == 0) {
         s2 += 6;
         while (w->name != NULL) {
-            if (strcmp(w->name, s2) == 0) {
+            if (strncmp(w->name, s2, m) == 0) {
                 if (!no) *w->opt = true;
                 b = w->opt - &diagnostics.shadow + &diagnostic_errors.shadow;
                 *b = !no;
@@ -188,23 +214,24 @@ static bool woption(const char *n, const char *s) {
                 *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_no_error_all.shadow;
                 *b = !no;
-                return false;
+                if (m == SIZE_MAX) return false;
             }
             w++;
         }
     } else {
         while (w->name != NULL) {
-            if (strcmp(w->name, s2) == 0) {
+            if (strncmp(w->name, s2, m) == 0) {
                 *w->opt = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_all.shadow;
                 *b = !no;
                 b = w->opt - &diagnostics.shadow + &diagnostic_no_all.shadow;
                 *b = !no;
-                return false;
+                if (m == SIZE_MAX) return false;
             }
             w++;
         }
     }
+    if (m != SIZE_MAX) return false;
     printable_print((const uint8_t *)n, stderr);
     fputs(": unrecognized option '-W", stderr);
     printable_print((const uint8_t *)s, stderr);
@@ -469,6 +496,10 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wstrict-bool         No implicit bool conversions\n"
                "  -Wswitch-case         Warn about ignored cases\n"
                "  -Wunused              Warn about unused symbols\n"
+               "  -Wunused-macro        Warn about unused macros\n"
+               "  -Wunused-const        Warn about unused consts\n"
+               "  -Wunused-label        Warn about unused labels\n"
+               "  -Wunused-variable     Warn about unused variables\n"
                "\n"
                " Output selection:\n"
                "  -o, --output=<file>   Place output into <file>\n"
