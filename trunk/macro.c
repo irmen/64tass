@@ -368,7 +368,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
             else {
                 label->constant = true;
                 label->owner = false;
-                var_assign(label, val, false);
+                const_assign(label, val);
             }
         } else {
             label->constant = true;
@@ -618,7 +618,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
             else {
                 label->constant = true;
                 label->owner = false;
-                var_assign(label, val, false);
+                const_assign(label, val);
             }
         } else {
             label->constant = true;
