@@ -56,6 +56,7 @@ extern void err_msg_double_definedo(struct file_list_s *, linepos_t, const str_t
 extern void err_msg_double_defined(struct Label *, const str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
+extern void err_msg_unused_symbol(struct Label *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_symbol_case(const str_t *, struct Label *, linepos_t);

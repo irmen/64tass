@@ -394,12 +394,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
             adderror("' [-Wportable]");
             break;
-        case ERROR_UNUSED_SYMBOL:
-            new_error_msg2(diagnostic_errors.unused, epoint);
-            adderror("unused symbol");
-            str_name(((const str_t *)prm)->data, ((const str_t *)prm)->len);
-            adderror(" [-Wunused]");
-            break;
         default: 
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror(terr_warning[no]);
@@ -744,10 +738,13 @@ void err_msg_shadow_defined(Label *l, Label *l2) {
 }
 
 void err_msg_shadow_defined2(Label *l) {
-    new_error_msg(diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l->file_list, &l->epoint);
-    adderror("shadow definition of built-in");
-    str_name(l->name.data, l->name.len);
+    err_msg_double_defined2("shadow definition of built-in", diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
     adderror(" [-Wshadow]");
+}
+
+void err_msg_unused_symbol(Label *l) {
+    err_msg_double_defined2("unused symbol", diagnostic_errors.unused ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    adderror(" [-Wunused]");
 }
 
 static void err_msg_invalid_oper2(const Oper *op, const Obj *v1, const Obj *v2) {

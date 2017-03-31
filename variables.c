@@ -358,6 +358,8 @@ void shadow_check(Namespace *members) {
         Obj *o  = key2->value;
         Namespace *ns;
 
+        if (key2->defpass != pass) continue;
+
         switch (o->obj->type) {
         case T_CODE:
             ns = ((Code *)o)->names;
@@ -406,6 +408,42 @@ void shadow_check(Namespace *members) {
                     err_msg_shadow_defined2(key2);
                 }
             }
+        }
+    }
+}
+
+void unused_check(Namespace *members) {
+    const struct avltree_node *n;
+
+    for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
+        const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
+        Label *key2 = l->key;
+        Obj *o;
+        Namespace *ns;
+
+        if (key2->defpass != pass) continue;
+
+        o  = key2->value;
+        switch (o->obj->type) {
+        case T_CODE:
+            ns = ((Code *)o)->names;
+            break;
+        case T_NAMESPACE:
+            ns = (Namespace *)o;
+            break;
+        default: 
+            ns = NULL;
+            break;
+        }
+        if (!key2->ref && !key2->constant && (key2->name.data[0] != '.' && key2->name.data[0] != '#')) {
+            err_msg_unused_symbol(key2);
+        } else if (ns != NULL && ns->len != 0 && key2->owner) {
+            size_t ln = ns->len;
+            ns->len = 0;
+            push_context(ns);
+            unused_check(ns);
+            pop_context();
+            ns->len = ln;
         }
     }
 }
