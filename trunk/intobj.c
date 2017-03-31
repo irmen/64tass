@@ -1536,28 +1536,19 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        tmp = (Obj *)ref_int(int_value[(Bool *)v2 == true_value ? 1 : 0]);
-        op->v2 = tmp;
+        op->v2 = (Obj *)int_value[(Bool *)v2 == true_value ? 1 : 0];
         ret = calc2_int(op);
-        val_destroy(tmp);
         op->v2 = v2;
         return ret;
     case T_BYTES:
         tmp = (Obj *)int_from_bytes((Bytes *)v2);
-        op->v2 = tmp;
-        ret = calc2(op);
-        val_destroy(tmp);
-        op->v2 = v2;
-        return ret;
+        goto conv;
     case T_BITS:
         tmp = (Obj *)int_from_bits((Bits *)v2);
-        op->v2 = tmp;
-        ret = calc2(op);
-        val_destroy(tmp);
-        op->v2 = v2;
-        return ret;
+        goto conv;
     case T_STR:
         tmp = int_from_str((Str *)v2, op->epoint2);
+    conv:
         op->v2 = tmp;
         ret = calc2(op);
         val_destroy(tmp);
@@ -1573,20 +1564,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp, *ret, *v1 = op->v1;
-    switch (v1->obj->type) {
-    case T_BOOL:
+    if (v1->obj == BOOL_OBJ) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         switch (op->op->op) {
         case O_LSHIFT:
-        case O_RSHIFT: tmp = (Obj *)ref_bits(bits_value[(Bool *)v1 == true_value ? 1 : 0]); break;
-        default: tmp = (Obj *)ref_int(int_value[(Bool *)v1 == true_value ? 1 : 0]); break;
+        case O_RSHIFT: tmp = (Obj *)bits_value[(Bool *)v1 == true_value ? 1 : 0]; break;
+        default: tmp = (Obj *)int_value[(Bool *)v1 == true_value ? 1 : 0]; break;
         }
         op->v1 = tmp;
         ret = tmp->obj->calc2(op);
-        val_destroy(tmp);
         op->v1 = v1;
         return ret;
-    default: break;
     }
     return obj_oper_error(op);
 }

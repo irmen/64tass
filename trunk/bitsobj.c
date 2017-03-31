@@ -1204,16 +1204,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     }
     switch (o2->obj->type) {
     case T_BOOL:
-        {
-            Bool *v2 = (Bool *)o2;
-            if (diagnostics.strict_bool) err_msg_bool_oper(op);
-            tmp = (Obj *)ref_bits(bits_value[v2 == true_value ? 1 : 0]);
-            op->v2 = tmp;
-            result = calc2(op);
-            val_destroy(tmp);
-            op->v2 = &v2->v;
-            return result;
-        }
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        op->v2 = (Obj *)bits_value[(Bool *)o2 == true_value ? 1 : 0];
+        result = calc2(op);
+        op->v2 = o2;
+        return result;
     case T_BITS:
         {
             Bits *v2 = (Bits *)o2;
@@ -1274,16 +1269,11 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     ssize_t val;
     switch (o1->obj->type) {
     case T_BOOL:
-        {
-            Bool *v1 = (Bool *)o1;
-            if (diagnostics.strict_bool) err_msg_bool_oper(op);
-            tmp = (Obj *)ref_bits(bits_value[v1 == true_value ? 1 : 0]);
-            op->v1 = tmp;
-            result = calc2(op);
-            val_destroy(tmp);
-            op->v1 = &v1->v;
-            return result;
-        }
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        op->v1 = (Obj *)bits_value[(Bool *)o1 == true_value ? 1 : 0];
+        result = calc2(op);
+        op->v1 = o1;
+        return result;
     case T_BITS:
         {
             Bits *v1 = (Bits *)o1;
