@@ -975,9 +975,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     listing_equal(listing, result2);
                     label->file_list = cflist;
                     label->epoint = epoint;
-                    if (label->defpass != pass) label->ref = false;
-                    var_assign(label, result2, fixeddig);
-                    val_destroy(result2);
+                    val_destroy(label->value);
+                    label->value = result2;
                 } else {
                     val_destroy(tmp.v1);
                     starhandle(result2, &epoint, &epoint2);
@@ -1079,15 +1078,20 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         oaddr = current_section->address;
                         listing_equal(listing, val);
                         if (labelexists) {
-                            if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
-                            else {
+                            if (label->constant) {
+                                err_msg_double_defined(label, &labelname, &epoint);
+                                val_destroy(val);
+                            } else {
                                 label->owner = false;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                if (label->defpass != pass) label->ref = false;
-                                var_assign(label, val, fixeddig);
+                                if (label->defpass != pass) {
+                                    label->ref = false;
+                                    label->defpass = pass;
+                                }
+                                val_destroy(label->value);
+                                label->value = val;
                             }
-                            val_destroy(val);
                         } else {
                             label->constant = false;
                             label->owner = false;
@@ -2810,7 +2814,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         epoint = lpoint;
                         varname.data = pline + lpoint.pos; varname.len = get_label();
                         if (varname.len != 0) {
-                            struct values_s *vs;
+                            struct linepos_s epoints[3];
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore(); wht = here();
                             if (wht != '=') {
@@ -2819,22 +2823,28 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             lpoint.pos++;
                             if (!get_exp(1, cfile, 1, 1, &lpoint)) goto breakerr;
-                            vs = get_val(); val = vs->val;
+                            val = get_vals_addrlist(epoints);
                             if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
                             label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
                             if (labelexists) {
-                                if (label->constant) err_msg_double_defined(label, &varname, &epoint);
-                                else {
+                                if (label->constant) {
+                                    err_msg_double_defined(label, &varname, &epoint);
+                                    val_destroy(val);
+                                } else {
                                     label->owner = false;
                                     label->file_list = cflist;
                                     label->epoint = epoint;
-                                    if (label->defpass != pass) label->ref = false;
-                                    var_assign(label, val, fixeddig);
+                                    if (label->defpass != pass) {
+                                        label->ref = false;
+                                        label->defpass = pass;
+                                    }
+                                    val_destroy(label->value);
+                                    label->value = val;
                                 }
                             } else {
                                 label->constant = false;
                                 label->owner = false;
-                                label->value = val_reference(val);
+                                label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                             }
@@ -2958,8 +2968,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 val_destroy(val);
                                 val = result2;
                             }
-                            var_assign(label, val, fixeddig);
-                            val_destroy(val);
+                            val_destroy(label->value);
+                            label->value = val;
                         }
                     }
                     if (nf != NULL) {
