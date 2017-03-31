@@ -425,7 +425,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     if (registerobj_createnames(cpumode->registers)) constcreated = true;
 }
 
-FAST_CALL void const_assign(Label *label, Obj *val) {
+static void const_assign(Label *label, Obj *val) {
     label->defpass = pass;
     if (val->obj->same(val, label->value)) return;
     val_replace(&label->value, val);
@@ -2925,7 +2925,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                         label->owner = false;
                                         label->file_list = cflist;
                                         label->epoint = epoint;
-                                        if (label->defpass != pass) label->ref = false;
+                                        if (label->defpass != pass) {
+                                            label->ref = false;
+                                            label->defpass = pass;
+                                        }
                                     } else {
                                         label->constant = false;
                                         label->owner = false;

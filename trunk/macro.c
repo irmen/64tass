@@ -362,16 +362,20 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
             }
         }
         label = new_label(&mfunc->param[i].name, context, strength, &labelexists);
-        label->ref = false;
         if (labelexists) {
-            if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
+            if (label->constant) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
-                label->constant = true;
                 label->owner = false;
-                const_assign(label, val);
+                label->file_list = mfunc->file_list;
+                label->epoint = mfunc->param[i].epoint;
+                if (label->defpass != pass) {
+                    label->ref = false;
+                    label->defpass = pass;
+                }
+                val_replace(&label->value, val);
             }
         } else {
-            label->constant = true;
+            label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
             label->file_list = mfunc->file_list;
@@ -612,16 +616,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
             val = (i < args) ? vals[i].val : (mfunc->param[i].init != NULL) ? mfunc->param[i].init : (Obj *)none_value;
         }
         label = new_label(&mfunc->param[i].name, context, 0, &labelexists);
-        label->ref = false;
-        if (labelexists) {
-            if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint);
-            else {
-                label->constant = true;
-                label->owner = false;
-                const_assign(label, val);
-            }
-        } else {
-            label->constant = true;
+        if (!labelexists) {
+            label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
             label->file_list = cflist;
