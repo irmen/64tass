@@ -204,10 +204,10 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
         return (Obj *)ref_int((v1 < v2) ? minus1_value : int_value[1]);
     case O_EQ: return truth_reference(v1 == v2 || almost_equal(op, v1, v2));
     case O_NE: return truth_reference(v1 != v2 && !almost_equal(op, v1, v2));
-    case O_MIN:
+    case O_MIN: return truth_reference(v1 < v2);
     case O_LT: return truth_reference(v1 < v2 && !almost_equal(op, v1, v2));
     case O_LE: return truth_reference(v1 <= v2 || almost_equal(op, v1, v2));
-    case O_MAX:
+    case O_MAX: return truth_reference(v1 > v2);
     case O_GT: return truth_reference(v1 > v2 && !almost_equal(op, v1, v2));
     case O_GE: return truth_reference(v1 >= v2 || almost_equal(op, v1, v2));
     case O_ADD: return float_from_double(v1 + v2, op->epoint3);
@@ -334,4 +334,5 @@ void floatobj_init(void) {
 
 void floatobj_names(void) {
     new_builtin("float", val_reference(&FLOAT_OBJ->v));
+    new_builtin("pi", (Obj *)new_float(M_PI));
 }

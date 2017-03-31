@@ -348,8 +348,7 @@ x >> y      arithmetic shift right           -8.0 >> 4 is -0.5
 As usual comparing floating point numbers for (non) equality is a bad idea due
 to rounding errors.
 
-There are no predefined floating point constants, define them as necessary.
-Hint: pi is rad(180) and e is exp(1).
+The only predefined constant is pi.
 
 Floating point numbers are automatically truncated to integer as necessary.
 Other types can be converted to floating point by using the type float.

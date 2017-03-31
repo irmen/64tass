@@ -235,6 +235,7 @@
                         <LITERAL3>a</LITERAL3>
                         <LITERAL3>true</LITERAL3>
                         <LITERAL3>false</LITERAL3>
+                        <LITERAL3>pi</LITERAL3>
 
 			<!-- Functions -->
                         <FUNCTION>abs</FUNCTION>
