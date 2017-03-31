@@ -193,7 +193,7 @@ syn match tass64Expo    /\v[ep]/ contained
 syn match tass64Bin     /\v\%%(%([01]_+)+[01]|[01])+>\.@!/ skipwhite contained contains=tass64Delimiter nextgroup=@tass64Expression2
 syn match tass64Dec     /\v%(%(\d_+)+\d|\d)+>\.@!/ skipwhite contained contains=tass64Delimiter nextgroup=@tass64Expression2
 syn match tass64Hex     /\v\$%(%(\x_+)+\x|\x)+>\.@!/ skipwhite contained contains=tass64Delimiter nextgroup=@tass64Expression2
-syn match tass64Ident   /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>['"]@!/ skipwhite contained contains=tass64Reg,tass64Function nextgroup=@tass64Expression2
+syn match tass64Ident   /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>['"]@!/ skipwhite contained contains=tass64Reg,tass64Function,tass64Const nextgroup=@tass64Expression2
 syn match tass64Gap     /\v\?/ skipwhite contained nextgroup=@tass64Expression2
 syn match tass64Anon    /\v[-+]+%(\s*[)\]};,:]|\s*$)@=/ skipwhite contained nextgroup=@tass64Expression2
 syn match tass64Float   /\v\%%(%(\.%(%([01]_+)+[01]|[01])+|%(%([01]_+)+[01]|[01])+\.\.@!%(%([01]_+)+[01]|[01])*)%([ep][+-]?%(%(\d_+)+\d|\d)+)?|%(%([01]_+)+[01]|[01])+[ep][+-]?%(%(\d_+)+\d|\d)+)/ skipwhite contained contains=tass64Expo,tass64Delimiter nextgroup=@tass64Expression2
@@ -215,6 +215,9 @@ syn match tass64Oper2   /\v,[xyzrsdbk]>|[\])}]/ skipwhite contained nextgroup=@t
 syn match tass64Function /\v\.@!<%(abs|acos|all|any|asin|atan|atan2|cbrt|ceil|cos|cosh|deg|exp|floor|format|frac|hypot|len|log|log10|pow|rad|random|range|repr|round|sign|sin|sinh|size|sort|sqrt|tan|tanh|trunc)>/ contained
 syn match tass64Function /\v\.@!<%(address|bits|bool|bytes|code|dict|float|gap|int|list|str|tuple|type)>/ contained
 
+" Predefined constants
+syn match tass64Const    /\v\.@!<%(true|false|pi)>/ contained
+
 " Colors
 hi link tass64Mne       Statement
 hi link tass64Reg       Statement
@@ -231,6 +234,7 @@ hi link tass64Float     Float
 hi link tass64Dec       Number
 hi link tass64Hex       Number
 hi link tass64Gap       Number
+hi link tass64Const     Number
 hi link tass64String    String
 hi link tass64Macro     Macro
 hi link tass64Macro2    Macro
