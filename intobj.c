@@ -1496,7 +1496,7 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
             if (val->obj != FLOAT_OBJ) return val;
             d1 = ((Float *)val)->real;
             val_destroy(val);
-            val = float_from_int(v2, op->epoint);
+            val = float_from_int(v2, op->epoint2);
             if (val->obj != FLOAT_OBJ) return val;
             d2 = ((Float *)val)->real;
             val_destroy(val);
