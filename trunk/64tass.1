@@ -158,16 +158,21 @@ Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
 have been included. This option disables warnings about their uses.
 .TP 0.5i
-\fB\-Wno\-label\-left\fR
-Don't warn about certain labels not being on left side.
-You may disable this if you use labels which look like mistyped versions of
-implied addressing mode instructions and you don't want to put them in the
-first column.
+\fB-Wno\-float\-compare\fR
+Don't warn if floating point comparisons are only approximate.
+Floating point numbers have a finite precision and comparing them might
+give unexpected results.
 .TP 0.5i
 \fB\-Wno\-jmp\-bug\fR
 Don't warn about the jmp ($xxff) bug.
 It's fine that the high byte is read from the 'wrong' address on 6502,
 NMOS 6502 and 65DTV02.
+.TP 0.5i
+\fB\-Wno\-label\-left\fR
+Don't warn about certain labels not being on left side.
+You may disable this if you use labels which look like mistyped versions of
+implied addressing mode instructions and you don't want to put them in the
+first column.
 .TP 0.5i
 \fB\-Wno\-mem\-wrap\fR
 Don't warn for compile offset wrap around.

@@ -3225,10 +3225,16 @@ insensitive mode. This gives similar results to the case sensitive mode (symbols
 must match exactly) with the main difference of disallowing symbol name
 definitions differing only in case (these are reported as duplicates).</p>
 
-<dt><b>-Wfloat-equal</b><a name="o_Wfloat-equal" href="#o_Wfloat-equal"></a>
-<dd>Warn if floating point numbers are checked for equality.
-<p>Floating point equality should be checked using an error window to avoid
-unexpected results due to precision issues.</p>
+<dt><b>-Wno-float-compare</b><a name="o_Wfloat-compare" href="#o_Wfloat-compare"></a>
+<dd>Don't warn if floating point comparisons are only approximate.
+<p>Floating point numbers have a finite precision and comparing them might give
+unexpected results.</p>
+
+<p>For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
+is actually bigger by approximately 4.44e-16.</p>
+
+<p>If this option is used to silence the warning then there's no approximation
+performed and the result will be false.</p>
 
 <dt><b>-Wimmediate</b><a name="o_Wimmediate" href="#o_Wimmediate"></a>
 <dd>Warns for cases where immediate addressing is more likely.
@@ -3608,6 +3614,7 @@ internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
+<dt>approximate floating point<dd>floating point comparisons are not exact and numbers were close
 <dt>case ignored, value already handled<dd>this value was already used in an earlier case
 <dt>compile offset overflow<dd>compile continues at the bottom ($0000)
 <dt>could be shorter by using 'xxx' instead<dd>a shorter instruction which gives the same result according to the optimizer
@@ -3629,7 +3636,6 @@ will display without them.</p>
 <dt>symbol case mismatch '?'<dd>it's matching case insensitively but it's not exactly the same
 <dt>the file's real name is not '?'<dd>check if all characters match including their case
 <dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt &gt; | in file names
-<dt>uncertain floating point comparison<dd>floating point numbers can only be compared approximately
 <dt>unused symbol '?'<dd>this symbol has is not referred anywhere
 <dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
 <dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout

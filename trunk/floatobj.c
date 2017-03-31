@@ -184,32 +184,32 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static bool almost_equal(double a, double b) {
-    double aa = fabs(a);
-    double ab = fabs(b);
-    return fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005;
+static bool almost_equal(oper_t op, double a, double b) {
+    if (diagnostics.float_compare) {
+        double aa = fabs(a);
+        double ab = fabs(b);
+        if (fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005) {
+            if (op->epoint3->line != 0) err_msg2(ERROR_FLOAT_COMPARE, op->op->name, op->epoint3);
+            return true;
+        }
+    }
+    return false;
 }
 
 MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     double r;
     switch (op->op->op) {
     case O_CMP: 
-        if (diagnostics.float_equal && op->epoint3->line != 0) err_msg2(ERROR___FLOAT_EQUAL, "<=>", op->epoint3);
-        if (almost_equal(v1, v2)) return (Obj *)ref_int(int_value[0]);
-        if (v1 < v2) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[1]);
-    case O_EQ: 
-        if (diagnostics.float_equal) err_msg2(ERROR___FLOAT_EQUAL, "==", op->epoint3);
-        return truth_reference(almost_equal(v1, v2));
-    case O_NE: 
-        if (diagnostics.float_equal) err_msg2(ERROR___FLOAT_EQUAL, "!=", op->epoint3);
-        return truth_reference(!almost_equal(v1, v2));
+        if (v1 == v2 || almost_equal(op, v1, v2)) return (Obj *)ref_int(int_value[0]);
+        return (Obj *)ref_int((v1 < v2) ? minus1_value : int_value[1]);
+    case O_EQ: return truth_reference(v1 == v2 || almost_equal(op, v1, v2));
+    case O_NE: return truth_reference(v1 != v2 && !almost_equal(op, v1, v2));
     case O_MIN:
-    case O_LT: return truth_reference(v1 < v2 && !almost_equal(v1, v2));
-    case O_LE: return truth_reference(v1 < v2 || almost_equal(v1, v2));
+    case O_LT: return truth_reference(v1 < v2 && !almost_equal(op, v1, v2));
+    case O_LE: return truth_reference(v1 <= v2 || almost_equal(op, v1, v2));
     case O_MAX:
-    case O_GT: return truth_reference(v1 > v2 && !almost_equal(v1, v2));
-    case O_GE: return truth_reference(v1 > v2 || almost_equal(v1, v2));
+    case O_GT: return truth_reference(v1 > v2 && !almost_equal(op, v1, v2));
+    case O_GE: return truth_reference(v1 >= v2 || almost_equal(op, v1, v2));
     case O_ADD: return float_from_double(v1 + v2, op->epoint3);
     case O_SUB: return float_from_double(v1 - v2, op->epoint3);
     case O_MUL: return float_from_double(v1 * v2, op->epoint3);
