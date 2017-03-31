@@ -2802,7 +2802,7 @@ default, the others are disabled.
     name definitions differing only in case (these are reported as duplicates).
 
 -Wno-float-compare
-    Don't warn if floating point comparisons are only approximate
+    Don't warn if floating point comparisons are only approximate.
 
     Floating point numbers have a finite precision and comparing them might
     give unexpected results.
