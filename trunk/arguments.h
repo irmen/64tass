@@ -79,7 +79,12 @@ struct diagnostics_s {
     bool deprecated;
     bool old_equal;
     bool portable;
-    bool unused;
+    struct {
+        bool macro;
+        bool consts;
+        bool label;
+        bool variable;
+    } unused;
     bool case_symbol;
     bool switch_case;
     bool immediate;

@@ -742,9 +742,24 @@ void err_msg_shadow_defined2(Label *l) {
     adderror(" [-Wshadow]");
 }
 
-void err_msg_unused_symbol(Label *l) {
-    err_msg_double_defined2("unused symbol", diagnostic_errors.unused ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
-    adderror(" [-Wunused]");
+void err_msg_unused_macro(Label *l) {
+    err_msg_double_defined2("unused macro", diagnostic_errors.unused.macro ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    adderror(" [-Wunused-macro]");
+}
+
+void err_msg_unused_label(Label *l) {
+    err_msg_double_defined2("unused label", diagnostic_errors.unused.label ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    adderror(" [-Wunused-label]");
+}
+
+void err_msg_unused_const(Label *l) {
+    err_msg_double_defined2("unused const", diagnostic_errors.unused.consts ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    adderror(" [-Wunused-const]");
+}
+
+void err_msg_unused_variable(Label *l) {
+    err_msg_double_defined2("unused variable", diagnostic_errors.unused.variable ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    adderror(" [-Wunused-variable]");
 }
 
 static void err_msg_invalid_oper2(const Oper *op, const Obj *v1, const Obj *v2) {

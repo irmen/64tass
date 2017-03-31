@@ -436,7 +436,7 @@ void unused_check(Namespace *members) {
             break;
         }
         if (!key2->ref && !key2->constant && (key2->name.data[0] != '.' && key2->name.data[0] != '#')) {
-            err_msg_unused_symbol(key2);
+            err_msg_unused_variable(key2);
         } else if (ns != NULL && ns->len != 0 && key2->owner) {
             size_t ln = ns->len;
             ns->len = 0;

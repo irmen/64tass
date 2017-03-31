@@ -2943,6 +2943,17 @@ default, the others are disabled.
     removing them check if there's any conditionally compiled out code which
     might still need them.
 
+    The following options can be used to be more specific:
+
+    -Wunused-macro
+        Warn about unused macros.
+    -Wunused-const
+        Warn about unused constants.
+    -Wunused-label
+        Warn about unused labels.
+    -Wunused-variable
+        Warn about unused variables.
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
