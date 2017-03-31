@@ -2801,11 +2801,17 @@ default, the others are disabled.
     (symbols must match exactly) with the main difference of disallowing symbol
     name definitions differing only in case (these are reported as duplicates).
 
--Wfloat-equal
-    Warn if floating point numbers are checked for equality.
+-Wno-float-compare
+    Don't warn if floating point comparisons are only approximate
 
-    Floating point equality should be checked using an error window to avoid
-    unexpected results due to precision issues.
+    Floating point numbers have a finite precision and comparing them might
+    give unexpected results.
+
+    For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
+    is actually bigger by approximately 4.44e-16.
+
+    If this option is used to silence the warning then there's no approximation
+    performed and the result will be false.
 
 -Wimmediate
     Warns for cases where immediate addressing is more likely.
@@ -3180,6 +3186,8 @@ without them.
 
 Warnings
 
+approximate floating point
+    floating point comparisons are not exact and numbers were close
 case ignored, value already handled
     this value was already used in an earlier case
 compile offset overflow
@@ -3226,8 +3234,6 @@ the file's real name is not '?'
     check if all characters match including their case
 this name uses reserved characters '?'
     do not use \ : * ? " < > | in file names
-uncertain floating point comparison
-    floating point numbers can only be compared approximately
 unused symbol '?'
     this symbol has is not referred anywhere
 use '/' as path separation '?'

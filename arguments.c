@@ -71,7 +71,7 @@ struct diagnostics_s diagnostics = {
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
-    false        /* float_equal */
+    true         /* float_compare */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -91,7 +91,7 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
-    false        /* float_equal */
+    false        /* float_compare */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -112,7 +112,7 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* case_symbol */
     true,        /* switch_case */
     false,       /* immediate */
-    true         /* float_equal */
+    true         /* float_compare */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -133,7 +133,7 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* case_symbol */
     true,        /* switch_case */
     true,        /* immediate */
-    true         /* float_equal */
+    true         /* float_compare */
 };
 
 struct w_options_s {
@@ -142,24 +142,24 @@ struct w_options_s {
 };
 
 static const struct w_options_s w_options[] = {
-    {"optimize",     &diagnostics.optimize},
-    {"shadow",       &diagnostics.shadow},
-    {"strict-bool",  &diagnostics.strict_bool},
-    {"implied-reg",  &diagnostics.implied_reg},
-    {"jmp-bug",      &diagnostics.jmp_bug},
-    {"pc-wrap",      &diagnostics.pc_wrap},
-    {"mem-wrap",     &diagnostics.mem_wrap},
-    {"label-left",   &diagnostics.label_left},
-    {"branch-page",  &diagnostics.branch_page},
-    {"deprecated",   &diagnostics.deprecated},
-    {"old-equal",    &diagnostics.old_equal},
-    {"portable",     &diagnostics.portable},
-    {"unused",       &diagnostics.unused},
-    {"case-symbol",  &diagnostics.case_symbol},
-    {"switch-case",  &diagnostics.switch_case},
-    {"immediate",    &diagnostics.immediate},
-    {"float-equal",  &diagnostics.float_equal},
-    {NULL,           NULL}
+    {"optimize",      &diagnostics.optimize},
+    {"shadow",        &diagnostics.shadow},
+    {"strict-bool",   &diagnostics.strict_bool},
+    {"implied-reg",   &diagnostics.implied_reg},
+    {"jmp-bug",       &diagnostics.jmp_bug},
+    {"pc-wrap",       &diagnostics.pc_wrap},
+    {"mem-wrap",      &diagnostics.mem_wrap},
+    {"label-left",    &diagnostics.label_left},
+    {"branch-page",   &diagnostics.branch_page},
+    {"deprecated",    &diagnostics.deprecated},
+    {"old-equal",     &diagnostics.old_equal},
+    {"portable",      &diagnostics.portable},
+    {"unused",        &diagnostics.unused},
+    {"case-symbol",   &diagnostics.case_symbol},
+    {"switch-case",   &diagnostics.switch_case},
+    {"immediate",     &diagnostics.immediate},
+    {"float-compare", &diagnostics.float_compare},
+    {NULL,            NULL}
 };
 
 static bool woption(const char *n, const char *s) {
