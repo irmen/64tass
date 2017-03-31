@@ -276,6 +276,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BITS:
     case T_STR:
     case T_BYTES:
+        if (op->op == &o_LSHIFT || op->op == &o_RSHIFT) {
+            ival_t shift;
+            err = (Obj *)op->v2->obj->ival(op->v2, &shift, 8 * sizeof shift, op->epoint2);
+            if (err != NULL) return err;
+            if (shift == 0) return val_reference(op->v1);
+            if (op->op == &o_RSHIFT) shift = -shift;
+            return float_from_double(ldexp(((Float *)op->v1)->real, shift), op->epoint3);
+        }
         err = create(op->v2, op->epoint2);
         if (err->obj != FLOAT_OBJ) return err;
         d = ((Float *)err)->real;

@@ -123,6 +123,12 @@ static MUST_CHECK Int *get_dec(void) {
     return v;
 }
 
+static double ldexp10(double d, unsigned int expo, bool neg) {
+    static const double nums[10] = {1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9};
+    double scal = expo < 10 ? nums[expo] : pow(10.0, (double)expo);
+    return neg ? d / scal : d * scal;
+}
+
 static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
     uint8_t base = here() | 0x20;
 
@@ -133,20 +139,19 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
         }
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            ival_t expo;
+            uval_t expo;
             Error *err;
             size_t len, len2;
             Obj *v;
             lpoint.pos++;
 
             v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
-            err = v->obj->ival(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)), &lpoint);
+            err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)), &lpoint);
             val_destroy(v);
             lpoint.pos += len;
             if (err != NULL) return &err->v;
 
-            if (neg) expo = -expo;
-            if (expo != 0) real = (base == 'e') ? real * pow(10.0, (double)expo) : ldexp(real, expo);
+            if (expo != 0) real = (base == 'e') ? ldexp10(real, expo, neg) : ldexp(real, neg ? -expo : expo);
         }
     }
     return float_from_double(real, epoint);
@@ -247,7 +252,7 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += real2 * pow(10.0, -(double)len2);
+        if (real2 != 0.0) real += ldexp10(real2, (unsigned int)len2, true);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
