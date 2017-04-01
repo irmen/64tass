@@ -427,11 +427,13 @@ static void set_cpumode(const struct cpu_s *cpumode) {
 
 static void const_assign(Label *label, Obj *val) {
     label->defpass = pass;
-    if (val->obj->same(val, label->value)) return;
-    val_replace(&label->value, val);
-    if (label->usepass < pass) return;
-    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
-    fixeddig = false;
+    if (fixeddig && label->usepass >= pass) {
+        if (val->obj->same(val, label->value)) return val_destroy(val);
+        if (pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
+        fixeddig = false;
+    }
+    val_destroy(label->value);
+    label->value = val;
 }
 
 static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max) {
@@ -1022,8 +1024,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     listing_equal(listing, val);
                     label->ref = false;
                     if (labelexists) {
-                        if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                        else {
+                        if (label->defpass == pass) {
+                            val_destroy(val);
+                            err_msg_double_defined(label, &labelname, &epoint);
+                        } else {
                             if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
                                 if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                 constcreated = true;
@@ -1034,7 +1038,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->epoint = epoint;
                             const_assign(label, val);
                         }
-                        val_destroy(val);
                     } else {
                         if (!constcreated && temporary_label_branch == 0) {
                             if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
@@ -1116,8 +1119,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         lbl->file_list = cflist;
                         lbl->parent = current_context;
                         if (labelexists) {
-                            if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                            else {
+                            if (label->defpass == pass) {
+                                val_destroy(&lbl->v);
+                                err_msg_double_defined(label, &labelname, &epoint);
+                            } else {
                                 if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
@@ -1129,7 +1134,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->unused = !label->ref;
                                 const_assign(label, &lbl->v);
                             }
-                            val_destroy(&lbl->v);
                         } else {
                             if (!constcreated && temporary_label_branch == 0) {
                                 if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
@@ -1162,8 +1166,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->value->obj == obj) macro->retval = ((Macro *)label->value)->retval;
                             if (label->defpass == pass) {
-                                err_msg_double_defined(label, &labelname, &epoint);
                                 waitfor->val = &macro->v;
+                                err_msg_double_defined(label, &labelname, &epoint);
                             } else {
                                 if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
@@ -1175,7 +1179,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 label->unused = !label->ref;
                                 const_assign(label, &macro->v);
-                                val_destroy(&macro->v);
                                 waitfor->val = val_reference(label->value);
                             }
                         } else {
@@ -1211,8 +1214,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         mfunc->nslen = 0;
                         mfunc->namespaces = NULL;
                         if (labelexists) {
-                            if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                            else {
+                            if (label->defpass == pass) {
+                                val_destroy(&mfunc->v);
+                                err_msg_double_defined(label, &labelname, &epoint);
+                            } else {
                                 if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
@@ -1226,7 +1231,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->unused = !label->ref;
                                 const_assign(label, &mfunc->v);
                             }
-                            val_destroy(&mfunc->v);
                         } else {
                             if (!constcreated && temporary_label_branch == 0) {
                                 if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
@@ -1293,7 +1297,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->unused = !label->ref;
                                 const_assign(label, &structure->v);
-                                val_destroy(&structure->v);
                                 structure = (Struct *)label->value;
                             }
                         } else {
@@ -1572,8 +1575,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (newlabel != NULL) {
                                 newlabel->update_after = true;
                                 const_assign(newlabel, val);
-                            }
-                            val_destroy(val);
+                            } else val_destroy(val);
                         }
                         current_section->structrecursion--;
                         current_section->unionmode = old_unionmode;
@@ -3439,8 +3441,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (newlabel != NULL) {
                         newlabel->update_after = true;
                         const_assign(newlabel, val);
-                    }
-                    val_destroy(val);
+                    } else val_destroy(val);
                 }
                 break;
             }
