@@ -742,23 +742,29 @@ void err_msg_shadow_defined2(Label *l) {
     adderror(" [-Wshadow]");
 }
 
+static void err_msg_unused(const char *msg, bool error, Label *l) {
+    new_error_msg(error ? SV_ERROR : SV_WARNING, l->file_list, &l->epoint);
+    adderror(msg);
+    str_name(l->name.data, l->name.len);
+}
+
 void err_msg_unused_macro(Label *l) {
-    err_msg_double_defined2("unused macro", diagnostic_errors.unused.macro ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    err_msg_unused("unused macro", diagnostic_errors.unused.macro, l);
     adderror(" [-Wunused-macro]");
 }
 
 void err_msg_unused_label(Label *l) {
-    err_msg_double_defined2("unused label", diagnostic_errors.unused.label ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    err_msg_unused("unused label", diagnostic_errors.unused.label, l);
     adderror(" [-Wunused-label]");
 }
 
 void err_msg_unused_const(Label *l) {
-    err_msg_double_defined2("unused const", diagnostic_errors.unused.consts ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    err_msg_unused("unused const", diagnostic_errors.unused.consts, l);
     adderror(" [-Wunused-const]");
 }
 
 void err_msg_unused_variable(Label *l) {
-    err_msg_double_defined2("unused variable", diagnostic_errors.unused.variable ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
+    err_msg_unused("unused variable", diagnostic_errors.unused.variable, l);
     adderror(" [-Wunused-variable]");
 }
 
