@@ -297,7 +297,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     }
     op->v1 = tmp;
     v = tmp->obj->calc1(op);
-    op->v1 = &v1->v;
     val_destroy(tmp);
     return v;
 }

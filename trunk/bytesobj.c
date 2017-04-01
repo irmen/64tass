@@ -727,7 +727,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         tmp = (Obj *)int_from_bytes(v1);
         op->v1 = tmp;
         v = tmp->obj->calc1(op);
-        op->v1 = &v1->v;
         val_destroy(tmp);
         return v;
     case O_LNOT:
