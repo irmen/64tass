@@ -33,6 +33,7 @@ typedef struct Label {
     struct file_list_s *file_list;
     struct linepos_s epoint;
     bool ref;
+    bool unused;
     bool shadowcheck;
     bool update_after;
     bool constant;

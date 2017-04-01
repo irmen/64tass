@@ -1014,7 +1014,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (label != NULL) {
                         labelexists = true;
-                        if (diagnostics.unused.consts && !label->ref) err_msg_unused_const(label);
+                        label->unused = !label->ref;
                     } else label = new_label(&labelname, mycontext, strength, &labelexists);
                     oaddr = current_section->address;
                     listing_equal(listing, val);
@@ -1124,7 +1124,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                if (diagnostics.unused.label && !label->ref) err_msg_unused_label(label);
+                                label->unused = !label->ref;
                                 const_assign(label, &lbl->v);
                             }
                             val_destroy(&lbl->v);
@@ -1171,7 +1171,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                if (diagnostics.unused.macro && !label->ref) err_msg_unused_macro(label);
+                                label->unused = !label->ref;
                                 const_assign(label, &macro->v);
                                 val_destroy(&macro->v);
                                 waitfor->val = val_reference(label->value);
@@ -1221,7 +1221,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 get_func_params(mfunc, cfile);
                                 get_namespaces(mfunc);
-                                if (diagnostics.unused.macro && !label->ref) err_msg_unused_macro(label);
+                                label->unused = !label->ref;
                                 const_assign(label, &mfunc->v);
                             }
                             val_destroy(&mfunc->v);
@@ -1289,7 +1289,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     structure->size = 0;
                                     structure->names = new_namespace(cflist, &epoint);
                                 }
-                                if (diagnostics.unused.macro && !label->ref) err_msg_unused_macro(label);
+                                label->unused = !label->ref;
                                 const_assign(label, &structure->v);
                                 val_destroy(&structure->v);
                                 structure = (Struct *)label->value;
@@ -1450,7 +1450,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!newlabel->update_after) {
                         Obj *tmp;
                         if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
-                        if (diagnostics.unused.label && !newlabel->ref) err_msg_unused_label(newlabel);
+                        newlabel->unused = !newlabel->ref;
                         tmp = get_star_value(current_section->l_address_val);
                         code = (Code *)newlabel->value;
                         if (!tmp->obj->same(tmp, code->addr)) {
@@ -3644,7 +3644,7 @@ static int main2(int *argc2, char **argv2[]) {
     } while (!fixeddig || constcreated);
     if (arguments.list == NULL) {
         if (diagnostics.shadow) shadow_check(root_namespace);
-        if (diagnostics.unused.variable) unused_check(root_namespace);
+        if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
     }
     if (error_serious()) {status();return EXIT_FAILURE;}
 
@@ -3700,7 +3700,7 @@ static int main2(int *argc2, char **argv2[]) {
         listing = NULL;
 
         if (diagnostics.shadow) shadow_check(root_namespace);
-        if (diagnostics.unused.variable) unused_check(root_namespace);
+        if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
     }
 
     set_cpumode(arguments.cpumode);
