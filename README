@@ -2838,7 +2838,7 @@ default, the others are disabled.
     Warns if about leading zeros.
 
     A leading zero could be a prefix for an octal number but as octals are not
-    supported the result will be decimal.
+    supported so the result will be decimal.
 
 -Wno-deprecated
     Don't warn about deprecated features.
