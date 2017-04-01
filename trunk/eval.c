@@ -385,7 +385,7 @@ rest:
         ident.len = lpoint.pos - epoint.pos;
         l = find_label(&ident, NULL);
         if (l != NULL) {
-            if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_symbol_case(&ident, l, &epoint);
+            if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_msg_symbol_case(&ident, l, &epoint);
             touch_label(l);
             l->shadowcheck = true;
             push_oper(val_reference(l->value), &epoint);
@@ -1364,7 +1364,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 down = (ident.data[0] != '_');
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l != NULL) {
-                    if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_symbol_case(&ident, l, &epoint);
+                    if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_msg_symbol_case(&ident, l, &epoint);
                     touch_label(l);
                     if (down) l->shadowcheck = true;
                     push_oper(val_reference(l->value), &epoint);

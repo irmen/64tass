@@ -88,6 +88,7 @@ static uint8_t strength = 0;
 bool fixeddig, constcreated;
 unsigned int outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 bool referenceit = true;
+const struct cpu_s *cpu;
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
@@ -418,6 +419,7 @@ static int get_command(void) {
 /* ------------------------------------------------------------------------------ */
 
 static void set_cpumode(const struct cpu_s *cpumode) {
+    cpu = cpumode;
     all_mem = cpumode->max_address;
     select_opcodes(cpumode);
     listing_set_cpumode(listing, cpumode);
@@ -886,7 +888,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint); 
                         goto breakerr;
                     }
-                    if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_symbol_case(&labelname, tmp2, &epoint);
+                    if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_msg_symbol_case(&labelname, tmp2, &epoint);
                     mycontext = ((Code *)val)->names;
                 }
                 lpoint.pos++; islabel = true; epoint = lpoint;
@@ -951,7 +953,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                     if (label->constant) {err_msg_double_defined(label, &labelname, &epoint); goto breakerr;}
-                    if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_symbol_case(&labelname, label, &epoint);
+                    if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                     val = label->value;
                 }
                 if (here() == 0 || here() == ';') val2 = (Obj *)ref_addrlist(null_addrlist);
@@ -1078,7 +1080,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (label != NULL) {
                             labelexists = true;
-                            if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_symbol_case(&labelname, label, &epoint);
+                            if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                         } else label = new_label(&labelname, mycontext, strength, &labelexists);
                         oaddr = current_section->address;
                         listing_equal(listing, val);
@@ -1413,7 +1415,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (tmp2 != NULL) {
                         Type *obj = tmp2->value->obj;
-                        if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_symbol_case(&labelname, tmp2, &epoint);
+                        if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_msg_symbol_case(&labelname, tmp2, &epoint);
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             if (down) tmp2->shadowcheck = true;
                             labelname.len = 0;val = tmp2->value; goto as_macro;
@@ -2944,7 +2946,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     label = find_label2(&varname, (varname.data[0] == '_') ? cheap_context : current_context);
                                     if (label == NULL) {err_msg_not_definedx(&varname, &epoint); break;}
                                     if (label->constant) {err_msg_double_defined(label, &varname, &epoint); break;}
-                                    if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_symbol_case(&varname, label, &epoint);
+                                    if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &epoint);
                                 }
                                 bpoint = lpoint; nopos = 1;
                             }
@@ -3489,16 +3491,17 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (!instrecursion((List *)val, prm, w, &epoint, epoints)) {
                             listing_instr(listing, 0, 0, -1);
                         }
-                        val_destroy(val);
+                        err = NULL;
+                    } else err = instruction(prm, w, val, &epoint, epoints);
+                    val_destroy(val);
+                    if (err == NULL) {
+                        if (diagnostics.alias && cpu->mnemonic[prm] != cpu->mnemonic[cpu->alias[prm]]) err_msg_alias(cpu->mnemonic[prm], cpu->mnemonic[cpu->alias[prm]], &epoint);
                         break;
                     }
-                    err = instruction(prm, w, val, &epoint, epoints);
-                    val_destroy(val);
-                    if (err == NULL) break;
                     tmp2 = find_label(&opname, NULL);
                     if (tmp2 != NULL) {
                         Type *obj = tmp2->value->obj;
-                        if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_symbol_case(&opname, tmp2, &epoint);
+                        if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_msg_symbol_case(&opname, tmp2, &epoint);
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             val_destroy(&err->v);
                             tmp2->shadowcheck = true;
@@ -3514,7 +3517,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 tmp2 = down ? find_label(&opname, NULL) : find_label2(&opname, cheap_context);
                 if (tmp2 != NULL) {
                     Type *obj = tmp2->value->obj;
-                    if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_symbol_case(&opname, tmp2, &epoint);
+                    if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_msg_symbol_case(&opname, tmp2, &epoint);
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         if (down) tmp2->shadowcheck = true;
                         val = tmp2->value;goto as_macro;

@@ -90,6 +90,7 @@ struct diagnostics_s {
     bool immediate;
     bool float_compare;
     bool leading_zeros;
+    bool alias;
 };
 
 extern int testarg(int *, char ***, struct file_s *);

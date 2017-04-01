@@ -711,7 +711,7 @@ static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, co
     adderror(" was here");
 }
 
-void err_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
+void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.case_symbol, epoint);
     adderror("symbol case mismatch");
     str_name(labelname1->data, labelname1->len);
@@ -875,6 +875,23 @@ void err_msg_branch_page(int by, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.branch_page, epoint);
     sprintf(msg2, "branch crosses page by %+d bytes [-Wbranch-page]", by);
     adderror(msg2);
+}
+
+void err_msg_alias(uint32_t a, uint32_t b, linepos_t epoint) {
+    char name[4];
+    new_error_msg2(diagnostic_errors.alias, epoint);
+    adderror("instruction '");
+    name[0] = (char)(a >> 16);
+    name[1] = (char)(a >> 8);
+    name[2] = (char)a;
+    name[3] = '\0';
+    adderror(name);
+    adderror("' is alias of'");
+    name[0] = (char)(b >> 16);
+    name[1] = (char)(b >> 8);
+    name[2] = (char)b;
+    adderror(name);
+    adderror("' [-Walias]");
 }
 
 void err_msg_unknown_char(uchar_t ch, const str_t *name, linepos_t epoint) {

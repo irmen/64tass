@@ -174,7 +174,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             Ident *v2 = (Ident *)o2;
             l = find_label2(&v2->name, v1);
             if (l != NULL) {
-                if (diagnostics.case_symbol && str_cmp(&v2->name, &l->name) != 0) err_symbol_case(&v2->name, l, &v2->epoint);
+                if (diagnostics.case_symbol && str_cmp(&v2->name, &l->name) != 0) err_msg_symbol_case(&v2->name, l, &v2->epoint);
                 touch_label(l);
                 return val_reference(l->value);
             }
