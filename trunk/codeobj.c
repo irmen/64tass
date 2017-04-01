@@ -415,10 +415,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
-            v = (Code *)op->v1->obj->calc2(op);
-            op->v1 = &v1->v;
-            op->v2 = &v2->v;
-            return &v->v;
+            return op->v1->obj->calc2(op);
         }
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
@@ -454,15 +451,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
                 if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
                 if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
-                op->v1 = &v1->v;
                 return &v->v;
             }
         default: break;
         }
-        v = (Code *)op->v1->obj->calc2(op);
-        op->v1 = &v1->v;
-        return &v->v;
-    default: return o2->obj->rcalc2(op);
+        return op->v1->obj->calc2(op);
+    default: 
+        return o2->obj->rcalc2(op);
     }
     return obj_oper_error(op);
 }
@@ -475,7 +470,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         struct oper_s oper;
         size_t ln, ln2, i;
         ssize_t offs;
-        Obj *tmp;
+        Obj *tmp, *result;
 
         if (v2->pass != pass) {
             return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint2);
@@ -496,17 +491,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         }
 
         oper.op = &o_EQ;
-        oper.v2 = o1;
         oper.epoint = op->epoint;
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
         for (i = 0; i < ln; i++) {
             tmp = code_item(v2, (ssize_t)i + offs, ln2);
             oper.v1 = tmp;
-            o1 = tmp->obj->calc2(&oper);
+            oper.v2 = o1;
+            result = tmp->obj->calc2(&oper);
             val_destroy(tmp);
-            if ((Bool *)o1 == true_value) return o1;
-            val_destroy(o1);
+            if ((Bool *)result == true_value) return result;
+            val_destroy(result);
         }
         return (Obj *)ref_bool(false_value);
     }
@@ -520,10 +515,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
-            v = (Code *)op->v1->obj->calc2(op);
-            op->v1 = &v1->v;
-            op->v2 = &v2->v;
-            return &v->v;
+            return op->v1->obj->calc2(op);
         }
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
@@ -550,12 +542,9 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
             if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
             if (v->addr->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v->addr); v->addr = (Obj *)ref_none(); }
-            op->v2 = &v2->v;
             return &v->v;
         }
-        v = (Code *)o1->obj->calc2(op);
-        op->v2 = &v2->v;
-        return &v->v;
+        return o1->obj->calc2(op);
     default: break;
     }
     return obj_oper_error(op);

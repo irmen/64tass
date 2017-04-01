@@ -362,10 +362,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (am == v2->type) {
                     op->v1 = v1->val;
                     op->v2 = v2->val;
-                    result = op->v1->obj->calc2(op);
-                    op->v1 = &v1->v;
-                    op->v2 = &v2->v;
-                    return result;
+                    return op->v1->obj->calc2(op);
                 }
                 switch (op->op->op) {
                 default: /* can't happen */
@@ -385,8 +382,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 op->v1 = v1->val;
                 op->v2 = v2->val;
                 result = op->v1->obj->calc2(op);
-                op->v1 = &v1->v;
-                op->v2 = &v2->v;
                 if (am == A_NONE && v2->type == A_NONE) return result;
                 if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
                 v = new_address(result, am);
@@ -418,8 +413,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     op->v1 = v1->val;
                     op->v2 = v2->val;
                     result = op->v1->obj->calc2(op);
-                    op->v1 = &v1->v;
-                    op->v2 = &v2->v;
                     if (am1 == A_NONE) return result;
                     if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
                     return (Obj *)new_address(result, am1);
@@ -442,9 +435,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             am = v1->type;
             if (am == A_NONE) {
                 op->v1 = v1->val;
-                result = op->v1->obj->calc2(op);
-                op->v1 = &v1->v;
-                return result;
+                return op->v1->obj->calc2(op);
             }
             if (check_addr2(am)) break;
             goto ok;
@@ -455,7 +446,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         ok:
             op->v1 = v1->val;
             result = op->v1->obj->calc2(op);
-            op->v1 = &v1->v;
             if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
             return (Obj *)new_address(result, am);
         }
@@ -489,15 +479,12 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         } else {
             if (am == A_NONE) {
                 op->v2 = v2->val;
-                result = t1->calc2(op);
-                op->v2 = &v2->v;
-                return result;
+                return t1->calc2(op);
             }
             if (check_addr2(am)) break;
         }
         op->v2 = v2->val;
         result = t1->calc2(op);
-        op->v2 = &v2->v;
         if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
         return (Obj *)new_address(result, am);
     case T_CODE:

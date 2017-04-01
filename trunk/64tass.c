@@ -911,7 +911,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 Label *label;
                 bool oldreferenceit;
                 struct oper_s tmp;
-                Obj *result2;
+                Obj *result2, *val2;
                 struct linepos_s epoint2, epoint3;
                 int wht2 = pline[lpoint.pos + 1];
 
@@ -944,34 +944,35 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if (labelname.data[0] == '*') {
                     label = NULL;
                     if (diagnostics.optimize) cpu_opt_invalidate();
-                    tmp.v1 = get_star_value(current_section->l_address_val);
+                    val = get_star_value(current_section->l_address_val);
                 } else {
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                     if (label->constant) {err_msg_double_defined(label, &labelname, &epoint); goto breakerr;}
                     if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_symbol_case(&labelname, label, &epoint);
-                    tmp.v1 = label->value;
+                    val = label->value;
                 }
-                if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
+                if (here() == 0 || here() == ';') val2 = (Obj *)ref_addrlist(null_addrlist);
                 else {
                     struct linepos_s epoints[3];
                     referenceit &= 1; /* not good... */
                     if (!get_exp(0, cfile, 0, 0, NULL)) goto breakerr;
-                    val = get_vals_addrlist(epoints);
+                    val2 = get_vals_addrlist(epoints);
                     referenceit = oldreferenceit;
                 }
                 oaddr = current_section->address;
-                tmp.v2 = val;
+                tmp.v1 = val;
+                tmp.v2 = val2;
                 tmp.epoint = &epoint;
                 tmp.epoint2 = &epoint2;
                 tmp.epoint3 = &epoint3;
                 result2 = tmp.v1->obj->calc2(&tmp);
                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
                 else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
-                    if (result2 == &true_value->v) val_replace(&result2, tmp.v1);
-                    else if (result2 == &false_value->v) val_replace(&result2, tmp.v2);
+                    if (result2 == &true_value->v) val_replace(&result2, val);
+                    else if (result2 == &false_value->v) val_replace(&result2, val2);
                 }
-                val_destroy(val);
+                val_destroy(val2);
                 if (label != NULL) {
                     listing_equal(listing, result2);
                     label->file_list = cflist;
@@ -979,7 +980,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     val_destroy(label->value);
                     label->value = result2;
                 } else {
-                    val_destroy(tmp.v1);
+                    val_destroy(val);
                     starhandle(result2, &epoint, &epoint2);
                 }
                 goto finish;
@@ -1797,12 +1798,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         struct oper_s tmp;
                         if (!get_exp(0, cfile, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
-                        tmp.v1 = waitfor->val;
                         tmp.epoint = tmp.epoint3 = &epoint;
                         while (!truth && (vs = get_val()) != NULL) {
                             val = vs->val;
                             if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); continue; }
                             if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint);continue; }
+                            tmp.v1 = waitfor->val;
                             tmp.v2 = val;
                             tmp.epoint2 = &vs->epoint;
                             result2 = tmp.v1->obj->calc2(&tmp);
@@ -2960,14 +2961,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (!get_exp(0, cfile, 0, 0, &bpoint)) break;
                             val = get_vals_addrlist(epoints);
                             if (tmp.op != NULL) {
-                                Obj *result2;
-                                tmp.v1 = label->value;
+                                Obj *result2, *val1 = label->value;
+                                tmp.v1 = val1;
                                 tmp.v2 = val;
                                 result2 = tmp.v1->obj->calc2(&tmp);
                                 if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
                                 else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
-                                    if (result2 == &true_value->v) val_replace(&result2, tmp.v1);
-                                    else if (result2 == &false_value->v) val_replace(&result2, tmp.v2);
+                                    if (result2 == &true_value->v) val_replace(&result2, val1);
+                                    else if (result2 == &false_value->v) val_replace(&result2, val);
                                 }
                                 val_destroy(val);
                                 val = result2;

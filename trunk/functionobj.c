@@ -273,8 +273,8 @@ static int sortcomp(const void *a, const void *b) {
     int ret;
     Obj *result;
     size_t aa = *(const size_t *)a, bb = *(const size_t *)b;
-    sort_tmp.v1 = sort_vals[aa];
-    sort_tmp.v2 = sort_vals[bb];
+    Obj *o1 = sort_tmp.v1 = sort_vals[aa];
+    Obj *o2 = sort_tmp.v2 = sort_vals[bb];
     result = sort_tmp.v1->obj->calc2(&sort_tmp);
     if (result->obj == INT_OBJ) ret = ((Int *)result)->len;
     else {
@@ -300,6 +300,8 @@ static int sortcomp(const void *a, const void *b) {
                         return (aa > bb) ? 1 : -1;
                     }
                 }
+                sort_tmp.v1 = o1;
+                sort_tmp.v2 = o2;
                 sort_error = obj_oper_error(&sort_tmp);
             } 
         }
