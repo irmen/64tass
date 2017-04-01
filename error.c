@@ -370,6 +370,10 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             new_error_msg2(diagnostic_errors.immediate, epoint);
             adderror("immediate addressing mode suggested [-Wimmediate]");
             break;
+        case ERROR_LEADING_ZEROS:
+            new_error_msg2(diagnostic_errors.immediate, epoint);
+            adderror("leading zeros ignored [-Wleading-zeros]");
+            break;
         case ERROR_FLOAT_COMPARE:
             new_error_msg2(diagnostic_errors.float_compare, epoint);
             adderror("approximate floating point ");

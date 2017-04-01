@@ -2834,6 +2834,12 @@ default, the others are disabled.
     Some instructions have implied aliases like `asl' for `asl a' for
     compatibility reasons, but this shorthand is not the preferred form.
 
+-Wleading-zeros
+    Warns if about leading zeros.
+
+    A leading zero could be a prefix for an octal number but as octals are not
+    supported the result will be decimal.
+
 -Wno-deprecated
     Don't warn about deprecated features.
 
@@ -3225,6 +3231,9 @@ immediate addressing mode suggested
 label not on left side
     check if an instruction name was not mistyped and if the current CPU has
     it, or remove white space before label
+leading zeros ignored
+    leading zeros in front of decimals are redundant don't denote an octal
+    number
 long branch used
     branch too long, so long branch was used (bxx *+5 jmp)
 possible jmp ($xxff) bug

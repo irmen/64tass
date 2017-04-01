@@ -153,6 +153,11 @@ Warns if implied addressing is used instead of register.
 Some instructions have implied aliases like 'asl' for 'asl a' for
 compatibility reasons, but this shorthand not the preferred form.
 .TP 0.5i
+\fB\-Wleading\-zeros\fR
+Warns if about leading zeros.
+A leading zero could be a prefix for an octal number but as octals
+are not supported the result will be decimal.
+.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
