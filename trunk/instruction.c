@@ -619,7 +619,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
                 if (touval(addrlist->data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
-                val = addrlist->data[1];
+                oval = val = addrlist->data[1];
                 epoint2 = &epoints[1];
                 val = val->obj->address(val, &am);
                 if (am == A_DR) {
@@ -757,7 +757,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         if (w == 3) {/* auto length */
             if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
-                if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && val->obj != CODE_OBJ && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && oval->obj != CODE_OBJ && oval->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
                 adr = uval - dpage; w = 0;
             }
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
