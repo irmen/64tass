@@ -89,6 +89,7 @@ struct diagnostics_s {
     bool switch_case;
     bool immediate;
     bool float_compare;
+    bool leading_zeros;
 };
 
 extern int testarg(int *, char ***, struct file_s *);

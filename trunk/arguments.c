@@ -76,7 +76,8 @@ struct diagnostics_s diagnostics = {
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
-    true         /* float_compare */
+    true,        /* float_compare */
+    false        /* leading_zeros */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -101,7 +102,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* case_symbol */
     false,       /* switch_case */
     false,       /* immediate */
-    false        /* float_compare */
+    false,       /* float_compare */
+    false        /* leading_zeros */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -127,7 +129,8 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* case_symbol */
     true,        /* switch_case */
     false,       /* immediate */
-    true         /* float_compare */
+    true,        /* float_compare */
+    true         /* leading_zeros */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -153,7 +156,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* case_symbol */
     true,        /* switch_case */
     true,        /* immediate */
-    true         /* float_compare */
+    true,        /* float_compare */
+    true         /* leading_zeros */
 };
 
 struct w_options_s {
@@ -182,6 +186,7 @@ static const struct w_options_s w_options[] = {
     {"switch-case",     &diagnostics.switch_case},
     {"immediate",       &diagnostics.immediate},
     {"float-compare",   &diagnostics.float_compare},
+    {"leading-zeros",   &diagnostics.leading_zeros},
     {NULL,              NULL}
 };
 
@@ -483,6 +488,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wcase-symbol         Warn on mismatch of symbol case\n"
                "  -Wimmediate           Suggest immediate addressing\n"
                "  -Wimplied-reg         No implied register aliases\n"
+               "  -Wleading-zeros       Warn for ignored leading zeros\n"
                "  -Wno-deprecated       No deprecated feature warnings\n"
                "  -Wno-float-compare    No approximate compare warnings\n"
                "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"

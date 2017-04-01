@@ -3257,6 +3257,11 @@ traditional "label" or derived from a label with an offset.</p>
 for <q><code>asl a</code></q> for compatibility
 reasons, but this shorthand is not the preferred form.</p>
 
+<dt><b>-Wleading-zeros</b><a name="o_Wleading-zeros" href="#o_Wleading-zeros"></a>
+<dd>Warns if about leading zeros.
+<p>A leading zero could be a prefix for an octal number but as octals
+are not supported the result will be decimal.</p>
+
 <dt><b>-Wno-deprecated</b><a name="o_Wdeprecated" href="#o_Wdeprecated"></a>
 <dd>Don't warn about deprecated features.
 <p>Unfortunately there were some features added previously which shouldn't have
@@ -3643,6 +3648,7 @@ will display without them.</p>
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
 <dt>immediate addressing mode suggested<dd>numeric constant address which was likely meant as an immediate value
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label
+<dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant don't denote an octal number
 <dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
 <dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed

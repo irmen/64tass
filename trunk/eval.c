@@ -144,7 +144,7 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             size_t len, len2;
             Obj *v;
             lpoint.pos++;
-
+           
             v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
             err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)), &lpoint);
             val_destroy(v);
@@ -368,7 +368,10 @@ rest:
         case '%': push_oper(get_bin(&epoint), &epoint);goto other;
         case '"': push_oper(get_string(), &epoint);goto other;
         case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
-        case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+        case '0':
+            if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
+            /* fall through */
+        case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper((Obj *)get_dec(), &epoint);goto other;
         default: 
             if (get_label() == 0) {
@@ -1304,7 +1307,10 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             }
             lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
         case '.': if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) goto tryanon; /* fall through */
-        case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+        case '0': 
+            if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
+            /* fall through */
+        case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_float(&epoint), &epoint);
             goto other;
         case 0:
