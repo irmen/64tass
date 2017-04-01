@@ -40,7 +40,6 @@
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
-static const struct cpu_s *cpu;
 
 bool longaccu = false, longindex = false, autosize = false; /* hack */
 uint32_t dpage = 0;
@@ -69,7 +68,6 @@ void select_opcodes(const struct cpu_s *cpumode) {
     last_mnem = cpumode->opcodes;
     mnemonic = cpumode->mnemonic; 
     opcode = cpumode->opcode;
-    cpu = cpumode;
 }
 
 MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {

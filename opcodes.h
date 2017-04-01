@@ -37,6 +37,7 @@ struct cpu_s {
     const uint32_t *mnemonic;
     const uint8_t *opcode;
     const uint16_t *disasm;
+    const uint8_t *alias;
     const uint32_t registers;
     unsigned int opcodes;
     address_t max_address;

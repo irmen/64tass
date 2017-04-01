@@ -77,7 +77,8 @@ struct diagnostics_s diagnostics = {
     false,       /* switch_case */
     false,       /* immediate */
     true,        /* float_compare */
-    false        /* leading_zeros */
+    false,       /* leading_zeros */
+    false        /* alias */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -103,7 +104,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* switch_case */
     false,       /* immediate */
     false,       /* float_compare */
-    false        /* leading_zeros */
+    false,       /* leading_zeros */
+    false        /* alias */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -130,7 +132,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* switch_case */
     false,       /* immediate */
     true,        /* float_compare */
-    true         /* leading_zeros */
+    true,        /* leading_zeros */
+    false        /* alias */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -157,7 +160,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* switch_case */
     true,        /* immediate */
     true,        /* float_compare */
-    true         /* leading_zeros */
+    true,        /* leading_zeros */
+    true         /* alias */
 };
 
 struct w_options_s {
@@ -187,6 +191,7 @@ static const struct w_options_s w_options[] = {
     {"immediate",       &diagnostics.immediate},
     {"float-compare",   &diagnostics.float_compare},
     {"leading-zeros",   &diagnostics.leading_zeros},
+    {"alias",           &diagnostics.alias},
     {NULL,              NULL}
 };
 
@@ -484,6 +489,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Werror               Diagnostic warnings to errors\n"
                "  -Werror=<name>        Make a diagnostic to an error\n"
                "  -Wno-error=<name>     Make a diagnostic to a warning\n"
+               "  -Walias               Warn about instruction aliases\n"
                "  -Wbranch-page         Warn if a branch crosses a page\n"
                "  -Wcase-symbol         Warn on mismatch of symbol case\n"
                "  -Wimmediate           Suggest immediate addressing\n"
