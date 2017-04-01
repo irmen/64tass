@@ -881,7 +881,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (tmp2 == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                     val = tmp2->value;
                     if (val->obj != CODE_OBJ) {
-                        err_msg_wrong_type(val, CODE_OBJ, &epoint); goto breakerr;
+                        if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint); 
+                        goto breakerr;
                     }
                     if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_symbol_case(&labelname, tmp2, &epoint);
                     mycontext = ((Code *)val)->names;
