@@ -1282,18 +1282,14 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             push_oper(&o_BRACE.v, &epoint);
             openclose++;
             continue;
-        case '+': 
-            if (operp != 0 && o_oper[operp - 1].val == &o_HASH) o_oper[operp - 1].val = &o_HASH_SIGNED;
-            op = &o_POS; break;
-        case '-': 
-            if (operp != 0 && o_oper[operp - 1].val == &o_HASH) o_oper[operp - 1].val = &o_HASH_SIGNED;
-            op = &o_NEG; break;
+        case '+': op = &o_POS; break;
+        case '-': op = &o_NEG; break;
         case '*': op = &o_SPLAT; break;
         case '!': op = &o_LNOT;break;
         case '~': op = &o_INV; break;
         case '<': if (pline[lpoint.pos + 1] == '>') {lpoint.pos++;op = &o_WORD;} else op = &o_LOWER; break;
         case '>': if (pline[lpoint.pos + 1] == '`') {lpoint.pos++;op = &o_HWORD;} else if (pline[lpoint.pos + 1] == '<') {lpoint.pos++;op = &o_BSWORD;} else op = &o_HIGHER; break;
-        case '#': op = &o_HASH; break;
+        case '#': op = (pline[lpoint.pos + 1] == '+' || pline[lpoint.pos + 1] == '-') ? &o_HASH_SIGNED : &o_HASH; break;
         case '`': op = &o_BANK; break;
         case '^': op = &o_STRING; if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint); break;
         case '$': push_oper(get_hex(&epoint), &epoint);goto other;
