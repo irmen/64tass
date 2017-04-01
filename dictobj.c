@@ -139,7 +139,7 @@ static int pair_compare(const struct avltree_node *aa, const struct avltree_node
     pair_oper.v2 = b->key;
     result = pair_oper.v1->obj->calc2(&pair_oper);
     if (result->obj == INT_OBJ) h = ((Int *)result)->len;
-    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
+    else h = a->key->obj->type - b->key->obj->type;
     val_destroy(result);
     return h;
 }

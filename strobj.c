@@ -318,8 +318,6 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = &v1->v;
-            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -334,8 +332,6 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = &v1->v;
-            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -349,8 +345,6 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = &v1->v;
-            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -671,7 +665,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             }
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
-            op->v1 = &v1->v;
             val_destroy(tmp);
             return result;
         }
@@ -681,7 +674,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
-            op->v1 = &v1->v;
             val_destroy(tmp);
             return result;
         }
@@ -725,7 +717,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             }
             op->v2 = tmp;
             result = t1->calc2(op);
-            op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
         }
@@ -735,7 +726,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             tmp = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v2 = tmp;
             result = t1->calc2(op);
-            op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
         }

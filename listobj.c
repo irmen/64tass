@@ -313,19 +313,16 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                     List *v = (List *)val_alloc(o1->obj);
                     vals = lnew(v, v1->len);
                     for (i = 0; i < v1->len; i++) {
-                        Obj *val;
-                        op->v1 = v1->data[i];
-                        op->v2 = v2->data[i];
-                        val = op->v1->obj->calc2(op);
+                        Obj *oo1 = op->v1 = v1->data[i];
+                        Obj *oo2 = op->v2 = v2->data[i];
+                        Obj *val = op->v1->obj->calc2(op);
                         if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
                         else if (op->op == &o_MIN || op->op == &o_MAX) {
-                            if (val == &true_value->v) val_replace(&val, op->v1);
-                            else if (val == &false_value->v) val_replace(&val, op->v2);
+                            if (val == &true_value->v) val_replace(&val, oo1);
+                            else if (val == &false_value->v) val_replace(&val, oo2);
                         }
                         vals[i] = val;
                     }
-                    op->v1 = &v1->v;
-                    op->v2 = &v2->v;
                     v->len = i;
                     v->data = vals;
                     return &v->v;
@@ -333,18 +330,12 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                 return val_reference(&v1->v);
             } 
             if (v1->len == 1) {
-                Obj *v;
                 op->v1 = v1->data[0];
-                v = op->v2->obj->rcalc2(op);
-                op->v1 = &v1->v;
-                return v;
+                return op->v2->obj->rcalc2(op);
             } 
             if (v2->len == 1) {
-                Obj *v;
                 op->v2 = v2->data[0];
-                v = op->v1->obj->calc2(op);
-                op->v2 = &v2->v;
-                return v;
+                return op->v1->obj->calc2(op);
             } 
             err = new_error(ERROR_CANT_BROADCAS, op->epoint3);
             err->u.broadcast.v1 = v1->len;
@@ -520,16 +511,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         list->data = vals = lnew(list, v1->len);
         for (;i < v1->len; i++) {
             Obj *val;
-            op->v1 = v1->data[i];
+            Obj *oo1 = v1->data[i];
+            op->v1 = oo1;
+            op->v2 = o2;
             val = op->v1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (op->op == &o_MIN || op->op == &o_MAX) {
-                if (val == &true_value->v) val_replace(&val, op->v1);
+                if (val == &true_value->v) val_replace(&val, oo1);
                 else if (val == &false_value->v) val_replace(&val, o2);
             }
             vals[i] = val;
         }
-        op->v1 = o1;
         list->len = i;
         return &list->v;
     }
@@ -546,17 +538,16 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         op->op = &o_EQ;
         for (;i < v2->len; i++) {
             Obj *result;
+            op->v1 = o1;
             op->v2 = v2->data[i];
             result = o1->obj->calc2(op);
             if ((Bool *)result == true_value) {
                 op->op = &o_IN;
-                op->v2 = o2;
                 return result;
             }
             val_destroy(result);
         }
         op->op = &o_IN;
-        op->v2 = o2;
         return (Obj *)ref_bool(false_value);
     }
     if (o1->obj == o2->obj && (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ)) {
@@ -571,16 +562,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         v->data = vals = lnew(v, v2->len);
         for (;i < v2->len; i++) {
             Obj *val;
-            op->v2 = v2->data[i];
+            Obj *oo2 = v2->data[i];
+            op->v2 = oo2;
+            op->v1 = o1;
             val = o1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             else if (op->op == &o_MIN || op->op == &o_MAX) {
                 if (val == &true_value->v) val_replace(&val, o1);
-                else if (val == &false_value->v) val_replace(&val, op->v2);
+                else if (val == &false_value->v) val_replace(&val, oo2);
             }
             vals[i] = val;
         }
-        op->v2 = o2;
         v->len = i;
         return &v->v;
     }
