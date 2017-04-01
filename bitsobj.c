@@ -698,7 +698,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         op->v1 = tmp;
         v = tmp->obj->calc1(op);
         val_destroy(tmp);
-        op->v1 = &v1->v;
         return v;
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);

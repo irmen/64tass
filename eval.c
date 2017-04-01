@@ -1010,7 +1010,6 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_LNOT:    /* !  */
             oper.op = op2;
             oper.v1 = v1->val;
-            oper.v2 = NULL;
             oper.epoint = &v1->epoint;
             oper.epoint3 = &o_out->epoint;
             val = oper.v1->obj->calc1(&oper);

@@ -268,7 +268,6 @@ static MUST_CHECK Obj *calc1(oper_t op) {
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             vals[i] = val;
         }
-        op->v1 = &v1->v;
         v->len = i;
         v->data = vals;
         return &v->v;
