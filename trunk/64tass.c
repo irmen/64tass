@@ -3356,7 +3356,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 struct values_s *vs;
                 lpoint.pos++;
             as_macro2:
-                if (!get_exp_var(cfile, &epoint)) goto breakerr;
+                if (!get_exp(2, cfile, 1, 1, &epoint)) goto breakerr;
                 vs = get_val(); val = vs->val;
                 switch (val->obj->type) {
                 case T_ERROR: err_msg_output((Error *)val); goto breakerr;

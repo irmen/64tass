@@ -1675,10 +1675,6 @@ bool get_exp(int stop, struct file_s *cfile, unsigned int min, unsigned int max,
 }
 
 
-bool get_exp_var(struct file_s *cfile, linepos_t epoint) {
-    return get_exp(2, cfile, 1, 1, epoint);
-}
-
 Obj *get_vals_tuple(void) {
     size_t i, len = get_val_remaining();
     Tuple *list;
