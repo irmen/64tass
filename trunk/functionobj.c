@@ -207,7 +207,7 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         case 1: state[0] ^= v1->data[0]; /* fall through */
         case 0: break;
         default:
-            err = new_error(ERROR_____CANT_UVAL, epoint);
+            err = new_error(v1->len < 0 ? ERROR______NOT_UVAL : ERROR_____CANT_UVAL, epoint);
             err->u.intconv.bits = 128;
             err->u.intconv.val = val_reference(o1);
             err_msg_output_and_destroy(err);

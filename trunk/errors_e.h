@@ -87,6 +87,7 @@ typedef enum Error_types {
     ERROR__NOT_KEYVALUE,
     ERROR_____CANT_IVAL,
     ERROR_____CANT_UVAL,
+    ERROR______NOT_UVAL,
     ERROR_CANT_BROADCAS,
     ERROR_____CANT_SIGN,
     ERROR______CANT_ABS,
