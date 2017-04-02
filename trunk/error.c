@@ -212,7 +212,8 @@ static const char *terr_warning[] = {
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
-    "deprecated ^ operator, use format(\"%d\", ...) instead",
+    "please use format(\"%d\", ...) as '^' will change it's meaning",
+    "please use quotes now to allow expressions in future",
     "possibly redundant if last 'jsr' is changed to 'jmp'",
     "possibly redundant indexing with a constant value",
 #ifdef _WIN32
@@ -355,6 +356,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_______OLD_NEQ:
         case ERROR____OLD_MODULO:
         case ERROR____OLD_STRING:
+        case ERROR_______OLD_ENC:
             new_error_msg2(diagnostic_errors.deprecated, epoint);
             adderror(terr_warning[no]);
             adderror(" [-Wdeprecated]");

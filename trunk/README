@@ -2467,6 +2467,9 @@ The original expression parser has no operator precedence, but 64tass has. That
 means that you will have to fix expressions using braces accordingly, for
 example 1+2*3 becomes (1+2)*3.
 
+'label *= *+1' constructs will fail without compatibility mode as '*=' also
+means compound multiply when used after a variable.
+
 The following operators used by the original Turbo Assembler are different:
 
        TASM Operator differences
@@ -3227,14 +3230,12 @@ deprecated modulo operator, use '%' instead
     double slash for modulo is going away soon, update source
 deprecated not equal operator, use '!=' instead
     non-standard not equal operators, update source
-deprecated ^ operator, use format("%d", ...) instead
-    this operator will be changed, update your sources
 directive ignored
     an assembler directive was ignored for compatibility reasons.
-instruction 'xxx' is an alias of 'xxx'
-    an alternative naming was used
 immediate addressing mode suggested
     numeric constant address which was likely meant as an immediate value
+instruction 'xxx' is an alias of 'xxx'
+    an alternative naming was used
 label not on left side
     check if an instruction name was not mistyped and if the current CPU has
     it, or remove white space before label
@@ -3243,6 +3244,12 @@ leading zeros ignored
     number
 long branch used
     branch too long, so long branch was used (bxx *+5 jmp)
+please use format("%d", ...) as '^' will change it's meaning
+    this operator will be changed to mean the bank byte later, please update
+    your sources
+please use quotes now to allow expressions in future
+    the directive will allow expressions later and the parameter will be a
+    string
 possible jmp ($xxff) bug
     yet another 65xx feature...
 possibly redundant as ...
