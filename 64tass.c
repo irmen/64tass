@@ -2464,9 +2464,17 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 { /* .enc */
                     str_t encname;
                     listing_line(listing, epoint.pos);
-                    epoint = lpoint;
-                    encname.data = pline + lpoint.pos; encname.len = get_label();
-                    if (encname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
+                    if (pline[lpoint.pos] == '"' || pline[lpoint.pos] == '\'') {
+                        struct values_s *vs;
+                        if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
+                        vs = get_val();
+                        if (tostr(vs, &encname)) break;
+                        if (encname.len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); break;}
+                    } else {
+                        epoint = lpoint;
+                        encname.data = pline + lpoint.pos; encname.len = get_label();
+                        if (encname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
+                    }
                     actual_encoding = new_encoding(&encname, &epoint);
                 }
                 break;
