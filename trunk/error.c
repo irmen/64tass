@@ -891,7 +891,7 @@ void err_msg_alias(uint32_t a, uint32_t b, linepos_t epoint) {
     name[2] = (char)a;
     name[3] = '\0';
     adderror(name);
-    adderror("' is alias of'");
+    adderror("' is alias of '");
     name[0] = (char)(b >> 16);
     name[1] = (char)(b >> 8);
     name[2] = (char)b;
