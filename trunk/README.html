@@ -592,9 +592,9 @@ in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 <p>Other types can be converted to byte strings by using the type <code>bytes</code>.</p>
 
 <pre width=80>
-        <b class="k">.enc</b> screen	<i>;use screen encoding</i>
+        <b class="k">.enc</b> <span class="s">"screen"</span>	<i>;use screen encoding</i>
 mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes, like .text</i>
-        <b class="k">.enc</b> none	<i>;normal encoding</i>
+        <b class="k">.enc</b> <span class="s">"none"</span>	<i>;normal encoding</i>
 
         <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
         <b class="d">.text</b> <span class="s">s"p1"</span>     <i>;convert to bytes like .shift</i>
@@ -1859,9 +1859,9 @@ The last byte can't be uninitialized or missing of course.</p>
 .1009  e8             inx                     <b>inx</b>
 .100a  90 f6          bcc $1002               <b>bcc</b> <u>loop</u>
 .100c  60             rts                     <b>rts</b>
-                                              <b class="k">.enc</b> screen
+                                              <b class="k">.enc</b> <span class="s">"screen"</span>
 &gt;100d  a6 92 9c 8e 98 8a 40 a6                <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span> 
-&gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> none
+&gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> <span class="s">"none"</span>
 </pre>
 
 <dt><code><b class="d">.null</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_null" href="#d_null"></a>
@@ -1906,16 +1906,16 @@ string (pascal style string). Therefore it can't do more than 255 bytes.
 advantage of this capability custom encodings can be defined to map Unicode characters
 to 8&nbsp;bit values in strings.</p>
 <dl class="dir">
-<dt><code><b class="k">.enc</b></code> &lt;name&gt;<a name="d_enc" href="#d_enc"></a>
+<dt><code><b class="k">.enc</b></code> "&lt;name&gt;"<a name="d_enc" href="#d_enc"></a>
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
 <pre width=80>
-                                <b class="k">.enc</b> screen <i>;screen code mode</i>
+                                <b class="k">.enc</b> <span class="s">"screen"</span><i>;screen code mode</i>
 &gt;1000  13 03 12 05 05 0e 20 03  <b class="d">.text</b> <span class="s">"screen codes"</span>
 &gt;1008  0f 04 05 13
 .100c  c9 15     cmp #$15       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare screen code</i>
-                                <b class="k">.enc</b> none   <i>;normal mode again</i>
+                                <b class="k">.enc</b> <span class="s">"none"</span> <i>;normal mode again</i>
 .100e  c9 55     cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
 </pre>
 <dt><code><b class="k">.cdef</b></code> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]<a name="d_cdef" href="#d_cdef"></a>
@@ -1926,7 +1926,7 @@ applied to a range as characters and bytes are usually assigned sequentially.
 The start and end positions are Unicode character codes either by numbers or by
 typing them. Overlapping ranges are not allowed.</p>
 <pre width=80>
-        <b class="k">.enc</b> ascii	<i>;define an ascii encoding</i>
+        <b class="k">.enc</b> <span class="s">"ascii"</span>	<i>;define an ascii encoding</i>
         <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity for printable</i>
 </pre>
 <dt><code><b class="k">.edef</b></code> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
@@ -1936,7 +1936,7 @@ When strings with common prefixes are used the longest match wins. Useful for de
 non-typeable control code aliases, or as a simple tokenizer.</p>
 </dl>
 <pre width=80>
-        <b class="k">.enc</b> petscii	<i>;define an ascii->petscii encoding</i>
+        <b class="k">.enc</b> <span class="s">"petscii"</span>  <i>;define an ascii->petscii encoding</i>
         <b class="k">.cdef</b> <span class="s">" @"</span>, <span>32</span>  <i>;characters</i>
         <b class="k">.cdef</b> <span class="s">"AZ"</span>, <span>$c1</span>
         <b class="k">.cdef</b> <span class="s">"az"</span>, <span>$41</span>

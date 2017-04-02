@@ -425,9 +425,9 @@ section `Slicing and indexing'.
 
 Other types can be converted to byte strings by using the type bytes.
 
-        .enc screen     ;use screen encoding
+        .enc "screen"   ;use screen encoding
 mystr   = b"oeU"        ;convert text to bytes, like .text
-        .enc none       ;normal encoding
+        .enc "none"     ;normal encoding
 
         .text mystr     ;text as originally encoded
         .text s"p1"     ;convert to bytes like .shift
@@ -1499,9 +1499,9 @@ using the current encoding.
     .1009  e8             inx                     inx
     .100a  90 f6          bcc $1002               bcc loop
     .100c  60             rts                     rts
-                                                  .enc screen
+                                                  .enc "screen"
     >100d  a6 92 9c 8e 98 8a 40 a6                .shiftl "single", 32, "string"
-    >1015  a8 a4 92 9c 8f                 txt     .enc none
+    >1015  a8 a4 92 9c 8f                 txt     .enc "none"
 
 .null <expression>[, <expression>, ...]
     Same as .text, but adds a zero byte to the end. An existing zero byte is an
@@ -1543,16 +1543,16 @@ Text encoding
 encoding. To take advantage of this capability custom encodings can be defined
 to map Unicode characters to 8 bit values in strings.
 
-.enc <name>
+.enc "<name>"
     Selects text encoding, predefined encodings are `none' and `screen' (screen
     code), anything else is user defined. All user encodings start without any
     character or escape definitions, add some as required.
 
-                                    .enc screen ;screen code mode
+                                    .enc "screen";screen code mode
     >1000  13 03 12 05 05 0e 20 03  .text "screen codes"
     >1008  0f 04 05 13
     .100c  c9 15     cmp #$15       cmp #"u"    ;compare screen code
-                                    .enc none   ;normal mode again
+                                    .enc "none" ;normal mode again
     .100e  c9 55     cmp #$55       cmp #"u"    ;compare PETSCII
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
@@ -1564,7 +1564,7 @@ to map Unicode characters to 8 bit values in strings.
     sequentially. The start and end positions are Unicode character codes
     either by numbers or by typing them. Overlapping ranges are not allowed.
 
-            .enc ascii      ;define an ascii encoding
+            .enc "ascii"    ;define an ascii encoding
             .cdef " ~", 32  ;identity for printable
 
 .edef "<escapetext>", <value> [, "<escapetext>", <value>, ...]
@@ -1575,7 +1575,7 @@ to map Unicode characters to 8 bit values in strings.
     wins. Useful for defining non-typeable control code aliases, or as a simple
     tokenizer.
 
-        .enc petscii    ;define an ascii->petscii encoding
+        .enc "petscii"  ;define an ascii->petscii encoding
         .cdef " @", 32  ;characters
         .cdef "AZ", $c1
         .cdef "az", $41
