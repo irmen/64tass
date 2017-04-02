@@ -3228,6 +3228,8 @@ deprecated ^ operator, use format("%d", ...) instead
     this operator will be changed, update your sources
 directive ignored
     an assembler directive was ignored for compatibility reasons.
+instruction 'xxx' is an alias of 'xxx'
+    an alternative naming was used
 immediate addressing mode suggested
     numeric constant address which was likely meant as an immediate value
 label not on left side
