@@ -1540,17 +1540,18 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             if (identlist != 0) identlist++;
             openclose++;
             continue;
-        case '&': if (pline[lpoint.pos + 1] == '&') {lpoint.pos+=2;op = &o_LAND;} else {lpoint.pos++;op = &o_AND;} goto push2;
-        case '|': if (pline[lpoint.pos + 1] == '|') {lpoint.pos+=2;op = &o_LOR;} else {lpoint.pos++;op = &o_OR;} goto push2;
-        case '^': if (pline[lpoint.pos + 1] == '^') {lpoint.pos+=2;op = &o_LXOR;} else {lpoint.pos++;op = &o_XOR;} goto push2;
-        case '*': if (pline[lpoint.pos + 1] == '*') {lpoint.pos+=2;op = &o_EXP; goto rtl;} lpoint.pos++;op = &o_MUL; goto push2;
-        case '%': lpoint.pos++;op = &o_MOD; goto push2;
-        case '/': if (pline[lpoint.pos + 1] == '/') {if (diagnostics.deprecated) err_msg2(ERROR____OLD_MODULO, NULL, &lpoint);lpoint.pos+=2;op = &o_MOD;} else {lpoint.pos++;op = &o_DIV;} goto push2;
-        case '+': lpoint.pos++;op = &o_ADD; goto push2;
-        case '-': lpoint.pos++;op = &o_SUB; goto push2;
-        case '.': if (pline[lpoint.pos + 1] == '.') {lpoint.pos+=2;op = &o_CONCAT;} else {lpoint.pos++;op = &o_MEMBER;} goto push2;
+        case '&': op = pline[lpoint.pos + 1] == '&' ? (pline[lpoint.pos + 2] == '=' ? &o_LAND_ASSIGN : &o_LAND) : (pline[lpoint.pos + 1] == '=' ? &o_AND_ASSIGN : &o_AND); goto push2;
+        case '|': op = pline[lpoint.pos + 1] == '|' ? (pline[lpoint.pos + 2] == '=' ? &o_LOR_ASSIGN : &o_LOR) : (pline[lpoint.pos + 1] == '=' ? &o_OR_ASSIGN : &o_OR); goto push2;
+        case '^': op = pline[lpoint.pos + 1] == '^' ? &o_LXOR : (pline[lpoint.pos + 1] == '=' ? &o_XOR_ASSIGN : &o_XOR); goto push2;
+        case '*': op = pline[lpoint.pos + 1] == '*' ? (pline[lpoint.pos + 2] == '=' ? &o_EXP_ASSIGN : &o_EXP) : (pline[lpoint.pos + 1] == '=' ? &o_MUL_ASSIGN : &o_MUL); if (op == &o_EXP) {lpoint.pos+=2; goto rtl;} goto push2;
+        case '%': op = pline[lpoint.pos + 1] == '=' ? &o_MOD_ASSIGN : &o_MOD; goto push2;
+        case '/': if (pline[lpoint.pos + 1] == '/') {if (diagnostics.deprecated) err_msg2(ERROR____OLD_MODULO, NULL, &lpoint);lpoint.pos++;op = &o_MOD;} else op = pline[lpoint.pos + 1] == '=' ? &o_DIV_ASSIGN : &o_DIV; goto push2;
+        case '+': op = pline[lpoint.pos + 1] == '=' ? &o_ADD_ASSIGN : &o_ADD; goto push2;
+        case '-': op = pline[lpoint.pos + 1] == '=' ? &o_SUB_ASSIGN : &o_SUB; goto push2;
+        case '.': op = pline[lpoint.pos + 1] == '.' ? (pline[lpoint.pos + 2] == '=' ? &o_CONCAT_ASSIGN : &o_CONCAT) : (pline[lpoint.pos + 1] == '=' ? &o_MEMBER_ASSIGN : &o_MEMBER); goto push2;
         case '?': lpoint.pos++;op = &o_QUEST; prec = o_COND.prio + 1; goto push3;
-        case ':': op = &o_COLON;
+        case ':': if (pline[lpoint.pos + 1] == '=') {op = &o_COLON_ASSIGN;goto push2;}
+            op = &o_COLON;
             prec = op->prio + 1;
             while (operp != 0 && prec <= o_oper[operp - 1].val->prio) {
                 operp--;
@@ -1561,8 +1562,10 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             o_oper[operp++].val = op;
             lpoint.pos++;
             continue;
-        case '=': op = &o_EQ; if (pline[lpoint.pos + 1] == '=') lpoint.pos += 2; else {if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint); lpoint.pos++;}
+        case '=': op = &o_EQ; if (pline[lpoint.pos + 1] != '=') {if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint);lpoint.pos--;}
         push2:
+            lpoint.pos += op->len;
+        push2a:
             prec = op->prio;
         push3:
             while (operp != 0 && prec <= o_oper[operp - 1].val->prio) {
@@ -1574,24 +1577,24 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             continue;
         case '<': 
             switch (pline[lpoint.pos + 1]) {
-            case '>': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); lpoint.pos += 2;op = &o_NE; break;
-            case '<': lpoint.pos += 2;op = &o_LSHIFT; break;
-            case '?': lpoint.pos += 2;op = &o_MIN; break;
-            case '=': if (pline[lpoint.pos + 2] == '>') {lpoint.pos += 3; op = &o_CMP;} else {lpoint.pos += 2; op = &o_LE;} break;
-            default: lpoint.pos++;op = &o_LT; break;
+            case '>': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); op = &o_NE; break;
+            case '<': op = pline[lpoint.pos + 2] == '=' ? &o_BLS_ASSIGN : &o_LSHIFT; break;
+            case '?': op = pline[lpoint.pos + 2] == '=' ? &o_MIN_ASSIGN : &o_MIN; break;
+            case '=': op = pline[lpoint.pos + 2] == '>' ? &o_CMP : &o_LE; break;
+            default: op = &o_LT; break;
             }
             goto push2;
         case '>':
             switch (pline[lpoint.pos + 1]) {
-            case '<': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); lpoint.pos += 2;op = &o_NE; break;
-            case '>': lpoint.pos += 2;op = &o_RSHIFT; break;
-            case '?': lpoint.pos += 2;op = &o_MAX; break;
-            case '=': lpoint.pos += 2;op = &o_GE; break;
-            default: lpoint.pos++;op = &o_GT; break;
+            case '<': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); op = &o_NE; break;
+            case '>': op = pline[lpoint.pos + 2] == '=' ? &o_BRS_ASSIGN : &o_RSHIFT; break;
+            case '?': op = pline[lpoint.pos + 2] == '=' ? &o_MAX_ASSIGN : &o_MAX; break;
+            case '=': op = &o_GE; break;
+            default: op = &o_GT; break;
             }
             goto push2;
         case '!':
-            if (pline[lpoint.pos + 1] == '=') {lpoint.pos += 2;op = &o_NE;goto push2;}
+            if (pline[lpoint.pos + 1] == '=') {op = &o_NE;goto push2;}
             goto syntaxe;
         case ')':
             op = &o_RPARENT;
@@ -1655,9 +1658,9 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         default: 
             if (stop == 2 && openclose == 0) break;
             switch (get_label()) {
-            case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {op = &o_X;goto push2;} break;
+            case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {if (pline[lpoint.pos] == '=') {lpoint.pos++; op = &o_X_ASSIGN;} else op = &o_X;goto push2a;} break;
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
-                        (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = &o_IN;goto push2;} break;
+                        (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = &o_IN;goto push2a;} break;
             }
             goto syntaxe;
         }

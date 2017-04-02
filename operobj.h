@@ -29,6 +29,26 @@ typedef enum Oper_types {
     O_BRACKET,       /* [a]   */
     O_PARENT,        /* (a)   */
     O_COMMA,         /* ,     */
+    O_ASSIGN,        /* =     */
+    O_COLON_ASSIGN,  /* :=    */
+    O_MIN_ASSIGN,    /* <?=   */
+    O_MAX_ASSIGN,    /* >?=   */
+    O_OR_ASSIGN,     /* |=    */
+    O_XOR_ASSIGN,    /* ^=    */
+    O_AND_ASSIGN,    /* &=    */
+    O_BLS_ASSIGN,    /* <<=   */
+    O_BRS_ASSIGN,    /* >>=   */
+    O_ADD_ASSIGN,    /* +=    */
+    O_SUB_ASSIGN,    /* -=    */
+    O_MUL_ASSIGN,    /* *=    */
+    O_DIV_ASSIGN,    /* /=    */
+    O_MOD_ASSIGN,    /* %=    */
+    O_EXP_ASSIGN,    /* **=   */
+    O_CONCAT_ASSIGN, /* ..=   */
+    O_X_ASSIGN,      /* x=    */
+    O_MEMBER_ASSIGN, /* .=    */
+    O_LOR_ASSIGN,    /* ||=   */
+    O_LAND_ASSIGN,   /* &&=   */
     O_COND,          /* ?     */
     O_COLON2,        /* :     */
     O_LOR,           /* ||    */
@@ -99,6 +119,7 @@ typedef struct Oper {
     const char *name;
     Oper_types op;
     unsigned int prio;
+    unsigned int len;
 } Oper;
 
 extern void operobj_init(void);
@@ -115,6 +136,26 @@ extern Oper o_BRACE;
 extern Oper o_BRACKET;
 extern Oper o_PARENT;
 extern Oper o_COMMA;
+extern Oper o_ASSIGN;
+extern Oper o_COLON_ASSIGN;
+extern Oper o_MIN_ASSIGN;
+extern Oper o_MAX_ASSIGN;
+extern Oper o_OR_ASSIGN;
+extern Oper o_XOR_ASSIGN;
+extern Oper o_AND_ASSIGN;
+extern Oper o_BLS_ASSIGN;
+extern Oper o_BRS_ASSIGN;
+extern Oper o_ADD_ASSIGN;
+extern Oper o_SUB_ASSIGN;
+extern Oper o_MUL_ASSIGN;
+extern Oper o_DIV_ASSIGN;
+extern Oper o_MOD_ASSIGN;
+extern Oper o_EXP_ASSIGN;
+extern Oper o_CONCAT_ASSIGN;
+extern Oper o_X_ASSIGN;
+extern Oper o_MEMBER_ASSIGN;
+extern Oper o_LOR_ASSIGN;
+extern Oper o_LAND_ASSIGN;
 extern Oper o_QUEST;
 extern Oper o_COLON;
 extern Oper o_COND;
