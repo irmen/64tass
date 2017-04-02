@@ -3284,8 +3284,6 @@ can't calculate stable value
     somehow it's impossible to calculate this expression
 can't calculate this
     could not get any value, is this a circular reference?
-can't convert to a ? bit signed/unsigned integer
-    value out of range
 can't encode character '?' ($xx) in encoding '?'
     can't translate character in this encoding
 can't get absolute value of type '?'
@@ -3391,8 +3389,12 @@ square root of negative number
     can't calculate the square root of a negative number
 too early to reference
     processing still ongoing, can't access this yet
+too large for a ? bit signed/unsigned integer
+    value out of range
 unknown processor '?'
     unknown cpu name
+value needs to be non-negative
+    only positives or zero is accepted here
 wrong type <?>
     wrong object type used
 zero value not allowed

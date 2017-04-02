@@ -154,10 +154,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     Error *ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     if (ret != NULL && ret->num == ERROR_____CANT_UVAL) {
-        val_destroy(&ret->v);
-        ret = new_error(ERROR_____CANT_UVAL, epoint);
-        ret->u.intconv.bits = bits;
-        ret->u.intconv.val = val_reference(o1);
+        val_replace(&ret->u.intconv.val, o1);
     }
     return ret;
 }

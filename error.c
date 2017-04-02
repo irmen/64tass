@@ -259,8 +259,9 @@ static const char *terr_error[] = {
     "offset out of range",
     "not hashable",
     "not a key and value pair",
-    "can't convert to a %u bit signed integer",
-    "can't convert to a %u bit unsigned integer",
+    "too large for a %u bit signed integer",
+    "too large for a %u bit unsigned integer",
+    "value needs to be non-negative",
     "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE,
     "can't get sign of type",
     "can't get absolute value of type",
@@ -626,7 +627,8 @@ void err_msg_output(const Error *val) {
     case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.invoper.op, val->u.invoper.v1, val->u.invoper.v2, &val->epoint);break;
     case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
     case ERROR_____CANT_IVAL:
-    case ERROR_____CANT_UVAL: new_error_msg(SV_ERROR, current_file_list, &val->epoint); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
+    case ERROR_____CANT_UVAL:
+    case ERROR______NOT_UVAL: new_error_msg(SV_ERROR, current_file_list, &val->epoint); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
     case ERROR_ADDRESS_LARGE:
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:

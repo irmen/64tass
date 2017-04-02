@@ -40,6 +40,7 @@ static FAST_CALL void destroy(Obj *o1) {
         return;
     case ERROR_____CANT_UVAL: 
     case ERROR_____CANT_IVAL: 
+    case ERROR______NOT_UVAL: 
         val_destroy(v1->u.intconv.val);
         return;
     case ERROR___NOT_DEFINED: 
@@ -85,6 +86,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         break;
     case ERROR_____CANT_UVAL: 
     case ERROR_____CANT_IVAL: 
+    case ERROR______NOT_UVAL: 
         v = v1->u.intconv.val;
         break;
     case ERROR___NOT_DEFINED: 

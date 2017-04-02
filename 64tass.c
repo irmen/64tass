@@ -612,25 +612,26 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am;
-                if (touval(val2->obj->address(val2, &am), &uv, 24, poke_pos)) ch2 = 0;
-                else {
-                    switch (am) {
-                    case A_NONE:
-                        if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, poke_pos);
-                        break;
-                    case A_KR:
-                        if (uv > 0xffff) {
-                            Error *v = new_error(ERROR_____CANT_UVAL, poke_pos);
-                            v->u.intconv.bits = 16;
-                            v->u.intconv.val = val_reference(val2);
-                            err_msg_output_and_destroy(v);
-                        }
-                        break;
-                    default:
-                        err_msg_output_and_destroy(err_addressing(am, poke_pos));
-                    }
-                    ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
+                if (touval(val2->obj->address(val2, &am), &uv, 24, poke_pos)) {
+                    ch2 = 0;
+                    break;
                 }
+                switch (am) {
+                case A_NONE:
+                    if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, poke_pos);
+                    break;
+                case A_KR:
+                    if (uv > 0xffff) {
+                        Error *v = new_error(ERROR_____CANT_UVAL, poke_pos);
+                        v->u.intconv.bits = 16;
+                        v->u.intconv.val = val_reference(val2);
+                        err_msg_output_and_destroy(v);
+                    }
+                    break;
+                default:
+                    err_msg_output_and_destroy(err_addressing(am, poke_pos));
+                }
+                ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
                 break;
             }
             if (bits >= 0) {
