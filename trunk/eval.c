@@ -1436,6 +1436,14 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 }
                 if (o_oper[operp - 1].val == &o_SPLAT) {
                     operp--;
+                    if ((operp != 0 && o_oper[operp - 1].val == &o_MEMBER) || identlist != 0) {
+                        Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
+                        idn->name.data = pline + o_oper[operp].epoint.pos;
+                        idn->name.len = 1;
+                        idn->epoint = o_oper[operp].epoint;
+                        push_oper(&idn->v, &o_oper[operp].epoint);
+                        goto other;
+                    } 
                     push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
                     goto other;
                 }
@@ -1446,6 +1454,14 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         if (operp != 0 && o_oper[operp - 1].val == &o_SPLAT) {
             operp--;
             lpoint.pos = epoint.pos;
+            if ((operp != 0 && o_oper[operp - 1].val == &o_MEMBER) || identlist != 0) {
+                Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
+                idn->name.data = pline + o_oper[operp].epoint.pos;
+                idn->name.len = 1;
+                idn->epoint = o_oper[operp].epoint;
+                push_oper(&idn->v, &o_oper[operp].epoint);
+                goto other;
+            } 
             push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
             goto other;
         }
@@ -1455,7 +1471,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         o_oper[operp++].val = op;
         continue;
     other:
-        if (stop != 2 || openclose != 0) ignore();
+        ignore();
         ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
@@ -1636,9 +1652,8 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 }
             }
             break;
-        case '\t':
-        case ' ': break;
         default: 
+            if (stop == 2 && openclose == 0) break;
             switch (get_label()) {
             case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {op = &o_X;goto push2;} break;
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
