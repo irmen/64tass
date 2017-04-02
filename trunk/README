@@ -1177,9 +1177,9 @@ with .var they can't update constants, only variables.
 &&= logical and <<= shift left
 >>= shift right ..= concat
 <?= smaller     >?= greater
-x=  repeat      :=  assign
+&&= logical and ||= logical or
+x=  repeat      .=  member
 
-v       := 1            ; same as 'v .var 1'
 v       += 1            ; same as 'v .var v + 1'
 
 Slicing and indexing
