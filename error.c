@@ -725,6 +725,11 @@ static void err_msg_double_defined2(const char *msg, Severity_types severity, st
     str_name(labelname2->data, labelname2->len);
 }
 
+void err_msg_not_variable(Label *l, const str_t *labelname2, linepos_t epoint2) {
+    err_msg_double_defined2("not a variable", SV_ERROR, current_file_list, labelname2, epoint2);
+    err_msg_double_note(l->file_list, &l->epoint, labelname2);
+}
+
 void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2) {
     err_msg_double_defined2("duplicate definition", SV_ERROR, current_file_list, labelname2, epoint2);
     err_msg_double_note(l->file_list, &l->epoint, labelname2);

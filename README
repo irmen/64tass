@@ -3359,6 +3359,8 @@ not a key and value pair
     dictionaries are built from key and value pairs separated by a colon
 not a one character string
     only a single character string is allowed
+not a variable
+    only variables are changeable
 not allowed here: ?
     do not use this directive here
 not defined '?'
