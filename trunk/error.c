@@ -448,8 +448,9 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             if (prm != NULL) err_msg_variable((Obj *)prm, epoint);
             break;
         case ERROR___UNKNOWN_CPU:
-            adderror("unknown processor");
-            err_msg_variable((Obj *)prm, epoint);
+            adderror("unknown processor '");
+            adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
+            adderror("'");
             break;
         default:
             adderror(terr_error[no - 0x40]);

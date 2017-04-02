@@ -20,7 +20,7 @@
 #define STR_H
 #include "inttypes.h"
 
-typedef struct {
+typedef struct str_t {
     size_t len;
     const uint8_t *data;
 } str_t;

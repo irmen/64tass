@@ -57,16 +57,16 @@ static inline bool dash_name(const char *name) {
     return (name[0] == '-' && name[1] == 0);
 }
 
-struct Str;
+struct str_t;
 
-extern struct file_s *openfile(const char *, const char *, int, const struct Str *, linepos_t);
+extern struct file_s *openfile(const char *, const char *, int, const struct str_t *, linepos_t);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t, bool *);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
-extern char *get_path(const struct Str *, const char *);
+extern char *get_path(const struct str_t *, const char *);
 extern void makefile(int, char *[]);
 
 #endif

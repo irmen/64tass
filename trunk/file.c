@@ -74,7 +74,7 @@ static inline bool is_driveletter(const char *name) {
 }
 #endif
 
-char *get_path(const Str *v, const char *base) {
+char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
@@ -145,7 +145,7 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
 }
 #endif
 
-static void portability(const Str *name, linepos_t epoint) {
+static void portability(const str_t *name, linepos_t epoint) {
 #ifdef _WIN32
     DWORD ret;
     wchar_t *wname = convert_name((const char *)name->data, name->len);
@@ -311,7 +311,7 @@ static inline uchar_t fromiso(uchar_t c) {
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static uint16_t curfnum = 1;
-struct file_s *openfile(const char* name, const char *base, int ftype, const Str *val, linepos_t epoint) {
+struct file_s *openfile(const char* name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
     char *base2;
     struct avltree_node *b;
     struct file_s *tmp;
