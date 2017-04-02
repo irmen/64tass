@@ -20,7 +20,7 @@
 #define ENCODING_H
 #include "avl.h"
 #include "stdbool.h"
-#include "str.h"
+#include "inttypes.h"
 #include "errors_e.h"
 
 struct encoding_s;
@@ -35,10 +35,12 @@ struct trans_s {
 
 extern struct encoding_s *actual_encoding;
 
+struct str_t;
 struct Str;
-extern struct encoding_s *new_encoding(const str_t *, linepos_t);
+
+extern struct encoding_s *new_encoding(const struct str_t *, linepos_t);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
-extern bool new_escape(const struct Str *, struct Obj *, struct encoding_s *, linepos_t);
+extern bool new_escape(const struct str_t *, struct Obj *, struct encoding_s *, linepos_t);
 extern void encode_string_init(const struct Str *, linepos_t);
 extern int encode_string(void);
 extern void encode_error(Error_types);

@@ -1564,6 +1564,9 @@ to map Unicode characters to 8 bit values in strings.
     sequentially. The start and end positions are Unicode character codes
     either by numbers or by typing them. Overlapping ranges are not allowed.
 
+            .enc ascii      ;define an ascii encoding
+            .cdef " ~", 32  ;identity for printable
+
 .edef "<escapetext>", <value> [, "<escapetext>", <value>, ...]
     Assigns strings to byte sequences as a translated value.
 

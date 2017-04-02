@@ -328,6 +328,25 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     return error;
 }
 
+static bool tostr(const struct values_s *v1, str_t *out) {
+    Obj *val = v1->val;
+    switch (val->obj->type) {
+    case T_STR:
+        out->len = ((Str *)val)->len;
+        out->data = ((Str *)val)->data;
+        return false;
+    case T_NONE:
+        err_msg_still_none(NULL, &v1->epoint);
+        return true;
+    case T_ERROR:
+        err_msg_output((Error *)val);
+        return true;
+    default:
+        err_msg_wrong_type(val, STR_OBJ, &v1->epoint);
+        return true;
+    }
+}
+
 /* --------------------------------------------------------------------------- */
 /*
  * Skip memory
@@ -2084,10 +2103,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     } else if (prm==CMD_BINARY) { /* .binary */
                         char *path = NULL;
                         size_t foffset = 0;
-                        Str *val2 = NULL;
                         size_t fsize = all_mem2 + 1;
                         uval_t uval;
                         struct values_s *vs;
+                        str_t filename;
 
                         if (fsize == 0) fsize = all_mem2; /* overflow */
                         if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
@@ -2095,13 +2114,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(0, cfile, 1, 3, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
-                        switch (val->obj->type) {
-                        case T_ERROR: err_msg_output((Error *)val); break;
-                        case T_NONE: err_msg_still_none(NULL, &vs->epoint); break;
-                        default: err_msg_wrong_type(val, STR_OBJ, &vs->epoint); break;
-                        case T_STR:
-                            val2 = (Str *)val;
-                            path = get_path(val2, cfile->realname);
+                        if (!tostr(vs, &filename)) {
+                            path = get_path(&filename, cfile->realname);
                         }
                         if ((vs = get_val()) != NULL) {
                             if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
@@ -2113,15 +2127,15 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                         }
 
-                        if (val2 != NULL) {
-                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, val2, &epoint);
+                        if (path != NULL) {
+                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, &filename, &epoint);
                             if (cfile2 != NULL) {
                                 for (; fsize != 0 && foffset < cfile2->len;fsize--) {
                                     pokeb(cfile2->data[foffset]);foffset++;
                                 }
                             }
+                            free(path);
                         }
-                        free(path);
                     }
 
                     if (nolisting == 0) {
@@ -2550,35 +2564,23 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     len = get_val_remaining();
                     for (;;) {
                         struct values_s *vs, *vs2;
-                        Obj *v;
-                        bool tryit = true;
+                        bool tryit;
+                        str_t escape;
 
                         vs = get_val();
                         if (vs == NULL) break;
+                        tryit = !tostr(vs, &escape);
 
-                        v = vs->val;
-                        switch (v->obj->type) {
-                        case T_STR:
-                            if (((Str *)v)->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
-                            break;
-                        case T_NONE:
-                            err_msg_still_none(NULL, &vs->epoint);
+                        if (tryit && escape.len == 0) {
+                            err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
                             tryit = false;
-                            break;
-                        case T_ERROR:
-                            err_msg_output((Error *)v);
-                            tryit = false;
-                            break;
-                        default:
-                            err_msg_wrong_type(v, STR_OBJ, &vs->epoint);
-                            goto breakerr;
                         }
                         vs2 = get_val();
                         if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr; }
                         val = vs2->val;
                         if (val == &none_value->v) err_msg_still_none(NULL, &vs2->epoint);
                         else if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
-                        else if (tryit && new_escape((Str *)v, val, actual_encoding, &vs2->epoint)) {
+                        else if (tryit && new_escape(&escape, val, actual_encoding, &vs2->epoint)) {
                             err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); goto breakerr;
                         }
                     }
@@ -2599,40 +2601,25 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         {"w65c02", &w65c02}, {"4510", &c4510},
                         {"default", NULL}, {NULL, NULL},
                     };
-                    size_t len;
+                    str_t cpuname;
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
-                    vs = get_val(); val = vs->val;
-                    switch (val->obj->type) {
-                    case T_STR:
-                        cpui = cpus;
-                        len = ((Str *)val)->len;
-                        while (cpui->name != NULL) {
-                            if (len == strlen(cpui->name) && memcmp(cpui->name, ((Str *)val)->data, len) == 0) {
-                                const struct cpu_s *cpumode = (cpui->def != NULL) ? cpui->def : arguments.cpumode;
-                                if (current_section->l_address.bank > cpumode->max_address) {
-                                    current_section->l_address.bank &= cpumode->max_address;
-                                    err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                                }
-                                set_cpumode(cpumode);
-                                break;
+                    vs = get_val();
+                    if (tostr(vs, &cpuname)) break;
+                    for (cpui = cpus; cpui->name != NULL; cpui++) {
+                        if (cpuname.len == strlen(cpui->name) && memcmp(cpui->name, cpuname.data, cpuname.len) == 0) {
+                            const struct cpu_s *cpumode = (cpui->def != NULL) ? cpui->def : arguments.cpumode;
+                            if (current_section->l_address.bank > cpumode->max_address) {
+                                current_section->l_address.bank &= cpumode->max_address;
+                                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
                             }
-                            cpui++;
+                            set_cpumode(cpumode);
+                            break;
                         }
-                        if (cpui->name == NULL) err_msg2(ERROR___UNKNOWN_CPU, val, &vs->epoint);
-                        break;
-                    case T_NONE:
-                        err_msg_still_none(NULL, &vs->epoint);
-                        break;
-                    case T_ERROR:
-                        err_msg_output((Error *)val);
-                        break;
-                    default:
-                        err_msg_wrong_type(val, STR_OBJ, &vs->epoint);
-                        break;
                     }
+                    if (cpui->name == NULL) err_msg2(ERROR___UNKNOWN_CPU, &cpuname, &vs->epoint);
                 }
                 break;
             case CMD_REPT: if ((waitfor->skip & 1) != 0)
@@ -2710,17 +2697,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     struct file_s *f = NULL;
                     struct values_s *vs;
                     char *path;
+                    str_t filename;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
-                    vs = get_val(); val = vs->val;
-                    switch (val->obj->type) {
-                    case T_ERROR: err_msg_output((Error *)val); break;
-                    case T_NONE: err_msg_still_none(NULL, &vs->epoint); break;
-                    default: err_msg_wrong_type(val, STR_OBJ, &vs->epoint); break;
-                    case T_STR:
-                        path = get_path((Str *)val, cfile->realname);
-                        f = openfile(path, cfile->realname, 2, (Str *)val, &epoint);
+                    vs = get_val();
+                    if (!tostr(vs, &filename)) {
+                        path = get_path(&filename, cfile->realname);
+                        f = openfile(path, cfile->realname, 2, &filename, &epoint);
                         free(path);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);

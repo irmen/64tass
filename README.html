@@ -1925,6 +1925,10 @@ start without any character or escape definitions, add some as required.
 applied to a range as characters and bytes are usually assigned sequentially.
 The start and end positions are Unicode character codes either by numbers or by
 typing them. Overlapping ranges are not allowed.</p>
+<pre width=80>
+        <b class="k">.enc</b> ascii	<i>;define an ascii encoding</i>
+        <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity for printable</i>
+</pre>
 <dt><code><b class="k">.edef</b></code> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
 <dd>Assigns strings to byte sequences as a translated value.
 <p>When these substrings are found in a text they are replaced by bytes defined here.
