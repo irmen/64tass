@@ -952,7 +952,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 } else {
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
-                    if (label->constant) {err_msg_double_defined(label, &labelname, &epoint); goto breakerr;}
+                    if (label->constant) {err_msg_not_variable(label, &labelname, &epoint); goto breakerr;}
                     if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                     val = label->value;
                 }
@@ -2945,7 +2945,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 } else {
                                     label = find_label2(&varname, (varname.data[0] == '_') ? cheap_context : current_context);
                                     if (label == NULL) {err_msg_not_definedx(&varname, &epoint); break;}
-                                    if (label->constant) {err_msg_double_defined(label, &varname, &epoint); break;}
+                                    if (label->constant) {err_msg_not_variable(label, &varname, &epoint); break;}
                                     if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &epoint);
                                 }
                                 bpoint = lpoint; nopos = 1;

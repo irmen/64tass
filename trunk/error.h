@@ -53,6 +53,7 @@ extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
 extern void err_msg_invalid_oper(const struct Oper *, const Obj *, const Obj *, linepos_t);
 extern void err_msg_double_definedo(struct file_list_s *, linepos_t, const str_t *, linepos_t);
+extern void err_msg_not_variable(struct Label *, const str_t *, linepos_t);
 extern void err_msg_double_defined(struct Label *, const str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
