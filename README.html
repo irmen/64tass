@@ -1543,8 +1543,6 @@ variables.</p>
 <td><code>..=</code><td>concat
 <tr><td><code>&lt;?=</code><td>smaller
 <td><code>&gt;?=</code><td>greater
-<tr><td><code>&&=</code><td>logical and
-<td><code>||=</code><td>logical or
 <tr><td><code>x=</code><td>repeat
 <td><code>.=</code><td>member
 </tbody>
@@ -3223,6 +3221,7 @@ disable them. The options below with this prefix are enabled by default, the oth
 
 <dt><b>-Walias</b><a name="o_Walias" href="#o_Walias"></a>
 <dd>Warns about alias opcodes.
+<p>There are several opcodes for the same task, especially for the "6502i" target.</p>
 
 <dt><b>-Wbranch-page</b><a name="o_Wbranch-page" href="#o_Wbranch-page"></a>
 <dd>Warns if a branch is crossing a page.
@@ -3273,14 +3272,17 @@ been included. This option disables warnings about their uses.</p>
 unexpected results.</p>
 
 <p>For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
-is actually bigger by approximately 4.44e-16.</p>
+is actually bigger by approximately 4.44E-16.</p>
 
 <p>If this option is used to silence the warning then there's no approximation
 performed and the result will be false.</p>
 
+<p>Normally this is solved by rounding or changing the comparison values.</p>
+
 <dt><b>-Wno-jmp-bug</b><a name="o_Wjmp-bug" href="#o_Wjmp-bug"></a>
 <dd>Don't warn about the <code>jmp ($xxff)</code> bug.
-<p>It's fine that the high byte is read from the <q>wrong</q> address on 6502, NMOS 6502 and 65DTV02.</p>
+<p>With this option it's fine that the high byte is read from the <q>wrong</q>
+address on a 6502, NMOS 6502 and 65DTV02.</p>
 
 <dt><b>-Wno-label-left</b><a name="o_Wlabel-left" href="#o_Wlabel-left"></a>
 <dd>Don't warn about certain labels not being on left side.
@@ -3300,17 +3302,18 @@ unknown aliases and not for enforcing label placement.</p>
 
 <dt><b>-Wno-pitfalls</b><a name="o_Wpitfalls" href="#o_Wpitfalls"></a>
 <dd>Don't note about common pitfalls.
-<p>There are some common mistakes, but experts and those who read this don't need extra notes about them. These are:</p>
+<p>There are some common mistakes, but experts and those who read this don't
+need extra notes about them. These are:</p>
 
 <dl>
-<dt>Using '.byte' instead of '.text'.
-<dd>Fails because '.byte' enforces the 0&ndash;255 range for each value.
+<dt>Use multi character strings with '.byte' instead of '.text'.
+<dd>This fails because '.byte' enforces the 0&ndash;255 range for each value.
 <dt>Using 'label *=*+1' style space reservations.
-<dd>Fails as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. Also a better alternatively is to use '.fill 1' or '.byte ?'.
+<dd>Fails as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. A better alternatively is to use '.fill 1' or '.byte ?'.
 <dt>Negative numbers with '.byte' or '.word'
 <dd>There are other directives which accept them with proper range checks like '.char', '.sint'.
 <dt>Negative numbers with 'lda #xxx'
-<dd>There's a signed variant for the immediate operator so 'lda #+xx' will likely work
+<dd>There's a signed variant for the immediate addressing so 'lda #+xx' will make it work
 </dl>
 
 <dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>
