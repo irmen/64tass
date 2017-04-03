@@ -3365,8 +3365,6 @@ index out of range
     not enough elements in list
 instruction can't cross banks
     this instruction is only limited to the current bank
-invalid operands to ? '?' and '?'
-    can't do this calculation with these values
 key error
     not in dictionary
 label required
@@ -3419,6 +3417,8 @@ reserved symbol name '?'
     do not use this symbol name
 shadow definition
     symbol is defined in an upper scope and is used ambiguously
+some operation '?' of type '?' and type '?' not possible
+    can't do this calculation with these values
 square root of negative number
     can't calculate the square root of a negative number
 too early to reference
