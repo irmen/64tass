@@ -812,23 +812,20 @@ void err_msg_unused_variable(Label *l) {
     adderror(" [-Wunused-variable]");
 }
 
-static void err_msg_invalid_oper2(const Oper *op, const Obj *v1, const Obj *v2) {
-    adderror((v2 != NULL) ? "invalid operands to " : "invalid type argument to ");
+static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     adderror(op->name);
-
+    adderror("' of ");
+    adderror(v1->obj->name);
+    err_msg_variable(v1, epoint);
     if (v2 != NULL) {
-        adderror("' '");
-        adderror(v1->obj->name);
-        adderror("' and '");
+        adderror(" and ");
         adderror(v2->obj->name);
-    } else {
-        adderror("' '");
-        adderror(v1->obj->name);
+        err_msg_variable(v2, epoint);
     }
-    adderror("'");
+    adderror(" not possible");
 }
 
-void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {
+void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     if (v1->obj == ERROR_OBJ) {
         err_msg_output((const Error *)v1);
         return;
@@ -839,7 +836,7 @@ void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_
     }
 
     new_error_msg(SV_ERROR, current_file_list, epoint);
-    err_msg_invalid_oper2(op, v1, v2);
+    err_msg_invalid_oper2(op, v1, v2, epoint);
 }
 
 void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepos_t epoint) {
@@ -879,7 +876,7 @@ void err_msg_bool_val(Error_types no, unsigned int bits, Obj *o, linepos_t epoin
 
 void err_msg_bool_oper(oper_t op) {
     new_error_msg2(diagnostic_errors.strict_bool, op->epoint3);
-    err_msg_invalid_oper2(op->op, op->v1, op->v2);
+    err_msg_invalid_oper2(op->op, op->v1, op->v2, op->epoint3);
     adderror(" [-Wstrict-bool]");
 }
 
