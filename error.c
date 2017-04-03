@@ -716,6 +716,31 @@ static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, co
     adderror(" was here");
 }
 
+void err_msg_compound_note(linepos_t epoint) {
+    static unsigned once;
+    if (once != pass) {
+        new_error_msg(SV_NOTE, current_file_list, epoint);
+        adderror("for reserving space move '*=' below or use '.fill x' or '.byte ?' [-Wpitfalls]");
+        once = pass;
+    }
+}
+
+void err_msg_byte_note(linepos_t epoint) {
+    static unsigned int once;
+    if (once != pass) {
+        new_error_msg(SV_NOTE, current_file_list, epoint);
+        adderror("for long strings mixed with bytes please use the '.text' directive [-Wpitfalls]");
+        once = pass;
+    }
+}
+
+void err_msg_char_note(const char *directive, linepos_t epoint) {
+    new_error_msg(SV_NOTE, current_file_list, epoint);
+    adderror("for signed values '");
+    adderror(directive);
+    adderror("' is a better fit [-Wpitfalls]");
+}
+
 void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.case_symbol, epoint);
     adderror("symbol case mismatch");

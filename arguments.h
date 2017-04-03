@@ -91,6 +91,7 @@ struct diagnostics_s {
     bool float_compare;
     bool leading_zeros;
     bool alias;
+    bool pitfalls;
 };
 
 extern int testarg(int *, char ***, struct file_s *);
