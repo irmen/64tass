@@ -165,7 +165,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 case 0xC2:
                 case 0xE2:
                 case 0xEF:  /* sep rep mmu */
-                    if (am != A_IMMEDIATE && (opcode == w65816.opcode || opcode == c65el02.opcode)) return err_addressing(am, epoint);
+                    if (opcode == w65816.opcode || opcode == c65el02.opcode) {
+                        if (am != A_IMMEDIATE) return err_addressing(am, epoint);
+                        adrgen = AG_BYTE;
+                        break;
+                    }
                     /* fall through */
                 case 0x00:
                 case 0x02: /* brk cop */
@@ -738,7 +742,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toival(val, (ival_t *)&uval, 8, epoint2)) break;
         } else {
             if (touval(val, &uval, 8, epoint2)) {
-                if (diagnostics.pitfalls) {
+                if (adrgen == AG_SBYTE && diagnostics.pitfalls) {
                     err = val->obj->ival(val, (ival_t *)&uval, 8, epoint2);
                     if (err != NULL) val_destroy(&err->v);
                     else if (once != pass) {
@@ -845,7 +849,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toival(val, (ival_t *)&uval, 16, epoint2)) break;
         } else {
             if (touval(val, &uval, 16, epoint2)) {
-                if (diagnostics.pitfalls) {
+                if (adrgen == AG_SWORD && diagnostics.pitfalls) {
                     err = val->obj->ival(val, (ival_t *)&uval, 16, epoint2);
                     if (err != NULL) val_destroy(&err->v);
                     else if (once != pass) {
