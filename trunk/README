@@ -1177,7 +1177,6 @@ with .var they can't update constants, only variables.
 &&= logical and <<= shift left
 >>= shift right ..= concat
 <?= smaller     >?= greater
-&&= logical and ||= logical or
 x=  repeat      .=  member
 
 v       += 1            ; same as 'v .var v + 1'
@@ -2794,6 +2793,10 @@ default, the others are disabled.
 
 -Walias
     Warns about alias opcodes.
+
+    There are several opcodes for the same task, especially for the "6502i"
+    target.
+
 -Wbranch-page
     Warns if a branch is crossing a page.
 
@@ -2849,16 +2852,18 @@ default, the others are disabled.
     give unexpected results.
 
     For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
-    is actually bigger by approximately 4.44e-16.
+    is actually bigger by approximately 4.44E-16.
 
     If this option is used to silence the warning then there's no approximation
     performed and the result will be false.
 
+    Normally this is solved by rounding or changing the comparison values.
+
 -Wno-jmp-bug
     Don't warn about the jmp ($xxff) bug.
 
-    It's fine that the high byte is read from the `wrong' address on 6502, NMOS
-    6502 and 65DTV02.
+    With this option it's fine that the high byte is read from the `wrong'
+    address on a 6502, NMOS 6502 and 65DTV02.
 
 -Wno-label-left
     Don't warn about certain labels not being on left side.
@@ -2886,18 +2891,18 @@ default, the others are disabled.
     There are some common mistakes, but experts and those who read this don't
     need extra notes about them. These are:
 
-    Using '.byte' instead of '.text'.
-        Fails because '.byte' enforces the 0-255 range for each value.
+    Use multi character strings with '.byte' instead of '.text'.
+        This fails because '.byte' enforces the 0-255 range for each value.
     Using 'label *=*+1' style space reservations.
         Fails as '*=' is also the compound multiply operator. The '*=*+1' needs
-        to be on a separate line without a label. Also a better alternatively
-        is to use '.fill 1' or '.byte ?'.
+        to be on a separate line without a label. A better alternatively is to
+        use '.fill 1' or '.byte ?'.
     Negative numbers with '.byte' or '.word'
         There are other directives which accept them with proper range checks
         like '.char', '.sint'.
     Negative numbers with 'lda #xxx'
-        There's a signed variant for the immediate operator so 'lda #+xx' will
-        likely work
+        There's a signed variant for the immediate addressing so 'lda #+xx'
+        will make it work
 
 -Wold-equal
     Warn about old equal operator.
