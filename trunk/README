@@ -2895,6 +2895,9 @@ default, the others are disabled.
     Negative numbers with '.byte' or '.word'
         There are other directives which accept them with proper range checks
         like '.char', '.sint'.
+    Negative numbers with 'lda #xxx'
+        There's a signed variant for the immediate operator so 'lda #+xx' will
+        likely work
 
 -Wold-equal
     Warn about old equal operator.

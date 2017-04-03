@@ -660,7 +660,6 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
                         if (prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(poke_pos);
                         else if (prm != CMD_RTA && prm != CMD_ADDR && once != pass) {
                             Error *err = val2->obj->ival(val2, &iv, (unsigned int)bits, poke_pos);
-                            printf("%d %d\n", iv, bits);
                             if (err != NULL) val_destroy(&err->v);
                             else {
                                 const char *txt;
