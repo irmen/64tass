@@ -3309,6 +3309,8 @@ unknown aliases and not for enforcing label placement.</p>
 <dd>Fails as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. Also a better alternatively is to use '.fill 1' or '.byte ?'.
 <dt>Negative numbers with '.byte' or '.word'
 <dd>There are other directives which accept them with proper range checks like '.char', '.sint'.
+<dt>Negative numbers with 'lda #xxx'
+<dd>There's a signed variant for the immediate operator so 'lda #+xx' will likely work
 </dl>
 
 <dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>

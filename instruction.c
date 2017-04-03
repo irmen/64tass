@@ -111,7 +111,8 @@ static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
 }
 
 MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoint, struct linepos_s *epoints) {
-    enum { AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE } adrgen;
+    enum { AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_SBYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD, AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE } adrgen;
+    static unsigned int once;
     Adr_types opr;
     Reg_types reg;
     const uint8_t *cnmemonic; /* current nmemonic */
@@ -156,10 +157,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 case 0xC0:
                 case 0xA2:
                 case 0xA0:  /* cpx cpy ldx ldy */
-                    adrgen = (am == A_IMMEDIATE) ? (longindex ? AG_WORD : AG_BYTE) : (longindex ? AG_SINT : AG_CHAR);
+                    adrgen = (am == A_IMMEDIATE) ? (longindex ? AG_SWORD : AG_SBYTE) : (longindex ? AG_SINT : AG_CHAR);
                     break;
                 case 0xF4: /* pea/phw #$ffff */
-                    adrgen = (am == A_IMMEDIATE) ? AG_WORD : AG_SINT;
+                    adrgen = (am == A_IMMEDIATE) ? AG_SWORD : AG_SINT;
                     break;
                 case 0xC2:
                 case 0xE2:
@@ -168,10 +169,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     /* fall through */
                 case 0x00:
                 case 0x02: /* brk cop */
-                    adrgen = (am == A_IMMEDIATE) ? AG_BYTE : AG_CHAR;
+                    adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
                     break;
                 default:
-                    adrgen = (am == A_IMMEDIATE) ? (longaccu ? AG_WORD : AG_BYTE) : (longaccu ? AG_SINT : AG_CHAR);
+                    adrgen = (am == A_IMMEDIATE) ? (longaccu ? AG_SWORD : AG_SBYTE) : (longaccu ? AG_SINT : AG_CHAR);
                 }
                 break;
             case (A_IMMEDIATE << 4) | A_BR: /* lda #$ffff,b */
@@ -729,13 +730,24 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         break;
     case AG_CHAR:
+    case AG_SBYTE: /* byte only */
     case AG_BYTE: /* byte only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         ln = 1;
-        if (adrgen == AG_BYTE) {
-            if (touval(val, &uval, 8, epoint2)) break;
-        } else {
+        if (adrgen == AG_CHAR) {
             if (toival(val, (ival_t *)&uval, 8, epoint2)) break;
+        } else {
+            if (touval(val, &uval, 8, epoint2)) {
+                if (diagnostics.pitfalls) {
+                    err = val->obj->ival(val, (ival_t *)&uval, 8, epoint2);
+                    if (err != NULL) val_destroy(&err->v);
+                    else if (once != pass) {
+                        err_msg_immediate_note(epoint2);
+                        once = pass;
+                    }
+                }
+                break;
+            }
         }
         adr = uval;
         if (autosize && (opcode == c65el02.opcode || opcode == w65816.opcode)) {
@@ -825,13 +837,24 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         opr = (Adr_types)(opr - w); ln = w + 1;
         break;
     case AG_SINT:
+    case AG_SWORD:
     case AG_WORD: /* word only */
         if (w != 3 && w != 1) return new_error((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         ln = 2;
-        if (adrgen == AG_WORD) {
-            if (touval(val, &uval, 16, epoint2)) break;
-        } else {
+        if (adrgen == AG_SINT) {
             if (toival(val, (ival_t *)&uval, 16, epoint2)) break;
+        } else {
+            if (touval(val, &uval, 16, epoint2)) {
+                if (diagnostics.pitfalls) {
+                    err = val->obj->ival(val, (ival_t *)&uval, 16, epoint2);
+                    if (err != NULL) val_destroy(&err->v);
+                    else if (once != pass) {
+                        err_msg_immediate_note(epoint2);
+                        once = pass;
+                    }
+                }
+                break;
+            }
         }
         adr = uval;
         break;

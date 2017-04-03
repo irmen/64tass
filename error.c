@@ -741,6 +741,11 @@ void err_msg_char_note(const char *directive, linepos_t epoint) {
     adderror("' is a better fit [-Wpitfalls]");
 }
 
+void err_msg_immediate_note(linepos_t epoint) {
+    new_error_msg(SV_NOTE, current_file_list, epoint);
+    adderror("to accept signed values use the '#+' operator [-Wpitfalls]");
+}
+
 void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.case_symbol, epoint);
     adderror("symbol case mismatch");
