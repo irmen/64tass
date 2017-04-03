@@ -654,7 +654,30 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
                 break;
             }
             if (bits >= 0) {
-                if (touval(val2, &uv, (unsigned int)bits, poke_pos)) uv = 0;
+                if (touval(val2, &uv, (unsigned int)bits, poke_pos)) {
+                    if (diagnostics.pitfalls) {
+                        static unsigned int once;
+                        if (prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(poke_pos);
+                        else if (prm != CMD_RTA && prm != CMD_ADDR && once != pass) {
+                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)bits, poke_pos);
+                            printf("%d %d\n", iv, bits);
+                            if (err != NULL) val_destroy(&err->v);
+                            else {
+                                const char *txt;
+                                switch (prm) {
+                                case CMD_BYTE:  txt = ".char"; break;
+                                case CMD_LONG:  txt = ".lint"; break;
+                                case CMD_DWORD: txt = ".dint"; break;
+                                default:
+                                case CMD_WORD:  txt = ".sint"; break;
+                                }
+                                err_msg_char_note(txt, poke_pos);
+                                once = pass;
+                            }
+                        }
+                    }
+                    uv = 0;
+                }
                 ch2 = uv;
             } else {
                 if (toival(val2, &iv, (unsigned int)-bits, poke_pos)) iv = 0;
@@ -971,7 +994,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     val = get_star_value(current_section->l_address_val);
                 } else {
                     label = find_label2(&labelname, mycontext);
-                    if (label == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
+                    if (label == NULL) {
+                        err_msg_not_definedx(&labelname, &epoint); 
+                        if (diagnostics.pitfalls && tmp.op == &o_MUL && pline[lpoint.pos]=='*') err_msg_compound_note(&epoint3);
+                        goto breakerr;
+                    }
                     if (label->constant) {err_msg_not_variable(label, &labelname, &epoint); goto breakerr;}
                     if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                     val = label->value;

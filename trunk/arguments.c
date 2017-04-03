@@ -78,7 +78,8 @@ struct diagnostics_s diagnostics = {
     false,       /* immediate */
     true,        /* float_compare */
     false,       /* leading_zeros */
-    false        /* alias */
+    false,       /* alias */
+    true         /* pitfalls */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -105,7 +106,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* immediate */
     false,       /* float_compare */
     false,       /* leading_zeros */
-    false        /* alias */
+    false,       /* alias */
+    false        /* pitfalls */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -133,7 +135,8 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* immediate */
     true,        /* float_compare */
     true,        /* leading_zeros */
-    false        /* alias */
+    false,       /* alias */
+    true         /* pitfalls */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -161,7 +164,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* immediate */
     true,        /* float_compare */
     true,        /* leading_zeros */
-    true         /* alias */
+    true,        /* alias */
+    true         /* pitfalls */
 };
 
 struct w_options_s {
@@ -192,6 +196,7 @@ static const struct w_options_s w_options[] = {
     {"float-compare",   &diagnostics.float_compare},
     {"leading-zeros",   &diagnostics.leading_zeros},
     {"alias",           &diagnostics.alias},
+    {"pitfalls",        &diagnostics.pitfalls},
     {NULL,              NULL}
 };
 
@@ -501,6 +506,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wno-label-left       No warning about strange labels\n"
                "  -Wno-mem-wrap         No offset overflow warning\n"
                "  -Wno-pc-wrap          No PC overflow warning\n"
+               "  -Wno-pitfalls         No common pitfall notes\n"
                "  -Wold-equal           Warn about old equal operator\n"
                "  -Woptimize            Optimization warnings\n"
                "  -Wno-portable         No portability warnings\n"

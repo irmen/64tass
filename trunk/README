@@ -2808,18 +2808,6 @@ default, the others are disabled.
     (symbols must match exactly) with the main difference of disallowing symbol
     name definitions differing only in case (these are reported as duplicates).
 
--Wno-float-compare
-    Don't warn if floating point comparisons are only approximate.
-
-    Floating point numbers have a finite precision and comparing them might
-    give unexpected results.
-
-    For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
-    is actually bigger by approximately 4.44e-16.
-
-    If this option is used to silence the warning then there's no approximation
-    performed and the result will be false.
-
 -Wimmediate
     Warns for cases where immediate addressing is more likely.
 
@@ -2854,6 +2842,18 @@ default, the others are disabled.
     Unfortunately there were some features added previously which shouldn't
     have been included. This option disables warnings about their uses.
 
+-Wno-float-compare
+    Don't warn if floating point comparisons are only approximate.
+
+    Floating point numbers have a finite precision and comparing them might
+    give unexpected results.
+
+    For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
+    is actually bigger by approximately 4.44e-16.
+
+    If this option is used to silence the warning then there's no approximation
+    performed and the result will be false.
+
 -Wno-jmp-bug
     Don't warn about the jmp ($xxff) bug.
 
@@ -2879,6 +2879,22 @@ default, the others are disabled.
     Don't warn for program counter wrap around.
 
     Continue from the beginning of program bank once it's end was reached.
+
+-Wno-pitfalls
+    Don't note about common pitfalls.
+
+    There are some common mistakes, but experts and those who read this don't
+    need extra notes about them. These are:
+
+    Using '.byte' instead of '.text'.
+        Fails because '.byte' enforces the 0-255 range for each value.
+    Using 'label *=*+1' style space reservations.
+        Fails as '*=' is also the compound multiply operator. The '*=*+1' needs
+        to be on a separate line without a label. Also a better alternatively
+        is to use '.fill 1' or '.byte ?'.
+    Negative numbers with '.byte' or '.word'
+        There are other directives which accept them with proper range checks
+        like '.char', '.sint'.
 
 -Wold-equal
     Warn about old equal operator.
