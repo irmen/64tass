@@ -1472,7 +1472,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         o_oper[operp++].val = op;
         continue;
     other:
-        ignore();
+        if (stop != 2 || openclose != 0) ignore();
         ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
@@ -1656,8 +1656,9 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 }
             }
             break;
+        case '\t':
+        case ' ': break;
         default: 
-            if (stop == 2 && openclose == 0) break;
             switch (get_label()) {
             case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {if (pline[lpoint.pos] == '=') {lpoint.pos++; op = &o_X_ASSIGN;} else op = &o_X;goto push2a;} break;
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
