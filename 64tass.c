@@ -922,12 +922,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             while (here() == '.') {
                 if ((waitfor->skip & 1) != 0) {
                     if (mycontext == current_context) {
-                        bool down = (labelname.data[0] != '_');
-                        tmp2 = down ? find_label(&labelname, NULL) : find_label2(&labelname, cheap_context);
-                        if (tmp2 != NULL && down) tmp2->shadowcheck = true;
+                        if (labelname.data[0] != '_') {
+                            tmp2 = find_label(&labelname, NULL);
+                            if (tmp2 == NULL) {err_msg_not_defined2(&labelname, mycontext, true, &epoint); goto breakerr;}
+                            tmp2->shadowcheck = true;
+                        } else {
+                            tmp2 = find_label2(&labelname, cheap_context);
+                            if (tmp2 == NULL) {err_msg_not_defined2(&labelname, cheap_context, false, &epoint); goto breakerr;}
+                        }
+                    } else {
+                        tmp2 = find_label2(&labelname, mycontext);
+                        if (tmp2 == NULL) {err_msg_not_defined2(&labelname, mycontext, false, &epoint); goto breakerr;}
                     }
-                    else tmp2 = find_label2(&labelname, mycontext);
-                    if (tmp2 == NULL) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                     val = tmp2->value;
                     if (val->obj != CODE_OBJ) {
                         if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint); 
@@ -997,7 +1003,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 } else {
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {
-                        err_msg_not_definedx(&labelname, &epoint); 
+                        err_msg_not_defined2(&labelname, mycontext, false, &epoint); 
                         if (diagnostics.pitfalls && tmp.op == &o_MUL && pline[lpoint.pos]=='*') err_msg_compound_note(&epoint3);
                         goto breakerr;
                     }
@@ -2913,6 +2919,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             lpoint.pos++;ignore();
                             if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
                             else {
+                                Namespace *context;
                                 bool labelexists;
                                 epoint = lpoint;
                                 varname.data = pline + lpoint.pos; varname.len = get_label();
@@ -2945,10 +2952,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     tmp.epoint3 = &epoint3;
                                     break;
                                 }
+                                context = (varname.data[0] == '_') ? cheap_context : current_context;
                                 if (tmp.op == NULL) {
                                     if (wht != '=') {err_msg(ERROR______EXPECTED,"="); break;}
                                     lpoint.pos++;ignore();
-                                    label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
+                                    label = new_label(&varname, context, strength, &labelexists);
                                     if (labelexists) {
                                         if (label->constant) { err_msg_double_defined(label, &varname, &epoint); break; }
                                         label->owner = false;
@@ -2966,8 +2974,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                         label->epoint = epoint;
                                     }
                                 } else {
-                                    label = find_label2(&varname, (varname.data[0] == '_') ? cheap_context : current_context);
-                                    if (label == NULL) {err_msg_not_definedx(&varname, &epoint); break;}
+                                    label = find_label2(&varname, context);
+                                    if (label == NULL) {err_msg_not_defined2(&varname, context, false, &epoint); break;}
                                     if (label->constant) {err_msg_not_variable(label, &varname, &epoint); break;}
                                     if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &epoint);
                                 }

@@ -518,7 +518,7 @@ static void notdefines_free(struct avltree_node *aa) {
 }
 
 static struct notdefines_s *lastnd = NULL;
-static inline void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t epoint) {
+void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t epoint) {
     struct notdefines_s *tmp2;
     struct avltree_node *b;
 
@@ -701,12 +701,6 @@ void err_msg_still_none(const str_t *name, linepos_t epoint) {
 
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
-}
-
-void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
-    new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror("not defined");
-    if (name != NULL) str_name(name->data, name->len);
 }
 
 static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
