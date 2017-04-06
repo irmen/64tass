@@ -146,12 +146,12 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             lpoint.pos++;
            
             v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
-            err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)), &lpoint);
+            err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
             val_destroy(v);
             lpoint.pos += len;
             if (err != NULL) return &err->v;
 
-            if (expo != 0) real = (base == 'e') ? ldexp10(real, expo, neg) : ldexp(real, neg ? -expo : expo);
+            if (expo != 0) real = (base == 'e') ? ldexp10(real, expo, neg) : ldexp(real, neg ? -(ival_t)expo : (ival_t)expo);
         }
     }
     return float_from_double(real, epoint);
