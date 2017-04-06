@@ -562,7 +562,8 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     }
 
     if (l->file_list == NULL) {
-        new_error_msg(SV_NOTE2, current_file_list, epoint);
+        struct linepos_s nopoint = {1, 0};
+        new_error_msg(SV_NOTE2, current_file_list, &nopoint);
         adderror("searched in the global scope");
     } else {
         new_error_msg(SV_NOTE, l->file_list, &l->epoint);
