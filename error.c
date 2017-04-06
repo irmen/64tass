@@ -562,7 +562,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     }
 
     if (l->file_list == NULL) {
-        struct linepos_s nopoint = {1, 0};
+        struct linepos_s nopoint = {0, 0};
         new_error_msg(SV_NOTE2, current_file_list, &nopoint);
         adderror("searched in the global scope");
     } else {
@@ -965,7 +965,8 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
         line = (err->line_len != 0) ? ((const uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)cflist->file->realname, f);
-        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
+        if (epoint->line == 0) fputs(": ", f);
+        else fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
     } else {
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)prgname, f);
