@@ -449,7 +449,10 @@ static void set_cpumode(const struct cpu_s *cpumode) {
 static void const_assign(Label *label, Obj *val) {
     label->defpass = pass;
     if (fixeddig && label->usepass >= pass) {
-        if (val->obj->same(val, label->value)) return val_destroy(val);
+        if (val->obj->same(val, label->value)) {
+            val_destroy(val);
+            return;
+        }
         if (pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
         fixeddig = false;
     }
