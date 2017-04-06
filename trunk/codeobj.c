@@ -529,7 +529,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         op->v2 = v2->addr;
         if (op->op == &o_ADD) {
             ival_t iv;
-            err = o1->obj->ival(o1, &iv, 31, op->epoint2);
+            err = o1->obj->ival(o1, &iv, 31, op->epoint);
             if (err != NULL) {
                 op->v2 = &v2->v;
                 return &err->v;
