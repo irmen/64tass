@@ -64,7 +64,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 typedef enum Severity_types {
-    SV_NOTE, SV_NOTE2, SV_WARNING, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_NOTE, SV_WARNING, SV_NONEERROR, SV_ERROR, SV_FATAL
 } Severity_types;
 
 struct errorentry_s {
@@ -106,7 +106,6 @@ static void close_error(void) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
-        case SV_NOTE2:
         case SV_NOTE: break;
         default: duplicate = check_duplicate(err);
         }
@@ -121,7 +120,6 @@ static void new_error_msg(Severity_types severity, const struct file_list_s *fli
     size_t line_len;
     close_error();
     switch (severity) {
-    case SV_NOTE2:
     case SV_NOTE: line_len = 0; break;
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((const char *)pline) + 1) : 0; break;
     }
@@ -563,7 +561,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
 
     if (l->file_list == NULL) {
         struct linepos_s nopoint = {0, 0};
-        new_error_msg(SV_NOTE2, current_file_list, &nopoint);
+        new_error_msg(SV_NOTE, current_file_list, &nopoint);
         adderror("searched in the global scope");
     } else {
         new_error_msg(SV_NOTE, l->file_list, &l->epoint);
@@ -714,7 +712,7 @@ static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, co
 void err_msg_compound_note(linepos_t epoint) {
     static unsigned once;
     if (once != pass) {
-        new_error_msg(SV_NOTE, current_file_list, epoint);
+        new_error_msg2(diagnostic_errors.pitfalls, epoint);
         adderror("for reserving space move '*=' below or use '.fill x' or '.byte ?' [-Wpitfalls]");
         once = pass;
     }
@@ -936,44 +934,45 @@ void err_msg_unknown_char(uchar_t ch, const str_t *name, linepos_t epoint) {
     adderror("'");
 }
 
-static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
-    return &file->data[file->line[line - 1]];
+static const uint8_t *printline(const struct file_list_s *cfile, linepos_t epoint, const uint8_t *line, FILE *f) {
+    const struct file_s *file;
+    if (epoint->line == 0) return NULL;
+    file = cfile->file;
+    if (line == NULL) line = &file->data[file->line[epoint->line - 1]];
+    fprintf(f, ":%" PRIuline ":%" PRIlinepos, epoint->line, ((file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
+    return line;
 }
 
 static inline void print_error(FILE *f, const struct errorentry_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
-    const uint8_t *line;
-    bool text = (cflist != &file_list);
+    const uint8_t *line = NULL;
     bool bold;
 
-    if (text) {
+    if (cflist != &file_list) {
         if (cflist != included_from) {
             included_from = cflist;
             while (included_from->parent != &file_list) {
-                line = get_line(included_from->parent->file, included_from->epoint.line);
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 if (print_use_color) fputs("\33[01m", f);
                 printable_print((const uint8_t *)included_from->parent->file->realname, f);
-                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, ((included_from->parent->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, included_from->epoint.pos) : included_from->epoint.pos) + 1);
+                line = printline(included_from->parent, &included_from->epoint, NULL, f);
                 included_from = included_from->parent;
                 if (print_use_color) fputs("\33[m\33[K", f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
             }
             included_from = cflist;
         }
-        line = (err->line_len != 0) ? ((const uint8_t *)(err + 1)) : get_line(cflist->file, epoint->line);
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)cflist->file->realname, f);
-        if (epoint->line == 0) fputs(": ", f);
-        else fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((cflist->file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
+        line = printline(cflist, epoint, (err->line_len != 0) ? (const uint8_t *)(err + 1) : NULL, f);
+        fputs(": ", f);
     } else {
         if (print_use_color) fputs("\33[01m", f);
         printable_print((const uint8_t *)prgname, f);
         fputs(": ", f);
     }
     switch (err->severity) {
-    case SV_NOTE2:
     case SV_NOTE: if (print_use_color) fputs("\33[30m", f); fputs("note: ", f); bold = false; break;
     case SV_WARNING: if (print_use_color) fputs("\33[35m", f); fputs("warning: ", f); bold = true; break;
     case SV_NONEERROR:
@@ -985,7 +984,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     printable_print2(((const uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
     if (print_use_color && bold) fputs("\33[m\33[K", f);
     putc('\n', f);
-    if (text && arguments.caret && err->severity != SV_NOTE2) {
+    if (arguments.caret && line != NULL) {
         putc(' ', f);
         printable_print(line, f);
         fputs(print_use_color ? "\n\33[01;32m\33[K " : "\n ", f);
@@ -1023,7 +1022,6 @@ bool error_print() {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NONEERROR: anyerr = true; break;
-        case SV_NOTE2:
         case SV_NOTE:
         case SV_WARNING:
             break;
@@ -1036,7 +1034,6 @@ bool error_print() {
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTE2:
         case SV_NOTE:
             if (!usenote) continue;
             if (err3 != NULL) {
@@ -1196,7 +1193,6 @@ bool error_serious(void) {
     for (pos = 0; pos < error_list.len; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTE2:
         case SV_NOTE:
         case SV_WARNING: break;
         default: return true;
