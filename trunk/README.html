@@ -3117,10 +3117,10 @@ PETSCII literals to the default encodings, and enables Unicode letters in symbol
 </pre>
 
 <dt><b>-B</b>, <b>--long-branch</b><a name="o_long-branch" href="#o_long-branch"></a>
-<dd>Automatic <code>BXX &lowast;+5 JMP xxx</code>. Branch too long messages can be annoying
-sometimes, usually they'll need to be rewritten to <code>BXX &lowast;+5 JMP xxx</code>.
-64tass can do this automatically if this option is used. But <code>BRA</code>
-is not converted.
+<dd>Automatic <code>BXX &lowast;+5 JMP xxx</code>. Branch too long messages are usually solved
+by manually rewriting them as <code>BXX &lowast;+5 JMP xxx</code>.
+64tass can do this automatically if this option is used. <code>BRA</code>
+is of course not converted.
 <pre width=80>
 64tass a.asm
 *       <b>=</b> <span>$1000</span>
@@ -3257,6 +3257,11 @@ reasons, but this shorthand is not the preferred form.</p>
 <dd>Warns if about leading zeros.
 <p>A leading zero could be a prefix for an octal number but as octals
 are not supported so the result will be decimal.</p>
+
+<dt><b>-Wlong-branch</b><a name="o_Wlong-branch" href="#o_Wlong-branch"></a>
+<dd>Warns when a long branch is used.
+<p>This option gives a warning for instructions which were modified by the long branch function.
+Less intrusive than disabling long branches and see where it fails.</p>
 
 <dt><b>-Wno-deprecated</b><a name="o_Wdeprecated" href="#o_Wdeprecated"></a>
 <dd>Don't warn about deprecated features.

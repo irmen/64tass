@@ -205,7 +205,6 @@ static void adderror(const char *s) {
 }
 
 static const char *terr_warning[] = {
-    "long branch used",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
@@ -383,6 +382,10 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror("approximate floating point ");
             adderror((const char *)prm);
             adderror("' [-Wfloat-compare]");
+            break;
+        case ERROR___LONG_BRANCH:
+            new_error_msg2(diagnostic_errors.long_branch, epoint);
+            adderror("long branch used [-Wlong-branch]");
             break;
         case ERROR_WUSER_DEFINED: 
             new_error_msg(SV_WARNING, current_file_list, epoint);

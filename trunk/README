@@ -2688,9 +2688,9 @@ Operation options
     >000e    52 45
 
 -B, --long-branch
-    Automatic BXX *+5 JMP xxx. Branch too long messages can be annoying
-    sometimes, usually they'll need to be rewritten to BXX *+5 JMP xxx. 64tass
-    can do this automatically if this option is used. But BRA is not converted.
+    Automatic BXX *+5 JMP xxx. Branch too long messages are usually solved by
+    manually rewriting them as BXX *+5 JMP xxx. 64tass can do this
+    automatically if this option is used. BRA is of course not converted.
 
     64tass a.asm
     *       = $1000
@@ -2835,6 +2835,13 @@ default, the others are disabled.
 
     A leading zero could be a prefix for an octal number but as octals are not
     supported so the result will be decimal.
+
+-Wlong-branch
+    Warns when a long branch is used.
+
+    This option gives a warning for instructions which were modified by the
+    long branch function. Less intrusive than disabling long branches and see
+    where it fails.
 
 -Wno-deprecated
     Don't warn about deprecated features.

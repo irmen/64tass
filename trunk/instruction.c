@@ -454,6 +454,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             dump_instr(cnmemonic[ADR_REL] ^ 0x20, labelexists ? ((uint16_t)(s->addr - star - 2)) : 3, 1, epoint);
                             lj->dest = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             lj->defpass = pass;
+                            if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                             cpu_opt_long_branch(0xea);
                             err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
                             cpu_opt_long_branch(0);
@@ -479,6 +480,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             dump_instr(cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch, xadr | 0x300, 2, epoint);
                             lj->dest = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             lj->defpass = pass;
+                            if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                             cpu_opt_long_branch(0xea);
                             err = instruction(cpu->jmp, w, val, epoint, epoints);
                             cpu_opt_long_branch(0);
@@ -486,6 +488,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         } else {/* bra */
                             if (cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
                             asbrl:
+                                if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
                                 err = instruction(cpu->brl, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
@@ -498,6 +501,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 } else err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
                             } else { /* bra -> jmp */
                             asjmp:
+                                if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
                                 err = instruction(cpu->jmp, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
@@ -510,7 +514,6 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 return err;
                             }
                         }
-                        /* erro = ERROR___LONG_BRANCH; */
                     } else if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
                         goto asjmp; /* gcc -> jmp */
