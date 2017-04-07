@@ -35,7 +35,7 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.errorlist dt, dl.dir dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, tt {font-family:monospace,monospace;}
+dl.errorlist > dt, dl.dir > dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, tt {font-family:monospace,monospace;}
 dl.dir code b { color: inherit; }
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
@@ -2933,7 +2933,7 @@ you get a related error move the respective label out of the <a href="#d_block">
 <h2>Command line options<a name="commandline-options" href="#commandline-options"></a></h2>
 
 <p>Short command line options consist of <q>-</q> and a letter, long options
-start with <q>--</q>.</q>
+start with <q>--</q>.</p>
 
 <p>If <q>--</q> is encountered then further options are not recognized and are
 assumed to be file names.</p>
@@ -3306,25 +3306,25 @@ unknown aliases and not for enforcing label placement.</p>
 need extra notes about them. These are:</p>
 
 <dl>
-<dt>Use multi character strings with '<code>.byte</code>' instead of '<code>.text</code>'.
-<dd>This fails because '<code>.byte</code>' enforces the 0&ndash;255 range for each value.
-<dt>Using 'label *=*+1' style space reservations.
-<dd>Warns as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. A better alternatively is to use '.fill 1' or '.byte ?'.
-<dt>Negative numbers with '<code>.byte</code>' or '<code>.word</code>'
-<dd>There are other directives which accept them with proper range checks like '<code>.char</code>', '<code>.sint</code>'.
-<dt>Negative numbers with '<code>lda #xxx</code>'
-<dd>There's a signed variant for the immediate addressing so '<code>lda #+xx</code>' will make it work
+<dt>Use multi character strings with <q><code>.byte</code></q> instead of <q><code>.text</code></q>.
+<dd>This fails because <q><code>.byte</code></q> enforces the 0&ndash;255 range for each value.
+<dt>Using <q><code>label *=*+1</code></q> style space reservations.
+<dd>Warns as <q><code>*=</code></q> is also the compound multiply operator. The <q><code>*=*+1</code></q> needs to be on a separate line without a label. A better alternatively is to use <q><code>.fill 1</code></q> or <q><code>.byte ?</code></q>.
+<dt>Negative numbers with <q><code>.byte</code></q> or <q><code>.word</code></q>
+<dd>There are other directives which accept them with proper range checks like <q><code>.char</code></q>, <q><code>.sint</code></q>.
+<dt>Negative numbers with <q><code>lda #xxx</code></q>
+<dd>There's a signed variant for the immediate addressing so <q><code>lda #+xx</code></q> will make it work
 </dl>
 
 <dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
 <dd>Don't warn about ignored compound multiply.
-<p>Normally '<code>symbol *= ...</code>' means compound multiply of the variable in front.
-Unfortunately this looks the same a '<code>label *=*+x</code>' which is an old-school way of allocating space.</p>
+<p>Normally <q><code>symbol *= ...</code></q> means compound multiply of the variable in front.
+Unfortunately this looks the same a <q><code>label *=*+x</code></q> which is an old-school way of allocating space.</p>
 <p>If the symbol was a variable defined earlier then the multiply is performed without a warning.
 If it's a new label definition then this warning is used to note that maybe a variable definition was missed earlier.</p>
-<p>If the intention was really a label definition then the '<code>*=</code>'
+<p>If the intention was really a label definition then the <q><code>*=</code></q>
 can be moved to a separate line, or in case of space allocation it could be
-improved to use '<code>.byte&nbsp;?</code>' or '<code>.fill&nbsp;x</code>'.</p>
+improved to use <q><code>.byte&nbsp;?</code></q> or <q><code>.fill&nbsp;x</code></q>.</p>
 
 <dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>
 <dd>Warn about old equal operator.
@@ -3698,7 +3698,7 @@ will display without them.</p>
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
 <dt>symbol case mismatch '?'<dd>it's matching case insensitively but it's not exactly the same
 <dt>the file's real name is not '?'<dd>check if all characters match including their case
-<dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt &gt; | in file names
+<dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt; &gt; | in file names
 <dt>unused symbol '?'<dd>this symbol has is not referred anywhere
 <dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
 <dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout
