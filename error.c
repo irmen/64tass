@@ -709,13 +709,9 @@ static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, co
     adderror(" was here");
 }
 
-void err_msg_compound_note(linepos_t epoint) {
-    static unsigned once;
-    if (once != pass) {
-        new_error_msg2(diagnostic_errors.pitfalls, epoint);
-        adderror("for reserving space move '*=' below or use '.fill x' or '.byte ?' [-Wpitfalls]");
-        once = pass;
-    }
+void err_msg_star_assign(linepos_t epoint) {
+    new_error_msg2(diagnostic_errors.star_assign, epoint);
+    adderror("label defined instead of variable multiplication for compatibility [-Wstar-assign]");
 }
 
 void err_msg_byte_note(linepos_t epoint) {
@@ -956,7 +952,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 if (print_use_color) fputs("\33[01m", f);
                 printable_print((const uint8_t *)included_from->parent->file->realname, f);
-                line = printline(included_from->parent, &included_from->epoint, NULL, f);
+                printline(included_from->parent, &included_from->epoint, NULL, f);
                 included_from = included_from->parent;
                 if (print_use_color) fputs("\33[m\33[K", f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
