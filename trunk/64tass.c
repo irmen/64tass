@@ -1004,7 +1004,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {
                         if (tmp.op == &o_MUL) {
-                            if (diagnostics.star_assign) err_msg_star_assign(&epoint3);
+                            if (diagnostics.star_assign) {
+                                err_msg_star_assign(&epoint3);
+                                if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
+                            }
                             lpoint.pos = epoint3.pos;
                             wht = '*';
                             break;
@@ -1014,7 +1017,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (label->constant) {
                         if (tmp.op == &o_MUL) {
-                            if (diagnostics.star_assign) err_msg_star_assign(&epoint3);
+                            if (diagnostics.star_assign) {
+                                err_msg_star_assign(&epoint3);
+                                if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
+                            }
                             lpoint.pos = epoint3.pos;
                             wht = '*';
                             break;

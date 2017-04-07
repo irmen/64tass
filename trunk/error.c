@@ -717,6 +717,15 @@ void err_msg_star_assign(linepos_t epoint) {
     adderror("label defined instead of variable multiplication for compatibility [-Wstar-assign]");
 }
 
+void err_msg_compound_note(linepos_t epoint) {
+    static unsigned once;
+    if (once != pass) {
+        new_error_msg(SV_NOTE, current_file_list, epoint);
+        adderror("for reserving space use '.fill x' or '.byte ?' [-Wpitfalls]");
+        once = pass;
+    }
+}
+
 void err_msg_byte_note(linepos_t epoint) {
     static unsigned int once;
     if (once != pass) {
