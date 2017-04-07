@@ -27,7 +27,6 @@
 
 typedef enum Error_types {
     ERROR___LONG_BRANCH = 0x00,
-    ERROR_DIRECTIVE_IGN,
     ERROR____OLD_MODULO,
     ERROR_______OLD_NEQ,
     ERROR______OLD_GOTO,
@@ -53,6 +52,7 @@ typedef enum Error_types {
     ERROR_NONIMMEDCONST,
     ERROR_FLOAT_COMPARE,
     ERROR_LEADING_ZEROS,
+    ERROR_DIRECTIVE_IGN,
 
     ERROR__DOUBLE_RANGE = 0x40,
     ERROR_DOUBLE_ESCAPE,

@@ -2741,7 +2741,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_HIDEMAC: /* .hidemac */
                 if ((waitfor->skip & 1) != 0) {
                     listing_line(listing, epoint.pos);
-                    err_msg2(ERROR_DIRECTIVE_IGN, NULL, &epoint);
+                    if (diagnostics.ignored) err_msg2(ERROR_DIRECTIVE_IGN, NULL, &epoint);
                 }
                 break;
             case CMD_COMMENT: /* .comment */

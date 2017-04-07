@@ -80,7 +80,8 @@ struct diagnostics_s diagnostics = {
     false,       /* leading_zeros */
     false,       /* alias */
     true,        /* pitfalls */
-    true         /* star_assign */
+    true,        /* star_assign */
+    true         /* ignored */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -109,7 +110,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* leading_zeros */
     false,       /* alias */
     false,       /* pitfalls */
-    false        /* star_assign */
+    false,       /* star_assign */
+    false        /* ignored */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -139,7 +141,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* leading_zeros */
     false,       /* alias */
     true,        /* pitfalls */
-    true         /* star_assign */
+    true,        /* star_assign */
+    true         /* ignored */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -169,7 +172,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* leading_zeros */
     true,        /* alias */
     true,        /* pitfalls */
-    true         /* star_assign */
+    true,        /* star_assign */
+    true         /* ignored */
 };
 
 struct w_options_s {
@@ -202,6 +206,7 @@ static const struct w_options_s w_options[] = {
     {"alias",           &diagnostics.alias},
     {"pitfalls",        &diagnostics.pitfalls},
     {"star-assign",     &diagnostics.star_assign},
+    {"ignored",         &diagnostics.ignored},
     {NULL,              NULL}
 };
 
@@ -507,14 +512,16 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wleading-zeros       Warn for ignored leading zeros\n"
                "  -Wno-deprecated       No deprecated feature warnings\n"
                "  -Wno-float-compare    No approximate compare warnings\n"
+               "  -Wno-ignored          No directive ignored warnings\n"
                "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
                "  -Wno-label-left       No warning about strange labels\n"
                "  -Wno-mem-wrap         No offset overflow warning\n"
                "  -Wno-pc-wrap          No PC overflow warning\n"
                "  -Wno-pitfalls         No common pitfall notes\n"
+               "  -Wno-portable         No portability warnings\n"
+               "  -Wno-star-assign      No label multiply warnings\n"
                "  -Wold-equal           Warn about old equal operator\n"
                "  -Woptimize            Optimization warnings\n"
-               "  -Wno-portable         No portability warnings\n"
                "  -Wshadow              Check symbol shadowing\n"
                "  -Wstrict-bool         No implicit bool conversions\n"
                "  -Wswitch-case         Warn about ignored cases\n"
