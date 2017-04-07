@@ -2856,6 +2856,8 @@ default, the others are disabled.
 
     Normally this is solved by rounding or changing the comparison values.
 
+-Wno-ignored
+    Don't warn about ignored directives.
 -Wno-jmp-bug
     Don't warn about the jmp ($xxff) bug.
 
@@ -2898,14 +2900,19 @@ default, the others are disabled.
         will make it work
 
 -Wno-star-assign
-    Don't warn about ignored compound multiply
+    Don't warn about ignored compound multiply.
 
     Normally 'symbol *= ...' means compound multiply of the variable in front.
     Unfortunately this looks the same a 'label *=*+x' which is an old-school
     way of allocating space.
 
-    As an alternative to this option move the '*=' to a separate line, or
-    better use '.byte ?' or '.fill x'.
+    If the symbol was a variable defined earlier then the multiply is performed
+    without a warning. If it's a new label definition then this warning is used
+    to note that maybe a variable definition was missed earlier.
+
+    If the intention was really a label definition then the '*=' can be moved
+    to a separate line, or in case of space allocation it could be improved to
+    use '.byte ?' or '.fill x'.
 
 -Wold-equal
     Warn about old equal operator.

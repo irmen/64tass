@@ -93,6 +93,7 @@ struct diagnostics_s {
     bool alias;
     bool pitfalls;
     bool star_assign;
+    bool ignored;
 };
 
 extern int testarg(int *, char ***, struct file_s *);

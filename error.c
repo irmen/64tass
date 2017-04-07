@@ -206,7 +206,6 @@ static void adderror(const char *s) {
 
 static const char *terr_warning[] = {
     "long branch used",
-    "directive ignored",
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
@@ -374,6 +373,10 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_LEADING_ZEROS:
             new_error_msg2(diagnostic_errors.immediate, epoint);
             adderror("leading zeros ignored [-Wleading-zeros]");
+            break;
+        case ERROR_DIRECTIVE_IGN:
+            new_error_msg2(diagnostic_errors.ignored, epoint);
+            adderror("directive ignored [-Wignored]");
             break;
         case ERROR_FLOAT_COMPARE:
             new_error_msg2(diagnostic_errors.float_compare, epoint);

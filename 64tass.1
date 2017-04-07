@@ -171,6 +171,9 @@ Don't warn if floating point comparisons are only approximate.
 Floating point numbers have a finite precision and comparing them might
 give unexpected results.
 .TP 0.5i
+\fB\-Wno\-ignored\fR
+Don't warn about ignored directives.
+.TP 0.5i
 \fB\-Wno\-jmp\-bug\fR
 Don't warn about the jmp ($xxff) bug.
 It's fine that the high byte is read from the 'wrong' address on 6502,
@@ -194,6 +197,12 @@ Continue from the beginning of program bank once it's end was reached.
 Don't note on common pitfalls.
 Experts don't need notes about how to fix things ;)
 .TP 0.5i
+\fB\-Wno\-portable\fR
+Don't warn about source portability problems.
+.TP 0.5i
+\fB\-Wno\-star\-assign\fR
+Don't warn about ignored compound multiply.
+.TP 0.5i
 \fB\-Wold\-equal\fR
 Warn about old equal operator.
 The single '=' operator is only there for compatibility reasons and should
@@ -203,9 +212,6 @@ be written as '==' normally.
 Warn about optimizable code.
 Warns on things that could be optimized, at least according to the limited
 analysis done.
-.TP 0.5i
-\fB\-Wno\-portable\fR
-Don't warn about source portability problems.
 .TP 0.5i
 \fB\-Wshadow\fR
 Warn about symbol shadowing.
