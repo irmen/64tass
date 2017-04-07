@@ -161,6 +161,11 @@ Warns if about leading zeros.
 A leading zero could be a prefix for an octal number but as octals
 are not supported so the result will be decimal.
 .TP 0.5i
+\fB\-Wlong\-branch\fR
+Warns when a long branch is used.
+This option gives a warning for instructions which were modified by the long branch function.
+Less intrusive than disabling long branches and see where it fails.
+.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
