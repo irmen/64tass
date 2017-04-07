@@ -2498,7 +2498,7 @@ get a related error move the respective label out of the .block.
 Command line options
 
 Short command line options consist of `-' and a letter, long options start with
-`--'.'
+`--'.
 
 If `--' is encountered then further options are not recognized and are assumed
 to be file names.
@@ -2890,33 +2890,33 @@ default, the others are disabled.
     There are some common mistakes, but experts and those who read this don't
     need extra notes about them. These are:
 
-    Use multi character strings with '.byte' instead of '.text'.
-        This fails because '.byte' enforces the 0-255 range for each value.
-    Using 'label *=*+1' style space reservations.
-        Warns as '*=' is also the compound multiply operator. The '*=*+1' needs
+    Use multi character strings with `.byte' instead of `.text'.
+        This fails because `.byte' enforces the 0-255 range for each value.
+    Using `label *=*+1' style space reservations.
+        Warns as `*=' is also the compound multiply operator. The `*=*+1' needs
         to be on a separate line without a label. A better alternatively is to
-        use '.fill 1' or '.byte ?'.
-    Negative numbers with '.byte' or '.word'
+        use `.fill 1' or `.byte ?'.
+    Negative numbers with `.byte' or `.word'
         There are other directives which accept them with proper range checks
-        like '.char', '.sint'.
-    Negative numbers with 'lda #xxx'
-        There's a signed variant for the immediate addressing so 'lda #+xx'
+        like `.char', `.sint'.
+    Negative numbers with `lda #xxx'
+        There's a signed variant for the immediate addressing so `lda #+xx'
         will make it work
 
 -Wno-star-assign
     Don't warn about ignored compound multiply.
 
-    Normally 'symbol *= ...' means compound multiply of the variable in front.
-    Unfortunately this looks the same a 'label *=*+x' which is an old-school
+    Normally `symbol *= ...' means compound multiply of the variable in front.
+    Unfortunately this looks the same a `label *=*+x' which is an old-school
     way of allocating space.
 
     If the symbol was a variable defined earlier then the multiply is performed
     without a warning. If it's a new label definition then this warning is used
     to note that maybe a variable definition was missed earlier.
 
-    If the intention was really a label definition then the '*=' can be moved
+    If the intention was really a label definition then the `*=' can be moved
     to a separate line, or in case of space allocation it could be improved to
-    use '.byte ?' or '.fill x'.
+    use `.byte ?' or `.fill x'.
 
 -Wold-equal
     Warn about old equal operator.
