@@ -2466,9 +2466,6 @@ The original expression parser has no operator precedence, but 64tass has. That
 means that you will have to fix expressions using braces accordingly, for
 example 1+2*3 becomes (1+2)*3.
 
-'label *= *+1' constructs will fail without compatibility mode as '*=' also
-means compound multiply when used after a variable.
-
 The following operators used by the original Turbo Assembler are different:
 
        TASM Operator differences
@@ -2893,16 +2890,22 @@ default, the others are disabled.
 
     Use multi character strings with '.byte' instead of '.text'.
         This fails because '.byte' enforces the 0-255 range for each value.
-    Using 'label *=*+1' style space reservations.
-        Fails as '*=' is also the compound multiply operator. The '*=*+1' needs
-        to be on a separate line without a label. A better alternatively is to
-        use '.fill 1' or '.byte ?'.
     Negative numbers with '.byte' or '.word'
         There are other directives which accept them with proper range checks
         like '.char', '.sint'.
     Negative numbers with 'lda #xxx'
         There's a signed variant for the immediate addressing so 'lda #+xx'
         will make it work
+
+-Wno-star-assign
+    Don't warn about ignored compound multiply
+
+    Normally 'symbol *= ...' means compound multiply of the variable in front.
+    Unfortunately this looks the same a 'label *=*+x' which is an old-school
+    way of allocating space.
+
+    As an alternative to this option move the '*=' to a separate line, or
+    better use '.byte ?' or '.fill x'.
 
 -Wold-equal
     Warn about old equal operator.
@@ -3297,6 +3300,8 @@ use '/' as path separation '?'
     backslash is not a path separator on all systems while slash is
 use relative path for '?'
     File's path is absolute and depends on the file system layout
+label defined instead of variable multiplication for compatibility
+    move the '*=' construct to a separate line
 
 Errors
 

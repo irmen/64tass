@@ -79,7 +79,8 @@ struct diagnostics_s diagnostics = {
     true,        /* float_compare */
     false,       /* leading_zeros */
     false,       /* alias */
-    true         /* pitfalls */
+    true,        /* pitfalls */
+    true         /* star_assign */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -107,7 +108,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* float_compare */
     false,       /* leading_zeros */
     false,       /* alias */
-    false        /* pitfalls */
+    false,       /* pitfalls */
+    false        /* star_assign */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -136,7 +138,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* float_compare */
     true,        /* leading_zeros */
     false,       /* alias */
-    true         /* pitfalls */
+    true,        /* pitfalls */
+    true         /* star_assign */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -165,7 +168,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* float_compare */
     true,        /* leading_zeros */
     true,        /* alias */
-    true         /* pitfalls */
+    true,        /* pitfalls */
+    true         /* star_assign */
 };
 
 struct w_options_s {
@@ -197,6 +201,7 @@ static const struct w_options_s w_options[] = {
     {"leading-zeros",   &diagnostics.leading_zeros},
     {"alias",           &diagnostics.alias},
     {"pitfalls",        &diagnostics.pitfalls},
+    {"star-assign",     &diagnostics.star_assign},
     {NULL,              NULL}
 };
 

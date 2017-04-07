@@ -2904,9 +2904,6 @@ These are:</p>
 means that you will have to fix expressions using braces accordingly, for example
 <code>1+2&lowast;3</code> becomes <code>(1+2)&lowast;3</code>.</p>
 
-<p>'label *= *+1' constructs will fail without compatibility mode as '*=' also
-means compound multiply when used after a variable.</p>
-
 <p>The following operators used by the original Turbo Assembler are different:</p>
 
 <div><table border="0">
@@ -3306,15 +3303,20 @@ unknown aliases and not for enforcing label placement.</p>
 need extra notes about them. These are:</p>
 
 <dl>
-<dt>Use multi character strings with '.byte' instead of '.text'.
-<dd>This fails because '.byte' enforces the 0&ndash;255 range for each value.
-<dt>Using 'label *=*+1' style space reservations.
-<dd>Fails as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. A better alternatively is to use '.fill 1' or '.byte ?'.
-<dt>Negative numbers with '.byte' or '.word'
-<dd>There are other directives which accept them with proper range checks like '.char', '.sint'.
-<dt>Negative numbers with 'lda #xxx'
-<dd>There's a signed variant for the immediate addressing so 'lda #+xx' will make it work
+<dt>Use multi character strings with '<code>.byte</code>' instead of '<code>.text</code>'.
+<dd>This fails because '<code>.byte</code>' enforces the 0&ndash;255 range for each value.
+<dt>Negative numbers with '<code>.byte</code>' or '<code>.word</code>'
+<dd>There are other directives which accept them with proper range checks like '<code>.char</code>', '<code>.sint</code>'.
+<dt>Negative numbers with '<code>lda #xxx</code>'
+<dd>There's a signed variant for the immediate addressing so '<code>lda #+xx</code>' will make it work
 </dl>
+
+<dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
+<dd>Don't warn about ignored compound multiply
+<p>Normally '<code>symbol *= ...</code>' means compound multiply of the variable in front.
+Unfortunately this looks the same a '<code>label *=*+x</code>' which is an old-school way of allocating space.</p>
+<p>As an alternative to this option move the '<code>*=</code>' to a separate line, or better use
+'<code>.byte&nbsp;?</code>' or '<code>.fill&nbsp;x</code>'.</p>
 
 <dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>
 <dd>Warn about old equal operator.
@@ -3692,6 +3694,7 @@ will display without them.</p>
 <dt>unused symbol '?'<dd>this symbol has is not referred anywhere
 <dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
 <dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout
+<dt>label defined instead of variable multiplication for compatibility<dd>move the '*=' construct to a separate line
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>

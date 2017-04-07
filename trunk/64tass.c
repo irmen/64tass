@@ -1003,11 +1003,25 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 } else {
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {
+                        if (tmp.op == &o_MUL) {
+                            if (diagnostics.star_assign) err_msg_star_assign(&epoint3);
+                            lpoint.pos = epoint3.pos;
+                            wht = '*';
+                            break;
+                        }
                         err_msg_not_defined2(&labelname, mycontext, false, &epoint); 
-                        if (diagnostics.pitfalls && tmp.op == &o_MUL && pline[lpoint.pos]=='*') err_msg_compound_note(&epoint3);
                         goto breakerr;
                     }
-                    if (label->constant) {err_msg_not_variable(label, &labelname, &epoint); goto breakerr;}
+                    if (label->constant) {
+                        if (tmp.op == &o_MUL) {
+                            if (diagnostics.star_assign) err_msg_star_assign(&epoint3);
+                            lpoint.pos = epoint3.pos;
+                            wht = '*';
+                            break;
+                        }
+                        err_msg_not_variable(label, &labelname, &epoint); goto breakerr;
+                        goto breakerr;
+                    }
                     if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                     val = label->value;
                 }
@@ -1668,7 +1682,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
         case '*':
             if ((waitfor->skip & 1) != 0) {
                 if (pline[lpoint.pos + 1] != wht || pline[lpoint.pos + 2] != '=' || arguments.tasmcomp) {
-                    if (arguments.tasmcomp && wht == '*') {
+                    if (wht == '*') {
                         lpoint.pos++;ignore();
                         if (here() == '=') {
                             labelname.data = (const uint8_t *)"*";labelname.len = 1;
