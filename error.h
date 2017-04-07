@@ -81,6 +81,7 @@ extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
 extern void err_msg_unknown_char(uchar_t, const str_t *, linepos_t);
 extern void err_msg_star_assign(linepos_t);
+extern void err_msg_compound_note(linepos_t);
 extern void err_msg_byte_note(linepos_t);
 extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);

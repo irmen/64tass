@@ -2892,6 +2892,10 @@ default, the others are disabled.
 
     Use multi character strings with '.byte' instead of '.text'.
         This fails because '.byte' enforces the 0-255 range for each value.
+    Using 'label *=*+1' style space reservations.
+        Warns as '*=' is also the compound multiply operator. The '*=*+1' needs
+        to be on a separate line without a label. A better alternatively is to
+        use '.fill 1' or '.byte ?'.
     Negative numbers with '.byte' or '.word'
         There are other directives which accept them with proper range checks
         like '.char', '.sint'.

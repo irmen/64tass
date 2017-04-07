@@ -3308,6 +3308,8 @@ need extra notes about them. These are:</p>
 <dl>
 <dt>Use multi character strings with '<code>.byte</code>' instead of '<code>.text</code>'.
 <dd>This fails because '<code>.byte</code>' enforces the 0&ndash;255 range for each value.
+<dt>Using 'label *=*+1' style space reservations.
+<dd>Warns as '*=' is also the compound multiply operator. The '*=*+1' needs to be on a separate line without a label. A better alternatively is to use '.fill 1' or '.byte ?'.
 <dt>Negative numbers with '<code>.byte</code>' or '<code>.word</code>'
 <dd>There are other directives which accept them with proper range checks like '<code>.char</code>', '<code>.sint</code>'.
 <dt>Negative numbers with '<code>lda #xxx</code>'
