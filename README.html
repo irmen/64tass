@@ -2938,7 +2938,7 @@ start with <q>--</q>.</p>
 <p>If <q>--</q> is encountered then further options are not recognized and are
 assumed to be file names.</p>
 
-<p>Options requiring file names are marked with <q>&lt;filename&gt;</q>a. A
+<p>Options requiring file names are marked with <q>&lt;filename&gt;</q>. A
 single <q>-</q> as name means standard input or output. File name quoting is
 system specific.</p>
 
@@ -3256,7 +3256,7 @@ reasons, but this shorthand is not the preferred form.</p>
 <dt><b>-Wleading-zeros</b><a name="o_Wleading-zeros" href="#o_Wleading-zeros"></a>
 <dd>Warns if about leading zeros.
 <p>A leading zero could be a prefix for an octal number but as octals
-are not supported so the result will be decimal.</p>
+are not supported the result will be decimal.</p>
 
 <dt><b>-Wlong-branch</b><a name="o_Wlong-branch" href="#o_Wlong-branch"></a>
 <dd>Warns when a long branch is used.
@@ -3324,7 +3324,7 @@ need extra notes about them. These are:</p>
 <dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
 <dd>Don't warn about ignored compound multiply.
 <p>Normally <q><code>symbol *= ...</code></q> means compound multiply of the variable in front.
-Unfortunately this looks the same a <q><code>label *=*+x</code></q> which is an old-school way of allocating space.</p>
+Unfortunately this looks the same a <q><code>label *=*+x</code></q> which is an old-school way to allocate space.</p>
 <p>If the symbol was a variable defined earlier then the multiply is performed without a warning.
 If it's a new label definition then this warning is used to note that maybe a variable definition was missed earlier.</p>
 <p>If the intention was really a label definition then the <q><code>*=</code></q>
