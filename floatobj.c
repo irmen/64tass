@@ -185,13 +185,13 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 }
 
 static bool almost_equal(oper_t op, double a, double b) {
-    if (diagnostics.float_compare) {
-        double aa = fabs(a);
-        double ab = fabs(b);
-        if (fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005) {
+    double aa = fabs(a);
+    double ab = fabs(b);
+    if (fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005) {
+        if (diagnostics.float_compare) {
             if (op->epoint3->line != 0) err_msg2(ERROR_FLOAT_COMPARE, op->op->name, op->epoint3);
-            return true;
         }
+        return true;
     }
     return false;
 }
