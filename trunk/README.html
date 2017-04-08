@@ -3276,9 +3276,6 @@ unexpected results.</p>
 <p>For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
 is actually bigger by approximately 4.44E-16.</p>
 
-<p>If this option is used to silence the warning then there's no approximation
-performed and the result will be false.</p>
-
 <p>Normally this is solved by rounding or changing the comparison values.</p>
 
 <dt><b>-Wno-ignored</b><a name="o_Wignored" href="#o_Wignored"></a>
@@ -3313,8 +3310,8 @@ need extra notes about them. These are:</p>
 <dl>
 <dt>Use multi character strings with <q><code>.byte</code></q> instead of <q><code>.text</code></q>.
 <dd>This fails because <q><code>.byte</code></q> enforces the 0&ndash;255 range for each value.
-<dt>Using <q><code>label *=*+1</code></q> style space reservations.
-<dd>Warns as <q><code>*=</code></q> is also the compound multiply operator. The <q><code>*=*+1</code></q> needs to be on a separate line without a label. A better alternatively is to use <q><code>.fill 1</code></q> or <q><code>.byte ?</code></q>.
+<dt>Using <q><code>label &lowast;=&lowast;+1</code></q> style space reservations.
+<dd>Warns as <q><code>&lowast;=</code></q> is also the compound multiply operator. The <q><code>&lowast;=&lowast;+1</code></q> needs to be on a separate line without a label. A better alternatively is to use <q><code>.fill 1</code></q> or <q><code>.byte ?</code></q>.
 <dt>Negative numbers with <q><code>.byte</code></q> or <q><code>.word</code></q>
 <dd>There are other directives which accept them with proper range checks like <q><code>.char</code></q>, <q><code>.sint</code></q>.
 <dt>Negative numbers with <q><code>lda #xxx</code></q>
@@ -3323,11 +3320,11 @@ need extra notes about them. These are:</p>
 
 <dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
 <dd>Don't warn about ignored compound multiply.
-<p>Normally <q><code>symbol *= ...</code></q> means compound multiply of the variable in front.
-Unfortunately this looks the same a <q><code>label *=*+x</code></q> which is an old-school way to allocate space.</p>
+<p>Normally <q><code>symbol &lowast;= ...</code></q> means compound multiply of the variable in front.
+Unfortunately this looks the same a <q><code>label &lowast;=&lowast;+x</code></q> which is an old-school way to allocate space.</p>
 <p>If the symbol was a variable defined earlier then the multiply is performed without a warning.
 If it's a new label definition then this warning is used to note that maybe a variable definition was missed earlier.</p>
-<p>If the intention was really a label definition then the <q><code>*=</code></q>
+<p>If the intention was really a label definition then the <q><code>&lowast;=</code></q>
 can be moved to a separate line, or in case of space allocation it could be
 improved to use <q><code>.byte&nbsp;?</code></q> or <q><code>.fill&nbsp;x</code></q>.</p>
 
@@ -3343,7 +3340,7 @@ analysis done. Currently it's easy to fool with these constructs:</p>
 <ul>
 <li>Self modifying code, especially modifying immediate addressing mode instructions or branch targets
 <li>Using <code>.byte $2c</code> and similar tricks to skip instructions.
-<li>Using <code>*+5</code> and similar tricks to skip instructions, or to loop like <code>*-1</code>.
+<li>Using <code>&lowast;+5</code> and similar tricks to skip instructions, or to loop like <code>&lowast;-1</code>.
 <li>Any other method of flow control not involving referenced labels. E.g. calculated returns.
 </ul>
 

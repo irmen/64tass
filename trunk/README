@@ -2503,8 +2503,8 @@ Short command line options consist of `-' and a letter, long options start with
 If `--' is encountered then further options are not recognized and are assumed
 to be file names.
 
-Options requiring file names are marked with `<filename>'a. A single `-' as
-name means standard input or output. File name quoting is system specific.
+Options requiring file names are marked with `<filename>'. A single `-' as name
+means standard input or output. File name quoting is system specific.
 
 `@filename' can be used to read additional command line options from a file.
 Options must be separated with white space. White space can be included by
@@ -2834,7 +2834,7 @@ default, the others are disabled.
     Warns if about leading zeros.
 
     A leading zero could be a prefix for an octal number but as octals are not
-    supported so the result will be decimal.
+    supported the result will be decimal.
 
 -Wlong-branch
     Warns when a long branch is used.
@@ -2857,9 +2857,6 @@ default, the others are disabled.
 
     For example 2.1 + 0.2 == 2.3 is true but gives a warning as the left side
     is actually bigger by approximately 4.44E-16.
-
-    If this option is used to silence the warning then there's no approximation
-    performed and the result will be false.
 
     Normally this is solved by rounding or changing the comparison values.
 
@@ -2915,7 +2912,7 @@ default, the others are disabled.
 
     Normally `symbol *= ...' means compound multiply of the variable in front.
     Unfortunately this looks the same a `label *=*+x' which is an old-school
-    way of allocating space.
+    way to allocate space.
 
     If the symbol was a variable defined earlier then the multiply is performed
     without a warning. If it's a new label definition then this warning is used
