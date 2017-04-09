@@ -534,8 +534,17 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
     }
     if (len2 == 1) {
         size_t i;
-        twodigits_t r = 0;
+        twodigits_t r;
         digit_t n = v2[0];
+        if (len1 == 1) {
+            if (divrem) {
+                digit_t t = (digit_t)(v1[0] / n);
+                if (neg && v1[0] != t * n) t++;
+                return (Obj *)return_int(t, neg);
+            }
+            return (Obj *)return_int((digit_t)(v1[0] % n), negr);
+        }
+        r = 0;
         if (divrem) {
             vv = new_int();
             v = inew(vv, len1);
