@@ -468,6 +468,7 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
     bool warn = false;
 
     if (*sum >= max) return false;
+retry:
     switch (val->obj->type) {
     case T_STR:
         {
@@ -487,10 +488,12 @@ static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *s
     case T_FLOAT:
     case T_INT:
     case T_BOOL:
-    case T_CODE:
         iter = NULL;
         val2 = val;
         goto doit;
+    case T_CODE:
+        val = ((Code *)val)->addr;
+        goto retry;
     case T_GAP:
         iter = NULL;
         goto dogap;
