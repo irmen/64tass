@@ -41,7 +41,7 @@ typedef struct Slotcoll {
 
 static Slotcoll *slotcoll[32];
 
-static NO_INLINE void value_free(Obj *val) {
+static void value_free(Obj *val) {
     Slot *slot = (Slot *)val, **c = val->obj->slot;
     slot->next = *c;
     val->obj = NULL;
