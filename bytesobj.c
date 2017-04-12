@@ -267,12 +267,18 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             case BYTES_MODE_NULL_CHECK:
             case BYTES_MODE_TEXT: break;
             }
-        } else if (v1->chars == 1) {
-            uchar_t ch2 = v1->data[0];
-            if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
-            return (Obj *)bytes_from_uval(ch2, 3);
         } else {
-            return (Obj *)new_error(ERROR__NOT_ONE_CHAR, epoint);
+            uchar_t ch2;
+            switch (v1->chars) {
+            case 0: 
+                return (Obj *)new_error(ERROR__EMPTY_STRING, epoint);
+            case 1: 
+                ch2 = v1->data[0];
+                if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
+                return (Obj *)bytes_from_uval(ch2, 3);
+            default: 
+                return (Obj *)new_error(ERROR__NOT_ONE_CHAR, epoint);
+            }
         }
         if (v->val != s) {
             if (len2 <= sizeof v->val) {
