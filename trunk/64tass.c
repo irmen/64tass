@@ -95,8 +95,8 @@ static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
     Wait_types what;
     struct linepos_s epoint;
-    address_t addr;
-    address2_t laddr;
+    address_t addr, addr2;
+    address2_t laddr, laddr2;
     Label *label;
     size_t memp, membp;
     struct section_s *section;
@@ -1947,19 +1947,23 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_ENDS: /* .ends */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (waitfor->what==W_ENDS) {
-                    if (waitfor->val != NULL) ((Struct *)waitfor->val)->retval = (here() != 0 && here() != ';');
+                    if ((waitfor->skip & 1) != 0) {
+                        current_section->unionmode = waitfor->breakout;
+                        close_waitfor(W_ENDS);
+                        break;
+                    }
                     close_waitfor(W_ENDS);
                     goto breakerr;
-                } else if (close_waitfor(W_ENDS2)) {
+                }
+                if (close_waitfor(W_ENDS2)) {
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, cfile, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     }
-                } else {
-                    err_msg2(ERROR______EXPECTED,".struct", &epoint);
-                    goto breakerr;
+                    break;
                 }
-                break;
+                err_msg2(ERROR______EXPECTED,".struct", &epoint);
+                goto breakerr;
             case CMD_SEND: /* .send */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_SEND)) {
@@ -1987,7 +1991,22 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_ENDU: /* .endu */
                 if (diagnostics.optimize) cpu_opt_invalidate();
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
-                if (close_waitfor(W_ENDU)) {
+                if (waitfor->what==W_ENDU) {
+                    if ((waitfor->skip & 1) != 0) {
+                        current_section->l_address = current_section->l_unionend;
+                        if (current_section->l_address.bank > all_mem) {
+                            current_section->l_address.bank &= all_mem;
+                            err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                        }
+                        if (current_section->address != current_section->unionend) {
+                            current_section->address = current_section->unionend;
+                            memjmp(&current_section->mem, current_section->address);
+                        }
+                        current_section->unionmode = waitfor->breakout;
+                        current_section->unionstart = waitfor->addr; current_section->unionend = waitfor->addr2;
+                        current_section->l_unionstart = waitfor->laddr; current_section->l_unionend = waitfor->laddr2;
+                    }
+                    close_waitfor(W_ENDU);
                 } else if (close_waitfor(W_ENDU2)) {
                     nobreak = false; 
                     current_section->l_address = current_section->l_unionend;
@@ -3179,46 +3198,26 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 new_waitfor(W_PEND, &epoint);
                 waitfor->skip = 0;waitfor->label = NULL;
                 break;
-            case CMD_STRUCT: if ((waitfor->skip & 1) != 0)
-                { /* .struct */
-                    bool old_unionmode = current_section->unionmode;
+            case CMD_STRUCT: /* .struct */
+                new_waitfor(W_ENDS, &epoint);
+                if ((waitfor->skip & 1) != 0) {
                     listing_line(listing, 0);
+                    waitfor->breakout = current_section->unionmode;
                     current_section->unionmode = false;
-                    new_waitfor(W_ENDS, &epoint);waitfor->skip = 0;
-                    current_section->structrecursion++;
-                    if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    if (current_section->structrecursion<100) {
-                        waitfor->what = W_ENDS2;waitfor->skip = 1;
-                        val = compile(cflist);
-                        if (val != NULL) val_destroy(val);
-                    } else err_msg2(ERROR__MACRECURSION, NULL, &epoint);
-                    current_section->structrecursion--;
-                    current_section->unionmode = old_unionmode;
-                } else new_waitfor(W_ENDS, &epoint);
+                }
                 break;
-            case CMD_UNION: if ((waitfor->skip & 1) != 0)
-                { /* .union */
-                    bool old_unionmode = current_section->unionmode;
-                    address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                    address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+            case CMD_UNION: /* .union */
+                new_waitfor(W_ENDU, &epoint);
+                if ((waitfor->skip & 1) != 0) {
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, 0);
+                    waitfor->breakout = current_section->unionmode;
+                    waitfor->addr = current_section->unionstart; waitfor->addr2 = current_section->unionend;
+                    waitfor->laddr = current_section->l_unionstart; waitfor->laddr2 = current_section->l_unionend;
                     current_section->unionmode = true;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                    new_waitfor(W_ENDU, &epoint);waitfor->skip = 0;
-                    current_section->structrecursion++;
-                    if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    if (current_section->structrecursion < 100) {
-                        waitfor->what = W_ENDU2;waitfor->skip = 1;
-                        val = compile(cflist);
-                        if (val != NULL) val_destroy(val);
-                    } else err_msg2(ERROR__MACRECURSION, NULL, &epoint);
-                    current_section->structrecursion--;
-                    current_section->unionmode = old_unionmode;
-                    current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
-                    current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
-                } else new_waitfor(W_ENDU, &epoint);
+                }
                 break;
             case CMD_DSTRUCT: if ((waitfor->skip & 1) != 0)
                 { /* .dstruct */
