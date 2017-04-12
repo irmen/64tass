@@ -239,7 +239,7 @@ static const char *terr_error[] = {
     "most significiant bit must be clear in byte",
     "at least one byte is needed",
     "last byte must not be gap",
-    "instruction can't cross banks",
+    "address in different program bank",
     "address out of section",
     "negative number raised on fractional power",
     "square root of negative number",
@@ -450,6 +450,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR____NOT_DIRECT:
         case ERROR__NOT_DATABANK:
         case ERROR_ADDRESS_LARGE:
+        case ERROR_CANT_CROSS_BA:
             adderror(terr_error[no - 0x40]);
             if (prm != NULL) err_msg_variable((Obj *)prm, epoint);
             break;

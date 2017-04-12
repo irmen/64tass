@@ -273,14 +273,14 @@ void touch_label(Label *tmp) {
 
 MUST_CHECK Obj *get_star_value(Obj *val) {
     switch (val->obj->type) {
-    case T_BITS: return (Obj *)bits_from_uval(star, (all_mem == 0xffff) ? 16 : 24);
+    case T_BITS: return (Obj *)bits_from_uval(star, all_mem_bits);
     case T_CODE: return get_star_value(((Code *)val)->addr);
     default:
     case T_BOOL:
     case T_INT: return (Obj *)int_from_uval(star);
     case T_FLOAT: return (Obj *)new_float(star + (((Float *)val)->real - trunc(((Float *)val)->real)));
     case T_STR:
-    case T_BYTES: return (Obj *)bytes_from_uval(star, (all_mem == 0xffff) ? 2 : 3);
+    case T_BYTES: return (Obj *)bytes_from_uval(star, all_mem_bits >> 3);
     case T_ADDRESS: return (Obj *)new_address(get_star_value(((Address *)val)->val), ((Address *)val)->type);
     }
 }

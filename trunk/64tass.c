@@ -80,6 +80,7 @@ int temporary_label_branch; /* function declaration in function context, not goo
 linepos_t poke_pos;
 line_t vline;      /* current line */
 address_t all_mem, all_mem2;
+unsigned int all_mem_bits;
 uint8_t pass = 0, max_pass = MAX_PASS;         /* pass */
 address_t star = 0;
 const uint8_t *pline;           /* current line data */
@@ -440,6 +441,7 @@ static int get_command(void) {
 static void set_cpumode(const struct cpu_s *cpumode) {
     cpu = cpumode;
     all_mem = cpumode->max_address;
+    all_mem_bits = (all_mem == 0xffff) ? 16 : 24;
     select_opcodes(cpumode);
     listing_set_cpumode(listing, cpumode);
     cpu_opt_set_cpumode(cpumode);
@@ -637,21 +639,16 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am;
-                if (touval(val2->obj->address(val2, &am), &uv, 24, poke_pos)) {
+                Obj *tmp = val2->obj->address(val2, &am);
+                if (touval(tmp, &uv, (am == A_KR) ? 16 : all_mem_bits, poke_pos)) {
                     ch2 = 0;
                     break;
                 }
                 switch (am) {
                 case A_NONE:
-                    if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, poke_pos);
+                    if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, tmp, poke_pos);
                     break;
                 case A_KR:
-                    if (uv > 0xffff) {
-                        Error *v = new_error(ERROR_____CANT_UVAL, poke_pos);
-                        v->u.intconv.bits = 16;
-                        v->u.intconv.val = val_reference(val2);
-                        err_msg_output_and_destroy(v);
-                    }
                     break;
                 default:
                     err_msg_output_and_destroy(err_addressing(am, poke_pos));
@@ -2238,18 +2235,15 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     else do {
                         atype_t am;
                         Obj *tmp = vs->val;
-                        if (touval(tmp->obj->address(tmp, &am), &uval, 24, &vs->epoint)) break;
+                        if (touval(tmp->obj->address(tmp, &am), &uval, all_mem_bits, &vs->epoint)) break;
                         if (am != A_NONE && check_addr(am)) {
                             err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
                             break;
                         }
-                        if (uval > all_mem) err_msg2(ERROR_ADDRESS_LARGE, vs->val, &vs->epoint);
-                        else {
-                            current_section->l_address.address = uval & 0xffff;
-                            current_section->l_address.bank = uval & ~(address_t)0xffff;
-                            val_destroy(current_section->l_address_val);
-                            current_section->l_address_val = val_reference(vs->val);
-                        }
+                        current_section->l_address.address = uval & 0xffff;
+                        current_section->l_address.bank = uval & ~(address_t)0xffff;
+                        val_destroy(current_section->l_address_val);
+                        current_section->l_address_val = val_reference(vs->val);
                     } while (false);
                     newlabel = NULL;
                 } else new_waitfor(W_HERE, &epoint);
