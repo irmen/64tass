@@ -1285,17 +1285,12 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     digit_t *d;
 
     if (actual_encoding == NULL) {
-        uchar_t ch2;
-        switch (v1->chars) {
-        case 0: 
-            return (Obj *)new_error(ERROR__EMPTY_STRING, epoint);
-        case 1: 
-            ch2 = v1->data[0];
+        if (v1->chars == 1) {
+            uchar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return (Obj *)int_from_uval(ch2);
-        default:
-            return (Obj *)new_error(ERROR__NOT_ONE_CHAR, epoint);
         }
+        return (Obj *)new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint);
     }
 
     i = v1->len;
