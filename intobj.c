@@ -1290,7 +1290,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return (Obj *)int_from_uval(ch2);
         }
-        return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
+        return (Obj *)new_error(ERROR__NOT_ONE_CHAR, epoint);
     }
 
     i = v1->len;

@@ -738,18 +738,17 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
             break;
         }
-        if (touval(val->obj->address(val, &am), &uval, 8 * sizeof uval, epoint2)) {
-            break;
+        {
+            address_t max = (current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
+            if (touval(val->obj->address(val, &am), &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, epoint2)) {
+                break;
+            }
         }
         if (am != A_NONE && check_addr(am)) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
         }
         if (current_section->logicalrecursion == 0) {
-            if (((address_t)uval & ~all_mem2) != 0) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2);
-                break;
-            }
             current_section->l_address.address = uval & 0xffff;
             current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_section->l_address_val);
@@ -759,10 +758,6 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
                 memjmp(&current_section->mem, current_section->address);
             }
             return;
-        }
-        if (uval > all_mem) {
-            err_msg2(ERROR_ADDRESS_LARGE, val, epoint2);
-            break;
         }
         laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
         if (arguments.tasmcomp) addr = (uint16_t)uval;
@@ -2179,8 +2174,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                             else foffset = uval;
                             if ((vs = get_val()) != NULL) {
-                                if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
-                                else if (uval != 0 && (address_t)uval - 1 > all_mem2) err_msg2(ERROR_CONSTNT_LARGE,NULL, &vs->epoint);
+                                if (touval(vs->val, &uval, (all_mem2 == 0xffff) ? 16 : (all_mem2 == 0xffffff) ? 24 : 32, &vs->epoint)) {}
                                 else fsize = uval;
                             }
                         }
@@ -2374,13 +2368,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!get_exp(0, cfile, 1, 2, &epoint)) goto breakerr;
                     if (prm == CMD_ALIGN && (current_section->structrecursion != 0 && !current_section->dooutput)) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
+                    {
+                        address_t max = (prm == CMD_ALIGN && all_mem < all_mem2) ? all_mem : all_mem2;
+                        if (touval(vs->val, &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
+                    }
                     if (prm == CMD_ALIGN) {
                         if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
-                        else if ((uval & ~(uval_t)all_mem) != 0) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
                         else if (uval > 1 && (current_section->l_address.address % uval) != 0) db = uval - (current_section->l_address.address % uval);
                     } else db = uval;
-                    if (db != 0 && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);goto breakerr;}
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
                         size_t uninit = 0, sum = 0;
@@ -2574,7 +2569,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
                                     tmp.end = ch;
                                     endok = true;
-                                    if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
+                                    if (str->len > i) {err_msg2(ERROR_NOT_TWO_CHARS, NULL, &vs->epoint); tryit = false;}
                                 }
                             }
                         } else {
@@ -2593,7 +2588,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     uchar_t ch = str->data[0];
                                     if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                     tmp.end = ch;
-                                    if (str->len > i) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint); tryit = false;}
+                                    if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
                                 }
                             } else {
                                 if (touval(val, &uval, 24, &vs->epoint)) tryit = false;

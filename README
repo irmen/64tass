@@ -3354,8 +3354,6 @@ can't get size of type '?'
     value has no size
 conflict
     at least one feature is provided, which shouldn't be there
-constant too large
-    floating point overflow and other value out of range conditions
 division by zero
     can't calculate this
 double defined escape
@@ -3395,6 +3393,10 @@ logarithm of non-positive number
     only positive numbers have a logarithm
 missing argument
     not enough arguments supplied to function
+more than a single character
+    no more than a single character is allowed
+more than two characters
+    no more than two characters are allowed
 most significant bit must be clear in byte
     for .shift and .shiftl only 7 bit "bytes" are valid
 negative number raised on fractional power
@@ -3409,8 +3411,6 @@ not a direct page address
     value must be a direct page address
 not a key and value pair
     dictionaries are built from key and value pairs separated by a colon
-not a one character string
-    only a single character string is allowed
 not a variable
     only variables are changeable
 not allowed here: ?

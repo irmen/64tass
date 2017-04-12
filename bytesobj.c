@@ -272,7 +272,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return (Obj *)bytes_from_uval(ch2, 3);
         } else {
-            return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
+            return (Obj *)new_error(ERROR__NOT_ONE_CHAR, epoint);
         }
         if (v->val != s) {
             if (len2 <= sizeof v->val) {

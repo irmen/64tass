@@ -227,7 +227,7 @@ static const char *terr_error[] = {
     "double defined range",
     "double defined escape",
     "extra characters on line",
-    "constant too large",
+    "more than two characters",
     "floating point overflow",
     "address not in processor address space",
     "general syntax",
@@ -247,7 +247,7 @@ static const char *terr_error[] = {
     "not in range -1.0 to 1.0",
     "empty range not allowed",
     "empty string not allowed",
-    "not a one character string",
+    "more than a single character",
     "too early to reference",
     "requirements not met",
     "conflict",
@@ -641,14 +641,14 @@ void err_msg_output(const Error *val) {
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
-    case ERROR_CONSTNT_LARGE:
+    case ERROR_NOT_TWO_CHARS:
     case ERROR_NUMERIC_OVERF:
     case ERROR_NEGFRAC_POWER:
     case ERROR___EMPTY_RANGE:
     case ERROR__EMPTY_STRING:
     case ERROR__BYTES_NEEDED:
     case ERROR___NO_LAST_GAP:
-    case ERROR_BIG_STRING_CO:
+    case ERROR__NOT_ONE_CHAR:
     case ERROR__NO_BYTE_ADDR:
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR:
