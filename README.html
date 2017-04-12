@@ -3710,6 +3710,7 @@ will display without them.</p>
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl class="errorlist">
 <dt>? expected<dd>something is missing
+<dt>address in different program bank<dd>this instruction is only limited to the current bank
 <dt>address not in processor address space<dd>value larger than current CPU address space
 <dt>address out of section<dd>moving the address around is fine, but do not place it before the section
 <dt>addressing mode too complex<dd>too much indexing or indirection
@@ -3739,7 +3740,6 @@ will display without them.</p>
 <dt>floating point overflow<dd>infinity reached during a calculation
 <dt>general syntax<dd>can't do anything with this
 <dt>index out of range<dd>not enough elements in list
-<dt>instruction can't cross banks<dd>this instruction is only limited to the current bank
 <dt>key error<dd>not in dictionary
 <dt>label required<dd>a label is mandatory for this directive
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end

@@ -3322,6 +3322,8 @@ Errors
 
 ? expected
     something is missing
+address in different program bank
+    this instruction is only limited to the current bank
 address not in processor address space
     value larger than current CPU address space
 address out of section
@@ -3381,8 +3383,6 @@ general syntax
     can't do anything with this
 index out of range
     not enough elements in list
-instruction can't cross banks
-    this instruction is only limited to the current bank
 key error
     not in dictionary
 label required
