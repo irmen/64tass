@@ -617,6 +617,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
+        if (is_known(&alu)) goto constresult;
         break;
     case 0x31: /* AND ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -649,6 +650,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
+        if (is_known(&alu)) goto constresult;
         break;
     case 0x11: /* ORA ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -681,6 +683,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         optname = try_a(cpu, &alu);
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
+        if (is_known(&alu)) goto constresult;
         break;
     case 0x51: /* EOR ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -1721,6 +1724,9 @@ jump:
     return;
 constind:
     err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+    return;
+constresult:
+    err_msg2(ERROR__CONST_RESULT, NULL, epoint);
     return;
 replace:
     err_msg2(ERROR___OPTIMIZABLE, optname, epoint);
