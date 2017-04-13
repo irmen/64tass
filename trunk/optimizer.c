@@ -1120,28 +1120,33 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0xEA: /* NOP */
         break;
     case 0x91: /* STA ($12),y */
-        altmode = (cputype_65c02 && is_zero(&cpu->y));
-        goto sta;
+        if (cputype_65c02 && is_zero(&cpu->y)) goto constind;
+        break;
     case 0x99: /* STA $1234,y */
     case 0x96: /* STX $12,y */
-        altmode = is_known(&cpu->y);
-        goto sta;
+        if (is_known(&cpu->y)) goto constind;
+        break;
     case 0x81: /* STA ($12,x) */
-        if (!cputype_65c02) goto sta;
-        /* fall through */
+        if (cputype_65c02 && is_known(&cpu->x)) goto constind;
+        break;
     case 0x9D: /* STA $1234,x */
     case 0x95: /* STA $12,x */
-    case 0x94: /* STY $12,x */
-        altmode = is_known(&cpu->x);
+        if (is_known(&cpu->x)) goto constind;
         /* fall through */
     case 0x8D: /* STA $1234 */
     case 0x85: /* STA $12 */
+        if (cputype_65c02 && is_zero(&cpu->a)) {optname = "stz"; goto simplify;}
+        break;
     case 0x8E: /* STX $1234 */
     case 0x86: /* STX $12 */
+        if (cputype_65c02 && is_zero(&cpu->x)) {optname = "stz"; goto simplify;}
+        break;
+    case 0x94: /* STY $12,x */
+        if (is_known(&cpu->x)) goto constind;
+        /* fall through */
     case 0x8C: /* STY $1234 */
     case 0x84: /* STY $12 */
-    sta:
-        if (altmode) goto constind;
+        if (cputype_65c02 && is_zero(&cpu->y)) {optname = "stz"; goto simplify;}
         break;
     case 0x48: /* PHA */
     case 0x08: /* PHP */
@@ -1513,14 +1518,14 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             incdec(cpu, &cpu->y, true);
             goto ldy;
         case 0x92: /* STA ($12) */ /* STA ($12),z */
-            goto sta;
+            break;
         case 0x9E: /* STZ $1234,x */
         case 0x74: /* STZ $12,x */
-            altmode = is_known(&cpu->x);
+            if (is_known(&cpu->x)) goto constind;
             /* fall through */
         case 0x9C: /* STZ $1234 */
         case 0x64: /* STZ $12 */
-            goto sta;
+            break;
         case 0x1C: /* TRB $1234 */
         case 0x14: /* TRB $12 */
         case 0x0C: /* TSB $1234 */
@@ -1672,11 +1677,11 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x82: /* STA ($12,s),y */
                 break;
             case 0x9B: /* STX $1234,y */
-                altmode = is_known(&cpu->y);
-                goto sta;
+                if (is_known(&cpu->y)) goto constind;
+                break;
             case 0x8B: /* STY $1234,x */
-                altmode = is_known(&cpu->x);
-                goto sta;
+                if (is_known(&cpu->x)) goto constind;
+                break;
             case 0x5B: /* TAB */
                 if (transreg(&cpu->a, &cpu->b)) goto remove;
                 break;
