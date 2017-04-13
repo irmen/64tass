@@ -3258,6 +3258,9 @@ case ignored, value already handled
     this value was already used in an earlier case
 compile offset overflow
     compile continues at the bottom ($0000)
+constant result, possibly changeable to 'lda'
+    a pre-calculated value could be loaded instead as the result seems to be
+    always the same
 could be shorter by using 'xxx' instead
     a shorter instruction which gives the same result according to the
     optimizer

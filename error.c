@@ -212,6 +212,7 @@ static const char *terr_warning[] = {
     "please use quotes now to allow expressions in future",
     "possibly redundant if last 'jsr' is changed to 'jmp'",
     "possibly redundant indexing with a constant value",
+    "constant result, possibly changeable to 'lda'",
 #ifdef _WIN32
     "the file's real name is not '",
 #endif
@@ -344,6 +345,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror(" [-Woptimize]");
             break;
         case ERROR___CONST_INDEX:
+        case ERROR__CONST_RESULT:
         case ERROR_____TAIL_CALL:
             new_error_msg2(diagnostic_errors.optimize, epoint);
             adderror(terr_warning[no]);
