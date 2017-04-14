@@ -3342,6 +3342,7 @@ analysis done. Currently it's easy to fool with these constructs:</p>
 <li>Using <code>.byte $2c</code> and similar tricks to skip instructions.
 <li>Using <code>&lowast;+5</code> and similar tricks to skip instructions, or to loop like <code>&lowast;-1</code>.
 <li>Any other method of flow control not involving referenced labels. E.g. calculated returns.
+<li>Register re-mappings on 65DTV02 with SIR and SAC.
 </ul>
 
 <p>It's also rather simple and conservative, so some opportunities will be

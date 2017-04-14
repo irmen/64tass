@@ -42,6 +42,7 @@ struct optimizer_s {
     bool zcmp, ccmp;
     Bit *cc;
     Reg8 z1, z2, z3;
+    unsigned int sir, sac;
 };
 
 static void set_bit(Bit **v, Bit *b) {
@@ -1229,6 +1230,8 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         reset_reg8(cpu->z1.a);
         reset_reg8(cpu->z2.a);
         reset_reg8(cpu->z3.a);
+        cpu->sir = 256;
+        cpu->sac = 256;
         reset_bit(&cpu->p.n);
         reset_bit(&cpu->p.v);
         reset_bit(&cpu->p.e);
@@ -1455,8 +1458,19 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
                     cpu->branched = true;
                     break;
                 case 0x32: /* SAC #$12 */
+                    if (adr == cpu->sac) goto remove;
+                    cpu->sac = adr;
+                    reset_reg8(cpu->a.a);
+                    reset_reg8(cpu->x.a);
+                    reset_reg8(cpu->y.a);
+                    break;
                 case 0x42: /* SIR #$12 */
-                    /* fall through */
+                    if (adr == cpu->sir) goto remove;
+                    cpu->sir = adr;
+                    reset_reg8(cpu->a.a);
+                    reset_reg8(cpu->x.a);
+                    reset_reg8(cpu->y.a);
+                    break;
                 default:
                     cpu_opt_invalidate();
                 }
@@ -1787,6 +1801,8 @@ void cpu_opt_invalidate(void) {
         reset_bit(&cpu->p.c);
         reset_bit(&cpu->cc);
     }
+    cpu->sir = 256;
+    cpu->sac = 256;
     cpu->branched = false;
     cpu->call = false;
     cpu->lb = 0;
