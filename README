@@ -2940,6 +2940,7 @@ default, the others are disabled.
       + Using *+5 and similar tricks to skip instructions, or to loop like *-1.
       + Any other method of flow control not involving referenced labels. E.g.
         calculated returns.
+      + Register re-mappings on 65DTV02 with SIR and SAC.
 
     It's also rather simple and conservative, so some opportunities will be
     missed. Most CPUs are supported with the notable exception of 65816 and
