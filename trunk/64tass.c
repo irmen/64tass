@@ -2391,7 +2391,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else {
                             uval &= (all_mem < all_mem2) ? all_mem : all_mem2;
-                            if (uval > 1) db = uval - (((current_section->l_address.address & 0xffff) | current_section->l_address.bank) % uval);
+                            if (uval > 1) {
+                                address_t rem = ((current_section->l_address.address & 0xffff) | current_section->l_address.bank) % (address_t)uval;
+                                if (rem != 0) db = (address_t)uval - rem;
+                            }
                         }
                     } else db = uval & all_mem2;
                     mark_mem(&current_section->mem, current_section->address, star);
