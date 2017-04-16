@@ -561,7 +561,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     cpu->pc = ((int)cpu->pc + ln + 1) & 0xffff;
 
     if (cpu->call) {
-        if (cod == 0x60) err_msg2(ERROR_____TAIL_CALL, NULL, epoint);
+        if (cod == 0x60) err_msg2(ERROR_____REDUNDANT, "if last 'jsr' is changed to 'jmp'", epoint);
         cpu->call = false;
     }
 
@@ -1727,22 +1727,22 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     }
     return;
 remove:
-    err_msg2(ERROR_____REMOVABLE, "it does not change anything", epoint);
+    err_msg2(ERROR_____REDUNDANT, "as it does not change anything", epoint);
     return;
 removecond:
-    err_msg2(ERROR_____REMOVABLE, "the condition is never met", epoint);
+    err_msg2(ERROR_____REDUNDANT, "as the condition is never met", epoint);
     return;
 removeset:
-    err_msg2(ERROR_____REMOVABLE, "flag is already set", epoint);
+    err_msg2(ERROR_____REDUNDANT, "as flag is already set", epoint);
     return;
 removeclr:
-    err_msg2(ERROR_____REMOVABLE, "flag is already clear", epoint);
+    err_msg2(ERROR_____REDUNDANT, "as flag is already clear", epoint);
     return;
 jump:
-    err_msg2(ERROR_____REMOVABLE, "target is the next instruction", epoint);
+    err_msg2(ERROR_____REDUNDANT, "as target is the next instruction", epoint);
     return;
 constind:
-    err_msg2(ERROR___CONST_INDEX, NULL, epoint);
+    err_msg2(ERROR_____REDUNDANT, "indexing with a constant value", epoint);
     return;
 constresult:
     err_msg2(ERROR__CONST_RESULT, NULL, epoint);

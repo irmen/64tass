@@ -31,8 +31,6 @@ typedef enum Error_types {
     ERROR______OLD_GOTO,
     ERROR____OLD_STRING,
     ERROR_______OLD_ENC,
-    ERROR_____TAIL_CALL,
-    ERROR___CONST_INDEX,
     ERROR__CONST_RESULT,
 #ifdef _WIN32
     ERROR___INSENSITIVE,
@@ -46,7 +44,7 @@ typedef enum Error_types {
     ERROR_WUSER_DEFINED,
     ERROR___OPTIMIZABLE,
     ERROR______SIMPLIFY,
-    ERROR_____REMOVABLE,
+    ERROR_____REDUNDANT,
     ERROR_____OLD_EQUAL,
     ERROR_DUPLICATECASE,
     ERROR_NONIMMEDCONST,
