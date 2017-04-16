@@ -488,6 +488,7 @@ static int unknown_print(FILE *f, uchar_t ch) {
         if (print_use_color) fputs("\33[7m", f);
         ln = fprintf(f, format, ch);
         if (print_use_color) fputs("\33[m", f);
+        if (print_use_bold) fputs("\33[1m", f);
         return ln;
     }
     return sprintf(temp, format, ch);
