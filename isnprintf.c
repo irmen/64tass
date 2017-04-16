@@ -310,6 +310,7 @@ static inline MUST_CHECK Obj *chars(const struct values_s *v)
         uval = 0;
     } else {
         err = val->obj->uval(val, &uval, 24, &v->epoint);
+        uval &= 0xffffff;
         if (err != NULL) return &err->v;
     }
 
