@@ -2193,7 +2193,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             else foffset = uval;
                             if ((vs = get_val()) != NULL) {
                                 if (touval(vs->val, &uval, (all_mem2 == 0xffff) ? 16 : (all_mem2 == 0xffffff) ? 24 : 32, &vs->epoint)) {}
-                                else fsize = uval;
+                                else fsize = uval & all_mem2;
                             }
                         }
 
@@ -2351,16 +2351,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     case CMD_DATABANK:
                         if (vs->val == &gap_value->v) databank = 256;
                         else if (touval(vs->val, &uval, 8, &vs->epoint)) {}
-                        else databank = uval;
+                        else databank = uval & 0xff;
                         break;
                     case CMD_DPAGE:
                         if (vs->val == &gap_value->v) dpage = 65536;
                         else if (touval(vs->val, &uval, 16, &vs->epoint)) {}
-                        else dpage = uval;
+                        else dpage = uval & 0xffff;
                         break;
                     case CMD_EOR:
                         if (touval(vs->val, &uval, 8, &vs->epoint)) {}
-                        else outputeor = uval;
+                        else outputeor = uval & 0xff;
                         break;
                     case CMD_SEED:
                         random_reseed(vs->val, &vs->epoint);
@@ -2389,8 +2389,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (prm == CMD_ALIGN) {
                         if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
-                        else if (uval > 1 && (current_section->l_address.address % uval) != 0) db = uval - (current_section->l_address.address % uval);
-                    } else db = uval;
+                        else {
+                            uval &= (all_mem < all_mem2) ? all_mem : all_mem2;
+                            if (uval > 1) db = uval - (((current_section->l_address.address & 0xffff) | current_section->l_address.bank) % uval);
+                        }
+                    } else db = uval & all_mem2;
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
                         size_t uninit = 0, sum = 0;
@@ -2589,7 +2592,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                         } else {
                             if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
-                            tmp.start = uval;
+                            tmp.start = uval & 0xffffff;
                         }
                         if (!endok) {
                             vs = get_val();
@@ -2607,14 +2610,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                             } else {
                                 if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
-                                tmp.end = uval;
+                                tmp.end = uval & 0xffffff;
                             }
                         }
                         vs = get_val();
                         if (vs == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr;}
                         if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else if (tryit) {
-                            tmp.offset = uval;
+                            tmp.offset = uval & 0xff;
                             if (tmp.start > tmp.end) {
                                 uchar_t tmpe = tmp.start;
                                 tmp.start = tmp.end;

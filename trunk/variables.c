@@ -555,7 +555,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                 continue;
             }
 
-            fprintf(flab, "al %" PRIx32 " .", uv);
+            fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
             labelname_print(l, flab, ':');
             putc('\n', flab);
 
