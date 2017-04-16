@@ -746,12 +746,12 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
         }
-        addr = (address_t)uval & all_mem2;
         if (current_section->logicalrecursion == 0) {
             current_section->l_address.address = uval & 0xffff;
             current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_section->l_address_val);
             current_section->l_address_val = val;
+            addr = (address_t)uval & all_mem2;
             if (current_section->address != addr) {
                 current_section->address = addr;
                 memjmp(&current_section->mem, current_section->address);
@@ -759,6 +759,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             return;
         }
         laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
+        addr = (address_t)uval & all_mem;
         if (arguments.tasmcomp) addr = (uint16_t)addr;
         else if (addr >= laddr) {
             addr = (current_section->address + (addr - laddr)) & all_mem2;
@@ -2392,7 +2393,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         else {
                             uval &= (all_mem < all_mem2) ? all_mem : all_mem2;
                             if (uval > 1) {
-                                address_t rem = ((current_section->l_address.address & 0xffff) | current_section->l_address.bank) % (address_t)uval;
+                                address_t rem = ((current_section->l_address.address + current_section->l_address.bank) & all_mem) % (address_t)uval;
                                 if (rem != 0) db = (address_t)uval - rem;
                             }
                         }
