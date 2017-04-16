@@ -644,6 +644,7 @@ static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
                     ch2 = 0;
                     break;
                 }
+                uv &= all_mem;
                 switch (am) {
                 case A_NONE:
                     if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, tmp, poke_pos);
@@ -745,23 +746,24 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
         }
+        addr = (address_t)uval & all_mem2;
         if (current_section->logicalrecursion == 0) {
             current_section->l_address.address = uval & 0xffff;
             current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_section->l_address_val);
             current_section->l_address_val = val;
-            if (current_section->address != (address_t)uval) {
-                current_section->address = (address_t)uval;
+            if (current_section->address != addr) {
+                current_section->address = addr;
                 memjmp(&current_section->mem, current_section->address);
             }
             return;
         }
         laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
-        if (arguments.tasmcomp) addr = (uint16_t)uval;
-        else if ((address_t)uval > laddr) {
-            addr = (current_section->address + (uval - laddr)) & all_mem2;
+        if (arguments.tasmcomp) addr = (uint16_t)addr;
+        else if (addr >= laddr) {
+            addr = (current_section->address + (addr - laddr)) & all_mem2;
         } else {
-            addr = (current_section->address - (laddr - uval)) & all_mem2;
+            addr = (current_section->address - (laddr - addr)) & all_mem2;
         }
         if (current_section->address != addr) {
             current_section->address = addr;
@@ -2260,7 +2262,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             break;
                         }
                         current_section->l_address.address = uval & 0xffff;
-                        current_section->l_address.bank = uval & ~(address_t)0xffff;
+                        current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
                         val_destroy(current_section->l_address_val);
                         current_section->l_address_val = val_reference(vs->val);
                     } while (false);
