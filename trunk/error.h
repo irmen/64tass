@@ -38,8 +38,10 @@ struct file_list_s {
 #if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX_VERSION || _POSIX2_VERSION
 #define COLOR_OUTPUT
 extern bool print_use_color;
+extern bool print_use_bold;
 #else
 #define print_use_color false
+#define print_use_bold false
 #endif
 
 struct Label;

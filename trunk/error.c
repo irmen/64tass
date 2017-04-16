@@ -42,6 +42,7 @@
 
 #ifdef COLOR_OUTPUT
 bool print_use_color = false;
+bool print_use_bold = false;
 #endif
 
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
@@ -991,15 +992,21 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     default: bold = false;
     }
     if (print_use_color) fputs(bold ? "\33[m\33[01m" : "\33[m\33[K", f);
+#ifdef COLOR_OUTPUT
+    print_use_bold = print_use_color && bold;
+#endif
     printable_print2(((const uint8_t *)(err + 1)) + err->line_len, f, err->error_len);
     if (print_use_color && bold) fputs("\33[m\33[K", f);
+#ifdef COLOR_OUTPUT
+    print_use_bold = false;
+#endif
     putc('\n', f);
     if (arguments.caret && line != NULL) {
         putc(' ', f);
         printable_print(line, f);
-        fputs(print_use_color ? "\n\33[01;32m\33[K " : "\n ", f);
+        fputs("\n ", f);
         caret_print(line, f, epoint->pos);
-        fputs(print_use_color ? "^\33[m\33[K\n" : "^\n", f);
+        fputs(print_use_color ? "\33[01;32m^\33[m\33[K\n" : "^\n", f);
     }
 }
 
