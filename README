@@ -17,12 +17,20 @@ the 65xx series of processors. Key features:
   * Various memory models, binary targets and text output formats (also Hex/
     S-record)
   * Assembly and label listings available for debugging or exporting
-  * Conditional compilation, macros, struct/union structures, scopes
+  * Conditional compilation, macros, structures, unions, scopes
 
-This is a development version, features or syntax may change over time. Not
-everything is backwards compatible.
+Contrary how the length of this document suggests 64tass can be used with just
+basic 6502 assembly knowledge in simple ways like any other assembler. If some
+advanced functionality is needed then this document can serve as a reference.
+
+This is a development version. Features or syntax may change as a result of
+corrections in non-backwards compatible ways in some rare cases. It's difficult
+to get everything `right' first time.
 
 Project page: http://sourceforge.net/projects/tass64/
+
+The page hosts the latest and older versions with sources and a bug and a
+feature request tracker.
 
 -------------------------------------------------------------------------------
 
@@ -2288,7 +2296,7 @@ Misc
     example, or for silly `encryption'.
 .seed <expression>
     Seed the pseudo random number generator with an unsigned integer of maximum
-    128 bits, to make the generated numbers less boring.
+    128 bits to make the generated numbers less boring.
 .var <expression>
     Defines a variable identified by the label preceding, which is set to the
     value of expression or reference of variable.
@@ -2322,7 +2330,7 @@ Printer control
 
 .hidemac
 .showmac
-    Ignored for compatibility
+    Ignored for compatibility.
 
 -------------------------------------------------------------------------------
 
@@ -3141,23 +3149,18 @@ Assembly listing
     debugging, it's much easier to identify the code in memory within the
     source files.
 
-    64tass -L list.txt a.asm
-    *       = $1000
-            ldx #0
-    loop    dex
-            bne loop
-            rts
+    ; 64tass Turbo Assembler Macro V1.5x listing file
+    ; 64tass -L list.txt a.asm
+    ; Fri Dec  9 19:08:55 2005
 
-    result (list.txt):
+    ;Offset ;Hex            ;Monitor        ;Source
 
-    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-    ;done on Fri Dec  9 19:08:55 2005
+    ;******  Processing input file: a.asm
 
-
-    .1000            a2 00          ldx #$00                ldx #0
-    .1002            ca             dex             loop    dex
-    .1003            d0 fd          bne $1002               bne loop
-    .1005            60             rts                     rts
+    .1000   a2 00           ldx #$00                ldx #0
+    .1002   ca              dex             loop    dex
+    .1003   d0 fd           bne $1002               bne loop
+    .1005   60              rts                     rts
 
     ;******  End of listing
 
@@ -3165,18 +3168,18 @@ Assembly listing
     Don't put monitor code into listing. There won't be any monitor listing in
     the list file.
 
-    64tass --no-monitor -L list.txt a.asm
+    ; 64tass Turbo Assembler Macro V1.5x listing file
+    ; 64tass --no-monitor -L list.txt a.asm
+    ; Fri Dec  9 19:11:43 2005
 
-    result (list.txt):
+    ;Offset ;Hex            ;Source
 
-    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-    ;done on Fri Dec  9 19:11:43 2005
+    ;******  Processing input file: a.asm
 
-
-    .1000            a2 00                                  ldx #0
-    .1002            ca                             loop    dex
-    .1003            d0 fd                                  bne loop
-    .1005            60                                     rts
+    .1000   a2 00                   ldx #0
+    .1002   ca              loop    dex
+    .1003   d0 fd                   bne loop
+    .1005   60                      rts
 
     ;******  End of listing
 
@@ -3184,18 +3187,18 @@ Assembly listing
     Don't put source code into listing. There won't be any source listing in
     the list file.
 
-    64tass --no-source -L list.txt a.asm
+    ; 64tass Turbo Assembler Macro V1.5x listing file
+    ; 64tass --no-source -L list.txt a.asm
+    ; Fri Dec  9 19:13:25 2005
 
-    result (list.txt):
+    ;Offset ;Hex            ;Monitor
 
-    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-    ;done on Fri Dec  9 19:13:25 2005
+    ;******  Processing input file: a.asm
 
-
-    .1000            a2 00          ldx #$00
-    .1002            ca             dex
-    .1003            d0 fd          bne $1002
-    .1005            60             rts
+    .1000   a2 00           ldx #$00
+    .1002   ca              dex
+    .1003   d0 fd           bne $1002
+    .1005   60              rts
 
     ;******  End of listing
 
@@ -3204,6 +3207,22 @@ Assembly listing
     identification of source origin. The line number is followed with an
     optional colon separated file number in case it comes from a different file
     then the previous lines.
+
+    ; 64tass Turbo Assembler Macro V1.5x listing file
+    ; 64tass --line-numbers -L list.txt a.asm
+    ; Fri Dec  9 19:13:25 2005
+
+    ;Line   ;Offset ;Hex            ;Monitor        ;Source
+
+    :1      ;******  Processing input file: a.asm
+
+    3       .1000   a2 00           ldx #$00                ldx #0
+    4       .1002   ca              dex             loop    dex
+    5       .1003   d0 fd           bne $1002               bne loop
+    6       .1005   60              rts                     rts
+
+    ;******  End of listing
+
 --tab-size=<number>
     By default the listing file is using a tab size of 8 to align the
     disassembly. This can be changed to other more favorable values like 4.
@@ -3213,6 +3232,23 @@ Assembly listing
     Normally the assembler tries to minimize listing output by omitting
     "unimportant" lines. But sometimes it's better to just list everything
     including comments and empty lines.
+
+    ; 64tass Turbo Assembler Macro V1.5x listing file
+    ; 64tass --verbose-list -L list.txt a.asm
+    ; Fri Dec  9 19:13:25 2005
+
+    ;Offset ;Hex            ;Monitor        ;Source
+
+    ;******  Processing input file: a.asm
+
+                                            *       = $1000
+
+    .1000   a2 00           ldx #$00                ldx #0
+    .1002   ca              dex             loop    dex
+    .1003   d0 fd           bne $1002               bne loop
+    .1005   60              rts                     rts
+
+    ;******  End of listing
 
 Other options
 
@@ -3251,45 +3287,55 @@ Lines containing macros are expanded whenever possible, but due to internal
 limitations referenced lines in relation to the actual fault will display
 without them.
 
+Messages ending with `[-Wxxx]' are user controllable. This means that using
+`-Wno-xxx' on the command line will silence them and `-Werror=xxx' will turn
+them it into a fault. See Diagnostic options for more details.
+
 Warnings
 
 approximate floating point
-    floating point comparisons are not exact and numbers were close
+    floating point comparisons are not exact and the numbers were close but
+    maybe not quite
 case ignored, value already handled
-    this value was already used in an earlier case
+    this value was already used in an earlier case so here it's ignored
 compile offset overflow
-    compile continues at the bottom ($0000)
+    compile continues at the bottom ($0000) as end of compile area was reached
 constant result, possibly changeable to 'lda'
     a pre-calculated value could be loaded instead as the result seems to be
     always the same
 could be shorter by using 'xxx' instead
-    a shorter instruction which gives the same result according to the
-    optimizer
+    this shorter instruction gives the same result according to the optimizer
 could be simpler by using 'xxx' instead
-    an instruction with the same result but with less dependencies according to
-    the optimizer
+    this instruction gives the same result but with less dependencies according
+    to the optimizer
 deprecated directive, only for TASM compatible mode
-    .goto and .lbl should only be used in TASM compatible mode
+    .goto and .lbl should only be used in TASM compatible mode and there are
+    better ways to loop
 deprecated equal operator, use '==' instead
     single equal sign for comparisons is going away soon, update source
 deprecated modulo operator, use '%' instead
     double slash for modulo is going away soon, update source
 deprecated not equal operator, use '!=' instead
-    non-standard not equal operators, update source
+    non-standard not equal operators which will stop working in the future,
+    update source
 directive ignored
-    an assembler directive was ignored for compatibility reasons.
+    an assembler directive was ignored for compatibility reasons
 immediate addressing mode suggested
-    numeric constant address which was likely meant as an immediate value
+    numeric constant was used as an address which was likely meant as an
+    immediate value
 instruction 'xxx' is an alias of 'xxx'
-    an alternative naming was used
+    an alternative instruction name was used
+label defined instead of variable multiplication for compatibility
+    move the '*=' construct to a separate line or define the variable first as
+    this construct is ambiguous
 label not on left side
     check if an instruction name was not mistyped and if the current CPU has
     it, or remove white space before label
 leading zeros ignored
-    leading zeros in front of decimals are redundant don't denote an octal
+    leading zeros in front of decimals are redundant and don't denote an octal
     number
 long branch used
-    branch too long, so long branch was used (bxx *+5 jmp)
+    branch distance was too long so long branch was used (bxx *+5 jmp)
 please use format("%d", ...) as '^' will change it's meaning
     this operator will be changed to mean the bank byte later, please update
     your sources
@@ -3297,86 +3343,93 @@ please use quotes now to allow expressions in future
     the directive will allow expressions later and the parameter will be a
     string
 possible jmp ($xxff) bug
-    yet another 65xx feature...
+    some 6502 variants read don't increment the high byte on page cross and
+    this may be unexpected
 possibly redundant as ...
     according to the optimizer this might not be needed
 possibly redundant if last 'jsr' is changed to 'jmp'
-    tail call elimination possibility detected
+    tail call elimination possibility was detected
 possibly redundant indexing with a constant value
     the index register used seems to be constant and there's a way to eliminate
-    indexing
+    indexing by a constant offset
 processor program counter overflow
-    pc address was set back to the start of actual 64 KiB program bank
+    pc address was set back to the start of actual 64 KiB program bank as end
+    of bank was reached
 symbol case mismatch '?'
-    it's matching case insensitively but it's not exactly the same
+    the symbol is matching case insensitively but it's not all letters are
+    exactly the same
 the file's real name is not '?'
-    check if all characters match including their case
+    check if all characters match including their case as this is not the real
+    name of the file
 this name uses reserved characters '?'
-    do not use \ : * ? " < > | in file names
+    do not use \ : * ? " < > | in file names as some operating systems don't
+    like these
 unused symbol '?'
-    this symbol has is not referred anywhere
+    this symbol has is not referred anywhere and therefore may be unused
 use '/' as path separation '?'
-    backslash is not a path separator on all systems while slash is
+    backslash is not a path separator on all systems while forward slash will
+    work independent of the host operating system
 use relative path for '?'
-    File's path is absolute and depends on the file system layout
-label defined instead of variable multiplication for compatibility
-    move the '*=' construct to a separate line
+    file's path is absolute and depends on the file system layout and the
+    source will not compile without the exact same environment
 
 Errors
 
 ? expected
     something is missing
 address in different program bank
-    this instruction is only limited to the current bank
+    this instruction is only limited to access the current bank
 address not in processor address space
     value larger than current CPU address space
 address out of section
-    moving the address around is fine, but do not place it before the section
+    moving the address around is fine as long as it does not end up before the
+    start of the section
 addressing mode too complex
-    too much indexing or indirection
+    too much indexing or indirection for a valid address
 at least one byte is needed
-    the expression didn't yield any bytes
+    the expression didn't yield any bytes but it's needed here
 branch crosses page by ? bytes
-    page crossing detected
+    page crossing was on branch was detected
 branch too far by ? bytes
-    can't branch that far
+    branches have limited range and this went over by some bytes
 can't calculate stable value
     somehow it's impossible to calculate this expression
 can't calculate this
     could not get any value, is this a circular reference?
 can't encode character '?' ($xx) in encoding '?'
-    can't translate character in this encoding
+    can't translate character in this encoding as no definition was given
 can't get absolute value of type '?'
-    value has no absolute value
+    not possible to calculate the absolute value of this type
 can't get boolean value of type '?'
-    conversion error
+    not possible to determine if this value is true or false
 can't get integer value of type '?'
-    conversion error
+    this value is not a number
 can't get length of type '?'
-    value has no length
+    this type has no length
 can't get sign of type '?'
-    value does not have a sign
+    this type does not have a sign as it's not a number
 can't get size of type '?'
-    value has no size
+    this type has no size
 conflict
     at least one feature is provided, which shouldn't be there
 division by zero
-    can't calculate this
+    dividing with zero can't be done
 double defined escape
-    escape sequence already defined in another .edef
+    escape sequence already defined in another .edef differently
 double defined range
-    part of a character range was already defined by another .cdef
+    part of a character range was already defined by another .cdef and these
+    ranges can't overlap
 duplicate definition
     symbol defined more than once
 empty encoding, add something or correct name
-    probably a typo in the name of encoding, otherwise use .cdef/.edef to
+    probably a typo in the name of encoding but if not then use .cdef/.edef to
     define something
 empty range not allowed
-    invalid range
+    invalid range but there must be at least one element
 empty string not allowed
     at least one character is required
 expected exactly/at least/at most ? arguments, got ?
-    wrong number of function arguments
+    wrong number of function arguments used
 expression syntax
     syntax error
 extra characters on line
@@ -3388,7 +3441,7 @@ general syntax
 index out of range
     not enough elements in list
 key error
-    not in dictionary
+    key not in the dictionary
 label required
     a label is mandatory for this directive
 last byte must not be gap
@@ -3406,7 +3459,7 @@ most significant bit must be clear in byte
 negative number raised on fractional power
     can't calculate this
 no ? addressing mode for opcode
-    this addressing mode is not valid for this opcode
+    this addressing mode is not valid for this instruction
 not a bank 0 address
     value must be a bank zero address
 not a data bank address
@@ -3420,9 +3473,9 @@ not a variable
 not allowed here: ?
     do not use this directive here
 not defined '?'
-    can't find this label
+    can't find this label at this point
 not hashable
-    can't be used as a key in a dictionary
+    the type can't be used as a key in a dictionary
 not in range -1.0 to 1.0
     the function is only valid in the -1.0 to 1.0 range
 not iterable
@@ -3432,15 +3485,15 @@ offset out of range
 operands could not be broadcast together with shapes ? and ?
     list length must match or must have a single element only
 page error at $xxxx
-    page crossing detected
+    page crossing was detected
 ptext too long by ? bytes
     .ptext is limited to 255 bytes maximum
 requirements not met
-    Not all features are provided, at least one is missing
+    not all features are provided, at least one is missing
 reserved symbol name '?'
     do not use this symbol name
 shadow definition
-    symbol is defined in an upper scope and is used ambiguously
+    symbol is defined in an upper scope as well and is used ambiguously
 some operation '?' of type '?' and type '?' not possible
     can't do this calculation with these values
 square root of negative number
@@ -3452,11 +3505,11 @@ too large for a ? bit signed/unsigned integer
 unknown processor '?'
     unknown cpu name
 value needs to be non-negative
-    only positives or zero is accepted here
+    only positive numbers or zero is accepted here
 wrong type <?>
     wrong object type used
 zero value not allowed
-    do not use zero, also not with .null
+    do not use zero for example with .null
 
 Fatal errors
 
@@ -3475,7 +3528,7 @@ can't write object file
 error reading file
     error while reading
 file recursion
-    wrong use of .include
+    wrong nesting of .include
 function recursion too deep
     wrong use of nested functions
 macro recursion too deep
@@ -3494,7 +3547,7 @@ scope '?' for label listing not found
     the scope given on command line couldn't be found
 too many passes
     with a carefully crafted source file it's possible to create unresolvable
-    situations. Fix your code.
+    situations but try to avoid this
 unknown option '?'
     option not known
 
@@ -3502,9 +3555,14 @@ unknown option '?'
 
 Credits
 
-Original written for DOS by Marek Matula of Taboo, then ported to ANSI C by
-BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
-optimizations, multi pass compile and a lot of features by Soci/Singular.
+Original 6502tass written for DOS by Marek Matula of Taboo.
+
+It was ported to ANSI C by BigFoot/Breeze. This is when it's name changed to
+64tass.
+
+Soci/Singular reworked the code over the years to the point that practically
+nothing was left from original at this point.
+
 Improved TASS compatibility, PETSCII codes by Groepaz.
 
 Additional code: my_getopt command-line argument parser by Benjamin Sittler,

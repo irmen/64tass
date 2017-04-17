@@ -101,13 +101,21 @@ the 65xx series of processors. Key features:</p>
 <li>Built-in <q>linker</q> with section support
 <li>Various memory models, binary targets and text output formats (also Hex/S-record)
 <li>Assembly and label listings available for debugging or exporting
-<li>Conditional compilation, macros, struct/union structures, scopes
+<li>Conditional compilation, macros, structures, unions, scopes
 </ul>
 
-<p><b>This is a development version, features or syntax may change over time.
-Not everything is backwards compatible.</b></p>
+<p>Contrary how the length of this document suggests 64tass can be used with
+just basic 6502 assembly knowledge in simple ways like any other assembler. If
+some advanced functionality is needed then this document can serve as a
+reference.</p>
+
+<p><b>This is a development version. Features or syntax may change as a result
+of corrections in non-backwards compatible ways in some rare cases. It's
+difficult to get everything <q>right</q> first time.</b></p>
 
 <p>Project page: <a href="http://sourceforge.net/projects/tass64/">http://sourceforge.net/projects/tass64/</a></p>
+
+<p>The page hosts the latest and older versions with sources and a bug and a feature request tracker.</p>
 
 <hr>
 <h2>Table of Contents<a name="contents" href="#contents"></a></h2>
@@ -2704,7 +2712,7 @@ or for silly <q>encryption</q>.
 
 <dt><code><b class="k">.seed</b></code> &lt;expression&gt;<a name="d_seed" href="#d_seed"></a>
 <dd>Seed the pseudo random number generator with an unsigned integer of
-maximum 128 bits, to make the generated numbers less boring.
+maximum 128 bits to make the generated numbers less boring.
 
 <dt><code><b class="k">.var</b></code> &lt;expression&gt;<a name="d_var" href="#d_var"></a>
 <dd>Defines a variable identified by the label preceding, which
@@ -2745,7 +2753,7 @@ reset   <b>cld</b>
 
 <dt><code><b class="k">.hidemac</b></code><a name="d_hidemac" href="#d_hidemac"></a>
 <dt><code><b class="k">.showmac</b></code><a name="d_showmac" href="#d_showmac"></a>
-<dd>Ignored for compatibility
+<dd>Ignored for compatibility.
 </dl>
 
 <hr>
@@ -3404,7 +3412,7 @@ still need them.</p>
 
 <p>The following options can be used to be more specific:</p>
 
-<dl>
+<dl class="dir">
 <dt><b>-Wunused-macro</b><a name="o_Wunused-macro" href="#o_Wunused-macro"></a>
 <dd>Warn about unused macros.
 
@@ -3558,23 +3566,18 @@ parameter is a dot separated path to a scope started from the global scope.</p>
 Useful for debugging, it's much easier to identify the code in memory within
 the source files.
 <pre width=80>
-64tass -L list.txt a.asm
-*       <b>=</b> <span>$1000</span>
-        <b>ldx</b> #<span>0</span>
-loop	<b>dex</b>
-        <b>bne</b> <u>loop</u>
-	<b>rts</b>
+; 64tass Turbo Assembler Macro V1.5x listing file
+; 64tass -L list.txt a.asm
+; Fri Dec  9 19:08:55 2005
 
-result (list.txt):
+;Offset ;Hex            ;Monitor        ;Source
 
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:08:55 2005
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-
-.1000		 a2 00		ldx #$00		ldx #0
-.1002		 ca		dex		loop	dex
-.1003		 d0 fd		bne $1002		bne loop
-.1005		 60		rts			rts
+.1000	a2 00		ldx #$00		ldx #0
+.1002	ca		dex		loop	dex
+.1003	d0 fd		bne $1002		bne loop
+.1005	60		rts			rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -3582,18 +3585,18 @@ result (list.txt):
 <dt><b>-m</b>, <b>--no-monitor</b><a name="o_no-monitor" href="#o_no-monitor"></a>
 <dd>Don't put monitor code into listing. There won't be any monitor listing in the list file.
 <pre width=80>
-64tass --no-monitor -L list.txt a.asm
+; 64tass Turbo Assembler Macro V1.5x listing file
+; 64tass --no-monitor -L list.txt a.asm
+; Fri Dec  9 19:11:43 2005
 
-result (list.txt):
+;Offset ;Hex            ;Source
 
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:11:43 2005
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-
-.1000		 a2 00					ldx #0
-.1002		 ca				loop	dex
-.1003		 d0 fd					bne loop
-.1005		 60					rts
+.1000   a2 00			ldx #0
+.1002	ca		loop	dex
+.1003	d0 fd			bne loop
+.1005	60			rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -3601,18 +3604,18 @@ result (list.txt):
 <dt><b>-s</b><a name="o_s"></a>, <b>--no-source</b><a name="o_no-source" href="#o_no-source"></a>
 <dd>Don't put source code into listing. There won't be any source listing in the list file.
 <pre width=80>
-64tass --no-source -L list.txt a.asm
+; 64tass Turbo Assembler Macro V1.5x listing file
+; 64tass --no-source -L list.txt a.asm
+; Fri Dec  9 19:13:25 2005
 
-result (list.txt):
+;Offset ;Hex            ;Monitor
 
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:13:25 2005
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-
-.1000		 a2 00		ldx #$00
-.1002		 ca		dex
-.1003		 d0 fd		bne $1002
-.1005		 60		rts
+.1000   a2 00		ldx #$00
+.1002   ca		dex
+.1003   d0 fd		bne $1002
+.1005   60		rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -3622,6 +3625,23 @@ result (list.txt):
 <dd>This option creates a new column for showing line numbers for easier
 identification of source origin. The line number is followed with an optional colon
 separated file number in case it comes from a different file then the previous lines.
+
+<pre width=80>
+; 64tass Turbo Assembler Macro V1.5x listing file
+; 64tass --line-numbers -L list.txt a.asm
+; Fri Dec  9 19:13:25 2005
+
+;Line	;Offset ;Hex		;Monitor	;Source
+
+:1	;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
+
+3	.1000	a2 00		ldx #$00		ldx #0
+4	.1002	ca		dex		loop	dex
+5	.1003	d0 fd		bne $1002		bne loop
+6	.1005	60		rts			rts
+
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
+</pre>
 
 <dt><b>--tab-size</b>=&lt;number&gt;<a name="o_tab-size" href="#o_tab-size"></a>
 
@@ -3635,6 +3655,25 @@ no effect on the source code on the right hand side.
 <dd>Normally the assembler tries to minimize listing output by omitting
 "unimportant" lines. But sometimes it's better to just list everything
 including comments and empty lines.
+
+<pre width=80>
+; 64tass Turbo Assembler Macro V1.5x listing file
+; 64tass --verbose-list -L list.txt a.asm
+; Fri Dec  9 19:13:25 2005
+
+;Offset ;Hex            ;Monitor        ;Source
+
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
+
+                                        *       = $1000
+
+.1000   a2 00           ldx #$00                ldx #0
+.1002   ca              dex             loop    dex
+.1003   d0 fd           bne $1002               bne loop
+.1005   60              rts                     rts
+
+;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
+</pre>
 
 </dl>
 
@@ -3668,81 +3707,85 @@ line option. The message format is the following:</p>
 </ul>
 <p>The faulty line may be displayed after the message with a caret pointing to the error location.</p>
 
-<pre width=80>a.asm:3:21: error: not defined 'label'
+<pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined 'label'</strong>
                  lda label
-                     ^
-a.asm:3:21: note: searched in the global scope</pre>
+                     <strong><span style="color:green">^</span></strong>
+<strong>a.asm:3:21: <span style="color:gray">note:</span></strong> searched in the global scope</pre>
 <p>Lines containing macros are expanded whenever possible, but due to
 internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
+<p>Messages ending with <q>[-Wxxx]</q> are user controllable. This means
+that using <q>-Wno-xxx</q> on the command line will silence them and
+<q>-Werror=xxx</q> will turn them it into a fault. See <a
+href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
-<dt>approximate floating point<dd>floating point comparisons are not exact and numbers were close
-<dt>case ignored, value already handled<dd>this value was already used in an earlier case
-<dt>compile offset overflow<dd>compile continues at the bottom ($0000)
+<dt>approximate floating point<dd>floating point comparisons are not exact and the numbers were close but maybe not quite
+<dt>case ignored, value already handled<dd>this value was already used in an earlier case so here it's ignored
+<dt>compile offset overflow<dd>compile continues at the bottom ($0000) as end of compile area was reached
 <dt>constant result, possibly changeable to 'lda'<dd>a pre-calculated value could be loaded instead as the result seems to be always the same
-<dt>could be shorter by using 'xxx' instead<dd>a shorter instruction which gives the same result according to the optimizer
-<dt>could be simpler by using 'xxx' instead<dd>an instruction with the same result but with less dependencies according to the optimizer
-<dt>deprecated directive, only for TASM compatible mode<dd>.goto and .lbl should only be used in TASM compatible mode
+<dt>could be shorter by using 'xxx' instead<dd>this shorter instruction gives the same result according to the optimizer
+<dt>could be simpler by using 'xxx' instead<dd>this instruction gives the same result but with less dependencies according to the optimizer
+<dt>deprecated directive, only for TASM compatible mode<dd>.goto and .lbl should only be used in TASM compatible mode and there are better ways to loop
 <dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source
-<dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators, update source
-<dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
-<dt>immediate addressing mode suggested<dd>numeric constant address which was likely meant as an immediate value
-<dt>instruction 'xxx' is an alias of 'xxx'<dd>an alternative naming was used
+<dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators which will stop working in the future, update source
+<dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons
+<dt>immediate addressing mode suggested<dd>numeric constant was used as an address which was likely meant as an immediate value
+<dt>instruction 'xxx' is an alias of 'xxx'<dd>an alternative instruction name was used
+<dt>label defined instead of variable multiplication for compatibility<dd>move the '&lowast;=' construct to a separate line or define the variable first as this construct is ambiguous
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label
-<dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant don't denote an octal number
-<dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
+<dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant and don't denote an octal number
+<dt>long branch used<dd>branch distance was too long so long branch was used (bxx &lowast;+5 jmp)
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources
 <dt>please use quotes now to allow expressions in future<dd>the directive will allow expressions later and the parameter will be a string
-<dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
+<dt>possible jmp ($xxff) bug<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed
-<dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility detected
-<dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing
-<dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
-<dt>symbol case mismatch '?'<dd>it's matching case insensitively but it's not exactly the same
-<dt>the file's real name is not '?'<dd>check if all characters match including their case
-<dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt; &gt; | in file names
-<dt>unused symbol '?'<dd>this symbol has is not referred anywhere
-<dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while slash is
-<dt>use relative path for '?'<dd>File's path is absolute and depends on the file system layout
-<dt>label defined instead of variable multiplication for compatibility<dd>move the '*=' construct to a separate line
+<dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility was detected
+<dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing by a constant offset
+<dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank as end of bank was reached
+<dt>symbol case mismatch '?'<dd>the symbol is matching case insensitively but it's not all letters are exactly the same
+<dt>the file's real name is not '?'<dd>check if all characters match including their case as this is not the real name of the file
+<dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt; &gt; | in file names as some operating systems don't like these
+<dt>unused symbol '?'<dd>this symbol has is not referred anywhere and therefore may be unused
+<dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while forward slash will work independent of the host operating system
+<dt>use relative path for '?'<dd>file's path is absolute and depends on the file system layout and the source will not compile without the exact same environment
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl class="errorlist">
 <dt>? expected<dd>something is missing
-<dt>address in different program bank<dd>this instruction is only limited to the current bank
+<dt>address in different program bank<dd>this instruction is only limited to access the current bank
 <dt>address not in processor address space<dd>value larger than current CPU address space
-<dt>address out of section<dd>moving the address around is fine, but do not place it before the section
-<dt>addressing mode too complex<dd>too much indexing or indirection
-<dt>at least one byte is needed<dd>the expression didn't yield any bytes
-<dt>branch crosses page by ? bytes<dd>page crossing detected
-<dt>branch too far by ? bytes<dd>can't branch that far
+<dt>address out of section<dd>moving the address around is fine as long as it does not end up before the start of the section
+<dt>addressing mode too complex<dd>too much indexing or indirection for a valid address
+<dt>at least one byte is needed<dd>the expression didn't yield any bytes but it's needed here
+<dt>branch crosses page by ? bytes<dd>page crossing was on branch was detected
+<dt>branch too far by ? bytes<dd>branches have limited range and this went over by some bytes
 <dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
 <dt>can't calculate this<dd>could not get any value, is this a circular reference?
-<dt>can't encode character '?' ($xx) in encoding '?'<dd>can't translate character in this encoding
-<dt>can't get absolute value of type '?'<dd>value has no absolute value
-<dt>can't get boolean value of type '?'<dd>conversion error
-<dt>can't get integer value of type '?'<dd>conversion error
-<dt>can't get length of type '?'<dd>value has no length
-<dt>can't get sign of type '?'<dd>value does not have a sign
-<dt>can't get size of type '?'<dd>value has no size
+<dt>can't encode character '?' ($xx) in encoding '?'<dd>can't translate character in this encoding as no definition was given
+<dt>can't get absolute value of type '?'<dd>not possible to calculate the absolute value of this type
+<dt>can't get boolean value of type '?'<dd>not possible to determine if this value is true or false
+<dt>can't get integer value of type '?'<dd>this value is not a number
+<dt>can't get length of type '?'<dd>this type has no length
+<dt>can't get sign of type '?'<dd>this type does not have a sign as it's not a number
+<dt>can't get size of type '?'<dd>this type has no size
 <dt>conflict<dd>at least one feature is provided, which shouldn't be there
-<dt>division by zero<dd>can't calculate this
-<dt>double defined escape<dd>escape sequence already defined in another .edef
-<dt>double defined range<dd>part of a character range was already defined by another .cdef
+<dt>division by zero<dd>dividing with zero can't be done
+<dt>double defined escape<dd>escape sequence already defined in another .edef differently
+<dt>double defined range<dd>part of a character range was already defined by another .cdef and these ranges can't overlap
 <dt>duplicate definition<dd>symbol defined more than once
-<dt>empty encoding, add something or correct name<dd>probably a typo in the name of encoding, otherwise use .cdef/.edef to define something
-<dt>empty range not allowed<dd>invalid range
+<dt>empty encoding, add something or correct name<dd>probably a typo in the name of encoding but if not then use .cdef/.edef to define something
+<dt>empty range not allowed<dd>invalid range but there must be at least one element
 <dt>empty string not allowed<dd>at least one character is required
-<dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments
+<dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments used
 <dt>expression syntax<dd>syntax error
 <dt>extra characters on line<dd>there's some garbage on the end of line
 <dt>floating point overflow<dd>infinity reached during a calculation
 <dt>general syntax<dd>can't do anything with this
 <dt>index out of range<dd>not enough elements in list
-<dt>key error<dd>not in dictionary
+<dt>key error<dd>key not in the dictionary
 <dt>label required<dd>a label is mandatory for this directive
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
 <dt>logarithm of non-positive number<dd>only positive numbers have a logarithm
@@ -3751,32 +3794,32 @@ will display without them.</p>
 <dt>more than two characters<dd>no more than two characters are allowed
 <dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>negative number raised on fractional power<dd>can't calculate this
-<dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this opcode
+<dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this instruction
 <dt>not a bank 0 address<dd>value must be a bank zero address
 <dt>not a data bank address<dd>value must be a data bank address
 <dt>not a direct page address<dd>value must be a direct page address
 <dt>not a key and value pair<dd>dictionaries are built from key and value pairs separated by a colon
 <dt>not a variable<dd>only variables are changeable
 <dt>not allowed here: ?<dd>do not use this directive here
-<dt>not defined '?'<dd>can't find this label
-<dt>not hashable<dd>can't be used as a key in a dictionary
+<dt>not defined '?'<dd>can't find this label at this point
+<dt>not hashable<dd>the type can't be used as a key in a dictionary
 <dt>not in range -1.0 to 1.0<dd>the function is only valid in the -1.0 to 1.0 range
 <dt>not iterable<dd>value is not a list or other iterable object
 <dt>offset out of range<dd>code offset too much
 <dt>operands could not be broadcast together with shapes ? and ?<dd>list length must match or must have a single element only
-<dt>page error at $xxxx<dd>page crossing detected
+<dt>page error at $xxxx<dd>page crossing was detected
 <dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
-<dt>requirements not met<dd>Not all features are provided, at least one is missing
+<dt>requirements not met<dd>not all features are provided, at least one is missing
 <dt>reserved symbol name '?'<dd>do not use this symbol name
-<dt>shadow definition<dd>symbol is defined in an upper scope and is used ambiguously
+<dt>shadow definition<dd>symbol is defined in an upper scope as well and is used ambiguously
 <dt>some operation '?' of type '?' and type '?' not possible<dd>can't do this calculation with these values
 <dt>square root of negative number<dd>can't calculate the square root of a negative number
 <dt>too early to reference<dd>processing still ongoing, can't access this yet
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
 <dt>unknown processor '?'<dd>unknown cpu name
-<dt>value needs to be non-negative<dd>only positives or zero is accepted here
+<dt>value needs to be non-negative<dd>only positive numbers or zero is accepted here
 <dt>wrong type &lt;?&gt;<dd>wrong object type used
-<dt>zero value not allowed<dd>do not use zero, also not with .null
+<dt>zero value not allowed<dd>do not use zero for example with .null
 </dl>
 
 <h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
@@ -3788,7 +3831,7 @@ will display without them.</p>
 <dt>can't write make file<dd>cannot write the make rule file
 <dt>can't write object file<dd>cannot write the result
 <dt>error reading file<dd>error while reading
-<dt>file recursion<dd>wrong use of .include
+<dt>file recursion<dd>wrong nesting of .include
 <dt>function recursion too deep<dd>wrong use of nested functions
 <dt>macro recursion too deep<dd>wrong use of nested macros
 <dt>option '?' doesn't allow an argument<dd>command line option doesn't need any argument
@@ -3797,17 +3840,18 @@ will display without them.</p>
 <dt>option '?' requires an argument<dd>command line option needs an argument
 <dt>out of memory<dd>won't happen ;)
 <dt>scope '?' for label listing not found<dd>the scope given on command line couldn't be found
-<dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
+<dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations but try to avoid this
 <dt>unknown option '?'<dd>option not known
 </dl>
 
 <hr>
 <h2>Credits<a name="credits" href="#credits"></a></h2>
 
-<p>Original written for DOS by Marek Matula of Taboo, then ported to ANSI C by
-BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
-optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, PETSCII codes by Groepaz.</p>
+<p>Original 6502tass written for DOS by Marek Matula of Taboo.</p>
+<p>It was ported to ANSI C by BigFoot/Breeze. This is when it's name changed to 64tass.</p>
+<p>Soci/Singular reworked the code over the years to the point that practically
+nothing was left from original at this point.</p>
+<p>Improved TASS compatibility, PETSCII codes by Groepaz.</p>
 
 <p>Additional code: my_getopt command-line argument parser by Benjamin
 Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
