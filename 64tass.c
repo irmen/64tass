@@ -348,6 +348,13 @@ static bool tostr(const struct values_s *v1, str_t *out) {
     }
 }
 
+static MUST_CHECK bool touval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    Error *err = v1->obj->uval2(v1, uv, bits, epoint);
+    if (err == NULL) return false;
+    err_msg_output_and_destroy(err);
+    return true;
+}
+
 /* --------------------------------------------------------------------------- */
 /*
  * Skip memory
@@ -2190,11 +2197,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             path = get_path(&filename, cfile->realname);
                         }
                         if ((vs = get_val()) != NULL) {
-                            if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                            if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                             else foffset = uval;
                             if ((vs = get_val()) != NULL) {
-                                if (touval(vs->val, &uval, (all_mem2 == 0xffff) ? 16 : (all_mem2 == 0xffffff) ? 24 : 32, &vs->epoint)) {}
-                                else fsize = uval & all_mem2;
+                                if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                                else fsize = uval;
                             }
                         }
 
@@ -2382,22 +2389,26 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
                     if (!get_exp(0, cfile, 1, 2, &epoint)) goto breakerr;
-                    if (prm == CMD_ALIGN && (current_section->structrecursion != 0 && !current_section->dooutput)) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
-                    vs = get_val();
-                    {
-                        address_t max = (prm == CMD_ALIGN && all_mem < all_mem2) ? all_mem : all_mem2;
-                        if (touval(vs->val, &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, &vs->epoint)) uval = (prm == CMD_ALIGN) ? 1 : 0;
-                    }
                     if (prm == CMD_ALIGN) {
-                        if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
-                        else {
-                            uval &= (all_mem < all_mem2) ? all_mem : all_mem2;
-                            if (uval > 1) {
-                                address_t rem = ((current_section->l_address.address + current_section->l_address.bank) & all_mem) % (address_t)uval;
+                        address_t max = (current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
+                        if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
+                        vs = get_val();
+                        if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                        else if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
+                        else if (uval > 1) {
+                            address_t itt = (current_section->logicalrecursion == 0) ? current_section->address : ((current_section->l_address.address + current_section->l_address.bank) & all_mem);
+                            if (uval > max) {
+                                if (itt != 0) db = max - itt + 1;
+                            } else {
+                                address_t rem = itt % (address_t)uval;
                                 if (rem != 0) db = (address_t)uval - rem;
                             }
                         }
-                    } else db = uval & all_mem2;
+                    } else {
+                        vs = get_val();
+                        if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                        else db = uval;
+                    }
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
                         size_t uninit = 0, sum = 0;
@@ -2595,8 +2606,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                             }
                         } else {
-                            if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
-                            tmp.start = uval & 0xffffff;
+                            if (touval2(val, &uval, 24, &vs->epoint)) tryit = false;
+                            tmp.start = uval;
                         }
                         if (!endok) {
                             vs = get_val();
@@ -2613,8 +2624,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
                                 }
                             } else {
-                                if (touval(val, &uval, 24, &vs->epoint)) tryit = false;
-                                tmp.end = uval & 0xffffff;
+                                if (touval2(val, &uval, 24, &vs->epoint)) tryit = false;
+                                tmp.end = uval;
                             }
                         }
                         vs = get_val();
@@ -2716,7 +2727,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
                     if (!get_exp(0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) break;
+                    if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) break;
                     if (cnt > 0) {
                         line_t lin = lpoint.line;
                         bool labelexists;
