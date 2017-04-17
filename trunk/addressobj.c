@@ -253,6 +253,16 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     return v->obj->uval(v, uv, bits, epoint);
 }
 
+static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v;
+    if (v1->type != A_NONE) {
+        return DEFAULT_OBJ->uval2(o1, uv, bits, epoint);
+    }
+    v = v1->val;
+    return v->obj->uval2(v, uv, bits, epoint);
+}
+
 MUST_CHECK Obj *float_from_address(Address *v1, linepos_t epoint) {
     if (v1->type != A_NONE) {
         err_msg_wrong_type(&v1->v, NULL, epoint);
@@ -509,6 +519,7 @@ void addressobj_init(void) {
     obj.address = address;
     obj.ival = ival;
     obj.uval = uval;
+    obj.uval2 = uval2;
     obj.sign = sign;
     obj.function = function;
     obj.calc1 = calc1;

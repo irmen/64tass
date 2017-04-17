@@ -168,6 +168,10 @@ static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), unsigned int 
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
+static MUST_CHECK Error *invalid_uval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    return v1->obj->uval(v1, uv, bits, epoint);
+}
+
 static FAST_CALL Obj *invalid_address(Obj *v1, uint32_t *am) {
     *am = A_NONE;
     return v1;
@@ -262,6 +266,7 @@ void obj_init(Type *obj) {
     obj->slice = invalid_slice;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
+    obj->uval2 = invalid_uval2;
     obj->address = invalid_address;
     obj->sign = invalid_sign;
     obj->function = invalid_function;

@@ -291,7 +291,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
+static bool uvalx(Obj *o1, uval_t *uv, unsigned int bits) {
     Bits *v1 = (Bits *)o1;
     switch (v1->len) {
     case ~1: 
@@ -317,7 +317,7 @@ static bool uval2(Obj *o1, uval_t *uv, unsigned int bits) {
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Error *v;
-    if (uval2(o1, (uval_t *)iv, bits)) return NULL;
+    if (uvalx(o1, (uval_t *)iv, bits)) return NULL;
     v = new_error(ERROR_____CANT_IVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
@@ -326,11 +326,20 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Error *v;
-    if (uval2(o1, uv, bits)) return NULL;
+    if (uvalx(o1, uv, bits)) return NULL;
     v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
     return v;
+}
+
+static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    if (((Bits *)o1)->len < 0) {
+        Error *v = new_error(ERROR______NOT_UVAL, epoint);
+        v->u.intconv.val = val_reference(o1);
+        return v;
+    }
+    return uval(o1, uv, bits, epoint);
 }
 
 MUST_CHECK Obj *float_from_bits(const Bits *v1, linepos_t epoint) {
@@ -1314,6 +1323,7 @@ void bitsobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
+    obj.uval2 = uval2;
     obj.sign = sign;
     obj.function = function;
     obj.len = len;

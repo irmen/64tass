@@ -143,6 +143,15 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     return v->obj->uval(v, uv, bits, epoint);
 }
 
+static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    Code *v1 = (Code *)o1;
+    Obj *v;
+    Error *err = access_check(v1, epoint);
+    if (err != NULL) return err;
+    v = v1->addr;
+    return v->obj->uval2(v, uv, bits, epoint);
+}
+
 static FAST_CALL Obj *address(Obj *o1, uint32_t *am) {
     Code *v1 = (Code *)o1;
     Obj *v = v1->addr;
@@ -560,6 +569,7 @@ void codeobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
+    obj.uval2 = uval2;
     obj.address = address;
     obj.sign = sign;
     obj.function = function;
