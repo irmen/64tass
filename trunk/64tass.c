@@ -1138,7 +1138,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 prm = get_command();
                 ignore();
                 if (labelname.data[0] == '*') {
-                    err_msg2(ERROR______EXPECTED, "=", &epoint);
+                    err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint);
                     newlabel = NULL; epoint = cmdpoint; goto as_command;
                 }
                 switch (prm) {
@@ -1480,7 +1480,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 bool labelexists = false;
                 Code *code;
                 if (labelname.data[0] == '*') {
-                    err_msg2(ERROR______EXPECTED, "=", &epoint);
+                    err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint);
                     newlabel = NULL;
                     epoint = lpoint;
                     goto jn;
@@ -2905,7 +2905,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             ignore(); wht = here();
                             if (wht != '=') {
                                 if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) lpoint.pos++;
-                                else {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                                else {err_msg(ERROR______EXPECTED, "'='");goto breakerr;}
                             }
                             lpoint.pos++;
                             if (!get_exp(1, cfile, 1, 1, &lpoint)) goto breakerr;
@@ -2937,7 +2937,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             ignore();
                         }
                     }
-                    if (here() != ',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); goto breakerr;}
                     lpoint.pos++;ignore();
 
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
@@ -2966,7 +2966,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (nopos < 0) {
                             str_t varname;
-                            ignore();if (here() != ',') {err_msg(ERROR______EXPECTED,","); break;}
+                            ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); break;}
                             lpoint.pos++;ignore();
                             if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
                             else {
@@ -3005,7 +3005,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 context = (varname.data[0] == '_') ? cheap_context : current_context;
                                 if (tmp.op == NULL) {
-                                    if (wht != '=') {err_msg(ERROR______EXPECTED,"="); break;}
+                                    if (wht != '=') {err_msg(ERROR______EXPECTED, "'='"); break;}
                                     lpoint.pos++;ignore();
                                     label = new_label(&varname, context, strength, &labelexists);
                                     if (labelexists) {
@@ -3109,7 +3109,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     listing_line(listing, epoint.pos);
                     optname.data = pline + lpoint.pos; optname.len = get_label();
                     if (optname.len == 0) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    ignore();if (here() != '=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
+                    ignore();if (here() != '=') {err_msg(ERROR______EXPECTED, "'='"); goto breakerr;}
                     epoint = lpoint;
                     lpoint.pos++;
                     if (!get_exp(0, cfile, 1, 0, &epoint)) goto breakerr;

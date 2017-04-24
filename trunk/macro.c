@@ -485,7 +485,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
             break;
         }
         if (here() != ',') {
-            err_msg2(ERROR______EXPECTED, ",", &lpoint);
+            err_msg2(ERROR______EXPECTED, "','", &lpoint);
             i++;
             break;
         }
@@ -549,7 +549,7 @@ void get_macro_params(Obj *v) {
             break;
         }
         if (here() != ',') {
-            err_msg2(ERROR______EXPECTED, ",", &lpoint);
+            err_msg2(ERROR______EXPECTED, "','", &lpoint);
             i++;
             break;
         }

@@ -448,7 +448,7 @@ rest:
         case '-': op = &o_SUB; 
               add: o_oper[operp].epoint = epoint; o_oper[operp++].val = op; lpoint.pos++;continue;
         case ')':
-            if (operp == 0) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
+            if (operp == 0) {err_msg2(ERROR______EXPECTED, "')' not", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
             if (operp == 0 && first) {
@@ -467,7 +467,7 @@ rest:
         }
         if (operp == 0) return true;
         epoint = o_oper[operp - 1].epoint;
-        err_msg2(ERROR______EXPECTED, ")", &epoint); goto error;
+        err_msg2(ERROR______EXPECTED, "')'", &epoint); goto error;
     syntaxe:
         err_msg2(ERROR_EXPRES_SYNTAX, NULL, &epoint);
     error:
@@ -1621,11 +1621,12 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             while (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_PARENT || o == &o_FUNC) break;
-                if (o == &o_BRACKET || o == &o_INDEX || o == &o_BRACE) {operp = 0; break;}
+                if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED, "']'", &lpoint); goto error;}
+                if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "'}'", &lpoint); goto error;}
                 operp--;
                 push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
-            if (operp == 0) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
+            if (operp == 0) {err_msg2(ERROR______EXPECTED, "')' not", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
             push_oper((Obj *)((o_oper[operp].val == &o_PARENT) ? op : o_oper[operp].val), &o_oper[operp].epoint);
@@ -1638,11 +1639,12 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             while (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_BRACKET || o == &o_INDEX) break;
-                if (o == &o_PARENT || o == &o_FUNC || o == &o_BRACE) {operp = 0; break;}
+                if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, "')'", &lpoint); goto error;}
+                if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "'}'", &lpoint); goto error;}
                 operp--;
                 push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
-            if (operp == 0) {err_msg2(ERROR______EXPECTED, "[", &lpoint); goto error;}
+            if (operp == 0) {err_msg2(ERROR______EXPECTED, "']' not", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
             push_oper((Obj *)((o_oper[operp].val == &o_BRACKET) ? op : o_oper[operp].val), &o_oper[operp].epoint);
@@ -1654,11 +1656,12 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             while (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_BRACE) break;
-                if (o == &o_BRACKET || o == &o_INDEX || o == &o_PARENT || o == &o_FUNC) {operp = 0; break;}
+                if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED, "']'", &lpoint); goto error;}
+                if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, "')'", &lpoint); goto error;}
                 operp--;
                 push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
-            if (operp == 0) {err_msg2(ERROR______EXPECTED, "{", &lpoint); goto error;}
+            if (operp == 0) {err_msg2(ERROR______EXPECTED, "'}' not", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
             push_oper((Obj *)((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val), &o_oper[operp].epoint);
@@ -1680,13 +1683,14 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
                         (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = &o_IN;goto push2a;} break;
             }
-            goto syntaxe;
+            err_msg2(ERROR______EXPECTED, "an operator", &epoint);
+            goto error;
         }
         while (operp != 0) {
             const Oper *o = o_oper[operp - 1].val;
-            if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, ")", &o_oper[operp - 1].epoint); goto error;}
-            if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED,"]", &o_oper[operp - 1].epoint); goto error;}
-            if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "}", &o_oper[operp - 1].epoint); goto error;}
+            if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, "')'", &epoint); goto error;}
+            if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED,"']'", &epoint); goto error;}
+            if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "'}'", &epoint); goto error;}
             operp--;
             push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
         }
