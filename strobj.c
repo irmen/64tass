@@ -219,7 +219,6 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln) {
     i = 1;
     for (;;) {
         if ((ch2 = s[i]) == 0) {
-            err_msg(ERROR______EXPECTED, "end of string");
             *ln = i;
             return (Obj *)ref_none();
         }
