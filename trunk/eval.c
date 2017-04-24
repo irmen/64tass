@@ -260,9 +260,18 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *get_string(void) {
+    char txt[4];
     size_t len;
     Obj *v = str_from_str(pline + lpoint.pos, &len);
+    if (v->obj == STR_OBJ) {
+        lpoint.pos += len;
+        return v;
+    }
+    txt[1] = here();
+    txt[2] = txt[0] = txt[1] ^ ('\'' ^ '"');
+    txt[3] = 0;
     lpoint.pos += len;
+    err_msg2(ERROR______EXPECTED, txt, &lpoint);
     return v;
 }
 
