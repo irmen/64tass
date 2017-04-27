@@ -556,7 +556,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
 
     if (cpu->branched || cpu->pc != current_section->l_address.address) {
         cpu_opt_invalidate();
-        cpu->pc = current_section->l_address.address;
+        cpu->pc = current_section->l_address.address & 0xffff;
     }
     cpu->pc = ((int)cpu->pc + ln + 1) & 0xffff;
 
@@ -862,6 +862,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B0) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gpl"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0x30: /* BMI *+$12 */
@@ -875,6 +876,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B1) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gmi"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0x50: /* BVC *+$12 */
@@ -888,6 +890,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B0) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gvc"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0x70: /* BVS *+$12 */
@@ -901,6 +904,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B1) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gvs"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0x90: /* BCC *+$12 */
@@ -923,6 +927,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B0) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gcc"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0xB0: /* BCS *+$12 */
@@ -955,6 +960,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         if (b == B1) {
             cpu->branched = true;
             if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gcs"; goto replace; }
+            if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
         }
         break;
     case 0xD0: /* BNE *+$12 */
@@ -986,6 +992,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             if (z) {
                 cpu->branched = true;
                 if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "gne"; goto replace; }
+                if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
             }
             break;
         }
@@ -1003,6 +1010,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             if (z) {
                 cpu->branched = true;
                 if (adr == 1 || (cputype_65ce02 && adr == 2)) { optname = "geq"; goto replace; }
+                if (cputype_65c02 || cputype_65ce02 || cputype == &c65dtv02) { optname = "bra"; goto simplify; }
             }
             break;
         }
