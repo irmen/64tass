@@ -330,6 +330,57 @@ static bool cmp(struct optimizer_s *cpu, Reg8 *s, Reg8 *v, const char **cc) {
     return ret && ret3;
 }
 
+static bool adcsbc(struct optimizer_s *cpu, Reg8 *r, Reg8 *v, bool inv) {
+    unsigned int i;
+    bool ret;
+    Bit *co, *o, *vv;
+
+    if (get_bit(cpu->p.d) != B0) {
+        reset_reg8(r->a);
+        reset_reg8(cpu->z1.a);
+        reset_reg8(cpu->z2.a);
+        reset_reg8(cpu->z3.a);
+        reset_bit(&cpu->p.n);
+        reset_bit(&cpu->p.v);
+        reset_bit(&cpu->p.z);
+        reset_bit(&cpu->p.c);
+        cpu->zcmp = false;
+        cpu->ccmp = false;
+        return false;
+    }
+
+    ret = true;
+    co = ref_bit(cpu->p.c); o = ref_bit(r->a[7]);
+    if (inv) {
+        for (i = 0; i < 8; i++) {
+            Bit *c, *r2 = inv_bit(r->a[i]);
+            Bit *e = add_bit(v->a[i], r2, co, &c);
+            set_bit(&co, c);
+            del_bit(r2);
+            if (ret && !eq_bit(e, v->a[i])) ret = false;
+            set_bit(&r->a[i], e);
+        }
+    } else {
+        for (i = 0; i < 8; i++) {
+            Bit *c;
+            Bit *e = add_bit(v->a[i], r->a[i], co, &c);
+            set_bit(&co, c);
+            if (ret && !eq_bit(e, v->a[i])) ret = false;
+            set_bit(&r->a[i], e);
+        }
+    }
+    vv = v_bit(o, v->a[7], r->a[7]);
+    del_bit(o);
+    ret = eq_bit(cpu->p.v, vv) && ret;
+    set_bit(&cpu->p.v, vv);
+    ret = eq_bit(cpu->p.c, co) && ret;
+    set_bit(&cpu->p.c, co);
+    ret = calc_nz(cpu, r) && ret;
+    cpu->zcmp = false;
+    cpu->ccmp = false;
+    return ret;
+}
+
 static bool bincalc_reg(struct optimizer_s *cpu, Bit *cb(Bit *, Bit *), Reg8 *r, Reg8 *v) {
     bool ret = true;
     unsigned int i;
@@ -572,41 +623,62 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     if (cputype == &w65816 || cputype == &c65el02) return; /* unsupported for now */
 
     switch (cod) {
+    case 0x69: /* ADC #$12 */
+        load_imm(adr, &alu);
+        if (adcsbc(cpu, &alu, &cpu->a, false)) {
+            del_reg(&alu);
+            goto remove;
+        }
+        set_reg(&alu, &cpu->a);
+        break;
     case 0x71: /* ADC ($12),y */
-    case 0xF1: /* SBC ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
-        goto adcsbc;
+        goto adc;
     case 0x79: /* ADC $1234,y */
-    case 0xF9: /* SBC $1234,y */
         altmode = is_known(&cpu->y);
-        goto adcsbc;
+        goto adc;
     case 0x61: /* ADC ($12,x) */
-    case 0xE1: /* SBC ($12,x) */
-        if (!cputype_65c02) goto adcsbc;
+        if (!cputype_65c02) goto adc;
         /* fall through */
     case 0x7D: /* ADC $1234,x */
     case 0x75: /* ADC $12,x */
+        altmode = is_known(&cpu->x);
+        /* fall through */
+    case 0x6D: /* ADC $1234 */
+    case 0x65: /* ADC $12 */
+        adc:
+        load_mem(&alu);
+        adcsbc(cpu, &alu, &cpu->a, false);
+        set_reg(&alu, &cpu->a);
+        if (altmode) goto constind;
+        break;
+    case 0xE9: /* SBC #$12 */
+        load_imm(adr, &alu);
+        if (adcsbc(cpu, &alu, &cpu->a, true)) {
+            del_reg(&alu);
+            goto remove;
+        }
+        set_reg(&alu, &cpu->a);
+        break;
+    case 0xF1: /* SBC ($12),y */
+        altmode = (cputype_65c02 && is_zero(&cpu->y));
+        goto sbc;
+    case 0xF9: /* SBC $1234,y */
+        altmode = is_known(&cpu->y);
+        goto sbc;
+    case 0xE1: /* SBC ($12,x) */
+        if (!cputype_65c02) goto sbc;
+        /* fall through */
     case 0xFD: /* SBC $1234,x */
     case 0xF5: /* SBC $12,x */
         altmode = is_known(&cpu->x);
         /* fall through */
-    case 0x69: /* ADC #$12 */
-    case 0x6D: /* ADC $1234 */
-    case 0x65: /* ADC $12 */
-    case 0xE9: /* SBC #$12 */
     case 0xED: /* SBC $1234 */
     case 0xE5: /* SBC $12 */
-        adcsbc:
-        reset_reg8(cpu->a.a);
-        reset_reg8(cpu->z1.a);
-        reset_reg8(cpu->z2.a);
-        reset_reg8(cpu->z3.a);
-        reset_bit(&cpu->p.n);
-        reset_bit(&cpu->p.v);
-        reset_bit(&cpu->p.z);
-        reset_bit(&cpu->p.c);
-        cpu->zcmp = false;
-        cpu->ccmp = false;
+        sbc:
+        load_mem(&alu);
+        adcsbc(cpu, &alu, &cpu->a, true);
+        set_reg(&alu, &cpu->a);
         if (altmode) goto constind;
         break;
     case 0x29: /* AND #$12 */
@@ -1278,7 +1350,19 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
                 break;
             case 0x6B: /* ARR #$12 */
             /*case 0xEB:*/ /* SBC #$12 */
-                goto adcsbc;
+            arr:
+                reset_reg8(cpu->a.a);
+                reset_reg8(cpu->z1.a);
+                reset_reg8(cpu->z2.a);
+                reset_reg8(cpu->z3.a);
+                reset_bit(&cpu->p.n);
+                reset_bit(&cpu->p.v);
+                reset_bit(&cpu->p.z);
+                reset_bit(&cpu->p.c);
+                cpu->zcmp = false;
+                cpu->ccmp = false;
+                if (altmode) goto constind;
+                break;
             case 0x4B: /* ASR #$12 */
                 load_imm(adr, &alu);
                 if (asri(cpu, &cpu->a, &alu)) goto remove;
@@ -1303,7 +1387,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0xFB: /* ISB $1234,y */
             case 0x7B: /* RRA $1234,y */
                 altmode = is_known(&cpu->y);
-                goto adcsbc;
+                goto arr;
             case 0xFF: /* ISB $1234,x */
             case 0xF7: /* ISB $12,x */
             case 0x7F: /* RRA $1234,x */
@@ -1318,7 +1402,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x67: /* RRA $12 */
             case 0x63: /* RRA ($12,x) */
             case 0x73: /* RRA ($12),y */
-                goto adcsbc;
+                goto arr;
             case 0x3B: /* RLA $1234,y */
                 altmode = is_known(&cpu->y);
                 goto rla;
@@ -1492,8 +1576,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         }
         switch (cod) {
         case 0x72: /* ADC ($12) */ /* ADC ($12),z */
+            goto adc;
         case 0xF2: /* SBC ($12) */ /* SBC ($12),z */
-            goto adcsbc;
+            goto sbc;
         case 0x32: /* AND ($12) */ /* AND ($12),z */
             goto anda;
         case 0x80: /* BRA *+$12 */
