@@ -387,6 +387,114 @@ Bit *add_bit(Bit *a, Bit *b, Bit *ci, Bit **c) {
     }
 }
 
+Bit *v_bit(Bit *a, Bit *b, Bit *c) {
+    switch (a->b) {
+    case B0:
+        switch (b->b) {
+        case B0:                               /* 0+0+0 = 0 */
+            return ref_bit(c);                 /* 0+0+1 = 1 */
+                                               /* 0+0+u = u */
+        case B1:                               /* 0+1+0 = 0 */
+            return new_bit0();                 /* 0+1+1 = 0 */    
+                                               /* 0+1+u = 0 */
+        default: break;
+        }
+        switch (c->b) {
+        case B0: return new_bit0();           /* 0+u+0 = 0 */
+        case B1: return inv_bit(b);           /* 0+u+1 = U */
+        default: break;
+        }
+        if (b == c->r) {                      /* 0+u+U = U */
+            return ref_bit(c);
+        }
+        if (b != c) {                         /* 0+u+u = ? */
+            return new_bitu();
+        }
+        return new_bit0();                    /* 0+u+u = 0 */
+    case B1:
+        switch (b->b) {
+        case B0:                 /* 1+0+0 = 0 */
+            return new_bit0();   /* 1+0+1 = 0 */
+                                 /* 1+0+u = 0 */
+        case B1:                 /* 1+1+0 = 1 */
+            return inv_bit(c);   /* 1+1+1 = 0 */ 
+                                 /* 1+1+u = U */
+        default: break;
+        }
+        switch (c->b) {
+        case B0: return ref_bit(b); /* 1+u+0 = u */
+        case B1: return new_bit0(); /* 1+u+1 = 0 */
+        default: break;
+        }
+        if (b == c->r) {            /* 1+u+U = u */
+            return ref_bit(b);
+        }
+        if (b != c) {               /* 1+u+u = ? */
+            return new_bitu();
+        }
+        return new_bit0();          /* 1+u+u = 0 */
+    default: break;
+    }
+    switch (b->b) {
+    case B0:
+        switch (c->b) {
+        case B0: return new_bit0();   /* u+0+0 = 0 */
+        case B1: return inv_bit(a);   /* u+0+1 = U */
+        default: break;
+        }
+        if (a == c->r) {              /* u+0+U = U */
+            return ref_bit(c);
+        }
+        if (a != c) {                 /* u+0+u = ? */
+            return new_bitu();
+        }
+        return new_bit0();            /* u+0+u = 0 */
+    case B1:
+        switch (c->b) {
+        case B0: return ref_bit(a);   /* u+1+0 = u */
+        case B1: return new_bit0();   /* u+1+1 = 0 */
+        default: break;
+        }
+        if (a == c->r) {              /* u+1+U = u */
+            return ref_bit(a);
+        }
+        if (a != c) {                 /* u+1+u = ? */
+            return new_bitu();
+        }
+        return new_bit0();            /* u+1+u = 0 */
+    default: break;
+    }
+    switch (c->b) {
+    case B0:
+        if (a == b->r) {           /* u+U+0 = 0 */
+            return new_bit0();
+        }
+        if (a != b) {              /* u+u+0 = ? */
+            return new_bitu();
+        }
+        return ref_bit(a);         /* u+u+0 = u */
+    case B1:
+        if (a == b->r) {           /* u+U+1 = 0 */
+            return new_bit0();
+        }
+        if (a != b) {              /* u+u+1 = ? */
+            return new_bitu();
+        }
+        return inv_bit(a);         /* u+u+1 = U */
+    default:
+        if (a == b->r) {           /* u+U+x = 0 */
+            return new_bit0();
+        }
+        if (a == c || b == c) {    /* u+u+u = 0 */
+            return new_bit0();
+        }
+        if (a == b && a == c->r) { /* u+u+U = 1 */
+            return inv_bit(c);
+        }
+        return new_bitu();         /* u+u+u = ? */
+    }
+}
+
 void init_opt_bit(void)
 {
     size_t i;

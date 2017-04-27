@@ -41,6 +41,7 @@ extern void reset_reg8(struct Bit **);
 extern bool eq_bit(const struct Bit *, const struct Bit *);
 extern bool neq_bit(const struct Bit *, const struct Bit *);
 extern struct Bit *add_bit(struct Bit *, struct Bit *, struct Bit *, struct Bit **);
+extern struct Bit *v_bit(struct Bit *, struct Bit *, struct Bit *);
 extern struct Bit *ld_bit(struct Bit *, struct Bit *);
 extern struct Bit *and_bit(struct Bit *, struct Bit *);
 extern struct Bit *or_bit(struct Bit *, struct Bit *);
