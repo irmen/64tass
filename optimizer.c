@@ -338,8 +338,6 @@ static bool adcsbc(struct optimizer_s *cpu, Reg8 *r, Reg8 *v, bool inv) {
     if (get_bit(cpu->p.d) != B0) {
         reset_reg8(r->a);
         reset_reg8(cpu->z1.a);
-        reset_reg8(cpu->z2.a);
-        reset_reg8(cpu->z3.a);
         reset_bit(&cpu->p.n);
         reset_bit(&cpu->p.v);
         reset_bit(&cpu->p.z);
@@ -1261,10 +1259,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         reset_bit(&cpu->p.i);
         reset_bit(&cpu->p.z);
         reset_bit(&cpu->p.c);
-        reset_bit(&cpu->cc);
         reset_reg8(cpu->z1.a);
-        reset_reg8(cpu->z2.a);
-        reset_reg8(cpu->z3.a);
         cpu->zcmp = false;
         cpu->ccmp = false;
         break;
@@ -1308,8 +1303,6 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         reset_reg8(cpu->z.a);
         reset_reg8(cpu->b.a);
         reset_reg8(cpu->z1.a);
-        reset_reg8(cpu->z2.a);
-        reset_reg8(cpu->z3.a);
         cpu->sir = 256;
         cpu->sac = 256;
         reset_bit(&cpu->p.n);
@@ -1319,7 +1312,6 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         reset_bit(&cpu->p.i);
         reset_bit(&cpu->p.z);
         reset_bit(&cpu->p.c);
-        reset_bit(&cpu->cc);
         if (altmode) goto constind;
         break;
     case 0x00: /* BRK #$12 */
@@ -1353,8 +1345,6 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
             arr:
                 reset_reg8(cpu->a.a);
                 reset_reg8(cpu->z1.a);
-                reset_reg8(cpu->z2.a);
-                reset_reg8(cpu->z3.a);
                 reset_bit(&cpu->p.n);
                 reset_bit(&cpu->p.v);
                 reset_bit(&cpu->p.z);
@@ -1883,8 +1873,6 @@ void cpu_opt_invalidate(void) {
         reset_reg8(cpu->sh.a);
         reset_reg8(cpu->b.a);
         reset_reg8(cpu->z1.a);
-        reset_reg8(cpu->z2.a);
-        reset_reg8(cpu->z3.a);
         reset_bit(&cpu->p.n);
         reset_bit(&cpu->p.v);
         reset_bit(&cpu->p.e);
@@ -1892,7 +1880,6 @@ void cpu_opt_invalidate(void) {
         reset_bit(&cpu->p.i);
         reset_bit(&cpu->p.z);
         reset_bit(&cpu->p.c);
-        reset_bit(&cpu->cc);
     }
     cpu->sir = 256;
     cpu->sac = 256;
