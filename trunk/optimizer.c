@@ -379,14 +379,16 @@ static bool adcsbc(struct optimizer_s *cpu, Reg8 *r, Reg8 *v, bool inv) {
     return ret;
 }
 
-static bool bincalc_reg(struct optimizer_s *cpu, Bit *cb(Bit *, Bit *), Reg8 *r, Reg8 *v) {
-    bool ret = true;
+static bool bincalc_reg(struct optimizer_s *cpu, Bit *cb(Bit *, Bit *), Reg8 *r, Reg8 *v, bool *r2) {
+    bool ret = true, ret2 = true;
     unsigned int i;
     for (i = 0; i < 8; i++) {
         Bit *e = cb(r->a[i], v->a[i]);
         if (ret && !eq_bit(e, v->a[i])) ret = false;
+        if (ret2 && !eq_bit(e, r->a[i])) ret2 = false;
         set_bit(&r->a[i], e);
     }
+    *r2 = ret2;
     return calc_nz(cpu, r) && ret;
 }
 
@@ -596,7 +598,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     const char *optname;
     Reg8 alu;
     Bit_types b;
-    bool altmode = false;
+    bool altmode = false, altlda;
 
     if (cpu == NULL) {
         cpu_opt_invalidate();
@@ -681,7 +683,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         break;
     case 0x29: /* AND #$12 */
         load_imm(adr, &alu);
-        if (bincalc_reg(cpu, and_bit, &alu, &cpu->a)) {
+        if (bincalc_reg(cpu, and_bit, &alu, &cpu->a, &altlda)) {
             del_reg(&alu);
             goto remove;
         }
@@ -689,6 +691,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
         if (is_known(&alu)) goto constresult;
+        if (altlda) goto indresult;
         break;
     case 0x31: /* AND ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -708,13 +711,14 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     anda:
         load_mem(&alu);
     anda2:
-        bincalc_reg(cpu, and_bit, &alu, &cpu->a);
+        bincalc_reg(cpu, and_bit, &alu, &cpu->a, &altlda);
         set_reg(&alu, &cpu->a);
         if (altmode) goto constind;
+        if (altlda) goto indresult;
         break;
     case 0x09: /* ORA #$12 */
         load_imm(adr, &alu);
-        if (bincalc_reg(cpu, or_bit, &alu, &cpu->a)) {
+        if (bincalc_reg(cpu, or_bit, &alu, &cpu->a, &altlda)) {
             del_reg(&alu);
             goto remove;
         }
@@ -722,6 +726,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
         if (is_known(&alu)) goto constresult;
+        if (altlda) goto indresult;
         break;
     case 0x11: /* ORA ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -741,13 +746,14 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     ora:
         load_mem(&alu);
     ora2:
-        bincalc_reg(cpu, or_bit, &alu, &cpu->a);
+        bincalc_reg(cpu, or_bit, &alu, &cpu->a, &altlda);
         set_reg(&alu, &cpu->a);
         if (altmode) goto constind;
+        if (altlda) goto indresult;
         break;
     case 0x49: /* EOR #$12 */
         load_imm(adr, &alu);
-        if (bincalc_reg(cpu, xor_bit, &alu, &cpu->a)) {
+        if (bincalc_reg(cpu, xor_bit, &alu, &cpu->a, &altlda)) {
             del_reg(&alu);
             goto remove;
         }
@@ -755,6 +761,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         set_reg(&alu, &cpu->a);
         if (optname != NULL) goto replace;
         if (is_known(&alu)) goto constresult;
+        if (altlda) goto indresult;
         break;
     case 0x51: /* EOR ($12),y */
         altmode = (cputype_65c02 && is_zero(&cpu->y));
@@ -774,9 +781,10 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     eor:
         load_mem(&alu);
     eor2:
-        bincalc_reg(cpu, xor_bit, &alu, &cpu->a);
+        bincalc_reg(cpu, xor_bit, &alu, &cpu->a, &altlda);
         set_reg(&alu, &cpu->a);
         if (altmode) goto constind;
+        if (altlda) goto indresult;
         break;
     case 0x68: /* PLA */
         incdec(cpu, &cpu->s, true);
@@ -1452,7 +1460,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
                     switch (cod) {
                     case 0x0B: /* ANC #$12 */
                         load_imm(adr, &alu);
-                        if (bincalc_reg(cpu, and_bit, &alu, &cpu->a)) {
+                        if (bincalc_reg(cpu, and_bit, &alu, &cpu->a, &altlda)) {
                             if (eq_bit(cpu->p.c, cpu->a.a[7])) {
                                 del_reg(&alu);
                                 goto remove;
@@ -1477,7 +1485,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
                         break;
                     case 0xBB: /* LDS $1234,y */
                         load_mem(&alu);
-                        bincalc_reg(cpu, and_bit, &alu, &cpu->s);
+                        bincalc_reg(cpu, and_bit, &alu, &cpu->s, &altlda);
                         transreg(&cpu->s, &cpu->a);
                         transreg(&cpu->s, &cpu->x);
                         break;
@@ -1829,6 +1837,9 @@ constind:
     return;
 constresult:
     err_msg2(ERROR__CONST_RESULT, NULL, epoint);
+    return;
+indresult:
+    err_msg2(ERROR____IND_RESULT, NULL, epoint);
     return;
 replace:
     err_msg2(ERROR___OPTIMIZABLE, optname, epoint);

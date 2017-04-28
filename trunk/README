@@ -3323,6 +3323,9 @@ directive ignored
 immediate addressing mode suggested
     numeric constant was used as an address which was likely meant as an
     immediate value
+independent result, possibly changeable to 'lda'
+    the result does not seem to depend on the input so it could be just loaded
+    instead
 instruction 'xxx' is an alias of 'xxx'
     an alternative instruction name was used
 label defined instead of variable multiplication for compatibility

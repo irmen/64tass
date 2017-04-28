@@ -212,6 +212,7 @@ static const char *terr_warning[] = {
     "please use format(\"%d\", ...) as '^' will change it's meaning",
     "please use quotes now to allow expressions in future",
     "constant result, possibly changeable to 'lda'",
+    "independent result, possibly changeable to 'lda'",
 #ifdef _WIN32
     "the file's real name is not '",
 #endif
