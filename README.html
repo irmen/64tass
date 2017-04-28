@@ -3732,6 +3732,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators which will stop working in the future, update source
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons
 <dt>immediate addressing mode suggested<dd>numeric constant was used as an address which was likely meant as an immediate value
+<dt>independent result, possibly changeable to 'lda'<dd>the result does not seem to depend on the input so it could be just loaded instead
 <dt>instruction 'xxx' is an alias of 'xxx'<dd>an alternative instruction name was used
 <dt>label defined instead of variable multiplication for compatibility<dd>move the '&lowast;=' construct to a separate line or define the variable first as this construct is ambiguous
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label

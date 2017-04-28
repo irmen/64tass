@@ -32,6 +32,7 @@ typedef enum Error_types {
     ERROR____OLD_STRING,
     ERROR_______OLD_ENC,
     ERROR__CONST_RESULT,
+    ERROR____IND_RESULT,
 #ifdef _WIN32
     ERROR___INSENSITIVE,
 #endif
