@@ -503,7 +503,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return calc2_list(op);
     }
     if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
-        return o2->obj->rcalc2(op);
+        return val_reference(o2);
     }
     if (v1->len != 0) {
         bool error = true;

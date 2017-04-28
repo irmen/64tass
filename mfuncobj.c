@@ -140,6 +140,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(op->v2);
     default: break;
     }
     return obj_oper_error(op);
