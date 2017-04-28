@@ -489,7 +489,7 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
             return new_bit0();
         }
         if (a == b && a == c->r) { /* u+u+U = 1 */
-            return inv_bit(c);
+            return new_bit1();
         }
         return new_bitu();         /* u+u+u = ? */
     }
