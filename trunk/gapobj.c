@@ -140,8 +140,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         default: break;
         }
         break;
-    case T_NONE:
-    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
     case T_DICT:
@@ -149,6 +147,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return v2->obj->rcalc2(op);
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(v2);
     default: break;
     }
     return obj_oper_error(op);

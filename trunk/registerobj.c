@@ -163,8 +163,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Type *t2 = op->v2->obj;
     switch (t2->type) {
     case T_REGISTER: return calc2_register(op);
-    case T_NONE:
-    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
     case T_DICT:
@@ -172,6 +170,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return t2->rcalc2(op);
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(op->v2);
     default: break;
     }
     return obj_oper_error(op);

@@ -29,15 +29,17 @@ Type *IDENT_OBJ = &ident_obj;
 Type *ANONIDENT_OBJ = &anonident_obj;
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    switch (op->v2->obj->type) {
-    case T_NONE:
-    case T_ERROR:
+    Obj *o2 = op->v2;
+    switch (o2->obj->type) {
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_MEMBER && op->op != &o_X) {
-            return op->v2->obj->rcalc2(op);
+            return o2->obj->rcalc2(op);
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(o2);
     default: break;
     }
     return obj_oper_error(op);

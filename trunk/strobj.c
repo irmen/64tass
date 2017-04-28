@@ -678,12 +678,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_GAP:
     case T_REGISTER:
     case T_DICT:
-    case T_NONE:
-    case T_ERROR:
         if (op->op != &o_MEMBER) {
             return v2->obj->rcalc2(op);
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(v2);
     default: break;
     }
     return obj_oper_error(op);

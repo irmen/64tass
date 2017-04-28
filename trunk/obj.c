@@ -134,15 +134,17 @@ static MUST_CHECK Obj *invalid_calc1(oper_t op) {
 }
 
 static MUST_CHECK Obj *invalid_calc2(oper_t op) {
-    if (op->v2->obj == ERROR_OBJ) {
-        return ERROR_OBJ->rcalc2(op);
+    Obj *o2 = op->v2;
+    if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
+        return val_reference(o2);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
-    if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->calc2(op);
+    Obj *o1 = op->v1;
+    if (o1 == &none_value->v || o1->obj == ERROR_OBJ) {
+        return val_reference(o1);
     }
     return obj_oper_error(op);
 }
