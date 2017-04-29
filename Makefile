@@ -197,7 +197,7 @@ variables.o: variables.c variables.h stdbool.h str.h inttypes.h unicode.h \
  namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h listobj.h \
  intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h \
  noneobj.h labelobj.h errorobj.h macroobj.h mfuncobj.h
-wchar.o: wchar.c wchar.h
+wchar.o: wchar.c wchar.h inttypes.h
 wctype.o: wctype.c wctype.h
 
 .PHONY: all clean distclean install install-strip uninstall install-man install-doc
