@@ -423,7 +423,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         crossbank = ((uval_t)current_section->l_address.bank ^ uval) > 0xffff;
                     }
                 }
-                xadr = adr;
+                xadr = (uint16_t)adr;
                 s = new_star(vline + 1, &labelexists);
 
                 labelexists2 = labelexists;

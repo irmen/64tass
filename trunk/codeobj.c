@@ -195,22 +195,22 @@ MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
     return INT_OBJ->create(v1->addr, epoint);
 }
 
-static size_t calc_size(const Code *v1) {
+static address_t calc_size(const Code *v1) {
     if (v1->offs >= 0) {
         if (v1->size < (uval_t)v1->offs) return 0;
         return v1->size - (uval_t)v1->offs;
     }
-    if (v1->size + (size_t)-v1->offs < v1->size) return ~(size_t)0;
-    return v1->size + (size_t)-v1->offs;
+    if (v1->size + (uval_t)-v1->offs < v1->size) err_msg_out_of_memory(); /* overflow */
+    return v1->size + (uval_t)-v1->offs;
 }
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
-    size_t ln, s;
+    address_t ln, s;
     Code *v1 = (Code *)o1;
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
-    ln = (size_t)((v1->dtype < 0) ? -v1->dtype : v1->dtype);
+    ln = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
     s = calc_size(v1);
     return (Obj *)int_from_size((ln != 0) ? (s / ln) : s);
 }
@@ -254,7 +254,8 @@ static MUST_CHECK Obj *code_item(const Code *v1, ssize_t offs2, size_t ln2) {
 }
 
 MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
-    size_t ln, ln2, i;
+    address_t ln, ln2;
+    size_t  i;
     ssize_t offs;
     List *v;
     Obj **vals;
@@ -263,7 +264,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
         return (Obj *)new_error(ERROR____NO_FORWARD, epoint);
     }
 
-    ln2 = (size_t)((v1->dtype < 0) ? -v1->dtype : v1->dtype);
+    ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
     if (ln2 == 0) ln2 = 1;
     ln = calc_size(v1) / ln2;
 
@@ -288,7 +289,7 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     Obj **vals;
     size_t i;
-    size_t ln, ln2;
+    address_t ln, ln2;
     size_t offs1;
     ssize_t offs0;
     Code *v1 = (Code *)o1;
@@ -308,7 +309,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint);
     }
 
-    ln2 = (size_t)((v1->dtype < 0) ? -v1->dtype : v1->dtype);
+    ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
     if (ln2 == 0) ln2 = 1;
     ln = calc_size(v1) / ln2;
 
@@ -343,7 +344,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        size_t length;
+        uval_t length;
         ival_t offs, end, step;
         Tuple *v;
 
@@ -478,7 +479,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Error *err;
     if (op->op == &o_IN) {
         struct oper_s oper;
-        size_t ln, ln2, i;
+        address_t ln, ln2;
+        size_t i;
         ssize_t offs;
         Obj *tmp, *result;
 
@@ -486,7 +488,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return (Obj *)new_error(ERROR____NO_FORWARD, op->epoint2);
         }
 
-        ln2 = (size_t)((v2->dtype < 0) ? -v2->dtype : v2->dtype);
+        ln2 = (v2->dtype < 0) ? (address_t)-v2->dtype : (address_t)v2->dtype;
         if (ln2 == 0) ln2 = 1;
         ln = calc_size(v2) / ln2;
 

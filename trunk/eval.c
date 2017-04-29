@@ -267,7 +267,7 @@ static MUST_CHECK Obj *get_string(void) {
         lpoint.pos += len;
         return v;
     }
-    txt[1] = here();
+    txt[1] = (char)here();
     txt[2] = txt[0] = txt[1] ^ ('\'' ^ '"');
     txt[3] = 0;
     lpoint.pos += len;
@@ -280,17 +280,19 @@ void touch_label(Label *tmp) {
     tmp->usepass = pass;
 }
 
-static unsigned int bitscalc(Bits *val) {
-    unsigned int b = val->bits;
-    if ((star >> b) == 0) return b;
+static uval_t bitscalc(Bits *val) {
+    size_t b = val->bits;
+    if (b >= 8 * sizeof(star)) return (uval_t)b;
+    if ((star >> b) == 0) return (uval_t)b;
     if (star <= 0xff) return 8;
     if (star <= 0xffff) return 16;
     return all_mem_bits;
 }
 
-static unsigned int bytescalc(Bytes *val) {
-    unsigned int b = val->len < 0 ? ~val->len : val->len;
-    if ((star >> (b << 3)) == 0) return b;
+static uval_t bytescalc(Bytes *val) {
+    size_t b = val->len < 0 ? (size_t)~val->len : (size_t)val->len;
+    if (b >= 8 * sizeof(star)) return (uval_t)b;
+    if ((star >> (b << 3)) == 0) return (uval_t)b;
     if (star <= 0xff) return 1;
     if (star <= 0xffff) return 2;
     return all_mem_bits >> 3;
@@ -698,14 +700,17 @@ MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint)
     return new_error_key(ERROR___INDEX_RANGE, v1, epoint);
 }
 
-MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
+MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len2, uval_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
     Error *err;
-    ival_t offs, end, step = 1;
+    ival_t len, offs, end, step = 1;
+
+    if (len2 >= (1u << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, epoint); /* overflow */
+    len = (ival_t)len2;
     if (v2->len > 3 || v2->len < 1) {
         err_msg_argnum(v2->len, 1, 3, epoint);
         return (Obj *)ref_none();
     }
-    end = (ival_t)len;
+    end = len;
     if (v2->len > 2) {
         if (v2->data[2] != &default_value->v) {
             err = v2->data[2]->obj->ival(v2->data[2], &step, 8 * sizeof step, epoint);
@@ -716,12 +721,12 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
         }
     }
     if (v2->len > 1) {
-        if (v2->data[1] == &default_value->v) end = (step > 0) ? (ival_t)len : -1;
+        if (v2->data[1] == &default_value->v) end = (step > 0) ? len : -1;
         else {
             err = v2->data[1]->obj->ival(v2->data[1], &end, 8 * sizeof end, epoint);
             if (err != NULL) return &err->v;
             if (end >= 0) {
-                if ((uval_t)end > len) end = len;
+                if (end > len) end = len;
             } else {
                 end += len;
                 if (end < -1) end = -1;
@@ -735,7 +740,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, iva
         if (err != NULL) return &err->v;
         minus = (step < 0) ? -1 : 0;
         if (offs >= 0) {
-            if (offs > (ival_t)len + minus) offs = len + minus;
+            if (offs > len + minus) offs = len + minus;
         } else {
             offs += len;
         }

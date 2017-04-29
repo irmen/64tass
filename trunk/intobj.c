@@ -1127,12 +1127,12 @@ MUST_CHECK Int *int_from_size(size_t i) {
     if (i < lenof(int_value)) return ref_int(int_value[i]);
     v = new_int();
     v->data = v->val;
-    v->val[0] = i;
+    v->val[0] = (digit_t)i;
     for (j = 1; j < sizeof i / sizeof *v->data; j++) {
         i >>= 4 * sizeof *v->data;
         i >>= 4 * sizeof *v->data;
         if (i == 0) break;
-        v->val[j] = i;
+        v->val[j] = (digit_t)i;
     }
     v->len = (ssize_t)j;
     return v;

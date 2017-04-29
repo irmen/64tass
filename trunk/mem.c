@@ -29,8 +29,8 @@
 #include "arguments.h"
 
 struct memblock_s { /* starts and sizes */
-    size_t p, len;
-    address_t addr;
+    size_t p;
+    address_t addr, len;
     struct memblocks_s *ref;
 };
 
@@ -128,7 +128,7 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
         memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
     }
     block = &memblocks->data[memblocks->p++];
-    block->len = memblocks->mem.p - memblocks->lastp;
+    block->len = (address_t)(memblocks->mem.p - memblocks->lastp);
     block->p = memblocks->lastp;
     block->ref = NULL;
     block->addr = memblocks->lastaddr;
@@ -224,8 +224,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks, cons
 }
 
 static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks, bool longaddr) {
-    address_t start;
-    size_t size;
+    address_t start, size;
     unsigned int i, last;
 
     if (memblocks->p != 0) {
@@ -275,8 +274,7 @@ static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
 }
 
 static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks) {
-    address_t start;
-    size_t size;
+    address_t start, size;
     unsigned int i, last;
 
     if (memblocks->p != 0) {
@@ -577,7 +575,7 @@ void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
             if (first && oaddr < memblocks->lastaddr) {
                 len = 0; myaddr = oaddr; omemp--;
             } else {
-                myaddr = memblocks->lastaddr + (ptextaddr - memblocks->lastp);
+                myaddr = memblocks->lastaddr + (address_t)(ptextaddr - memblocks->lastp);
                 len = memblocks->mem.p - ptextaddr;
                 if (len == 0) {
                     if (!print) continue;

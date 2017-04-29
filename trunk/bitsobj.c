@@ -1109,7 +1109,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return normalize(vv, sz, false);
     }
     if (o2->obj == COLONLIST_OBJ) {
-        size_t length;
+        uval_t length;
         ival_t offs, end, step;
         size_t bo, wo, bl, wl, wl2, l;
         bdigit_t *v1;

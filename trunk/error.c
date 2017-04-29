@@ -509,8 +509,7 @@ static int notdefines_compare(const struct avltree_node *aa, const struct avltre
 {
     const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
-    int h = a->file_list - b->file_list;
-    if (h != 0) return h;
+    if (a->file_list != b->file_list) return a->file_list > b->file_list ? 1 : -1;
     if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
     if (a->epoint.pos != b->epoint.pos) return a->epoint.pos > b->epoint.pos ? 1 : -1;
     return str_cmp(&a->cfname, &b->cfname);
@@ -844,8 +843,8 @@ void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     err_msg_invalid_oper2(op, v1, v2, epoint);
 }
 
-void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepos_t epoint) {
-    unsigned int n;
+void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
+    size_t n;
     char line[1024];
 
     new_error_msg(SV_ERROR, current_file_list, epoint);
@@ -857,10 +856,10 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     switch (n) {
     case 0: adderror("no arguments"); break;
     case 1: adderror("one argument"); break;
-    default: sprintf(line, "%u arguments", n); adderror(line); break;
+    default: sprintf(line, "%" PRIuSIZE " arguments", n); adderror(line); break;
     }
     if (num != 0) {
-        sprintf(line, ", got %u", num);
+        sprintf(line, ", got %" PRIuSIZE, num);
         adderror(line);
     }
 }
@@ -1164,7 +1163,7 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
         }
         l = (ssize_t)mbrtowc(&w, s + i, n - i,  &ps);
         if (l <= 0) break;
-        s2[utf8out(w, s2) - s2] = 0;
+        s2[utf8out((uchar_t)w, s2) - s2] = 0;
         adderror((char *)s2);
         i += (size_t)l;
     }

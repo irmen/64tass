@@ -298,7 +298,7 @@ static uchar_t fromiso2(uchar_t c) {
     l = (ssize_t)mbrtowc(&w, (char *)&c2, 1,  &ps);
     errno = olderrno;
     if (l < 0) return c2;
-    return w;
+    return (uchar_t)w;
 }
 
 static inline uchar_t fromiso(uchar_t c) {

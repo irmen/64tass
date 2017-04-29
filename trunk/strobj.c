@@ -521,7 +521,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        size_t length;
+        uval_t length;
         ival_t offs, end, step;
 
         err = (Error *)sliceparams((Colonlist *)o2, len1, &length, &offs, &end, &step, epoint2);
