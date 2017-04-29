@@ -276,7 +276,7 @@ static int sortcomp(const void *a, const void *b) {
     Obj *o1 = sort_tmp.v1 = sort_vals[aa];
     Obj *o2 = sort_tmp.v2 = sort_vals[bb];
     result = sort_tmp.v1->obj->calc2(&sort_tmp);
-    if (result->obj == INT_OBJ) ret = ((Int *)result)->len;
+    if (result->obj == INT_OBJ) ret = (int)((Int *)result)->len;
     else {
         ret = 0;
         if (sort_error == NULL) {
@@ -288,7 +288,7 @@ static int sortcomp(const void *a, const void *b) {
                     for (i = 0; i < v1->len; i++) {
                         Obj *v2 = v1->data[i];
                         if (v2->obj == INT_OBJ) {
-                            ret = ((Int *)v2)->len;
+                            ret = (int)((Int *)v2)->len;
                             if (ret == 0) continue;
                             val_destroy(result);
                             return ret;

@@ -633,6 +633,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
 
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0;
+    int err;
     for (i = 0; i < max;) {
         uchar_t ch = line[i];
         if ((ch & 0x80) != 0) {
@@ -664,7 +665,8 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 }
             }
 #endif
-            l += unknown_print(NULL, ch);
+            err = unknown_print(NULL, ch);
+            if (err > 0) l += (size_t)err;
             continue;
         }
         if (ch == 0) break;
@@ -677,7 +679,10 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
             i++;
             continue;
         }
-        if (ch < 0x20 || ch > 0x7e) l += unknown_print(NULL, ch); else l++;
+        if (ch < 0x20 || ch > 0x7e) {
+            err = unknown_print(NULL, ch); 
+            if (err > 0) l += (size_t)err;
+        } else l++;
         i++;
     }
     while (l != 0) { 

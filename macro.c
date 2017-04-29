@@ -569,7 +569,7 @@ void get_macro_params(Obj *v) {
     free(epoints);
 }
 
-Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, linepos_t epoint) {
+Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t epoint) {
     size_t i;
     Label *label;
     Obj *val;

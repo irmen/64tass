@@ -39,7 +39,7 @@ struct Namespace;
 
 typedef struct Code {
     Obj v;
-    size_t size;
+    address_t size;
     ival_t offs;
     uint8_t pass;
     uint8_t apass;

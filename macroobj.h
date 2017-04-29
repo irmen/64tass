@@ -51,7 +51,7 @@ typedef struct Struct {
     struct file_list_s *file_list;
     line_t line;
     bool retval;
-    size_t size; /* first part same as macro! */
+    address_t size; /* first part same as macro! */
     struct Namespace *names;
 } Struct;
 typedef struct Struct Union;

@@ -46,7 +46,7 @@ struct section_s {
     address_t unionend;
     address2_t l_unionstart;
     address2_t l_unionend;
-    size_t size;
+    address_t size;
     struct memblocks_s mem;
     uint8_t usepass;
     uint8_t defpass;

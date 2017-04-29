@@ -291,7 +291,7 @@ static bool close_waitfor(Wait_types what) {
     return false;
 }
 
-static void set_size(const Label *label, size_t size, struct memblocks_s *mem, size_t memp, size_t membp) {
+static void set_size(const Label *label, address_t size, struct memblocks_s *mem, size_t memp, size_t membp) {
     Code *code = (Code *)label->value;
     size &= all_mem2;
     if (code->size != size) {
@@ -469,7 +469,7 @@ static void const_assign(Label *label, Obj *val) {
     label->value = val;
 }
 
-static bool textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *sum, size_t max) {
+static bool textrecursion(Obj *val, int prm, int *ch2, address_t *uninit, address_t *sum, size_t max) {
     Iter *iter;
     iter_next_t iter_next;
     Obj *val2 = NULL;
@@ -611,7 +611,7 @@ retry:
     return warn;
 }
 
-static bool byterecursion(Obj *val, int prm, size_t *uninit, int bits) {
+static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
     Iter *iter;
     iter_next_t iter_next;
     Obj *val2;
@@ -2104,8 +2104,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_DWORD: /* .dword */
             case CMD_BINARY: if ((waitfor->skip & 1) != 0)
                 { /* .binary */
-                    size_t uninit = 0;
-                    size_t sum = 0;
+                    address_t uninit = 0, sum = 0;
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     mark_mem(&current_section->mem, current_section->address, star);
@@ -2411,7 +2410,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     mark_mem(&current_section->mem, current_section->address, star);
                     if ((vs = get_val()) != NULL) {
-                        size_t uninit = 0, sum = 0;
+                        address_t uninit = 0, sum = 0;
                         size_t memp, membp;
                         int ch2 = -2;
                         get_mem(&current_section->mem, &memp, &membp);
@@ -3897,7 +3896,7 @@ int main(int argc, char *argv[]) {
             l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
             if (l < 1) break;
             j += (size_t)l;
-            ch = w;
+            ch = (uchar_t)w;
             if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
         }
         *p++ = 0;

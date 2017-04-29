@@ -69,7 +69,7 @@ extern void err_msg_symbol_case(const str_t *, struct Label *, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
-extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
+extern void err_msg_argnum(size_t, size_t, size_t, linepos_t);
 extern void err_msg_bool(Error_types, Obj *, linepos_t);
 extern void err_msg_bool_oper(struct oper_s *);
 extern void err_msg_bool_val(Error_types, unsigned int, Obj *, linepos_t);
