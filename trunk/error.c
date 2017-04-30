@@ -1110,6 +1110,7 @@ void error_reset(void) {
 
 void err_init(const char *name) {
     prgname = name;
+    setvbuf(stderr, NULL, _IOLBF, 1024);
     color_detect(stderr);
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;

@@ -128,7 +128,10 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     if (wname == NULL) return NULL;
     while (name[i] != 0 && i < max) {
         ch = name[i];
-        if ((ch & 0x80) != 0) i += utf8in((const uint8_t *)name + i, &ch); else i++;
+        if ((ch & 0x80) != 0) {
+            i += utf8in((const uint8_t *)name + i, &ch); 
+            if (ch == 0) ch = REPLACEMENT_CHARACTER;
+        } else i++;
         if (j + 3 > len) {
             wchar_t *d;
             len += 64;
@@ -294,6 +297,17 @@ static void file_free(struct avltree_node *aa)
     free(a);
 }
 
+static bool extendfile(struct file_s *tmp) {
+    uint8_t *d;
+    size_t len2 = tmp->len + 4096;
+    if (len2 < 4096) return true; /* overflow */
+    d = (uint8_t *)realloc(tmp->data, len2);
+    if (d == NULL) return true;
+    tmp->data = d;
+    tmp->len = len2;
+    return false;
+}
+
 static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp) {
     size_t i;
     if (ubuff->data == NULL) {
@@ -306,19 +320,24 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
         size_t o = (size_t)(p - tmp->data);
         uchar_t ch;
         if (o + 6*6 + 1 > tmp->len) {
-            uint8_t *d;
-            size_t len2 = tmp->len + 4096;
-            if (len2 < 4096) return NULL; /* overflow */
-            d = (uint8_t *)realloc(tmp->data, len2);
-            if (d == NULL) return NULL;
-            tmp->data = d;
-            p = d + o;
-            tmp->len = len2;
+            if (extendfile(tmp)) return NULL;
+            p = tmp->data + o;
         }
         ch = ubuff->data[i];
         if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
     }
     return p;
+}
+
+static bool extendbuff(struct ubuff_s *ubuff) {
+    uchar_t *d;
+    size_t len2 = ubuff->len + 16;
+    if (/*len2 < 16 ||*/ len2 > SIZE_MAX / sizeof *ubuff->data) return true; /* overflow */
+    d = (uchar_t *)realloc(ubuff->data, len2 * sizeof *ubuff->data);
+    if (d == NULL) return true;
+    ubuff->data = d;
+    ubuff->len = len2;
+    return false;
 }
 
 static uchar_t fromiso2(uchar_t c) {
@@ -415,28 +434,35 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             }
             if (f == NULL) goto openerr;
             tmp->read_error = true;
+            if (f != stdin) setvbuf(f, NULL, _IONBF, BUFSIZ);
             if (ftype == 1) {
+                bool check = true;
                 if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
-                    if (len >= 0) {
+                    if (len > 0) {
                         size_t len2 = (size_t)len;
                         tmp->data = (uint8_t *)malloc(len2);
                         if (tmp->data != NULL) tmp->len = len2;
                     }
                     rewind(f);
                 }
-                for (;;) {
-                    if (fp + 4096 > tmp->len) {
-                        uint8_t *d;
-                        size_t len2 = tmp->len + 4096;
-                        if (len2 < 4096) break; /* overflow */
-                        d = (uint8_t *)realloc(tmp->data, len2);
-                        if (d == NULL) break;
-                        tmp->data = d;
-                        tmp->len = len2;
-                    }
-                    fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
-                    if (feof(f) != 0) {
+                if (tmp->len != 0 || !extendfile(tmp)) {
+                    for (;;) {
+                        fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
+                        if (feof(f) == 0 && fp >= tmp->len) {
+                            if (check) {
+                                int c2 = getc(f);
+                                check = false;
+                                if (c2 != EOF) {
+                                    if (extendfile(tmp)) break;
+                                    tmp->data[fp++] = (uint8_t)c2;
+                                    continue;
+                                }
+                            } else {
+                                if (extendfile(tmp)) break;
+                                continue;
+                            }
+                        }
                         err = 0;
                         break;
                     }
@@ -449,7 +475,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 size_t bp = 0, bl, qr = 1;
                 if (fseek(f, 0, SEEK_END) == 0) {
                     long len = ftell(f);
-                    if (len >= 0) {
+                    if (len > 0) {
                         size_t len2 = (size_t)len + 4096;
                         if (len2 < 4096) len2 = SIZE_MAX; /* overflow */
                         tmp->data = (uint8_t *)malloc(len2);
@@ -489,14 +515,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         size_t o = (size_t)(p - tmp->data);
                         uint8_t ch2;
                         if (o + 6*6 + 1 > tmp->len) {
-                            uint8_t *d;
-                            size_t len2 = tmp->len + 4096;
-                            if (len2 < 4096) goto failed; /* overflow */
-                            d = (uint8_t *)realloc(tmp->data, len2);
-                            if (d == NULL) goto failed;
-                            tmp->data = d;
-                            p = d + o;
-                            tmp->len = len2;
+                            if (extendfile(tmp)) goto failed;
+                            p = tmp->data + o;
                         }
                         if (bp / (BUFSIZ / 2) == qr) {
                             if (qr == 1) {
@@ -573,26 +593,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                 encoding = E_ISO;
                                 i = (j - i) * 6;
                                 qc = false;
-                                if (ubuff.p >= ubuff.len) {
-                                    uchar_t *d;
-                                    size_t len2 = ubuff.len + 16;
-                                    if (/*len2 < 16 ||*/ len2 > SIZE_MAX / sizeof *ubuff.data) goto failed; /* overflow */
-                                    d = (uchar_t *)realloc(ubuff.data, len2 * sizeof *ubuff.data);
-                                    if (d == NULL) goto failed;
-                                    ubuff.data = d;
-                                    ubuff.len = len2;
-                                }
+                                if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
                                 ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
                                 for (;i != 0; i-= 6) {
-                                    if (ubuff.p >= ubuff.len) {
-                                        uchar_t *d;
-                                        size_t len2 = ubuff.len + 16;
-                                        if (/*len2 < 16 ||*/ len2 > SIZE_MAX / sizeof *ubuff.data) goto failed; /* overflow */
-                                        d = (uchar_t *)realloc(ubuff.data, len2 * sizeof *ubuff.data);
-                                        if (d == NULL) goto failed;
-                                        ubuff.data = d;
-                                        ubuff.len = len2;
-                                    }
+                                    if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
                                     ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                 }
                                 if (bp == bl) goto eof;
@@ -632,8 +636,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                 if (lastchar >= 0xd800 && lastchar < 0xdc00) {
                                     c ^= 0x360dc00 ^ (lastchar << 10);
                                     c += 0x10000;
-                                } else
-                                    c = REPLACEMENT_CHARACTER;
+                                } else c = REPLACEMENT_CHARACTER;
                             } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
                                 c = REPLACEMENT_CHARACTER;
                             }
@@ -665,15 +668,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                             uint8_t ncclass = prop->combclass;
                             if ((ncclass != 0 && cclass > ncclass) || (prop->property & (qc_N | qc_M)) != 0) {
                                 qc = false;
-                                if (ubuff.p >= ubuff.len) {
-                                    uchar_t *d;
-                                    size_t len2 = ubuff.len + 16;
-                                    if (/*len2 < 16 ||*/ len2 > SIZE_MAX / sizeof *ubuff.data) goto failed; /* overflow */
-                                    d = (uchar_t *)realloc(ubuff.data, len2 * sizeof *ubuff.data);
-                                    if (d == NULL) goto failed;
-                                    ubuff.data = d;
-                                    ubuff.len = len2;
-                                }
+                                if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
                                 ubuff.data[ubuff.p++] = c;
                             } else {
                                 if (!qc) {
