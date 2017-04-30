@@ -27,13 +27,14 @@
 #define U_COMPAT 2
 
 FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
-    uchar_t ch;
     unsigned int i, j;
-    ch = c[0];
+    uchar_t ch = c[0];
 
     if (ch < 0xe0) {
-        ch ^= 0xc0;i = 2;
-    } else if (ch < 0xf0) {
+        *out = (ch << 6) ^ c[1] ^ 0x3080;
+        return 2;
+    }
+    if (ch < 0xf0) {
         ch ^= 0xe0;i = 3;
     } else if (ch < 0xf8) {
         ch ^= 0xf0;i = 4;
