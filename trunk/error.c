@@ -1181,7 +1181,11 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
             continue;
         }
         l = (ssize_t)mbrtowc(&w, s + i, n - i,  &ps);
-        if (l <= 0) break;
+        if (l < 1) {
+            w = (uint8_t)s[i];
+            if (w == 0 || l == 0) break;
+            l = 1;
+        }
         s2[utf8out((uchar_t)w, s2) - s2] = 0;
         adderror((char *)s2);
         i += (size_t)l;
