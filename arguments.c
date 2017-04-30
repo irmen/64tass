@@ -215,7 +215,7 @@ static const struct w_options_s w_options[] = {
     {NULL,              NULL}
 };
 
-static bool woption(const char *n, const char *s) {
+static bool woption(const char *s) {
     bool no = (s[0] == 'n') && (s[1] == 'o') && (s[2] == '-'), *b;
     const struct w_options_s *w = w_options;
     const char *s2 = no ? s + 3 : s;
@@ -262,10 +262,10 @@ static bool woption(const char *n, const char *s) {
         }
     }
     if (m != SIZE_MAX) return false;
-    printable_print((const uint8_t *)n, stderr);
-    fputs(": unrecognized option '-W", stderr);
+    fatal_error("unrecognized option '-W");
     printable_print((const uint8_t *)s, stderr);
-    fputs("'\n", stderr);
+    putc('\'', stderr);
+    fatal_error(NULL);
     return true;
 }
 
@@ -401,7 +401,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             if (opt == -1) break;
             switch (opt) {
             case 'W':
-                if (woption(argv[0], my_optarg)) goto exit;
+                if (woption(my_optarg)) goto exit;
                 break;
             case 'w':arguments.warning = false;break;
             case 'q':arguments.quiet = false;break;
@@ -625,8 +625,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     } while (again && max > 0);
 
     if (again && max <= 0) {
-        printable_print((const uint8_t *)argv[0], stderr);
-        fputs(": fatal error: too many @-files encountered\n", stderr);
+        fatal_error("too many @-files encountered");
+        fatal_error(NULL);
         return -1;
     }
 
@@ -655,8 +655,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     closefile(fin);
     if (fp != fin->len) {
         fin->len = fp;
-        if (fin->len != 0) {
-            fin->data = (uint8_t*)reallocx(fin->data, fin->len);
+        if (fp != 0) {
+            fin->data = (uint8_t*)reallocx(fin->data, fp);
         }
     }
     fin->encoding = E_UTF8;

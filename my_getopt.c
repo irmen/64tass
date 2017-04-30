@@ -26,6 +26,7 @@
 
 #include "my_getopt.h"
 #include "unicode.h"
+#include "error.h"
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -67,10 +68,9 @@ static int my_getopt(int argc, char *argv[], const char *opts)
         } else if (*(++s) != ':') {
           charind = 0;
           if (++my_optind >= argc) {
-            if (my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
-                            fputs(": fatal error: option '-", stderr);
+            if (my_opterr) {fatal_error("option '-");
                             putc(my_optopt, stderr);
-                            fputs("' requires an argument\n", stderr);}
+                            fputs("' requires an argument", stderr); fatal_error(NULL); }
             opt = (colon_mode == ':') ? ':' : '?';
             goto my_getopt_ok;
           }
@@ -80,10 +80,9 @@ static int my_getopt(int argc, char *argv[], const char *opts)
       opt = my_optopt;
       goto my_getopt_ok;
     }
-    if (my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
-                    fputs(": fatal error: option '-", stderr);
+    if (my_opterr) {fatal_error("option '-");
                     printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len((unsigned int)my_optopt) : 1);
-                    fputs("' not recognized\n", stderr);}
+                    fputs("' not recognized", stderr); fatal_error(NULL); }
     opt = '?';
     if (argv[my_optind][++charind] == '\0') {
       my_optind++;
@@ -223,10 +222,9 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
       if (argv[my_optind][charind] == '=') {
         if (longopts[found].has_arg == 0) {
           opt = '?';
-          if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                         fputs(": fatal error: option '--", stderr);
+          if (my_opterr) {fatal_error("option '--");
                          printable_print((const uint8_t *)longopts[found].name, stderr);
-                         fputs("' doesn't allow an argument\n", stderr); }
+                         fputs("' doesn't allow an argument", stderr); fatal_error(NULL); }
         } else {
           my_optarg = argv[my_optind] + ++charind;
           /*charind = 0;*/
@@ -234,10 +232,9 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
       } else if (longopts[found].has_arg == 1) {
         if (++my_optind >= argc) {
           opt = (colon_mode == ':') ? ':' : '?';
-          if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                         fputs(": fatal error: option '--", stderr);
+          if (my_opterr) {fatal_error("option '--");
                          printable_print((const uint8_t *)longopts[found].name, stderr);
-                         fputs("' requires an argument\n", stderr); }
+                         fputs("' requires an argument", stderr); fatal_error(NULL); }
         } else my_optarg = argv[my_optind];
       }
       if (opt == 0) {
@@ -250,17 +247,15 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
       if (offset == 1) opt = my_getopt(argc, argv, shortopts);
       else {
         opt = '?';
-        if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                       fputs(": fatal error: option '", stderr);
+        if (my_opterr) {fatal_error("option '");
                        printable_print((const uint8_t *)argv[my_optind++], stderr);
-                       fputs("' not recognized\n", stderr); }
+                       fputs("' not recognized", stderr); fatal_error(NULL); }
       }
     } else {
       opt = '?';
-      if (my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
-                     fputs(": fatal error: option '", stderr);
+      if (my_opterr) {fatal_error("option '");
                      printable_print((const uint8_t *)argv[my_optind++], stderr);
-                     fputs("' is ambiguous\n", stderr); }
+                     fputs("' is ambiguous", stderr); fatal_error(NULL); }
     }
   }
   if (my_optind > argc) my_optind = argc;
