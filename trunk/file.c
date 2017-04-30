@@ -716,9 +716,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 }
             }
             tmp->len = fp;
-            {
+            if (fp == 0) {
+                free(tmp->data);
+                tmp->data = NULL;
+            } else {
                 uint8_t *d = (uint8_t *)realloc(tmp->data, fp);
-                if (fp == 0 || d != NULL) tmp->data = d;
+                if (d != NULL) tmp->data = d;
             }
             if (err != 0) errno = ENOMEM;
             err |= ferror(f);

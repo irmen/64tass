@@ -645,11 +645,13 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
-                    case O_DIV: if (val2 == 0) {
-                        err = new_error(ERROR_DIVISION_BY_Z, &o_out->epoint);
-                        val_destroy(v1->val); v1->val = &err->v;
-                        continue;
-                    } else val1 /= val2; break;
+                    case O_DIV: 
+                        if (val2 == 0) {
+                            err = new_error(ERROR_DIVISION_BY_Z, &o_out->epoint);
+                            val_destroy(v1->val); v1->val = &err->v;
+                            continue;
+                        }
+                        val1 /= val2; break;
                     case O_ADD: val1 += val2; break;
                     case O_SUB: val1 -= val2; break;
                     case O_AND: val1 &= val2; break;
@@ -892,7 +894,8 @@ static bool get_val2(struct eval_context_s *ev) {
                         am = (op == O_BRACKET) ? A_LI : A_I;
                         v1->val = apply_addressing(values[vsp].val, am);
                         continue;
-                    } else if (tup) {
+                    }
+                    if (tup) {
                         vsp--;
                         v1->val = values[vsp].val; 
                         values[vsp].val = NULL;
@@ -1428,7 +1431,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                     goto other;
                 }
                 err = new_error(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
-                err->u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
+                err->u.notdef.ident.len = (size_t)((ssize_t)db - (ssize_t)operp);
                 err->u.notdef.ident.data = NULL;
                 err->u.notdef.names = ref_namespace(current_context);
                 err->u.notdef.down = true;
@@ -1453,7 +1456,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                     goto other;
                 }
                 err = new_error(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
-                err->u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
+                err->u.notdef.ident.len = (size_t)((ssize_t)operp - (ssize_t)db);
                 err->u.notdef.ident.data = NULL;
                 err->u.notdef.names = ref_namespace(current_context);
                 err->u.notdef.down = true;

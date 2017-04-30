@@ -552,11 +552,11 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         digit_t n = v2[0];
         if (len1 == 1) {
             if (divrem) {
-                digit_t t = (digit_t)(v1[0] / n);
+                digit_t t = v1[0] / n;
                 if (neg && v1[0] != t * n) t++;
                 return (Obj *)return_int(t, neg);
             }
-            return (Obj *)return_int((digit_t)(v1[0] % n), negr);
+            return (Obj *)return_int(v1[0] % n, negr);
         }
         r = 0;
         if (divrem) {
@@ -725,7 +725,7 @@ static MUST_CHECK Obj *ilshift(const Int *vv1, uval_t s, linepos_t epoint) {
         v2[len1] = 0;
         for (i = len1; (i--) != 0;) {
             v2[i + 1] |= v1[i] >> (SHIFT - bit);
-            v2[i] = (digit_t)(v1[i] << bit);
+            v2[i] = v1[i] << bit;
         }
     } else if (len1 != 0) memcpy(v2, v1, len1 * sizeof *v2);
     if (word != 0) memset(v, 0, word * sizeof *v);
@@ -767,7 +767,7 @@ static MUST_CHECK Obj *irshift(Int *vv1, uval_t s, linepos_t epoint) {
     if (bit != 0) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;
-            v[i] |= (digit_t)(v1[i + 1] << (SHIFT - bit));
+            v[i] |= v1[i + 1] << (SHIFT - bit);
         }
         v[i] = v1[i] >> bit;
     } else if (sz != 0) memcpy(v, v1, sz * sizeof *v);
