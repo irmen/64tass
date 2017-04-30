@@ -51,8 +51,8 @@ static inline size_t byteslen(const Bytes *v1) {
     return (len < 0) ? (size_t)~len : (size_t)len;
 }
 
-static MUST_CHECK Bytes *bytes_from_bits(const Bits *);
-static MUST_CHECK Bytes *bytes_from_int(const Int *);
+static MUST_CHECK Obj *bytes_from_bits(const Bits *, linepos_t);
+static MUST_CHECK Obj *bytes_from_int(const Int *, linepos_t);
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     Obj *err, *ret;
@@ -61,15 +61,15 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_ERROR:
     case T_BYTES: return val_reference(v1);
     case T_BOOL: return (Obj *)bytes_from_u8((Bool *)v1 == true_value ? 1 : 0);
-    case T_BITS: return (Obj *)bytes_from_bits((Bits *)v1);
+    case T_BITS: return bytes_from_bits((Bits *)v1, epoint);
     case T_STR: return bytes_from_str((Str *)v1, epoint, BYTES_MODE_TEXT);
-    case T_INT: return (Obj *)bytes_from_int((Int *)v1);
+    case T_INT: return bytes_from_int((Int *)v1, epoint);
     case T_CODE: return bytes_from_code((Code *)v1, epoint);
     case T_ADDRESS: return bytes_from_address((Address *)v1, epoint);
     case T_FLOAT: 
-         err = (Obj *)int_from_float((Float *)v1);
+         err = int_from_float((Float *)v1, epoint);
          if (err->obj != INT_OBJ) return err;
-         ret = (Obj *)bytes_from_int((Int *)err);
+         ret = bytes_from_int((Int *)err, epoint);
          val_destroy(err);
          return ret;
     default: break;
@@ -93,11 +93,26 @@ MALLOC Bytes *new_bytes(size_t ln) {
     return v;
 }
 
-static MUST_CHECK Obj *invert(const Bytes *v1) {
+static MALLOC Bytes *new_bytes2(size_t ln) {
+    Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
+    if (ln > sizeof v->val) {
+        v->data = (uint8_t *)malloc(ln);
+        if (v->data == NULL) {
+            val_destroy(&v->v);
+            v = NULL;
+        }
+    } else {
+        v->data = v->val;
+    }
+    return v;
+}
+
+static MUST_CHECK Obj *invert(const Bytes *v1, linepos_t epoint) {
     size_t sz;
     sz = byteslen(v1);
     if (sz != 0) {
-        Bytes *v = new_bytes(sz);
+        Bytes *v = new_bytes2(sz);
+        if (v == NULL) return (Obj *)new_error_mem(epoint);
         v->len = ~v1->len;
         memcpy(v->data, v1->data, sz);
         return &v->v;
@@ -105,14 +120,15 @@ static MUST_CHECK Obj *invert(const Bytes *v1) {
     return (Obj *)ref_bytes((v1->len < 0) ? null_bytes : inv_bytes);
 }
 
-static MUST_CHECK Obj *negate(Bytes *v1) {
+static MUST_CHECK Obj *negate(Bytes *v1, linepos_t epoint) {
     size_t i, sz = byteslen(v1);
     Bytes *v;
     if (v1->len == 0) return val_reference(&v1->v);
     if (v1->len < 0) {
         for (i = 0; i < sz; i++) if (v1->data[i] != (uint8_t)~0) break;
         if (i == sz) return NULL;
-        v = new_bytes(sz);
+        v = new_bytes2(sz);
+        if (v == NULL) goto failed;
         for (i = 0; i < sz; i++) {
             if (v1->data[i] != (uint8_t)~0) {
                 v->data[i] = v1->data[i] + 1;
@@ -122,7 +138,8 @@ static MUST_CHECK Obj *negate(Bytes *v1) {
             v->data[i] = 0;
         }
     } else {
-        v = new_bytes(sz);
+        v = new_bytes2(sz);
+        if (v == NULL) goto failed;
         for (i = 0; i < sz; i++) {
             if (v1->data[i] != 0) {
                 v->data[i] = v1->data[i] - 1;
@@ -135,6 +152,8 @@ static MUST_CHECK Obj *negate(Bytes *v1) {
     for (; i < sz; i++) v->data[i] = v1->data[i];
     v->len = ~v1->len;
     return &v->v;
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -176,7 +195,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Bytes *v1 = (Bytes *)o1;
     static const char *hex = "0123456789abcdef";
     size_t i, len, len2, sz;
@@ -186,7 +205,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     len2 = sz * 2;
     len = (v1->len < 0) ? 9 : 8;
     len += len2;
-    if (len < len2 || sz > SIZE_MAX / 2) err_msg_out_of_memory(); /* overflow */
+    if (len < len2 || sz > SIZE_MAX / 2) return (epoint != NULL) ? (Obj *)new_error_mem(epoint) : NULL; /* overflow */
     if (len > maxsize) return NULL;
     v = new_str(len);
     v->chars = len;
@@ -226,48 +245,8 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
     uint8_t *s;
     Bytes *v;
     if (len != 0 || len2 != 0) {
-        if (actual_encoding != NULL) {
-            int ch;
-            if (len < sizeof v->val) len = sizeof v->val;
-            if (len == 0) {
-                return (Obj *)ref_bytes(null_bytes);
-            }
-            v = new_bytes(len);
-            s = v->data;
-            encode_string_init(v1, epoint);
-            while ((ch = encode_string()) != EOF) {
-                if (len2 >= len) {
-                    if (v->val == s) {
-                        len = 32;
-                        s = (uint8_t *)mallocx(len);
-                        memcpy(s, v->val, len2);
-                    } else {
-                        len += 1024;
-                        if (len < 1024) err_msg_out_of_memory(); /* overflow */
-                        s = (uint8_t *)reallocx(s, len);
-                    }
-                }
-                switch (mode) {
-                case BYTES_MODE_SHIFT_CHECK:
-                case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
-                case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
-                case BYTES_MODE_NULL_CHECK:if (ch == 0) {encode_error(ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
-                case BYTES_MODE_NULL: if (ch == 0) encode_error(ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
-                case BYTES_MODE_PTEXT:
-                case BYTES_MODE_TEXT: s[len2] = (uint8_t)ch; break;
-                }
-                len2++;
-            }
-            switch (mode) {
-            case BYTES_MODE_SHIFT: if (len2 != 0) s[len2 - 1] |= 0x80; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint); break;
-            case BYTES_MODE_SHIFTL: if (len2 != 0) s[len2 - 1] |= 0x01; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint);break;
-            case BYTES_MODE_NULL: s[len2 - 1] = 0x00; break;
-            case BYTES_MODE_PTEXT: s[0] = (uint8_t)(len2 - 1); if (len2 > 256) err_msg2(ERROR____PTEXT_LONG, &len2, epoint); break;
-            case BYTES_MODE_SHIFT_CHECK:
-            case BYTES_MODE_NULL_CHECK:
-            case BYTES_MODE_TEXT: break;
-            }
-        } else {
+        int ch;
+        if (actual_encoding == NULL) {
             if (v1->chars == 1) {
                 uchar_t ch2 = v1->data[0];
                 if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
@@ -275,24 +254,73 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             }
             return (Obj *)new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint);
         }
+        if (len < sizeof v->val) len = sizeof v->val;
+        if (len == 0) {
+            return (Obj *)ref_bytes(null_bytes);
+        }
+        v = new_bytes2(len);
+        if (v == NULL) goto failed;
+        s = v->data;
+        encode_string_init(v1, epoint);
+        while ((ch = encode_string()) != EOF) {
+            if (len2 >= len) {
+                if (v->val == s) {
+                    len = 32;
+                    s = (uint8_t *)malloc(len);
+                    if (s == NULL) goto failed2;
+                    v->data = s;
+                    memcpy(s, v->val, len2);
+                } else {
+                    len += 1024;
+                    if (len < 1024) goto failed2; /* overflow */
+                    s = (uint8_t *)realloc(s, len);
+                    if (s == NULL) goto failed2;
+                    v->data = s;
+                }
+            }
+            switch (mode) {
+            case BYTES_MODE_SHIFT_CHECK:
+            case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
+            case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
+            case BYTES_MODE_NULL_CHECK:if (ch == 0) {encode_error(ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
+            case BYTES_MODE_NULL: if (ch == 0) encode_error(ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
+            case BYTES_MODE_PTEXT:
+            case BYTES_MODE_TEXT: s[len2] = (uint8_t)ch; break;
+            }
+            len2++;
+        }
+        switch (mode) {
+        case BYTES_MODE_SHIFT: if (len2 != 0) s[len2 - 1] |= 0x80; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint); break;
+        case BYTES_MODE_SHIFTL: if (len2 != 0) s[len2 - 1] |= 0x01; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint);break;
+        case BYTES_MODE_NULL: s[len2 - 1] = 0x00; break;
+        case BYTES_MODE_PTEXT: s[0] = (uint8_t)(len2 - 1); if (len2 > 256) err_msg2(ERROR____PTEXT_LONG, &len2, epoint); break;
+        case BYTES_MODE_SHIFT_CHECK:
+        case BYTES_MODE_NULL_CHECK:
+        case BYTES_MODE_TEXT: break;
+        }
         if (v->val != s) {
             if (len2 <= sizeof v->val) {
                 if (len2 != 0) memcpy(v->val, s, len2);
                 free(s);
-                s = v->val;
+                v->data = v->val;
             } else if (len2 < len) {
-                s = (uint8_t *)reallocx(s, len2);
+                s = (uint8_t *)realloc(s, len2);
+                if (s == NULL) goto failed2;
+                v->data = s;
             }
         }
-        if (len2 > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
+        if (len2 > SSIZE_MAX) goto failed2; /* overflow */
         v->len = (ssize_t)len2;
-        v->data = s;
         return &v->v;
     }
     if (actual_encoding != NULL) {
         if (mode == BYTES_MODE_SHIFT || mode == BYTES_MODE_SHIFTL) err_msg2(ERROR__EMPTY_STRING, NULL, epoint);
     }
     return (Obj *)ref_bytes(null_bytes);
+failed2:
+    val_destroy(&v->v);
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
 MUST_CHECK Bytes *bytes_from_u8(unsigned int i) {
@@ -329,7 +357,7 @@ MUST_CHECK Bytes *bytes_from_uval(uval_t i, unsigned int bytes) {
     return v;
 }
 
-static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
+static MUST_CHECK Obj *bytes_from_bits(const Bits *v1, linepos_t epoint) {
     size_t i, sz, len1;
     uint8_t *d;
     Bytes *v;
@@ -337,16 +365,17 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
 
     len1 = v1->bits;
     if (len1 == 0) {
-        return ref_bytes(inv ? inv_bytes : null_bytes);
+        return val_reference(inv ? &inv_bytes->v : &null_bytes->v);
     }
     if (len1 <= 8 && !inv) {
-        return bytes_from_u8(v1->data[0]);
+        return (Obj *)bytes_from_u8(v1->data[0]);
     }
 
     sz = len1 / 8;
     if ((len1 % 8) != 0) sz++;
-    if (sz > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
-    v = new_bytes(sz);
+    if (sz > SSIZE_MAX) goto failed; /* overflow */
+    v = new_bytes2(sz);
+    if (v == NULL) goto failed;
     v->len = inv ? (ssize_t)~sz : (ssize_t)sz;
     d = v->data;
 
@@ -367,10 +396,12 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
         }
     }
     if (sz > i) memset(d + i , 0, sz - i);
-    return v;
+    return &v->v;
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
-static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
+static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
     bool inv;
     size_t i, j, sz, bits;
     uint8_t *d;
@@ -379,12 +410,12 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
     switch (v1->len) {
     case -1:
-        if (v1->data[0] == 1) return ref_bytes(inv_bytes);
+        if (v1->data[0] == 1) return val_reference(&inv_bytes->v);
         break;
     case 0:
-        return ref_bytes(null_bytes);
+        return val_reference(&null_bytes->v);
     case 1:
-        if (v1->data[0] < 256) return bytes_from_u8(v1->data[0]);
+        if (v1->data[0] < 256) return (Obj *)bytes_from_u8(v1->data[0]);
         break;
     default:
         break;
@@ -392,9 +423,10 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
 
     inv = (v1->len < 0);
     sz = inv ? (size_t)-v1->len : (size_t)v1->len;
-    if (sz > SSIZE_MAX / sizeof *b) err_msg_out_of_memory(); /* overflow */
+    if (sz > SSIZE_MAX / sizeof *b) goto failed; /* overflow */
     sz *= sizeof *b;
-    v = new_bytes(sz);
+    v = new_bytes2(sz);
+    if (v == NULL) goto failed;
     d = v->data;
 
     b = v1->data;
@@ -431,16 +463,21 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
         if (sz <= sizeof v->val) {
             if (sz != 0) memcpy(v->val, d, sz);
             free(d);
-            d = v->val;
+            v->data = v->val;
         } else if (sz < i) {
-            d = (uint8_t *)reallocx(d, sz);
+            d = (uint8_t *)realloc(d, sz);
+            if (d == NULL) goto failed2;
+            v->data = d;
         }
     }
-    v->data = d;
-    if (sz > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
+    if (sz > SSIZE_MAX) goto failed2; /* overflow */
     v->len = inv ? (ssize_t)~sz : (ssize_t)sz;
 
-    return v;
+    return &v->v;
+failed2:
+    val_destroy(&v->v);
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
 static bool uvalx(Obj *o1, uval_t *uv, unsigned int bits) {
@@ -518,7 +555,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
     Bytes *v1 = (Bytes *)o1;
-    Obj *tmp = (Obj *)int_from_bytes(v1);
+    Obj *tmp = int_from_bytes(v1, epoint);
     Obj *ret = tmp->obj->function(tmp, f, epoint);
     val_destroy(tmp);
     return ret;
@@ -545,7 +582,7 @@ static MUST_CHECK Obj *next(Iter *v1) {
     return (Obj *)bytes_from_u8((vv1->len < 0) ? ~b : b);
 }
 
-static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
+static MUST_CHECK Obj *and_(const Bytes *vv1, const Bytes *vv2, linepos_t epoint) {
     size_t i, len1, len2, sz;
     bool neg1, neg2;
     uint8_t *v1, *v2, *v;
@@ -559,8 +596,9 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len1 : len2;
-    if (sz == 0) return ref_bytes((neg1 && neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes(sz);
+    if (sz == 0) return val_reference((neg1 && neg2) ? &inv_bytes->v : &null_bytes->v);
+    vv = new_bytes2(sz);
+    if (vv == NULL) return (Obj *)new_error_mem(epoint);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
@@ -582,10 +620,10 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 && neg2) ? (ssize_t)~sz : (ssize_t)sz;
     vv->data = v;
-    return vv;
+    return &vv->v;
 }
 
-static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
+static MUST_CHECK Obj *or_(const Bytes *vv1, const Bytes *vv2, linepos_t epoint) {
     size_t i, len1, len2, sz;
     bool neg1, neg2;
     uint8_t *v1, *v2, *v;
@@ -599,8 +637,9 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len2 : len1;
-    if (sz == 0) return ref_bytes((neg1 || neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes(sz);
+    if (sz == 0) return val_reference((neg1 || neg2) ? &inv_bytes->v : &null_bytes->v);
+    vv = new_bytes2(sz);
+    if (vv == NULL) return (Obj *)new_error_mem(epoint);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
@@ -623,10 +662,10 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 || neg2) ? (ssize_t)~sz : (ssize_t)sz;
     vv->data = v;
-    return vv;
+    return &vv->v;
 }
 
-static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
+static MUST_CHECK Obj *xor_(const Bytes *vv1, const Bytes *vv2, linepos_t epoint) {
     size_t i, len1, len2, sz;
     bool neg1, neg2;
     uint8_t *v1, *v2, *v;
@@ -640,8 +679,9 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = len1;
-    if (sz == 0) return ref_bytes((neg1 != neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes(sz);
+    if (sz == 0) return val_reference((neg1 != neg2) ? &inv_bytes->v : &null_bytes->v);
+    vv = new_bytes2(sz);
+    if (vv == NULL) return (Obj *)new_error_mem(epoint);
     v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
@@ -651,7 +691,7 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 != neg2) ? (ssize_t)~sz : (ssize_t)sz;
     vv->data = v;
-    return vv;
+    return &vv->v;
 }
 
 static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
@@ -669,9 +709,10 @@ static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
     len1 = byteslen(v1);
     len2 = byteslen(v2);
     ln = len1 + len2;
-    if (ln < len2 || ln > SSIZE_MAX) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, epoint); /* overflow */
+    if (ln < len2 || ln > SSIZE_MAX) goto failed; /* overflow */
 
-    v = new_bytes(ln);
+    v = new_bytes2(ln);
+    if (v == NULL) goto failed;
     s = v->data;
     inv = (v2->len ^ v1->len) < 0;
 
@@ -682,6 +723,8 @@ static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
     v->len = (v1->len < 0) ? (ssize_t)~ln : (ssize_t)ln;
     v->data = s;
     return &v->v;
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
 static int icmp(Bytes *v1, Bytes *v2) {
@@ -728,13 +771,13 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (v1->len < ~0) return (Obj *)bytes_from_u16(~((unsigned int)v1->data[0] << 8));
         return (Obj *)bytes_from_u16((v1->len < 0) ? ~0U : 0);
     case O_POS: return val_reference(&v1->v);
-    case O_INV: return invert(v1);
+    case O_INV: return invert(v1, op->epoint3);
     case O_NEG: 
-        v = negate(v1); 
+        v = negate(v1, op->epoint3); 
         if (v != NULL) return v;
         /* fall through */
     case O_STRING:
-        tmp = (Obj *)int_from_bytes(v1);
+        tmp = int_from_bytes(v1, op->epoint);
         op->v1 = tmp;
         v = tmp->obj->calc1(op);
         val_destroy(tmp);
@@ -759,8 +802,8 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
     case O_EXP:
         {
             Obj *tmp, *tmp2, *result;
-            tmp = (Obj *)int_from_bytes(v1);
-            tmp2 = (Obj *)int_from_bytes(v2);
+            tmp = int_from_bytes(v1, op->epoint);
+            tmp2 = int_from_bytes(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
@@ -768,15 +811,15 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             val_destroy(tmp);
             return result;
         }
-    case O_AND: return (Obj *)and_(v1, v2);
-    case O_OR: return (Obj *)or_(v1, v2);
-    case O_XOR: return (Obj *)xor_(v1, v2);
+    case O_AND: return and_(v1, v2, op->epoint3);
+    case O_OR: return or_(v1, v2, op->epoint3);
+    case O_XOR: return xor_(v1, v2, op->epoint3);
     case O_LSHIFT:
     case O_RSHIFT:
         {
             Obj *tmp, *tmp2, *result;
-            tmp = (Obj *)bits_from_bytes(v1);
-            tmp2 = (Obj *)bits_from_bytes(v2);
+            tmp = bits_from_bytes(v1, op->epoint);
+            tmp2 = bits_from_bytes(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
@@ -838,13 +881,15 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
-    if (len1 != 0 && rep != 0) {
+    if (len1 == 0 || rep == 0) return (Obj *)ref_bytes((v1->len < 0) ? inv_bytes : null_bytes);
+    do {
         uint8_t *s;
         if (rep == 1) {
             return (Obj *)ref_bytes(v1);
         }
-        if (len1 > SSIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
-        v = new_bytes(len1 * rep);
+        if (len1 > SSIZE_MAX / rep) break; /* overflow */
+        v = new_bytes2(len1 * rep);
+        if (v == NULL) break;
         s = v->data;
         v->len = 0;
         while ((rep--) != 0) {
@@ -853,8 +898,8 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
         }
         if (v1->len < 0) v->len = ~v->len;
         return &v->v;
-    }
-    return (Obj *)ref_bytes((v1->len < 0) ? inv_bytes : null_bytes);
+    } while (false);
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
@@ -884,7 +929,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         if (len2 == 0) {
             return (Obj *)ref_bytes(null_bytes);
         }
-        v = new_bytes(len2);
+        v = new_bytes2(len2);
+        if (v == NULL) goto failed;
         p2 = v->data;
         for (i = 0; i < len2; i++) {
             err = indexoffs(list->data[i], len1, &offs2, epoint2);
@@ -894,7 +940,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             }
             *p2++ = v1->data[offs2] ^ inv;
         }
-        if (i > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
+        if (i > SSIZE_MAX) goto failed2; /* overflow */
         v->len = (ssize_t)i;
         return &v->v;
     }
@@ -913,10 +959,12 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 return (Obj *)ref_bytes(v1); /* original bytes */
             }
             if (length == 1) return (Obj *)bytes_from_u8(v1->data[offs]);
-            v = new_bytes(length);
+            v = new_bytes2(length);
+            if (v == NULL) goto failed;
             memcpy(v->data, v1->data + offs, length);
         } else {
-            v = new_bytes(length);
+            v = new_bytes2(length);
+            if (v == NULL) goto failed;
             p2 = v->data;
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
                 *p2++ = v1->data[offs] ^ inv;
@@ -929,6 +977,10 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     err = indexoffs(o2, len1, &offs2, epoint2);
     if (err != NULL) return &err->v;
     return (Obj *)bytes_from_u8(v1->data[offs2] ^ inv);
+failed2:
+    val_destroy(&v->v);
+failed:
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -965,8 +1017,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_OR:
             case O_XOR:
             case O_LSHIFT:
-            case O_RSHIFT: tmp = (Obj *)bits_from_bytes(v1); break;
-            default: tmp = (Obj *)int_from_bytes(v1);
+            case O_RSHIFT: tmp = bits_from_bytes(v1, op->epoint); break;
+            default: tmp = int_from_bytes(v1, op->epoint);
             }
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
@@ -1011,8 +1063,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
-            case O_XOR: tmp = (Obj *)bits_from_bytes(v2); break;
-            default: tmp = (Obj *)int_from_bytes(v2);
+            case O_XOR: tmp = bits_from_bytes(v2, op->epoint2); break;
+            default: tmp = int_from_bytes(v2, op->epoint2);
             }
             op->v2 = tmp;
             result = o1->obj->calc2(op);

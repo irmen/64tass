@@ -56,7 +56,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     if (epoint == NULL) return NULL;
     len = v1->name.len + 20;
-    if (len < 20) err_msg_out_of_memory(); /* overflow */
+    if (len < 20) return (Obj *)new_error_mem(epoint); /* overflow */
     if (len > maxsize) return NULL;
     v = new_str(len);
     v->chars = len;
@@ -320,8 +320,9 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
             size_t i;
             Obj **vals;
             size_t *sort_index;
-            if (ln > SIZE_MAX / sizeof *sort_index) err_msg_out_of_memory(); /* overflow */
-            sort_index = (size_t *)mallocx(ln * sizeof *sort_index);
+            if (ln > SIZE_MAX / sizeof *sort_index) goto failed; /* overflow */
+            sort_index = (size_t *)malloc(ln * sizeof *sort_index);
+            if (sort_index == NULL) goto failed;
             for (i = 0; i < ln; i++) sort_index[i] = i;
             sort_vals = v1->data;
             sort_error = NULL;
@@ -341,6 +342,8 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
         }
     }
     return val_reference(o1);
+failed:
+    return (Obj *)new_error_mem(epoint);
 }
 
 static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint) {

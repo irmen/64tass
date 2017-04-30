@@ -123,6 +123,13 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     return v;
 }
 
+MALLOC Error *new_error_mem(linepos_t epoint) {
+    Error *v = (Error *)val_alloc(ERROR_OBJ);
+    v->num = ERROR_OUT_OF_MEMORY;
+    v->epoint = *epoint;
+    return v;
+}
+
 MALLOC Error *new_error_key(Error_types num, Obj *v1, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;

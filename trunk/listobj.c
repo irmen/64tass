@@ -80,20 +80,31 @@ static FAST_CALL void garbage(Obj *o1, int j) {
 }
 
 static Obj **lnew(List *v, size_t len) {
-    if (len > lenof(v->val)) {
-        if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
-        return (Obj **)mallocx(len * sizeof *v->data);
+    v->len = len;
+    if (len <= lenof(v->val)) {
+        v->data = v->val;
+        return v->val;
     }
-    return v->val;
+    if (len <= SIZE_MAX / sizeof *v->data) { /* overflow */
+        Obj **n = (Obj **)malloc(len * sizeof *v->data);
+        if (n != NULL) {
+            v->data = n;
+            return n;
+        }
+    }
+    v->len = 0;
+    val_destroy(&v->v);
+    return NULL;
 }
 
-static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ) {
+static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ, linepos_t epoint) {
     size_t i, ln;
     Obj **vals, **data = v1->data;
     Tuple *v = (Tuple *)val_alloc(typ);
 
-    v->len = ln = v1->len;
-    v->data = vals = lnew(v, ln);
+    ln = v1->len;
+    vals = lnew(v, ln);
+    if (vals == NULL) return (Obj *)new_error_mem(epoint);
 
     for (i = 0; i < ln; i++) {
         vals[i] = val_reference(data[i]);
@@ -106,7 +117,7 @@ static MUST_CHECK Obj *list_create(Obj *o1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_LIST: return val_reference(o1);
-    case T_TUPLE: return tuple_from_list((List *)o1, LIST_OBJ);
+    case T_TUPLE: return tuple_from_list((List *)o1, LIST_OBJ, epoint);
     case T_CODE: return tuple_from_code((Code *)o1, LIST_OBJ, epoint);
     default: break;
     }
@@ -119,7 +130,7 @@ static MUST_CHECK Obj *tuple_create(Obj *o1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE: return val_reference(o1);
-    case T_LIST: return tuple_from_list((List *)o1, TUPLE_OBJ);
+    case T_LIST: return tuple_from_list((List *)o1, TUPLE_OBJ, epoint);
     case T_CODE: return tuple_from_code((Code *)o1, TUPLE_OBJ, epoint);
     default: break;
     }
@@ -175,10 +186,15 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     size_t llen = v1->len;
     if (llen != 0) {
         list = new_tuple();
-        list->data = vals = lnew(list, llen);
+        vals = lnew(list, llen);
+        if (vals == NULL) return (Obj *)new_error_mem(epoint);
         i = (llen != 1 || o1->obj != TUPLE_OBJ) ? (llen - 1) : llen;
         len += i;
-        if (len < i) err_msg_out_of_memory(); /* overflow */
+        if (len < i) {
+            list->len = 0;
+            val_destroy(&list->v);
+            return (Obj *)new_error_mem(epoint); /* overflow */
+        }
         chars = len;
         if (chars > maxsize) {
             list->len = 0;
@@ -199,7 +215,12 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
             }
             v = (Str *)val;
             len += v->len;
-            if (len < v->len) err_msg_out_of_memory(); /* overflow */
+            if (len < v->len) {
+                list->len = i;
+                val_destroy(&list->v);
+                val_destroy(val);
+                return (Obj *)new_error_mem(epoint); /* overflow */
+            }
             chars += v->chars;
             if (chars > maxsize) {
                 list->len = i;
@@ -249,7 +270,9 @@ static MUST_CHECK Obj *next(Iter *v1) {
 }
 
 Obj **list_create_elements(List *v, size_t n) {
-    return lnew(v, n);
+    if (n <= lenof(v->val)) return v->val;
+    if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+    return (Obj **)mallocx(n * sizeof *v->data);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -258,18 +281,17 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     if (v1->len != 0) {
         Obj **vals;
         bool error = true;
-        size_t i = 0;
+        size_t i;
         v = (List *)val_alloc(o1->obj);
         vals = lnew(v, v1->len);
-        for (;i < v1->len; i++) {
+        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        for (i = 0; i < v1->len; i++) {
             Obj *val;
             op->v1 = v1->data[i];
             val = op->v1->obj->calc1(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
             vals[i] = val;
         }
-        v->len = i;
-        v->data = vals;
         return &v->v;
     }
     return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
@@ -312,6 +334,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                     bool error = true;
                     List *v = (List *)val_alloc(o1->obj);
                     vals = lnew(v, v1->len);
+                    if (vals == NULL) goto failed;
                     for (i = 0; i < v1->len; i++) {
                         Obj *oo1 = op->v1 = v1->data[i];
                         Obj *oo2 = op->v2 = v2->data[i];
@@ -323,8 +346,6 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         }
                         vals[i] = val;
                     }
-                    v->len = i;
-                    v->data = vals;
                     return &v->v;
                 } 
                 return val_reference(&v1->v);
@@ -355,22 +376,23 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                 return val_reference(o1);
             }
             ln = v1->len + v2->len;
-            if (ln < v2->len) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
+            if (ln < v2->len) goto failed; /* overflow */
             v = (List *)val_alloc(o1->obj);
             vals = lnew(v, ln);
+            if (vals == NULL) goto failed;
             for (i = 0; i < v1->len; i++) {
                 vals[i] = val_reference(v1->data[i]);
             }
             for (; i < ln; i++) {
                 vals[i] = val_reference(v2->data[i - v1->len]);
             }
-            v->len = ln;
-            v->data = vals;
             return &v->v;
         }
     default: break;
     }
     return obj_oper_error(op);
+failed:
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static inline MUST_CHECK Obj *repeat(oper_t op) {
@@ -382,24 +404,25 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     err = op->v2->obj->uval(op->v2, &rep, 8 * sizeof rep, op->epoint2);
     if (err != NULL) return &err->v;
 
-    if (v1->len != 0 && rep != 0) {
+    if (v1->len == 0 || rep == 0) return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
+    do {
         size_t i = 0, j, ln;
         if (rep == 1) {
             return val_reference(o1);
         }
-        ln = v1->len * rep;
-        if (v1->len > SIZE_MAX / rep) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, op->epoint3); /* overflow */
+        if (v1->len > SIZE_MAX / rep) break; /* overflow */
         v = (List *)val_alloc(o1->obj);
-        v->data = vals = lnew(v, ln);
+        ln = v1->len * rep;
+        vals = lnew(v, ln);
+        if (vals == NULL) break;
         while ((rep--) != 0) {
             for (j = 0;j < v1->len; j++, i++) {
                 vals[i] = val_reference(v1->data[j]);
             }
         }
-        v->len = i;
         return &v->v;
-    }
-    return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
+    } while (false);
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
@@ -430,7 +453,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
         }
         v = (List *)val_alloc(o1->obj);
-        v->data = vals = lnew(v, v2->len);
+        vals = lnew(v, v2->len);
+        if (vals == NULL) goto failed;
         error = true;
         for (i = 0; i < v2->len; i++) {
             err = indexoffs(v2->data[i], ln, &offs2, epoint2);
@@ -447,7 +471,6 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 vals[i] = val_reference(v1->data[offs2]);
             }
         }
-        v->len = i;
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
@@ -465,7 +488,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             return val_reference(o1); /* original tuple */
         }
         v = (List *)val_alloc(o1->obj);
-        v->data = vals = lnew(v, length);
+        vals = lnew(v, length);
+        if (vals == NULL) goto failed;
         i = 0;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             if (more) {
@@ -486,6 +510,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         return vv->obj->slice(vv, op, indx + 1);
     }
     return val_reference(v1->data[offs2]);
+failed:
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -509,7 +535,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (v1->len != 0) {
         bool error = true;
         List *list = (List *)val_alloc(o1->obj);
-        list->data = vals = lnew(list, v1->len);
+        vals = lnew(list, v1->len);
+        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
         for (;i < v1->len; i++) {
             Obj *val;
             Obj *oo1 = v1->data[i];
@@ -523,7 +550,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             }
             vals[i] = val;
         }
-        list->len = i;
         return &list->v;
     }
     return val_reference(o1);
@@ -560,7 +586,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     if (v2->len != 0) {
         bool error = true;
         List *v = (List *)val_alloc(o2->obj);
-        v->data = vals = lnew(v, v2->len);
+        vals = lnew(v, v2->len);
+        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
         for (;i < v2->len; i++) {
             Obj *val;
             Obj *oo2 = v2->data[i];
@@ -574,7 +601,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             }
             vals[i] = val;
         }
-        v->len = i;
         return &v->v;
     }
     return val_reference(o2);
