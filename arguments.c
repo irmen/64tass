@@ -374,7 +374,11 @@ static MUST_CHECK char *read_one(FILE *f) {
             p = data + o;
         }
         l = (ssize_t)mbrtowc(&w, line + j, n - j,  &ps);
-        if (l < 1) break;
+        if (l < 1) {
+            w = (uint8_t)line[j];
+            if (w == 0 || l == 0) break;
+            l = 1;
+        }
         j += (size_t)l;
         ch = (uchar_t)w;
         if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
