@@ -446,6 +446,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     }
                     rewind(f);
                 }
+                clearerr(f); errno = 0;
                 if (tmp->len != 0 || !extendfile(tmp)) {
                     for (;;) {
                         fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
@@ -487,6 +488,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     }
                     rewind(f);
                 }
+                clearerr(f); errno = 0;
                 bl = fread(buffer, 1, BUFSIZ, f);
                 if (bl != 0 && buffer[0] == 0) encoding = E_UTF16BE; /* most likely */
 #ifdef _WIN32
@@ -832,7 +834,7 @@ void makefile(int argc, char *argv[]) {
         err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
         return;
     }
-    clearerr(f);
+    clearerr(f); errno = 0;
     if (!dash_name(arguments.output.name)) {
         path = get_path(NULL, arguments.output.name);
         len += argv_print(arguments.output.name + strlen(path), f);
