@@ -72,11 +72,11 @@ static size_t none;
 
 /* this struct holds everything we need */
 struct DATA {
-  const char *pf;
-  const char *pfend;
+  const uint8_t *pf;
+  const uint8_t *pfend;
 /* FLAGS */
   int width, precision;
-  uint8_t pad;
+  uchar_t pad;
   bool left, square, space, plus, star_w, star_p, dot;
 };
 
@@ -98,18 +98,21 @@ static const struct values_s *next_arg(void) {
 }
 
 static void PUT_CHAR(uchar_t c) {
-    uint8_t *p = (uint8_t *)return_value.data;
+    uint8_t *p;
+    return_value.chars++;
+    p = (uint8_t *)return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
         if (returnsize < 256) err_msg_out_of_memory(); /* overflow */
         p = (uint8_t *)reallocx(p, returnsize);
         return_value.data = p;
     }
-    if (c != 0 && c < 0x80) p[return_value.len++] = (uint8_t)c; else {
-        p = utf8out(c, p + return_value.len);
-        return_value.len = (size_t)(p - return_value.data);
+    if (c != 0 && c < 0x80) {
+        p[return_value.len++] = (uint8_t)c;
+        return;
     }
-    return_value.chars++;
+    p = utf8out(c, p + return_value.len);
+    return_value.len = (size_t)(p - return_value.data);
 }
 
 /* pad right */
@@ -143,7 +146,7 @@ static void PAD_RIGHT2(struct DATA *p, uint8_t c, bool minus, size_t ln)
 static MUST_CHECK Obj *PAD_LEFT(struct DATA *p)
 {
     if (p->width > 0 && p->left) {
-        for (; p->width > 0; p->width--) PUT_CHAR((p)->pad);
+        for (; p->width > 0; p->width--) PUT_CHAR(p->pad);
     }
     return NULL;
 }
@@ -352,7 +355,8 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
     p->width -= i;
     PAD_RIGHT(p);
     while (i-- > 0) { /* put the string */
-        if ((*tmp & 0x80) != 0) tmp += utf8in(tmp, &ch); else ch = *tmp++;
+        ch = *tmp;
+        if ((ch & 0x80) != 0) tmp += utf8in(tmp, &ch); else tmp++;
         PUT_CHAR(ch);
     }
     val_destroy(&str->v);
@@ -384,7 +388,7 @@ static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
     if (p->square) *t++ = '#';
     *t++ = '.';
     *t++ = '*';
-    *t++ = *p->pf;
+    *t++ = (char)*p->pf;
     *t++ = 0;
     l = snprintf(tmp, sizeof tmp, form, (p->precision < 80) ? (p->precision > 0 ? p->precision : 0) : 80, d);
     t = tmp;
@@ -420,8 +424,8 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
         err_msg_wrong_type(v[0].val, STR_OBJ, &v[0].epoint);
         return (Obj *)ref_none();
     }
-    data.pf = (char *)((Str *)v[0].val)->data;
-    data.pfend = data.pf +((Str *) v[0].val)->len;
+    data.pf = ((Str *)v[0].val)->data;
+    data.pfend = data.pf +((Str *)v[0].val)->len;
 
     listp = 0;
     list = &v[1];
@@ -433,138 +437,135 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     none = returnsize = 0;
 
     for (; data.pf < data.pfend; data.pf++) {
-        char c = *data.pf;
-        if (c == '%') { /* we got a magic % cookie */
-            /* reset the flags.  */
-            data.precision = data.width = NOT_FOUND;
-            data.star_w = data.star_p = false;
-            data.square = data.plus = data.space = false;
-            data.left = false; data.dot = false;
-            data.pad = ' ';
-            for (state = 1; data.pf < data.pfend - 1 && state != 0;) {
-                c = *(++data.pf);
-                switch (c) {
-                case 'e':
-                case 'E':  /* Exponent double */
-                case 'f':  /* float, double */
-                case 'F':
-                case 'a':
-                case 'A':
-                case 'g':
-                case 'G':
+        uchar_t c = *data.pf;
+        if (c != '%') {
+            if ((c & 0x80) != 0) data.pf += utf8in(data.pf, &c) - 1;
+            PUT_CHAR(c);  /* add the char the string */
+            continue;
+        }
+        /* reset the flags. */
+        data.precision = data.width = NOT_FOUND;
+        data.star_w = data.star_p = false;
+        data.square = data.plus = data.space = false;
+        data.left = false; data.dot = false;
+        data.pad = ' ';
+        for (state = 1; data.pf < data.pfend - 1 && state != 0;) {
+            c = *(++data.pf);
+            switch (c) {
+            case 'e':
+            case 'E':  /* Exponent double */
+            case 'f':  /* float, double */
+            case 'F':
+            case 'a':
+            case 'A':
+            case 'g':
+            case 'G':
+                err = star_args(&data);
+                if (err != NULL) goto error;
+                err = floating(&data, next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case 'd':  /* decimal */
+                err = star_args(&data);
+                if (err != NULL) goto error;
+                err = decimal(&data, next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case 'x':
+            case 'X':  /* hexadecimal */
+                err = star_args(&data);
+                if (err != NULL) goto error;
+                err = hexa(&data, next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case 'b':  /* binary */
+                err = star_args(&data);
+                if (err != NULL) goto error;
+                err = bin(&data, next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case 'c': /* character */
+                err = chars(next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case 'r':  /* repr */
+            case 's':  /* string */
+                err = star_args(&data);
+                if (err != NULL) goto error;
+                err = strings(&data, next_arg());
+                if (err != NULL) goto error;
+                state = 0;
+                break;
+            case '%':  /* nothing just % */
+                PUT_CHAR('%');
+                state = 0;
+                break;
+            case ' ': 
+                data.space = true; 
+                break;
+            case '#': 
+                data.square = true; 
+                break;
+            case '*': 
+                if (data.width == NOT_FOUND) {
+                    data.width = 0;
+                    data.star_w = true;
+                } else if (data.dot && data.precision == NOT_FOUND) {
+                    data.precision = 0;
+                    data.star_p = true;
+                }
+                break;
+            case '+':
+                data.plus = true;
+                break;
+            case '-': 
+                data.left = true; 
+                break;
+            case '.': 
+                data.dot = true; 
+                if (data.width == NOT_FOUND) data.width = 0;
+                break;
+            case '0': 
+                if (data.width == NOT_FOUND) {
+                    data.pad = '0'; 
+                    break;
+                }
+                /* fall through */
+            case '1':
+            case '2': case '3': case '4': case '5':
+            case '6': case '7': case '8': case '9':
+                c -= '0';
+                if (data.dot && !data.star_p) {
+                    data.precision = ((data.precision == NOT_FOUND) ? 0 : data.precision * 10) + (int)c;
+                    if (data.precision > 100000) goto error2;
+                } else if (!data.star_w) {
+                    data.width = ((data.width == NOT_FOUND) ? 0 : data.width * 10) + (int)c;
+                    if (data.width > 100000) goto error2;
+                } else goto error2;
+                break;
+            default:
+                {
+                    struct linepos_s epoint2;
+                    str_t msg;
+                error2:
+                    epoint2 = v[0].epoint;
+                    epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, (size_t)(data.pf - ((Str *)v[0].val)->data));
+                    if ((c & 0x80) != 0) msg.len = utf8in(data.pf, &c); else msg.len = 1;
+                    err_msg_not_defined(&msg, &epoint2);
                     err = star_args(&data);
                     if (err != NULL) goto error;
-                    err = floating(&data, next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case 'd':  /* decimal */
-                    err = star_args(&data);
-                    if (err != NULL) goto error;
-                    err = decimal(&data, next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case 'x':
-                case 'X':  /* hexadecimal */
-                    err = star_args(&data);
-                    if (err != NULL) goto error;
-                    err = hexa(&data, next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case 'b':  /* binary */
-                    err = star_args(&data);
-                    if (err != NULL) goto error;
-                    err = bin(&data, next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case 'c': /* character */
-                    err = chars(next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case 'r':  /* repr */
-                case 's':  /* string */
-                    err = star_args(&data);
-                    if (err != NULL) goto error;
-                    err = strings(&data, next_arg());
-                    if (err != NULL) goto error;
-                    state = 0;
-                    break;
-                case '%':  /* nothing just % */
+                    next_arg();
                     PUT_CHAR('%');
+                    PUT_CHAR(c);
                     state = 0;
-                    break;
-                case ' ': 
-                    data.space = true; 
-                    break;
-                case '#': 
-                    data.square = true; 
-                    break;
-                case '*': 
-                    if (data.width == NOT_FOUND) {
-                        data.width = 0;
-                        data.star_w = true;
-                    } else if (data.dot && data.precision == NOT_FOUND) {
-                        data.precision = 0;
-                        data.star_p = true;
-                    }
-                    break;
-                case '+':
-                    data.plus = true;
-                    break;
-                case '-': 
-                    data.left = true; 
-                    break;
-                case '.': 
-                    data.dot = true; 
-                    if (data.width == NOT_FOUND) data.width = 0;
-                    break;
-                case '0': 
-                    if (data.width == NOT_FOUND) {
-                        data.pad = '0'; 
-                        break;
-                    }
-                    /* fall through */
-                case '1':
-                case '2': case '3': case '4': case '5':
-                case '6': case '7': case '8': case '9':
-                    c -= '0';
-                    if (data.dot && !data.star_p) {
-                        data.precision = ((data.precision == NOT_FOUND) ? 0 : data.precision * 10) + c;
-                        if (data.precision > 100000) goto error2;
-                    } else if (!data.star_w) {
-                        data.width = ((data.width == NOT_FOUND) ? 0 : data.width * 10) + c;
-                        if (data.width > 100000) goto error2;
-                    }
-                    else goto error2;
-                    break;
-                default:
-                    {
-                        struct linepos_s epoint2;
-                        uchar_t ch;
-                        str_t msg;
-                    error2:
-                        epoint2 = v[0].epoint;
-                        epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, (size_t)(data.pf - (char *)((Str *)v[0].val)->data));
-                        msg.data = (uint8_t *)data.pf;
-                        ch = (uint8_t)*data.pf;
-                        if ((ch & 0x80) != 0) msg.len = utf8in((const uint8_t *)data.pf, &ch); else msg.len = 1;
-                        err_msg_not_defined(&msg, &epoint2);
-                        err = star_args(&data);
-                        if (err != NULL) goto error;
-                        next_arg();
-                        PUT_CHAR('%');
-                        PUT_CHAR(ch);
-                        state = 0;
-                        data.pf += msg.len - 1;
-                    }
-                } /* end switch */
-            } /* end of for state */
-        } else { /* not % */
-            PUT_CHAR((uint8_t)c);  /* add the char the string */
+                    data.pf += msg.len - 1;
+                }
+            } /* end switch */
         }
     }
     if (listp != largs) {
@@ -577,8 +578,13 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     str->chars = return_value.chars;
     if (return_value.len > sizeof str->val) {
         if (returnsize > return_value.len) {
-            str->data = (uint8_t *)reallocx(return_value.data, return_value.len);
-        } else str->data = return_value.data;
+            uint8_t *d = (uint8_t *)realloc(return_value.data, return_value.len);
+            if (d != NULL) {
+                str->data = d;
+                return &str->v;
+            }
+        } 
+        str->data = return_value.data;
         return &str->v;
     }
     memcpy(str->val, return_value.data, return_value.len);
