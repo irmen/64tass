@@ -280,13 +280,13 @@ static const char *terr_error[] = {
 };
 
 static const char *terr_fatal[] = {
-    "can't open file ",
-    "error reading file ",
-    "can't write object file ",
-    "can't write listing file ",
-    "can't write label file ",
-    "can't write make file ",
-    "can't write error file ",
+    "can't open file",
+    "error reading file",
+    "can't write object file",
+    "can't write listing file",
+    "can't write label file",
+    "can't write make file",
+    "can't write error file",
     "file recursion",
     "macro recursion too deep",
     "function recursion too deep",
@@ -402,7 +402,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_ABSOLUTE_PATH:
             new_error_msg2(diagnostic_errors.portable, epoint);
             adderror(terr_warning[no]);
-            adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
+            adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
             adderror("' [-Wportable]");
             break;
         default: 
@@ -1152,8 +1152,9 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
 
     new_error_msg(SV_FATAL, current_file_list, epoint);
     adderror(terr_fatal[no - 0xc0]);
+    adderror(" '");
     adderror(prm);
-    adderror(": ");
+    adderror("': ");
     memset(&ps, 0, sizeof ps);
     while (i < n) {
         if (s[i] != 0 && (s[i] & 0x80) == 0) {
