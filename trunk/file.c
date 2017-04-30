@@ -691,6 +691,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             path = (val != NULL) ? get_path(val, "") : NULL;
             err_msg_file(ERROR__READING_FILE, (val != NULL) ? path : name, epoint);
             free(path);
+        } else {
+            if (val != NULL && diagnostics.portable) {
+                portability(val, epoint);
+            }
         }
     }
     tmp->open++;
