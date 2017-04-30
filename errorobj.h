@@ -63,6 +63,7 @@ typedef struct Error {
 extern void errorobj_init(void);
 
 extern MALLOC Error *new_error(Error_types, linepos_t);
+extern MALLOC Error *new_error_mem(linepos_t);
 extern MALLOC Error *new_error_key(Error_types, Obj *, linepos_t);
 
 #endif

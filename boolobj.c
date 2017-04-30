@@ -88,12 +88,12 @@ MUST_CHECK Float *float_from_bool(const Bool *v1) {
     return new_float(v1 == true_value ? 1.0 : 0.0);
 }
 
-MUST_CHECK Int *int_from_bool(const Bool *v1) {
-    return ref_int(int_value[v1 == true_value ? 1 : 0]);
+MUST_CHECK Obj *int_from_bool(const Bool *v1) {
+    return val_reference(&int_value[v1 == true_value ? 1 : 0]->v);
 }
 
 static inline MUST_CHECK Obj *int_from_bool2(bool i) {
-    return (Obj *)ref_int(int_value[i ? 1 : 0]);
+    return val_reference(&int_value[i ? 1 : 0]->v);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {

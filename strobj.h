@@ -41,7 +41,7 @@ static inline Str *ref_str(Str *v1) {
 }
 
 extern MALLOC Str *new_str(size_t);
-extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *);
+extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
 extern size_t str_quoting(const uint8_t *, size_t, uint8_t *);
 #endif

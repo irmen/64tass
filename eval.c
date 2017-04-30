@@ -114,11 +114,11 @@ size_t get_label(void) {
     return (size_t)(s - e);
 }
 
-static MUST_CHECK Int *get_dec(void) {
-    Int *v;
+static MUST_CHECK Obj *get_dec(linepos_t epoint) {
+    Obj *v;
     size_t len, len2;
 
-    v = int_from_decstr(pline + lpoint.pos, &len, &len2);
+    v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
     lpoint.pos += len;
     return v;
 }
@@ -145,7 +145,7 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             Obj *v;
             lpoint.pos++;
            
-            v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
+            v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
             err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
             val_destroy(v);
             lpoint.pos += len;
@@ -197,14 +197,14 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
     Obj *v;
 
     lpoint.pos++;
-    v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
+    v = bits_from_hexstr(pline + lpoint.pos, &len, &len2, epoint);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
+        v = bits_from_hexstr(pline + lpoint.pos, &len, &len2, epoint);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -220,14 +220,14 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
     Obj *v;
 
     lpoint.pos++;
-    v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
+    v = bits_from_binstr(pline + lpoint.pos, &len, &len2, epoint);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
+        v = bits_from_binstr(pline + lpoint.pos, &len, &len2, epoint);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -242,13 +242,13 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
     size_t len, len2;
     Obj *v;
 
-    v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
+    v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
+        v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -259,10 +259,10 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
     return get_exponent2(v, epoint);
 }
 
-static MUST_CHECK Obj *get_string(void) {
+static MUST_CHECK Obj *get_string(linepos_t epoint) {
     char txt[4];
     size_t len;
-    Obj *v = str_from_str(pline + lpoint.pos, &len);
+    Obj *v = str_from_str(pline + lpoint.pos, &len, epoint);
     if (v->obj == STR_OBJ) {
         lpoint.pos += len;
         return v;
@@ -393,13 +393,13 @@ rest:
         case '(': op = &o_PARENT;goto add;
         case '$': push_oper(get_hex(&epoint), &epoint);goto other;
         case '%': push_oper(get_bin(&epoint), &epoint);goto other;
-        case '"': push_oper(get_string(), &epoint);goto other;
+        case '"': push_oper(get_string(&epoint), &epoint);goto other;
         case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
         case '0':
             if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
             /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-            push_oper((Obj *)get_dec(), &epoint);goto other;
+            push_oper(get_dec(&epoint), &epoint);goto other;
         default: 
             if (get_label() == 0) {
                 if (operp != 0) epoint = o_oper[operp - 1].epoint;
@@ -704,7 +704,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len2, uval_t *olen, iv
     Error *err;
     ival_t len, offs, end, step = 1;
 
-    if (len2 >= (1u << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error(ERROR_OUT_OF_MEMORY, epoint); /* overflow */
+    if (len2 >= (1u << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error_mem(epoint); /* overflow */
     len = (ival_t)len2;
     if (v2->len > 3 || v2->len < 1) {
         err_msg_argnum(v2->len, 1, 3, epoint);
@@ -1330,7 +1330,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         case '%': if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { push_oper(get_bin(&epoint), &epoint);goto other; }
                   goto tryanon;
         case '"':
-        case '\'': push_oper(get_string(), &epoint);goto other;
+        case '\'': push_oper(get_string(&epoint), &epoint);goto other;
         case '?': 
             if (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
@@ -1371,7 +1371,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                     default: mode = BYTES_MODE_NULL_CHECK; break;
                     }
                     if (mode != BYTES_MODE_NULL_CHECK) {
-                        Obj *str = get_string(), *val;
+                        Obj *str = get_string(&epoint), *val;
                         if (str->obj == STR_OBJ) {
                             epoint.pos++;
                             val = bytes_from_str((Str *)str, &epoint, mode);
