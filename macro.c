@@ -516,7 +516,7 @@ void get_macro_params(Obj *v) {
         ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
             len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *new_macro.param || len > SIZE_MAX / sizeof *epoints) err_msg_out_of_memory(); /* overflow */
+            if (/*len < 16 ||*/ len > SIZE_MAX / (sizeof *new_macro.param > sizeof *epoints ? sizeof *new_macro.param : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
             new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, len * sizeof *new_macro.param);
             epoints = (struct linepos_s *)reallocx(epoints, len * sizeof *epoints);
         }

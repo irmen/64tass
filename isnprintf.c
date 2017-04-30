@@ -100,7 +100,7 @@ static const struct values_s *next_arg(void) {
 static void PUT_CHAR(uchar_t c) {
     uint8_t *p;
     return_value.chars++;
-    p = (uint8_t *)return_value.data;
+    p = return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
         if (returnsize < 256) err_msg_out_of_memory(); /* overflow */

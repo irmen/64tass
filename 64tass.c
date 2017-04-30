@@ -2191,7 +2191,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
                         if (!get_exp(0, cfile, 1, 3, &epoint)) goto breakerr;
-                        vs = get_val(); val = vs->val;
+                        vs = get_val();
                         if (!tostr(vs, &filename)) {
                             path = get_path(&filename, cfile->realname);
                         }

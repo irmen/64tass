@@ -91,7 +91,7 @@ static void memcomp(struct memblocks_s *memblocks) {
                 if (bj->addr <= bi->addr && (bj->addr + bj->len) > bi->addr) {
                     size_t overlap = (bj->addr + bj->len) - bi->addr;
                     if (overlap > bi->len) overlap = bi->len;
-                    memcpy(memblocks->mem.data + bj->p + (unsigned)(bi->addr - bj->addr), memblocks->mem.data + bi->p, overlap);
+                    memcpy(memblocks->mem.data + bj->p + (bi->addr - bj->addr), memblocks->mem.data + bi->p, overlap);
                     bi->len -= overlap;
                     bi->p += overlap;
                     bi->addr += overlap;
