@@ -469,41 +469,42 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
 void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
     FILE* fout;
     struct linepos_s nopoint = {0, 0};
+    bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
+    int err;
 
     memcomp(memblocks);
 
-    if (memblocks->mem.p != 0) {
-        bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
-        int err;
-        if (dash_name(output->name)) {
+    if (memblocks->mem.p == 0) return;
+
+    if (dash_name(output->name)) {
 #ifdef _WIN32
-            if (binary) setmode(fileno(stdout), O_BINARY);
+        if (binary) setmode(fileno(stdout), O_BINARY);
 #endif
-            fout = stdout;
-        } else {
-            if ((fout = file_open(output->name, binary ? "wb" : "wt")) == NULL) {
-                err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
-                return;
-            }
-        }
-        clearerr(fout);
-        switch (output->mode) {
-        case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
-        case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
-        case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
-        case OUTPUT_RAW:
-        case OUTPUT_APPLE:
-        case OUTPUT_CBM: output_mem_c64(fout, memblocks, output); break;
-        case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
-        case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
-        }
-        err = ferror(fout);
-        err |= (fout != stdout) ? fclose(fout) : fflush(fout);
-        if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
-#ifdef _WIN32
-        setmode(fileno(stdout), O_TEXT);
-#endif
+        fout = stdout;
+    } else {
+        fout = file_open(output->name, binary ? "wb" : "wt");
     }
+    if (fout == NULL) {
+        err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
+        return;
+    }
+    clearerr(fout); errno = 0;
+    switch (output->mode) {
+    case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
+    case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
+    case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
+    case OUTPUT_RAW:
+    case OUTPUT_APPLE:
+    case OUTPUT_CBM: output_mem_c64(fout, memblocks, output); break;
+    case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
+    case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
+    }
+    err = ferror(fout);
+    err |= (fout != stdout) ? fclose(fout) : fflush(fout);
+    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
+#ifdef _WIN32
+    setmode(fileno(stdout), O_TEXT);
+#endif
 }
 
 FAST_CALL void write_mem(struct memblocks_s *memblocks, unsigned int c) {

@@ -154,6 +154,7 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
         err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
         return NULL;
     }
+    clearerr(flist); errno = 0;
 
     ls = (Listing *)mallocx(sizeof *ls);
 

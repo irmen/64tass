@@ -658,7 +658,7 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
         err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
         return true;
     }
-    clearerr(flab);
+    clearerr(flab); errno = 0;
     referenceit = false;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
