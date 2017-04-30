@@ -41,6 +41,7 @@ struct file_s {
     int type;
     int err_no;
     bool read_error;
+    bool portable;
     Encoding_types encoding;
     struct avltree star;
     struct avltree_node node;

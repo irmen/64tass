@@ -145,7 +145,7 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
 }
 #endif
 
-static void portability(const str_t *name, linepos_t epoint) {
+static bool portability(const str_t *name, linepos_t epoint) {
 #ifdef _WIN32
     DWORD ret;
     wchar_t *wname = convert_name((const char *)name->data, name->len);
@@ -158,16 +158,17 @@ static void portability(const str_t *name, linepos_t epoint) {
     free(wname);
     if (different) {
         err_msg2(ERROR___INSENSITIVE, name, epoint);
-        return;
+        return false;
     }
 #endif
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
     if (memchr(name->data, '\\', name->len) != NULL) {
         err_msg2(ERROR_____BACKSLASH, name, epoint);
-        return;
+        return false;
     }
     if ((name->len > 0 && name->data[0] == '/') || (name->len > 1 && is_driveletter((const char *)name->data))) {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+        return false;
     }
 #else
     size_t i;
@@ -175,13 +176,15 @@ static void portability(const str_t *name, linepos_t epoint) {
     for (i = 0; i < name->len; i++) {
         if (strchr("\\:*?\"<>|", c[i]) != NULL) {
             err_msg2(ERROR__RESERVED_CHR, name, epoint);
-            return;
+            return false;
         }
     }
     if (name->len > 0 && name->data[0] == '/') {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+        return false;
     }
 #endif
+    return true;
 }
 
 FILE *file_open(const char *name, const char *mode) {
@@ -342,6 +345,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         lastfi->open = 0;
         lastfi->err_no = 0;
         lastfi->read_error = false;
+        lastfi->portable = false;
         avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi = NULL;
@@ -361,7 +365,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     i = i->next;
                 }
                 if (f != NULL && diagnostics.portable) {
-                    portability(val, epoint);
+                    tmp->portable = portability(val, epoint);
                 }
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");
@@ -691,10 +695,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             path = (val != NULL) ? get_path(val, "") : NULL;
             err_msg_file(ERROR__READING_FILE, (val != NULL) ? path : name, epoint);
             free(path);
-        } else {
-            if (val != NULL && diagnostics.portable) {
-                portability(val, epoint);
-            }
+        } else if (!tmp->portable && val != NULL && diagnostics.portable) {
+            portability(val, epoint);
         }
     }
     tmp->open++;
