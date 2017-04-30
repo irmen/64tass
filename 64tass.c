@@ -924,7 +924,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             struct linepos_s cmdpoint;
             bool islabel;
             islabel = false;
-            while (here() == '.') {
+            while (here() == '.' && pline[lpoint.pos+1] != '.') {
                 if ((waitfor->skip & 1) != 0) {
                     if (mycontext == current_context) {
                         if (labelname.data[0] != '_') {
