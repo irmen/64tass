@@ -3641,8 +3641,8 @@ static int main2(int *argc2, char **argv2[]) {
     char **argv;
     int argc;
 
-    objects_init();
     err_init(*argv2[0]);
+    objects_init();
     init_section();
     init_file();
     init_variables();

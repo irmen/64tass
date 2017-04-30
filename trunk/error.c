@@ -1010,6 +1010,15 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     }
 }
 
+#ifdef COLOR_OUTPUT
+static void color_detect(FILE *f) {
+    char const *term = getenv ("TERM");
+    print_use_color = term != NULL && strcmp(term, "dumb") != 0 && isatty(fileno(f)) == 1;
+}
+#else
+#define color_detect(f) {}
+#endif
+
 bool error_print() {
     const struct errorentry_s *err, *err2, *err3;
     size_t pos;
@@ -1025,12 +1034,7 @@ bool error_print() {
         }
     } else ferr = stderr;
 
-#ifdef COLOR_OUTPUT
-    {
-        char const *term = getenv ("TERM");
-        print_use_color = term != NULL && strcmp(term, "dumb") != 0 && isatty(fileno(ferr)) == 1;
-    }
-#endif
+    color_detect(ferr);
 
     warnings = errors = 0;
     close_error();
@@ -1093,9 +1097,7 @@ bool error_print() {
     }
     if (err3 != NULL) print_error(ferr, err3);
     if (err2 != NULL) print_error(ferr, err2);
-#ifdef COLOR_OUTPUT
-    print_use_color = false;
-#endif
+    color_detect(stderr);
     if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors != 0;
 }
@@ -1108,6 +1110,7 @@ void error_reset(void) {
 
 void err_init(const char *name) {
     prgname = name;
+    color_detect(stderr);
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
     error_list.data = NULL;
@@ -1124,9 +1127,24 @@ void err_destroy(void) {
     free(lastnd);
 }
 
+void fatal_error(const char *txt) {
+    if (txt != NULL) {
+        if (print_use_color) fputs("\33[01m", stderr);
+        printable_print((const uint8_t *)((prgname != NULL) ? prgname : "64tass"), stderr);
+        fputs(print_use_color ? ": \33[31m" : ": ", stderr);
+        fputs("fatal error: ", stderr);
+        if (print_use_color) fputs("\33[m\33[01m", stderr);
+        fputs(txt, stderr);
+        return;
+    }
+    if (print_use_color) fputs("\33[m\33[K", stderr);
+    putc('\n', stderr);
+}
+
 void err_msg_out_of_memory2(void)
 {
-    fputs("Out of memory error\n", stderr);
+    fatal_error("out of memory");
+    fatal_error(NULL);
     exit(EXIT_FAILURE);
 }
 

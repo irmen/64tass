@@ -93,6 +93,7 @@ extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);
 extern void err_destroy(void);
+extern void fatal_error(const char *);
 extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
