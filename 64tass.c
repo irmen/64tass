@@ -1831,29 +1831,29 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             switch (prm) {
             case CMD_ENDC: /* .endc */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
-                if (!close_waitfor(W_ENDC)) err_msg2(ERROR______EXPECTED,".comment", &epoint);
+                if (!close_waitfor(W_ENDC)) err_msg2(ERROR__MISSING_OPEN,".comment", &epoint);
                 if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 break;
             case CMD_ENDIF: /* .endif */
             case CMD_FI: /* .fi */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
-                    if (!close_waitfor(W_FI2) && !close_waitfor(W_FI)) err_msg2(ERROR______EXPECTED,".if", &epoint);
+                    if (!close_waitfor(W_FI2) && !close_waitfor(W_FI)) err_msg2(ERROR__MISSING_OPEN,".if", &epoint);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
             case CMD_ENDSWITCH: /* .endswitch */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
-                    if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) err_msg2(ERROR______EXPECTED,".switch", &epoint);
+                    if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) err_msg2(ERROR__MISSING_OPEN,".switch", &epoint);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
             case CMD_DEFAULT: /* .default */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED,".endswitch", &epoint); break;}
-                    if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR______EXPECTED,".switch", &epoint); break;}
+                    if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED,"'.endswitch'", &epoint); break;}
+                    if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR__MISSING_OPEN,".switch", &epoint); break;}
                     waitfor->skip = waitfor->skip >> 1;
                     waitfor->what = W_SWITCH;waitfor->epoint = epoint;
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
@@ -1862,8 +1862,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_ELSE: /* .else */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what==W_FI) { err_msg2(ERROR______EXPECTED,".fi", &epoint); break; }
-                    if (waitfor->what!=W_FI2) { err_msg2(ERROR______EXPECTED,".if", &epoint); break; }
+                    if (waitfor->what==W_FI) { err_msg2(ERROR______EXPECTED,"'.fi'", &epoint); break; }
+                    if (waitfor->what!=W_FI2) { err_msg2(ERROR__MISSING_OPEN,".if", &epoint); break; }
                     waitfor->skip = waitfor->skip >> 1;
                     waitfor->what = W_FI;waitfor->epoint = epoint;
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
@@ -1928,7 +1928,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     bool truth;
                     struct values_s *vs;
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what != W_FI2) {err_msg2(ERROR______EXPECTED, ".if", &epoint); break;}
+                    if (waitfor->what == W_FI) {err_msg2(ERROR______EXPECTED,"'.fi'", &epoint); break; }
+                    if (waitfor->what != W_FI2) {err_msg2(ERROR__MISSING_OPEN, ".if", &epoint); break;}
                     waitfor->epoint = epoint;
                     if (skwait == 2) {
                         if (!get_exp(0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
@@ -1960,8 +1961,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     bool truth = false;
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what == W_SWITCH) { err_msg2(ERROR______EXPECTED,".endswitch", &epoint); goto breakerr; }
-                    if (waitfor->what != W_SWITCH2) { err_msg2(ERROR______EXPECTED,".switch", &epoint); goto breakerr; }
+                    if (waitfor->what == W_SWITCH) { err_msg2(ERROR______EXPECTED,"'.endswitch'", &epoint); goto breakerr; }
+                    if (waitfor->what != W_SWITCH2) { err_msg2(ERROR__MISSING_OPEN,".switch", &epoint); goto breakerr; }
                     waitfor->epoint = epoint;
                     if (skwait==2 || diagnostics.switch_case) {
                         struct values_s *vs;
@@ -2003,7 +2004,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         retval = get_vals_tuple();
                     }
                 } else {
-                    err_msg2(ERROR______EXPECTED,".macro or .segment", &epoint);
+                    err_msg2(ERROR__MISSING_OPEN,".macro' or '.segment", &epoint);
                     goto breakerr;
                 }
                 break;
@@ -2017,7 +2018,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         retval = get_vals_tuple();
                     }
                 } else {
-                    err_msg2(ERROR______EXPECTED,".function", &epoint);
+                    err_msg2(ERROR__MISSING_OPEN,".function", &epoint);
                     goto breakerr;
                 }
                 break;
@@ -2028,18 +2029,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 } else if (waitfor->what == W_NEXT2) {
                     retval = (Obj *)true_value; /* anything non-null */
                     nobreak = false;
-                } else err_msg2(ERROR______EXPECTED,".for or .rept", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".for' or '.rept", &epoint);
                 break;
             case CMD_PEND: /* .pend */
                 if (waitfor->what==W_PEND) {
                     if ((waitfor->skip & 1) != 0) {
                         listing_line(listing, epoint.pos);
-                        if (pop_context()) err_msg2(ERROR______EXPECTED,".proc", &epoint);
+                        if (pop_context()) err_msg2(ERROR__MISSING_OPEN,".proc", &epoint);
                         if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     }
                     close_waitfor(W_PEND);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
-                } else err_msg2(ERROR______EXPECTED,".proc", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".proc", &epoint);
                 break;
             case CMD_ENDS: /* .ends */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
@@ -2059,7 +2060,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                err_msg2(ERROR______EXPECTED,".struct", &epoint);
+                err_msg2(ERROR__MISSING_OPEN,".struct", &epoint);
                 goto breakerr;
             case CMD_SEND: /* .send */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
@@ -2083,7 +2084,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     current_section = waitfor->section;
                     close_waitfor(W_SEND2);
-                } else {err_msg2(ERROR______EXPECTED,".section", &epoint);goto breakerr;}
+                } else {err_msg2(ERROR__MISSING_OPEN,".section", &epoint);goto breakerr;}
                 break;
             case CMD_ENDU: /* .endu */
                 if (diagnostics.optimize) cpu_opt_invalidate();
@@ -2102,7 +2103,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         current_section->address = current_section->unionend;
                         memjmp(&current_section->mem, current_section->address);
                     }
-                } else err_msg2(ERROR______EXPECTED,".union", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".union", &epoint);
                 break;
             case CMD_ENDP: /* .endp */
                 if (diagnostics.optimize) cpu_opt_invalidate();
@@ -2115,7 +2116,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_ENDP2);
-                } else err_msg2(ERROR______EXPECTED,".page", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".page", &epoint);
                 break;
             case CMD_HERE: /* .here */
                 if (diagnostics.optimize) cpu_opt_invalidate();
@@ -2124,16 +2125,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 } else if (waitfor->what==W_HERE2) {
                     logical_close(&epoint);
                     close_waitfor(W_HERE2);
-                } else err_msg2(ERROR______EXPECTED,".logical", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".logical", &epoint);
                 break;
             case CMD_BEND: /* .bend */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_BEND)) {
                 } else if (waitfor->what==W_BEND2) {
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
-                    if (pop_context()) err_msg2(ERROR______EXPECTED,".block", &epoint);
+                    if (pop_context()) err_msg2(ERROR__MISSING_OPEN,".block", &epoint);
                     close_waitfor(W_BEND2);
-                } else err_msg2(ERROR______EXPECTED,".block", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".block", &epoint);
                 break;
             case CMD_ENDWEAK: /* .endweak */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
@@ -2142,7 +2143,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_WEAK2);
                     strength--;
-                } else err_msg2(ERROR______EXPECTED,".weak", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN,".weak", &epoint);
                 break;
             case CMD_END: /* .end */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
@@ -3152,7 +3153,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             break;
                         }
                     }
-                    if (nok) err_msg2(ERROR______EXPECTED,".for or .rept", &epoint);
+                    if (nok) err_msg2(ERROR__MISSING_LOOP, NULL, &epoint);
                 }
                 break;
             case CMD_PAGE: if ((waitfor->skip & 1) != 0)
@@ -3208,7 +3209,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             default:
                                 msg = check_waitfor();
                                 if (msg != NULL) {
-                                    err_msg2(ERROR______EXPECTED, msg, &waitfor->epoint);
+                                    err_msg2(ERROR_MISSING_CLOSE, msg, &waitfor->epoint);
                                     noerr = false;
                                 }
                             }
@@ -3580,7 +3581,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 case 'b': w = 0;break;
                                 case 'w': w = 1;break;
                                 case 'l': w = 2;break;
-                                default:err_msg2(ERROR______EXPECTED, "@b or @w or @l", &lpoint);goto breakerr;
+                                default:err_msg2(ERROR______EXPECTED, "'@b' or '@w' or '@l'", &lpoint);goto breakerr;
                                 }
                                 lpoint.pos += 2;
                             }
@@ -3638,7 +3639,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 
     while (oldwaitforp < waitfor_p) {
         const char *msg = check_waitfor();
-        if (msg != NULL) err_msg2(ERROR______EXPECTED, msg, &waitfor->epoint);
+        if (msg != NULL) err_msg2(ERROR_MISSING_CLOSE, msg, &waitfor->epoint);
         close_waitfor(waitfor->what);
     }
     return retval;

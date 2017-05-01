@@ -3378,7 +3378,7 @@ use relative path for '?'
 
 Errors
 
-? expected
+'?' expected
     something is missing
 address in different program bank
     this instruction is only limited to access the current bank
@@ -3413,6 +3413,8 @@ can't get sign of type '?'
     this type does not have a sign as it's not a number
 can't get size of type '?'
     this type has no size
+closing/opening directive '?' not found
+    couldn't find the other half of block directive pair
 conflict
     at least one feature is provided, which shouldn't be there
 division by zero
@@ -3459,6 +3461,8 @@ more than two characters
     no more than two characters are allowed
 most significant bit must be clear in byte
     for .shift and .shiftl only 7 bit "bytes" are valid
+must be within a '.for' or '.rept' loop
+    .break or .continue must be used within a loop
 negative number raised on fractional power
     can't calculate this
 no ? addressing mode for opcode

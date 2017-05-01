@@ -3755,7 +3755,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl class="errorlist">
-<dt>? expected<dd>something is missing
+<dt>'?' expected<dd>something is missing
 <dt>address in different program bank<dd>this instruction is only limited to access the current bank
 <dt>address not in processor address space<dd>value larger than current CPU address space
 <dt>address out of section<dd>moving the address around is fine as long as it does not end up before the start of the section
@@ -3772,6 +3772,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>can't get length of type '?'<dd>this type has no length
 <dt>can't get sign of type '?'<dd>this type does not have a sign as it's not a number
 <dt>can't get size of type '?'<dd>this type has no size
+<dt>closing/opening directive '?' not found<dd>couldn't find the other half of block directive pair
 <dt>conflict<dd>at least one feature is provided, which shouldn't be there
 <dt>division by zero<dd>dividing with zero can't be done
 <dt>double defined escape<dd>escape sequence already defined in another .edef differently
@@ -3794,6 +3795,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>more than a single character<dd>no more than a single character is allowed
 <dt>more than two characters<dd>no more than two characters are allowed
 <dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
+<dt>must be within a '.for' or '.rept' loop<dd>.break or .continue must be used within a loop
 <dt>negative number raised on fractional power<dd>can't calculate this
 <dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this instruction
 <dt>not a bank 0 address<dd>value must be a bank zero address
