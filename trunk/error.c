@@ -205,7 +205,7 @@ static void adderror(const char *s) {
     adderror2((const uint8_t *)s, strlen(s));
 }
 
-static const char *terr_warning[] = {
+static const char * const terr_warning[] = {
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
@@ -224,7 +224,7 @@ static const char *terr_warning[] = {
     "use relative path for '"
 };
 
-static const char *terr_error[] = {
+static const char * const terr_error[] = {
     "double defined range",
     "double defined escape",
     "extra characters on line",
@@ -279,7 +279,7 @@ static const char *terr_error[] = {
     "empty encoding, add something or correct name"
 };
 
-static const char *terr_fatal[] = {
+static const char * const terr_fatal[] = {
     "can't open file",
     "error reading file",
     "can't write object file",
