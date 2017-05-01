@@ -1162,11 +1162,12 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
     uint8_t s2[10];
     size_t n, i = 0;
     ssize_t l;
+    int err = errno;
 
 #ifdef _WIN32
     setlocale(LC_ALL, "");
 #endif
-    s = strerror(errno);
+    s = strerror(err);
     n = strlen(s);
 
     new_error_msg(SV_FATAL, current_file_list, epoint);
