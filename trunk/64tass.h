@@ -23,10 +23,10 @@
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION
-#define REVISION "1237?"
+#define REVISION "1514?"
 #endif
 #undef VERSION
-#define VERSION "1.52." REVISION
+#define VERSION "1.53." REVISION
 #define MAX_PASS 20
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
