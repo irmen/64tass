@@ -839,6 +839,38 @@ const struct cpu_s c4510 = {
 
 const char *reg_names = "axysdrizbkp";
 
+const char * const addr_modes[ADR_LEN] = {
+    "a",      /* ADR_REG */
+    " ",      /* ADR_IMPLIED */
+    " ",      /* ADR_IMMEDIATE */
+    " ",      /* ADR_LONG */
+    " ",      /* ADR_ADDR */
+    " ",      /* ADR_ZP */
+    " ,x",    /* ADR_LONG_X */
+    " ,x",    /* ADR_ADDR_X */
+    " ,x",    /* ADR_ZP_X */
+    "(,x)",   /* ADR_ADDR_X_I */
+    "(,x)",   /* ADR_ZP_X_I */
+    " ,s",    /* ADR_ZP_S */
+    "(,s),y", /* ADR_ZP_S_I_Y */
+    " ,y",    /* ADR_ADDR_Y */
+    " ,y",    /* ADR_ZP_Y */
+    "[],y",   /* ADR_ZP_LI_Y */
+    "(),y",   /* ADR_ZP_I_Y */
+    "(),z",   /* ADR_ZP_I_Z */
+    "[]",     /* ADR_ADDR_LI */
+    "[]",     /* ADR_ZP_LI */
+    "()",     /* ADR_ADDR_I */
+    "()",     /* ADR_ZP_I */
+    " ",      /* ADR_REL_L */
+    " ",      /* ADR_REL */
+    " ",      /* ADR_MOVE */
+    " ,r",    /* ADR_ZP_R */
+    "(,r),y", /* ADR_ZP_R_I_Y */
+    " ",      /* ADR_BIT_ZP */
+    " ",      /* ADR_BIT_ZP_REL */
+};
+
 const uint8_t regopcode_table[][REG_LEN] = {
     { ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____ }, /* ___ */
     { 0x0A, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____ }, /* ASL, SHL */
