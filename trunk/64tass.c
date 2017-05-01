@@ -2109,12 +2109,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     mark_mem(&current_section->mem, current_section->address, star);
                     poke_pos = &epoint;
+
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2 = -2;
                         struct values_s *vs;
                         if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
+                        if (here() == 0 || here() == ';') { err_msg_argnum(0, 1, 0, &epoint); goto breakerr; }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
@@ -2162,6 +2164,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             ((Code *)newlabel->value)->dtype = dtype;
                         }
+                        if (here() == 0 || here() == ';') { err_msg_argnum(0, 1, 0, &epoint); goto breakerr; }
                         switch (prm) {
                         case CMD_CHAR: bits = -8; break;
                         case CMD_SINT: bits = -16; break;
