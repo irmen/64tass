@@ -276,7 +276,10 @@ static const char * const terr_error[] = {
     "not a bank 0 address",
     "out of memory",
     "addressing mode too complex",
-    "empty encoding, add something or correct name"
+    "empty encoding, add something or correct name",
+    "closing directive '",
+    "opening directive '",
+    "must be within a '.for' or '.rept' loop"
 };
 
 static const char * const terr_fatal[] = {
@@ -436,6 +439,12 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR______EXPECTED:
             adderror((const char *)prm);
             adderror(" expected");
+            break;
+        case ERROR__MISSING_OPEN:
+        case ERROR_MISSING_CLOSE:
+            adderror(terr_error[no - 0x40]);
+            adderror((const char *)prm);
+            adderror("' not found");
             break;
         case ERROR___NOT_ALLOWED:
             adderror("not allowed here: ");
