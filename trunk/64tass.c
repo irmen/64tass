@@ -727,6 +727,93 @@ static bool instrecursion(List *val, int prm, unsigned int w, linepos_t epoint, 
     return was;
 }
 
+static void logical_close(linepos_t epoint) {
+    current_section->l_address.address = (waitfor->laddr.address + current_section->address - waitfor->addr) & 0xffff;
+    if (current_section->address > waitfor->addr) {
+        if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
+    }
+    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~(address_t)0xffff)) & all_mem;
+    if (current_section->l_address.bank > all_mem) {
+        current_section->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint);
+    }
+    val_destroy(current_section->l_address_val);
+    current_section->l_address_val = waitfor->val; waitfor->val = NULL;
+    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+    current_section->logicalrecursion--;
+}
+
+static void union_close(linepos_t epoint) {
+    current_section->l_address = current_section->l_unionend;
+    if (current_section->l_address.bank > all_mem) {
+        current_section->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint);
+    }
+    if (current_section->address != current_section->unionend) {
+        current_section->address = current_section->unionend;
+        memjmp(&current_section->mem, current_section->address);
+    }
+    current_section->unionmode = waitfor->breakout;
+    current_section->unionstart = waitfor->addr; current_section->unionend = waitfor->addr2;
+    current_section->l_unionstart = waitfor->laddr; current_section->l_unionend = waitfor->laddr2;
+}
+
+static const char *check_waitfor(void) {
+    switch (waitfor->what) {
+    case W_FI2:
+    case W_FI: return ".fi";
+    case W_SWITCH2:
+    case W_SWITCH: return ".endswitch";
+    case W_WEAK2:
+        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+        strength--;
+        /* fall through */
+    case W_WEAK: return ".endweak";
+    case W_ENDP2:
+        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+        /* fall through */
+    case W_ENDP: return ".endp";
+    case W_ENDM2:
+    case W_ENDM: return ".endm";
+    case W_ENDF2:
+    case W_ENDF: return ".endf";
+    case W_NEXT: return ".next";
+    case W_PEND: 
+        if ((waitfor->skip & 1) != 0) {
+            pop_context();
+            if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+        }
+        return ".pend"; 
+    case W_BEND2:
+        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+        pop_context();
+        /* fall through */
+    case W_BEND: return ".bend";
+    case W_ENDC: return ".endc";
+    case W_ENDS:
+        if ((waitfor->skip & 1) != 0) current_section->unionmode = waitfor->breakout;
+        /* fall through */
+    case W_ENDS2: return ".ends";
+    case W_SEND2:
+        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+        current_section = waitfor->section;
+        /* fall through */
+    case W_SEND: return ".send";
+    case W_ENDU: 
+        if ((waitfor->skip & 1) != 0) union_close(NULL);
+        /* fall through */
+    case W_ENDU2: return ".endu";
+    case W_HERE2:
+        logical_close(NULL);
+        /* fall through */
+    case W_HERE: return ".here";
+    case W_NEXT2:
+    case W_NONE: 
+        break;
+    }
+    return NULL;
+}
+
 static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     uval_t uval;
     atype_t am;
@@ -2002,20 +2089,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if (diagnostics.optimize) cpu_opt_invalidate();
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (waitfor->what==W_ENDU) {
-                    if ((waitfor->skip & 1) != 0) {
-                        current_section->l_address = current_section->l_unionend;
-                        if (current_section->l_address.bank > all_mem) {
-                            current_section->l_address.bank &= all_mem;
-                            err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                        }
-                        if (current_section->address != current_section->unionend) {
-                            current_section->address = current_section->unionend;
-                            memjmp(&current_section->mem, current_section->address);
-                        }
-                        current_section->unionmode = waitfor->breakout;
-                        current_section->unionstart = waitfor->addr; current_section->unionend = waitfor->addr2;
-                        current_section->l_unionstart = waitfor->laddr; current_section->l_unionend = waitfor->laddr2;
-                    }
+                    if ((waitfor->skip & 1) != 0) union_close(&epoint);
                     close_waitfor(W_ENDU);
                 } else if (close_waitfor(W_ENDU2)) {
                     nobreak = false; 
@@ -2048,20 +2122,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_HERE)) {
                 } else if (waitfor->what==W_HERE2) {
-                    current_section->l_address.address = (waitfor->laddr.address + current_section->address - waitfor->addr) & 0xffff;
-                    if (current_section->address > waitfor->addr) {
-                        if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
-                    }
-                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~(address_t)0xffff)) & all_mem;
-                    if (current_section->l_address.bank > all_mem) {
-                        current_section->l_address.bank &= all_mem;
-                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                    }
-                    val_destroy(current_section->l_address_val);
-                    current_section->l_address_val = waitfor->val; waitfor->val = NULL;
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+                    logical_close(&epoint);
                     close_waitfor(W_HERE2);
-                    current_section->logicalrecursion--;
                 } else err_msg2(ERROR______EXPECTED,".logical", &epoint);
                 break;
             case CMD_BEND: /* .bend */
@@ -2076,7 +2138,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             case CMD_ENDWEAK: /* .endweak */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_WEAK)) {
-                    strength--;
                 } else if (waitfor->what==W_WEAK2) {
                     if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_WEAK2);
@@ -3139,39 +3200,17 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     lbl = (Lbl *)val;
                     if (lbl->file_list == cflist && lbl->parent == current_context) {
                         while (lbl->waitforp < waitfor_p) {
-                            const char *msg = NULL;
+                            const char *msg;
                             switch (waitfor->what) {
-                            case W_SWITCH2:
-                            case W_SWITCH: msg = ".endswitch"; break;
-                            case W_WEAK2:
-                            case W_WEAK: msg = ".endweak"; break;
-                            case W_ENDM2:
-                            case W_ENDM: msg = ".endm"; break;
-                            case W_ENDF2:
-                            case W_ENDF: msg = ".endf"; break;
-                            case W_NEXT: msg = ".next"; break;
-                            case W_PEND: msg = ".pend"; break;
-                            case W_BEND2:
-                            case W_BEND: msg = ".bend"; break;
-                            case W_ENDS2:
-                            case W_ENDS: msg = ".ends"; break;
-                            case W_SEND2:
-                            case W_SEND: msg = ".send"; break;
-                            case W_ENDU2:
-                            case W_ENDU: msg = ".endu"; break;
-                            case W_ENDP2:
-                            case W_ENDP: msg = ".endp"; break;
-                            case W_HERE2:
-                            case W_HERE: msg = ".here"; break;
-                            case W_ENDC: msg = ".endc"; break;
-                            case W_NONE:
-                            case W_NEXT2:
                             case W_FI:
-                            case W_FI2: break;
-                            }
-                            if (msg != NULL) {
-                                err_msg2(ERROR______EXPECTED, msg, &waitfor->epoint);
-                                noerr = false;
+                            case W_FI2: 
+                                break;
+                            default:
+                                msg = check_waitfor();
+                                if (msg != NULL) {
+                                    err_msg2(ERROR______EXPECTED, msg, &waitfor->epoint);
+                                    noerr = false;
+                                }
                             }
                             close_waitfor(waitfor->what);
                         }
@@ -3598,36 +3637,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
     }
 
     while (oldwaitforp < waitfor_p) {
-        const char *msg = NULL;
-        switch (waitfor->what) {
-        case W_FI2:
-        case W_FI: msg = ".fi"; break;
-        case W_SWITCH2:
-        case W_SWITCH: msg = ".endswitch"; break;
-        case W_WEAK2:
-        case W_WEAK: msg = ".endweak"; break;
-        case W_ENDP2:
-        case W_ENDP: msg = ".endp"; break;
-        case W_ENDM2:
-        case W_ENDM: msg = ".endm"; break;
-        case W_ENDF2:
-        case W_ENDF: msg = ".endf"; break;
-        case W_NEXT: msg = ".next"; break;
-        case W_PEND: msg = ".pend"; break;
-        case W_BEND2:
-        case W_BEND: msg = ".bend"; break;
-        case W_ENDC: msg = ".endc"; break;
-        case W_ENDS2:
-        case W_ENDS: msg = ".ends"; break;
-        case W_SEND2:
-        case W_SEND: msg = ".send"; break;
-        case W_ENDU2:
-        case W_ENDU: msg = ".endu"; break;
-        case W_HERE2:
-        case W_HERE: msg = ".here"; break;
-        case W_NEXT2:
-        case W_NONE: break;
-        }
+        const char *msg = check_waitfor();
         if (msg != NULL) err_msg2(ERROR______EXPECTED, msg, &waitfor->epoint);
         close_waitfor(waitfor->what);
     }
