@@ -320,10 +320,10 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_REG: return;
     case ADR_IMMEDIATE:
         switch (ln) {
-        default: ls->i--; return;
-        case 0: ls->s[ls->i++] = '#'; return;
-        case 1: ls->s[ls->i++] = '#'; out_byte(ls, adr); return;
-        case 2: ls->s[ls->i++] = '#'; out_word(ls, adr); return;
+        default: ls->i -= 2; return;
+        case 0: return;
+        case 1: out_byte(ls, adr); return;
+        case 2: out_word(ls, adr); return;
         }
     case ADR_ADDR: if (cod == 0x20 || cod == 0x4c) out_pb(ls, adr); else out_db(ls, adr); return;
     case ADR_BIT_ZP: out_bit(ls, cod, adr); return;

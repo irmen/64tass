@@ -842,7 +842,7 @@ const char *reg_names = "axysdrizbkp";
 const char * const addr_modes[ADR_LEN] = {
     "a",      /* ADR_REG */
     " ",      /* ADR_IMPLIED */
-    " ",      /* ADR_IMMEDIATE */
+    "#",      /* ADR_IMMEDIATE */
     " ",      /* ADR_LONG */
     " ",      /* ADR_ADDR */
     " ",      /* ADR_ZP */
