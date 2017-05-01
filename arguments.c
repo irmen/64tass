@@ -654,13 +654,15 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     }
     if (dash_name(arguments.output.name)) arguments.quiet = false;
     if (fin->lines != max_lines) {
-        fin->line = (size_t *)reallocx(fin->line, fin->lines * sizeof *fin->line);
+        size_t *d = (size_t *)realloc(fin->line, fin->lines * sizeof *fin->line);
+        if (fin->lines == 0 || d != NULL) fin->line = d;
     }
     closefile(fin);
     if (fp != fin->len) {
         fin->len = fp;
         if (fp != 0) {
-            fin->data = (uint8_t*)reallocx(fin->data, fp);
+            uint8_t *d = (uint8_t *)realloc(fin->data, fp);
+            if (d != NULL) fin->data = d;
         }
     }
     fin->encoding = E_UTF8;
