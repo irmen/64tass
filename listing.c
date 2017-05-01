@@ -300,7 +300,8 @@ static void printhex2(Listing *ls, unsigned int ln, const uint8_t *data) {
 }
 
 static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
-    const char *post = "";
+    const char *mode;
+    Adr_types type;
     uint32_t mnem;
 
     padding2(ls, ls->columns.monitor);
@@ -310,50 +311,53 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     ls->s[ls->i++] = (char)(mnem);
     ls->s[ls->i++] = ' ';
 
-    switch ((Adr_types)(ls->disasm[cod] >> 8)) {
-    case ADR_IMPLIED: ls->i--; break;
-    case ADR_REG: post = "a"; break;
+    type = (Adr_types)(ls->disasm[cod] >> 8);
+    mode = addr_modes[type];
+    if (*mode != ' ') ls->s[ls->i++] = *mode;
+    mode++;
+    switch (type) {
+    case ADR_IMPLIED: ls->i--; return;
+    case ADR_REG: return;
     case ADR_IMMEDIATE:
         switch (ln) {
-        default: ls->i--; break;
-        case 0: ls->s[ls->i++] = '#'; break;
-        case 1: ls->s[ls->i++] = '#'; out_byte(ls, adr); break;
-        case 2: ls->s[ls->i++] = '#'; out_word(ls, adr); break;
+        default: ls->i--; return;
+        case 0: ls->s[ls->i++] = '#'; return;
+        case 1: ls->s[ls->i++] = '#'; out_byte(ls, adr); return;
+        case 2: ls->s[ls->i++] = '#'; out_word(ls, adr); return;
         }
-        break;
-    case ADR_LONG: out_long(ls, adr); break;
-    case ADR_ADDR: if (cod == 0x20 || cod == 0x4c) out_pb(ls, adr); else out_db(ls, adr); break;
-    case ADR_ZP: out_zp(ls, adr); break;
-    case ADR_BIT_ZP: out_bit(ls, cod, adr); break;
-    case ADR_LONG_X: out_long(ls, adr); ls->s[ls->i++] = ','; ls->s[ls->i++] = 'x'; break;
-    case ADR_ADDR_X: out_db(ls, adr); post = ",x"; break;
-    case ADR_ZP_X: out_zp(ls, adr); post = ",x"; break;
-    case ADR_ADDR_X_I: ls->s[ls->i++] = '('; out_pb(ls, adr); ls->s[ls->i++] = ','; ls->s[ls->i++] = 'x'; ls->s[ls->i++] = ')'; break;
-    case ADR_ZP_X_I: ls->s[ls->i++] = '('; out_zp(ls, adr); post = ",x)"; break;
-    case ADR_ZP_S: out_byte(ls, adr); post = ",s"; break;
-    case ADR_ZP_S_I_Y: ls->s[ls->i++] = '('; out_byte(ls, adr); post = ",s),y"; break;
-    case ADR_ZP_R: out_byte(ls, adr); post = ",r"; break;
-    case ADR_ZP_R_I_Y: ls->s[ls->i++] = '('; out_byte(ls, adr); post = ",r),y"; break;
-    case ADR_ADDR_Y: out_db(ls, adr); post = ",y"; break;
-    case ADR_ZP_Y: out_zp(ls, adr); post = ",y"; break;
-    case ADR_ZP_LI_Y: ls->s[ls->i++] = '['; out_zp(ls, adr); post = "],y"; break;
-    case ADR_ZP_I_Y: ls->s[ls->i++] = '('; out_zp(ls, adr); post = "),y"; break;
-    case ADR_ZP_I_Z: ls->s[ls->i++] = '('; out_zp(ls, adr); post = "),z"; break;
-    case ADR_ADDR_LI: ls->s[ls->i++] = '['; out_word(ls, adr); post = "]"; break;
-    case ADR_ZP_LI: ls->s[ls->i++] = '['; out_zp(ls, adr); post = "]"; break;
-    case ADR_ADDR_I: ls->s[ls->i++] = '('; out_word(ls, adr); post = ")"; break;
-    case ADR_ZP_I: ls->s[ls->i++] = '('; out_zp(ls, adr); post = ")"; break;
-    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else ls->i--; break;
+    case ADR_ADDR: if (cod == 0x20 || cod == 0x4c) out_pb(ls, adr); else out_db(ls, adr); return;
+    case ADR_BIT_ZP: out_bit(ls, cod, adr); return;
+    case ADR_LONG:
+    case ADR_LONG_X: out_long(ls, adr); break;
+    case ADR_ADDR_X_I: out_pb(ls, adr); break;
+    case ADR_ZP_R:
+    case ADR_ZP_R_I_Y:
+    case ADR_ZP_S:
+    case ADR_ZP_S_I_Y: out_byte(ls, adr); break;
+    case ADR_ADDR_X:
+    case ADR_ADDR_Y: out_db(ls, adr); break;
+    case ADR_ZP:
+    case ADR_ZP_I:
+    case ADR_ZP_I_Y:
+    case ADR_ZP_I_Z:
+    case ADR_ZP_LI:
+    case ADR_ZP_LI_Y:
+    case ADR_ZP_X:
+    case ADR_ZP_X_I:
+    case ADR_ZP_Y: out_zp(ls, adr); break;
+    case ADR_ADDR_I:
+    case ADR_ADDR_LI: out_word(ls, adr); break;
+    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else ls->i--; return;
     case ADR_BIT_ZP_REL: 
         out_bit(ls, cod, adr);
         ls->s[ls->i++] = ',';
         out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_section->l_address.address));
-        break;
-    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_section->l_address.address); else ls->i--; break;
-    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; out_byte(ls, adr); break;
-    case ADR_LEN: break;/* not an addressing mode */
+        return;
+    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_section->l_address.address); else ls->i--; return;
+    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; out_byte(ls, adr); return;
+    case ADR_LEN: return;/* not an addressing mode */
     }
-    while (*post != 0) ls->s[ls->i++] = *post++;
+    while (*mode != 0) ls->s[ls->i++] = *mode++;
 }
 
 static void printsource(Listing *ls, linecpos_t pos) {

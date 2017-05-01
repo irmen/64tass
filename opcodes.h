@@ -46,6 +46,7 @@ struct cpu_s {
 };
 
 extern const char *reg_names;
+extern const char * const addr_modes[ADR_LEN];
 extern const uint8_t regopcode_table[][REG_LEN];
 extern const uint8_t opcode_table[][ADR_LEN];
 

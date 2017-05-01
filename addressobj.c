@@ -125,21 +125,29 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         buffer[ind2++] = ')';
     } else {
         while ((addrtype & MAX_ADDRESS_MASK) != 0) {
+            uint32_t mode;
             switch ((Address_types)((addrtype & 0xf000) >> 12)) {
-            case A_NONE:break;
-            case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
-            case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
-            case A_ZR: buffer[ind2++] = ','; buffer[ind2++] = 'z';break;
-            case A_SR: buffer[ind2++] = ','; buffer[ind2++] = 's';break;
-            case A_RR: buffer[ind2++] = ','; buffer[ind2++] = 'r';break;
-            case A_DR: buffer[ind2++] = ','; buffer[ind2++] = 'd';break;
-            case A_BR: buffer[ind2++] = ','; buffer[ind2++] = 'b';break;
-            case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
-            case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
-            case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
-            case A_IMMEDIATE_SIGNED: buffer2[--ind] = '+'; /* fall through */
-            case A_IMMEDIATE: buffer2[--ind] = '#';break;
+            case A_XR: mode = (',' << 16) + ('x' << 24);break;
+            case A_YR: mode = (',' << 16) + ('y' << 24);break;
+            case A_ZR: mode = (',' << 16) + ('z' << 24);break;
+            case A_SR: mode = (',' << 16) + ('s' << 24);break;
+            case A_RR: mode = (',' << 16) + ('r' << 24);break;
+            case A_DR: mode = (',' << 16) + ('d' << 24);break;
+            case A_BR: mode = (',' << 16) + ('b' << 24);break;
+            case A_KR: mode = (',' << 16) + ('k' << 24);break;
+            case A_I:  mode = ('(' << 8) + (')' << 16);break;
+            case A_LI: mode = ('[' << 8) + (']' << 16);break;
+            case A_IMMEDIATE_SIGNED: mode = ('#' << 8) + '+';break;
+            case A_IMMEDIATE: mode = '#' << 8;break;
+            default: mode = 0;
             }
+            if ((char)mode != '\0') buffer2[--ind] = (char)mode;
+            mode >>= 8;
+            if ((char)mode != '\0') buffer2[--ind] = (char)mode;
+            mode >>= 8;
+            if ((char)mode != '\0') buffer[ind2++] = (char)mode;
+            mode >>= 8;
+            if ((char)mode != '\0') buffer[ind2++] = (char)mode;
             addrtype <<= 4;
         }
     }
