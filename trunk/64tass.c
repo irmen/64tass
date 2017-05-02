@@ -814,6 +814,47 @@ static const char *check_waitfor(void) {
     return NULL;
 }
 
+static bool section_start(linepos_t epoint) {
+    struct section_s *tmp;
+    str_t sectionname;
+    struct linepos_s opoint;
+
+    new_waitfor(W_SEND, epoint);waitfor->section = current_section;
+    opoint = lpoint;
+    sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
+    if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); return true;}
+    if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", epoint); return true;}
+    tmp = find_new_section(&sectionname);
+    if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
+        tmp->end = tmp->start = tmp->restart = tmp->address = 0;
+        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
+        if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
+        else {
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &epoint);
+            fixeddig = false;
+        }
+        tmp->defpass = pass - 1;
+        restart_memblocks(&tmp->mem, tmp->address);
+        if (diagnostics.optimize) cpu_opt_invalidate();
+    } else if (tmp->usepass != pass) {
+        if (!tmp->moved) {
+            if (tmp->end < tmp->address) tmp->end = tmp->address;
+            tmp->moved = true;
+        }
+        tmp->size = tmp->end - tmp->start;
+        tmp->end = tmp->start = tmp->restart;
+        tmp->wrapwarn = false;
+        tmp->address = tmp->restart;
+        tmp->l_address = tmp->l_restart;
+        restart_memblocks(&tmp->mem, tmp->address);
+        if (diagnostics.optimize) cpu_opt_invalidate();
+    }
+    tmp->usepass = pass;
+    waitfor->what = W_SEND2;
+    current_section = tmp;
+    return false;
+}
+
 static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     uval_t uval;
     atype_t am;
@@ -1523,43 +1564,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         goto breakerr;
                     }
                 case CMD_SECTION:
-                    {
-                        struct section_s *tmp;
-                        str_t sectionname;
-                        struct linepos_s opoint;
-                        new_waitfor(W_SEND, &cmdpoint);waitfor->section = current_section;
-                        opoint = lpoint;
-                        sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
-                        if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
-                        if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", &epoint); goto breakerr;}
-                        tmp = find_new_section(&sectionname);
-                        if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
-                            tmp->end = tmp->start = tmp->restart = tmp->address = 0;
-                            tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
-                            if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
-                            else if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &opoint);
-                            fixeddig = false;
-                            tmp->defpass = pass - 1;
-                            restart_memblocks(&tmp->mem, tmp->address);
-                            if (diagnostics.optimize) cpu_opt_invalidate();
-                        } else if (tmp->usepass != pass) {
-                            if (!tmp->moved) {
-                                if (tmp->end < tmp->address) tmp->end = tmp->address;
-                                tmp->moved = true;
-                            }
-                            tmp->size = tmp->end - tmp->start;
-                            tmp->end = tmp->start = tmp->restart;
-                            tmp->wrapwarn = false;
-                            tmp->address = tmp->restart;
-                            tmp->l_address = tmp->l_restart;
-                            restart_memblocks(&tmp->mem, tmp->address);
-                            if (diagnostics.optimize) cpu_opt_invalidate();
-                        }
-                        tmp->usepass = pass;
-                        waitfor->what = W_SEND2;
-                        current_section = tmp; star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
-                        break;
-                    }
+                    if (section_start(&cmdpoint)) goto breakerr;
+                    star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                    break;
                 }
                 break;
             }
@@ -3407,40 +3414,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 break;
             case CMD_SECTION: if ((waitfor->skip & 1) != 0)
                 { /* .section */
-                    struct section_s *tmp;
-                    str_t sectionname;
                     listing_line(listing, 0);
-                    new_waitfor(W_SEND, &epoint);waitfor->section = current_section;
-                    epoint = lpoint;
-                    sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
-                    if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", &epoint); goto breakerr;}
-                    tmp = find_new_section(&sectionname);
-                    if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
-                        tmp->end = tmp->start = tmp->restart = tmp->address = 0;
-                        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
-                        if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &epoint);
-                        else if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &epoint);
-                        fixeddig = false;
-                        tmp->defpass = pass - 1;
-                        restart_memblocks(&tmp->mem, tmp->address);
-                        if (diagnostics.optimize) cpu_opt_invalidate();
-                    } else if (tmp->usepass != pass) {
-                        if (!tmp->moved) {
-                            if (tmp->end < tmp->address) tmp->end = tmp->address;
-                            tmp->moved = true;
-                        }
-                        tmp->size = tmp->end - tmp->start;
-                        tmp->end = tmp->start = tmp->restart;
-                        tmp->wrapwarn = false;
-                        tmp->address = tmp->restart;
-                        tmp->l_address = tmp->l_restart;
-                        restart_memblocks(&tmp->mem, tmp->address);
-                        if (diagnostics.optimize) cpu_opt_invalidate();
-                    }
-                    tmp->usepass = pass;
-                    waitfor->what = W_SEND2;
-                    current_section = tmp;
+                    if (section_start(&epoint)) goto breakerr;
                 } else new_waitfor(W_SEND, &epoint);
                 break;
             case lenof(command):
