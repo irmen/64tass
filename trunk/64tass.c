@@ -830,7 +830,7 @@ static bool section_start(linepos_t epoint) {
         tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
         if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
         else {
-            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &epoint);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, epoint);
             fixeddig = false;
         }
         tmp->defpass = pass - 1;
