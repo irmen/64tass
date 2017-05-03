@@ -89,7 +89,7 @@ static uint8_t strength = 0;
 bool fixeddig, constcreated;
 unsigned int outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 bool referenceit = true;
-const struct cpu_s *cpu;
+const struct cpu_s *current_cpu;
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
@@ -446,7 +446,7 @@ static int get_command(void) {
 /* ------------------------------------------------------------------------------ */
 
 static void set_cpumode(const struct cpu_s *cpumode) {
-    cpu = cpumode;
+    current_cpu = cpumode;
     all_mem = cpumode->max_address;
     all_mem_bits = (all_mem == 0xffff) ? 16 : 24;
     select_opcodes(cpumode);
@@ -3574,7 +3574,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     } else err = instruction(prm, w, val, &epoint, epoints);
                     val_destroy(val);
                     if (err == NULL) {
-                        if (diagnostics.alias && cpu->mnemonic[prm] != cpu->mnemonic[cpu->alias[prm]]) err_msg_alias(cpu->mnemonic[prm], cpu->mnemonic[cpu->alias[prm]], &epoint);
+                        if (diagnostics.alias && current_cpu->mnemonic[prm] != current_cpu->mnemonic[current_cpu->alias[prm]]) err_msg_alias(current_cpu->mnemonic[prm], current_cpu->mnemonic[current_cpu->alias[prm]], &epoint);
                         break;
                     }
                     tmp2 = find_label(&opname, NULL);

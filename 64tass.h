@@ -53,7 +53,7 @@ extern uint16_t reffile, curfile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
-extern const struct cpu_s *cpu;
+extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
 extern struct Obj *compile(struct file_list_s *);
 extern FAST_CALL void pokeb(unsigned int);

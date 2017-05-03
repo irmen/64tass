@@ -167,7 +167,7 @@ opt_bit.o: opt_bit.c opt_bit.h stdbool.h attributes.h error.h errors_e.h \
  avl.h obj.h inttypes.h str.h
 optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
  attributes.h errors_e.h avl.h obj.h str.h section.h mem.h opcodes.h \
- opt_bit.h
+ opt_bit.h macro.h wait_e.h 64tass.h
 registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
  stdbool.h error.h errors_e.h avl.h str.h eval.h variables.h values.h \
  boolobj.h strobj.h intobj.h operobj.h typeobj.h noneobj.h errorobj.h
