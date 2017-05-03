@@ -3019,6 +3019,9 @@ default, the others are disabled.
     -Wunused-variable
         Warn about unused variables.
 
+    Symbols which appear in a default 64tass symbol list file and their root
+    symbols are treated as used for exporting purposes.
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
