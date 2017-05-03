@@ -28,6 +28,8 @@ struct file_s;
 struct Namespace;
 struct Mfunc;
 
+extern bool in_macro;
+
 extern bool mtranslate(struct file_s *);
 extern Obj *macro_recurse(Wait_types, Obj *, struct Namespace *, linepos_t);
 extern Obj *mfunc_recurse(Wait_types, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
@@ -36,5 +38,4 @@ extern void init_macro(void);
 extern void free_macro(void);
 extern void get_macro_params(Obj *);
 extern void get_func_params(struct Mfunc *, struct file_s *);
-extern bool in_macro(void);
 #endif

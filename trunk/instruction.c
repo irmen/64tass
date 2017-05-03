@@ -460,7 +460,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             lj->defpass = pass;
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                             cpu_opt_long_branch(0xea);
-                            err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
+                            err = instruction((current_cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? current_cpu->brl : current_cpu->jmp, w, vals, epoint, epoints);
                             cpu_opt_long_branch(0);
                             goto branchend;
                         }
@@ -486,15 +486,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             lj->defpass = pass;
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                             cpu_opt_long_branch(0xea);
-                            err = instruction(cpu->jmp, w, val, epoint, epoints);
+                            err = instruction(current_cpu->jmp, w, val, epoint, epoints);
                             cpu_opt_long_branch(0);
                             goto branchend;
                         } else {/* bra */
-                            if (cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
+                            if (current_cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
                             asbrl:
                                 if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
-                                err = instruction(cpu->brl, w, vals, epoint, epoints);
+                                err = instruction(current_cpu->brl, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
                                 goto branchend;
                             } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
@@ -506,7 +506,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             asjmp:
                                 if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint);
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
-                                err = instruction(cpu->jmp, w, vals, epoint, epoints);
+                                err = instruction(current_cpu->jmp, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
                             branchend:
                                 if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
@@ -518,7 +518,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             }
                         }
                     } else if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
-                        if (cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
+                        if (current_cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
                         goto asjmp; /* gcc -> jmp */
                     } else { /* too long */
                         if (crossbank) {

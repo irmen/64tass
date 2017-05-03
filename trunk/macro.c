@@ -53,14 +53,11 @@ struct macro_params_s {
 };
 
 static struct {
-    bool inmacro;
     size_t p, len;
     struct macro_params_s *params, *current;
-} macro_parameters = {false, 0, 0, NULL, NULL};
+} macro_parameters = {0, 0, NULL, NULL};
 
-bool in_macro(void) {
-    return macro_parameters.inmacro;
-}
+bool in_macro;
 
 /* ------------------------------------------------------------------------------ */
 bool mtranslate(struct file_s *cfile) {
@@ -72,7 +69,7 @@ bool mtranslate(struct file_s *cfile) {
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
-    if (!macro_parameters.inmacro) return false;
+    if (!in_macro) return false;
     mline = &macro_parameters.current->pline;
 
     q = p = 0;
@@ -227,7 +224,7 @@ static size_t macro_param_find(void) {
 }
 
 Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint) {
-    bool inmacro;
+    bool in_macro_old;
     Obj *val;
     Macro *macro = (Macro *)tmp2;
     if (macro_parameters.p > 100) {
@@ -249,8 +246,8 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     macro_parameters.current = &macro_parameters.params[macro_parameters.p];
     macro_parameters.current->macro = val_reference(&macro->v);
     macro_parameters.p++;
-    inmacro = macro_parameters.inmacro;
-    macro_parameters.inmacro = true;
+    in_macro_old = in_macro;
+    in_macro = true;
     {
         struct linepos_s opoint, npoint;
         size_t p = 0;
@@ -322,7 +319,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     }
     val_destroy(macro_parameters.current->macro);
     macro_parameters.p--;
-    macro_parameters.inmacro = inmacro;
+    in_macro = in_macro_old;
     if (macro_parameters.p != 0) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
     return val;
 }
@@ -393,8 +390,8 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         line_t ovline = vline;
         struct file_list_s *cflist;
         size_t oldbottom;
-        bool inmacro = macro_parameters.inmacro;
-        macro_parameters.inmacro = false;
+        bool in_macro_old = in_macro;
+        in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -423,7 +420,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
-        macro_parameters.inmacro = inmacro;
+        in_macro = in_macro_old;
     }
     return val;
 }
@@ -636,8 +633,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
         size_t oldbottom;
-        bool inmacro = macro_parameters.inmacro;
-        macro_parameters.inmacro = false;
+        bool in_macro_old = in_macro;
+        in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -680,7 +677,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         llist = ollist;
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
-        macro_parameters.inmacro = inmacro;
+        in_macro = in_macro_old;
     }
     exitfile();
     val_destroy(&context->v);
@@ -691,7 +688,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
 
 void init_macro(void) {
     macro_parameters.p = 0;
-    macro_parameters.inmacro = false;
+    in_macro = false;
     functionrecursion = 0;
 }
 
