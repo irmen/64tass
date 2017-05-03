@@ -350,32 +350,32 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     return avltree_container_of(b, struct namespacekey_s, node)->key;            /* already exists */
 }
 
+static Namespace *get_space(const Obj *o) {
+    switch (o->obj->type) {
+    case T_CODE:
+        return ((Code *)o)->names;
+    case T_UNION:
+    case T_STRUCT:
+        return ((Struct *)o)->names;
+    case T_NAMESPACE:
+        return (Namespace *)o;
+    default: 
+        return NULL;
+    }
+}
+
 void shadow_check(Namespace *members) {
     const struct avltree_node *n;
 
     for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
         const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
         Label *key2 = l->key;
-        Obj *o  = key2->value;
         Namespace *ns;
 
         if (key2->defpass != pass) continue;
 
-        switch (o->obj->type) {
-        case T_CODE:
-            ns = ((Code *)o)->names;
-            break;
-        case T_UNION:
-        case T_STRUCT:
-            ns = ((Struct *)o)->names;
-            break;
-        case T_NAMESPACE:
-            ns = (Namespace *)o;
-            break;
-        default: 
-            ns = NULL;
-            break;
-        }
+        ns = get_space(key2->value);
+
         if (ns != NULL && ns->len != 0 && key2->owner) {
             size_t ln = ns->len;
             ns->len = 0;
@@ -597,7 +597,6 @@ static void labeldump(Namespace *members, FILE *flab) {
     for (n = avltree_first(&members->members); n != NULL; n = avltree_next(n)) {
         const struct namespacekey_s *l = cavltree_container_of(n, struct namespacekey_s, node);
         Label *l2 = l->key;
-        Obj *o  = l2->value;
         Namespace *ns;
 
         if (l2->name.len < 2 || l2->name.data[1] != 0) {
@@ -617,21 +616,7 @@ static void labeldump(Namespace *members, FILE *flab) {
             }
         }
 
-        switch (o->obj->type) {
-        case T_CODE:
-            ns = ((Code *)o)->names;
-            break;
-        case T_UNION:
-        case T_STRUCT:
-            ns = ((Struct *)o)->names;
-            break;
-        case T_NAMESPACE:
-            ns = (Namespace *)o;
-            break;
-        default: 
-            ns = NULL;
-            break;
-        }
+        ns = get_space(l2->value);
 
         if (ns != NULL && ns->len != 0 && l2->owner) {
             if (l2->name.len < 2 || l2->name.data[1] != 0) {
@@ -646,12 +631,40 @@ static void labeldump(Namespace *members, FILE *flab) {
     }
 }
 
+static Namespace *find_space(const char *here, bool use) {
+    Namespace *space;
+    str_t labelname;
+    Label *l;
+
+    space = root_namespace;
+    if (here == NULL) return space;
+
+    pline = (const uint8_t *)here;
+    lpoint.pos = 0;
+    do {
+        labelname.data = pline + lpoint.pos; labelname.len = get_label();
+        if (labelname.len == 0) return NULL;
+        l = find_label2(&labelname, space);
+        if (l == NULL) return NULL;
+        space = get_space(l->value);
+        if (space == NULL) return NULL;
+        lpoint.pos++;
+    } while (labelname.data[labelname.len] == '.');
+
+    if (use) {
+        l->usepass = pass;
+        l->ref = true;
+        l->unused = false;
+    }
+    return space;
+}
+
 bool labelprint(const struct symbol_output_s *output, bool append) {
     bool oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
-    struct Namespace *space;
+    Namespace *space;
 
     flab = dash_name(output->name) ? stdout : file_open(output->name, append ? "at" : "wt");
     if (flab == NULL) {
@@ -662,49 +675,16 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
     referenceit = false;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
-    space = root_namespace;
-    if (output->space != NULL) {
+    space = find_space(output->space, false);
+    if (space == NULL) {
         str_t labelname;
-        Label *l;
-        pline = (const uint8_t *)output->space;
-        lpoint.pos = 0;
-        do {
-            labelname.data = pline + lpoint.pos; labelname.len = get_label();
-            l = find_label2(&labelname, space);
-            if (l != NULL) {
-                Obj *o  = l->value;
-                switch (o->obj->type) {
-                case T_CODE:
-                    space = ((Code *)o)->names;
-                    break;
-                case T_UNION:
-                case T_STRUCT:
-                    space = ((Struct *)o)->names;
-                    break;
-                case T_NAMESPACE:
-                    space = (Namespace *)o;
-                    break;
-                default: 
-                    l = NULL;
-                    break;
-                }
-            }
-            if (l == NULL) {
-                labelname.data = pline;
-                labelname.len = lpoint.pos;
-                err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
-                space = NULL;
-                break;
-            }
-            lpoint.pos++;
-        } while (labelname.data[labelname.len] == '.');
-    }
-    if (space != NULL) {
-        if (output->mode == LABEL_DUMP) {
-            labeldump(space, flab);
-        } else {
-            labelprint2(&space->members, flab, output->mode);
-        }
+        labelname.data = pline;
+        labelname.len = lpoint.pos;
+        err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
+    } else if (output->mode == LABEL_DUMP) {
+        labeldump(space, flab);
+    } else {
+        labelprint2(&space->members, flab, output->mode);
     }
     free(label_stack.stack);
     referenceit = oldreferenceit;
@@ -715,6 +695,37 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
         return true;
     }
     return false;
+}
+
+void ref_labels(void) {
+    size_t j;
+    for (j = 0; j < arguments.symbol_output_len; j++) {
+        const struct symbol_output_s *output = &arguments.symbol_output[j];
+        Namespace *space;
+        struct avltree_node *n;
+
+        if (output->mode != LABEL_64TASS) continue;
+        space = find_space(output->space, true);
+        if (space == NULL) continue;
+
+        n = avltree_first(&space->members);
+        while (n != NULL) {
+            Label *l = find_strongest_label(&n, label_compare);            /* already exists */
+            if (l == NULL || l->name.data == NULL) continue;
+            if (l->name.len > 1 && l->name.data[1] == 0) continue;
+            switch (l->value->obj->type) {
+            case T_LBL:
+            case T_MACRO:
+            case T_SEGMENT:
+            case T_UNION:
+            case T_STRUCT: continue;
+            default:break;
+            }
+            l->ref = true;
+            l->usepass = pass;
+            l->unused = false;
+        }
+    }
 }
 
 void new_builtin(const char *ident, Obj *val) {

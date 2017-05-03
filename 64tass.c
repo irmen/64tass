@@ -3696,6 +3696,7 @@ static int main2(int *argc2, char **argv2[]) {
                 exitfile();
             }
         }
+        ref_labels();
         /*garbage_collect();*/
     } while (!fixeddig || constcreated);
     if (arguments.list == NULL) {
@@ -3751,6 +3752,7 @@ static int main2(int *argc2, char **argv2[]) {
                 exitfile();
             }
         }
+        ref_labels();
         /*garbage_collect();*/
         listing_close(listing);
         listing = NULL;
