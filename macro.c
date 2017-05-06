@@ -362,14 +362,17 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         if (labelexists) {
             if (label->constant) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
-                label->owner = false;
-                label->file_list = mfunc->file_list;
-                label->epoint = mfunc->param[i].epoint;
                 if (label->defpass != pass) {
                     label->ref = false;
                     label->defpass = pass;
+                } else {
+                    if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                 }
+                label->owner = false;
+                label->file_list = mfunc->file_list;
+                label->epoint = mfunc->param[i].epoint;
                 val_replace(&label->value, val);
+                label->usepass = 0;
             }
         } else {
             label->constant = false;
