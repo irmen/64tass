@@ -646,7 +646,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 memcpy(tmp, line + i, ln);
                 tmp[ln] = 0;
                 if (swprintf(tmp2, lenof(tmp2), L"%S", tmp) > 0) {
-                    int width = wcwidth(ch);
+                    int width = wcwidth_v9(ch);
                     if (width > 0) l += (unsigned int)width;
                     i += ln;
                     continue;
@@ -660,7 +660,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 mbstate_t ps;
                 memset(&ps, 0, sizeof ps);
                 if (wcrtomb(temp, (wchar_t)ch, &ps) != (size_t)-1) {
-                    int width = wcwidth(ch);
+                    int width = wcwidth_v9(ch);
                     if (width > 0) l += (unsigned int)width;
                     continue;
                 }

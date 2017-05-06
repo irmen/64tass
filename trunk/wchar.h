@@ -42,8 +42,6 @@ extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
 #endif
 
-#ifndef _XOPEN_SOURCE
-extern int wcwidth(uchar_t);
-#endif
+extern int wcwidth_v9(uchar_t);
 
 #endif
