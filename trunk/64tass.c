@@ -1162,6 +1162,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                     val = label->value;
+                    label->usepass = 0;
                 }
                 if (here() == 0 || here() == ';') val2 = (Obj *)ref_addrlist(null_addrlist);
                 else {
@@ -3089,7 +3090,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                         label->owner = false;
                                         label->file_list = cflist;
                                         label->epoint = epoint;
-                                        label->usepass = 0;
                                     } else {
                                         label->constant = false;
                                         label->owner = false;
@@ -3134,6 +3134,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             val_destroy(label->value);
                             label->value = val;
+                            label->usepass = 0;
                         }
                     }
                     if (nf != NULL) {
