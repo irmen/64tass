@@ -1072,6 +1072,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint); 
                         goto breakerr;
                     }
+                    tmp2->usepass = pass; /* touch_label(tmp2) */
                     if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_msg_symbol_case(&labelname, tmp2, &epoint);
                     mycontext = ((Code *)val)->names;
                 }
@@ -1097,7 +1098,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
             while (wht != 0 && !arguments.tasmcomp) {
                 Label *label;
-                bool oldreferenceit;
                 struct oper_s tmp;
                 Obj *result2, *val2;
                 struct linepos_s epoint2, epoint3;
@@ -1128,7 +1128,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 else if (labelname.data[0] == '+') {forwr--;((struct anonident_s *)labelname.data)->count--;}
                 ignore();
                 epoint2 = lpoint;
-                oldreferenceit = referenceit;
                 if (labelname.data[0] == '*') {
                     label = NULL;
                     if (diagnostics.optimize) cpu_opt_invalidate();
@@ -1167,6 +1166,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if (here() == 0 || here() == ';') val2 = (Obj *)ref_addrlist(null_addrlist);
                 else {
                     struct linepos_s epoints[3];
+                    bool oldreferenceit = referenceit;
                     referenceit &= 1; /* not good... */
                     if (!get_exp(0, cfile, 0, 0, NULL)) goto breakerr;
                     val2 = get_vals_addrlist(epoints);
@@ -1203,9 +1203,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     struct linepos_s epoints[3];
                     Label *label;
                     bool labelexists;
-                    bool oldreferenceit;
                 starassign:
-                    oldreferenceit = referenceit;
                     if (labelname.data[0] == '*') {
                         label = NULL;
                         if (diagnostics.optimize) cpu_opt_invalidate();
@@ -1215,6 +1213,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (here() == 0 || here() == ';') {
                         val = (Obj *)ref_addrlist(null_addrlist);
                     } else {
+                        bool oldreferenceit = referenceit;
                         if (label != NULL && !label->ref) {
                             referenceit = false;
                         }
@@ -1228,7 +1227,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (label != NULL) {
                         labelexists = true;
-                        label->unused = !label->ref;
                     } else label = new_label(&labelname, mycontext, strength, &labelexists);
                     oaddr = current_section->address;
                     listing_equal(listing, val);
@@ -1274,13 +1272,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     {
                         Label *label;
                         bool labelexists;
-                        bool oldreferenceit;
                     itsvar:
-                        oldreferenceit = referenceit;
                         label = find_label3(&labelname, mycontext, strength);
                         if (here() == 0 || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
                         else {
                             struct linepos_s epoints[3];
+                            bool oldreferenceit = referenceit;
                             referenceit &= 1; /* not good... */
                             if (!get_exp(0, cfile, 0, 0, NULL)) goto breakerr;
                             val = get_vals_addrlist(epoints);
@@ -1297,15 +1294,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 err_msg_double_defined(label, &labelname, &epoint);
                                 val_destroy(val);
                             } else {
-                                label->owner = false;
-                                label->file_list = cflist;
-                                label->epoint = epoint;
                                 if (label->defpass != pass) {
                                     label->ref = false;
                                     label->defpass = pass;
+                                } else {
+                                    if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                 }
+                                label->owner = false;
+                                label->file_list = cflist;
+                                label->epoint = epoint;
                                 val_destroy(label->value);
                                 label->value = val;
+                                label->usepass = 0;
                             }
                         } else {
                             label->constant = false;
@@ -1341,7 +1341,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                label->unused = !label->ref;
                                 const_assign(label, &lbl->v);
                             }
                         } else {
@@ -1387,7 +1386,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->owner = true;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                label->unused = !label->ref;
                                 const_assign(label, &macro->v);
                                 waitfor->val = val_reference(label->value);
                             }
@@ -1438,7 +1436,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 get_func_params(mfunc, cfile);
                                 get_namespaces(mfunc);
-                                label->unused = !label->ref;
                                 const_assign(label, &mfunc->v);
                             }
                         } else {
@@ -1505,7 +1502,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     structure->size = 0;
                                     structure->names = new_namespace(cflist, &epoint);
                                 }
-                                label->unused = !label->ref;
                                 const_assign(label, &structure->v);
                                 structure = (Struct *)label->value;
                             }
@@ -1632,7 +1628,6 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (!newlabel->update_after) {
                         Obj *tmp;
                         if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
-                        newlabel->unused = !newlabel->ref;
                         tmp = get_star_value(current_section->l_address_val);
                         code = (Code *)newlabel->value;
                         if (!tmp->obj->same(tmp, code->addr)) {
@@ -2989,15 +2984,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     err_msg_double_defined(label, &varname, &epoint);
                                     val_destroy(val);
                                 } else {
-                                    label->owner = false;
-                                    label->file_list = cflist;
-                                    label->epoint = epoint;
                                     if (label->defpass != pass) {
                                         label->ref = false;
                                         label->defpass = pass;
+                                    } else {
+                                        if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                     }
+                                    label->owner = false;
+                                    label->file_list = cflist;
+                                    label->epoint = epoint;
                                     val_destroy(label->value);
                                     label->value = val;
+                                    label->usepass = 0;
                                 }
                             } else {
                                 label->constant = false;
@@ -3082,13 +3080,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     label = new_label(&varname, context, strength, &labelexists);
                                     if (labelexists) {
                                         if (label->constant) { err_msg_double_defined(label, &varname, &epoint); break; }
-                                        label->owner = false;
-                                        label->file_list = cflist;
-                                        label->epoint = epoint;
                                         if (label->defpass != pass) {
                                             label->ref = false;
                                             label->defpass = pass;
+                                        } else {
+                                            if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                         }
+                                        label->owner = false;
+                                        label->file_list = cflist;
+                                        label->epoint = epoint;
+                                        label->usepass = 0;
                                     } else {
                                         label->constant = false;
                                         label->owner = false;

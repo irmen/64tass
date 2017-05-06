@@ -334,7 +334,6 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
         else str_cfcpy(&lastlb->cfname, NULL);
         lastlb->ref = false;
-        lastlb->unused = true;
         lastlb->shadowcheck = false;
         lastlb->update_after = false;
         lastlb->usepass = 0;
@@ -436,9 +435,9 @@ void unused_check(Namespace *members) {
             ns = NULL;
             break;
         }
-        if (key2->unused && (key2->name.data[0] != '.' && key2->name.data[0] != '#')) {
+        if (key2->usepass != pass && (key2->name.data[0] != '.' && key2->name.data[0] != '#')) {
             if (!key2->constant) {
-                if (diagnostics.unused.variable && !key2->ref) err_msg_unused_variable(key2);
+                if (diagnostics.unused.variable) err_msg_unused_variable(key2);
                 continue;
             }
             if (!key2->owner) {
@@ -654,7 +653,6 @@ static Namespace *find_space(const char *here, bool use) {
     if (use) {
         l->usepass = pass;
         l->ref = true;
-        l->unused = false;
     }
     return space;
 }
@@ -723,7 +721,6 @@ void ref_labels(void) {
             }
             l->ref = true;
             l->usepass = pass;
-            l->unused = false;
         }
     }
 }
