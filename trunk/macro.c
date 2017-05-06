@@ -683,6 +683,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         in_macro = in_macro_old;
     }
     exitfile();
+    if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(context);
     val_destroy(&context->v);
     destroy_section2(&rsection);
     if (retval != NULL) return retval;
