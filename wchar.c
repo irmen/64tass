@@ -449,7 +449,6 @@ size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
 }
 #endif
 
-#ifndef _XOPEN_SOURCE
 struct w16_s {
     uint16_t start;
     uint16_t end;
@@ -600,7 +599,7 @@ static int compw32(const void *aa, const void *bb) {
     return 0;
 }
 
-int wcwidth(uchar_t ch) {
+int wcwidth_v9(uchar_t ch) {
     if (ch < 0x300) return 1;
 
     if (ch < 0x10000) {
@@ -614,4 +613,3 @@ int wcwidth(uchar_t ch) {
     if (bsearch(&ch, dw32, lenof(dw32), sizeof *dw32, compw32) != NULL) return 2;
     return 1;
 }
-#endif
