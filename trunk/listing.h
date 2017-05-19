@@ -24,6 +24,7 @@
 struct cpu_s;
 struct Obj;
 struct Listing;
+struct file_s;
 
 extern bool listing_pccolumn;
 extern unsigned int nolisting;
@@ -37,5 +38,5 @@ extern FAST_CALL void listing_line_cut2(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_set_cpumode(struct Listing *, const struct cpu_s *);
 extern void listing_instr(struct Listing *, uint8_t, uint32_t, int);
 extern void listing_mem(struct Listing *, const uint8_t *, size_t, address_t, address_t);
-extern void listing_file(struct Listing *, const char *, const char *);
+extern void listing_file(struct Listing *, const char *, const struct file_s *);
 #endif
