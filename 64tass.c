@@ -2895,7 +2895,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         star_tree = &s->tree;
                         backr = forwr = 1;
                         reffile = f->uid;
-                        listing_file(listing, ";******  Processing file: ", f->realname);
+                        listing_file(listing, ";******  Processing file: ", f);
                         if (prm == CMD_BINCLUDE) {
                             if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                                 push_context(((Code *)newlabel->value)->names);
@@ -2937,7 +2937,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         backr = old_backr; forwr = old_forwr;
                         exitfile();
                         reffile = cfile->uid;
-                        listing_file(listing, ";******  Return to file: ", cfile->realname);
+                        listing_file(listing, ";******  Return to file: ", cfile);
                     }
                     closefile(f);
                     goto breakerr;
@@ -3751,7 +3751,7 @@ static int main2(int *argc2, char **argv2[]) {
                 cflist = enterfile(cfile, &nopoint);
                 star_tree = &cfile->star;
                 reffile = cfile->uid;
-                listing_file(listing, ";******  Processing input file: ", argv[i]);
+                listing_file(listing, ";******  Processing input file: ", cfile);
                 val = compile(cflist);
                 if (val != NULL) val_destroy(val);
                 closefile(cfile);

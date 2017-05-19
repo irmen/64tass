@@ -551,17 +551,17 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
     goto flush;
 }
 
-void listing_file(Listing *ls, const char *txt, const char *name) {
+void listing_file(Listing *ls, const char *txt, const struct file_s *file) {
     if (ls == NULL) return;
     newline(ls);
     if (ls->linenum) {
-        int l = (name != NULL) ? fprintf(ls->flist, ":%u", (unsigned int)curfile - 1) : 0;
+        int l = (file != NULL) ? fprintf(ls->flist, ":%u", (unsigned int)curfile - 1) : 0;
         if (l > 0) ls->c += (unsigned int)l;
         padding(ls, ls->columns.addr);
         ls->lastfile = curfile;
     };
     fputs(txt, ls->flist);
-    if (name != NULL) argv_print(name, ls->flist);
+    if (file != NULL) argv_print(file->realname, ls->flist);
     newline(ls);
     newline(ls);
 }
