@@ -434,7 +434,6 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             }
             if (f == NULL) goto openerr;
             tmp->read_error = true;
-            if (f != stdin) setvbuf(f, NULL, _IONBF, BUFSIZ);
             if (ftype == 1) {
                 bool check = true;
                 if (fseek(f, 0, SEEK_END) == 0) {
