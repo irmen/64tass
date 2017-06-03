@@ -520,6 +520,8 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
+        o_out->val = NULL;
+
         op2 = (Oper *)val;
         op = op2->op;
 
@@ -818,6 +820,7 @@ static bool get_val2(struct eval_context_s *ev) {
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
+        o_out->val = NULL;
 
         if (val == &o_COMMA.v || val == &o_COLON2.v) continue;
         op2 = (Oper *)val;
@@ -842,18 +845,17 @@ static bool get_val2(struct eval_context_s *ev) {
                 v1--;
 
                 oper.op = op2;
-                oper.v1 = v1->val;
+                oper.v1 = v1[1].val = v1->val;
                 oper.v2 = (Obj *)tmp;
                 oper.epoint = &v1->epoint;
                 oper.epoint2 = (args != 0) ? &tmp->val->epoint : &o_out->epoint;
                 oper.epoint3 = &o_out->epoint;
                 if (op == O_BRACKET) {
-                    val = oper.v1->obj->slice(oper.v1, &oper, 0);
+                    v1->val = oper.v1->obj->slice(oper.v1, &oper, 0);
                 } else {
-                    val = oper.v1->obj->calc2(&oper);
+                    v1->val = oper.v1->obj->calc2(&oper);
                 }
                 val_destroy(&tmp->v);
-                val_destroy(v1->val); v1->val = val;
 
                 vsp -= args + 1;
                 continue;
