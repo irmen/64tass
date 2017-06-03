@@ -125,7 +125,7 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, bool neg) {
 static MUST_CHECK Int *return_int(digit_t c, bool neg) {
     Int *vv;
     digit_t *v;
-    if (c == 0) return ref_int(int_value[0]);
+    if (c < lenof(int_value) && !neg) return ref_int(int_value[c]);
     vv = new_int();
     vv->data = v = vv->val;
     v[0] = c;
@@ -685,11 +685,19 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
     }
 }
 
+static MUST_CHECK Int *int_gen(ssize_t i) {
+    Int *v = new_int();
+    v->data = v->val;
+    v->val[0] = (i != 0) ? 1 : 0;
+    v->len = i;
+    return v;
+}
+
 static MUST_CHECK Int *power(const Int *vv1, const Int *vv2) {
     int j;
     bool neg = false;
     size_t i;
-    Int *v = int_from_int(1);
+    Int *v = int_gen(1);
 
     for (i = (size_t)vv2->len; (i--) != 0;) {
         digit_t d = vv2->data[i];
@@ -743,6 +751,12 @@ static MUST_CHECK Obj *irshift(Int *vv1, uval_t s, linepos_t epoint) {
     bool neg;
     digit_t *v1, *v;
     Int *vv;
+
+    switch (vv1->len) {
+    case 1: if (s < SHIFT) return (Obj *)return_int(vv1->val[0] >> s, false); /* fall through */
+    case 0: return val_reference(&int_value[0]->v);
+    default: break;
+    }
 
     word = s / SHIFT;
     bit = s % SHIFT;
@@ -1145,19 +1159,6 @@ static ssize_t icmp(const Int *vv1, const Int *vv2) {
         if (a < b) return (vv1->len < 0) ? 1 : -1;
     }
     return 0;
-}
-
-MUST_CHECK Int *int_from_int(int i) {
-    Int *v = new_int();
-    v->data = v->val;
-    if (i < 0) {
-        v->val[0] = (unsigned int)-i;
-        v->len = -1;
-        return v;
-    }
-    v->val[0] = (unsigned int)i;
-    v->len = (i != 0) ? 1 : 0;
-    return v;
 }
 
 MUST_CHECK Int *int_from_size(size_t i) {
@@ -1674,9 +1675,9 @@ void intobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 
-    int_value[0] = int_from_int(0);
-    int_value[1] = int_from_int(1);
-    minus1_value = int_from_int(-1);
+    int_value[0] = int_gen(0);
+    int_value[1] = int_gen(1);
+    minus1_value = int_gen(-1);
 }
 
 void intobj_names(void) {

@@ -147,7 +147,7 @@ static MUST_CHECK Obj *calc2_bool(oper_t op) {
     case O_MAX:
     case O_GT: return truth_reference(v1 && !v2);
     case O_GE: return truth_reference(v1 || !v2);
-    case O_ADD: return (Obj *)int_from_int((v1 ? 1 : 0) + (v2 ? 1 : 0));
+    case O_ADD: return (Obj *)int_from_uval((v1 ? 1 : 0) + (v2 ? 1 : 0));
     case O_MUL: return int_from_bool2(v1 && v2);
     case O_DIV:
         if (!v2) { 
