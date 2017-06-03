@@ -770,7 +770,9 @@ void init_variables(void)
 void destroy_lastlb(void) {
     if (lastlb != NULL) {
         lastlb->name.data = NULL;
+        lastlb->name.len = 0;
         lastlb->cfname.data = NULL;
+        lastlb->cfname.len = 0;
         lastlb->value = (Obj *)ref_none();
         val_destroy(&lastlb->v);
         lastlb = NULL;
