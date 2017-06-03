@@ -341,18 +341,22 @@ static struct eval_context_s {
 static struct eval_context_s *eval;
 
 static void extend_o_out(void) {
-    size_t i;
     eval->out_size += 64;
     if (/*eval->out_size < 64 ||*/ eval->out_size > SIZE_MAX / sizeof *eval->o_out) err_msg_out_of_memory(); /* overflow */
     eval->o_out = (struct values_s *)reallocx(eval->o_out, eval->out_size * sizeof *eval->o_out);
-    for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = NULL;
+}
+
+static inline void clean_o_out(struct eval_context_s *ev) {
+    struct values_s *o, *o2 = &ev->o_out[eval->outp];
+    for (o = &ev->o_out[eval->outp2]; o < o2; o++) val_destroy(o->val);
 }
 
 static inline void push_oper(Obj *val, linepos_t epoint) {
+    struct values_s *o;
     if (eval->outp >= eval->out_size) extend_o_out();
-    else if (eval->o_out[eval->outp].val != NULL) val_destroy(eval->o_out[eval->outp].val);
-    eval->o_out[eval->outp].val = val;
-    eval->o_out[eval->outp++].epoint = *epoint;
+    o = &eval->o_out[eval->outp++];
+    o->val = val;
+    o->epoint = *epoint;
 }
 
 static bool get_exp_compat(int stop) {/* length in bytes, defined */
@@ -370,7 +374,6 @@ static bool get_exp_compat(int stop) {/* length in bytes, defined */
     str_t ident;
     Label *l;
 
-    eval->outp = 0;
     o_oper[0].val = &o_COMMA;
 rest:
     ignore();
@@ -515,12 +518,11 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
         val = o_out->val;
         if (val->obj != OPER_OBJ) {
             if (vsp >= ev->values_size) values = extend_values(ev, 16);
-            o_out->val = values[vsp].val;
-            values[vsp].val = val;
-            values[vsp++].epoint = o_out->epoint;
+            val = values[vsp].val;
+            if (val != NULL) val_destroy(val);
+            values[vsp++] = *o_out;
             continue;
         }
-        o_out->val = NULL;
 
         op2 = (Oper *)val;
         op = op2->op;
@@ -610,7 +612,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
         if (vsp < 2) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
-            ev->outp2 = ev->outp;
+            ev->outp2 = i + 1;
             ev->values_len = 0;
             return false;
         }
@@ -815,12 +817,11 @@ static bool get_val2(struct eval_context_s *ev) {
         val = o_out->val;
         if (val->obj != OPER_OBJ || val == &o_PARENT.v || val == &o_BRACKET.v || val == &o_BRACE.v) {
             if (vsp >= ev->values_size) values = extend_values(ev, 16);
-            o_out->val = values[vsp].val;
-            values[vsp].val = val;
-            values[vsp++].epoint = o_out->epoint;
+            val = values[vsp].val;
+            if (val != NULL) val_destroy(val);
+            values[vsp++] = *o_out;
             continue;
         }
-        o_out->val = NULL;
 
         if (val == &o_COMMA.v || val == &o_COLON2.v) continue;
         op2 = (Oper *)val;
@@ -1188,7 +1189,7 @@ static bool get_val2(struct eval_context_s *ev) {
         if (vsp == 0) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX, NULL);
-            ev->outp2 = ev->outp;
+            ev->outp2 = i + 1;
             ev->values_len = 0;
             return false;
         }
@@ -1229,7 +1230,6 @@ size_t get_val_remaining(void) {
     return eval->values_len - eval->values_p;
 }
 
-
 /* 0 - normal */
 /* 1 - 1 only, till comma */
 /* 2 - 1 only, till space  */
@@ -1250,7 +1250,9 @@ static bool get_exp2(int stop, struct file_s *cfile) {
     size_t llen;
     size_t openclose, identlist;
 
+    clean_o_out(eval);
     eval->gstop = stop;
+    eval->outp = 0;
     eval->outp2 = 0;
     eval->values_p = eval->values_len = 0;
 
@@ -1258,7 +1260,6 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         if (get_exp_compat(stop)) return get_val2_compat(eval);
         return false;
     }
-    eval->outp = 0;
     o_oper[0].val = &o_COMMA;
 
     openclose = identlist = 0;
@@ -1822,6 +1823,8 @@ void eval_enter(void) {
         eval->values = NULL;
         eval->values_size = 0;
         eval->o_out = NULL;
+        eval->outp = 0;
+        eval->outp2 = 0;
         eval->out_size = 0;
         evx[evx_p] = eval;
         return;
@@ -1844,11 +1847,7 @@ void destroy_eval(void) {
     while ((evxnum--) != 0) {
         struct values_s *v;
         eval = evx[evxnum];
-        v = eval->o_out;
-        while ((eval->out_size--) != 0) {
-            if (v->val != NULL) val_destroy(v->val);
-            v++;
-        }
+        clean_o_out(eval);
         free(eval->o_out);
         v = eval->values;
         while ((eval->values_size--) != 0) {
