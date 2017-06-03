@@ -48,7 +48,6 @@ struct Bytes;
 struct Bits;
 struct Float;
 
-extern MUST_CHECK Int *int_from_int(int);
 extern MUST_CHECK Int *int_from_size(size_t);
 extern MUST_CHECK Int *int_from_uval(uval_t);
 extern MUST_CHECK Int *int_from_ival(ival_t);
