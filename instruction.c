@@ -780,13 +780,23 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (touval(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else {
                 uval &= all_mem;
+                if (diagnostics.altmode) {
+                    if (uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) w = 0;
+                    else if (databank == (uval >> 16)) w = 1;
+                    else w = 2;
+                }
+
                 if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
                     if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && oval->obj != CODE_OBJ && oval->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                    else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2); 
                     adr = uval - dpage; w = 0;
-                } 
-                else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
-                else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
-                else {
+                } else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) { 
+                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2); 
+                    adr = uval; w = 1; 
+                } else if (cnmemonic[opr - 2] != ____) { 
+                    if (w != 3 && w != 2) err_msg_address_mismatch(opr-2, opr-w, epoint2); 
+                    adr = uval; w = 2; 
+                } else {
                     w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                     err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
                 }
@@ -826,9 +836,19 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (touval(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
             else {
                 uval &= all_mem;
-                if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
-                else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
-                else {
+                if (diagnostics.altmode) {
+                    if (uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) w = 0;
+                    else if (databank == (uval >> 16)) w = 1;
+                    else w = 2;
+                }
+
+                if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
+                    if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2); 
+                    adr = uval - dpage; w = 0;
+                } else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {
+                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2); 
+                    adr = uval; w = 1;
+                } else {
                     w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                     err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
                 }

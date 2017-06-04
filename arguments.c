@@ -82,7 +82,8 @@ struct diagnostics_s diagnostics = {
     true,        /* pitfalls */
     true,        /* star_assign */
     true,        /* ignored */
-    false        /* long_branch */
+    false,       /* long_branch */
+    true         /* altmode */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -113,7 +114,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* pitfalls */
     false,       /* star_assign */
     false,       /* ignored */
-    false        /* long_branch */
+    false,       /* long_branch */
+    false        /* altmode */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -145,7 +147,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* pitfalls */
     true,        /* star_assign */
     true,        /* ignored */
-    false        /* long_branch */
+    false,       /* long_branch */
+    true         /* altmode */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -177,7 +180,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* pitfalls */
     true,        /* star_assign */
     true,        /* ignored */
-    true         /* long_branch */
+    true,        /* long_branch */
+    true         /* altmode */
 };
 
 struct w_options_s {
@@ -212,6 +216,7 @@ static const struct w_options_s w_options[] = {
     {"star-assign",     &diagnostics.star_assign},
     {"ignored",         &diagnostics.ignored},
     {"long-branch",     &diagnostics.long_branch},
+    {"altmode",         &diagnostics.altmode},
     {NULL,              NULL}
 };
 
@@ -520,6 +525,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wimplied-reg         No implied register aliases\n"
                "  -Wleading-zeros       Warn for ignored leading zeros\n"
                "  -Wlong-branch         Warn when a long branch is used\n"
+               "  -Wno-altmode          No alternative mode warnings\n"
                "  -Wno-deprecated       No deprecated feature warnings\n"
                "  -Wno-float-compare    No approximate compare warnings\n"
                "  -Wno-ignored          No directive ignored warnings\n"

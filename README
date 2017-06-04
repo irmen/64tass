@@ -2851,6 +2851,13 @@ default, the others are disabled.
     long branch function. Less intrusive than disabling long branches and see
     where it fails.
 
+-Wno-altmode
+    Don't warn about alternative address modes.
+
+    Sometimes alternative addressing modes are used as the fitting one is not
+    available. For example there's no lda direct page y so instead data bank y
+    is used with a warning.
+
 -Wno-deprecated
     Don't warn about deprecated features.
 
