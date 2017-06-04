@@ -885,7 +885,10 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             current_section->l_address.address = uval & 0xffff;
             current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_section->l_address_val);
-            current_section->l_address_val = val;
+            if (val->obj == CODE_OBJ) {
+                current_section->l_address_val = val_reference(((Code *)val)->addr);
+                val_destroy(val);
+            } else current_section->l_address_val = val;
             addr = (address_t)uval & all_mem2;
             if (current_section->address != addr) {
                 current_section->address = addr;
@@ -908,7 +911,10 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
         current_section->l_address.address = uval & 0xffff;
         current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
         val_destroy(current_section->l_address_val);
-        current_section->l_address_val = val;
+        if (val->obj == CODE_OBJ) {
+            current_section->l_address_val = val_reference(((Code *)val)->addr);
+            val_destroy(val);
+        } else current_section->l_address_val = val;
         return;
     } while (false);
     val_destroy(val);
@@ -2340,7 +2346,8 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         current_section->l_address.address = uval & 0xffff;
                         current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
                         val_destroy(current_section->l_address_val);
-                        current_section->l_address_val = val_reference(vs->val);
+                        tmp = vs->val;
+                        current_section->l_address_val = val_reference(tmp->obj == CODE_OBJ ? ((Code *)tmp)->addr : tmp);
                     } while (false);
                     newlabel = NULL;
                 } else new_waitfor(W_HERE, &epoint);
