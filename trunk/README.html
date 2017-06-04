@@ -3271,6 +3271,12 @@ are not supported the result will be decimal.</p>
 <p>This option gives a warning for instructions which were modified by the long branch function.
 Less intrusive than disabling long branches and see where it fails.</p>
 
+<dt><b>-Wno-altmode</b><a name="o_Waltmode" href="#o_Waltmode"></a>
+<dd>Don't warn about alternative address modes.
+<p>Sometimes alternative addressing modes are used as the fitting one is not
+available. For example there's no lda direct page y so instead data bank y is
+used with a warning.</p>
+
 <dt><b>-Wno-deprecated</b><a name="o_Wdeprecated" href="#o_Wdeprecated"></a>
 <dd>Don't warn about deprecated features.
 <p>Unfortunately there were some features added previously which shouldn't have

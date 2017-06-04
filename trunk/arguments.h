@@ -95,6 +95,7 @@ struct diagnostics_s {
     bool star_assign;
     bool ignored;
     bool long_branch;
+    bool altmode;
 };
 
 extern int testarg(int *, char ***, struct file_s *);

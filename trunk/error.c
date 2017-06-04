@@ -30,6 +30,7 @@
 #include "unicode.h"
 #include "eval.h"
 #include "arguments.h"
+#include "opcodes.h"
 
 #include "strobj.h"
 #include "addressobj.h"
@@ -765,6 +766,46 @@ void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     str_name(labelname1->data, labelname1->len);
     adderror(" [-Wcase-symbol]");
     err_msg_double_note(l->file_list, &l->epoint, &l->name);
+}
+
+static const char * const opr_names[ADR_LEN] = {
+    "", /* ADR_REG */
+    "", /* ADR_IMPLIED */
+    "", /* ADR_IMMEDIATE */
+    "long", /* ADR_LONG */
+    "data bank", /* ADR_ADDR */
+    "direct page", /* ADR_ZP */
+    "long x indexed", /* ADR_LONG_X */
+    "data bank x indexed", /* ADR_ADDR_X */
+    "direct page x indexed", /* ADR_ZP_X */
+    "", /* ADR_ADDR_X_I */
+    "", /* ADR_ZP_X_I */
+    "", /* ADR_ZP_S */
+    "long y indexed", /* ADR_ZP_S_I_Y */
+    "data bank y indexed", /* ADR_ADDR_Y */
+    "direct page y indexed", /* ADR_ZP_Y */
+    "", /* ADR_ZP_LI_Y */
+    "", /* ADR_ZP_I_Y */
+    "", /* ADR_ZP_I_Z */
+    "", /* ADR_ADDR_LI */
+    "", /* ADR_ZP_LI */
+    "", /* ADR_ADDR_I */
+    "", /* ADR_ZP_I */
+    "", /* ADR_REL_L */
+    "", /* ADR_REL */
+    "", /* ADR_MOVE */
+    "", /* ADR_ZP_R */
+    "", /* ADR_ZP_R_I_Y */
+    "", /* ADR_BIT_ZP */
+    "", /* ADR_BIT_ZP_REL */
+};
+
+void err_msg_address_mismatch(int a, int b, linepos_t epoint) {
+    new_error_msg2(diagnostic_errors.altmode, epoint);
+    adderror("using ");
+    adderror(opr_names[a]);
+    adderror(" addressing instead of ");
+    adderror(opr_names[b]);
 }
 
 static void err_msg_double_defined2(const char *msg, Severity_types severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {

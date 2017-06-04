@@ -166,6 +166,12 @@ Warns when a long branch is used.
 This option gives a warning for instructions which were modified by the long branch function.
 Less intrusive than disabling long branches and see where it fails.
 .TP 0.5i
+\fB\-Wno\-altmode\fR
+Don't warn about alternative address modes.
+Sometimes alternative addressing modes are used as the fitting one is not
+available. For example there's no lda direct page y so instead data bank y is
+used with a warning.
+.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
