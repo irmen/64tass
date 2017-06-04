@@ -3585,7 +3585,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     } else err = instruction(prm, w, val, &epoint, epoints);
                     val_destroy(val);
                     if (err == NULL) {
-                        if (diagnostics.alias && current_cpu->mnemonic[prm] != current_cpu->mnemonic[current_cpu->alias[prm]]) err_msg_alias(current_cpu->mnemonic[prm], current_cpu->mnemonic[current_cpu->alias[prm]], &epoint);
+                        if (diagnostics.alias && prm != current_cpu->alias[prm]) err_msg_alias(current_cpu->mnemonic[prm], current_cpu->mnemonic[current_cpu->alias[prm]], &epoint);
                         break;
                     }
                     tmp2 = find_label(&opname, NULL);

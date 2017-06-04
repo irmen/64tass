@@ -64,9 +64,9 @@ encoding.o: encoding.c encoding.h avl.h stdbool.h inttypes.h errors_e.h \
  values.h strobj.h bytesobj.h typeobj.h errorobj.h
 error.o: error.c error.h attributes.h stdbool.h errors_e.h avl.h obj.h \
  inttypes.h str.h wchar.h wctype.h file.h 64tass.h wait_e.h macro.h \
- unicode.h unicodedata.h eval.h arguments.h strobj.h addressobj.h \
- values.h registerobj.h namespaceobj.h operobj.h typeobj.h labelobj.h \
- errorobj.h
+ unicode.h unicodedata.h eval.h arguments.h opcodes.h strobj.h \
+ addressobj.h values.h registerobj.h namespaceobj.h operobj.h typeobj.h \
+ labelobj.h errorobj.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
  errors_e.h str.h stdbool.h eval.h values.h typeobj.h registerobj.h \
  namespaceobj.h avl.h
