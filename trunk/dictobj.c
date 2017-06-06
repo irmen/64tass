@@ -324,7 +324,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             vv = findit(v1, v2->data[i], epoint2);
             if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
             if (vv->obj == ERROR_OBJ) {
-                if (error) {err_msg_output((Error *)vv); error = false;} 
+                if (error) {err_msg_output((Error *)vv); error = false;}
                 val_destroy(vv);
                 vals[i] = (Obj *)ref_none();
                 continue;
@@ -397,7 +397,7 @@ Obj *dictobj_parse(struct values_s *values, unsigned int args) {
         Obj *key = v2->val;
 
         if (key == &none_value->v || key->obj == ERROR_OBJ) {
-            val_destroy(&dict->v); 
+            val_destroy(&dict->v);
             return val_reference(key);
         }
         if (key->obj != COLONLIST_OBJ) data = NULL;
@@ -421,7 +421,7 @@ Obj *dictobj_parse(struct values_s *values, unsigned int args) {
         err = key->obj->hash(key, &p->hash, &v2->epoint);
         if (err != NULL) {
             free(p);
-            val_destroy(&dict->v); 
+            val_destroy(&dict->v);
             return &err->v;
         }
         p->key = key;

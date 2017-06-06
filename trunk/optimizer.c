@@ -1059,7 +1059,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
                     b = get_bit(cpu->z3.a[i]);
                     if (b != BU && get_bit(cpu->z2.a[i]) == BU) mod_bit(cpu->z2.a[i], b);
                 }
-                if (cpu->ccmp) { 
+                if (cpu->ccmp) {
                     if (get_bit(cpu->p.c) == BU) mod_bit(cpu->p.c, B1); else set_bit(&cpu->p.c, new_bit1());
                     cpu->ccmp = false;
                 }

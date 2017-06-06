@@ -56,7 +56,7 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
-    case T_REGISTER: 
+    case T_REGISTER:
         return val_reference(o1);
     case T_STR:
         {

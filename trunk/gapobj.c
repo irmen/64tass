@@ -71,7 +71,7 @@ static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), linepos_t UNUSED(
 
 static MUST_CHECK Obj *calc1(oper_t op) {
     switch (op->op->op) {
-    case O_BANK: 
+    case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
@@ -92,7 +92,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_GAP:
         switch (op->op->op) {
         case O_CMP: return (Obj *)ref_int(int_value[0]);
-        case O_GE: 
+        case O_GE:
         case O_LE:
         case O_EQ: return (Obj *)ref_bool(true_value);
         case O_NE:

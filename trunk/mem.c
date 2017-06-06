@@ -378,8 +378,8 @@ static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
             while (blen != 0) {
                 size_t left = (sizeof ihex.data) - ihex.length;
                 size_t copy = blen > left ? left : blen;
-                memcpy(ihex.data + ihex.length, d, copy); 
-                ihex.length += copy; 
+                memcpy(ihex.data + ihex.length, d, copy);
+                ihex.length += copy;
                 d += copy;
                 blen -= copy;
                 if (ihex.length == sizeof ihex.data) {
@@ -451,8 +451,8 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
             while (blen != 0) {
                 size_t left = (sizeof srec.data) - srec.length;
                 size_t copy = blen > left ? left : blen;
-                memcpy(srec.data + srec.length, d, copy); 
-                srec.length += copy; 
+                memcpy(srec.data + srec.length, d, copy);
+                srec.length += copy;
                 d += copy;
                 blen -= copy;
                 if (srec.length == sizeof srec.data) {
@@ -559,7 +559,7 @@ void write_mark_mem(struct memblocks_s *memblocks, unsigned int c) {
     memblocks->mem.data[ptextaddr] = (uint8_t)c;
 }
 
-void list_mem(const struct memblocks_s *memblocks, bool dooutput) { 
+void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
     address_t myaddr;
     size_t len;
     bool first = true, print = true;

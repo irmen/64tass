@@ -113,7 +113,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     switch (op->v2->obj->type) {
-    case T_FUNCARGS: 
+    case T_FUNCARGS:
         switch (op->op->op) {
         case O_FUNC:
         {

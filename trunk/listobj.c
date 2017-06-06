@@ -170,7 +170,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
             val_destroy(val);
         }
         return (Obj *)ref_bool(false_value);
-    default: 
+    default:
         return DEFAULT_OBJ->truth(o1, type, epoint);
     }
 }
@@ -312,7 +312,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
     case O_LE:
     case O_MAX:
     case O_GT:
-    case O_GE: 
+    case O_GE:
     case O_MUL:
     case O_DIV:
     case O_MOD:
@@ -347,17 +347,17 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         vals[i] = val;
                     }
                     return &v->v;
-                } 
+                }
                 return val_reference(&v1->v);
-            } 
+            }
             if (v1->len == 1) {
                 op->v1 = v1->data[0];
                 return op->v2->obj->rcalc2(op);
-            } 
+            }
             if (v2->len == 1) {
                 op->v2 = v2->data[0];
                 return op->v1->obj->calc2(op);
-            } 
+            }
             err = new_error(ERROR_CANT_BROADCAS, op->epoint3);
             err->u.broadcast.v1 = v1->len;
             err->u.broadcast.v2 = v2->len;
@@ -459,7 +459,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         for (i = 0; i < v2->len; i++) {
             err = indexoffs(v2->data[i], ln, &offs2, epoint2);
             if (err != NULL) {
-                if (error) {err_msg_output(err); error = false;} 
+                if (error) {err_msg_output(err); error = false;}
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
                 continue;
@@ -521,7 +521,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj **vals;
 
     if (op->op == &o_X) {
-        return repeat(op); 
+        return repeat(op);
     }
     if (op->op == &o_IN) {
         return o2->obj->rcalc2(op);

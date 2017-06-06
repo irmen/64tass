@@ -656,7 +656,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         temporary_label_branch++;
         current_section = &rsection;
         reset_section(current_section);
-        current_section->provides = oldsection->provides; 
+        current_section->provides = oldsection->provides;
         current_section->requires = oldsection->requires;
         current_section->conflicts = oldsection->conflicts;
         current_section->l_address.address = star & 0xffff; /* TODO */

@@ -35,7 +35,7 @@ struct mfunc_param_s {
 typedef struct Mfunc {
     Obj v;
     size_t argc;
-    struct mfunc_param_s *param; 
+    struct mfunc_param_s *param;
     struct file_list_s *file_list;
     line_t line;
     size_t nslen;

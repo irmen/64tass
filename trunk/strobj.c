@@ -45,7 +45,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_STR: return val_reference(v1);
-    default: return v1->obj->repr(v1, epoint, SIZE_MAX); 
+    default: return v1->obj->repr(v1, epoint, SIZE_MAX);
     }
 }
 
@@ -279,7 +279,7 @@ MALLOC Str *new_str(size_t ln) {
     if (ln > sizeof v->val) {
         v->data = (uint8_t *)mallocx(ln);
         return v;
-    } 
+    }
     v->data = v->val;
     return v;
 }
@@ -442,7 +442,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
             s += ln;
         }
         return &v->v;
-    } while (false); 
+    } while (false);
     return (Obj *)new_error_mem(op->epoint3);
 }
 
@@ -646,7 +646,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         v->chars = 1;
         v->data[0] = v1->data[offs2];
         return &v->v;
-    } 
+    }
     p = v1->data;
     while ((offs2--) != 0) p += utf8len(*p);
     len1 = utf8len(*p);
@@ -667,7 +667,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp;
 
     if (op->op == &o_X) {
-        return repeat(op); 
+        return repeat(op);
     }
     if (op->op == &o_LAND || op->op == &o_LOR) {
         Obj *result = truth(&v1->v, TRUTH_BOOL, op->epoint);

@@ -79,20 +79,20 @@ FAST_CALL uint8_t *utf8out(uchar_t i, uint8_t *c) {
     if (i < 0x800) {
         *c++=0xc0 | (uint8_t)(i >> 6);
         *c++=0x80 | (i & 0x3f);
-	return c;
+        return c;
     }
     if (i < 0x10000) {
         *c++=0xe0 | (uint8_t)(i >> 12);
         *c++=0x80 | ((i >> 6) & 0x3f);
         *c++=0x80 | (i & 0x3f);
-	return c;
+        return c;
     }
     if (i < 0x200000) {
         *c++=0xf0 | (uint8_t)(i >> 18);
         *c++=0x80 | ((i >> 12) & 0x3f);
         *c++=0x80 | ((i >> 6) & 0x3f);
         *c++=0x80 | (i & 0x3f);
-	return c;
+        return c;
     }
     if (i < 0x4000000) {
         *c++=0xf8 | (i >> 24);
@@ -100,7 +100,7 @@ FAST_CALL uint8_t *utf8out(uchar_t i, uint8_t *c) {
         *c++=0x80 | ((i >> 12) & 0x3f);
         *c++=0x80 | ((i >> 6) & 0x3f);
         *c++=0x80 | (i & 0x3f);
-	return c;
+        return c;
     }
     if ((i & ~(uchar_t)0x7fffffff) != 0) return c;
     *c++=0xfc | (i >> 30);
@@ -171,7 +171,7 @@ static void udecompose(uchar_t ch, struct ubuff_s *d, int options) {
             if (prop->decompose > 0) {
                 udecompose((uint16_t)prop->decompose, d, options);
                 return;
-            } 
+            }
             if (prop->decompose > -16384) {
                 const int16_t *p = &usequences[-prop->decompose];
                 for (;;) {
@@ -214,7 +214,7 @@ static void unormalize(struct ubuff_s *d) {
                     continue;
                 }
             }
-        } 
+        }
         pos++;
     }
 }
@@ -672,23 +672,23 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         }
         if (ch == 0) break;
         if (ch == '\t') {
-            while (l != 0) { 
-                putc(' ', f); 
-                l--; 
+            while (l != 0) {
+                putc(' ', f);
+                l--;
             }
             putc('\t', f);
             i++;
             continue;
         }
         if (ch < 0x20 || ch > 0x7e) {
-            err = unknown_print(NULL, ch); 
+            err = unknown_print(NULL, ch);
             if (err > 0) l += (size_t)err;
         } else l++;
         i++;
     }
-    while (l != 0) { 
-        putc(' ', f); 
-        l--; 
+    while (l != 0) {
+        putc(' ', f);
+        l--;
     }
 }
 

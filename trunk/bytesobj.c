@@ -66,7 +66,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_INT: return bytes_from_int((Int *)v1, epoint);
     case T_CODE: return bytes_from_code((Code *)v1, epoint);
     case T_ADDRESS: return bytes_from_address((Address *)v1, epoint);
-    case T_FLOAT: 
+    case T_FLOAT:
          err = int_from_float((Float *)v1, epoint);
          if (err->obj != INT_OBJ) return err;
          ret = bytes_from_int((Int *)err, epoint);
@@ -116,7 +116,7 @@ static MUST_CHECK Obj *invert(const Bytes *v1, linepos_t epoint) {
         v->len = ~v1->len;
         memcpy(v->data, v1->data, sz);
         return &v->v;
-    } 
+    }
     return (Obj *)ref_bytes((v1->len < 0) ? null_bytes : inv_bytes);
 }
 
@@ -740,15 +740,15 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *v;
     Obj *tmp;
     switch (op->op->op) {
-    case O_BANK: 
+    case O_BANK:
         if (v1->len > 2) return (Obj *)bytes_from_u8(v1->data[2]);
         if (v1->len < ~2) return (Obj *)bytes_from_u8(~v1->data[2]);
         return (Obj *)bytes_from_u8((v1->len < 0) ? ~0U : 0);
-    case O_HIGHER: 
+    case O_HIGHER:
         if (v1->len > 1) return (Obj *)bytes_from_u8(v1->data[1]);
         if (v1->len < ~1) return (Obj *)bytes_from_u8(~v1->data[1]);
         return (Obj *)bytes_from_u8((v1->len < 0) ? ~0U : 0);
-    case O_LOWER: 
+    case O_LOWER:
         if (v1->len > 0) return (Obj *)bytes_from_u8(v1->data[0]);
         if (v1->len < ~0) return (Obj *)bytes_from_u8(~v1->data[0]);
         return (Obj *)bytes_from_u8((v1->len < 0) ? ~0U : 0);
@@ -772,8 +772,8 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         return (Obj *)bytes_from_u16((v1->len < 0) ? ~0U : 0);
     case O_POS: return val_reference(&v1->v);
     case O_INV: return invert(v1, op->epoint3);
-    case O_NEG: 
-        v = negate(v1, op->epoint3); 
+    case O_NEG:
+        v = negate(v1, op->epoint3);
         if (v != NULL) return v;
         /* fall through */
     case O_STRING:
@@ -989,7 +989,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp;
 
     if (op->op == &o_X) {
-        return repeat(op); 
+        return repeat(op);
     }
     if (op->op == &o_LAND) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
@@ -1038,7 +1038,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_NONE:
     case T_ERROR:
         return val_reference(o2);
-    default: 
+    default:
         break;
     }
     return obj_oper_error(op);
@@ -1082,7 +1082,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         break;
     default: break;
     }
-    return obj_oper_error(op); 
+    return obj_oper_error(op);
 }
 
 void bytesobj_init(void) {

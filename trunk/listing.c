@@ -74,9 +74,9 @@ static void padding(Listing *ls, size_t t) {
     if (ls->c >= t) newline(ls);
     if (ls->tab_size > 1) {
         ls->c -= ls->c % ls->tab_size;
-        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; putc('\t', ls->flist);} 
+        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; putc('\t', ls->flist);}
     }
-    while (ls->c < t) { ls->c++; putc(' ', ls->flist);} 
+    while (ls->c < t) { ls->c++; putc(' ', ls->flist);}
 }
 
 static void padding2(Listing *ls, size_t t) {
@@ -84,9 +84,9 @@ static void padding2(Listing *ls, size_t t) {
     ls->c += ls->i;
     if (ls->tab_size > 1) {
         ls->c -= ls->c % ls->tab_size;
-        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; ls->s[ls->i++] = '\t'; } 
+        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; ls->s[ls->i++] = '\t'; }
     }
-    while (ls->c < t) { ls->c++; ls->s[ls->i++] = ' '; } 
+    while (ls->c < t) { ls->c++; ls->s[ls->i++] = ' '; }
     ls->c -= ls->i;
 }
 
@@ -131,7 +131,7 @@ static void out_pb(Listing *ls, unsigned int adr) {
 }
 
 static void out_bit(Listing *ls, unsigned int cod, unsigned int c) {
-    ls->s[ls->i++] = 0x30 + ((cod >> 4) & 7); 
+    ls->s[ls->i++] = 0x30 + ((cod >> 4) & 7);
     ls->s[ls->i++] = ',';
     out_zp(ls, c);
 }
@@ -282,8 +282,8 @@ static void printhex(Listing *ls, unsigned int cod, unsigned int eor, int ln, ui
     padding2(ls, ls->columns.hex);
     out_hex(ls, cod ^ eor);
     while (ln > 0) {
-        ls->s[ls->i++] = ' '; 
-        out_hex(ls, adr ^ eor); 
+        ls->s[ls->i++] = ' ';
+        out_hex(ls, adr ^ eor);
         adr >>= 8;
         ln--;
     }
@@ -295,7 +295,7 @@ static void printhex2(Listing *ls, unsigned int ln, const uint8_t *data) {
     for (;;) {
         out_hex(ls, data[i++]);
         if (i >= ln) break;
-        ls->s[ls->i++] = ' '; 
+        ls->s[ls->i++] = ' ';
     }
 }
 
@@ -348,7 +348,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_ADDR_I:
     case ADR_ADDR_LI: out_word(ls, adr); break;
     case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else ls->i--; return;
-    case ADR_BIT_ZP_REL: 
+    case ADR_BIT_ZP_REL:
         out_bit(ls, cod, adr);
         ls->s[ls->i++] = ',';
         out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_section->l_address.address));
@@ -445,7 +445,7 @@ void FAST_CALL listing_line_cut2(Listing *ls, linecpos_t pos) {
 FAST_CALL void listing_set_cpumode(Listing *ls, const struct cpu_s *cpumode) {
     if (ls == NULL) return;
     ls->disasm = cpumode->disasm;
-    ls->mnemonic = cpumode->mnemonic; 
+    ls->mnemonic = cpumode->mnemonic;
 }
 
 void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
@@ -476,7 +476,7 @@ void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
     newline(ls);
 }
 
-void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) { 
+void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) {
     bool print, exitnow;
     int lcol;
     unsigned int repeat;

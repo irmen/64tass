@@ -505,13 +505,13 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 PUT_CHAR('%');
                 state = 0;
                 break;
-            case ' ': 
-                data.space = true; 
+            case ' ':
+                data.space = true;
                 break;
-            case '#': 
-                data.square = true; 
+            case '#':
+                data.square = true;
                 break;
-            case '*': 
+            case '*':
                 if (data.width == NOT_FOUND) {
                     data.width = 0;
                     data.star_w = true;
@@ -523,16 +523,16 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
             case '+':
                 data.plus = true;
                 break;
-            case '-': 
-                data.left = true; 
+            case '-':
+                data.left = true;
                 break;
-            case '.': 
-                data.dot = true; 
+            case '.':
+                data.dot = true;
                 if (data.width == NOT_FOUND) data.width = 0;
                 break;
-            case '0': 
+            case '0':
                 if (data.width == NOT_FOUND) {
-                    data.pad = '0'; 
+                    data.pad = '0';
                     break;
                 }
                 /* fall through */
@@ -583,7 +583,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 str->data = d;
                 return &str->v;
             }
-        } 
+        }
         str->data = return_value.data;
         return &str->v;
     }
