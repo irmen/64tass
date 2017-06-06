@@ -3802,12 +3802,12 @@ static int main2(int *argc2, char **argv2[]) {
 static UINT oldcodepage;
 static UINT oldcodepage2;
 
-void myexit(void) {
+static void myexit(void) {
     SetConsoleCP(oldcodepage2);
     SetConsoleOutputCP(oldcodepage);
 }
 
-int wmain(int argc, wchar_t *argv2[]) {
+static int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
     char **argv;
 
