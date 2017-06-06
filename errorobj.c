@@ -35,22 +35,22 @@ static FAST_CALL void destroy(Obj *o1) {
         if (v1->u.invoper.v1 != NULL) val_destroy(v1->u.invoper.v1);
         if (v1->u.invoper.v2 != NULL) val_destroy(v1->u.invoper.v2);
         return;
-    case ERROR___NO_REGISTER: 
+    case ERROR___NO_REGISTER:
         val_destroy(&v1->u.reg->v);
         return;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-    case ERROR______NOT_UVAL: 
+    case ERROR_____CANT_UVAL:
+    case ERROR_____CANT_IVAL:
+    case ERROR______NOT_UVAL:
         val_destroy(v1->u.intconv.val);
         return;
-    case ERROR___NOT_DEFINED: 
+    case ERROR___NOT_DEFINED:
         val_destroy((Obj *)v1->u.notdef.names);
         return;
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
-    case ERROR_____KEY_ERROR: 
+    case ERROR_____KEY_ERROR:
         val_destroy(v1->u.key);
         return;
     default: return;
@@ -81,22 +81,22 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         v = v1->u.invoper.v2;
         if (v == NULL) return;
         break;
-    case ERROR___NO_REGISTER: 
+    case ERROR___NO_REGISTER:
         v = &v1->u.reg->v;
         break;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-    case ERROR______NOT_UVAL: 
+    case ERROR_____CANT_UVAL:
+    case ERROR_____CANT_IVAL:
+    case ERROR______NOT_UVAL:
         v = v1->u.intconv.val;
         break;
-    case ERROR___NOT_DEFINED: 
+    case ERROR___NOT_DEFINED:
         v = &v1->u.notdef.names->v;
         break;
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
-    case ERROR_____KEY_ERROR: 
+    case ERROR_____KEY_ERROR:
         v = v1->u.key;
         break;
     default: return;

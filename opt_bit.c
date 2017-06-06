@@ -395,7 +395,7 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
             return ref_bit(c);                 /* 0+0+1 = 1 */
                                                /* 0+0+u = u */
         case B1:                               /* 0+1+0 = 0 */
-            return new_bit0();                 /* 0+1+1 = 0 */    
+            return new_bit0();                 /* 0+1+1 = 0 */
                                                /* 0+1+u = 0 */
         default: break;
         }
@@ -417,7 +417,7 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
             return new_bit0();   /* 1+0+1 = 0 */
                                  /* 1+0+u = 0 */
         case B1:                 /* 1+1+0 = 1 */
-            return inv_bit(c);   /* 1+1+1 = 0 */ 
+            return inv_bit(c);   /* 1+1+1 = 0 */
                                  /* 1+1+u = U */
         default: break;
         }

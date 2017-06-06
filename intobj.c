@@ -84,13 +84,13 @@ static inline MALLOC Int *new_int(void) {
 static digit_t *inew(Int *v, size_t len) {
     if (len <= lenof(v->val))  return v->val;
     if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
-    return (digit_t *)mallocx(len * sizeof *v->data); 
+    return (digit_t *)mallocx(len * sizeof *v->data);
 }
 
 static digit_t *inew2(Int *v, size_t len) {
     if (len <= lenof(v->val))  return v->val;
     if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
-    return (digit_t *)malloc(len * sizeof *v->data); 
+    return (digit_t *)malloc(len * sizeof *v->data);
 }
 
 static MUST_CHECK Obj *negate(Int *v1, linepos_t epoint) {
@@ -149,7 +149,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     Int *v1 = (Int *)o1;
     ssize_t l = v1->len;
     unsigned int h;
-    
+
     switch (l) {
     case -1: *hs = (-v1->val[0]) & ((~0U) >> 1); return NULL;
     case 0: *hs = 0; return NULL;
@@ -461,7 +461,7 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
             c = (v1[i] <= v2[i]);
             v[i] = v1[i] - v2[i] - 1;
             continue;
-        } 
+        }
         c = (v1[i] < v2[i]);
         v[i] = v1[i] - v2[i];
     }
@@ -535,7 +535,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
     Int *vv;
 
     len2 = intlen(vv2);
-    if (len2 == 0) { 
+    if (len2 == 0) {
         return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
     }
     len1 = intlen(vv1);
@@ -608,7 +608,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
             memcpy(v0, v1, len1 * sizeof *v0);
         }
         if (v0[len1] != 0 || v0[len1 - 1] >= w0[len2 - 1]) len1++;
-   
+
         k = len1 - len2;
         a = inew(&tmp3, k);
 
@@ -633,7 +633,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
                     c = (vk[i] <= t);
                     vk[i] = vk[i] - t - 1;
                     continue;
-                } 
+                }
                 c = vk[i] < t;
                 vk[i] -= t;
             }
@@ -674,7 +674,7 @@ static MUST_CHECK Obj *idivrem(Int *vv1, const Int *vv2, bool divrem, linepos_t 
         if (d != 0) {
             for (i = 0; i < len2 - 1; i++) v0[i] = (v0[i] >> d) | (v0[i + 1] << (SHIFT - d));
             v0[i] >>= d;
-        } 
+        }
 
         if (a != tmp3.val) free(a);
         if (v0 == tmp1.val) {
@@ -1485,7 +1485,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
             if (end2 >= &d[sz]) {
                 sz++;
                 if (sz > lenof(v->val)) {
-                    if (d == v->val) { 
+                    if (d == v->val) {
                         d = (digit_t *)malloc(sz * sizeof *d);
                         if (d == NULL) goto failed2;
                         v->data = d;
@@ -1635,7 +1635,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         ret = calc2(op);
         val_destroy(tmp);
         return ret;
-    default: 
+    default:
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }

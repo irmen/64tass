@@ -51,7 +51,7 @@ void new_type(Type *t, Type_types type, const char *name, size_t length) {
 static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     switch (v1->obj->type) {
     case T_NONE:
-    case T_ERROR: 
+    case T_ERROR:
     case T_TYPE: return val_reference(v1);
     default: break;
     }
@@ -133,7 +133,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             o2 = ((Funcargs *)o2)->val[0].val;
             switch (o2->obj->type) {
             case T_LIST:
-            case T_TUPLE: 
+            case T_TUPLE:
                 if (v1 != LIST_OBJ && v1 != TUPLE_OBJ && v1 != TYPE_OBJ) {
                     List *v2 = (List *)o2;
                     Obj **vals;

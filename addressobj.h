@@ -47,7 +47,7 @@ typedef struct Address {
     Obj v;
     atype_t type;
     Obj *val;
-} Address; 
+} Address;
 
 extern void addressobj_init(void);
 extern void addressobj_names(void);

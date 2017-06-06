@@ -391,7 +391,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             new_error_msg2(diagnostic_errors.long_branch, epoint);
             adderror("long branch used [-Wlong-branch]");
             break;
-        case ERROR_WUSER_DEFINED: 
+        case ERROR_WUSER_DEFINED:
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror2(((const Str *)prm)->data, ((const Str *)prm)->len);
             break;
@@ -409,7 +409,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
             adderror("' [-Wportable]");
             break;
-        default: 
+        default:
             new_error_msg(SV_WARNING, current_file_list, epoint);
             adderror(terr_warning[no]);
             break;
@@ -1119,25 +1119,25 @@ bool error_print() {
             err2 = err;
             usenote = false;
             continue;
-        case SV_WARNING: 
+        case SV_WARNING:
             if (!arguments.warning) {
                 usenote = false;
-                continue; 
+                continue;
             }
-            warnings++; 
+            warnings++;
             if (anyerr) {
                 usenote = false;
-                continue; 
+                continue;
             }
             break;
-        case SV_NONEERROR: 
+        case SV_NONEERROR:
             if (noneerr) {
                 usenote = false;
-                continue; 
+                continue;
             }
             /* fall through */
-        default: 
-            errors++; 
+        default:
+            errors++;
             break;
         }
         if (err3 != NULL) print_error(ferr, err3);

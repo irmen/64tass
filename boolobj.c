@@ -136,7 +136,7 @@ static MUST_CHECK Obj *calc2_bool(oper_t op) {
     bool v2 = op->v2 == &true_value->v;
     switch (op->op->op) {
     case O_SUB:
-    case O_CMP: 
+    case O_CMP:
         if (!v1 && v2) return (Obj *)ref_int(minus1_value);
         return int_from_bool2(v1 != v2);
     case O_EQ: return truth_reference(v1 == v2);
@@ -150,12 +150,12 @@ static MUST_CHECK Obj *calc2_bool(oper_t op) {
     case O_ADD: return (Obj *)int_from_uval((v1 ? 1 : 0) + (v2 ? 1 : 0));
     case O_MUL: return int_from_bool2(v1 && v2);
     case O_DIV:
-        if (!v2) { 
-            return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3); 
+        if (!v2) {
+            return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return int_from_bool2(v1);
     case O_MOD:
-        if (!v2) { 
+        if (!v2) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return int_from_bool2(false);

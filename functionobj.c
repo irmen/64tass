@@ -138,16 +138,16 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
 
     switch (vals->len) {
     default: end = 0; break; /* impossible */
-    case 1: 
+    case 1:
         err = v[0].val->obj->ival(v[0].val, &end, 8 * sizeof end, &v[0].epoint);
         break;
-    case 3: 
+    case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
-        if (err != NULL) return &err->v; 
+        if (err != NULL) return &err->v;
         /* fall through */
-    case 2: 
+    case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
-        if (err != NULL) return &err->v; 
+        if (err != NULL) return &err->v;
         err = v[1].val->obj->ival(v[1].val, &end, 8 * sizeof end, &v[1].epoint);
         break;
     }
@@ -177,7 +177,7 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
 }
 
 static uint64_t state[2];
- 
+
 static uint64_t random64(void) {
     uint64_t a = state[0];
     const uint64_t b = state[1];
@@ -226,16 +226,16 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
     switch (vals->len) {
     case 0:
         return (Obj *)new_float((random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
-    case 1: 
+    case 1:
         err = v[0].val->obj->ival(v[0].val, &end, 8 * sizeof end, &v[0].epoint);
         break;
-    case 3: 
+    case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
-        if (err != NULL) return &err->v; 
+        if (err != NULL) return &err->v;
         /* fall through */
-    case 2: 
+    case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
-        if (err != NULL) return &err->v; 
+        if (err != NULL) return &err->v;
         err = v[1].val->obj->ival(v[1].val, &end, 8 * sizeof end, &v[1].epoint);
         break;
     }
@@ -303,7 +303,7 @@ static int sortcomp(const void *a, const void *b) {
                 sort_tmp.v1 = o1;
                 sort_tmp.v2 = o2;
                 sort_error = obj_oper_error(&sort_tmp);
-            } 
+            }
         }
     }
     val_destroy(result);
@@ -388,19 +388,19 @@ static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint
         val_destroy(err);
     }
     switch (func) {
-    case F_SQRT: 
+    case F_SQRT:
         if (real < 0.0) {
             return (Obj *)new_error_key(ERROR_SQUARE_ROOT_N, o1, epoint);
         }
         real = sqrt(real);
         break;
-    case F_LOG10: 
+    case F_LOG10:
         if (real <= 0.0) {
             return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
         }
         real = log10(real);
         break;
-    case F_LOG: 
+    case F_LOG:
         if (real <= 0.0) {
             return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
         }
@@ -410,13 +410,13 @@ static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint
     case F_SIN: real = sin(real);break;
     case F_COS: real = cos(real);break;
     case F_TAN: real = tan(real);break;
-    case F_ACOS: 
+    case F_ACOS:
         if (real < -1.0 || real > 1.0) {
             return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
         }
         real = acos(real);
         break;
-    case F_ASIN: 
+    case F_ASIN:
         if (real < -1.0 || real > 1.0) {
             return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
         }
@@ -544,21 +544,21 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         return (Obj *)ref_none();
                     }
                     return gen_broadcast(v2, op->epoint, function_atan2);
-                case F_POW: 
+                case F_POW:
                     if (args != 2) {
                         err_msg_argnum(args, 2, 2, op->epoint2);
                         return (Obj *)ref_none();
                     }
                     return gen_broadcast(v2, op->epoint, function_pow);
-                case F_RANGE: 
+                case F_RANGE:
                     if (args < 1 || args > 3) {
                         err_msg_argnum(args, 1, 3, op->epoint2);
                         return (Obj *)ref_none();
                     }
                     return gen_broadcast(v2, op->epoint, function_range);
-                case F_FORMAT: 
+                case F_FORMAT:
                     return isnprintf(v2, op->epoint);
-                case F_RANDOM: 
+                case F_RANDOM:
                     if (args > 3) {
                         err_msg_argnum(args, 0, 3, op->epoint2);
                         return (Obj *)ref_none();
@@ -610,41 +610,41 @@ struct builtin_functions_s {
 };
 
 static struct builtin_functions_s builtin_functions[] = {
-    {"abs", F_ABS}, 
-    {"acos", F_ACOS}, 
+    {"abs", F_ABS},
+    {"acos", F_ACOS},
     {"all", F_ALL},
     {"any", F_ANY},
-    {"asin", F_ASIN}, 
-    {"atan", F_ATAN}, 
-    {"atan2", F_ATAN2}, 
-    {"cbrt", F_CBRT}, 
+    {"asin", F_ASIN},
+    {"atan", F_ATAN},
+    {"atan2", F_ATAN2},
+    {"cbrt", F_CBRT},
     {"ceil", F_CEIL},
-    {"cos", F_COS}, 
-    {"cosh", F_COSH}, 
-    {"deg", F_DEG}, 
-    {"exp", F_EXP}, 
+    {"cos", F_COS},
+    {"cosh", F_COSH},
+    {"deg", F_DEG},
+    {"exp", F_EXP},
     {"floor", F_FLOOR},
-    {"format", F_FORMAT}, 
-    {"frac", F_FRAC}, 
-    {"hypot", F_HYPOT}, 
+    {"format", F_FORMAT},
+    {"frac", F_FRAC},
+    {"hypot", F_HYPOT},
     {"len", F_LEN},
     {"log", F_LOG},
-    {"log10", F_LOG10}, 
-    {"pow", F_POW}, 
-    {"rad", F_RAD}, 
+    {"log10", F_LOG10},
+    {"pow", F_POW},
+    {"rad", F_RAD},
     {"random", F_RANDOM},
     {"range", F_RANGE},
     {"repr", F_REPR},
     {"round", F_ROUND},
-    {"sign", F_SIGN}, 
-    {"sin", F_SIN}, 
-    {"sinh", F_SINH}, 
+    {"sign", F_SIGN},
+    {"sin", F_SIN},
+    {"sinh", F_SINH},
     {"size", F_SIZE},
-    {"sort", F_SORT}, 
-    {"sqrt", F_SQRT}, 
-    {"tan", F_TAN}, 
-    {"tanh", F_TANH}, 
-    {"trunc", F_TRUNC}, 
+    {"sort", F_SORT},
+    {"sqrt", F_SQRT},
+    {"tan", F_TAN},
+    {"tanh", F_TANH},
+    {"trunc", F_TRUNC},
     {NULL, F_NONE}
 };
 

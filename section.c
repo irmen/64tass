@@ -34,7 +34,7 @@ static int section_compare(const struct avltree_node *aa, const struct avltree_n
     const struct section_s *a = cavltree_container_of(aa, struct section_s, node);
     const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
     int h = a->name_hash - b->name_hash;
-    if (h != 0) return h; 
+    if (h != 0) return h;
     return str_cmp(&a->cfname, &b->cfname);
 }
 
@@ -80,7 +80,7 @@ struct section_s *new_section(const str_t *name) {
     struct section_s *tmp;
 
     if (lastsc == NULL) {
-	lastsc = (struct section_s *)mallocx(sizeof *lastsc);
+        lastsc = (struct section_s *)mallocx(sizeof *lastsc);
     }
     if (name->len > 1 && name->data[1] == 0) lastsc->cfname = *name;
     else str_cfcpy(&lastsc->cfname, name);
@@ -109,9 +109,9 @@ struct section_s *new_section(const str_t *name) {
         init_memblocks(&lastsc->mem);
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
-	tmp = lastsc;
-	lastsc = NULL;
-	return tmp;
+        tmp = lastsc;
+        lastsc = NULL;
+        return tmp;
     }
     return avltree_container_of(b, struct section_s, node);            /* already exists */
 }
@@ -177,7 +177,7 @@ static void printrange(const struct section_s *l) {
     temp2[0] = 0;
     if (l->size != 0) {
         sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->start + l->size - 1));
-    } 
+    }
     sprintf(temp3, "$%04" PRIaddress, l->size);
     printf("Section: %15s%-8s %-7s", temp, temp2, temp3);
 }

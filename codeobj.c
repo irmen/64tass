@@ -333,7 +333,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         for (i = 0; i < len1; i++) {
             err = indexoffs(list->data[i], ln, &offs1, epoint2);
             if (err != NULL) {
-                if (error) {err_msg_output(err); error = false;} 
+                if (error) {err_msg_output(err); error = false;}
                 val_destroy(&err->v);
                 vals[i] = (Obj *)ref_none();
                 continue;
@@ -467,7 +467,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         default: break;
         }
         return op->v1->obj->calc2(op);
-    default: 
+    default:
         return o2->obj->rcalc2(op);
     }
     return obj_oper_error(op);

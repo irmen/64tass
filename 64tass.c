@@ -778,12 +778,12 @@ static const char *check_waitfor(void) {
     case W_ENDF2:
     case W_ENDF: return ".endf";
     case W_NEXT: return ".next";
-    case W_PEND: 
+    case W_PEND:
         if ((waitfor->skip & 1) != 0) {
             pop_context();
             if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
         }
-        return ".pend"; 
+        return ".pend";
     case W_BEND2:
         if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
         pop_context();
@@ -799,7 +799,7 @@ static const char *check_waitfor(void) {
         current_section = waitfor->section;
         /* fall through */
     case W_SEND: return ".send";
-    case W_ENDU: 
+    case W_ENDU:
         if ((waitfor->skip & 1) != 0) union_close(NULL);
         /* fall through */
     case W_ENDU2: return ".endu";
@@ -808,7 +808,7 @@ static const char *check_waitfor(void) {
         /* fall through */
     case W_HERE: return ".here";
     case W_NEXT2:
-    case W_NONE: 
+    case W_NONE:
         break;
     }
     return NULL;
@@ -1075,7 +1075,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     val = tmp2->value;
                     if (val->obj != CODE_OBJ) {
-                        if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint); 
+                        if (val->obj != NONE_OBJ) err_msg_wrong_type(val, CODE_OBJ, &epoint);
                         goto breakerr;
                     }
                     tmp2->usepass = pass; /* touch_label(tmp2) */
@@ -1150,7 +1150,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             wht = '*';
                             break;
                         }
-                        err_msg_not_defined2(&labelname, mycontext, false, &epoint); 
+                        err_msg_not_defined2(&labelname, mycontext, false, &epoint);
                         goto breakerr;
                     }
                     if (label->constant) {
@@ -1205,7 +1205,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 goto finish;
             }
             switch (wht) {
-            case '=': 
+            case '=':
                 { /* variable */
                     struct linepos_s epoints[3];
                     Label *label;
@@ -1408,7 +1408,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->file_list = cflist;
                             label->epoint = epoint;
                             waitfor->val = val_reference(&macro->v);
-                        } 
+                        }
                         label->ref = false;
                         goto finish;
                     }
@@ -1746,7 +1746,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->value = (Obj *)new_namespace(cflist, &epoint);
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                            } 
+                            }
                             context = (Namespace *)label->value;
                         }
                         val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, context, &epoint);
@@ -2103,7 +2103,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if ((waitfor->skip & 1) != 0) union_close(&epoint);
                     close_waitfor(W_ENDU);
                 } else if (close_waitfor(W_ENDU2)) {
-                    nobreak = false; 
+                    nobreak = false;
                     current_section->l_address = current_section->l_unionend;
                     if (current_section->l_address.bank > all_mem) {
                         current_section->l_address.bank &= all_mem;
@@ -2120,7 +2120,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
-                    if (((current_section->l_address.address ^ waitfor->laddr.address) & 0xff00) != 0 || 
+                    if (((current_section->l_address.address ^ waitfor->laddr.address) & 0xff00) != 0 ||
                             current_section->l_address.bank != waitfor->laddr.bank) {
                         err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, &epoint);
                     }
@@ -2592,9 +2592,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 val = STR_OBJ->create(val, &vs->epoint);
                                 if (val->obj != STR_OBJ) {
                                     if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
-                                    else if (val->obj == ERROR_OBJ) err_msg_output((Error *)val); 
+                                    else if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
                                     val_destroy(val);
-                                    val = (Obj *)ref_str(null_str); 
+                                    val = (Obj *)ref_str(null_str);
                                 } else {
                                     Str *str = (Str *)val;
                                     len2 += str->len;
@@ -3222,7 +3222,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             const char *msg;
                             switch (waitfor->what) {
                             case W_FI:
-                            case W_FI2: 
+                            case W_FI2:
                                 break;
                             default:
                                 msg = check_waitfor();
@@ -3488,7 +3488,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->value = (Obj *)new_namespace(cflist, &epoint);
                             label->file_list = cflist;
                             label->epoint = epoint;
-                        } 
+                        }
                         context = (Namespace *)label->value;
                     }
                     val = macro_recurse(W_ENDM2, val, context, &epoint);
@@ -3684,7 +3684,7 @@ static int main2(int *argc2, char **argv2[]) {
             current_section = &root_section;
             reset_section(current_section);
             init_macro();
-            /*	nolisting = 0;flist = stderr;*/
+            /*  nolisting = 0;flist = stderr;*/
             if (i == opts - 1) {
                 if (fin->lines != 0) {
                     cflist = enterfile(fin, &nopoint);
@@ -3822,36 +3822,36 @@ static int wmain(int argc, wchar_t *argv2[]) {
     argv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
-	uchar_t c = 0, lastchar;
-	wchar_t *p = argv2[i];
-	uint8_t *c2;
+        uchar_t c = 0, lastchar;
+        wchar_t *p = argv2[i];
+        uint8_t *c2;
 
-	while (*p != 0) p++;
-	c2 = (uint8_t *)malloc((p - argv2[i]) * 4 / (sizeof *p) + 1);
-	if (c2 == 0) err_msg_out_of_memory2();
-	p = argv2[i];
-	argv[i] = (char *)c2;
+        while (*p != 0) p++;
+        c2 = (uint8_t *)malloc((p - argv2[i]) * 4 / (sizeof *p) + 1);
+        if (c2 == 0) err_msg_out_of_memory2();
+        p = argv2[i];
+        argv[i] = (char *)c2;
 
-	while (*p != 0) {
-	    lastchar = c;
-	    c = *p++;
-	    if (c >= 0xd800 && c < 0xdc00) {
-		if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-		c = 0xfffd;
-	    } else if (c >= 0xdc00 && c < 0xe000) {
-		if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-		    c ^= 0x360dc00 ^ (lastchar << 10);
-		    c += 0x10000;
-		} else
-		    c = 0xfffd;
-	    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-		c = 0xfffd;
-	    }
-	    if (c != 0 && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
-	}
-	*c2++ = 0;
-	argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
-	if (argv[i] == NULL) err_msg_out_of_memory2();
+        while (*p != 0) {
+            lastchar = c;
+            c = *p++;
+            if (c >= 0xd800 && c < 0xdc00) {
+                if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+                c = 0xfffd;
+            } else if (c >= 0xdc00 && c < 0xe000) {
+                if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                    c ^= 0x360dc00 ^ (lastchar << 10);
+                    c += 0x10000;
+                } else
+                    c = 0xfffd;
+            } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                c = 0xfffd;
+            }
+            if (c != 0 && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
+        }
+        *c2++ = 0;
+        argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
+        if (argv[i] == NULL) err_msg_out_of_memory2();
     }
     if (argc < 1) {
         argv[0] = (char *)malloc(7);

@@ -81,8 +81,8 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
         return NULL;
     }
     r = frexp(r, &expo);
-    r *= 2147483648.0; 
-    h = (unsigned int)r; 
+    r *= 2147483648.0;
+    h = (unsigned int)r;
     r = (r - (double)h) * 2147483648.0;
     h ^= (unsigned int)r ^ ((unsigned int)expo << 15);
     *hs = h & ((~0U) >> 1);
@@ -92,7 +92,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Float *v1 = (Float *)o1;
     Str *v;
-    char line[100]; 
+    char line[100];
     int i = 0;
     size_t len = (size_t)sprintf(line, "%.10g", v1->real);
     while (line[i] != 0 && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
@@ -152,11 +152,11 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
 static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t UNUSED(epoint)) {
     double r = ((Float *)o1)->real;
     switch (f) {
-    case TF_ABS: if (r >= 0.0) return val_reference(o1); r = -r; break; 
-    case TF_TRUNC: r = trunc(r); break; 
-    case TF_ROUND: r = round(r); break; 
-    case TF_FLOOR: r = floor(r); break; 
-    case TF_CEIL: r = ceil(r); break; 
+    case TF_ABS: if (r >= 0.0) return val_reference(o1); r = -r; break;
+    case TF_TRUNC: r = trunc(r); break;
+    case TF_ROUND: r = round(r); break;
+    case TF_FLOOR: r = floor(r); break;
+    case TF_CEIL: r = ceil(r); break;
     default: break;
     }
     return (Obj *)new_float(r);
@@ -199,7 +199,7 @@ static bool almost_equal(oper_t op, double a, double b) {
 MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     double r;
     switch (op->op->op) {
-    case O_CMP: 
+    case O_CMP:
         if (v1 == v2 || almost_equal(op, v1, v2)) return (Obj *)ref_int(int_value[0]);
         return (Obj *)ref_int((v1 < v2) ? minus1_value : int_value[1]);
     case O_EQ: return truth_reference(v1 == v2 || almost_equal(op, v1, v2));
@@ -214,15 +214,15 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     case O_SUB: return float_from_double(v1 - v2, op->epoint3);
     case O_MUL: return float_from_double(v1 * v2, op->epoint3);
     case O_DIV:
-        if (v2 == 0.0) { 
+        if (v2 == 0.0) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return float_from_double(v1 / v2, op->epoint3);
     case O_MOD:
-        if (v2 == 0.0) { 
+        if (v2 == 0.0) {
             return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
         }
-        r = fmod(v1, v2); 
+        r = fmod(v1, v2);
         if (r != 0.0 && ((v2 < 0.0) != (r < 0))) r += v2;
         return (Obj *)new_float(r);
     case O_AND: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) & (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
@@ -230,7 +230,7 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
     case O_XOR: return (Obj *)new_float((double)((uint64_t)(v1 * 4294967296.0) ^ (uint64_t)(v2 * 4294967296.0)) / 4294967296.0);
     case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2), op->epoint3);
     case O_RSHIFT: return float_from_double(v1 * pow(2.0, -v2), op->epoint3);
-    case O_EXP: 
+    case O_EXP:
         if (v1 == 0.0) {
             if (v2 < 0.0) {
                 return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);

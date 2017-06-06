@@ -62,7 +62,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_INT: return bits_from_int((Int *)v1, epoint);
     case T_CODE: return bits_from_code((Code *)v1, epoint);
     case T_ADDRESS: return bits_from_address((Address *)v1, epoint);
-    case T_FLOAT: 
+    case T_FLOAT:
          err = int_from_float((Float *)v1, epoint);
          if (err->obj != INT_OBJ) return err;
          ret = bits_from_int((Int *)err, epoint);
@@ -318,18 +318,18 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 static bool uvalx(Obj *o1, uval_t *uv, unsigned int bits) {
     Bits *v1 = (Bits *)o1;
     switch (v1->len) {
-    case ~1: 
+    case ~1:
         *uv = ~v1->data[0];
         if (v1->bits > bits) break;
         return true;
-    case ~0: 
-        *uv = ~(uval_t)0; 
+    case ~0:
+        *uv = ~(uval_t)0;
         if (v1->bits > bits) break;
         return true;
-    case 0: 
-        *uv = 0; 
+    case 0:
+        *uv = 0;
         return true;
-    case 1: 
+    case 1:
         *uv = v1->data[0];
         if (bits < SHIFT && (*uv >> bits) != 0) break;
         return true;
@@ -1352,10 +1352,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
                 return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
             case O_EQ: return truth_reference(icmp(v1, v2) == 0);
             case O_NE: return truth_reference(icmp(v1, v2) != 0);
-            case O_MIN: 
+            case O_MIN:
             case O_LT: return truth_reference(icmp(v1, v2) < 0);
             case O_LE: return truth_reference(icmp(v1, v2) <= 0);
-            case O_MAX: 
+            case O_MAX:
             case O_GT: return truth_reference(icmp(v1, v2) > 0);
             case O_GE: return truth_reference(icmp(v1, v2) >= 0);
             case O_AND: return and_(v1, v2, op->epoint3);

@@ -329,7 +329,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     atype_t am = v1->type;
     switch (op->op->op) {
     case O_LNOT:
-    case O_STRING: 
+    case O_STRING:
         if (am != A_NONE) break;
         /* fall through */
     case O_BANK:
@@ -412,12 +412,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 if (check_addr(v2->type)) break;
                 {
                     atype_t am1 = A_NONE, am2 = v2->type;
-                    for (; (am & MAX_ADDRESS_MASK) != 0; am <<= 4) { 
+                    for (; (am & MAX_ADDRESS_MASK) != 0; am <<= 4) {
                         atype_t amc = (am >> 8) & 0xf;
                         atype_t am3, am4;
                         if (amc == A_NONE) continue;
                         am3 = A_NONE; am4 = am2;
-                        while (am4 != A_NONE) { 
+                        while (am4 != A_NONE) {
                             atype_t am5 = (am4 & 0xf);
                             if (amc == am5) amc = A_NONE;
                             else am3 = (am3 << 4) | am5;

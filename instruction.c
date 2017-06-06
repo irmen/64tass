@@ -66,7 +66,7 @@ int lookup_opcode(const uint8_t *s) {
 
 void select_opcodes(const struct cpu_s *cpumode) {
     last_mnem = cpumode->opcodes;
-    mnemonic = cpumode->mnemonic; 
+    mnemonic = cpumode->mnemonic;
     opcode = cpumode->opcode;
 }
 
@@ -243,7 +243,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     break;
                 }
                 return err_addressing(am, epoint);
-            case A_YR: 
+            case A_YR:
                 if (cnmemonic[ADR_ZP_Y] != ____ || cnmemonic[ADR_ADDR_Y] != ____) {
                     adrgen = AG_DB2; opr = ADR_ZP_Y; /* lda $ff,y lda $ffff,y lda $ffffff,y */
                     break;
@@ -320,7 +320,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
                     adrgen = AG_PB; opr = ADR_ADDR_X_I; /* jmp ($ffff,x) */
                     break;
-                } 
+                }
                 if (cnmemonic[ADR_ZP_X_I] != ____) {
                     adrgen = AG_ZP; opr = ADR_ZP_X_I; /* lda ($ff,x) */
                     break;
@@ -344,7 +344,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (cnmemonic[ADR_ADDR_I] == 0x6C || cnmemonic[ADR_ADDR_I] == 0x22) {/* jmp ($ffff), jsr ($ffff) */
                     adrgen = AG_B0; opr = ADR_ADDR_I; /* jmp ($ffff) */
                     break;
-                } 
+                }
                 if (cnmemonic[ADR_ZP_I] != ____) {
                     adrgen = AG_ZP; opr = ADR_ZP_I; /* lda ($ff) */
                     break;
@@ -361,7 +361,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (cnmemonic[ADR_ADDR_LI] == 0xDC) { /* jmp [$ffff] */
                     adrgen = AG_B0; opr = ADR_ADDR_LI; /* jmp [$ffff] */
                     break;
-                } 
+                }
                 if (cnmemonic[ADR_ZP_LI] != ____) {
                     adrgen = AG_ZP; opr = ADR_ZP_LI; /* lda [$ff] */
                     break;
@@ -414,7 +414,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     else uval &= 0xffff;
                     crossbank = false;
                 } else {
-            justrel: 
+            justrel:
                     if (touval(val, &uval, all_mem_bits, epoint2)) {
                         uval = current_section->l_address.address + 1 + ln;
                         crossbank = false;
@@ -540,7 +540,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             dump_instr(cnmemonic[ADR_REL], 0, -1, epoint);
                             err = NULL;
                             goto branchend;
-                        } 
+                        }
                         if (adr == 1) {
                             if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                                 cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
@@ -592,7 +592,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (cnmemonic[ADR_ADDR] == 0xF4) {
                 adrgen = AG_WORD; opr = ADR_ADDR; /* pea $ffff */
                 break;
-            } 
+            }
             if (cnmemonic[ADR_ZP] != ____ || cnmemonic[ADR_ADDR] != ____ || cnmemonic[ADR_LONG] != ____) {
                 adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                 break;
@@ -619,10 +619,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     if (am != A_NONE && am != A_IMMEDIATE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else adr |= uval & 0xff;
                 }
-                ln = 2; 
+                ln = 2;
                 adrgen = AG_NONE; opr = ADR_MOVE;
                 break;
-            } 
+            }
             if (cnmemonic[ADR_BIT_ZP] != ____) {
                 if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
                 if (touval(addrlist->data[0], &uval, 3, epoint2)) {}
@@ -681,7 +681,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 goto justrel;
             }
             /* fall through */
-        default: 
+        default:
             addrlist = (Addrlist *)vals;
             if (addrlist->data[0] == &none_value->v) {
                 return new_error(ERROR____STILL_NONE, epoint2);
@@ -704,7 +704,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             err->u.opers = addrlist->len;
             return err;
         }
-    } 
+    }
     switch (adrgen) {
     case AG_ZP: /* zero page address only */
         if (w != 3 && w != 0) return new_error((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
@@ -727,7 +727,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             adr = uval;
             if (diagnostics.jmp_bug && cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg_jmp_bug(epoint);/* jmp ($xxff) */
             break;
-        } 
+        }
         err_msg2(ERROR_____NOT_BANK0, val, epoint2);
         break;
     case AG_PB: /* address in program bank */
@@ -735,9 +735,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         ln = 2;
         if (touval(val, &uval, all_mem_bits, epoint2)) break;
         uval &= all_mem;
-        if ((current_section->l_address.bank ^ uval) <= 0xffff) { 
+        if ((current_section->l_address.bank ^ uval) <= 0xffff) {
             adr = uval;
-            break; 
+            break;
         }
         err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
         break;
@@ -788,14 +788,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
 
                 if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
                     if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && oval->obj != CODE_OBJ && oval->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
-                    else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2); 
+                    else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2);
                     adr = uval - dpage; w = 0;
-                } else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) { 
-                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2); 
-                    adr = uval; w = 1; 
-                } else if (cnmemonic[opr - 2] != ____) { 
-                    if (w != 3 && w != 2) err_msg_address_mismatch(opr-2, opr-w, epoint2); 
-                    adr = uval; w = 2; 
+                } else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {
+                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2);
+                    adr = uval; w = 1;
+                } else if (cnmemonic[opr - 2] != ____) {
+                    if (w != 3 && w != 2) err_msg_address_mismatch(opr-2, opr-w, epoint2);
+                    adr = uval; w = 2;
                 } else {
                     w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                     err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
@@ -843,10 +843,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 }
 
                 if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {
-                    if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2); 
+                    if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2);
                     adr = uval - dpage; w = 0;
                 } else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {
-                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2); 
+                    if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2);
                     adr = uval; w = 1;
                 } else {
                     w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
@@ -863,7 +863,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff || dpage > 0xffff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                     break;
-                } 
+                }
                 err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                 break;
             case 1:

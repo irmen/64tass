@@ -129,7 +129,7 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     while (name[i] != 0 && i < max) {
         ch = name[i];
         if ((ch & 0x80) != 0) {
-            i += utf8in((const uint8_t *)name + i, &ch); 
+            i += utf8in((const uint8_t *)name + i, &ch);
             if (ch == 0) ch = REPLACEMENT_CHARACTER;
         } else i++;
         if (j + 3 > len) {
@@ -233,7 +233,7 @@ FILE *file_open(const char *name, const char *mode) {
         ssize_t l;
         ch = *c;
         if ((ch & 0x80) != 0) {
-            c += utf8in(c, &ch); 
+            c += utf8in(c, &ch);
             if (ch == 0) {errno = ENOENT; goto failed;}
         } else c++;
         l = (ssize_t)wcrtomb(temp, (wchar_t)ch, &ps);
@@ -553,7 +553,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                     encoding = E_ISO; break;
                                 }
                                 c = REPLACEMENT_CHARACTER; break;
-                            } 
+                            }
                             ch2 = (bp == bl) ? 0 : buffer[bp];
                             if (c < 0xe0) {
                                 if (c < 0xc2) goto invalid;
@@ -601,7 +601,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                     ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                 }
                                 if (bp == bl) goto eof;
-                                c = (ch2 >= 0x80) ? fromiso(ch2) : ch2; 
+                                c = (ch2 >= 0x80) ? fromiso(ch2) : ch2;
                                 j = 0;
                                 bp = (bp + 1) % (BUFSIZ * 2);
                                 break;
@@ -674,7 +674,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                             } else {
                                 if (!qc) {
                                     unfc(&ubuff);
-                                    qc = true; 
+                                    qc = true;
                                 }
                                 if (ubuff.p == 1) {
                                     if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
@@ -750,7 +750,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         err_msg_file(tmp->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
         free(path);
         return NULL;
-    } 
+    }
     if (!tmp->portable && val != NULL && diagnostics.portable) {
         tmp->portable = portability(val, epoint);
     }
@@ -775,7 +775,7 @@ struct star_s *new_star(line_t line, bool *exists) {
     lastst->line = line;
     b = avltree_insert(&lastst->node, star_tree, star_compare);
     if (b == NULL) { /* new label */
-	*exists = false;
+        *exists = false;
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
@@ -785,7 +785,7 @@ struct star_s *new_star(line_t line, bool *exists) {
         } else starsp++;
         tmp = lastst;
         lastst = &stars->stars[starsp];
-	return tmp;
+        return tmp;
     }
     *exists = true;
     return avltree_container_of(b, struct star_s, node);            /* already exists */

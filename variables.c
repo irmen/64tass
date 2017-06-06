@@ -88,7 +88,7 @@ bool pop_context(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
-        val_destroy(&cheap_context->v); 
+        val_destroy(&cheap_context->v);
         cheap_context = c->cheap;
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
@@ -104,7 +104,7 @@ void reset_context(void) {
         val_destroy(&c->normal->v);
         val_destroy(&c->cheap->v);
     }
-    val_destroy(&cheap_context->v); 
+    val_destroy(&cheap_context->v);
     cheap_context = ref_namespace(root_namespace);
     push_context(root_namespace);
 }
@@ -157,7 +157,7 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
     const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
     const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
     int h = a->hash - b->hash;
-    if (h != 0) return h; 
+    if (h != 0) return h;
     return str_cmp(&a->key->cfname, &b->key->cfname);
 }
 
@@ -166,14 +166,14 @@ static int label_compare2(const struct avltree_node *aa, const struct avltree_no
     const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
     const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
     int h = a->hash - b->hash;
-    if (h != 0) return h; 
+    if (h != 0) return h;
     h = str_cmp(&a->key->cfname, &b->key->cfname);
     if (h != 0) return h;
     return b->key->strength - a->key->strength;
 }
 
 static struct namespacekey_s *strongest_label(struct avltree_node *b) {
-    struct namespacekey_s *a = NULL, *c; 
+    struct namespacekey_s *a = NULL, *c;
     struct avltree_node *n = b;
 
     do {
@@ -328,7 +328,7 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     lastlb->strength = strength;
 
     b = avltree_insert(&lastlb2->node, &context->members, label_compare2);
-    
+
     if (b == NULL) { /* new label */
         str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
@@ -338,12 +338,12 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
         lastlb->update_after = false;
         lastlb->usepass = 0;
         lastlb->defpass = pass;
-	*exists = false;
-	tmp = lastlb;
-	lastlb = NULL;
+        *exists = false;
+        tmp = lastlb;
+        lastlb = NULL;
         lastlb2 = NULL;
         context->len++;
-	return tmp;
+        return tmp;
     }
     *exists = true;
     return avltree_container_of(b, struct namespacekey_s, node)->key;            /* already exists */
@@ -358,7 +358,7 @@ static Namespace *get_space(const Obj *o) {
         return ((Struct *)o)->names;
     case T_NAMESPACE:
         return (Namespace *)o;
-    default: 
+    default:
         return NULL;
     }
 }
@@ -431,7 +431,7 @@ void unused_check(Namespace *members) {
         case T_NAMESPACE:
             ns = (Namespace *)o;
             break;
-        default: 
+        default:
             ns = NULL;
             break;
         }
@@ -465,7 +465,7 @@ void unused_check(Namespace *members) {
 }
 
 static Label *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp) {
-    struct namespacekey_s *a = NULL, *c; 
+    struct namespacekey_s *a = NULL, *c;
     struct avltree_node *b = *x, *n = b;
     do {
         c = avltree_container_of(n, struct namespacekey_s, node);
@@ -486,9 +486,9 @@ static Label *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp
 static inline void padding(size_t l, size_t t, FILE *f) {
     if (arguments.tab_size > 1) {
         size_t l2 = l - l % arguments.tab_size;
-        while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', f);} 
+        while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', f);}
     }
-    while (l < t) { l++; putc(' ', f);} 
+    while (l < t) { l++; putc(' ', f);}
 }
 
 static void labelname_print(Label *l, FILE *flab, char d) {

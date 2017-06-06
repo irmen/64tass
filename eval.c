@@ -144,7 +144,7 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
             size_t len, len2;
             Obj *v;
             lpoint.pos++;
-           
+
             v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
             err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
             val_destroy(v);
@@ -385,8 +385,8 @@ rest:
     switch (here()) {
     case 0:
     case ';': return true;
-    case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break; 
-    case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break; 
+    case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break;
+    case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break;
     }
     for (;;) {
         Oper *op;
@@ -403,7 +403,7 @@ rest:
             /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_dec(&epoint), &epoint);goto other;
-        default: 
+        default:
             if (get_label() == 0) {
                 if (operp != 0) epoint = o_oper[operp - 1].epoint;
                 goto syntaxe;
@@ -459,7 +459,7 @@ rest:
         case '*': op = &o_MUL; goto add;
         case '/': op = &o_DIV; goto add;
         case '+': op = &o_ADD; goto add;
-        case '-': op = &o_SUB; 
+        case '-': op = &o_SUB;
               add: o_oper[operp].epoint = epoint; o_oper[operp++].val = op; lpoint.pos++;continue;
         case ')':
             if (operp == 0) {err_msg2(ERROR______EXPECTED, "')' not", &lpoint); goto error;}
@@ -552,7 +552,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                 default:break;
                 }
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, (Obj *)none_value); 
+                val_replace(&v1->val, (Obj *)none_value);
                 break;
             case T_CODE:
             case T_INT:
@@ -579,10 +579,10 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                             v1->epoint = o_out->epoint;
                             continue;
                         }
-                    case O_HIGHER: 
+                    case O_HIGHER:
                         val1 >>= 8;
                         /* fall through */
-                    case O_LOWER: 
+                    case O_LOWER:
                         val1 = (uint8_t)val1;
                         break;
                     case O_TUPLE:
@@ -600,7 +600,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                 }
             default:
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, (Obj *)none_value); 
+                val_replace(&v1->val, (Obj *)none_value);
                 break;
             case T_ERROR:
             case T_NONE:break;
@@ -649,7 +649,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
-                    case O_DIV: 
+                    case O_DIV:
                         if (val2 == 0) {
                             err = new_error(ERROR_DIVISION_BY_Z, &o_out->epoint);
                             val_destroy(v1->val); v1->val = &err->v;
@@ -889,7 +889,7 @@ static bool get_val2(struct eval_context_s *ev) {
                                      obj != &o_COMMA.v &&     /* [(3),(3)] */
                                      !(((Oper *)obj)->op >= O_COMMAX && ((Oper *)obj)->op <= O_COMMAK) /* (3),y */
                                     )) {
-                                v1->val = values[vsp].val; 
+                                v1->val = values[vsp].val;
                                 values[vsp].val = NULL;
                                 continue;
                             }
@@ -900,7 +900,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     }
                     if (tup) {
                         vsp--;
-                        v1->val = values[vsp].val; 
+                        v1->val = values[vsp].val;
                         values[vsp].val = NULL;
                         continue;
                     }
@@ -945,7 +945,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 values[vsp - 1].epoint = v1->epoint;
                 v1->val = val;
                 continue;
-            } 
+            }
             if (val == &false_value->v) {
             cond_false:
                 values[vsp - 1].val = v2->val;
@@ -1019,7 +1019,7 @@ static bool get_val2(struct eval_context_s *ev) {
                         continue;
                     }
                     /* fall through */
-                default: 
+                default:
                     {
                         Colonlist *list = new_colonlist();
                         list->len = 2;
@@ -1282,27 +1282,27 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             }
             goto tryanon;
         case ']':
-            if (operp != 0) { 
+            if (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_COMMA) {operp--;op = &o_LIST;goto lshack;}
                 else if (o == &o_BRACKET || o == &o_INDEX) goto other;
             }
             goto tryanon;
         case '}':
-            if (operp != 0) { 
+            if (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_COMMA) {operp--;op = &o_DICT;goto brhack;}
                 else if (o == &o_BRACE) goto other;
             }
             goto tryanon;
         case ':':
-            if (operp != 0) { 
+            if (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o != &o_PARENT && o != &o_BRACKET && o != &o_BRACE && o != &o_FUNC && o != &o_INDEX && o != &o_COMMA) goto tryanon;
             }
             push_oper((Obj *)ref_default(), &epoint);
             goto other;
-        case '(': 
+        case '(':
             if ((operp != 0 && o_oper[operp - 1].val == &o_MEMBER) || identlist != 0) identlist++;
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_PARENT; lpoint.pos++;
@@ -1337,21 +1337,21 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                   goto tryanon;
         case '"':
         case '\'': push_oper(get_string(&epoint), &epoint);goto other;
-        case '?': 
+        case '?':
             if (operp != 0) {
                 const Oper *o = o_oper[operp - 1].val;
                 if (o == &o_SPLAT || o == &o_POS || o == &o_NEG) goto tryanon;
             }
             lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
         case '.': if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) goto tryanon; /* fall through */
-        case '0': 
+        case '0':
             if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
             /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_float(&epoint), &epoint);
             goto other;
         case 0:
-        case ';': 
+        case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
@@ -1359,7 +1359,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 }
             }
             goto tryanon;
-        default: 
+        default:
             if (get_label() != 0) {
                 bool down;
                 Label *l;
@@ -1395,7 +1395,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                     idn->epoint = epoint;
                     push_oper(&idn->v, &epoint);
                     goto other;
-                } 
+                }
                 ident.data = pline + epoint.pos;
                 ident.len = lpoint.pos - epoint.pos;
                 down = (ident.data[0] != '_');
@@ -1480,7 +1480,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                         idn->epoint = o_oper[operp].epoint;
                         push_oper(&idn->v, &o_oper[operp].epoint);
                         goto other;
-                    } 
+                    }
                     push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
                     goto other;
                 }
@@ -1498,7 +1498,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 idn->epoint = o_oper[operp].epoint;
                 push_oper(&idn->v, &o_oper[operp].epoint);
                 goto other;
-            } 
+            }
             push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
             goto other;
         }
@@ -1612,7 +1612,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = op;
             continue;
-        case '<': 
+        case '<':
             switch (pline[lpoint.pos + 1]) {
             case '>': if (diagnostics.deprecated) err_msg2(ERROR_______OLD_NEQ, NULL, &lpoint); op = &o_NE; break;
             case '<': op = pline[lpoint.pos + 2] == '=' ? &o_BLS_ASSIGN : &o_LSHIFT; break;
@@ -1684,7 +1684,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             push_oper((Obj *)((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val), &o_oper[operp].epoint);
             goto other;
         case 0:
-        case ';': 
+        case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
@@ -1694,10 +1694,10 @@ static bool get_exp2(int stop, struct file_s *cfile) {
             break;
         case '\t':
         case ' ': break;
-        default: 
+        default:
             switch (get_label()) {
             case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {if (pline[lpoint.pos] == '=') {lpoint.pos++; op = &o_X_ASSIGN;} else op = &o_X;goto push2a;} break;
-            case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
+            case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' &&
                         (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = &o_IN;goto push2a;} break;
             }
             err_msg2(ERROR______EXPECTED, "an operator", &epoint);
@@ -1764,9 +1764,9 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
     struct linepos_s epoint;
 
     switch (len) {
-    case 0: 
+    case 0:
         return (Obj *)ref_addrlist(null_addrlist);
-    case 1: 
+    case 1:
         {
             Obj *val = pull_val(&epoints[0]);
             if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
