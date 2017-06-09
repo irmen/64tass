@@ -806,6 +806,7 @@ void err_msg_address_mismatch(int a, int b, linepos_t epoint) {
     adderror(opr_names[a]);
     adderror(" addressing instead of ");
     adderror(opr_names[b]);
+    adderror(" [-Waltmode]");
 }
 
 static void err_msg_double_defined2(const char *msg, Severity_types severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
