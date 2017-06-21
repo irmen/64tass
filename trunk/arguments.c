@@ -83,7 +83,7 @@ struct diagnostics_s diagnostics = {
     true,        /* star_assign */
     true,        /* ignored */
     false,       /* long_branch */
-    true         /* altmode */
+    false        /* altmode */
 };
 
 struct diagnostics_s diagnostic_errors = {
