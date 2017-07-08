@@ -203,3 +203,17 @@ void sectionprint(void) {
         l = l->next;
     }
 }
+
+void section_sizecheck(void) {
+    struct section_s *l = root_section.next;
+    while (l != NULL) {
+        if (l->defpass == pass) {
+            if (l->size != ((!l->moved && l->end < l->address) ? l->address : l->end) - l->start) {
+                if (pass > max_pass) err_msg_cant_calculate2(&l->name, l->file_list, &l->epoint);
+                fixeddig = false;
+                return;
+            }
+        }
+        l = l->next;
+    }
+}

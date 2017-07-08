@@ -3710,6 +3710,7 @@ static int main2(int *argc2, char **argv2[]) {
             }
         }
         ref_labels();
+        if (fixeddig) section_sizecheck();
         /*garbage_collect();*/
     } while (!fixeddig || constcreated);
     if (arguments.list == NULL) {
@@ -3766,6 +3767,7 @@ static int main2(int *argc2, char **argv2[]) {
             }
         }
         ref_labels();
+        if (fixeddig) section_sizecheck();
         /*garbage_collect();*/
         listing_close(listing);
         listing = NULL;
