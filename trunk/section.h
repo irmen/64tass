@@ -74,5 +74,6 @@ extern void destroy_section(void);
 extern void destroy_section2(struct section_s *);
 extern void reset_section(struct section_s *);
 extern void sectionprint(void);
+extern void section_sizecheck(void);
 extern struct section_s *current_section, root_section;
 #endif

@@ -707,6 +707,12 @@ void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
     err_msg_str_name("can't calculate stable value", name, epoint);
 }
 
+void err_msg_cant_calculate2(const str_t *name, const struct file_list_s *flist, linepos_t epoint) {
+    new_error_msg(SV_ERROR, flist, epoint);
+    adderror("can't calculate stable value");
+    str_name(name->data, name->len);
+}
+
 void err_msg_still_none(const str_t *name, linepos_t epoint) {
     if ((constcreated || !fixeddig) && pass < max_pass) return;
     new_error_msg(SV_NONEERROR, current_file_list, epoint);
