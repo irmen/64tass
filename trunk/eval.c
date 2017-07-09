@@ -312,17 +312,8 @@ MUST_CHECK Obj *get_star_value(Obj *val) {
     }
 }
 
-static MUST_CHECK Obj *get_star(linepos_t epoint) {
-    struct star_s *tmp;
-    bool labelexists;
-
+static MUST_CHECK Obj *get_star(void) {
     if (diagnostics.optimize) cpu_opt_invalidate();
-    tmp = new_star(vline, &labelexists);
-    if (labelexists && tmp->addr != star) {
-        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
-        fixeddig = false;
-    }
-    tmp->addr = star;
     return get_star_value(current_section->l_address_val);
 }
 
@@ -397,7 +388,7 @@ rest:
         case '$': push_oper(get_hex(&epoint), &epoint);goto other;
         case '%': push_oper(get_bin(&epoint), &epoint);goto other;
         case '"': push_oper(get_string(&epoint), &epoint);goto other;
-        case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
+        case '*': lpoint.pos++;push_oper(get_star(), &epoint);goto other;
         case '0':
             if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
             /* fall through */
@@ -1481,7 +1472,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                         push_oper(&idn->v, &o_oper[operp].epoint);
                         goto other;
                     }
-                    push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
+                    push_oper(get_star(), &o_oper[operp].epoint);
                     goto other;
                 }
                 epoint = o_oper[operp - 1].epoint;
@@ -1499,7 +1490,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
                 push_oper(&idn->v, &o_oper[operp].epoint);
                 goto other;
             }
-            push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
+            push_oper(get_star(), &o_oper[operp].epoint);
             goto other;
         }
         lpoint.pos++;
