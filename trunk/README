@@ -113,6 +113,7 @@ Table of Contents
       + Symbol listing
       + Assembly listing
       + Other options
+      + Command line from file
   * Messages
       + Warnings
       + Errors
@@ -2514,11 +2515,6 @@ to be file names.
 Options requiring file names are marked with `<filename>'. A single `-' as name
 means standard input or output. File name quoting is system specific.
 
-`@filename' can be used to read additional command line options from a file.
-Options must be separated with white space. White space can be included by
-single or double quotes. A backslash quotes a single character and must be
-quoted by itself.
-
 Output options
 
 -o <filename>, --output <filename>
@@ -3268,6 +3264,24 @@ Other options
     Give a short usage message. Prints short help about command line options.
 -V, --version
     Print program version
+
+Command line from file
+
+Command line arguments can be read from a file as well. This is useful to store
+    common options for multiple files in one place or to overcome the argument
+    list length limitations of some systems.
+
+    The filename needs to be prefixed with an at sign, so `@argsfile' reads
+    options from `argsfile'. It will only work if there's not another file
+    named `@argsfile'. The content is expanded in-place of `@argsfile'.
+
+    The stored options must be separated by white space. Single or double
+    quotes can be used in case file names have white space in their names.
+
+    Backslash can be used to escape the character following it and it must be
+    used to quote itself.
+
+    Forward slashes can be used as a portable path separation on all systems.
 
 -------------------------------------------------------------------------------
 
