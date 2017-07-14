@@ -222,6 +222,7 @@ difficult to get everything <q>right</q> first time.</b></p>
   <li><a href="#commandline-symbol">Symbol listing</a>
   <li><a href="#commandline-assembly">Assembly listing</a>
   <li><a href="#commandline-other">Other options</a>
+  <li><a href="#commandline-file">Command line from file</a>
  </ul>
  <li><a href="#messages">Messages</a>
  <ul>
@@ -2950,10 +2951,6 @@ assumed to be file names.</p>
 single <q>-</q> as name means standard input or output. File name quoting is
 system specific.</p>
 
-<p><q>@filename</q> can be used to read additional command line options from a
-file. Options must be separated with white space. White space can be included
-by single or double quotes. A backslash quotes a single character and must be quoted by itself.</p>
-
 <h3>Output options<a name="commandline-output" href="#commandline-output"></a></h3>
 
 <dl class="dir">
@@ -3697,6 +3694,26 @@ including comments and empty lines.
 
 <dt><b>-V</b><a name="o_V"></a>, <b>--version</b><a name="o_version" href="#o_version"></a>
 <dd>Print program version
+</dl>
+
+<h3>Command line from file<a name="commandline-file" href="#commandline-file"></a></h3>
+
+<dl class="dir">
+<p>Command line arguments can be read from a file as well. This is useful to store
+common options for multiple files in one place or to overcome the argument list length
+limitations of some systems.</p>
+
+<p>The filename needs to be prefixed with an at sign, so <q>@argsfile</q>
+reads options from <q>argsfile</q>. It will only work if there's not another file
+named <q>@argsfile</q>. The content is expanded in-place of <q>@argsfile</q>.
+
+<p>The stored options must be separated by white space. Single or double quotes
+can be used in case file names have white space in their names.</p>
+
+<p>Backslash can be used to escape the character following it and it must be
+used to quote itself.</p>
+
+<p>Forward slashes can be used as a portable path separation on all systems.</p>
 </dl>
 
 <hr>
