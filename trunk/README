@@ -2723,10 +2723,10 @@ Operation options
 
 -D <label>=<value>
     Define <label> to <value>. Defines a label to a value. Same syntax is
-    allowed as in source files. Be careful with string quoting, the shell might
-    eat some of the characters.
+    allowed as in source files. Be careful with strings, the shell might eat
+    the quotes unless escaped.
 
-    64tass -D ii=2 a.asm
+    64tass -D ii=2 -D var=\"string\" a.asm
             lda #ii ;result: $a9, $02
 
 -w, --no-warn
@@ -3275,11 +3275,12 @@ Command line arguments can be read from a file as well. This is useful to store
     options from `argsfile'. It will only work if there's not another file
     named `@argsfile'. The content is expanded in-place of `@argsfile'.
 
-    The stored options must be separated by white space. Single or double
-    quotes can be used in case file names have white space in their names.
+    Stored options must be separated by white space. Single or double quotes
+    can be used in case file names have white space in their names.
 
     Backslash can be used to escape the character following it and it must be
-    used to quote itself.
+    used to escape itself. Single and double quotes need to be escaped if
+    needed for string quoting.
 
     Forward slashes can be used as a portable path separation on all systems.
 
