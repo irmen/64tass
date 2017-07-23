@@ -1227,7 +1227,7 @@ size_t get_val_remaining(void) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-static bool get_exp2(int stop, struct file_s *cfile) {
+static bool get_exp2(int stop, struct file_list_s *cflist) {
     uint8_t ch;
 
     Oper *op;
@@ -1345,7 +1345,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
-                if (!mtranslate(cfile)) { /* expand macro parameters, if any */
+                if (!mtranslate(cflist)) { /* expand macro parameters, if any */
                     continue;
                 }
             }
@@ -1678,7 +1678,7 @@ static bool get_exp2(int stop, struct file_s *cfile) {
         case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
-                if (!mtranslate(cfile)) { /* expand macro parameters, if any */
+                if (!mtranslate(cflist)) { /* expand macro parameters, if any */
                     goto other;
                 }
             }
@@ -1710,8 +1710,8 @@ static bool get_exp2(int stop, struct file_s *cfile) {
     return false;
 }
 
-bool get_exp(int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
-    if (!get_exp2(stop, cfile)) {
+bool get_exp(int stop, struct file_list_s *cflist, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+    if (!get_exp2(stop, cflist)) {
         return false;
     }
     if (eval->values_len < min || (max != 0 && eval->values_len > max)) {

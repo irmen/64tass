@@ -60,14 +60,15 @@ static struct {
 bool in_macro;
 
 /* ------------------------------------------------------------------------------ */
-bool mtranslate(struct file_s *cfile) {
+bool mtranslate(struct file_list_s *cflist) {
     unsigned int q;
     size_t j;
     size_t p;
     size_t last;
     uint8_t ch;
     struct macro_pline_s *mline;
-    bool changed;
+    bool changed, fault;
+    struct file_s *cfile = cflist->file;
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->data[cfile->line[lpoint.line]];
@@ -76,7 +77,7 @@ bool mtranslate(struct file_s *cfile) {
     if (changed) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = 0; last = 0;
+    q = p = 0; last = 0; fault = false;
     for (; (ch = here()) != 0; lpoint.pos++) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
@@ -91,8 +92,8 @@ bool mtranslate(struct file_s *cfile) {
                 if (j >= macro_parameters.current->len || params[j].data == NULL) {
                     Type *obj = macro_parameters.current->macro->obj;
                     if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                        err_msg(ERROR_MISSING_ARGUM, NULL);
-                        param.len = 0;
+                        err_msg_missing_argument(cflist, &lpoint, j);
+                        param.len = 0; fault = true;
                     } else {
                         param.data = (const uint8_t *)"?";
                         param.len = 1;
@@ -149,8 +150,8 @@ bool mtranslate(struct file_s *cfile) {
                         if (params[j].data == NULL) {
                             Type *obj = macro->v.obj;
                             if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                                err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
-                                param.len = 0;
+                                err_msg_missing_argument(cflist, &e, j);
+                                param.len = 0; fault = true;
                             } else {
                                 param.data = (const uint8_t *)"?";
                                 param.len = 1;
@@ -159,8 +160,8 @@ bool mtranslate(struct file_s *cfile) {
                         break;
                     }
                     if (j >= macro->argc) {
-                        err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
-                        param.len = 0;
+                        err_msg_unknown_argument(&label, &e);
+                        param.len = 0; fault = true;
                     }
                     if (p + param.len > mline->len) {
                         mline->len += param.len + 1024;
@@ -179,14 +180,13 @@ bool mtranslate(struct file_s *cfile) {
             }
         } else if (ch == '@' && arguments.tasmcomp) {
             /* text parameter reference */
-            ch = pline[lpoint.pos + 1];
-            j = (uint8_t)(ch - '1');
-            if (ch < 9) {
+            j = (uint8_t)(pline[lpoint.pos + 1] - '1');
+            if (j < 9) {
                 /* @1..@9 */
                 str_t *param = macro_parameters.current->param;
                 if (j >= macro_parameters.current->len) {
-                    err_msg(ERROR_MISSING_ARGUM,NULL);
-                    lpoint.pos++; p += 2; continue;
+                    err_msg_missing_argument(cflist, &lpoint, j);
+                    lpoint.pos++; p += 2; changed = fault = true; continue;
                 }
                 if (p + param[j].len > mline->len) {
                     mline->len += param[j].len + 1024;
@@ -216,7 +216,7 @@ bool mtranslate(struct file_s *cfile) {
         if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
         while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
         mline->data[p] = 0;
-        llist = pline = mline->data; 
+        llist = pline = fault ? (const uint8_t *)"" : mline->data; 
     } else {
         line_t lnum = lpoint.line - 1;
         cfile->nomacro[lnum / 8] |= 1 << (lnum & 7);
@@ -451,7 +451,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
     return val;
 }
 
-void get_func_params(Mfunc *v, struct file_s *cfile) {
+void get_func_params(Mfunc *v, struct file_list_s *cflist) {
     Mfunc new_mfunc;
     size_t len = 0, i, j;
     str_t label;
@@ -494,7 +494,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
             if (here() == '=') {
                 Obj *val;
                 lpoint.pos++;
-                if (!get_exp(1, cfile, 1, 1, &lpoint)) {
+                if (!get_exp(1, cflist, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }

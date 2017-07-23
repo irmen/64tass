@@ -235,7 +235,6 @@ static const char * const terr_error[] = {
     "general syntax",
     "expression syntax",
     "label required",
-    "missing argument",
     "division by zero",
     "zero value not allowed",
     "most significiant bit must be clear in byte",
@@ -845,6 +844,28 @@ void err_msg_shadow_defined(Label *l, Label *l2) {
 void err_msg_shadow_defined2(Label *l) {
     err_msg_double_defined2("shadow definition of built-in", diagnostic_errors.shadow ? SV_ERROR : SV_WARNING, l->file_list, &l->name, &l->epoint);
     adderror(" [-Wshadow]");
+}
+
+static const char * const order_suffix[4] = {
+    "st", "nd", "rd", "th" 
+};
+
+void err_msg_missing_argument(struct file_list_s *cflist, linepos_t epoint, size_t n) {
+    char msg2[3];
+    int i = n % 10;
+    new_error_msg(SV_ERROR, cflist->parent, &cflist->epoint);
+    msg2[0] = n + '1';
+    memcpy(msg2 + 1, order_suffix[i < 4 ? i : 3], 3);
+    adderror(msg2);
+    adderror(" argument is missing");
+    new_error_msg(SV_NOTE, current_file_list, epoint);
+    adderror("argument reference was here");
+}
+
+void err_msg_unknown_argument(const str_t *labelname, linepos_t epoint) {
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("unknown argument name");
+    str_name(labelname->data, labelname->len);
 }
 
 static void err_msg_unused(const char *msg, bool error, Label *l) {

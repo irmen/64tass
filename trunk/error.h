@@ -60,6 +60,8 @@ extern void err_msg_not_variable(struct Label *, const str_t *, linepos_t);
 extern void err_msg_double_defined(struct Label *, const str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
+extern void err_msg_missing_argument(struct file_list_s *, linepos_t, size_t);
+extern void err_msg_unknown_argument(const str_t *, linepos_t);
 extern void err_msg_unused_macro(struct Label *);
 extern void err_msg_unused_label(struct Label *);
 extern void err_msg_unused_const(struct Label *);

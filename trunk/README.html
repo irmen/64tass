@@ -3783,6 +3783,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl class="errorlist">
 <dt>'?' expected<dd>something is missing
+<dt>? argument is missing<dd>not enough arguments supplied
 <dt>address in different program bank<dd>this instruction is only limited to access the current bank
 <dt>address not in processor address space<dd>value larger than current CPU address space
 <dt>address out of section<dd>moving the address around is fine as long as it does not end up before the start of the section
@@ -3818,7 +3819,6 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>label required<dd>a label is mandatory for this directive
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
 <dt>logarithm of non-positive number<dd>only positive numbers have a logarithm
-<dt>missing argument<dd>not enough arguments supplied to function
 <dt>more than a single character<dd>no more than a single character is allowed
 <dt>more than two characters<dd>no more than two characters are allowed
 <dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
@@ -3847,6 +3847,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>too early to reference<dd>processing still ongoing, can't access this yet
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
 <dt>unknown processor '?'<dd>unknown cpu name
+<dt>unknown argument name '?'<dd>no parameter argument known like this
 <dt>value needs to be non-negative<dd>only positive numbers or zero is accepted here
 <dt>wrong type &lt;?&gt;<dd>wrong object type used
 <dt>zero value not allowed<dd>do not use zero for example with .null
