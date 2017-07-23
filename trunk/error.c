@@ -123,7 +123,7 @@ static void new_error_msg(Severity_types severity, const struct file_list_s *fli
     close_error();
     switch (severity) {
     case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && in_macro) ? (strlen((const char *)pline) + 1) : 0; break;
+    default: line_len = (size_t)(pline - flist->file->data) >= flist->file->len ? (strlen((const char *)pline) + 1) : 0; break;
     }
     error_list.header_pos = ALIGN(error_list.len);
     error_list.len = error_list.header_pos + sizeof *err;
