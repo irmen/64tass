@@ -231,11 +231,11 @@ static void tfree(void) {
     destroy_variables();
     destroy_section();
     destroy_longjump();
-    destroy_file();
     err_destroy();
     destroy_encoding();
     destroy_values();
     destroy_namespacekeys();
+    destroy_file();
     destroy_ternary();
     destroy_opt_bit();
     free(arguments.symbol_output);
@@ -1234,7 +1234,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (label != NULL) {
                         labelexists = true;
-                    } else label = new_label(&labelname, mycontext, strength, &labelexists);
+                    } else label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                     oaddr = current_section->address;
                     listing_equal(listing, val);
                     label->ref = false;
@@ -1293,7 +1293,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (label != NULL) {
                             labelexists = true;
                             if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
-                        } else label = new_label(&labelname, mycontext, strength, &labelexists);
+                        } else label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                         oaddr = current_section->address;
                         listing_equal(listing, val);
                         if (labelexists) {
@@ -1329,7 +1329,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         Lbl *lbl;
                         bool labelexists;
                         listing_line(listing, 0);
-                        label = new_label(&labelname, mycontext, strength, &labelexists);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                         lbl = (Lbl *)val_alloc(LBL_OBJ);
                         lbl->sline = lpoint.line;
                         lbl->waitforp = waitfor_p;
@@ -1374,7 +1374,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         bool labelexists;
                         listing_line(listing, 0);
                         new_waitfor(W_ENDM, &cmdpoint);waitfor->skip = 0;
-                        label = new_label(&labelname, mycontext, strength, &labelexists);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                         macro = (Macro *)val_alloc(obj);
                         macro->file_list = cflist;
                         macro->line = epoint.line;
@@ -1420,7 +1420,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         listing_line(listing, 0);
                         new_waitfor(W_ENDF, &cmdpoint);waitfor->skip = 0;
                         if (temporary_label_branch != 0) {err_msg2(ERROR___NOT_ALLOWED, ".function", &cmdpoint);goto breakerr;}
-                        label = new_label(&labelname, mycontext, strength, &labelexists);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                         mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
                         mfunc->file_list = cflist;
                         mfunc->line = epoint.line;
@@ -1472,7 +1472,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &cmdpoint);waitfor->skip = 0;
-                        label = new_label(&labelname, mycontext, strength, &labelexists);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
 
                         current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
                         current_section->end = current_section->start = current_section->restart = current_section->address = 0;
@@ -1604,7 +1604,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                     }
                 }
-                if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists);
+                if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                 oaddr = current_section->address;
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
@@ -1730,7 +1730,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             anonident2.star_tree = star_tree;
                             anonident2.vline = vline;
                             tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                            label = new_label(&tmpname, mycontext, strength, &labelexists);
+                            label = new_label(&tmpname, mycontext, strength, &labelexists, false);
                             if (labelexists) {
                                 if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                                 label->constant = true;
@@ -2391,7 +2391,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
                         tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists);
+                        label = new_label(&tmpname, mycontext, strength, &labelexists, false);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = true;
@@ -2916,7 +2916,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 anonident2.star_tree = star_tree;
                                 anonident2.vline = vline;
                                 tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                                label = new_label(&tmpname, mycontext, strength, &labelexists);
+                                label = new_label(&tmpname, mycontext, strength, &labelexists, false);
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                                     label->constant = true;
@@ -2986,7 +2986,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (!get_exp(1, cfile, 1, 1, &lpoint)) goto breakerr;
                             val = get_vals_addrlist(epoints);
                             if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
-                            label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
+                            label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                             if (labelexists) {
                                 if (label->constant) {
                                     err_msg_double_defined(label, &varname, &epoint);
@@ -3095,7 +3095,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (tmp.op == NULL) {
                                 if (wht != '=') {err_msg(ERROR______EXPECTED, "'='"); break;}
                                 lpoint.pos++;ignore();
-                                label = new_label(&varname, context, strength, &labelexists);
+                                label = new_label(&varname, context, strength, &labelexists, (size_t)(labelname.data - cflist->file->data) < cflist->file->len);
                                 if (labelexists) {
                                     if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
                                     if (label->defpass != pass) {
@@ -3472,7 +3472,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
                         tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists);
+                        label = new_label(&tmpname, mycontext, strength, &labelexists, false);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = true;
@@ -3503,7 +3503,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     anonident2.star_tree = star_tree;
                     anonident2.vline = vline;
                     tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                    label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists);
+                    label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, false);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                         label->constant = true;

@@ -358,7 +358,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
                 if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
             }
         }
-        label = new_label(&mfunc->param[i].name, context, strength, &labelexists);
+        label = new_label(&mfunc->param[i].name, context, strength, &labelexists, (size_t)(mfunc->param[i].name.data - mfunc->file_list->file->data) < mfunc->file_list->file->len);
         if (labelexists) {
             if (label->constant) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
@@ -615,7 +615,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         } else {
             val = (i < args) ? vals[i].val : (mfunc->param[i].init != NULL) ? mfunc->param[i].init : (Obj *)none_value;
         }
-        label = new_label(&mfunc->param[i].name, context, 0, &labelexists);
+        label = new_label(&mfunc->param[i].name, context, 0, &labelexists, (size_t)(mfunc->param[i].name.data - cflist->file->data) < cflist->file->len);
         if (!labelexists) {
             label->constant = false;
             label->owner = false;

@@ -43,7 +43,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Label *v1 = (Label *)o1;
-    free((char *)v1->name.data);
+    if (!v1->constname) free((char *)v1->name.data);
     if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
     val_destroy(v1->value);
 }
@@ -56,7 +56,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         v1->value->refcount--;
         return;
     case 0:
-        free((char *)v1->name.data);
+        if (!v1->constname) free((char *)v1->name.data);
         if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
         return;
     case 1:
