@@ -64,15 +64,17 @@ bool mtranslate(struct file_s *cfile) {
     uint8_t q;
     size_t j;
     size_t p;
+    size_t last;
     uint8_t ch;
     struct macro_pline_s *mline;
+    bool changed;
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
     if (!in_macro) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = 0;
+    q = p = 0; last = 0; changed = false;
     for (; (ch = here()) != 0; lpoint.pos++) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
@@ -80,26 +82,31 @@ bool mtranslate(struct file_s *cfile) {
         else if ((ch == '\\') && q == 0) {
             /* normal parameter reference */
             ch = pline[lpoint.pos + 1];
-            if (ch >= '1' && ch <= '9') {
-                str_t *param = macro_parameters.current->param;
+            j = (uint8_t)(ch - '1');
+            if (j < 9) {
+                str_t param, *params = macro_parameters.current->param;
                 /* \1..\9 */
-                if ((j = ch-'1') >= macro_parameters.current->len || param[j].data == NULL) {
+                if (j >= macro_parameters.current->len || params[j].data == NULL) {
                     Type *obj = macro_parameters.current->macro->obj;
-                    if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
-                        lpoint.pos++;
-                        ch = '?';
-                        goto ok;
+                    if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
+                        err_msg(ERROR_MISSING_ARGUM, NULL);
+                        param.len = 0;
+                    } else {
+                        param.data = (const uint8_t *)"?";
+                        param.len = 1;
                     }
-                    err_msg(ERROR_MISSING_ARGUM,NULL);
-                    break;
-                }
-                if (p + param[j].len > mline->len) {
-                    mline->len += param[j].len + 1024;
+                } else param = params[j];
+                if (p + param.len > mline->len) {
+                    mline->len += param.len + 1024;
                     if (mline->len < 1024) err_msg_out_of_memory();
                     mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
                 }
-                memcpy((char *)mline->data + p, param[j].data, param[j].len);
-                p += param[j].len;
+                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                if (param.len != 0) {
+                    memcpy((char *)mline->data + p, param.data, param.len);
+                    p += param.len;
+                }
+                last = p; changed = true;
                 lpoint.pos++;continue;
             }
             if (ch == '@') {
@@ -110,8 +117,12 @@ bool mtranslate(struct file_s *cfile) {
                     if (mline->len < 1024) err_msg_out_of_memory();
                     mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
                 }
-                memcpy((char *)mline->data + p, all->data, all->len);
-                p += all->len;
+                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                if (all->len != 0) {
+                    memcpy((char *)mline->data + p, all->data, all->len);
+                    p += all->len;
+                }
+                last = p; changed = true;
                 lpoint.pos++;continue;
             } else {
                 struct linepos_s e = lpoint;
@@ -126,52 +137,61 @@ bool mtranslate(struct file_s *cfile) {
                     else label.len = 0;
                 } else label.len = get_label();
                 if (label.len != 0) {
-                    str_t *param = macro_parameters.current->param;
+                    str_t param, *params = macro_parameters.current->param;
                     Macro *macro = (Macro *)macro_parameters.current->macro;
                     str_t cf;
                     str_cfcpy(&cf, &label);
                     for (j = 0; j < macro->argc; j++) {
                         if (macro->param[j].cfname.data == NULL) continue;
                         if (str_cmp(&macro->param[j].cfname, &cf) != 0) continue;
-                        if (param[j].data == NULL) {
+                        if (params[j].data == NULL) {
                             Type *obj = macro->v.obj;
-                            if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
-                                lpoint.pos--;
-                                ch = '?';
-                                goto ok;
+                            if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
+                                err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
+                                param.len = 0;
+                            } else {
+                                param.data = (const uint8_t *)"?";
+                                param.len = 1;
                             }
-                            err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
-                            break;
-                        }
-                        if (p + param[j].len > mline->len) {
-                            mline->len += param[j].len + 1024;
-                            if (mline->len < 1024) err_msg_out_of_memory();
-                            mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
-                        }
-                        memcpy((char *)mline->data + p, param[j].data, param[j].len);
-                        p += param[j].len;
+                        } else param = params[j];
                         break;
                     }
-                    if (j < macro->argc) {
-                        lpoint.pos--;
-                        continue;
+                    if (j >= macro->argc) {
+                        err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
+                        param.len = 0;
                     }
-                    err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
+                    if (p + param.len > mline->len) {
+                        mline->len += param.len + 1024;
+                        if (mline->len < 1024) err_msg_out_of_memory();
+                        mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
+                    }
+                    if (p != last) memcpy(mline->data + last, pline + e.pos - p + last, p - last); 
+                    if (param.len != 0) {
+                        memcpy((char *)mline->data + p, param.data, param.len);
+                        p += param.len;
+                    }
+                    last = p; changed = true;
+                    lpoint.pos--; continue;
                 }
-                ch = '\\';lpoint = e;
+                lpoint = e;
             }
         } else if (ch == '@' && arguments.tasmcomp) {
             /* text parameter reference */
             ch = pline[lpoint.pos + 1];
-            if (ch >= '1' && ch <= '9') {
+            j = (uint8_t)(ch - '1');
+            if (ch < 9) {
                 /* @1..@9 */
                 str_t *param = macro_parameters.current->param;
-                if ((j = ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                if (j >= macro_parameters.current->len) {
+                    err_msg(ERROR_MISSING_ARGUM,NULL);
+                    lpoint.pos++; p += 2; continue;
+                }
                 if (p + param[j].len > mline->len) {
                     mline->len += param[j].len + 1024;
                     if (mline->len < 1024) err_msg_out_of_memory();
                     mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
                 }
+                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
                 if (param[j].len > 1 && param[j].data[0] == '"' && param[j].data[param[j].len-1]=='"') {
                     memcpy((char *)mline->data + p, param[j].data + 1, param[j].len - 2);
                     p += param[j].len - 2;
@@ -179,26 +199,24 @@ bool mtranslate(struct file_s *cfile) {
                     memcpy((char *)mline->data + p, param[j].data, param[j].len);
                     p += param[j].len;
                 }
+                last = p; changed = true;
                 lpoint.pos++;continue;
             }
-            ch = '@';
         }
-    ok:
+        p++;
+    }
+    if (changed) {
         if (p + 1 > mline->len) {
             mline->len += 1024;
             if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
             mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
         }
-        mline->data[p++] = ch;
+        if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+        while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
+        mline->data[p] = 0;
+        llist = pline = mline->data; 
     }
-    if (p + 1 > mline->len) {
-        mline->len += 1024;
-        if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-        mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
-    }
-    while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
-    mline->data[p] = 0;
-    llist = pline = mline->data; lpoint.pos = 0;
+    lpoint.pos = 0;
     return false;
 }
 
