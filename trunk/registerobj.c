@@ -213,20 +213,20 @@ static uint32_t register_names;
 
 bool registerobj_createnames(uint32_t registers) {
     uint32_t regs = registers & ~register_names;
-    uint8_t name[2];
+    uint8_t name;
 
     if (regs == 0) return false;
     register_names |= regs;
 
-    name[0] = 'a';
-    name[1] = 0;
-    for (; regs != 0; regs >>= 1, name[0]++) if ((regs & 1) != 0) {
+    name = 'a';
+    for (; regs != 0; regs >>= 1, name++) if ((regs & 1) != 0) {
         Register *reg = new_register();
-        reg->val[0] = name[0];
+        reg->val[0] = name;
+        reg->val[1] = 0;
         reg->data = reg->val;
         reg->len = 1;
         reg->chars = 1;
-        new_builtin((const char *)name, &reg->v);
+        new_builtin((const char *)reg->val, &reg->v);
     }
     return true;
 }

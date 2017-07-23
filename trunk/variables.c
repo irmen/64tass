@@ -313,7 +313,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 }
 
 /* --------------------------------------------------------------------------- */
-Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists) {
+Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, bool constname) {
     struct avltree_node *b;
     Label *tmp;
     if (lastlb2 == NULL) {
@@ -330,12 +330,13 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     b = avltree_insert(&lastlb2->node, &context->members, label_compare2);
 
     if (b == NULL) { /* new label */
-        str_cpy(&lastlb->name, name);
-        if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
-        else str_cfcpy(&lastlb->cfname, NULL);
+        if (constname) lastlb->name = *name; else str_cpy(&lastlb->name, name);
+        if (lastlb->cfname.data != name->data) str_cfcpy(&lastlb->cfname, NULL);
+        else if (!constname) lastlb->cfname = lastlb->name;
         lastlb->ref = false;
         lastlb->shadowcheck = false;
         lastlb->update_after = false;
+        lastlb->constname = constname;
         lastlb->usepass = 0;
         lastlb->defpass = pass;
         *exists = false;
@@ -732,7 +733,7 @@ void new_builtin(const char *ident, Obj *val) {
     bool label_exists;
     name.len = strlen(ident);
     name.data = (const uint8_t *)ident;
-    label = new_label(&name, builtin_namespace, 0, &label_exists);
+    label = new_label(&name, builtin_namespace, 0, &label_exists, true);
     label->constant = true;
     label->owner = true;
     label->value = val;
