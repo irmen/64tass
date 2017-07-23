@@ -847,11 +847,11 @@ void err_msg_shadow_defined2(Label *l) {
 }
 
 static const char * const order_suffix[4] = {
-    "st", "nd", "rd", "th" 
+    "st", "nd", "rd", "th"
 };
 
 void err_msg_missing_argument(struct file_list_s *cflist, linepos_t epoint, size_t n) {
-    char msg2[3];
+    char msg2[4];
     int i = n % 10;
     new_error_msg(SV_ERROR, cflist->parent, &cflist->epoint);
     msg2[0] = n + '1';
