@@ -774,6 +774,7 @@ void destroy_lastlb(void) {
         lastlb->name.len = 0;
         lastlb->cfname.data = NULL;
         lastlb->cfname.len = 0;
+        lastlb->constname = true;
         lastlb->value = (Obj *)ref_none();
         val_destroy(&lastlb->v);
         lastlb = NULL;
