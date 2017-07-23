@@ -291,6 +291,7 @@ static void file_free(struct avltree_node *aa)
     avltree_destroy(&a->star, star_free);
     free(a->data);
     free(a->line);
+    free(a->nomacro);
     free((char *)a->name);
     free((char *)a->realname);
     free((char *)a->base);
@@ -392,6 +393,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         uchar_t c = 0;
         size_t fp = 0;
 
+        lastfi->nomacro = NULL;
         lastfi->line = NULL;
         lastfi->lines = 0;
         lastfi->data = NULL;
@@ -709,6 +711,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 if (lines != max_lines) {
                     size_t *d = (size_t *)realloc(tmp->line, lines * sizeof *tmp->line);
                     if (lines == 0 || d != NULL) tmp->line = d;
+                }
+                if (lines != 0) {
+                    tmp->nomacro = (uint8_t *)calloc((lines + 7) / 8, sizeof *tmp->nomacro);
+                    if (tmp->nomacro == NULL) err = 1;
                 }
             }
             tmp->len = fp;

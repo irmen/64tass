@@ -61,7 +61,7 @@ bool in_macro;
 
 /* ------------------------------------------------------------------------------ */
 bool mtranslate(struct file_s *cfile) {
-    uint8_t q;
+    unsigned int q;
     size_t j;
     size_t p;
     size_t last;
@@ -70,11 +70,13 @@ bool mtranslate(struct file_s *cfile) {
     bool changed;
 
     if (lpoint.line >= cfile->lines) return true;
-    llist = pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
-    if (!in_macro) return false;
+    llist = pline = &cfile->data[cfile->line[lpoint.line]];
+    changed = !in_macro || (cfile->nomacro[lpoint.line / 8] & (1 << (lpoint.line & 7))) != 0;
+    lpoint.pos = 0; lpoint.line++; vline++;
+    if (changed) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = 0; last = 0; changed = false;
+    q = p = 0; last = 0;
     for (; (ch = here()) != 0; lpoint.pos++) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
@@ -215,6 +217,9 @@ bool mtranslate(struct file_s *cfile) {
         while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
         mline->data[p] = 0;
         llist = pline = mline->data; 
+    } else {
+        line_t lnum = lpoint.line - 1;
+        cfile->nomacro[lnum / 8] |= 1 << (lnum & 7);
     }
     lpoint.pos = 0;
     return false;
