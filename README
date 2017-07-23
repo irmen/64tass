@@ -3405,6 +3405,8 @@ Errors
 
 '?' expected
     something is missing
+? argument is missing
+    not enough arguments supplied
 address in different program bank
     this instruction is only limited to access the current bank
 address not in processor address space
@@ -3478,8 +3480,6 @@ last byte must not be gap
     .shift or .shiftl needs a normal byte at the end
 logarithm of non-positive number
     only positive numbers have a logarithm
-missing argument
-    not enough arguments supplied to function
 more than a single character
     no more than a single character is allowed
 more than two characters
@@ -3536,6 +3536,8 @@ too large for a ? bit signed/unsigned integer
     value out of range
 unknown processor '?'
     unknown cpu name
+unknown argument name '?'
+    no parameter argument known like this
 value needs to be non-negative
     only positive numbers or zero is accepted here
 wrong type <?>
