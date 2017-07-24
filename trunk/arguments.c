@@ -148,7 +148,7 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* star_assign */
     true,        /* ignored */
     false,       /* long_branch */
-    true         /* altmode */
+    false        /* altmode */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -519,13 +519,13 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Werror=<name>        Make a diagnostic to an error\n"
                "  -Wno-error=<name>     Make a diagnostic to a warning\n"
                "  -Walias               Warn about instruction aliases\n"
+               "  -Waltmode             Warn about alternative addressing\n"
                "  -Wbranch-page         Warn if a branch crosses a page\n"
                "  -Wcase-symbol         Warn on mismatch of symbol case\n"
                "  -Wimmediate           Suggest immediate addressing\n"
                "  -Wimplied-reg         No implied register aliases\n"
                "  -Wleading-zeros       Warn for ignored leading zeros\n"
                "  -Wlong-branch         Warn when a long branch is used\n"
-               "  -Wno-altmode          No alternative mode warnings\n"
                "  -Wno-deprecated       No deprecated feature warnings\n"
                "  -Wno-float-compare    No approximate compare warnings\n"
                "  -Wno-ignored          No directive ignored warnings\n"

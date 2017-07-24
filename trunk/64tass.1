@@ -141,6 +141,12 @@ For example "-Werror=implied-reg" makes this check an error. The "-Wno-error=" v
 \fB\-Walias\fR
 Warns about alias opcodes.
 .TP 0.5i
+\fB\-Waltmode\fR
+Warn about alternative address modes.
+Sometimes alternative addressing modes are used as the fitting one is not
+available. For example there's no lda direct page y so instead data bank y is
+used with a warning.
+.TP 0.5i
 \fB\-Wbranch\-page\fR
 Warns if a branch is crossing a page.
 Page crossing branches execute with a penalty cycle. This option helps to
@@ -165,12 +171,6 @@ are not supported so the result will be decimal.
 Warns when a long branch is used.
 This option gives a warning for instructions which were modified by the long branch function.
 Less intrusive than disabling long branches and see where it fails.
-.TP 0.5i
-\fB\-Wno\-altmode\fR
-Don't warn about alternative address modes.
-Sometimes alternative addressing modes are used as the fitting one is not
-available. For example there's no lda direct page y so instead data bank y is
-used with a warning.
 .TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.

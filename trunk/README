@@ -2798,6 +2798,13 @@ default, the others are disabled.
     There are several opcodes for the same task, especially for the "6502i"
     target.
 
+-Waltmode
+    Warn about alternative address modes.
+
+    Sometimes alternative addressing modes are used as the fitting one is not
+    available. For example there's no lda direct page y so instead data bank y
+    is used with a warning.
+
 -Wbranch-page
     Warns if a branch is crossing a page.
 
@@ -2846,13 +2853,6 @@ default, the others are disabled.
     This option gives a warning for instructions which were modified by the
     long branch function. Less intrusive than disabling long branches and see
     where it fails.
-
--Wno-altmode
-    Don't warn about alternative address modes.
-
-    Sometimes alternative addressing modes are used as the fitting one is not
-    available. For example there's no lda direct page y so instead data bank y
-    is used with a warning.
 
 -Wno-deprecated
     Don't warn about deprecated features.
