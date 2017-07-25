@@ -3387,9 +3387,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (!tmp3->moved) {
                                 if (t < tmp3->address - tmp3->start) t = tmp3->address - tmp3->start;
                             }
-                            tmp3->restart = current_section->address;
+                            if (tmp3->restart != current_section->address) {
+                                address_t change = current_section->address - tmp3->restart;
+                                tmp3->end = (tmp3->end + change) & all_mem2;
+                                tmp3->address = (tmp3->address + change) & all_mem2;
+                                tmp3->start = tmp3->restart = current_section->address;
+                                if (tmp3->end < tmp3->start) tmp3->end = all_mem2 + 1;
+                                memjmp(&tmp3->mem, current_section->address);
+                            }
                             if (tmp3->l_restart.address != current_section->l_address.address ||
                                     tmp3->l_restart.bank != current_section->l_address.bank) {
+                                tmp3->l_address.address = (tmp3->l_address.address + current_section->l_address.address - tmp3->l_restart.address) & 0xffff;
+                                tmp3->l_address.bank = (tmp3->l_address.bank + current_section->l_address.bank - tmp3->l_restart.bank) & all_mem;
                                 tmp3->l_restart = current_section->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = false;
