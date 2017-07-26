@@ -3642,13 +3642,63 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
     return retval;
 }
 
+static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
+    static const str_t none_enc = {4, (const uint8_t *)"none"};
+    static struct linepos_s nopoint = {0, 0};
+    struct file_s *cfile;
+    Obj *val;
+    int i;
+
+    fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
+    restart_memblocks(&root_section.mem, 0);
+    if (diagnostics.optimize) cpu_opt_invalidate();
+    for (i = opts - 1; i < argc; i++) {
+        set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
+        star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
+        allowslowbranch = true;temporary_label_branch = 0;
+        reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
+        reset_context();
+        current_section = &root_section;
+        reset_section(current_section);
+        init_macro();
+
+        if (i == opts - 1) {
+            if (fin->lines != 0) {
+                struct file_list_s *cflist = enterfile(fin, &nopoint);
+                star_tree = &fin->star;
+                reffile = fin->uid;
+                listing_file(listing, ";******  Command line definitions", NULL);
+                val = compile(cflist);
+                if (val != NULL) val_destroy(val);
+                exitfile();
+            }
+            restart_memblocks(&root_section.mem, 0);
+            if (diagnostics.optimize) cpu_opt_invalidate();
+            continue;
+        }
+
+        cfile = openfile(argv[i], "", 0, NULL, &nopoint);
+        if (cfile != NULL) {
+            struct file_list_s *cflist = enterfile(cfile, &nopoint);
+            star_tree = &cfile->star;
+            reffile = cfile->uid;
+            listing_file(listing, ";******  Processing input file: ", cfile);
+            val = compile(cflist);
+            if (val != NULL) val_destroy(val);
+            closefile(cfile);
+            exitfile();
+        }
+    }
+    ref_labels();
+    if (fixeddig) section_sizecheck();
+    /*garbage_collect();*/
+}
+
 static int main2(int *argc2, char **argv2[]) {
     size_t j;
-    int opts, i;
-    struct file_s *fin, *cfile;
-    struct file_list_s *cflist;
-    static const str_t none_enc = {4, (const uint8_t *)"none"};
-    struct linepos_s nopoint = {0, 0};
+    int opts;
+    struct file_s *fin;
+    static struct linepos_s nopoint = {0, 0};
     char **argv;
     int argc;
 
@@ -3680,48 +3730,10 @@ static int main2(int *argc2, char **argv2[]) {
     /* assemble the input file(s) */
     do {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        listing_pccolumn = false; fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
-        restart_memblocks(&root_section.mem, 0);
-        if (diagnostics.optimize) cpu_opt_invalidate();
-        for (i = opts - 1; i < argc; i++) {
-            Obj *val;
-            set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
-            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
-            allowslowbranch = true;temporary_label_branch = 0;
-            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
-            reset_context();
-            current_section = &root_section;
-            reset_section(current_section);
-            init_macro();
-            /*  nolisting = 0;flist = stderr;*/
-            if (i == opts - 1) {
-                if (fin->lines != 0) {
-                    cflist = enterfile(fin, &nopoint);
-                    star_tree = &fin->star;
-                    reffile = fin->uid;
-                    val = compile(cflist);
-                    if (val != NULL) val_destroy(val);
-                    exitfile();
-                }
-                restart_memblocks(&root_section.mem, 0);
-                if (diagnostics.optimize) cpu_opt_invalidate();
-                continue;
-            }
-            cfile = openfile(argv[i], "", 0, NULL, &nopoint);
-            if (cfile != NULL) {
-                cflist = enterfile(cfile, &nopoint);
-                star_tree = &cfile->star;
-                reffile = cfile->uid;
-                val = compile(cflist);
-                if (val != NULL) val_destroy(val);
-                closefile(cfile);
-                exitfile();
-            }
-        }
-        ref_labels();
-        if (fixeddig) section_sizecheck();
-        /*garbage_collect();*/
+        listing_pccolumn = false; 
+        one_pass(argc, argv, opts, fin);
     } while (!fixeddig || constcreated);
+
     if (arguments.list == NULL) {
         if (diagnostics.shadow) shadow_check(root_namespace);
         if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
@@ -3733,51 +3745,8 @@ static int main2(int *argc2, char **argv2[]) {
         nolisting = 0;
 
         max_pass = pass; pass++;
-        fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
-        restart_memblocks(&root_section.mem, 0);
-        if (diagnostics.optimize) cpu_opt_invalidate();
         listing = listing_open(arguments.list, argc, argv);
-        for (i = opts - 1; i < argc; i++) {
-            Obj *val;
-            set_cpumode(arguments.cpumode);
-            star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
-            allowslowbranch = true;temporary_label_branch = 0;
-            reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
-            reset_context();
-            current_section = &root_section;
-            reset_section(current_section);
-            init_macro();
-
-            if (i == opts - 1) {
-                if (fin->lines != 0) {
-                    cflist = enterfile(fin, &nopoint);
-                    star_tree = &fin->star;
-                    reffile = fin->uid;
-                    listing_file(listing, ";******  Command line definitions", NULL);
-                    val = compile(cflist);
-                    if (val != NULL) val_destroy(val);
-                    exitfile();
-                }
-                restart_memblocks(&root_section.mem, 0);
-                if (diagnostics.optimize) cpu_opt_invalidate();
-                continue;
-            }
-
-            cfile = openfile(argv[i], "", 0, NULL, &nopoint);
-            if (cfile != NULL) {
-                cflist = enterfile(cfile, &nopoint);
-                star_tree = &cfile->star;
-                reffile = cfile->uid;
-                listing_file(listing, ";******  Processing input file: ", cfile);
-                val = compile(cflist);
-                if (val != NULL) val_destroy(val);
-                closefile(cfile);
-                exitfile();
-            }
-        }
-        ref_labels();
-        if (fixeddig) section_sizecheck();
-        /*garbage_collect();*/
+        one_pass(argc, argv, opts, fin);
         listing_close(listing);
         listing = NULL;
 
