@@ -37,7 +37,6 @@ typedef struct Label {
     bool update_after;
     bool constant;
     bool owner;
-    bool constname;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;

@@ -313,7 +313,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 }
 
 /* --------------------------------------------------------------------------- */
-Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, bool constname) {
+Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, struct file_list_s *cflist) {
     struct avltree_node *b;
     Label *tmp;
     if (lastlb2 == NULL) {
@@ -330,13 +330,14 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     b = avltree_insert(&lastlb2->node, &context->members, label_compare2);
 
     if (b == NULL) { /* new label */
-        if (constname) lastlb->name = *name; else str_cpy(&lastlb->name, name);
+        if ((size_t)(name->data - cflist->file->data) < cflist->file->len) lastlb->name = *name;
+        else str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data != name->data) str_cfcpy(&lastlb->cfname, NULL);
-        else if (!constname) lastlb->cfname = lastlb->name;
+        else lastlb->cfname = lastlb->name;
+        lastlb->file_list = cflist;
         lastlb->ref = false;
         lastlb->shadowcheck = false;
         lastlb->update_after = false;
-        lastlb->constname = constname;
         lastlb->usepass = 0;
         lastlb->defpass = pass;
         *exists = false;
@@ -726,6 +727,8 @@ void ref_labels(void) {
     }
 }
 
+static struct file_list_s dummy_cflist;
+
 void new_builtin(const char *ident, Obj *val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
@@ -733,17 +736,21 @@ void new_builtin(const char *ident, Obj *val) {
     bool label_exists;
     name.len = strlen(ident);
     name.data = (const uint8_t *)ident;
-    label = new_label(&name, builtin_namespace, 0, &label_exists, true);
+    label = new_label(&name, builtin_namespace, 0, &label_exists, &dummy_cflist);
     label->constant = true;
     label->owner = true;
     label->value = val;
-    label->file_list = NULL;
     label->epoint = nopoint;
 }
 
 void init_variables(void)
 {
     struct linepos_s nopoint = {0, 0};
+    static struct file_s cfile;
+
+    cfile.data = (uint8_t *)0;
+    cfile.len = SIZE_MAX;
+    dummy_cflist.file = &cfile;
 
     builtin_namespace = new_namespace(NULL, &nopoint);
     root_namespace = new_namespace(NULL, &nopoint);
@@ -770,12 +777,7 @@ void init_variables(void)
 
 void destroy_lastlb(void) {
     if (lastlb != NULL) {
-        lastlb->name.data = NULL;
-        lastlb->name.len = 0;
-        lastlb->cfname.data = NULL;
-        lastlb->cfname.len = 0;
-        lastlb->constname = true;
-        lastlb->value = (Obj *)ref_none();
+        lastlb->v.obj = NONE_OBJ;
         val_destroy(&lastlb->v);
         lastlb = NULL;
     }
