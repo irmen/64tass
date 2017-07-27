@@ -106,7 +106,7 @@ isnprintf.o: isnprintf.c isnprintf.h attributes.h inttypes.h unicode.h \
  floatobj.h values.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h
 labelobj.o: labelobj.c labelobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h error.h errors_e.h avl.h unicode.h unicodedata.h \
- strobj.h typeobj.h noneobj.h
+ file.h strobj.h typeobj.h noneobj.h
 listing.o: listing.c listing.h attributes.h inttypes.h stdbool.h file.h \
  avl.h error.h errors_e.h obj.h str.h 64tass.h wait_e.h opcodes.h \
  unicode.h unicodedata.h section.h mem.h instruction.h values.h \

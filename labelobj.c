@@ -21,6 +21,7 @@
 #include "values.h"
 #include "error.h"
 #include "unicode.h"
+#include "file.h"
 
 #include "strobj.h"
 #include "typeobj.h"
@@ -43,7 +44,8 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Label *v1 = (Label *)o1;
-    if (!v1->constname) free((char *)v1->name.data);
+    const struct file_s *cfile = v1->file_list->file;
+    if ((size_t)(v1->name.data - cfile->data) >= cfile->len) free((char *)v1->name.data);
     if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
     val_destroy(v1->value);
 }
@@ -51,12 +53,14 @@ static FAST_CALL void destroy(Obj *o1) {
 static FAST_CALL void garbage(Obj *o1, int i) {
     Label *v1 = (Label *)o1;
     Obj *v;
+    const struct file_s *cfile;
     switch (i) {
     case -1:
         v1->value->refcount--;
         return;
     case 0:
-        if (!v1->constname) free((char *)v1->name.data);
+        cfile = v1->file_list->file;
+        if ((size_t)(v1->name.data - cfile->data) >= cfile->len) free((char *)v1->name.data);
         if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
         return;
     case 1:
