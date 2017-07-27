@@ -712,10 +712,6 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     size_t *d = (size_t *)realloc(tmp->line, lines * sizeof *tmp->line);
                     if (lines == 0 || d != NULL) tmp->line = d;
                 }
-                if (lines != 0) {
-                    tmp->nomacro = (uint8_t *)calloc((lines + 7) / 8, sizeof *tmp->nomacro);
-                    if (tmp->nomacro == NULL) err = 1;
-                }
             }
             tmp->len = fp;
             if (fp == 0) {

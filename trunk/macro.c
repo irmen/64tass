@@ -72,7 +72,7 @@ bool mtranslate(struct file_list_s *cflist) {
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->data[cfile->line[lpoint.line]];
-    changed = !in_macro || (cfile->nomacro[lpoint.line / 8] & (1 << (lpoint.line & 7))) != 0;
+    changed = !in_macro || (cfile->nomacro != NULL && (cfile->nomacro[lpoint.line / 8] & (1 << (lpoint.line & 7))) != 0);
     lpoint.pos = 0; lpoint.line++; vline++;
     if (changed) return false;
     mline = &macro_parameters.current->pline;
@@ -218,7 +218,12 @@ bool mtranslate(struct file_list_s *cflist) {
         mline->data[p] = 0;
         llist = pline = fault ? (const uint8_t *)"" : mline->data; 
     } else {
-        line_t lnum = lpoint.line - 1;
+        line_t lnum;
+        if (cfile->nomacro == NULL) {
+            cfile->nomacro = (uint8_t *)calloc((cfile->lines + 7) / 8, sizeof *cfile->nomacro);
+            if (cfile->nomacro == NULL) err_msg_out_of_memory();
+        }
+        lnum = lpoint.line - 1;
         cfile->nomacro[lnum / 8] |= 1 << (lnum & 7);
     }
     lpoint.pos = 0;
