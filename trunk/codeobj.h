@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern struct Type *CODE_OBJ;
+extern struct Type *const CODE_OBJ;
 
 typedef enum Code_types {
     D_DINT = -4,

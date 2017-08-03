@@ -20,7 +20,7 @@
 #define STROBJ_H
 #include "obj.h"
 
-extern struct Type *STR_OBJ;
+extern struct Type *const STR_OBJ;
 
 typedef struct Str {
     Obj v;

@@ -33,7 +33,7 @@
 
 static Type obj;
 
-Type *GAP_OBJ = &obj;
+Type *const GAP_OBJ = &obj;
 Gap *gap_value;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {

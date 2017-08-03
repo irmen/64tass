@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "avl.h"
 
-extern struct Type *NAMESPACE_OBJ;
+extern struct Type *const NAMESPACE_OBJ;
 
 typedef struct Namespace {
     Obj v;

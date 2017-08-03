@@ -24,7 +24,7 @@
 
 #define MAX_ADDRESS_MASK 0xffff
 
-extern struct Type *ADDRESS_OBJ;
+extern struct Type *const ADDRESS_OBJ;
 
 typedef enum Address_types {
     A_NONE,             /*       */

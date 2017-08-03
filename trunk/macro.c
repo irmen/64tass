@@ -90,7 +90,7 @@ bool mtranslate(struct file_list_s *cflist) {
                 str_t param, *params = macro_parameters.current->param;
                 /* \1..\9 */
                 if (j >= macro_parameters.current->len || params[j].data == NULL) {
-                    Type *obj = macro_parameters.current->macro->obj;
+                    const Type *obj = macro_parameters.current->macro->obj;
                     if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
                         err_msg_missing_argument(cflist, &lpoint, j);
                         param.len = 0; fault = true;
@@ -148,7 +148,7 @@ bool mtranslate(struct file_list_s *cflist) {
                         if (macro->param[j].cfname.data == NULL) continue;
                         if (str_cmp(&macro->param[j].cfname, &cf) != 0) continue;
                         if (params[j].data == NULL) {
-                            Type *obj = macro->v.obj;
+                            const Type *obj = macro->v.obj;
                             if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
                                 err_msg_missing_argument(cflist, &e, j);
                                 param.len = 0; fault = true;

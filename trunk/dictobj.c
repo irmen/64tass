@@ -33,7 +33,7 @@
 
 static Type obj;
 
-Type *DICT_OBJ = &obj;
+Type *const DICT_OBJ = &obj;
 
 static void dict_free(struct avltree_node *aa)
 {

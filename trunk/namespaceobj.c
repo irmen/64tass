@@ -36,7 +36,7 @@
 
 static Type obj;
 
-Type *NAMESPACE_OBJ = &obj;
+Type *const NAMESPACE_OBJ = &obj;
 
 static void namespace_free(struct avltree_node *aa)
 {

@@ -31,7 +31,7 @@
 
 static Type obj;
 
-Type *MFUNC_OBJ = &obj;
+Type *const MFUNC_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;

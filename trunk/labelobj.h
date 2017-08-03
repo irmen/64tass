@@ -22,7 +22,7 @@
 #include "str.h"
 #include "stdbool.h"
 
-extern struct Type *LABEL_OBJ;
+extern struct Type *const LABEL_OBJ;
 
 typedef struct Label {
     Obj v;

@@ -20,7 +20,7 @@
 #define INTOBJ_H
 #include "obj.h"
 
-extern struct Type *INT_OBJ;
+extern struct Type *const INT_OBJ;
 
 typedef uint32_t digit_t;
 typedef uint64_t twodigits_t;

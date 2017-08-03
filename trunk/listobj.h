@@ -21,10 +21,10 @@
 #include "obj.h"
 #include "values.h"
 
-extern struct Type *LIST_OBJ;
-extern struct Type *TUPLE_OBJ;
-extern struct Type *ADDRLIST_OBJ;
-extern struct Type *COLONLIST_OBJ;
+extern struct Type *const LIST_OBJ;
+extern struct Type *const TUPLE_OBJ;
+extern struct Type *const ADDRLIST_OBJ;
+extern struct Type *const COLONLIST_OBJ;
 
 typedef struct List {
     Obj v;

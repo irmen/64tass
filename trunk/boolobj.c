@@ -35,7 +35,7 @@
 
 static Type obj;
 
-Type *BOOL_OBJ = &obj;
+Type *const BOOL_OBJ = &obj;
 Bool *true_value;
 Bool *false_value;
 Bool *bool_value[2];

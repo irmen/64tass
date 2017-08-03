@@ -42,7 +42,7 @@
 
 static Type obj;
 
-Type *CODE_OBJ = &obj;
+Type *const CODE_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {

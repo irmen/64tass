@@ -38,7 +38,7 @@
 
 static Type obj;
 
-Type *FLOAT_OBJ = &obj;
+Type *const FLOAT_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {

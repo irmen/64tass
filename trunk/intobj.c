@@ -45,7 +45,7 @@
 
 static Type obj;
 
-Type *INT_OBJ = &obj;
+Type *const INT_OBJ = &obj;
 Int *int_value[2];
 Int *minus1_value;
 

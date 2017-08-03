@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "stdbool.h"
 
-extern struct Type *BITS_OBJ;
+extern struct Type *const BITS_OBJ;
 
 typedef uint32_t bdigit_t;
 typedef struct Bits {

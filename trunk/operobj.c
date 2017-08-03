@@ -24,7 +24,7 @@
 
 static Type obj;
 
-Type *OPER_OBJ = &obj;
+Type *const OPER_OBJ = &obj;
 
 Oper o_TUPLE       = { {&obj, 0}, "')", O_TUPLE, 0, 1};
 Oper o_LIST        = { {&obj, 0}, "']", O_LIST, 0, 1};

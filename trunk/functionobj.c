@@ -36,7 +36,7 @@
 
 static Type obj;
 
-Type *FUNCTION_OBJ = &obj;
+Type *const FUNCTION_OBJ = &obj;
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
@@ -77,7 +77,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
     size_t args = vals->len;
     size_t j;
     for (j = 0; j < args; j++) {
-        Type *objt = v[j].val->obj;
+        const Type *objt = v[j].val->obj;
         if (objt == TUPLE_OBJ || objt == LIST_OBJ) {
             List *v1 = (List *)v[j].val, *vv;
             Obj *oval[3];

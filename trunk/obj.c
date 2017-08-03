@@ -51,10 +51,10 @@ static Type default_obj;
 static Type iter_obj;
 static Type funcargs_obj;
 
-Type *LBL_OBJ = &lbl_obj;
-Type *DEFAULT_OBJ = &default_obj;
-Type *ITER_OBJ = &iter_obj;
-Type *FUNCARGS_OBJ = &funcargs_obj;
+Type *const LBL_OBJ = &lbl_obj;
+Type *const DEFAULT_OBJ = &default_obj;
+Type *const ITER_OBJ = &iter_obj;
+Type *const FUNCARGS_OBJ = &funcargs_obj;
 Default *default_value;
 
 MUST_CHECK Obj *obj_oper_error(oper_t op) {

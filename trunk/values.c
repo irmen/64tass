@@ -48,7 +48,7 @@ static void value_free(Obj *val) {
     *c = slot;
 }
 
-static FAST_CALL NO_INLINE Obj *value_alloc(Type *obj) {
+static FAST_CALL NO_INLINE Obj *value_alloc(const Type *obj) {
     size_t p = obj->length;
     size_t i, size = p * ALIGN;
     Slot *slot, *slot2;
@@ -70,7 +70,7 @@ static FAST_CALL NO_INLINE Obj *value_alloc(Type *obj) {
     return &slot->v;
 }
 
-FAST_CALL MALLOC Obj *val_alloc(Type *obj) {
+FAST_CALL MALLOC Obj *val_alloc(const Type *obj) {
     Slot *slot = *obj->slot;
     if (slot == NULL) return value_alloc(obj);
     slot->v.obj = obj;
