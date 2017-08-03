@@ -309,7 +309,7 @@ static void set_size(const Label *label, address_t size, struct memblocks_s *mem
 
 static bool tobool(const struct values_s *v1, bool *truth) {
     Obj *val = v1->val, *err;
-    Type *obj = val->obj;
+    const Type *obj = val->obj;
     bool error;
     if (obj == BOOL_OBJ) {
         *truth = val == &true_value->v;
@@ -619,7 +619,7 @@ static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
     uval_t uv;
     ival_t iv;
     bool warn = false;
-    Type *type = val->obj;
+    const Type *type = val->obj;
     if (type != LIST_OBJ && type != TUPLE_OBJ) {
         if (type == GAP_OBJ) {
             *uninit += (unsigned int)abs(bits) / 8;
@@ -1585,7 +1585,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         tmp2 = find_label2(&labelname, cheap_context);
                     }
                     if (tmp2 != NULL) {
-                        Type *obj = tmp2->value->obj;
+                        const Type *obj = tmp2->value->obj;
                         if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_msg_symbol_case(&labelname, tmp2, &epoint);
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             touch_label(tmp2);
@@ -3585,7 +3585,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     tmp2 = find_label(&opname, NULL);
                     if (tmp2 != NULL) {
-                        Type *obj = tmp2->value->obj;
+                        const Type *obj = tmp2->value->obj;
                         if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_msg_symbol_case(&opname, tmp2, &epoint);
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             val_destroy(&err->v);
@@ -3602,7 +3602,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 down = (opname.data[0] != '_');
                 tmp2 = down ? find_label(&opname, NULL) : find_label2(&opname, cheap_context);
                 if (tmp2 != NULL) {
-                    Type *obj = tmp2->value->obj;
+                    const Type *obj = tmp2->value->obj;
                     if (diagnostics.case_symbol && str_cmp(&opname, &tmp2->name) != 0) err_msg_symbol_case(&opname, tmp2, &epoint);
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         touch_label(tmp2);

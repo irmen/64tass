@@ -25,7 +25,7 @@
 
 static Type obj;
 
-Type *NONE_OBJ = &obj;
+Type *const NONE_OBJ = &obj;
 None *none_value;
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

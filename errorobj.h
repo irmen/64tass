@@ -23,7 +23,7 @@
 #include "str.h"
 #include "stdbool.h"
 
-extern struct Type *ERROR_OBJ;
+extern struct Type *const ERROR_OBJ;
 
 struct Namespace;
 struct Oper;

@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "stdbool.h"
 
-extern struct Type *REGISTER_OBJ;
+extern struct Type *const REGISTER_OBJ;
 
 typedef struct Register {
     Obj v;

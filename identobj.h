@@ -21,8 +21,8 @@
 #include "obj.h"
 #include "str.h"
 
-extern struct Type *IDENT_OBJ;
-extern struct Type *ANONIDENT_OBJ;
+extern struct Type *const IDENT_OBJ;
+extern struct Type *const ANONIDENT_OBJ;
 
 typedef struct Ident {
     Obj v;

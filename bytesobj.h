@@ -20,7 +20,7 @@
 #define BYTESOBJ_H
 #include "obj.h"
 
-extern struct Type *BYTES_OBJ;
+extern struct Type *const BYTES_OBJ;
 
 typedef struct Bytes {
     Obj v;

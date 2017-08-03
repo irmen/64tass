@@ -41,7 +41,7 @@
 
 static Type obj;
 
-Type *BYTES_OBJ = &obj;
+Type *const BYTES_OBJ = &obj;
 Bytes *null_bytes;
 Bytes *inv_bytes;
 static Bytes *bytes_value[256];

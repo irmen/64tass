@@ -22,10 +22,10 @@
 #include "str.h"
 #include "stdbool.h"
 
-extern struct Type *MACRO_OBJ;
-extern struct Type *SEGMENT_OBJ;
-extern struct Type *STRUCT_OBJ;
-extern struct Type *UNION_OBJ;
+extern struct Type *const MACRO_OBJ;
+extern struct Type *const SEGMENT_OBJ;
+extern struct Type *const STRUCT_OBJ;
+extern struct Type *const UNION_OBJ;
 
 struct file_list_s;
 

@@ -43,7 +43,7 @@
 
 static Type obj;
 
-Type *BITS_OBJ = &obj;
+Type *const BITS_OBJ = &obj;
 Bits *null_bits;
 Bits *inv_bits;
 Bits *bits_value[2];

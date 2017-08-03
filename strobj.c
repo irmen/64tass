@@ -37,7 +37,7 @@
 
 static Type obj;
 
-Type *STR_OBJ = &obj;
+Type *const STR_OBJ = &obj;
 Str *null_str;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -732,7 +732,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Str *v2 = (Str *)op->v2;
-    Type *t1 = op->v1->obj;
+    const Type *t1 = op->v1->obj;
     Obj *tmp;
     switch (t1->type) {
     case T_BOOL:

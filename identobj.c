@@ -25,8 +25,8 @@
 static Type ident_obj;
 static Type anonident_obj;
 
-Type *IDENT_OBJ = &ident_obj;
-Type *ANONIDENT_OBJ = &anonident_obj;
+Type *const IDENT_OBJ = &ident_obj;
+Type *const ANONIDENT_OBJ = &anonident_obj;
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;

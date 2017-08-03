@@ -26,7 +26,7 @@
 
 static Type obj;
 
-Type *ERROR_OBJ = &obj;
+Type *const ERROR_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     Error *v1 = (Error *)o1;

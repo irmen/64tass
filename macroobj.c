@@ -32,10 +32,10 @@ static Type segment_obj;
 static Type struct_obj;
 static Type union_obj;
 
-Type *MACRO_OBJ = &macro_obj;
-Type *SEGMENT_OBJ = &segment_obj;
-Type *STRUCT_OBJ = &struct_obj;
-Type *UNION_OBJ = &union_obj;
+Type *const MACRO_OBJ = &macro_obj;
+Type *const SEGMENT_OBJ = &segment_obj;
+Type *const STRUCT_OBJ = &struct_obj;
+Type *const UNION_OBJ = &union_obj;
 
 static FAST_CALL void macro_destroy(Obj *o1) {
     Macro *v1 = (Macro *)o1;

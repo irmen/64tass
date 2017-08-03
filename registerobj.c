@@ -33,7 +33,7 @@
 
 static Type obj;
 
-Type *REGISTER_OBJ = &obj;
+Type *const REGISTER_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
@@ -160,7 +160,7 @@ static MUST_CHECK Obj *calc2_register(oper_t op) {
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    Type *t2 = op->v2->obj;
+    const Type *t2 = op->v2->obj;
     switch (t2->type) {
     case T_REGISTER: return calc2_register(op);
     case T_TUPLE:
@@ -179,7 +179,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Type *t1 = op->v1->obj;
+    const Type *t1 = op->v1->obj;
     switch (t1->type) {
     case T_NONE:
     case T_ERROR:

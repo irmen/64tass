@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "stdbool.h"
 
-extern struct Type *TYPE_OBJ;
+extern struct Type *const TYPE_OBJ;
 
 typedef enum Truth_types {
     TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY

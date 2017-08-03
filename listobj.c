@@ -37,10 +37,10 @@ static Type tuple_obj;
 static Type addrlist_obj;
 static Type colonlist_obj;
 
-Type *LIST_OBJ = &list_obj;
-Type *TUPLE_OBJ = &tuple_obj;
-Type *ADDRLIST_OBJ = &addrlist_obj;
-Type *COLONLIST_OBJ = &colonlist_obj;
+Type *const LIST_OBJ = &list_obj;
+Type *const TUPLE_OBJ = &tuple_obj;
+Type *const ADDRLIST_OBJ = &addrlist_obj;
+Type *const COLONLIST_OBJ = &colonlist_obj;
 Tuple *null_tuple;
 List *null_list;
 Addrlist *null_addrlist;

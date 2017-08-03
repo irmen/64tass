@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "str.h"
 
-extern struct Type *MFUNC_OBJ;
+extern struct Type *const MFUNC_OBJ;
 
 struct Namespace;
 

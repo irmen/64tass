@@ -26,7 +26,7 @@ struct Namespace;
 struct Type;
 
 typedef struct Obj {
-    struct Type *obj;
+    const struct Type *obj;
     size_t refcount;
 } Obj;
 
@@ -65,10 +65,10 @@ extern void obj_init(struct Type *);
 extern void objects_init(void);
 extern void objects_destroy(void);
 
-extern struct Type *LBL_OBJ;
-extern struct Type *DEFAULT_OBJ;
-extern struct Type *ITER_OBJ;
-extern struct Type *FUNCARGS_OBJ;
+extern struct Type *const LBL_OBJ;
+extern struct Type *const DEFAULT_OBJ;
+extern struct Type *const ITER_OBJ;
+extern struct Type *const FUNCARGS_OBJ;
 extern Default *default_value;
 
 static inline Default *ref_default(void) {

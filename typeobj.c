@@ -32,7 +32,7 @@
 
 static Type obj;
 
-Type *TYPE_OBJ = &obj;
+Type *const TYPE_OBJ = &obj;
 
 static struct Slot *values_free[32];
 
@@ -55,7 +55,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     case T_TYPE: return val_reference(v1);
     default: break;
     }
-    return val_reference(&v1->obj->v);
+    return val_reference((Obj *)&v1->obj->v);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

@@ -36,7 +36,7 @@
 
 static Type obj;
 
-Type *ADDRESS_OBJ = &obj;
+Type *const ADDRESS_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -479,7 +479,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *result;
-    Type *t1 = op->v1->obj;
+    const Type *t1 = op->v1->obj;
     Address *v2 = (Address *)op->v2;
     atype_t am;
     switch (t1->type) {

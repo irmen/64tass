@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "stdbool.h"
 
-extern struct Type *BOOL_OBJ;
+extern struct Type *const BOOL_OBJ;
 
 typedef struct Bool {
     Obj v;

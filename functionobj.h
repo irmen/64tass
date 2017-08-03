@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "str.h"
 
-extern struct Type *FUNCTION_OBJ;
+extern struct Type *const FUNCTION_OBJ;
 
 typedef enum Function_types {
     F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,

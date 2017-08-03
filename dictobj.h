@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "avl.h"
 
-extern struct Type *DICT_OBJ;
+extern struct Type *const DICT_OBJ;
 
 typedef struct Dict {
     Obj v;
