@@ -457,7 +457,7 @@ rest:
             lpoint.pos++;
             operp--;
             if (operp == 0 && first) {
-                o_oper[operp].epoint = o_oper[operp].epoint; o_oper[operp++].val = &o_TUPLE;
+                o_oper[operp++].val = &o_TUPLE;
                 first = false;
             }
             goto other;
