@@ -1302,8 +1302,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }
-            /* fall through */
         }
+        /* fall through */
     case T_INT:
         switch (op->op->op) {
         case O_LSHIFT:
@@ -1365,8 +1365,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }
-            /* fall through */
         }
+        /* fall through */
     case T_INT:
         tmp = int_from_bits(v2, op->epoint2);
         op->v2 = tmp;
