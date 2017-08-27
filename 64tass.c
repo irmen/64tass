@@ -1009,6 +1009,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
             }
             if (current_section->address != current_section->unionstart) {
+                if (!current_section->moved) {
+                    if (current_section->end < current_section->address) current_section->end = current_section->address;
+                    current_section->moved = true;
+                }
                 current_section->address = current_section->unionstart;
                 memjmp(&current_section->mem, current_section->address);
             }
