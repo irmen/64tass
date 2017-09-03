@@ -2973,7 +2973,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore(); wht = here();
                             if (wht != '=') {
-                                if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) lpoint.pos++;
+                                if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) lpoint.pos += 2;
                                 else {
                                     size_t l = get_label();
                                     if (l != 2 || (pline[lpoint.pos-2] | arguments.caseinsensitive) != 'i' || (pline[lpoint.pos-1] | arguments.caseinsensitive) != 'n') {
@@ -3013,7 +3013,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             ignore();
                         }
                     }
-                    if (!foreach) {
+                    if (foreach) {
+                        if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    } else {
                         if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); goto breakerr;}
                         lpoint.pos++;ignore();
                     }
