@@ -1903,6 +1903,15 @@ Repetitions
             dex
             bne lp
 
+.for <variable> in <expression>
+.next
+    Assign variable to each item of expression in sequence.
+
+    lp      .for col in [0, 11, 12, 15, 1]
+            lda #col
+            sta $d020
+            .next
+
 .rept <expression>
 .next
     Repeat by expression number of times.
@@ -1912,9 +1921,9 @@ Repetitions
             .next
 
 .break
-    Exit current loop immediately
+    Exit current loop immediately.
 .continue
-    Continue current loop's next iteration
+    Continue current loop's next iteration.
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>

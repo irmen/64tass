@@ -2287,6 +2287,16 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <spa
         <b>bne</b> <u>lp</u>
 </pre>
 
+<dt><code><b class="k">.for</b></code> &lt;variable&gt; in &lt;expression&gt;
+<dt><code><b class="k">.next</b></code>
+<dd>Assign variable to each item of expression in sequence.
+<pre width=80>
+lp      <b class="k">.for</b> <u>col</u> in [<span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>]
+        <b>lda</b> #<u>col</u>
+        <b>sta</b> <span>$d020</span>
+	<b class="k">.next</b>
+</pre>
+
 <dt><code><b class="k">.rept</b></code> &lt;expression&gt;<a name="d_rept" href="#d_rept"></a>
 <dt><code><b class="k">.next</b></code>
 <dd>Repeat by expression number of times.
@@ -2297,10 +2307,10 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <spa
 </pre>
 
 <dt><code><b class="k">.break</b></code><a name="d_break" href="#d_break"></a>
-<dd>Exit current loop immediately
+<dd>Exit current loop immediately.
 
 <dt><code><b class="k">.continue</b></code><a name="d_continue" href="#d_continue"></a>
-<dd>Continue current loop's next iteration
+<dd>Continue current loop's next iteration.
 
 <dt><code><b class="k">.lbl</b></code><a name="d_lbl" href="#d_lbl"></a>
 <dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
