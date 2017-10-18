@@ -1,0 +1,33 @@
+64tass v1.53 r1515 reference manual
+
+This is the manual for 64tass, the multi pass optimizing macro assembler for
+the 65xx series of processors. Key features:
+
+  * Open source portable C with minimal dependencies
+  * Familiar syntax to Omicron TASS and TASM
+  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510
+  * Arbitrary-precision integers and bit strings, double precision floating
+    point numbers
+  * Character and byte strings, array arithmetic
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, Unicode character
+    strings
+  * Supports Unicode identifiers with compatibility normalization and optional
+    case insensitivity
+  * Built-in `linker' with section support
+  * Various memory models, binary targets and text output formats (also Hex/
+    S-record)
+  * Assembly and label listings available for debugging or exporting
+  * Conditional compilation, macros, structures, unions, scopes
+
+Contrary how the length of this document suggests 64tass can be used with just
+basic 6502 assembly knowledge in simple ways like any other assembler. If some
+advanced functionality is needed then this document can serve as a reference.
+
+This is a development version. Features or syntax may change as a result of
+corrections in non-backwards compatible ways in some rare cases. It's difficult
+to get everything `right' first time.
+
+Project page: http://sourceforge.net/projects/tass64/
+
+
+Manual can be found in README-MANUAL or README.html
