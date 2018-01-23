@@ -187,6 +187,7 @@ difficult to get everything <q>right</q> first time.</b></p>
   <ul>
    <li><a href="#conditional-if">If, else if, else</a>
    <li><a href="#conditional-switch">Switch, case, default</a>
+   <li><a href="#conditional-comment">Comment</a>
   </ul>
   <li><a href="#repetitions">Repetitions</a>
   <li><a href="#including">Including files</a>
@@ -973,15 +974,20 @@ letters, numbers and underscores. Unicode letters are allowed if the <q><a href=
 There's no restriction on the length of symbol names.</p>
 
 <p>Care must be taken to not use duplicate names in the same scope when
-the symbol is used as a constant. Case sensitivity can be enabled with
-the <q><a href="#o_case-sensitive"><tt>-C</tt></a></q> command line
-option, otherwise all symbols are matched case insensitive.</p>
+the symbol is used as a constant as there can be only one definition for them.</p>
 
-<p>Duplicate names in parent scopes are never a problem, they'll just be
-<q>shadowed</q>. This could be either good by reducing collisions and gives the
-ability to override <q>defaults</q> defined in lower scopes. On the other hand
-it's possible to mix-up the new symbol with a old one by mistake, which is hard
-to notice.</p>
+<p>Duplicate names in parent scopes are not a problem and this gives the
+ability to override names defined in lower scopes. However this can just as well lead to mistakes if
+a lower scoped symbol with the same name was meant so there's a 
+<a href="#o_Wshadow">-Wshadow</a> command line option to warn if such ambiguity exists.</p>
+
+<p>Case sensitivity can be enabled with the
+<q><a href="#o_case-sensitive"><tt>-C</tt></a></q> command line option, otherwise all
+symbols are matched case insensitive.</p>
+
+<p>For case insensitive matching it's possible to check for consistent symbol name use
+with the <q><a href="#o_Wcase-symbol"><tt>-Wcase-symbol</tt></a></q> command
+line option.</p>
 
 <p>A regular symbol is looked up first in the current scope, then in lower scopes
 until the global scope is reached.</p>
@@ -1069,6 +1075,11 @@ trap when segments are copied into the code with their internal references.</p>
 
 <p>A anonymous symbols are looked up first in the current scope, then in lower scopes
 until the global scope is reached.</p>
+
+<p>Anonymous labels within conditionally assembled code are counted even
+if the code itself is not compiled and the label won't get defined.
+This ensures that anonymous labels are always at the same "distance"
+independent of the conditions in between.</p>
 
 <h4>Constant and re-definable symbols<a name="symbols-constant" href="#symbols-constant"></a></h4>
 
@@ -2206,6 +2217,11 @@ mva     <b class="k">.function</b> <u>s</u>, <u>d</u>
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
+
+<p>Anonymous labels are still recognized in the non-compiling parts even if
+they won't get defined. This ensures consistent relative referencing
+across conditionally compiled areas with such labels.</p>
+
 <h4>If, else if, else<a name="conditional-if" href="#conditional-if"></a></h4>
 <dl class="dir">
 <dt><code><b class="k">.if</b></code> &lt;condition&gt;<a name="d_if" href="#d_if"></a>
@@ -2216,7 +2232,7 @@ compiled from the same source.</p>
 <dd>Compile if previous conditions were not met
 <dt><code><b class="k">.fi</b></code><a name="d_fi" href="#d_fi"></a>
 <dt><code><b class="k">.endif</b></code><a name="d_endif" href="#d_endif"></a>
-<dd>End of conditional compilation
+<dd>End of conditional compilation.
 <dt><code><b class="k">.ifne</b></code> &lt;value&gt;<a name="d_ifne" href="#d_ifne"></a>
 <dd>Compile if value is not zero
 <dt><code><b class="k">.ifeq</b></code> &lt;value&gt;<a name="d_ifeq" href="#d_ifeq"></a>
@@ -2256,7 +2272,7 @@ statement.</p>
 <dt><code><b class="k">.default</b></code><a name="d_default" href="#d_default"></a>
 <dd>Compile if the previous conditions were all skipped
 <dt><code><b class="k">.endswitch</b></code><a name="d_endswitch" href="#d_endswitch"></a>
-<dd>End of conditional compile
+<dd>End of conditional compilation.
 </dl>
 
 <pre width=80>
@@ -2270,6 +2286,21 @@ statement.</p>
         <b class="k">.default</b>	<i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
 	<b class="k">.endswitch</b>
+</pre>
+
+<h4>Comment<a name="conditional-comment" href="#conditional-comment"></a></h4>
+<dl class="dir">
+<dt><code><b class="k">.comment</b></code><a name="d_comment" href="#d_comment"></a>
+<dd>Never compile.
+<dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
+<dd>End of conditional compilation.
+</dl>
+
+<pre width=80>
+	<b class="k">.comment</b>
+<i>        lda #1          ;this won't be compiled</i>
+<i>	sta $d020</i>
+	<b class="k">.endc</b>
 </pre>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
@@ -2291,7 +2322,7 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>$400</span>, <u>ue</u> &lt; <spa
 <dt><code><b class="k">.next</b></code>
 <dd>Assign variable to each item of expression in sequence.
 <pre width=80>
-lp      <b class="k">.for</b> <u>col</u> in [<span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>]
+        <b class="k">.for</b> <u>col</u> in [<span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>]
         <b>lda</b> #<u>col</u>
         <b>sta</b> <span>$d020</span>
 	<b class="k">.next</b>
@@ -2439,6 +2470,13 @@ scope is of course not allowed and it results in double definition error.</p>
 <p>Please note that <code>.ifdef</code>/<code>.ifndef</code> directives are
 left out from 64tass for of technical reasons, so don't wait for them to appear
 anytime soon.</p>
+
+<dt><code><b class="k">.namespace [&lt;symbol&gt;]</b></code><a name="d_namespace" href="#d_namespace"></a>
+<dt><code><b class="k">.endn</b></code><a name="d_endn" href="#d_endn"></a>
+<dd>Namespace area
+<p>This directive either creates a new scope (if used without a parameter) or activates the one in the parameter.</p>
+<p>The scope can be assigned to a symbol in front of the directive so that it can be reactivated later.</p>
+<p>This enabled label definitions into the same scope in different files.</p>
 </dl>
 
 <h3>Sections<a name="sections" href="#sections"></a></h3>
@@ -2728,16 +2766,6 @@ maximum 128 bits to make the generated numbers less boring.
 <dt><code><b class="k">.var</b></code> &lt;expression&gt;<a name="d_var" href="#d_var"></a>
 <dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
-
-<dt><code><b class="k">.comment</b></code><a name="d_comment" href="#d_comment"></a>
-<dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
-<dd>Comment block start and comment block end.
-<pre width=80>
-	<b class="k">.comment</b>
-<i>        lda #1          ;this won't be compiled</i>
-<i>	sta $d020</i>
-	<b class="k">.endc</b>
-</pre>
 
 <dt><code><b class="k">.assert</b></code><a name="d_assert" href="#d_assert"></a>
 <dt><code><b class="k">.check</b></code><a name="d_check" href="#d_check"></a>
@@ -4910,6 +4938,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#d_endf">.endf</a>
 <a href="#d_endif">.endif</a>
 <a href="#d_endm">.endm</a>
+<a href="#d_endn">.endn</a>
 <a href="#d_endp">.endp</a>
 <a href="#d_ends">.ends</a>
 <a href="#d_endswitch">.endswitch</a>
@@ -4936,6 +4965,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#d_long">.long</a>
 <a href="#d_macro">.macro</a>
 <a href="#d_mansiz">.mansiz</a>
+<a href="#d_namespace">.namespace</a>
 <a href="#d_next">.next</a>
 <a href="#d_null">.null</a>
 <a href="#d_offs">.offs</a>

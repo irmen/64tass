@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: opt_bit.h 1490 2017-04-27 22:28:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: section.c 1575 2017-12-28 12:56:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include "longjump.h"
 #include "optimizer.h"
 
+#include "memblocksobj.h"
+
 struct section_s root_section;
 struct section_s *current_section = &root_section;
 static struct section_s *prev_section = &root_section;
@@ -45,7 +47,7 @@ static void section_free(struct avltree_node *aa)
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, section_free);
     longjump_destroy(&a->longjump);
-    destroy_memblocks(&a->mem);
+    val_destroy(&a->mem->v);
     val_destroy(a->l_address_val);
     cpu_opt_destroy(a->optimizer);
     free(a);
@@ -106,7 +108,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->optimizer = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
-        init_memblocks(&lastsc->mem);
+        lastsc->mem = new_memblocks();
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
         tmp = lastsc;
@@ -137,7 +139,7 @@ void init_section2(struct section_s *section) {
     section->cfname.len = 0;
     section->next = NULL;
     section->optimizer = NULL;
-    init_memblocks(&section->mem);
+    section->mem = new_memblocks();
     section->l_address_val = (Obj *)ref_int(int_value[0]);
     avltree_init(&section->members);
     avltree_init(&section->longjump);
@@ -151,7 +153,7 @@ void init_section(void) {
 void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
     longjump_destroy(&section->longjump);
-    destroy_memblocks(&section->mem);
+    val_destroy(&section->mem->v);
     val_destroy(section->l_address_val);
     section->l_address_val = NULL;
     cpu_opt_destroy(section->optimizer);
@@ -189,7 +191,7 @@ void sectionprint(void) {
         printrange(l);
         putchar('\n');
     }
-    memprint(&l->mem);
+    memprint(l->mem);
     l = root_section.next;
     while (l != NULL) {
         if (l->defpass == pass) {
@@ -198,7 +200,7 @@ void sectionprint(void) {
             sectionprint2(l->parent);
             printable_print2(l->name.data, stdout, l->name.len);
             putchar('\n');
-            memprint(&l->mem);
+            memprint(l->mem);
         }
         l = l->next;
     }

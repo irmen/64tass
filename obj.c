@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: obj.c 1575 2017-12-28 12:56:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@
 #include "errorobj.h"
 #include "mfuncobj.h"
 #include "identobj.h"
+#include "memblocksobj.h"
 
 static Type lbl_obj;
 static Type default_obj;
@@ -293,6 +294,7 @@ void objects_init(void) {
     dictobj_init();
     labelobj_init();
     namespaceobj_init();
+    memblocksobj_init();
     macroobj_init();
     errorobj_init();
     operobj_init();

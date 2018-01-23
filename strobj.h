@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: strobj.h 1560 2017-08-03 21:44:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

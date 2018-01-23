@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: section.h 1575 2017-12-28 12:56:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "mem.h"
 
 struct Obj;
+struct Memblocks;
 struct optimizer_s;
 
 struct section_s {
@@ -47,7 +48,7 @@ struct section_s {
     address2_t l_unionstart;
     address2_t l_unionend;
     address_t size;
-    struct memblocks_s mem;
+    struct Memblocks *mem;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t structrecursion;

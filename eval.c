@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: eval.c 1580 2018-01-14 09:05:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -408,7 +408,6 @@ rest:
         if (l != NULL) {
             if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_msg_symbol_case(&ident, l, &epoint);
             touch_label(l);
-            l->shadowcheck = true;
             push_oper(val_reference(l->value), &epoint);
         } else {
             Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
@@ -1394,7 +1393,6 @@ static bool get_exp2(int stop, struct file_list_s *cflist) {
                 if (l != NULL) {
                     if (diagnostics.case_symbol && str_cmp(&ident, &l->name) != 0) err_msg_symbol_case(&ident, l, &epoint);
                     touch_label(l);
-                    if (down) l->shadowcheck = true;
                     push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
@@ -1738,9 +1736,7 @@ Obj *get_vals_tuple(void) {
     default:
         break;
     }
-    list = new_tuple();
-    list->len = len;
-    list->data = list_create_elements(list, len);
+    list = new_tuple(len);
     for (i = 0; i < len; i++) {
         Obj *val2 = pull_val(NULL);
         if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }

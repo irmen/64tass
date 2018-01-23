@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: opcodes.h 1511 2017-05-01 08:08:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

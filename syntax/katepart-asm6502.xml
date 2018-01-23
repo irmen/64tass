@@ -8,7 +8,7 @@
 ]>
 <!-- ex:set ts=2 et:
 
- $Id$
+ $Id: katepart-asm6502.xml 1568 2017-12-24 07:04:46Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -115,6 +115,8 @@
         <RegExpr endRegion="union" String="\.endu\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="page" String="\.page\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="page" String="\.endp\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="namespace" String="\.namespace\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="namespace" String="\.endn\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="macro" String="\.(macro|segment)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="macro" String="\.endm\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="function" String="\.function\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
@@ -123,7 +125,7 @@
         <RegExpr endRegion="for" String="\.next\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="here" String="\.here\b" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="weak" String="\.weak\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="weak" String="\.weak\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="endweak" String="\.endweak\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.elsif\b)" context="elsif" insensitive="TRUE"/>

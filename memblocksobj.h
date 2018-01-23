@@ -1,5 +1,5 @@
 /*
-    $Id: mem.h 1575 2017-12-28 12:56:31Z soci $
+    $Id: memblocksobj.h 1575 2017-12-28 12:56:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,24 +16,38 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MEM_H
-#define MEM_H
+#ifndef MEMBLOCKSOBJ_H
+#define MEMBLOCKSOBJ_H
 #include "obj.h"
-#include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
 
-struct Memblocks;
-struct output_s;
+extern struct Type *const MEMBLOCKS_OBJ;
 
-extern void mark_mem(const struct Memblocks *, address_t, address_t);
-extern void write_mark_mem(struct Memblocks *, unsigned int);
-extern void list_mem(const struct Memblocks *, bool);
-extern void memjmp(struct Memblocks *, address_t);
-extern void memref(struct Memblocks *, struct Memblocks *);
-extern void memprint(struct Memblocks *);
-extern void output_mem(struct Memblocks *, const struct output_s *);
-extern FAST_CALL void write_mem(struct Memblocks *, unsigned int);
-extern int read_mem(const struct Memblocks *, size_t, size_t, size_t);
-extern void get_mem(const struct Memblocks *, size_t *, size_t *);
+struct memblock_s { /* starts and sizes */
+    size_t p;
+    address_t addr, len;
+    struct Memblocks *ref;
+};
+
+typedef struct Memblocks {
+    Obj v;
+    struct {       /* Linear memory dump */
+        size_t p, len;
+        uint8_t *data;
+    } mem;
+    bool compressed;
+    size_t p, len;
+    size_t lastp;
+    address_t lastaddr;
+    struct memblock_s *data;
+} Memblocks;
+
+extern void memblocksobj_init(void);
+
+static inline Memblocks *ref_memblocks(Memblocks *v1) {
+    v1->v.refcount++; return v1;
+}
+
+extern MALLOC Memblocks *new_memblocks(void);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: unicodedata.c 1485 2017-04-24 21:48:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

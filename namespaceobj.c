@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: namespaceobj.c 1582 2018-01-14 10:48:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "identobj.h"
+#include "codeobj.h"
+#include "macroobj.h"
 
 static Type obj;
 
@@ -65,6 +67,22 @@ static void garbage2(struct avltree_node *aa)
         v->refcount -= SIZE_MSB - 1;
         v->obj->garbage(v, 1);
     } else v->refcount++;
+}
+
+static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_NAMESPACE: return val_reference(v1);
+    case T_CODE:
+        return val_reference(&((Code *)v1)->names->v);
+    case T_UNION:
+    case T_STRUCT:
+        return val_reference(&((Struct *)v1)->names->v);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return (Obj *)ref_none();
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -107,50 +125,59 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     const Namespace *v1 = (const Namespace *)o1;
-    size_t i = 0, j, ln = 2, chars = 2;
+    size_t i = 0, j, ln = 13, chars = 13;
     Obj **vals;
     Str *str;
     Tuple *tuple = NULL;
     uint8_t *s;
 
     if (v1->len != 0) {
+        const struct avltree_node *n;
+        bool first = true;
         ln = v1->len;
-        chars = ln + 1;
+        chars = ln + 12;
         if (chars < 1) err_msg_out_of_memory(); /* overflow */
         if (chars > maxsize) return NULL;
-        tuple = new_tuple();
-        tuple->data = vals = list_create_elements(tuple, ln);
+        tuple = new_tuple(ln);
+        vals = tuple->data;
         ln = chars;
-        if (v1->len != 0) {
-            const struct avltree_node *n;
-            for (n = avltree_first(&v1->members); n != NULL; n = avltree_next(n)) {
-                const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
-                Obj *key = (Obj *)p->key;
-                Obj *v = key->obj->repr(key, epoint, maxsize - chars);
-                if (v == NULL || v->obj != STR_OBJ) {
-                    tuple->len = i;
-                    val_destroy(&tuple->v);
-                    return v;
-                }
-                str = (Str *)v;
-                ln += str->len;
-                if (ln < str->len) err_msg_out_of_memory(); /* overflow */
-                chars += str->chars;
-                if (chars > maxsize) {
-                    tuple->len = i;
-                    val_destroy(&tuple->v);
-                    val_destroy(v);
-                    return NULL;
-                }
-                vals[i++] = v;
+        for (n = avltree_first(&v1->members); n != NULL; n = avltree_next(n)) {
+            const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
+            Obj *v, *key = (Obj *)p->key;
+            if (p->key->defpass != pass && !(p->key->constant && (!fixeddig || p->key->defpass == pass - 1))) {
+                if (first) {
+                    first = false;
+                    continue;
+                } 
+                ln--;
+                chars--;
+                continue;
             }
+            v = key->obj->repr(key, epoint, maxsize - chars);
+            if (v == NULL || v->obj != STR_OBJ) {
+                tuple->len = i;
+                val_destroy(&tuple->v);
+                return v;
+            }
+            str = (Str *)v;
+            ln += str->len;
+            if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+            chars += str->chars;
+            if (chars > maxsize) {
+                tuple->len = i;
+                val_destroy(&tuple->v);
+                val_destroy(v);
+                return NULL;
+            }
+            vals[i++] = v;
         }
         tuple->len = i;
     }
     str = new_str(ln);
     str->chars = chars;
     s = str->data;
-    *s++ = '{';
+    memcpy(s, "namespace({", 11);
+    s += 11;
     for (j = 0; j < i; j++) {
         Str *str2 = (Str *)vals[j];
         if (j != 0) *s++ = ',';
@@ -159,7 +186,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
             s += str2->len;
         }
     }
-    *s = '}';
+    *s++ = '}';
+    *s = ')';
     if (tuple != NULL) val_destroy(&tuple->v);
     return &str->v;
 }
@@ -225,12 +253,40 @@ MALLOC Namespace *new_namespace(const struct file_list_s *file_list, linepos_t e
     return val;
 }
 
+static MUST_CHECK Obj *calc2(oper_t op) {
+    if (op->op == &o_MEMBER) {
+        return namespace_member(op, (Namespace *)op->v1);
+    }
+    if (op->v2 == &none_value->v || op->v2->obj == ERROR_OBJ) return val_reference(op->v2);
+    return obj_oper_error(op);
+}
+
 void namespaceobj_init(void) {
     new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
+    obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
     obj.repr = repr;
+    obj.calc2 = calc2;
+}
+
+void namespaceobj_names(void) {
+    new_builtin("namespace", val_reference(&NAMESPACE_OBJ->v));
+}
+
+Namespace *get_namespace(const Obj *o) {
+    switch (o->obj->type) {
+    case T_CODE:
+        return ((Code *)o)->names;
+    case T_UNION:
+    case T_STRUCT:
+        return ((Struct *)o)->names;
+    case T_NAMESPACE:
+        return (Namespace *)o;
+    default:
+        return NULL;
+    }
 }
 
 #define SLOTS 128

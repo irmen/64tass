@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: wait_e.h 1568 2017-12-24 07:04:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 typedef enum Wait_types {
     W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
     W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
-    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2
+    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2,
+    W_ENDN, W_ENDN2
 } Wait_types;
 #endif

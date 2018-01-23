@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: optimizer.h 1382 2017-03-26 17:48:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

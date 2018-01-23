@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: instruction.c 1567 2017-11-01 22:07:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -289,10 +289,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     break;
                 }
                 return err_addressing(am, epoint);
+            case (A_IMMEDIATE_SIGNED << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#+$ff,s),y */
             case (A_IMMEDIATE << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,s),y */
             case (A_SR << 8) | (A_I << 4) | A_YR:
                 if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
-                    adrgen = AG_BYTE; opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
+                    adrgen = (opcode == c65ce02.opcode) ? AG_CHAR : AG_BYTE; opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
                     break;
                 }
                 return err_addressing(am, epoint);

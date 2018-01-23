@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: listobj.h 1580 2018-01-14 09:05:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,9 +63,6 @@ static inline Colonlist *ref_colonlist(Colonlist *v1) {
 static inline MUST_CHECK List *new_list(void) {
     return (List *)val_alloc(LIST_OBJ);
 }
-static inline MUST_CHECK Tuple *new_tuple(void) {
-    return (Tuple *)val_alloc(TUPLE_OBJ);
-}
 static inline MUST_CHECK Addrlist *new_addrlist(void) {
     return (Addrlist *)val_alloc(ADDRLIST_OBJ);
 }
@@ -73,5 +70,6 @@ static inline MUST_CHECK Colonlist *new_colonlist(void) {
     return (Colonlist *)val_alloc(COLONLIST_OBJ);
 }
 
+extern MUST_CHECK Tuple *new_tuple(size_t);
 extern Obj **list_create_elements(List *, size_t);
 #endif

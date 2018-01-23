@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: listobj.c 1580 2018-01-14 09:05:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     uint8_t *s;
     size_t llen = v1->len;
     if (llen != 0) {
-        list = new_tuple();
+        list = (Tuple *)val_alloc(TUPLE_OBJ);
         vals = lnew(list, llen);
         if (vals == NULL) return (Obj *)new_error_mem(epoint);
         i = (llen != 1 || o1->obj != TUPLE_OBJ) ? (llen - 1) : llen;
@@ -273,6 +273,18 @@ Obj **list_create_elements(List *v, size_t n) {
     if (n <= lenof(v->val)) return v->val;
     if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
     return (Obj **)mallocx(n * sizeof *v->data);
+}
+
+MUST_CHECK Tuple *new_tuple(size_t n) {
+     Tuple *v = (Tuple *)val_alloc(TUPLE_OBJ);
+     v->len = n;
+     if (n <= lenof(v->val)) {
+         v->data = v->val;
+         return v;
+     }
+     if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+     v->data = (Obj **)mallocx(n * sizeof *v->data);
+     return v;
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -639,9 +651,7 @@ void listobj_init(void) {
     colonlist_obj.same = same;
     colonlist_obj.repr = repr_listtuple;
 
-    null_tuple = new_tuple();
-    null_tuple->len = 0;
-    null_tuple->data = NULL;
+    null_tuple = new_tuple(0);
     null_list = new_list();
     null_list->len = 0;
     null_list->data = NULL;

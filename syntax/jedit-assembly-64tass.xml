@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id$
+	$Id: jedit-assembly-64tass.xml 1568 2017-12-24 07:04:46Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -67,6 +67,7 @@
                         <KEYWORD3>.endf</KEYWORD3>
                         <KEYWORD3>.endif</KEYWORD3>
                         <KEYWORD3>.endm</KEYWORD3>
+                        <KEYWORD3>.endn</KEYWORD3>
                         <KEYWORD3>.endp</KEYWORD3>
                         <KEYWORD3>.ends</KEYWORD3>
                         <KEYWORD3>.endswitch</KEYWORD3>
@@ -90,6 +91,7 @@
                         <KEYWORD3>.lint</KEYWORD3>
                         <KEYWORD3>.logical</KEYWORD3>
                         <KEYWORD3>.macro</KEYWORD3>
+                        <KEYWORD3>.namespace</KEYWORD3>
                         <KEYWORD3>.next</KEYWORD3>
                         <KEYWORD3>.offs</KEYWORD3>
                         <KEYWORD3>.option</KEYWORD3>

@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: wchar.h 1523 2017-05-06 10:57:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

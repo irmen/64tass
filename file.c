@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: file.c 1558 2017-07-27 06:03:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

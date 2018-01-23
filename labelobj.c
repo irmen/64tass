@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: labelobj.c 1583 2018-01-14 10:59:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -91,6 +91,12 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     Str *v;
     if (epoint == NULL) return NULL;
     len = v1->name.len;
+    switch (v1->name.data[0]) {
+    case '+':
+    case '-': len = 1; break;
+    case '#':
+    case '.': len = 0; break;
+    }
     len2 = len + 10;
     if (len2 > maxlen) return NULL;
     v = new_str(len2);

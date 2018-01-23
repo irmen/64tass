@@ -1,6 +1,6 @@
 /*
  * avltree - Implements an AVL tree with parent pointers.
- * $Id$
+ * $Id: avl.c 1539 2017-06-06 18:27:36Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *

@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: wctype.c 1095 2016-05-12 14:24:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

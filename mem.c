@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: mem.c 1575 2017-12-28 12:56:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,12 +27,9 @@
 #include "64tass.h"
 #include "listing.h"
 #include "arguments.h"
+#include "values.h"
 
-struct memblock_s { /* starts and sizes */
-    size_t p;
-    address_t addr, len;
-    struct memblocks_s *ref;
-};
+#include "memblocksobj.h"
 
 static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa = (const struct memblock_s *)a;
@@ -42,14 +39,14 @@ static int memblockcomp(const void *a, const void *b) {
     return (ad > bd) ? 1 : 0;
 }
 
-static void memcomp(struct memblocks_s *memblocks) {
+static void memcomp(Memblocks *memblocks) {
     unsigned int i, j, k;
     if (memblocks->compressed) return;
     memblocks->compressed = true;
     memjmp(memblocks, 0);
 
     for (j = 0; j < memblocks->p; j++) { /* replace references with real copies */
-        struct memblocks_s *b = memblocks->data[j].ref;
+        Memblocks *b = memblocks->data[j].ref;
         if (b != NULL) {
             size_t rest;
             memcomp(b);
@@ -76,6 +73,7 @@ static void memcomp(struct memblocks_s *memblocks) {
                 memcpy(&memblocks->mem.data[b2->p], &b->mem.data[b->data[k].p], b2->len);
             }
             j--;
+            val_destroy(&b->v);
         }
     }
     if (memblocks->p < 2) return;
@@ -116,7 +114,7 @@ static void memcomp(struct memblocks_s *memblocks) {
     qsort(memblocks->data, memblocks->p, sizeof *memblocks->data, memblockcomp);
 }
 
-void memjmp(struct memblocks_s *memblocks, address_t adr) {
+void memjmp(Memblocks *memblocks, address_t adr) {
     struct memblock_s *block;
     if (memblocks->mem.p == memblocks->lastp) {
         memblocks->lastaddr = adr;
@@ -136,7 +134,7 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
     memblocks->lastaddr = adr;
 }
 
-void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
+void memref(Memblocks *memblocks, Memblocks *ref) {
     struct memblock_s *block;
     if (memblocks->p >= memblocks->len) {
         memblocks->len += 64;
@@ -157,7 +155,7 @@ static void printrange(address_t start, address_t end) {
     printf("Memory range: %10s-%-7s $%04" PRIaddress "\n", temp, temp2, end-start);
 }
 
-void memprint(struct memblocks_s *memblocks) {
+void memprint(Memblocks *memblocks) {
     unsigned int i;
     bool over;
     address_t start, end;
@@ -198,7 +196,7 @@ static void padding(size_t size, FILE *f) {
 err:while ((size--) != 0) if (putc(0, f) == EOF) break;
 }
 
-static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks, const struct output_s *output) {
+static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     address_t pos, end;
     unsigned int i;
 
@@ -223,7 +221,7 @@ static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks, cons
     }
 }
 
-static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks, bool longaddr) {
+static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool longaddr) {
     address_t start, size;
     unsigned int i, last;
 
@@ -261,7 +259,7 @@ static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks
     if (longaddr) putc(0, fout);
 }
 
-static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
     address_t pos;
     unsigned int i;
 
@@ -273,7 +271,7 @@ static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
     }
 }
 
-static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
     address_t start, size;
     unsigned int i, last;
 
@@ -357,7 +355,7 @@ static void output_mem_ihex_data(struct ihex_s *ihex) {
     ihex->length = 0;
 }
 
-static void output_mem_ihex(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_ihex(FILE *fout, const Memblocks *memblocks) {
     struct ihex_s ihex;
     size_t i;
 
@@ -421,7 +419,7 @@ static void output_mem_srec_line(struct srecord_s *srec) {
     srec->length = 0;
 }
 
-static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
+static void output_mem_srec(FILE *fout, const Memblocks *memblocks) {
     struct srecord_s srec;
     size_t i;
 
@@ -466,7 +464,7 @@ static void output_mem_srec(FILE *fout, const struct memblocks_s *memblocks) {
     }
 }
 
-void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
+void output_mem(Memblocks *memblocks, const struct output_s *output) {
     FILE* fout;
     struct linepos_s nopoint = {0, 0};
     bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
@@ -507,7 +505,7 @@ void output_mem(struct memblocks_s *memblocks, const struct output_s *output) {
 #endif
 }
 
-FAST_CALL void write_mem(struct memblocks_s *memblocks, unsigned int c) {
+FAST_CALL void write_mem(Memblocks *memblocks, unsigned int c) {
     if (memblocks->mem.p >= memblocks->mem.len) {
         memblocks->mem.len += 0x1000;
         if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
@@ -520,19 +518,19 @@ static size_t omemp;
 static size_t ptextaddr;
 static address_t oaddr, oaddr2;
 
-void mark_mem(const struct memblocks_s *memblocks, address_t adr, address_t adr2) {
+void mark_mem(const Memblocks *memblocks, address_t adr, address_t adr2) {
     ptextaddr = memblocks->mem.p;
     omemp = memblocks->p;
     oaddr = adr;
     oaddr2 = adr2;
 }
 
-void get_mem(const struct memblocks_s *memblocks, size_t *memp, size_t *membp) {
+void get_mem(const Memblocks *memblocks, size_t *memp, size_t *membp) {
     *memp = memblocks->mem.p;
     *membp = memblocks->p;
 }
 
-int read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp, size_t offs) {
+int read_mem(const Memblocks *memblocks, size_t memp, size_t membp, size_t offs) {
     size_t len;
     if (memp >= memblocks->mem.p) return -1;
     for (;;) {
@@ -555,11 +553,11 @@ int read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp, siz
     }
 }
 
-void write_mark_mem(struct memblocks_s *memblocks, unsigned int c) {
+void write_mark_mem(Memblocks *memblocks, unsigned int c) {
     memblocks->mem.data[ptextaddr] = (uint8_t)c;
 }
 
-void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
+void list_mem(const Memblocks *memblocks, bool dooutput) {
     address_t myaddr;
     size_t len;
     bool first = true, print = true;
@@ -589,29 +587,4 @@ void list_mem(const struct memblocks_s *memblocks, bool dooutput) {
         print = false;
         ptextaddr += len;
     }
-}
-
-void restart_memblocks(struct memblocks_s *memblocks, address_t address) {
-    memblocks->mem.p = 0;
-    memblocks->lastp = 0;
-    memblocks->p = 0;
-    memblocks->lastaddr = address;
-    memblocks->compressed = false;
-}
-
-void init_memblocks(struct memblocks_s *memblocks) {
-    memblocks->mem.p = 0;
-    memblocks->mem.len = 0;
-    memblocks->mem.data = NULL;
-    memblocks->p = 0;
-    memblocks->len = 0;
-    memblocks->lastp = 0;
-    memblocks->lastaddr = 0;
-    memblocks->data = NULL;
-    memblocks->compressed = false;
-}
-
-void destroy_memblocks(struct memblocks_s *memblocks) {
-    free(memblocks->mem.data);
-    free(memblocks->data);
 }

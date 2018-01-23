@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: encoding.c 1442 2017-04-02 22:43:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

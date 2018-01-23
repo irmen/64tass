@@ -1,4 +1,4 @@
-64tass v1.53 r1515 reference manual
+64tass v1.53 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -28,6 +28,8 @@ corrections in non-backwards compatible ways in some rare cases. It's difficult
 to get everything `right' first time.
 
 Project page: http://sourceforge.net/projects/tass64/
+
+(source tracked from there via Subversion)
 
 
 Manual can be found in README-MANUAL or README.html

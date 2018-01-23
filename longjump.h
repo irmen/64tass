@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: longjump.h 1093 2016-05-12 10:50:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

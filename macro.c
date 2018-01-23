@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: macro.c 1580 2018-01-14 09:05:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -367,9 +367,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         bool labelexists;
         if (mfunc->param[i].init == &default_value->v) {
             size_t j = 0;
-            tuple = new_tuple();
-            tuple->len = get_val_remaining();
-            tuple->data = list_create_elements(tuple, tuple->len);
+            tuple = new_tuple(get_val_remaining());
             for (j = 0; (val = pull_val(NULL)) != NULL; j++) {
                 if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
                 tuple->data[j] = val;
@@ -623,11 +621,9 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     for (i = 0; i < mfunc->argc; i++) {
         bool labelexists;
         if (mfunc->param[i].init == &default_value->v) {
-            tuple = new_tuple();
             if (i < args) {
                 size_t j = i;
-                tuple->len = args - i;
-                tuple->data = list_create_elements(tuple, tuple->len);
+                tuple = new_tuple(args - i);
                 none_value->v.refcount += args - i;
                 while (j < args) {
                     tuple->data[j - i] = vals[j].val;
@@ -635,8 +631,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
                     j++;
                 }
             } else {
-                tuple->len = 0;
-                tuple->data = NULL;
+                tuple = (Tuple *)val_reference(&null_tuple->v);
             }
             val = &tuple->v;
         } else {

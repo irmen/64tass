@@ -1,5 +1,5 @@
 /* ternary.h - Ternary Search Trees
-   $Id$
+   $Id: ternary.h 1539 2017-06-06 18:27:36Z soci $
 
    Copyright 2001 Free Software Foundation, Inc.
 

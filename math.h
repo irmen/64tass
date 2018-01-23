@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: math.h 1408 2017-03-30 15:28:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

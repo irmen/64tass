@@ -1,5 +1,5 @@
 /*
-    $Id$
+    $Id: stdbool.h 1091 2016-05-12 08:21:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
