@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 1555 2017-07-24 21:16:47Z soci $
+    $Id: arguments.c 1584 2018-02-11 19:08:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ struct diagnostics_s diagnostics = {
     true,        /* star_assign */
     true,        /* ignored */
     false,       /* long_branch */
-    false        /* altmode */
+    false,       /* altmode */
+    true         /* page */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -115,7 +116,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* star_assign */
     false,       /* ignored */
     false,       /* long_branch */
-    false        /* altmode */
+    false,       /* altmode */
+    true         /* page */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -148,7 +150,8 @@ static struct diagnostics_s diagnostic_all = {
     true,        /* star_assign */
     true,        /* ignored */
     false,       /* long_branch */
-    false        /* altmode */
+    false,       /* altmode */
+    true         /* page */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -181,7 +184,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* star_assign */
     true,        /* ignored */
     true,        /* long_branch */
-    true         /* altmode */
+    true,        /* altmode */
+    true         /* page */
 };
 
 struct w_options_s {
@@ -217,6 +221,7 @@ static const struct w_options_s w_options[] = {
     {"ignored",         &diagnostics.ignored},
     {"long-branch",     &diagnostics.long_branch},
     {"altmode",         &diagnostics.altmode},
+    {"page",            &diagnostics.page},
     {NULL,              NULL}
 };
 
@@ -532,6 +537,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wno-jmp-bug          No jmp ($xxff) bug warning\n"
                "  -Wno-label-left       No warning about strange labels\n"
                "  -Wno-mem-wrap         No offset overflow warning\n"
+               "  -Wno-page             No page crossing error\n"
                "  -Wno-pc-wrap          No PC overflow warning\n"
                "  -Wno-pitfalls         No common pitfall notes\n"
                "  -Wno-portable         No portability warnings\n"

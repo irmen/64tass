@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 1553 2017-07-23 17:32:38Z soci $
+    $Id: errors_e.h 1584 2018-02-11 19:08:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,7 +112,6 @@ typedef enum Error_types {
     ERROR_NO_ADDRESSING,
     ERROR___NO_REGISTER,
     ERROR___NO_LOT_OPER,
-    ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
     ERROR_BRANCH_TOOFAR,
     ERROR____PTEXT_LONG,

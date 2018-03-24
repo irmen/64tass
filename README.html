@@ -3398,6 +3398,12 @@ analysis done. Currently it's easy to fool with these constructs:</p>
 missed. Most CPUs are supported with the notable exception of 65816 and 65EL02,
 but this could improve in later versions.</p>
 
+<dt><b>-Wno-page</b><a name="o_Wpage" href="#o_Wpage"></a>
+<dd>Don't do an error for page crossing
+<p>Normally the <a href="#d_page"><code>.page</code></a> directive gives an
+error on page crossing, this directive can disable it. Using
+<q><code>-Wno-error=page</code></q> can turn it into a warning only.</p>
+
 <dt><b>-Wno-portable</b><a name="o_Wportable" href="#o_Wportable"></a>
 <dd>Don't warn about source portability problems.
 <p>These cross platform development annoyances are checked for:</p>
@@ -3875,7 +3881,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>not iterable<dd>value is not a list or other iterable object
 <dt>offset out of range<dd>code offset too much
 <dt>operands could not be broadcast together with shapes ? and ?<dd>list length must match or must have a single element only
-<dt>page error at $xxxx<dd>page crossing was detected
+<dt>different start and end page $xxxx and $xxxx<dd>page crossing was detected
 <dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
 <dt>requirements not met<dd>not all features are provided, at least one is missing
 <dt>reserved symbol name '?'<dd>do not use this symbol name

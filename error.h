@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1553 2017-07-23 17:32:38Z soci $
+    $Id: error.h 1584 2018-02-11 19:08:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ extern void err_msg_pc_wrap(linepos_t);
 extern void err_msg_mem_wrap(linepos_t);
 extern void err_msg_label_left(linepos_t);
 extern void err_msg_branch_page(int, linepos_t);
+extern void err_msg_page(address_t, address_t, linepos_t);
 extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
 extern void err_msg_unknown_char(uchar_t, const str_t *, linepos_t);

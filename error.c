@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1554 2017-07-23 21:16:15Z soci $
+    $Id: error.c 1584 2018-02-11 19:08:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -420,10 +420,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         char line[1024];
         new_error_msg(SV_ERROR, current_file_list, epoint);
         switch (no) {
-        case ERROR____PAGE_ERROR:
-            adderror("page error at $");
-            sprintf(line,"%06" PRIaddress, *(const address_t *)prm); adderror(line);
-            break;
         case ERROR_BRANCH_TOOFAR:
             sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
             break;
@@ -994,6 +990,13 @@ void err_msg_branch_page(int by, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.branch_page, epoint);
     sprintf(msg2, "branch crosses page by %+d bytes [-Wbranch-page]", by);
     adderror(msg2);
+}
+
+void err_msg_page(address_t adr, address_t adr2, linepos_t epoint) {
+    char line[256];
+    new_error_msg2(diagnostic_errors.page, epoint);
+    sprintf(line,"different start and end page $%04" PRIaddress " and $%04" PRIaddress " [-Wpage]", adr, adr2); 
+    adderror(line);
 }
 
 void err_msg_alias(uint32_t a, uint32_t b, linepos_t epoint) {
