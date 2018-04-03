@@ -1,3 +1,9 @@
+64tass by Soci/Singular
+-----------------------
+This is a Git-clone of the original project page: http://sourceforge.net/projects/tass64/
+(source tracked from there via Subversion)
+-----------------------
+
 64tass v1.53 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
@@ -27,9 +33,6 @@ This is a development version. Features or syntax may change as a result of
 corrections in non-backwards compatible ways in some rare cases. It's difficult
 to get everything `right' first time.
 
-Project page: http://sourceforge.net/projects/tass64/
-
-(source tracked from there via Subversion)
 
 
 Manual can be found in README-MANUAL or README.html
