@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1575 2017-12-28 12:56:31Z soci $
+    $Id: section.c 1590 2018-07-19 06:00:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "intobj.h"
 #include "longjump.h"
 #include "optimizer.h"
+#include "eval.h"
 
 #include "memblocksobj.h"
 
@@ -53,9 +54,8 @@ static void section_free(struct avltree_node *aa)
     free(a);
 }
 
-struct section_s *find_new_section(const str_t *name) {
+static struct section_s *find_section(const str_t *name, struct section_s *context) {
     struct avltree_node *b;
-    struct section_s *context = current_section;
     struct section_s tmp, *tmp2 = NULL;
 
     if (name->len > 1 && name->data[1] == 0) tmp.cfname = *name;
@@ -72,8 +72,12 @@ struct section_s *find_new_section(const str_t *name) {
         }
         context = context->parent;
     }
-    if (tmp2 != NULL) return tmp2;
-    return new_section(name);
+    return tmp2;
+}
+
+struct section_s *find_new_section(const str_t *name) {
+    struct section_s *tmp2 = find_section(name, current_section);
+    return (tmp2 != NULL) ? tmp2 : new_section(name);
 }
 
 static struct section_s *lastsc = NULL;
@@ -116,6 +120,26 @@ struct section_s *new_section(const str_t *name) {
         return tmp;
     }
     return avltree_container_of(b, struct section_s, node);            /* already exists */
+}
+
+struct section_s *find_this_section(const char *here) {
+    struct section_s *space;
+    str_t labelname;
+
+    space = &root_section;
+    if (here == NULL) return space;
+
+    pline = (const uint8_t *)here;
+    lpoint.pos = 0;
+    do {
+        labelname.data = pline + lpoint.pos; labelname.len = get_label();
+        if (labelname.len == 0) return NULL;
+        space = find_section(&labelname, space);
+        if (space == NULL) return NULL;
+        lpoint.pos++;
+    } while (labelname.data[labelname.len] == '.');
+
+    return space;
 }
 
 void reset_section(struct section_s *section) {

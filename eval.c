@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1580 2018-01-14 09:05:14Z soci $
+    $Id: eval.c 1593 2018-07-31 15:41:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1226,7 +1226,7 @@ size_t get_val_remaining(void) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-static bool get_exp2(int stop, struct file_list_s *cflist) {
+static bool get_exp2(int stop) {
     uint8_t ch;
 
     Oper *op;
@@ -1344,7 +1344,7 @@ static bool get_exp2(int stop, struct file_list_s *cflist) {
         case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
-                if (!mtranslate(cflist)) { /* expand macro parameters, if any */
+                if (!mtranslate()) { /* expand macro parameters, if any */
                     continue;
                 }
             }
@@ -1676,7 +1676,7 @@ static bool get_exp2(int stop, struct file_list_s *cflist) {
         case ';':
             if (openclose != 0) {
                 listing_line(listing, 0);
-                if (!mtranslate(cflist)) { /* expand macro parameters, if any */
+                if (!mtranslate()) { /* expand macro parameters, if any */
                     goto other;
                 }
             }
@@ -1708,8 +1708,8 @@ static bool get_exp2(int stop, struct file_list_s *cflist) {
     return false;
 }
 
-bool get_exp(int stop, struct file_list_s *cflist, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
-    if (!get_exp2(stop, cflist)) {
+bool get_exp(int stop, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+    if (!get_exp2(stop)) {
         return false;
     }
     if (eval->values_len < min || (max != 0 && eval->values_len > max)) {

@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1584 2018-02-11 19:08:30Z soci $
+    $Id: error.c 1593 2018-07-31 15:41:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,13 +46,14 @@ bool print_use_color = false;
 bool print_use_bold = false;
 #endif
 
+struct file_list_s *current_file_list;
+
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
 
 static unsigned int errors = 0, warnings = 0;
 
 static struct file_list_s file_list;
 static const struct file_list_s *included_from = &file_list;
-static struct file_list_s *current_file_list = &file_list;
 static const char *prgname;
 
 struct errorbuffer_s {
@@ -166,7 +167,7 @@ static void file_list_free(struct avltree_node *aa)
 }
 
 static struct file_list_s *lastfl = NULL;
-struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
+void enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
     if (lastfl == NULL) {
         lastfl = (struct file_list_s *)mallocx(sizeof *lastfl);
@@ -184,7 +185,6 @@ struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
         current_file_list = avltree_container_of(b, struct file_list_s, node);
     }
     curfile = (current_file_list->file != NULL) ? current_file_list->file->uid : 1;
-    return current_file_list;
 }
 
 void exitfile(void) {
@@ -482,6 +482,11 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
         adderror("' for label listing not found");
         break;
+    case ERROR__SECTION_ROOT:
+        adderror("section '");
+        adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
+        adderror("' for output not found");
+        break;
     default:
         adderror(terr_fatal[no - 0xc0]);
     }
@@ -766,7 +771,7 @@ void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     adderror("symbol case mismatch");
     str_name(labelname1->data, labelname1->len);
     adderror(" [-Wcase-symbol]");
-    err_msg_double_note(l->file_list, &l->epoint, &l->name);
+    if (l != NULL) err_msg_double_note(l->file_list, &l->epoint, &l->name);
 }
 
 static const char * const opr_names[ADR_LEN] = {

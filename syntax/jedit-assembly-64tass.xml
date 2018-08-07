@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 1568 2017-12-24 07:04:46Z soci $
+	$Id: jedit-assembly-64tass.xml 1594 2018-07-31 17:02:16Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -248,6 +248,7 @@
                         <FUNCTION>asin</FUNCTION>
                         <FUNCTION>atan</FUNCTION>
                         <FUNCTION>atan2</FUNCTION>
+                        <FUNCTION>binary</FUNCTION>
                         <FUNCTION>bool</FUNCTION>
                         <FUNCTION>cbrt</FUNCTION>
                         <FUNCTION>ceil</FUNCTION>

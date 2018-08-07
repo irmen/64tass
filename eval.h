@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 1553 2017-07-23 17:32:38Z soci $
+    $Id: eval.h 1593 2018-07-31 15:41:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "obj.h"
 #include "stdbool.h"
 
-struct file_list_s;
 struct List;
 struct Label;
 struct Error;
@@ -38,7 +37,7 @@ struct oper_s {
 };
 typedef struct oper_s *oper_t;
 
-extern bool get_exp(int, struct file_list_s *, unsigned int, unsigned int, linepos_t);
+extern bool get_exp(int, unsigned int, unsigned int, linepos_t);
 extern struct values_s *get_val(void);
 extern Obj *pull_val(struct linepos_s *);
 extern size_t get_val_remaining(void);

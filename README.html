@@ -39,6 +39,8 @@ dl.errorlist > dt, dl.dir > dt, table.trans td, table.esc td, table.opcodes th, 
 dl.dir code b { color: inherit; }
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
+a[href], a:visited { text-decoration: none; color: blue; }
+a[href]:hover { text-decoration: underline; }
 
 @media screen {
    html {background-color: gray;}
@@ -50,13 +52,10 @@ thead th {background-color:#eee;border-bottom:1px solid black;}
 
 @media print {
    h1, h2, h3, h4 {page-break-after:avoid;}
-   a {text-decoration:none;color:inherit;}
+   a[href], a:visited {text-decoration:none;color:inherit;}
    body {font-size:10pt;}
    pre {overflow:hidden;}
 }
-
-a[href], a:visited { text-decoration: none; color: blue; }
-a[href]:hover { text-decoration: underline; }
 
 #toc ul { margin: 0px; font-weight: normal;}
 #toc > ul > li { margin-top: 0.5em; font-weight: bold; }
@@ -1264,6 +1263,26 @@ parameters to functions.</p>
 
 <p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option.</p>
 
+<dt><code><b>binary(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_binary" href="#f_binary"></a>
+<dd>Returns the binary file content as bytes.
+<p>This function reads the content of a binary file as a <a href="#byte-string">byte string</a>. It also accepts optional offset and length parameters.
+<div><table border="0">
+<caption>Binary function invocation types</caption>
+<tbody>
+<tr><td>Read everything<td><code><span class="k">binary</span>(<u>name</u>)</code>
+<tr><td>Skip starting bytes<td><code><span class="k">binary</span>(<u>name</u>, <u>offset</u>)</code>
+<tr><td>Some bytes from offset<td><code><span class="k">binary</span>(<u>name</u>, <u>offset</u>, <u>length</u>)</code>
+</tbody>
+</table></div>
+<pre width=80>
+sid     <b>=</b> <span class="s">"music.sid"</span>        <i>; file name</i>
+init    <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$0a</span>, <span>2</span>)<i>; init address</i>
+play    <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$0c</span>, <span>2</span>)<i>; play address</i>
+
+*       <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$7c</span>, <span>2</span>)<i>; use loading address</i>
+        <b class="d">.binary</b> <u>sid</u>, <span>$7e</span><i>     ; load music data</i>
+</pre>
+
 <dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
 <dd>Create string from values according to a format string.
 <p>The <code>format</code> function converts a list of values into a character string.
@@ -2396,9 +2415,6 @@ file separately, like bitmap and colors for example.
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>     <i>;skip start address</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>, <span>1000</span><i>;skip start address, 1000 bytes max</i>
-
-*       <b>=</b> <span>$1000</span>                     <i>;load music to $1000 and</i>
-        <b class="d">.binary</b> <span class="s">"music.sid"</span>, <span>$7e</span>    <i>;strip SID header</i>
 </pre>
 
 </dl>
@@ -2996,6 +3012,15 @@ system specific.</p>
 <dd>Place output into &lt;filename&gt;. The default output filename is <q>a.out</q>. This option changes it.
 <pre width=80>
 64tass a.asm -o a.prg
+</pre>
+
+<dt><b>--output-section</b> &lt;sectionname&gt;<a name="o_output-section" href="#o_output-section"></a>
+<dd>By default all sections go into the output file. Using this option
+limits the output to specific section and it's children. This is useful
+to split a larger program into several files.
+<pre width=80>
+64tass a.asm --output-section main -o main.prg
+64tass a.asm --output-section loader -o loader.prg
 </pre>
 
 <dt><b>-X</b>, <b>--long-address</b><a name="o_long-address" href="#o_long-address"></a>
@@ -3915,6 +3940,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>option '?' requires an argument<dd>command line option needs an argument
 <dt>out of memory<dd>won't happen ;)
 <dt>scope '?' for label listing not found<dd>the scope given on command line couldn't be found
+<dt>section '?' for output not found<dd>the section given on command line couldn't be found
 <dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations but try to avoid this
 <dt>unknown option '?'<dd>option not known
 </dl>
@@ -5014,6 +5040,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#f_asin">asin</a>
 <a href="#f_atan">atan</a>
 <a href="#f_atan2">atan2</a>
+<a href="#f_binary">binary</a>
 <a href="#f_cbrt">cbrt</a>
 <a href="#f_ceil">ceil</a>
 <a href="#f_cos">cos</a>
@@ -5029,7 +5056,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#f_log10">log10</a>
 <a href="#f_pow">pow</a>
 <a href="#f_rad">rad</a>
-<a href="#f_range">random</a>
+<a href="#f_random">random</a>
 <a href="#f_range">range</a>
 <a href="#f_repr">repr</a>
 <a href="#f_round">round</a>

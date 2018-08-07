@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1580 2018-01-14 09:05:14Z soci $
+    $Id: codeobj.c 1585 2018-04-17 21:42:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "memblocksobj.h"
+#include "identobj.h"
 
 static Type obj;
 
@@ -404,6 +405,28 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
     Error *err;
     if (op->op == &o_MEMBER) {
+        if (o2->obj == IDENT_OBJ) {
+            Ident *v2 = (Ident *)o2;
+            if (v2->name.len == 10 && v2->name.data[0] == '_' && v2->name.data[1] == '_') {
+                static const str_t of = {10, (const uint8_t *)"__offset__"};
+                str_t cf;
+                str_cfcpy(&cf, &v2->name);
+                if (str_cmp(&cf, &of) == 0) {
+                    size_t membp = v1->membp;
+                    const Memblocks *memblocks = v1->memblocks;
+                    address_t addr = v1->memp;
+
+                    if (diagnostics.case_symbol && str_cmp(&v2->name, &cf) != 0) err_msg_symbol_case(&v2->name, NULL, &v2->epoint);
+
+                    if (membp < memblocks->p) {
+                        addr += memblocks->data[membp].addr;
+                    } else {
+                        addr += memblocks->lastaddr;
+                    }
+                    return (Obj *)int_from_uval(addr);
+                }
+            }
+        }
         return namespace_member(op, v1->names);
     }
     if (op->op == &o_X) {

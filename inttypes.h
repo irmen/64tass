@@ -1,5 +1,5 @@
 /*
-    $Id: inttypes.h 1412 2017-03-30 18:14:47Z soci $
+    $Id: inttypes.h 1589 2018-07-08 19:29:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,6 +65,8 @@ typedef SSIZE_T ssize_t;
 #ifndef PRIuSIZE
 #if __STDC_VERSION__ >= 199901L && !defined _WIN32 && !defined __VBCC__
 #define PRIuSIZE  "zu"
+#elif defined _WIN64 && defined PRIu64
+#define PRIuSIZE PRIu64
 #elif defined USHRT_MAX && SIZE_MAX == USHRT_MAX && !defined __VBCC__ && !defined __DJGPP__
 #define PRIuSIZE  "hu"
 #elif defined UINT_MAX && SIZE_MAX == UINT_MAX && !defined __VBCC__ && !defined __DJGPP__

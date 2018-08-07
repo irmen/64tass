@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: functionobj.h 1594 2018-07-31 17:02:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ typedef enum Function_types {
     F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
     F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
     F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_ALL,
-    F_ANY, F_SIZE, F_LEN, F_RANGE, F_REPR, F_FORMAT, F_RANDOM, F_SORT
+    F_ANY, F_SIZE, F_LEN, F_RANGE, F_REPR, F_FORMAT, F_RANDOM, F_SORT, F_BINARY
 } Function_types;
 
 typedef struct Function {

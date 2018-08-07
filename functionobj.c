@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: functionobj.c 1594 2018-07-31 17:02:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "eval.h"
 #include "variables.h"
 #include "error.h"
+#include "file.h"
 
 #include "floatobj.h"
 #include "strobj.h"
@@ -33,6 +34,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "bytesobj.h"
 
 static Type obj;
 
@@ -346,6 +348,49 @@ failed:
     return (Obj *)new_error_mem(epoint);
 }
 
+/* binary(name,[start],[length]) */
+static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
+    struct values_s *v = vals->val;
+    Error *err;
+    uval_t offset = 0, length = 0;
+    char *path = NULL;
+    str_t filename;
+
+    if (!tostr(&v[0], &filename)) {
+        path = get_path(&filename, current_file_list->file->realname);
+    }
+
+    switch (vals->len) {
+    case 3:
+        err = v[2].val->obj->uval(v[2].val, &length, 8 * sizeof length, &v[2].epoint);
+        if (err != NULL) return &err->v;
+        /* fall through */
+    case 2:
+        err = v[1].val->obj->uval(v[1].val, &offset, 8 * sizeof offset, &v[1].epoint);
+        if (err != NULL) return &err->v;
+        /* fall through */
+    default:
+        break;
+    }
+    if (path != NULL) {
+        struct file_s *cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, epoint);
+        free(path);
+        if (cfile2 != NULL) {
+            size_t ln = cfile2->len;
+            Bytes *b;
+            if (offset < ln) ln -= offset; else ln = 0;
+            if (vals->len >= 3 && length < ln) ln = length;
+            if (ln == 0) return (Obj *)ref_bytes(null_bytes);
+            if (ln > SSIZE_MAX) return (Obj *)new_error_mem(epoint);
+            b = new_bytes(ln);
+            b->len = ln;
+            memcpy(b->data, cfile2->data + offset, ln);
+            return &b->v;
+        }
+    }
+    return (Obj *)ref_none();
+}
+
 static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint) {
     Obj *err;
     double real;
@@ -556,6 +601,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         return (Obj *)ref_none();
                     }
                     return gen_broadcast(v2, op->epoint, function_range);
+                case F_BINARY:
+                    if (args < 1 || args > 3) {
+                        err_msg_argnum(args, 1, 3, op->epoint2);
+                        return (Obj *)ref_none();
+                    }
+                    return gen_broadcast(v2, op->epoint, function_binary);
                 case F_FORMAT:
                     return isnprintf(v2, op->epoint);
                 case F_RANDOM:
@@ -617,6 +668,7 @@ static struct builtin_functions_s builtin_functions[] = {
     {"asin", F_ASIN},
     {"atan", F_ATAN},
     {"atan2", F_ATAN2},
+    {"binary", F_BINARY},
     {"cbrt", F_CBRT},
     {"ceil", F_CEIL},
     {"cos", F_COS},

@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 1584 2018-02-11 19:08:30Z soci $
+    $Id: errors_e.h 1590 2018-07-19 06:00:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,6 +136,7 @@ typedef enum Error_types {
     ERROR__FUNRECURSION,
     ERROR_TOO_MANY_PASS,
     ERROR_UNKNOWN_OPTIO,
-    ERROR____LABEL_ROOT
+    ERROR____LABEL_ROOT,
+    ERROR__SECTION_ROOT
 } Error_types;
 #endif

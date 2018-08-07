@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: strobj.h 1594 2018-07-31 17:02:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #ifndef STROBJ_H
 #define STROBJ_H
 #include "obj.h"
+#include "stdbool.h"
 
 extern struct Type *const STR_OBJ;
 
@@ -40,8 +41,11 @@ static inline Str *ref_str(Str *v1) {
     v1->v.refcount++; return v1;
 }
 
+struct str_t;
+
 extern MALLOC Str *new_str(size_t);
 extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
 extern size_t str_quoting(const uint8_t *, size_t, uint8_t *);
+extern bool tostr(const struct values_s *, struct str_t *);
 #endif

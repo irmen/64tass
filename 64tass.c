@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1584 2018-02-11 19:08:30Z soci $
+    $Id: 64tass.c 1594 2018-07-31 17:02:16Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -333,25 +333,6 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     }
     val_destroy(err);
     return error;
-}
-
-static bool tostr(const struct values_s *v1, str_t *out) {
-    Obj *val = v1->val;
-    switch (val->obj->type) {
-    case T_STR:
-        out->len = ((Str *)val)->len;
-        out->data = ((Str *)val)->data;
-        return false;
-    case T_NONE:
-        err_msg_still_none(NULL, &v1->epoint);
-        return true;
-    case T_ERROR:
-        err_msg_output((Error *)val);
-        return true;
-    default:
-        err_msg_wrong_type(val, STR_OBJ, &v1->epoint);
-        return true;
-    }
 }
 
 static MUST_CHECK bool touval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
@@ -977,7 +958,7 @@ static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
     return NULL;
 }
 
-MUST_CHECK Obj *compile(struct file_list_s *cflist)
+MUST_CHECK Obj *compile(void)
 {
     int wht;
     int prm = 0;
@@ -1006,10 +987,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
         struct avltree *star_tree;
     } anonident2;
     struct linepos_s epoint;
-    struct file_s *cfile = cflist->file;
 
     while (nobreak) {
-        if (mtranslate(cflist)) break; /* expand macro parameters, if any */
+        if (mtranslate()) break; /* expand macro parameters, if any */
         newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_section->unionmode) {
@@ -1190,7 +1170,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     struct linepos_s epoints[3];
                     bool oldreferenceit = referenceit;
                     referenceit &= 1; /* not good... */
-                    if (!get_exp(0, cflist, 0, 0, NULL)) goto breakerr;
+                    if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                     val2 = get_vals_addrlist(epoints);
                     referenceit = oldreferenceit;
                 }
@@ -1209,7 +1189,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 val_destroy(val2);
                 if (label != NULL) {
                     listing_equal(listing, result2);
-                    label->file_list = cflist;
+                    if (label->file_list != current_file_list) {
+                        label_move(label, &labelname, current_file_list);
+                    }
                     label->epoint = epoint;
                     val_destroy(label->value);
                     label->value = result2;
@@ -1239,7 +1221,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (label != NULL && !label->ref) {
                             referenceit = false;
                         }
-                        if (!get_exp(0, cflist, 0, 0, NULL)) goto breakerr;
+                        if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         val = get_vals_addrlist(epoints);
                         referenceit = oldreferenceit;
                     }
@@ -1249,7 +1231,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (label != NULL) {
                         labelexists = true;
-                    } else label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                    } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                     oaddr = current_section->address;
                     listing_equal(listing, val);
                     label->ref = false;
@@ -1264,7 +1246,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             label->constant = true;
                             label->owner = false;
-                            label->file_list = cflist;
+                            if (label->file_list != current_file_list) {
+                                label_move(label, &labelname, current_file_list);
+                            }
                             label->epoint = epoint;
                             const_assign(label, val);
                         }
@@ -1300,14 +1284,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             struct linepos_s epoints[3];
                             bool oldreferenceit = referenceit;
                             referenceit &= 1; /* not good... */
-                            if (!get_exp(0, cflist, 0, 0, NULL)) goto breakerr;
+                            if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                             val = get_vals_addrlist(epoints);
                             referenceit = oldreferenceit;
                         }
                         if (label != NULL) {
                             labelexists = true;
                             if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
-                        } else label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         oaddr = current_section->address;
                         listing_equal(listing, val);
                         if (labelexists) {
@@ -1322,7 +1306,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                 }
                                 label->owner = false;
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
                                 val_destroy(label->value);
                                 label->value = val;
@@ -1342,11 +1328,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         Lbl *lbl;
                         bool labelexists;
                         listing_line(listing, 0);
-                        label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         lbl = (Lbl *)val_alloc(LBL_OBJ);
                         lbl->sline = lpoint.line;
                         lbl->waitforp = waitfor_p;
-                        lbl->file_list = cflist;
+                        lbl->file_list = current_file_list;
                         lbl->parent = current_context;
                         if (labelexists) {
                             if (label->defpass == pass) {
@@ -1359,7 +1345,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->constant = true;
                                 label->owner = true;
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
                                 const_assign(label, &lbl->v);
                             }
@@ -1384,13 +1372,18 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         bool labelexists;
                         listing_line(listing, 0);
                         new_waitfor(W_ENDN, &epoint);
-                        if (!get_exp(0, cflist, 0, 1, &epoint)) goto breakerr;
+                        if (!get_exp(0, 0, 1, &epoint)) goto breakerr;
                         vs = get_val(); 
                         if (vs != NULL) {
-                            val = (Obj *)get_namespace(vs->val);
-                            if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
+                            val = vs->val;
+                            if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = NULL; }
+                            else if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); val = NULL; }
+                            else {
+                                val = (Obj *)get_namespace(val);
+                                if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
+                            }
                         } else val = NULL;
-                        label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
@@ -1400,14 +1393,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->constant = true;
                                 label->owner = (val == NULL);
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
                                 if (val != NULL) const_assign(label, val_reference(val));
                                 else {
                                     label->defpass = pass;
                                     if (label->value->obj != NAMESPACE_OBJ) {
                                         val_destroy(label->value);
-                                        label->value = (Obj *)new_namespace(cflist, &epoint);
+                                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
                                     }
                                 }
                             }
@@ -1418,7 +1413,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             }
                             label->constant = true;
                             label->owner = (val == NULL);
-                            label->value = (val != NULL) ? val_reference(val) : (Obj *)new_namespace(cflist, &epoint);
+                            label->value = (val != NULL) ? val_reference(val) : (Obj *)new_namespace(current_file_list, &epoint);
                             label->epoint = epoint;
                         }
                         if (label->value->obj == NAMESPACE_OBJ) {
@@ -1437,9 +1432,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         bool labelexists;
                         listing_line(listing, 0);
                         new_waitfor(W_ENDM, &cmdpoint);waitfor->skip = 0;
-                        label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         macro = (Macro *)val_alloc(obj);
-                        macro->file_list = cflist;
+                        macro->file_list = current_file_list;
                         macro->line = epoint.line;
                         get_macro_params(&macro->v);
                         if (labelexists) {
@@ -1454,7 +1449,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->constant = true;
                                 label->owner = true;
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
                                 const_assign(label, &macro->v);
                                 waitfor->val = val_reference(label->value);
@@ -1482,9 +1479,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         listing_line(listing, 0);
                         new_waitfor(W_ENDF, &cmdpoint);waitfor->skip = 0;
                         if (temporary_label_branch != 0) {err_msg2(ERROR___NOT_ALLOWED, ".function", &cmdpoint);goto breakerr;}
-                        label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
-                        mfunc->file_list = cflist;
+                        mfunc->file_list = current_file_list;
                         mfunc->line = epoint.line;
                         mfunc->argc = 0;
                         mfunc->param = NULL; /* might be recursive through init */
@@ -1501,9 +1498,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->constant = true;
                                 label->owner = true;
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
-                                get_func_params(mfunc, cflist);
+                                get_func_params(mfunc);
                                 get_namespaces(mfunc);
                                 const_assign(label, &mfunc->v);
                             }
@@ -1516,7 +1515,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->owner = true;
                             label->value = &mfunc->v;
                             label->epoint = epoint;
-                            get_func_params(mfunc, cflist);
+                            get_func_params(mfunc);
                             get_namespaces(mfunc);
                         }
                         label->ref = false;
@@ -1533,7 +1532,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &cmdpoint);waitfor->skip = 0;
-                        label = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
 
                         current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
                         current_section->end = current_section->start = current_section->restart = current_section->address = 0;
@@ -1543,7 +1542,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         current_section->l_address_val = (Obj *)ref_int(int_value[0]);
 
                         structure = (Struct *)val_alloc(obj);
-                        structure->file_list = cflist;
+                        structure->file_list = current_file_list;
                         structure->line = epoint.line;
                         get_macro_params(&structure->v);
                         if (labelexists) {
@@ -1551,7 +1550,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (label->defpass == pass) {
                                 doubledef = true;
                                 structure->size = 0;
-                                structure->names = new_namespace(cflist, &epoint);
+                                structure->names = new_namespace(current_file_list, &epoint);
                                 err_msg_double_defined(label, &labelname, &epoint);
                             } else {
                                 if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
@@ -1560,7 +1559,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 }
                                 label->constant = true;
                                 label->owner = true;
-                                label->file_list = cflist;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
                                 label->epoint = epoint;
                                 if (label->value->obj == obj) {
                                     Struct *prev = (Struct *)label->value;
@@ -1568,7 +1569,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     structure->names = ref_namespace(prev->names);
                                 } else {
                                     structure->size = 0;
-                                    structure->names = new_namespace(cflist, &epoint);
+                                    structure->names = new_namespace(current_file_list, &epoint);
                                 }
                                 const_assign(label, &structure->v);
                                 structure = (Struct *)label->value;
@@ -1584,7 +1585,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->value = &structure->v;
                             label->epoint = epoint;
                             structure->size = 0;
-                            structure->names = new_namespace(cflist, &epoint);
+                            structure->names = new_namespace(current_file_list, &epoint);
                         }
                         label->ref = false;
                         listing_line(listing, cmdpoint.pos);
@@ -1665,7 +1666,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                     }
                 }
-                if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists, cflist);
+                if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                 oaddr = current_section->address;
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
@@ -1691,7 +1692,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     newlabel->constant = true;
                     newlabel->owner = true;
-                    newlabel->file_list = cflist;
+                    if (newlabel->file_list != current_file_list) {
+                        label_move(newlabel, &labelname, current_file_list);
+                    }
                     newlabel->epoint = epoint;
                     if (!newlabel->update_after) {
                         Obj *tmp;
@@ -1736,7 +1739,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     code->pass = 0;
                     code->apass = pass;
                     code->memblocks = ref_memblocks(current_section->mem);
-                    code->names = new_namespace(cflist, &epoint);
+                    code->names = new_namespace(current_file_list, &epoint);
                     code->requires = current_section->requires;
                     code->conflicts = current_section->conflicts;
                     get_mem(current_section->mem, &newmemp, &newmembp);
@@ -1768,7 +1771,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         listing_line(listing, epoint.pos);
                         newlabel->ref = false;
-                        if (!get_exp(1, cflist, 1, 0, &epoint)) goto breakerr;
+                        if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); goto finish; }
                         if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); goto finish;}
@@ -1791,7 +1794,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             anonident2.star_tree = star_tree;
                             anonident2.vline = vline;
                             tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                            label = new_label(&tmpname, mycontext, strength, &labelexists, cflist);
+                            label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                             if (labelexists) {
                                 if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                                 label->constant = true;
@@ -1799,12 +1802,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 label->defpass = pass;
                                 if (label->value->obj != NAMESPACE_OBJ) {
                                     val_destroy(label->value);
-                                    label->value = (Obj *)new_namespace(cflist, &epoint);
+                                    label->value = (Obj *)new_namespace(current_file_list, &epoint);
                                 }
                             } else {
                                 label->constant = true;
                                 label->owner = true;
-                                label->value = (Obj *)new_namespace(cflist, &epoint);
+                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
                                 label->epoint = epoint;
                             }
                             context = (Namespace *)label->value;
@@ -1832,7 +1835,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 newlabel->ref = false;
                 goto as_command;
             }
-            if (labelname.len == 3 && !newlabel->ref && epoint.pos != 0 && diagnostics.label_left) {
+            if (labelname.len == 3 && !newlabel->ref && epoint.pos != 0 && !islabel && diagnostics.label_left) {
                 unsigned int i;
                 for (i = 0; i < 3; i++) {
                     uint8_t c = labelname.data[i] | arguments.caseinsensitive;
@@ -1953,7 +1956,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                     new_waitfor(W_FI2, &epoint);
                     if (skwait != 1) { waitfor->skip = 0; break; }
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
+                    if (!get_exp(0, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                     vs = get_val(); val = vs->val;
                     switch (prm) {
                     case CMD_IF:
@@ -2002,7 +2005,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (waitfor->what != W_FI2) {err_msg2(ERROR__MISSING_OPEN, ".if", &epoint); break;}
                     waitfor->epoint = epoint;
                     if (skwait == 2) {
-                        if (!get_exp(0, cflist, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
+                        if (!get_exp(0, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                         vs = get_val();
                     } else { waitfor->skip = 0; break; }
                     if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
@@ -2017,7 +2020,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     new_waitfor(W_SWITCH2, &epoint);
                     if (skwait == 1) {
                         struct values_s *vs;
-                        if (!get_exp(0, cflist, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
+                        if (!get_exp(0, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = (Obj *)none_value; }
                         else if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
@@ -2038,7 +2041,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         struct values_s *vs;
                         Obj *result2;
                         struct oper_s tmp;
-                        if (!get_exp(0, cflist, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
+                        if (!get_exp(0, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
                         tmp.epoint = tmp.epoint3 = &epoint;
                         while (!truth && (vs = get_val()) != NULL) {
@@ -2070,7 +2073,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     goto breakerr;
                 } else if (close_waitfor(W_ENDM2)) {
                     nobreak = false;
-                    if (here() != 0 && here() != ';' && get_exp(0, cflist, 0, 0, NULL)) {
+                    if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     }
                 } else {
@@ -2084,7 +2087,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     goto breakerr;
                 } else if (close_waitfor(W_ENDF2)) {
                     nobreak = false;
-                    if (here() != 0 && here() != ';' && get_exp(0, cflist, 0, 0, NULL)) {
+                    if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     }
                 } else {
@@ -2125,7 +2128,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 }
                 if (close_waitfor(W_ENDS2)) {
                     nobreak = false;
-                    if (here() != 0 && here() != ';' && get_exp(0, cflist, 0, 0, NULL)) {
+                    if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     }
                     break;
@@ -2260,7 +2263,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
                         if (here() == 0 || here() == ';') { err_msg_argnum(0, 1, 0, &epoint); goto breakerr; }
                         if (prm==CMD_PTEXT) ch2=0;
-                        if (!get_exp(0, cflist, 0, 0, NULL)) goto breakerr;
+                        if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
                             poke_pos = &vs->epoint;
                             if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, SIZE_MAX)) {
@@ -2317,7 +2320,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         case CMD_LONG: bits = 24; break;
                         case CMD_DWORD: bits = 32; break;
                         }
-                        if (!get_exp(0, cflist, 0, 0, NULL)) goto breakerr;
+                        if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         while ((vs = get_val()) != NULL) {
                             poke_pos = &vs->epoint;
                             if (byterecursion(vs->val, prm, &uninit, bits)) err_msg_still_none(NULL, poke_pos);
@@ -2335,10 +2338,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                             ((Code *)newlabel->value)->dtype = D_BYTE;
                         }
-                        if (!get_exp(0, cflist, 1, 3, &epoint)) goto breakerr;
+                        if (!get_exp(0, 1, 3, &epoint)) goto breakerr;
                         vs = get_val();
                         if (!tostr(vs, &filename)) {
-                            path = get_path(&filename, cfile->realname);
+                            path = get_path(&filename, current_file_list->file->realname);
                         }
                         if ((vs = get_val()) != NULL) {
                             if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
@@ -2350,7 +2353,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         }
 
                         if (path != NULL) {
-                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, &filename, &epoint);
+                            struct file_s *cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, &epoint);
                             if (cfile2 != NULL) {
                                 for (; fsize != 0 && foffset < cfile2->len;fsize--) {
                                     pokeb(cfile2->data[foffset]);foffset++;
@@ -2377,7 +2380,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         current_section->moved = true;
                     }
                     current_section->wrapwarn = false;
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) break;
                     if (ival != 0) {
@@ -2402,7 +2405,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = val_reference(current_section->l_address_val);
                     current_section->logicalrecursion++;
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
                     else do {
@@ -2461,7 +2464,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
                         tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = true;
@@ -2469,12 +2472,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->defpass = pass;
                             if (label->value->obj != NAMESPACE_OBJ) {
                                 val_destroy(label->value);
-                                label->value = (Obj *)new_namespace(cflist, &epoint);
+                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
                             }
                         } else {
                             label->constant = true;
                             label->owner = true;
-                            label->value = (Obj *)new_namespace(cflist, &epoint);
+                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
                             label->epoint = epoint;
                         }
                         push_context((Namespace *)label->value);
@@ -2489,11 +2492,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     str_t tmpname;
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_ENDN, &epoint);
-                    if (!get_exp(0, cflist, 0, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 0, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (vs != NULL) {
-                        val = (Obj *)get_namespace(vs->val);
-                        if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
+                        val = vs->val;
+                        if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = NULL; }
+                        else if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); val = NULL; }
+                        else {
+                            val = (Obj *)get_namespace(val);
+                            if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
+                        }
                     } else val = NULL;
                     if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                     else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
@@ -2501,7 +2509,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     anonident2.star_tree = star_tree;
                     anonident2.vline = vline;
                     tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                    label = new_label(&tmpname, mycontext, strength, &labelexists, cflist);
+                    label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                         label->constant = true;
@@ -2511,13 +2519,13 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->defpass = pass;
                             if (label->value->obj != NAMESPACE_OBJ) {
                                 val_destroy(label->value);
-                                label->value = (Obj *)new_namespace(cflist, &epoint);
+                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
                             }
                         }
                     } else {
                         label->constant = true;
                         label->owner = (val == NULL);
-                        label->value = (val != NULL) ? val_reference(val) : (Obj *)new_namespace(cflist, &epoint);
+                        label->value = (val != NULL) ? val_reference(val) : (Obj *)new_namespace(current_file_list, &epoint);
                         label->epoint = epoint;
                     }
                     push_context((Namespace *)label->value);
@@ -2540,7 +2548,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     switch (prm) {
                     case CMD_DATABANK:
@@ -2575,7 +2583,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         ((Code *)newlabel->value)->dtype = D_BYTE;
                     }
-                    if (!get_exp(0, cflist, 1, 2, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 2, &epoint)) goto breakerr;
                     if (prm == CMD_ALIGN) {
                         address_t max = (current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
                         if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
@@ -2651,7 +2659,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 3, 3, &epoint)) goto breakerr;
+                    if (!get_exp(0, 3, 3, &epoint)) goto breakerr;
                     vs = get_val();
                     if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->provides = ~(uval_t)0;
                     else current_section->provides = uval;
@@ -2668,7 +2676,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 2, 2, &epoint)) goto breakerr;
+                    if (!get_exp(0, 2, 2, &epoint)) goto breakerr;
                     vs = get_val();
                     if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                     else if ((uval & current_section->provides) != uval) err_msg2(ERROR_REQUIREMENTS_, NULL, &epoint);
@@ -2685,7 +2693,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     bool writeit = true;
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, (prm == CMD_CWARN || prm == CMD_CERROR) ? 1 : 0, 0, &epoint)) goto breakerr;
+                    if (!get_exp(0, (prm == CMD_CWARN || prm == CMD_CERROR) ? 1 : 0, 0, &epoint)) goto breakerr;
                     if (prm == CMD_CWARN || prm == CMD_CERROR) {
                         vs = get_val();
                         if (tobool(vs, &writeit)) writeit = false;
@@ -2743,7 +2751,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     }
                     if (encname.len == 0) {
                         struct values_s *vs;
-                        if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                        if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                         vs = get_val();
                         if (tostr(vs, &encname)) break;
                         if (encname.len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); break;}
@@ -2759,7 +2767,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     size_t len;
                     listing_line(listing, epoint.pos);
                     actual_encoding = NULL;
-                    rc = get_exp(0, cflist, 2, 0, &epoint);
+                    rc = get_exp(0, 2, 0, &epoint);
                     actual_encoding = old;
                     len = get_val_remaining();
                     if (!rc) goto breakerr;
@@ -2839,7 +2847,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     size_t len;
                     listing_line(listing, epoint.pos);
                     actual_encoding = NULL;
-                    rc = get_exp(0, cflist, 2, 0, &epoint);
+                    rc = get_exp(0, 2, 0, &epoint);
                     actual_encoding = old;
                     if (!rc) goto breakerr;
                     len = get_val_remaining();
@@ -2886,7 +2894,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (tostr(vs, &cpuname)) break;
                     for (cpui = cpus; cpui->name != NULL; cpui++) {
@@ -2911,7 +2919,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) break;
                     if (cnt > 0) {
@@ -2932,7 +2940,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         for (;;) {
                             lpoint.line = lin;
                             waitfor->skip = 1; lvline = vline;
-                            nf = compile(cflist);
+                            nf = compile();
                             if (nf == NULL || waitfor->breakout || (--cnt) == 0) {
                                 break;
                             }
@@ -2981,11 +2989,11 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     str_t filename;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (!tostr(vs, &filename)) {
-                        path = get_path(&filename, cfile->realname);
-                        f = openfile(path, cfile->realname, 2, &filename, &epoint);
+                        path = get_path(&filename, current_file_list->file->realname);
+                        f = openfile(path, current_file_list->file->realname, 2, &filename, &epoint);
                         free(path);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
@@ -3000,19 +3008,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         uint32_t old_backr = backr, old_forwr = forwr;
                         line_t lin = lpoint.line;
                         line_t vlin = vline;
-                        struct file_list_s *cflist2;
-
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
                         }
                         s->addr = star;
-                        cflist2 = enterfile(f, &epoint);
-                        lpoint.line = vline = 0;
-                        star_tree = &s->tree;
-                        backr = forwr = 1;
-                        reffile = f->uid;
                         listing_file(listing, ";******  Processing file: ", f);
                         if (prm == CMD_BINCLUDE) {
                             if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
@@ -3027,7 +3028,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 anonident2.star_tree = star_tree;
                                 anonident2.vline = vline;
                                 tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                                label = new_label(&tmpname, mycontext, strength, &labelexists, cflist);
+                                label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                                     label->constant = true;
@@ -3035,26 +3036,31 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     label->defpass = pass;
                                     if (label->value->obj != NAMESPACE_OBJ) {
                                         val_destroy(label->value);
-                                        label->value = (Obj *)new_namespace(cflist, &epoint);
+                                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
                                     }
                                 } else {
                                     label->constant = true;
                                     label->owner = true;
-                                    label->value = (Obj *)new_namespace(cflist, &epoint);
+                                    label->value = (Obj *)new_namespace(current_file_list, &epoint);
                                     label->epoint = epoint;
                                 }
                                 push_context((Namespace *)label->value);
                             }
-                            val = compile(cflist2);
-                            pop_context();
-                        } else val = compile(cflist2);
+                        }
+                        enterfile(f, &epoint);
+                        lpoint.line = vline = 0;
+                        star_tree = &s->tree;
+                        backr = forwr = 1;
+                        reffile = f->uid;
+                        val = compile();
+                        if (prm == CMD_BINCLUDE) pop_context();
                         if (val != NULL) val_destroy(val);
                         lpoint.line = lin; vline = vlin;
                         star_tree = stree_old;
                         backr = old_backr; forwr = old_forwr;
                         exitfile();
-                        reffile = cfile->uid;
-                        listing_file(listing, ";******  Return to file: ", cfile);
+                        reffile = current_file_list->file->uid;
+                        listing_file(listing, ";******  Return to file: ", current_file_list->file);
                     }
                     closefile(f);
                     goto breakerr;
@@ -3098,10 +3104,10 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                     } else foreach = true;
                                 }
                             } else lpoint.pos++;
-                            if (!get_exp(1, cflist, 1, 1, &lpoint)) goto breakerr;
+                            if (!get_exp(1, 1, 1, &lpoint)) goto breakerr;
                             val = get_vals_addrlist(epoints);
                             if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
-                            label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, cflist);
+                            label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, current_file_list);
                             if (labelexists) {
                                 if (label->constant) {
                                     err_msg_double_defined(label, &varname, &epoint);
@@ -3114,7 +3120,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                         if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                     }
                                     label->owner = false;
-                                    label->file_list = cflist;
+                                    if (label->file_list != current_file_list) {
+                                        label_move(label, &varname, current_file_list);
+                                    }
                                     label->epoint = epoint;
                                     val_destroy(label->value);
                                     label->value = val;
@@ -3159,7 +3167,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->value = val2;
                             lpoint.line = lin;
                             waitfor->skip = 1; lvline = vline;
-                            nf = compile(cflist);
+                            nf = compile();
                             if (nf == NULL || waitfor->breakout) {
                                 break;
                             }
@@ -3181,7 +3189,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (here() != ',' && here() != 0) {
                                 struct values_s *vs;
                                 bool truth;
-                                if (!get_exp(1, cflist, 1, 1, &apoint)) break;
+                                if (!get_exp(1, 1, 1, &apoint)) break;
                                 vs = get_val();
                                 if (tobool(vs, &truth)) break;
                                 if (!truth) break;
@@ -3195,7 +3203,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
                             }
                             waitfor->skip = 1;lvline = vline;
-                            nf = compile(cflist);
+                            nf = compile();
                             xlin = lpoint.line;
                             pline = expr;
                             lpoint.line = lin;
@@ -3239,7 +3247,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 if (tmp.op == NULL) {
                                     if (wht != '=') {err_msg(ERROR______EXPECTED, "'='"); break;}
                                     lpoint.pos++;ignore();
-                                    label = new_label(&varname, context, strength, &labelexists, cflist);
+                                    label = new_label(&varname, context, strength, &labelexists, current_file_list);
                                     if (labelexists) {
                                         if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
                                         if (label->defpass != pass) {
@@ -3249,7 +3257,9 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                             if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                         }
                                         label->owner = false;
-                                        label->file_list = cflist;
+                                        if (label->file_list != current_file_list) {
+                                            label_move(label, &varname, current_file_list);
+                                        }
                                         label->epoint = bpoint;
                                     } else {
                                         label->constant = false;
@@ -3268,7 +3278,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             if (nopos > 0) {
                                 struct linepos_s epoints[3];
                                 lpoint = bpoint;
-                                if (!get_exp(0, cflist, 0, 0, &bpoint)) break;
+                                if (!get_exp(0, 0, 0, &bpoint)) break;
                                 val = get_vals_addrlist(epoints);
                                 if (tmp.op != NULL) {
                                     Obj *result2, *val1 = label->value;
@@ -3338,7 +3348,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     ignore();if (here() != '=') {err_msg(ERROR______EXPECTED, "'='"); goto breakerr;}
                     epoint = lpoint;
                     lpoint.pos++;
-                    if (!get_exp(0, cflist, 1, 0, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 0, &epoint)) goto breakerr;
                     vs = get_val();
                     str_cfcpy(&cf, &optname);
                     if (str_cmp(&cf, &branch_across) == 0) {
@@ -3354,14 +3364,14 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     struct values_s *vs;
                     Lbl *lbl;
                     listing_line(listing, epoint.pos);
-                    if (!get_exp(0, cflist, 1, 1, &epoint)) goto breakerr;
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &epoint);
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); break; }
                     if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); break; }
                     if (val->obj != LBL_OBJ) {err_msg_wrong_type(val, LBL_OBJ, &vs->epoint); break;}
                     lbl = (Lbl *)val;
-                    if (lbl->file_list == cflist && lbl->parent == current_context) {
+                    if (lbl->file_list == current_file_list && lbl->parent == current_context) {
                         while (lbl->waitforp < waitfor_p) {
                             const char *msg;
                             switch (waitfor->what) {
@@ -3450,7 +3460,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, 0);
                     current_section->unionmode = false;
-                    if (!get_exp(1, cflist, 1, 0, &epoint)) goto breakerr;
+                    if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
                     if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
@@ -3472,7 +3482,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     listing_line(listing, 0);
                     current_section->unionmode = true;
                     current_section->unionstart = current_section->unionend = current_section->address;
-                    if (!get_exp(1, cflist, 1, 0, &epoint)) goto breakerr;
+                    if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
                     if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
@@ -3525,7 +3535,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         tmp3->logicalrecursion = current_section->logicalrecursion;
                         val_destroy(tmp3->l_address_val); /* TODO: restart as well */
                         tmp3->l_address_val = val_reference(current_section->l_address_val);
-                        tmp3->file_list = cflist;
+                        tmp3->file_list = current_file_list;
                         tmp3->epoint = epoint;
                         if (tmp3->usepass == pass) {
                             t = tmp3->size;
@@ -3603,7 +3613,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                 struct values_s *vs;
                 lpoint.pos++;
             as_macro2:
-                if (!get_exp(2, cflist, 1, 1, &epoint)) goto breakerr;
+                if (!get_exp(2, 1, 1, &epoint)) goto breakerr;
                 vs = get_val(); val = vs->val;
                 switch (val->obj->type) {
                 case T_ERROR: err_msg_output((Error *)val); goto breakerr;
@@ -3629,7 +3639,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         anonident2.star_tree = star_tree;
                         anonident2.vline = vline;
                         tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists, cflist);
+                        label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                             label->constant = true;
@@ -3637,12 +3647,12 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                             label->defpass = pass;
                             if (label->value->obj != NAMESPACE_OBJ) {
                                 val_destroy(label->value);
-                                label->value = (Obj *)new_namespace(cflist, &epoint);
+                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
                             }
                         } else {
                             label->constant = true;
                             label->owner = true;
-                            label->value = (Obj *)new_namespace(cflist, &epoint);
+                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
                             label->epoint = epoint;
                         }
                         context = (Namespace *)label->value;
@@ -3659,7 +3669,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                     anonident2.star_tree = star_tree;
                     anonident2.vline = vline;
                     tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
-                    label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, cflist);
+                    label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
                         label->constant = true;
@@ -3667,16 +3677,16 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                         label->defpass = pass;
                         if (label->value->obj != NAMESPACE_OBJ) {
                             val_destroy(label->value);
-                            label->value = (Obj *)new_namespace(cflist, &epoint);
+                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
                         }
                     } else {
                         label->constant = true;
                         label->owner = true;
-                        label->value = (Obj *)new_namespace(cflist, &epoint);
+                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
                         label->epoint = epoint;
                     }
                     mfunc = (Mfunc *)val_reference(val);
-                    if (!get_exp(4, cflist, 0, 0, NULL)) {
+                    if (!get_exp(4, 0, 0, NULL)) {
                         val = NULL;
                         val_destroy(&mfunc->v);
                         goto breakerr;
@@ -3727,7 +3737,7 @@ MUST_CHECK Obj *compile(struct file_list_s *cflist)
                                 lpoint.pos += 2;
                             }
                         }
-                        if (!get_exp(3, cflist, 0, 0, NULL)) goto breakerr;
+                        if (!get_exp(3, 0, 0, NULL)) goto breakerr;
                         val = get_vals_addrlist(epoints);
                     }
                     if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
@@ -3809,11 +3819,11 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
 
         if (i == opts - 1) {
             if (fin->lines != 0) {
-                struct file_list_s *cflist = enterfile(fin, &nopoint);
+                enterfile(fin, &nopoint);
                 star_tree = &fin->star;
                 reffile = fin->uid;
                 listing_file(listing, ";******  Command line definitions", NULL);
-                val = compile(cflist);
+                val = compile();
                 if (val != NULL) val_destroy(val);
                 exitfile();
             }
@@ -3825,11 +3835,11 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
 
         cfile = openfile(argv[i], "", 0, NULL, &nopoint);
         if (cfile != NULL) {
-            struct file_list_s *cflist = enterfile(cfile, &nopoint);
+            enterfile(cfile, &nopoint);
             star_tree = &cfile->star;
             reffile = cfile->uid;
             listing_file(listing, ";******  Processing input file: ", cfile);
-            val = compile(cflist);
+            val = compile();
             if (val != NULL) val_destroy(val);
             closefile(cfile);
             exitfile();
@@ -3913,7 +3923,17 @@ static int main2(int *argc2, char **argv2[]) {
 
     if (error_serious()) {status();return EXIT_FAILURE;}
 
-    output_mem(root_section.mem, &arguments.output);
+    {
+        struct section_s *section = find_this_section(arguments.output.section);
+        if (section == NULL) {
+            str_t sectionname;
+            sectionname.data = pline;
+            sectionname.len = lpoint.pos;
+            err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
+        } else {
+            output_mem(section->mem, &arguments.output);
+        }
+    }
 
     {
         bool e = error_serious();

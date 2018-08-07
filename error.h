@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1584 2018-02-11 19:08:30Z soci $
+    $Id: error.h 1593 2018-07-31 15:41:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ struct file_list_s {
     struct file_list_s *parent;
     struct avltree members;
 };
+
+extern struct file_list_s *current_file_list;
 
 #if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX_VERSION || _POSIX2_VERSION
 #define COLOR_OUTPUT
@@ -94,7 +96,7 @@ extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);
 extern void error_reset(void);
 extern bool error_print(void);
-extern struct file_list_s *enterfile(struct file_s *, linepos_t);
+extern void enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);
 extern void err_destroy(void);

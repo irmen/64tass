@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 1578 2018-01-14 00:28:34Z soci $
+    $Id: variables.h 1587 2018-05-13 17:52:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ extern struct Label *find_label3(const str_t *, struct Namespace *, uint8_t);
 extern struct Label *find_anonlabel(int32_t);
 extern struct Label *find_anonlabel2(int32_t, struct Namespace *);
 extern struct Label *new_label(const str_t *, struct Namespace *, uint8_t, bool *, struct file_list_s *);
+extern void label_move(struct Label *, const str_t *, struct file_list_s *);
 extern bool labelprint(const struct symbol_output_s *, bool);
 extern void unused_check(struct Namespace *);
 extern void ref_labels(void);

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1580 2018-01-14 09:05:14Z soci $
+    $Id: macro.c 1593 2018-07-31 15:41:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ static struct {
 bool in_macro;
 
 /* ------------------------------------------------------------------------------ */
-bool mtranslate(struct file_list_s *cflist) {
+bool mtranslate(void) {
     unsigned int q;
     size_t j;
     size_t p;
@@ -68,7 +68,7 @@ bool mtranslate(struct file_list_s *cflist) {
     uint8_t ch;
     struct macro_pline_s *mline;
     bool changed, fault;
-    struct file_s *cfile = cflist->file;
+    struct file_s *cfile = current_file_list->file;
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->data[cfile->line[lpoint.line]];
@@ -92,7 +92,7 @@ bool mtranslate(struct file_list_s *cflist) {
                 if (j >= macro_parameters.current->len || params[j].data == NULL) {
                     const Type *obj = macro_parameters.current->macro->obj;
                     if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                        err_msg_missing_argument(cflist, &lpoint, j);
+                        err_msg_missing_argument(current_file_list, &lpoint, j);
                         param.len = 0; fault = true;
                     } else {
                         param.data = (const uint8_t *)"?";
@@ -150,7 +150,7 @@ bool mtranslate(struct file_list_s *cflist) {
                         if (params[j].data == NULL) {
                             const Type *obj = macro->v.obj;
                             if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                                err_msg_missing_argument(cflist, &e, j);
+                                err_msg_missing_argument(current_file_list, &e, j);
                                 param.len = 0; fault = true;
                             } else {
                                 param.data = (const uint8_t *)"?";
@@ -185,7 +185,7 @@ bool mtranslate(struct file_list_s *cflist) {
                 /* @1..@9 */
                 str_t *param = macro_parameters.current->param;
                 if (j >= macro_parameters.current->len) {
-                    err_msg_missing_argument(cflist, &lpoint, j);
+                    err_msg_missing_argument(current_file_list, &lpoint, j);
                     lpoint.pos++; p += 2; changed = fault = true; continue;
                 }
                 if (p + param[j].len > mline->len) {
@@ -317,7 +317,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     }
     if (t == W_ENDS) {
         if (context != NULL) push_context(context);
-        val = compile(macro->file_list);
+        val = compile();
         if (context != NULL) pop_context();
     } else {
         line_t lin = lpoint.line;
@@ -325,7 +325,6 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
-        struct file_list_s *cflist;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -334,11 +333,11 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         }
         s->addr = star;
         star_tree = &s->tree;vline = 0;
-        cflist = enterfile(macro->file_list->file, epoint);
+        enterfile(macro->file_list->file, epoint);
         lpoint.line = macro->line;
         new_waitfor(t, epoint);
         if (context != NULL) push_context(context);
-        val = compile(cflist);
+        val = compile();
         if (context != NULL) pop_context();
         star = s->addr;
         exitfile();
@@ -395,7 +394,9 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
                     if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                 }
                 label->owner = false;
-                label->file_list = mfunc->file_list;
+                if (label->file_list != mfunc->file_list) {
+                    label_move(label, &mfunc->param[i].name, mfunc->file_list);
+                }
                 label->epoint = mfunc->param[i].epoint;
                 val_replace(&label->value, val);
                 label->usepass = 0;
@@ -416,7 +417,6 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
-        struct file_list_s *cflist;
         size_t oldbottom;
         bool in_macro_old = in_macro;
         in_macro = false;
@@ -428,7 +428,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         }
         s->addr = star;
         star_tree = &s->tree;vline = 0;
-        cflist = enterfile(mfunc->file_list->file, epoint);
+        enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
         new_waitfor(t, epoint);
         oldbottom = context_get_bottom();
@@ -437,7 +437,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         }
         push_context(context);
         functionrecursion++;
-        val = compile(cflist);
+        val = compile();
         functionrecursion--;
         context_set_bottom(oldbottom);
         pop_context();
@@ -453,7 +453,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
     return val;
 }
 
-void get_func_params(Mfunc *v, struct file_list_s *cflist) {
+void get_func_params(Mfunc *v) {
     Mfunc new_mfunc;
     size_t len = 0, i, j;
     str_t label;
@@ -496,7 +496,7 @@ void get_func_params(Mfunc *v, struct file_list_s *cflist) {
             if (here() == '=') {
                 Obj *val;
                 lpoint.pos++;
-                if (!get_exp(1, cflist, 1, 1, &lpoint)) {
+                if (!get_exp(1, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }
@@ -603,7 +603,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     Namespace *context;
     struct section_s rsection;
     struct section_s *oldsection = current_section;
-    struct file_list_s *cflist;
     struct linepos_s xpoint;
 
     if (functionrecursion>100) {
@@ -616,7 +615,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     xpoint.pos = 0;
     context = new_namespace(mfunc->file_list, &xpoint);
 
-    cflist = enterfile(mfunc->file_list->file, epoint);
+    enterfile(mfunc->file_list->file, epoint);
     tuple = NULL;
     for (i = 0; i < mfunc->argc; i++) {
         bool labelexists;
@@ -637,12 +636,12 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         } else {
             val = (i < args) ? vals[i].val : (mfunc->param[i].init != NULL) ? mfunc->param[i].init : (Obj *)none_value;
         }
-        label = new_label(&mfunc->param[i].name, context, 0, &labelexists, cflist);
+        label = new_label(&mfunc->param[i].name, context, 0, &labelexists, current_file_list);
         if (!labelexists) {
             label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
-            label->file_list = cflist;
+            label->file_list = current_file_list;
             label->epoint = mfunc->param[i].epoint;
         }
     }
@@ -687,7 +686,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         current_section->l_address_val = val_reference(oldsection->l_address_val);
         current_section->dooutput = false;
         functionrecursion++;
-        retval = compile(cflist);
+        retval = compile();
         functionrecursion--;
         current_section = oldsection;
         context_set_bottom(oldbottom);

@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: strobj.c 1594 2018-07-31 17:02:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -88,6 +88,25 @@ size_t str_quoting(const uint8_t *data, size_t ln, uint8_t *q) {
         *q = '"';
     }
     return i;
+}
+
+bool tostr(const struct values_s *v1, str_t *out) {
+    Obj *val = v1->val;
+    switch (val->obj->type) {
+    case T_STR:
+        out->len = ((Str *)val)->len;
+        out->data = ((Str *)val)->data;
+        return false;
+    case T_NONE:
+        err_msg_still_none(NULL, &v1->epoint);
+        return true;
+    case T_ERROR:
+        err_msg_output((Error *)val);
+        return true;
+    default:
+        err_msg_wrong_type(val, STR_OBJ, &v1->epoint);
+        return true;
+    }
 }
 
 static MALLOC Str *new_str2(size_t ln) {

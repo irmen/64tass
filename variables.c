@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 1579 2018-01-14 08:28:43Z soci $
+    $Id: variables.c 1587 2018-05-13 17:52:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -217,12 +217,14 @@ Label *find_label(const str_t *name, Namespace **here) {
                     b = avltree_lookup(&tmp.node, &context_stack.stack[--p].normal->members, label_compare);
                     if (b != NULL) {
                         const struct namespacekey_s *l2 = strongest_label(b);
-                        Label *key1 = l2->key;
-                        Obj *o1 = key1->value;
-                        Obj *o2 = key2->value;
-                        if (o1 != o2 && !o1->obj->same(o1, o2)) {
-                            err_msg_shadow_defined(key1, key2);
-                            return key2;
+                        if (l2 != NULL) {
+                            Label *key1 = l2->key;
+                            Obj *o1 = key1->value;
+                            Obj *o2 = key2->value;
+                            if (o1 != o2 && !o1->obj->same(o1, o2)) {
+                                err_msg_shadow_defined(key1, key2);
+                                return key2;
+                            }
                         }
                     }
                 }
@@ -375,6 +377,18 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     }
     *exists = true;
     return avltree_container_of(b, struct namespacekey_s, node)->key;            /* already exists */
+}
+
+void label_move(Label *label, const str_t *name, struct file_list_s *cflist) {
+    bool cfsame = (label->cfname.data == label->name.data);
+    if ((size_t)(label->name.data - label->file_list->file->data) < label->file_list->file->len) {
+        if ((size_t)(name->data - cflist->file->data) < cflist->file->len) label->name = *name;
+        else str_cpy(&label->name, name);
+    }
+    if (cfsame) {
+        label->cfname = label->name;
+    }
+    label->file_list = cflist;
 }
 
 void unused_check(Namespace *members) {

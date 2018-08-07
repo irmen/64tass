@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 1584 2018-02-11 19:08:30Z soci $
+    $Id: arguments.h 1590 2018-07-19 06:00:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ struct file_s;
 
 struct output_s {
     const char *name;
+    const char *section;
     Output_types mode;
     bool longaddr;
 };

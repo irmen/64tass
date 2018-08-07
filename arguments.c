@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 1584 2018-02-11 19:08:30Z soci $
+    $Id: arguments.c 1590 2018-07-19 06:00:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ struct arguments_s arguments = {
     0x20,        /* caseinsensitive */
     {            /* output */
         "a.out",     /* name */
+        NULL,        /* section */
         OUTPUT_CBM,  /* mode */
         false        /* longaddr */
     },
@@ -309,6 +310,7 @@ static const struct my_option long_options[] = {
     {"m4510"            , my_no_argument      , NULL,  0x111},
     {"labels"           , my_required_argument, NULL, 'l'},
     {"output"           , my_required_argument, NULL, 'o'},
+    {"output-section"   , my_required_argument, NULL,  0x114},
     {"error"            , my_required_argument, NULL, 'E'},
     {"vice-labels"      , my_no_argument      , NULL,  0x10b},
     {"dump-labels"      , my_no_argument      , NULL,  0x10d},
@@ -431,6 +433,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 'a':arguments.to_ascii = true;break;
             case 'T':arguments.tasmcomp = true;break;
             case 'o':arguments.output.name = my_optarg;break;
+            case 0x114: arguments.output.section = my_optarg; break;
             case 0x10a:arguments.caret = false;break;
             case 'D':
                 {
@@ -555,6 +558,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "\n"
                " Output selection:\n"
                "  -o, --output=<file>   Place output into <file>\n"
+               "   --output-section=<n> Output this section only\n"
                "  -b, --nostart         Strip starting address\n"
                "  -f, --flat            Generate flat output file\n"
                "  -n, --nonlinear       Generate nonlinear output file\n"

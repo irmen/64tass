@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 1575 2017-12-28 12:56:31Z soci $
+    $Id: section.h 1590 2018-07-19 06:00:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ struct section_s {
 
 extern struct section_s *new_section(const str_t *);
 extern struct section_s *find_new_section(const str_t *);
+extern struct section_s *find_this_section(const char *);
 extern void init_section(void);
 extern void init_section2(struct section_s *);
 extern void destroy_section(void);
