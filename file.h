@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 1552 2017-07-23 09:11:28Z soci $
+    $Id: file.h 1650 2018-09-16 07:55:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ struct file_s {
     int err_no;
     bool read_error;
     bool portable;
+    uint8_t pass;
     Encoding_types encoding;
     struct avltree star;
     struct avltree_node node;

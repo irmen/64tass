@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: noneobj.c 1621 2018-08-30 20:34:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,10 @@ static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint)
 
 static MUST_CHECK Obj *repr(Obj *v1, linepos_t epoint, size_t UNUSED(maxsize)) {
     return (epoint == NULL) ? NULL : val_reference(v1);
+}
+
+static MUST_CHECK Obj *str(Obj *v1, linepos_t UNUSED(epoint), size_t UNUSED(maxsize)) {
+    return val_reference(v1);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -89,6 +93,7 @@ void noneobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
+    obj.str = str;
     obj.hash = hash;
     obj.calc1 = calc1;
     obj.calc2 = calc2;

@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1593 2018-07-31 15:41:51Z soci $
+    $Id: error.h 1660 2018-09-22 11:39:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ struct Error;
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
 extern void err_msg_wrong_type(const Obj *, struct Type *, linepos_t);
+extern void err_msg_cant_unpack(size_t, size_t, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_cant_calculate2(const str_t *, const struct file_list_s *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
@@ -94,6 +95,7 @@ extern void err_msg_compound_note(linepos_t);
 extern void err_msg_byte_note(linepos_t);
 extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);
+extern void err_msg_big_address(linepos_t);
 extern void error_reset(void);
 extern bool error_print(void);
 extern void enterfile(struct file_s *, linepos_t);
@@ -106,6 +108,7 @@ extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
 extern bool error_serious(void);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
+extern void err_msg_type_mixing(linepos_t);
 
 static inline MALLOC void *mallocx(size_t l) {
     void *m = malloc(l);

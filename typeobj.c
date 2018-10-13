@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: typeobj.c 1632 2018-09-01 23:02:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,7 +79,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     ln = strlen(name);
     ln2 = ln + 9;
     if (ln2 > maxsize) return NULL;
-    v = new_str(ln2);
+    v = new_str2(ln2);
+    if (v == NULL) return NULL;
     v->chars = ln2;
     s = v->data;
     memcpy(s, "<type '", 7);
@@ -95,6 +96,39 @@ static inline int icmp(const Type *vv1, const Type *vv2) {
     Type_types v2 = vv2->type;
     if (v1 < v2) return -1;
     return (v1 > v2) ? 1 : 0;
+}
+
+static MUST_CHECK Obj *apply_convert(Obj *o2, const Type *v1, linepos_t epoint) {
+    if (v1 != LIST_OBJ && v1 != TUPLE_OBJ && v1 != TYPE_OBJ) {
+        const Type *v2 = o2->obj;
+        if (v2 == LIST_OBJ || v2 == TUPLE_OBJ) {
+            iter_next_t iter_next;
+            Iter *iter = v2->getiter(o2);
+            size_t i, len = iter->len(iter);
+            Obj **vals;
+            bool error;
+            List *v;
+
+            if (len == 0) {
+                val_destroy(&iter->v);
+                return val_reference(v2 == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+            }
+
+            v = (List *)val_alloc(v2 == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+            v->data = vals = list_create_elements(v, len);
+            error = true;
+            iter_next = iter->next;
+            for (i = 0;i < len && (o2 = iter_next(iter)) != NULL; i++) {
+                Obj *val = apply_convert(o2, v1, epoint);
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
+                vals[i] = val;
+            }
+            val_destroy(&iter->v);
+            v->len = i;
+            return (Obj *)v;
+        }
+    }
+    return v1->create(o2, epoint);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -130,28 +164,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 err_msg_argnum(args, 1, 1, op->epoint2);
                 return (Obj *)ref_none();
             }
-            o2 = ((Funcargs *)o2)->val[0].val;
-            switch (o2->obj->type) {
-            case T_LIST:
-            case T_TUPLE:
-                if (v1 != LIST_OBJ && v1 != TUPLE_OBJ && v1 != TYPE_OBJ) {
-                    List *v2 = (List *)o2;
-                    Obj **vals;
-                    size_t i;
-                    bool error = true;
-                    List *v = (List *)val_alloc(o2->obj);
-                    v->data = vals = list_create_elements(v, v2->len);
-                    for (i = 0;i < v2->len; i++) {
-                        Obj *val = v1->create(v2->data[i], op->epoint2);
-                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                        vals[i] = val;
-                    }
-                    v->len = i;
-                    return (Obj *)v;
-                }
-                /* fall through */
-            default: return v1->create(o2, op->epoint2);
-            }
+            return apply_convert(((Funcargs *)o2)->val[0].val, v1, op->epoint2);
         }
         break;
     case T_TUPLE:

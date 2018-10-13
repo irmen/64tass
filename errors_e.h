@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 1590 2018-07-19 06:00:59Z soci $
+    $Id: errors_e.h 1620 2018-08-30 20:26:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,6 @@ typedef enum Error_types {
     ERROR_EXTRA_CHAR_OL,
     ERROR_NOT_TWO_CHARS,
     ERROR_NUMERIC_OVERF,
-    ERROR_ADDRESS_LARGE,
     ERROR_GENERL_SYNTAX,
     ERROR_EXPRES_SYNTAX,
     ERROR_LABEL_REQUIRE,
@@ -76,6 +75,7 @@ typedef enum Error_types {
     ERROR___MATH_DOMAIN,
     ERROR___EMPTY_RANGE,
     ERROR__EMPTY_STRING,
+    ERROR____EMPTY_LIST,
     ERROR__NOT_ONE_CHAR,
     ERROR____NO_FORWARD,
     ERROR_REQUIREMENTS_,
@@ -122,6 +122,7 @@ typedef enum Error_types {
 
     ERROR___NOT_DEFINED,
     ERROR__INVALID_OPER,
+    ERROR__INVALID_CONV,
     ERROR____STILL_NONE,
 
     ERROR_CANT_FINDFILE = 0xc0,

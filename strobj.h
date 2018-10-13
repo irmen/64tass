@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 1594 2018-07-31 17:02:16Z soci $
+    $Id: strobj.h 1610 2018-08-26 12:34:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,10 @@ typedef struct Str {
     size_t len;
     size_t chars;
     uint8_t *data;
-    uint8_t val[16];
+    union {
+        uint8_t val[16];
+        int hash;
+    } u;
 } Str;
 
 extern Str *null_str;
@@ -44,6 +47,7 @@ static inline Str *ref_str(Str *v1) {
 struct str_t;
 
 extern MALLOC Str *new_str(size_t);
+extern MALLOC Str *new_str2(size_t);
 extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
 extern size_t str_quoting(const uint8_t *, size_t, uint8_t *);

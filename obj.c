@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1575 2017-12-28 12:56:31Z soci $
+    $Id: obj.c 1630 2018-09-01 15:56:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@
 #include "mfuncobj.h"
 #include "identobj.h"
 #include "memblocksobj.h"
+#include "foldobj.h"
 
 static Type lbl_obj;
 static Type default_obj;
@@ -96,7 +97,7 @@ static MUST_CHECK Error *generic_invalid(Obj *v1, linepos_t epoint, Error_types 
         return (Error *)val_reference(v1);
     }
     err = new_error(num, epoint);
-    err->u.objname = v1->obj->name;
+    err->u.obj = val_reference(v1);
     return err;
 }
 
@@ -121,13 +122,18 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     len2 = strlen(name);
     len = len2 + 2;
     if (len > maxsize) return NULL;
-    v = new_str(len);
+    v = new_str2(len);
+    if (v == NULL) return NULL;
     v->chars = len;
     s = v->data;
     *s++ = '<';
     memcpy(s, name, len2);
     s[len2] = '>';
     return &v->v;
+}
+
+static MUST_CHECK Obj *invalid_str(Obj *v1, linepos_t epoint, size_t maxsize) {
+    return v1->obj->repr(v1, epoint, maxsize);
 }
 
 static MUST_CHECK Obj *invalid_calc1(oper_t op) {
@@ -196,23 +202,29 @@ static MUST_CHECK Obj *invalid_size(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIZE);
 }
 
-static MUST_CHECK Iter *invalid_getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
-    v->data = val_reference(v1);
-    v->iter = NULL;
-    v->val = 1;
-    return v;
+static size_t invalid_iter_len(Iter *v1) {
+    return 1 - v1->val;
 }
 
 static MUST_CHECK Obj *invalid_next(Iter *v1) {
-    if (v1->val == 0) return NULL;
-    v1->val = 0;
-    return val_reference(v1->data);
+    if (v1->val != 0) return NULL;
+    v1->val = 1;
+    return v1->data;
+}
+
+static MUST_CHECK Iter *invalid_getiter(Obj *v1) {
+    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+    v->iter = NULL;
+    v->val = 0;
+    v->data = val_reference(v1);
+    v->next = invalid_next;
+    v->len = invalid_iter_len;
+    return v;
 }
 
 static FAST_CALL void iter_destroy(Obj *o1) {
     Iter *v1 = (Iter *)o1;
-    if (v1->iter != &v1->val) free(v1->iter);
+    if (v1->iter != NULL) val_destroy(v1->iter);
     val_destroy(v1->data);
 }
 
@@ -222,11 +234,18 @@ static FAST_CALL void iter_garbage(Obj *o1, int i) {
     switch (i) {
     case -1:
         v1->data->refcount--;
+        if (v1->iter != NULL) v1->iter->refcount--;
         return;
     case 0:
-        if (v1->iter != &v1->val) free(v1->iter);
         return;
     case 1:
+        v = v1->iter;
+        if (v != NULL) {
+            if ((v->refcount & SIZE_MSB) != 0) {
+                v->refcount -= SIZE_MSB - 1;
+                v->obj->garbage(v, 1);
+            } else v->refcount++;
+        }
         v = v1->data;
         if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
@@ -236,9 +255,8 @@ static FAST_CALL void iter_garbage(Obj *o1, int i) {
     }
 }
 
-static MUST_CHECK Obj *iter_next(Iter *v1) {
-    if (v1->iter == NULL) return invalid_next(v1);
-    return v1->data->obj->next(v1);
+static MUST_CHECK Iter *iter_getiter(Obj *o1) {
+    return (Iter *)val_reference(o1);
 }
 
 static FAST_CALL bool lbl_same(const Obj *o1, const Obj *o2) {
@@ -263,6 +281,7 @@ void obj_init(Type *obj) {
     obj->truth = invalid_truth;
     obj->hash = invalid_hash;
     obj->repr = invalid_repr;
+    obj->str = invalid_str;
     obj->calc1 = invalid_calc1;
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
@@ -276,7 +295,6 @@ void obj_init(Type *obj) {
     obj->len = invalid_len;
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;
-    obj->next = invalid_next;
 }
 
 void objects_init(void) {
@@ -303,6 +321,7 @@ void objects_init(void) {
     noneobj_init();
     mfuncobj_init();
     identobj_init();
+    foldobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     lbl_obj.same = lbl_same;
@@ -311,7 +330,7 @@ void objects_init(void) {
     new_type(&iter_obj, T_ITER, "iter", sizeof(Iter));
     iter_obj.destroy = iter_destroy;
     iter_obj.garbage = iter_garbage;
-    iter_obj.next = iter_next;
+    iter_obj.getiter = iter_getiter;
     new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
     funcargs_obj.same = funcargs_same;
 
@@ -327,6 +346,7 @@ void objects_destroy(void) {
     intobj_destroy();
     gapobj_destroy();
     noneobj_destroy();
+    foldobj_destroy();
 
 #ifdef DEBUG
     if (default_value->v.refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->v.refcount - 1);

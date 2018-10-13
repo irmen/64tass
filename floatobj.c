@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: floatobj.c 1613 2018-08-26 13:20:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -54,8 +54,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_ADDRESS: return float_from_address((Address *)v1, epoint);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, FLOAT_OBJ, epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -98,7 +97,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     while (line[i] != 0 && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
     if (line[i] == 0) {line[i++] = '.';line[i++] = '0';len += 2;}
     if (len > maxsize) return NULL;
-    v = new_str(len);
+    v = new_str2(len);
+    if (v == NULL) return NULL;
     v->chars = len;
     memcpy(v->data, line, len);
     return &v->v;

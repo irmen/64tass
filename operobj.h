@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: operobj.h 1661 2018-10-06 07:50:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ typedef enum Oper_types {
     O_MEMBER_ASSIGN, /* .=    */
     O_LOR_ASSIGN,    /* ||=   */
     O_LAND_ASSIGN,   /* &&=   */
+    O_COND_ASSIGN,   /* :?=   */
     O_COND,          /* ?     */
     O_COLON2,        /* :     */
     O_LOR,           /* ||    */
@@ -156,6 +157,7 @@ extern Oper o_X_ASSIGN;
 extern Oper o_MEMBER_ASSIGN;
 extern Oper o_LOR_ASSIGN;
 extern Oper o_LAND_ASSIGN;
+extern Oper o_COND_ASSIGN;
 extern Oper o_QUEST;
 extern Oper o_COLON;
 extern Oper o_COND;

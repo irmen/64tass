@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1585 2018-04-17 21:42:08Z soci $
+    $Id: codeobj.c 1630 2018-09-01 15:56:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,8 +53,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_CODE: return val_reference(v1);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, CODE_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -133,6 +132,15 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     }
     v = v1->addr;
     return v->obj->repr(v, epoint, maxsize);
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t epoint, size_t maxsize) {
+    Code *v1 = (Code *)o1;
+    Obj *v;
+    Error *err = access_check(v1, epoint);
+    if (err != NULL) return &err->v;
+    v = v1->addr;
+    return v->obj->str(v, epoint, maxsize);
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
@@ -329,19 +337,22 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         offs0 = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
     }
     if (o2->obj == LIST_OBJ) {
-        List *list = (List *)o2;
-        size_t len1 = list->len;
+        iter_next_t iter_next;
+        Iter *iter = o2->obj->getiter(o2);
+        size_t len1 = iter->len(iter);
         Tuple *v;
         bool error;
 
         if (len1 == 0) {
+            val_destroy(&iter->v);
             return (Obj *)ref_tuple(null_tuple);
         }
         v = new_tuple(len1);
         vals = v->data;
         error = true;
-        for (i = 0; i < len1; i++) {
-            err = indexoffs(list->data[i], ln, &offs1, epoint2);
+        iter_next = iter->next;
+        for (i = 0; i < len1 && (o2 = iter_next(iter)) != NULL; i++) {
+            err = indexoffs(o2, ln, &offs1, epoint2);
             if (err != NULL) {
                 if (error) {err_msg_output(err); error = false;}
                 val_destroy(&err->v);
@@ -350,6 +361,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             }
             vals[i] = code_item(v1, (ssize_t)offs1 + offs0, ln2);
         }
+        val_destroy(&iter->v);
+        v->len = i;
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
@@ -598,6 +611,7 @@ void codeobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
+    obj.str = str;
     obj.ival = ival;
     obj.uval = uval;
     obj.uval2 = uval2;

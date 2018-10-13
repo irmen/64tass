@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: bitsobj.h 1609 2018-08-26 12:01:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,8 +28,11 @@ typedef struct Bits {
     Obj v;
     ssize_t len;
     size_t bits;
-    bdigit_t val[2];
     bdigit_t *data;
+    union {
+        bdigit_t val[2];
+        int hash;
+    } u;
 } Bits;
 
 extern Bits *null_bits;

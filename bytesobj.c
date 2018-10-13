@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: bytesobj.c 1641 2018-09-03 23:43:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -74,35 +74,36 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
          return ret;
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, BYTES_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
     Bytes *v1 = (Bytes *)o1;
-    if (v1->val != v1->data) free(v1->data);
+    if (v1->u.val != v1->data) free(v1->data);
 }
 
 MALLOC Bytes *new_bytes(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
-    if (ln > sizeof v->val) {
+    if (ln > sizeof v->u.val) {
+        v->u.hash = -1;
         v->data = (uint8_t *)mallocx(ln);
     } else {
-        v->data = v->val;
+        v->data = v->u.val;
     }
     return v;
 }
 
 static MALLOC Bytes *new_bytes2(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
-    if (ln > sizeof v->val) {
+    if (ln > sizeof v->u.val) {
+        v->u.hash = -1;
         v->data = (uint8_t *)malloc(ln);
         if (v->data == NULL) {
             val_destroy(&v->v);
             v = NULL;
         }
     } else {
-        v->data = v->val;
+        v->data = v->u.val;
     }
     return v;
 }
@@ -195,7 +196,59 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+static uint8_t *z85_encode(uint8_t *dest, const uint8_t *src, size_t len) {
+    static const char *z85 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
+    size_t i;
+
+    for (i = 0; i < len; i += 4) {
+        uint8_t src2[4];
+        uint32_t tmp;
+        unsigned int j;
+
+        memcpy(src2, src + i, 4);
+        tmp = src2[3] | (src2[2] << 8) | (src2[1] << 16) | (src2[0] << 24);
+
+        for (j = 4; j > 0; j--) {
+            uint32_t div = tmp / 85; 
+            dest[j] = z85[tmp - div * 85];
+            tmp = div;
+        }
+        dest[j] = z85[tmp];
+        dest += 5;
+    }
+    return dest;
+}
+
+const uint8_t z85_dec[93] = {
+        68, 85, 84, 83, 82, 72, 85, 75, 76, 70, 65, 85, 63, 62, 69,
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  64, 85, 73, 66, 74, 71, 
+    81, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 
+    51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 77, 85, 78, 67, 85, 
+    85, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 
+    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 79, 85, 80
+};
+ 
+static const uint8_t *z85_decode(uint8_t *dest, const uint8_t *src, size_t len) {
+    size_t i;
+
+    for (i = 0; i < len; i += 4) {
+        uint32_t tmp;
+        unsigned int j;
+        
+        tmp = z85_dec[src[0] - 33];
+        for (j = 1; j < 5; j++) {
+            tmp = tmp * 85 + z85_dec[src[j] - 33];
+        }
+        dest[i] = tmp >> 24;
+        dest[i+1] = tmp >> 16;
+        dest[i+2] = tmp >> 8;
+        dest[i+3] = tmp;
+        src += 5;
+    }
+    return src;
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Bytes *v1 = (Bytes *)o1;
     static const char *hex = "0123456789abcdef";
     size_t i, len, len2, sz;
@@ -203,24 +256,59 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     sz = byteslen(v1);
     len2 = sz * 2;
-    len = (v1->len < 0) ? 9 : 8;
+    len = (v1->len < 0) ? 4 : 3;
     len += len2;
-    if (len < len2 || sz > SIZE_MAX / 2) return (epoint != NULL) ? (Obj *)new_error_mem(epoint) : NULL; /* overflow */
+    if (len < len2 || sz > SIZE_MAX / 2) return NULL; /* overflow */
     if (len > maxsize) return NULL;
-    v = new_str(len);
+    v = new_str2(len);
+    if (v == NULL) return NULL;
     v->chars = len;
     s = v->data;
 
-    memcpy(s, "bytes(", 6);
-    s += 6;
     if (v1->len < 0) *s++ = '~';
-    *s++ = '$';
+    *s++ = 'x';
+    *s++ = '\'';
     for (i = 0;i < sz; i++) {
-        b = v1->data[sz - i - 1];
+        b = v1->data[i];
         *s++ = (uint8_t)hex[b >> 4];
         *s++ = (uint8_t)hex[b & 0xf];
     }
-    *s = ')';
+    *s = '\'';
+    return &v->v;
+}
+
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+    Bytes *v1 = (Bytes *)o1;
+    size_t len, len2, sz;
+    uint8_t *s;
+    Str *v;
+    sz = byteslen(v1);
+    if (sz <= 1) return str(o1, epoint, maxsize);
+    len2 = sz / 4 * 5;
+    if ((sz & 3) != 0) len2 += (sz & 3) + 1;
+    len = (v1->len < 0) ? 4 : 3;
+    len += len2;
+    if (len < len2 || sz > SIZE_MAX / 2) return NULL; /* overflow */
+    if (len > maxsize) return NULL;
+    v = new_str2(len);
+    if (v == NULL) return NULL;
+    v->chars = len;
+    s = v->data;
+
+    if (v1->len < 0) *s++ = '~';
+    *s++ = 'z';
+    *s++ = '\'';
+    s = z85_encode(s, v1->data, sz & ~3);
+    if ((sz & 3) != 0) {
+        uint8_t tmp2[5], tmp[4] = {0, 0, 0, 0};
+        memcpy(tmp + 4 - (sz & 3), v1->data + (sz & ~3), sz & 3);
+        sz &= 3;
+        z85_encode(tmp2, tmp, sz);
+        sz++;
+        memcpy(s, tmp2 + 5 - sz, sz);
+        s += sz;
+    }
+    *s = '\'';
     return &v->v;
 }
 
@@ -229,6 +317,10 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = byteslen(v1);
     const uint8_t *s2 = v1->data;
     unsigned int h;
+    if (s2 != v1->u.val && v1->u.hash >= 0) {
+        *hs = v1->u.hash;
+        return NULL;
+    }
     if (l == 0) {
         *hs = 0;
         return NULL;
@@ -236,8 +328,107 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= (unsigned int)v1->len;
-    *hs = h & ((~0U) >> 1);
+    h &= ((~0U) >> 1);
+    if (v1->data != v1->u.val) v1->u.hash = h;
+    *hs = h;
     return NULL;
+}
+
+MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint) {
+    Bytes *v;
+    size_t i, j;
+    uint8_t ch2, ch = s[0];
+
+    i = 1; j = 0;
+    for (;;) {
+        if ((ch2 = s[i]) == 0) {
+            *ln = i;
+            return (Obj *)ref_none();
+        }
+        i++;
+        if (ch2 == ch) {
+            break; /* end of string; */
+        }
+        ch2 ^= 0x30;
+        if (ch2 < 10) continue;
+        ch2 = (ch2 | 0x20) - 0x71;
+        if (ch2 >= 6 && j == 0) j = i;
+    }
+    *ln = i;
+    if (j != 0) {
+        struct linepos_s epoint2;
+        epoint2 = *epoint;
+        epoint2.pos += j;
+        err_msg2(ERROR______EXPECTED, "hex digit", &epoint2);
+        return (Obj *)ref_none();
+    }
+    j = (i > 1) ? (i - 2) : 0;
+    j /= 2;
+    v = new_bytes2(j);
+    if (v == NULL) return (Obj *)new_error_mem(epoint);
+    v->len = j;
+    for (i = 0; i < (size_t)v->len; i++) {
+        uint8_t c1, c2;
+        s++;
+        c1 = s[i] ^ 0x30;
+        if (c1 >= 10) c1 = (c1 | 0x20) - 0x67;
+        c2 = s[i+1] ^ 0x30;
+        if (c2 >= 10) c2 = (c2 | 0x20) - 0x67;
+        v->data[i] = (c1 << 4) | c2;
+    }
+    if ((*ln & 1) != 0) err_msg2(ERROR______EXPECTED, "even number of hex digits", epoint);
+    return &v->v;
+}
+
+MUST_CHECK Obj *bytes_from_z85str(const uint8_t *s, size_t *ln, linepos_t epoint) {
+    Bytes *v;
+    size_t i, j, sz;
+    uint8_t ch2, ch = s[0];
+
+    i = 1; j = 0;
+    for (;;) {
+        if ((ch2 = s[i]) == 0) {
+            *ln = i;
+            return (Obj *)ref_none();
+        }
+        i++;
+        if (ch2 == ch) {
+            break; /* end of string; */
+        }
+        if (j == 0 && (ch2 <= ' ' || ch2 >= '~' || z85_dec[ch2 - 33] == 85)) j = i;
+    }
+    *ln = i;
+    if (j != 0) {
+        struct linepos_s epoint2;
+        epoint2 = *epoint;
+        epoint2.pos += j;
+        err_msg2(ERROR______EXPECTED, "z85 character", &epoint2);
+        return (Obj *)ref_none();
+    }
+    i = (i > 1) ? (i - 2) : 0;
+    j = i / 5;
+    i -= j * 5;
+    j *= 4;
+    if (i == 1) {
+        err_msg2(ERROR______EXPECTED, "valid z85 string", epoint);
+        return (Obj *)ref_none();
+    }
+    sz = (i > 1) ? (j + i - 1) : j;
+    v = new_bytes2(sz);
+    if (v == NULL) return (Obj *)new_error_mem(epoint);
+    v->len = sz;
+    s = z85_decode(v->data, s + 1, j);
+    if (i > 1) {
+        uint8_t tmp2[4], tmp[5] = {'0', '0', '0', '0', '0'};
+        memcpy(tmp + 5 - i, s, i);
+        i--;
+        z85_decode(tmp2, tmp, i);
+        memcpy(v->data + j, tmp2 + 4 - i, i);
+        if (memcmp(tmp2, "\x0\x0\x0\x0", 4 - i) != 0) {
+            err_msg2(ERROR______EXPECTED, "valid z85 string", epoint);
+        }
+    }
+    return &v->v;
 }
 
 MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types mode) {
@@ -254,7 +445,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             }
             return (Obj *)new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint);
         }
-        if (len < sizeof v->val) len = sizeof v->val;
+        if (len < sizeof v->u.val) len = sizeof v->u.val;
         if (len == 0) {
             return (Obj *)ref_bytes(null_bytes);
         }
@@ -264,12 +455,13 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         encode_string_init(v1, epoint);
         while ((ch = encode_string()) != EOF) {
             if (len2 >= len) {
-                if (v->val == s) {
+                if (v->u.val == s) {
                     len = 32;
                     s = (uint8_t *)malloc(len);
                     if (s == NULL) goto failed2;
                     v->data = s;
-                    memcpy(s, v->val, len2);
+                    memcpy(s, v->u.val, len2);
+                    v->u.hash = -1;
                 } else {
                     len += 1024;
                     if (len < 1024) goto failed2; /* overflow */
@@ -298,11 +490,11 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         case BYTES_MODE_NULL_CHECK:
         case BYTES_MODE_TEXT: break;
         }
-        if (v->val != s) {
-            if (len2 <= sizeof v->val) {
-                if (len2 != 0) memcpy(v->val, s, len2);
+        if (v->u.val != s) {
+            if (len2 <= sizeof v->u.val) {
+                if (len2 != 0) memcpy(v->u.val, s, len2);
                 free(s);
-                v->data = v->val;
+                v->data = v->u.val;
             } else if (len2 < len) {
                 s = (uint8_t *)realloc(s, len2);
                 if (s == NULL) goto failed2;
@@ -459,11 +651,11 @@ static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
     }
 
     while (sz != 0 && d[sz - 1] == 0) sz--;
-    if (v->val != d) {
-        if (sz <= sizeof v->val) {
-            if (sz != 0) memcpy(v->val, d, sz);
+    if (v->u.val != d) {
+        if (sz <= sizeof v->u.val) {
+            if (sz != 0) memcpy(v->u.val, d, sz);
             free(d);
-            v->data = v->val;
+            v->data = v->u.val;
         } else if (sz < i) {
             d = (uint8_t *)realloc(d, sz);
             if (d == NULL) goto failed2;
@@ -566,20 +758,36 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)int_from_size(byteslen(v1));
 }
 
-static MUST_CHECK Iter *getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
-    v->val = 0;
-    v->iter = &v->val;
-    v->data = val_reference(v1);
-    return v;
+static size_t iter_len(Iter *v1) {
+    return ((Bytes *)v1->data)->len - v1->val;
 }
 
 static MUST_CHECK Obj *next(Iter *v1) {
-    uint8_t b;
+    Bytes *iter;
     const Bytes *vv1 = (Bytes *)v1->data;
     if (v1->val >= byteslen(vv1)) return NULL;
-    b = vv1->data[v1->val++];
-    return (Obj *)bytes_from_u8((vv1->len < 0) ? ~b : b);
+    iter = (Bytes *)v1->iter;
+    if (iter == NULL) {
+    renew:
+        iter = new_bytes(1);
+        v1->iter = &iter->v;
+    } else if (iter->v.refcount != 1) {
+        iter->v.refcount--;
+        goto renew;
+    }
+    iter->data[0] = vv1->data[v1->val++];
+    iter->len = (vv1->len < 0) ? ~1 : 1;
+    return &iter->v;
+}
+
+static MUST_CHECK Iter *getiter(Obj *v1) {
+    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+    v->iter = NULL;
+    v->val = 0;
+    v->data = val_reference(v1);
+    v->next = next;
+    v->len = iter_len;
+    return v;
 }
 
 static MUST_CHECK Obj *and_(const Bytes *vv1, const Bytes *vv2, linepos_t epoint) {
@@ -923,23 +1131,31 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     len1 = byteslen(v1);
 
     if (o2->obj == LIST_OBJ) {
-        List *list = (List *)o2;
-        size_t len2 = list->len;
+        iter_next_t iter_next;
+        Iter *iter = o2->obj->getiter(o2);
+        size_t len2 = iter->len(iter);
 
         if (len2 == 0) {
+            val_destroy(&iter->v);
             return (Obj *)ref_bytes(null_bytes);
         }
         v = new_bytes2(len2);
-        if (v == NULL) goto failed;
+        if (v == NULL) {
+            val_destroy(&iter->v);
+            goto failed;
+        }
         p2 = v->data;
-        for (i = 0; i < len2; i++) {
-            err = indexoffs(list->data[i], len1, &offs2, epoint2);
+        iter_next = iter->next;
+        for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
+            err = indexoffs(o2, len1, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&v->v);
+                val_destroy(&iter->v);
                 return &err->v;
             }
             *p2++ = v1->data[offs2] ^ inv;
         }
+        val_destroy(&iter->v);
         if (i > SSIZE_MAX) goto failed2; /* overflow */
         v->len = (ssize_t)i;
         return &v->v;
@@ -1093,6 +1309,7 @@ void bytesobj_init(void) {
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
+    obj.str = str;
     obj.ival = ival;
     obj.uval = uval;
     obj.uval2 = uval2;
@@ -1100,7 +1317,6 @@ void bytesobj_init(void) {
     obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
-    obj.next = next;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

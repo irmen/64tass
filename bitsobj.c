@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 1562 2017-08-05 01:14:56Z soci $
+    $Id: bitsobj.c 1631 2018-09-01 16:27:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,8 +70,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
          return ret;
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, BITS_OBJ, epoint);
 }
 
 static inline size_t bitslen(const Bits *v1) {
@@ -81,29 +80,31 @@ static inline size_t bitslen(const Bits *v1) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Bits *v1 = (Bits *)o1;
-    if (v1->val != v1->data) free(v1->data);
+    if (v1->u.val != v1->data) free(v1->data);
 }
 
 static MALLOC Bits *new_bits(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    if (len <= lenof(v->val)) {
-        v->data = v->val;
+    if (len <= lenof(v->u.val)) {
+        v->data = v->u.val;
         return v;
     }
     if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+    v->u.hash = -1;
     v->data = (bdigit_t *)mallocx(len * sizeof *v->data);
     return v;
 }
 
 static MALLOC Bits *new_bits2(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    if (len <= lenof(v->val)) {
-        v->data = v->val;
+    if (len <= lenof(v->u.val)) {
+        v->data = v->u.val;
         return v;
     }
     if (len <= SIZE_MAX / sizeof *v->data) { /* overflow */
         bdigit_t *n = (bdigit_t *)malloc(len * sizeof *v->data);
         if (n != NULL) {
+            v->u.hash = -1;
             v->data = n;
             return v;
         }
@@ -129,14 +130,14 @@ static MUST_CHECK Obj *invert(const Bits *v1, linepos_t epoint) {
 static MUST_CHECK Obj *normalize(Bits *v, size_t sz, bool neg) {
     bdigit_t *d = v->data;
     while (sz != 0 && d[sz - 1] == 0) sz--;
-    if (sz <= lenof(v->val) && v->val != d) {
+    if (sz <= lenof(v->u.val) && v->u.val != d) {
         if (sz != 0) {
-            memcpy(v->val, d, sz * sizeof *d);
+            memcpy(v->u.val, d, sz * sizeof *d);
         } else {
-            v->val[0] = 0;
+            v->u.val[0] = 0;
         }
         free(d);
-        v->data = v->val;
+        v->data = v->u.val;
     }
     /*if (sz >= SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     v->len = neg ? (ssize_t)~sz : (ssize_t)sz;
@@ -199,7 +200,7 @@ static MALLOC Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
     ssize_t l;
     bdigit_t *v;
     Bits *vv = (Bits *)val_alloc(BITS_OBJ);
-    vv->data = v = vv->val;
+    vv->data = v = vv->u.val;
     v[0] = c;
     l = (c != 0) ? 1 : 0;
     vv->len = neg ? ~l : l;
@@ -240,7 +241,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     const Bits *v1 = (const Bits *)o1;
     size_t len, i, len2, sz;
     uint8_t *s;
@@ -253,9 +254,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     len = inv ? 2 : 1;
     if ((len2 & 3) != 0) {
         len += len2;
-        if (len < len2) goto failed; /* overflow */
+        if (len < len2) return NULL; /* overflow */
         if (len > maxsize) return NULL;
-        v = new_str(len);
+        v = new_str2(len);
+        if (v == NULL) return NULL;
         v->chars = len;
         s = v->data;
 
@@ -269,9 +271,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     }
     len2 /= 4;
     len += len2;
-    if (len < len2) goto failed; /* overflow */
+    if (len < len2) return NULL; /* overflow */
     if (len > maxsize) return NULL;
-    v = new_str(len);
+    v = new_str2(len);
+    if (v == NULL) return NULL;
     v->chars = len;
     s = v->data;
 
@@ -282,14 +285,12 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         *s++ = (j >= sz) ? 0x30 : (uint8_t)"0123456789abcdef"[(v1->data[j] >> ((i & (2 * (sizeof *v1->data) - 1)) * 4)) & 15];
     }
     return &v->v;
-failed:
-    return (epoint != NULL) ? (Obj *)new_error_mem(epoint) : NULL;
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    const Bits *v1 = (const Bits *)o1;
+    Bits *v1 = (Bits *)o1;
     size_t l;
-    unsigned int h;
+    int h;
 
     switch (v1->len) {
     case ~1: *hs = (~v1->data[0]) & ((~0U) >> 1); return NULL;
@@ -298,20 +299,26 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     case 1: *hs = v1->data[0] & ((~0U) >> 1); return NULL;
     default: break;
     }
+    if (v1->data != v1->u.val && v1->u.hash >= 0) {
+        *hs = v1->u.hash;
+        return NULL;
+    }
     if (v1->len < 0) {
         l = (size_t)~v1->len;
-        h = ~0U;
+        h = -1;
         while ((l--) != 0) {
-            h -= v1->val[l];
+            h -= v1->data[l];
         }
     } else {
         l = (size_t)v1->len;
         h = 0;
         while ((l--) != 0) {
-            h += v1->val[l];
+            h += v1->data[l];
         }
     }
-    *hs = h & ((~0U) >> 1);
+    h &= ((~0U) >> 1);
+    if (v1->data != v1->u.val) v1->u.hash = h;
+    *hs = h;
     return NULL;
 }
 
@@ -556,7 +563,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         return (Obj *)ref_bits(null_bits);
     }
 
-    if (v1->len <= sizeof v->val) sz = lenof(v->val);
+    if (v1->len <= sizeof v->u.val) sz = lenof(v->u.val);
     else {
         sz = v1->len / sizeof *d;
         if ((v1->len % sizeof *d) != 0) sz++;
@@ -571,12 +578,13 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         uv |= (bdigit_t)(ch & 0xff) << bits;
         if (bits == SHIFT - 8) {
             if (j >= sz) {
-                if (v->val == d) {
+                if (v->u.val == d) {
                     sz = 16 / sizeof *d;
                     d = (bdigit_t *)malloc(sz * sizeof *d);
                     if (d == NULL) goto failed2;
                     v->data = d;
-                    memcpy(d, v->val, j * sizeof *d);
+                    memcpy(d, v->u.val, j * sizeof *d);
+                    v->u.hash = -1;
                 } else {
                     sz += 1024 / sizeof *d;
                     if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
@@ -592,11 +600,12 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     if (bits != 0) {
         if (j >= sz) {
             sz++;
-            if (v->val == d) {
+            if (v->u.val == d) {
                 d = (bdigit_t *)malloc(sz * sizeof *d);
                 if (d == NULL) goto failed2;
                 v->data = d;
-                memcpy(d, v->val, j * sizeof *d);
+                memcpy(d, v->u.val, j * sizeof *d);
+                v->u.hash = -1;
             } else {
                 if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
                 d = (bdigit_t *)realloc(d, sz * sizeof *d);
@@ -609,15 +618,15 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     } else osz = j;
 
     while (osz != 0 && d[osz - 1] == 0) osz--;
-    if (v->val != d) {
-        if (osz <= lenof(v->val)) {
+    if (v->u.val != d) {
+        if (osz <= lenof(v->u.val)) {
             if (osz != 0) {
-                memcpy(v->val, d, osz * sizeof *d);
+                memcpy(v->u.val, d, osz * sizeof *d);
             } else {
-                v->val[0] = 0;
+                v->u.val[0] = 0;
             }
             free(d);
-            v->data = v->val;
+            v->data = v->u.val;
         } else if (osz < sz) {
             d = (bdigit_t *)realloc(d, osz * sizeof *d);
             if (d == NULL) goto failed2;
@@ -902,7 +911,7 @@ static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2, linepos_t epoint) 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
         neg1 = (vv1->len < 0); neg2 = (vv2->len < 0);
-        c = vv1->val[0] ^ vv2->val[0];
+        c = vv1->data[0] ^ vv2->data[0];
         return (Obj *)return_bits(c, blen, (neg1 != neg2));
     }
     if (len1 < len2) {
@@ -1132,24 +1141,31 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     ln = vv1->bits;
 
     if (o2->obj == LIST_OBJ) {
-        List *list = (List *)o2;
-        size_t len1 = list->len;
+        iter_next_t iter_next;
+        Iter *iter = o2->obj->getiter(o2);
+        size_t len1 = iter->len(iter);
 
         if (len1 == 0) {
+            val_destroy(&iter->v);
             return (Obj *)ref_bits(null_bits);
         }
         sz = (len1 + SHIFT - 1) / SHIFT;
 
         vv = new_bits2(sz);
-        if (vv == NULL) goto failed;
+        if (vv == NULL) {
+            val_destroy(&iter->v);
+            goto failed;
+        }
         v = vv->data;
 
         uv = inv;
         bits = sz = 0;
-        for (i = 0; i < len1; i++) {
-            err = indexoffs(list->data[i], ln, &offs2, epoint2);
+        iter_next = iter->next;
+        for (i = 0; i < len1 && (o2 = iter_next(iter)) != NULL; i++) {
+            err = indexoffs(o2, ln, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&vv->v);
+                val_destroy(&iter->v);
                 return &err->v;
             }
             o = offs2 / SHIFT;
@@ -1163,9 +1179,10 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 bits = 0;
             }
         }
+        val_destroy(&iter->v);
         if (bits != 0) v[sz++] = uv & ((1 << bits) - 1);
 
-        vv->bits = len1;
+        vv->bits = i;
         return normalize(vv, sz, false);
     }
     if (o2->obj == COLONLIST_OBJ) {

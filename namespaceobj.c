@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1582 2018-01-14 10:48:11Z soci $
+    $Id: namespaceobj.c 1613 2018-08-26 13:20:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -81,8 +81,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
         return val_reference(&((Struct *)v1)->names->v);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, NAMESPACE_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -131,12 +130,13 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Tuple *tuple = NULL;
     uint8_t *s;
 
+    if (epoint == NULL) return NULL;
     if (v1->len != 0) {
         const struct avltree_node *n;
         bool first = true;
         ln = v1->len;
         chars = ln + 12;
-        if (chars < 1) err_msg_out_of_memory(); /* overflow */
+        if (chars < 1) return NULL; /* overflow */
         if (chars > maxsize) return NULL;
         tuple = new_tuple(ln);
         vals = tuple->data;
@@ -154,26 +154,29 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 continue;
             }
             v = key->obj->repr(key, epoint, maxsize - chars);
-            if (v == NULL || v->obj != STR_OBJ) {
+            if (v == NULL || v->obj != STR_OBJ) goto error;
+            str = (Str *)v;
+            ln += str->len;
+            if (ln < str->len) goto error2; /* overflow */
+            chars += str->chars;
+            if (chars > maxsize) {
+            error2:
+                val_destroy(v);
+                v = NULL;
+            error:
                 tuple->len = i;
                 val_destroy(&tuple->v);
                 return v;
-            }
-            str = (Str *)v;
-            ln += str->len;
-            if (ln < str->len) err_msg_out_of_memory(); /* overflow */
-            chars += str->chars;
-            if (chars > maxsize) {
-                tuple->len = i;
-                val_destroy(&tuple->v);
-                val_destroy(v);
-                return NULL;
             }
             vals[i++] = v;
         }
         tuple->len = i;
     }
-    str = new_str(ln);
+    str = new_str2(ln);
+    if (str == NULL) {
+        if (tuple != NULL) val_destroy(&tuple->v);
+        return NULL;
+    }
     str->chars = chars;
     s = str->data;
     memcpy(s, "namespace({", 11);

@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1558 2017-07-27 06:03:37Z soci $
+    $Id: file.c 1650 2018-09-16 07:55:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -402,6 +402,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         lastfi->err_no = 0;
         lastfi->read_error = false;
         lastfi->portable = false;
+        lastfi->pass = 0;
         avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi = NULL;
@@ -747,10 +748,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         tmp->encoding = encoding;
     }
     if (tmp->err_no != 0) {
-        char *path = (val != NULL) ? get_path(val, "") : NULL;
-        errno = tmp->err_no;
-        err_msg_file(tmp->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
-        free(path);
+        if (tmp->pass != pass) {
+            char *path = (val != NULL) ? get_path(val, "") : NULL;
+            errno = tmp->err_no;
+            err_msg_file(tmp->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
+            free(path);
+            tmp->pass = pass;
+        }
         return NULL;
     }
     if (!tmp->portable && val != NULL && diagnostics.portable) {

@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: operobj.c 1661 2018-10-06 07:50:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,8 +56,9 @@ Oper o_EXP_ASSIGN  = { {&obj, 0}, "exponent assign '**=", O_EXP_ASSIGN, 2, 3};
 Oper o_CONCAT_ASSIGN = { {&obj, 0}, "concatenate assign '..=", O_CONCAT_ASSIGN, 2, 3};
 Oper o_X_ASSIGN    = { {&obj, 0}, "repeat assign 'x=", O_X_ASSIGN, 2, 2};
 Oper o_MEMBER_ASSIGN = { {&obj, 0}, "member assign '.=", O_MEMBER_ASSIGN, 2, 2};
-Oper o_LOR_ASSIGN  = { {&obj, 0}, "logical or assign '||=", O_LOR_ASSIGN, 5, 3};
-Oper o_LAND_ASSIGN = { {&obj, 0}, "logical and assign '&&=", O_LAND_ASSIGN, 7, 3};
+Oper o_LOR_ASSIGN  = { {&obj, 0}, "logical or assign '||=", O_LOR_ASSIGN, 2, 3};
+Oper o_LAND_ASSIGN = { {&obj, 0}, "logical and assign '&&=", O_LAND_ASSIGN, 2, 3};
+Oper o_COND_ASSIGN = { {&obj, 0}, "conditional assign ':?=", O_COND_ASSIGN, 2, 3};
 Oper o_QUEST       = { {&obj, 0}, "'?", O_QUEST, 2, 1};
 Oper o_COLON       = { {&obj, 0}, "':", O_COLON, 2, 1};
 Oper o_COND        = { {&obj, 0}, "condition '?", O_COND, 3, 1};
@@ -123,7 +124,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     len = strlen(txt);
     len2 = len + 8;
     if (len2 > maxsize) return NULL;
-    v = new_str(len2);
+    v = new_str2(len2);
+    if (v == NULL) return NULL;
     v->chars = len2;
     s = v->data;
     memcpy(s, "<oper ", 6);

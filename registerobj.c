@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: registerobj.c 1621 2018-08-30 20:34:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 */
 #include "registerobj.h"
 #include <string.h>
-#include "error.h"
 #include "eval.h"
 #include "variables.h"
 #include "values.h"
@@ -44,13 +43,6 @@ static inline MALLOC Register *new_register(void) {
     return (Register *)val_alloc(REGISTER_OBJ);
 }
 
-static uint8_t *rnew(Register *v, size_t len) {
-    if (len > sizeof v->val) {
-        return (uint8_t *)mallocx(len);
-    }
-    return v->val;
-}
-
 static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     uint8_t *s;
     switch (o1->obj->type) {
@@ -64,8 +56,11 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
             Register *v = new_register();
             v->chars = v1->chars;
             v->len = v1->len;
-            if (v1->len != 0) {
-                s = rnew(v, v->len);
+            if (v->len != 0) {
+                if (v->len > sizeof v->val) {
+                    s = (uint8_t *)malloc(v->len);
+                    if (s == NULL) return (Obj *)new_error_mem(epoint);
+                } else s = v->val;
                 memcpy(s, v1->data, v->len);
             } else s = NULL;
             v->data = s;
@@ -73,8 +68,7 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
         }
     default: break;
     }
-    err_msg_wrong_type(o1, STR_OBJ, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(o1, REGISTER_OBJ, epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -110,10 +104,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + 12;
-    if (i2 < 12) err_msg_out_of_memory(); /* overflow */
+    if (i2 < 12) return NULL; /* overflow */
     chars = i2 - (v1->len - v1->chars);
     if (chars > maxsize) return NULL;
-    v = new_str(i2);
+    v = new_str2(i2);
+    if (v == NULL) return NULL;
     v->chars = chars;
     s = v->data;
 
@@ -129,6 +124,18 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     }
     s[i] = q;
     s[i + 1] = ')';
+    return &v->v;
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
+    Register *v1 = (Register *)o1;
+    Str *v;
+
+    if (v1->chars > maxsize) return NULL;
+    v = new_str2(v1->len);
+    if (v == NULL) return NULL;
+    v->chars = v1->chars;
+    memcpy(v->data, v1->data, v1->len);
     return &v->v;
 }
 
@@ -201,6 +208,7 @@ void registerobj_init(void) {
     obj.same = same;
     obj.hash = hash;
     obj.repr = repr;
+    obj.str = str;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 }

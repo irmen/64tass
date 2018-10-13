@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 1594 2018-07-31 17:02:16Z soci $
+" $Id: 64tass.vim 1662 2018-10-06 08:20:24Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -39,7 +39,7 @@ syn match tass64Label /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>\.@=/ co
 syn match tass64Oper3 /\./ contained nextgroup=tass64Label
 
 " Assignments
-syn match tass64Assign /\v%([<>*.]{2}|[<>]\?|[-+%*/^&|x:])?\=/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Assign /\v%([<>*.]{2}|[<>:]\?|[-+%*/^&|x:])?\=/ skipwhite contained nextgroup=@tass64Expression
 
 " Macro invocation
 syn match tass64Macro /\v[#.][[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>/ skipwhite contained contains=tass64PreProc,tass64PreCondit,tass64Include,tass64Define,tass64Structure,tass64Type,tass64Debug nextgroup=@tass64Expression
@@ -123,9 +123,9 @@ endif
 " Assembler directives
 syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|cdef|cpu)>/ contained
 syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endp)>/ contained
-syn match tass64PreProc /\v\.%(endweak|eor|for|goto|here|hidemac)>/ contained
-syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next)>/ contained
-syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|proff|pron|rept|section)>/ contained
+syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|hidemac)>/ contained
+syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|virtual|endv)>/ contained
+syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|proff|pron|rept|brept|section)>/ contained
 syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endn)>/ contained
 syn match tass64Define  /\v\.%(segment|macro|endm|function|endf)>/ contained
 syn match tass64Include /\v\.%(include|binclude)>/ contained
@@ -185,8 +185,8 @@ endif
 syn match tass64Escapes "%%" contained conceal cchar=%
 syn match tass64Escapes "%[-+' #0*]*\(\d*\|\*\)\(\.\(\d*\|\*\)\)\=[AabdxXFfeEgGcCsS]" contained
 
-syn match tass64String  /\v[bnlsp]?'%(''|[^'])*'/ skipwhite contained contains=tass64Escapes,tass64Escapes1 nextgroup=@tass64Expression2
-syn match tass64String  /\v[bnlsp]?"%(""|[^"])*"/ skipwhite contained contains=tass64Escapes,tass64Escapes2 nextgroup=@tass64Expression2
+syn match tass64String  /\v[bnlspxz]?'%(''|[^'])*'/ skipwhite contained contains=tass64Escapes,tass64Escapes1 nextgroup=@tass64Expression2
+syn match tass64String  /\v[bnlspxz]?"%(""|[^"])*"/ skipwhite contained contains=tass64Escapes,tass64Escapes2 nextgroup=@tass64Expression2
 
 syn match tass64Delimiter /_/ contained
 syn match tass64Expo    /\v[ep]/ contained

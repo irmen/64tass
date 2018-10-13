@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: bytesobj.h 1639 2018-09-03 21:44:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,10 @@ typedef struct Bytes {
     Obj v;
     ssize_t len;
     uint8_t *data;
-    uint8_t val[16];
+    union {
+        uint8_t val[16];
+        int hash;
+    } u;
 } Bytes;
 
 extern Bytes *null_bytes;
@@ -58,5 +61,7 @@ extern MUST_CHECK Bytes *bytes_from_u8(unsigned int);
 extern MUST_CHECK Bytes *bytes_from_u16(unsigned int);
 extern MUST_CHECK Bytes *bytes_from_uval(uval_t, unsigned int);
 extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, Textconv_types);
+extern MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_z85str(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);
 #endif

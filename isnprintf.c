@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 1539 2017-06-06 18:27:36Z soci $
+   $Id: isnprintf.c 1615 2018-08-26 14:10:42Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -201,6 +201,7 @@ static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
 
     minus = (((Int *)err)->len < 0);
     err2 = err->obj->repr(err, &v->epoint, SIZE_MAX);
+    if (err2 == NULL) err2 = (Obj *)new_error_mem(&v->epoint);
     val_destroy(err);
     if (err2->obj != STR_OBJ) return err2;
 
@@ -334,8 +335,10 @@ static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
         none = listp;
         return NULL;
     }
-    if (*p->pf == 'r') err = val->obj->repr(val, &v->epoint, SIZE_MAX);
-    else err = STR_OBJ->create(val, &v->epoint);
+    if (*p->pf == 'r') {
+        err = val->obj->repr(val, &v->epoint, SIZE_MAX);
+        if (err == NULL) err = (Obj *)new_error_mem(&v->epoint);
+    } else err = STR_OBJ->create(val, &v->epoint);
     if (err->obj != STR_OBJ) {
         if (err == &none_value->v) {
             none = listp;
@@ -576,7 +579,8 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     str = new_str(0);
     str->len = return_value.len;
     str->chars = return_value.chars;
-    if (return_value.len > sizeof str->val) {
+    if (return_value.len > sizeof str->u.val) {
+        str->u.hash = -1;
         if (returnsize > return_value.len) {
             uint8_t *d = (uint8_t *)realloc(return_value.data, return_value.len);
             if (d != NULL) {
@@ -587,8 +591,8 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
         str->data = return_value.data;
         return &str->v;
     }
-    memcpy(str->val, return_value.data, return_value.len);
-    str->data = str->val;
+    memcpy(str->u.val, return_value.data, return_value.len);
+    str->data = str->u.val;
     free(return_value.data);
     return &str->v;
 error:

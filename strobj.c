@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1594 2018-07-31 17:02:16Z soci $
+    $Id: strobj.c 1638 2018-09-03 17:37:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,17 +41,21 @@ Type *const STR_OBJ = &obj;
 Str *null_str;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+    Obj *v;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
-    case T_STR: return val_reference(v1);
-    default: return v1->obj->repr(v1, epoint, SIZE_MAX);
+    case T_STR:
+        return val_reference(v1);
+    default:
+        v = v1->obj->str(v1, epoint, SIZE_MAX);
+        return v != NULL ? v : (Obj *)new_error_mem(epoint);
     }
 }
 
 static FAST_CALL void destroy(Obj *o1) {
     Str *v1 = (Str *)o1;
-    if (v1->val != v1->data) free(v1->data);
+    if (v1->u.val != v1->data) free(v1->data);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -109,13 +113,14 @@ bool tostr(const struct values_s *v1, str_t *out) {
     }
 }
 
-static MALLOC Str *new_str2(size_t ln) {
+MALLOC Str *new_str2(size_t ln) {
     Str *v = (Str *)val_alloc(STR_OBJ);
     v->len = ln;
-    if (ln <= sizeof v->val) {
-        v->data = v->val;
+    if (ln <= sizeof v->u.val) {
+        v->data = v->u.val;
         return v;
     }
+    v->u.hash = -1;
     v->data = (uint8_t *)malloc(ln);
     if (v->data == NULL) {
         val_destroy(&v->v);
@@ -124,7 +129,7 @@ static MALLOC Str *new_str2(size_t ln) {
     return v;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v1 = (Str *)o1;
     size_t i2, i, chars;
     uint8_t *s, *s2;
@@ -133,11 +138,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + 2;
-    if (i2 < 2) goto failed; /* overflow */
+    if (i2 < 2) return NULL; /* overflow */
     chars = i2 - (v1->len - v1->chars);
     if (chars > maxsize) return NULL;
     v = new_str2(i2);
-    if (v == NULL) goto failed;
+    if (v == NULL) return NULL;
     v->chars = chars;
     s = v->data;
 
@@ -151,8 +156,12 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     }
     s[i] = q;
     return &v->v;
-failed:
-    return (epoint != NULL) ? (Obj *)new_error_mem(epoint) : NULL;
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
+    Str *v1 = (Str *)o1;
+    if (v1->chars > maxsize) return NULL;
+    return val_reference(o1);
 }
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
@@ -160,6 +169,10 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->len;
     const uint8_t *s2 = v1->data;
     unsigned int h;
+    if (s2 != v1->u.val && v1->u.hash >= 0) {
+        *hs = v1->u.hash;
+        return NULL;
+    }
     if (l == 0) {
         *hs = 0;
         return NULL;
@@ -167,7 +180,9 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
-    *hs = h & ((~0U) >> 1);
+    h &= ((~0U) >> 1);
+    if (v1->data != v1->u.val) v1->u.hash = h;
+    *hs = h;
     return NULL;
 }
 
@@ -223,27 +238,42 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)int_from_size(v1->chars);
 }
 
-static MUST_CHECK Iter *getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
-    v->val = 0;
-    v->iter = &v->val;
-    v->data = val_reference(v1);
-    return v;
+static size_t iter_len(Iter *v1) {
+    return ((Str *)v1->data)->chars - v1->val;
 }
 
 static MUST_CHECK Obj *next(Iter *v1) {
+    Str *iter;
     const Str *str = (Str *)v1->data;
     unsigned int ln;
-    Str *v;
     const uint8_t *s;
     if (v1->val >= str->len) return NULL;
     s = str->data + v1->val;
     ln = utf8len(*s);
-    v = new_str(ln);
-    v->chars = 1;
-    memcpy(v->data, s, ln);
     v1->val += ln;
-    return &v->v;
+    iter = (Str *)v1->iter;
+    if (iter == NULL) {
+    renew:
+        iter = new_str(6);
+        iter->chars = 1;
+        v1->iter = &iter->v;
+    } else if (iter->v.refcount != 1) {
+        iter->v.refcount--;
+        goto renew;
+    }
+    iter->len = ln;
+    memcpy(iter->data, s, ln);
+    return &iter->v;
+}
+
+static MUST_CHECK Iter *getiter(Obj *v1) {
+    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+    v->iter = NULL;
+    v->val = 0;
+    v->data = val_reference(v1);
+    v->next = next;
+    v->len = iter_len;
+    return v;
 }
 
 MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln, linepos_t epoint) {
@@ -266,6 +296,7 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln, linepos_t epoint) {
         }
         i2++;
     }
+    *ln = i;
     j = (i > 1) ? (i - 2) : 0;
     v = new_str2(j - r);
     if (v == NULL) return (Obj *)new_error_mem(epoint);
@@ -288,18 +319,18 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln, linepos_t epoint) {
     } else {
         memcpy(v->data, s + 1, j);
     }
-    *ln = i;
     return &v->v;
 }
 
 MALLOC Str *new_str(size_t ln) {
     Str *v = (Str *)val_alloc(STR_OBJ);
     v->len = ln;
-    if (ln > sizeof v->val) {
+    if (ln > sizeof v->u.val) {
+        v->u.hash = -1;
         v->data = (uint8_t *)mallocx(ln);
         return v;
     }
-    v->data = v->val;
+    v->data = v->u.val;
     return v;
 }
 
@@ -486,25 +517,34 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     len1 = v1->chars;
 
     if (o2->obj == LIST_OBJ) {
+        iter_next_t iter_next;
+        Iter *iter = o2->obj->getiter(o2);
         size_t i;
-        List *v2 = (List *)o2;
 
-        len2 = v2->len;
+        len2 = iter->len(iter);
         if (len2 == 0) {
+            val_destroy(&iter->v);
             return (Obj *)ref_str(null_str);
         }
+
+        iter_next = iter->next;
         if (v1->len == v1->chars) {
             v = new_str2(len2);
-            if (v == NULL) goto failed;
+            if (v == NULL) {
+                val_destroy(&iter->v);
+                goto failed;
+            }
             p2 = v->data;
-            for (i = 0; i < len2; i++) {
-                err = indexoffs(v2->data[i], len1, &offs2, epoint2);
+            for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
+                err = indexoffs(o2, len1, &offs2, epoint2);
                 if (err != NULL) {
                     val_destroy(&v->v);
+                    val_destroy(&iter->v);
                     return &err->v;
                 }
                 *p2++ = v1->data[offs2];
             }
+            val_destroy(&iter->v);
             len1 = i;
         } else {
             size_t m = v1->len;
@@ -512,15 +552,19 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             size_t j = 0;
 
             v = new_str2(m);
-            if (v == NULL) goto failed;
+            if (v == NULL) {
+                val_destroy(&iter->v);
+                goto failed;
+            }
             o = p2 = v->data;
             p = v1->data;
 
-            for (i = 0; i < v2->len; i++) {
+            for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
                 unsigned int k;
-                err = indexoffs(v2->data[i], len1, &offs2, epoint2);
+                err = indexoffs(o2, len1, &offs2, epoint2);
                 if (err != NULL) {
                     val_destroy(&v->v);
+                    val_destroy(&iter->v);
                     return &err->v;
                 }
                 while (offs2 != j) {
@@ -536,28 +580,39 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 if ((size_t)(p2 - o) + k > m) {
                     const uint8_t *r = o;
                     m += 4096;
-                    if (m < 4096) goto failed2; /* overflow */
-                    if (o == v->val) {
+                    if (m < 4096) {
+                        val_destroy(&iter->v);
+                        goto failed2; /* overflow */
+                    }
+                    if (o == v->u.val) {
                         o = (uint8_t *)malloc(m);
-                        if (o == NULL) goto failed2;
+                        if (o == NULL) {
+                            val_destroy(&iter->v);
+                            goto failed2;
+                        }
                         v->data = o;
-                        memcpy(o, v->val, m - 4096);
+                        memcpy(o, v->u.val, m - 4096);
+                        v->u.hash = -1;
                     } else {
                         o = (uint8_t *)realloc(o, m);
-                        if (o == NULL) goto failed2;
+                        if (o == NULL) {
+                            val_destroy(&iter->v);
+                            goto failed2;
+                        }
                         v->data = o;
                     }
                     p2 += o - r;
                 }
                 memcpy(p2, p, k);p2 += k;
             }
+            val_destroy(&iter->v);
             len1 = i;
             len2 = (size_t)(p2 - o);
-            if (o != v->val) {
-                if (len2 <= sizeof v->val) {
-                    memcpy(v->val, o, len2);
+            if (o != v->u.val) {
+                if (len2 <= sizeof v->u.val) {
+                    memcpy(v->u.val, o, len2);
                     free(o);
-                    v->data = v->val;
+                    v->data = v->u.val;
                 } else {
                     o = (uint8_t *)realloc(o, len2);
                     if (o == NULL) goto failed2;
@@ -640,11 +695,11 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 }
             }
             len2 = (size_t)(p2 - o);
-            if (o != v->val) {
-                if (len2 <= sizeof v->val) {
-                    memcpy(v->val, o, len2);
+            if (o != v->u.val) {
+                if (len2 <= sizeof v->u.val) {
+                    memcpy(v->u.val, o, len2);
                     free(o);
-                    v->data = v->val;
+                    v->data = v->u.val;
                 } else {
                     o = (uint8_t *)realloc(o, len2);
                     if (o == NULL) goto failed2;
@@ -806,13 +861,13 @@ void strobj_init(void) {
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
+    obj.str = str;
     obj.ival = ival;
     obj.uval = uval;
     obj.sign = sign;
     obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
-    obj.next = next;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

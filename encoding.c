@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 1442 2017-04-02 22:43:30Z soci $
+    $Id: encoding.c 1630 2018-09-01 15:56:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -630,7 +630,7 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
 
-    iter_next = iter->v.obj->next;
+    iter_next = iter->next;
     while ((val2 = iter_next(iter)) != NULL) {
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
         if (err != NULL) {
@@ -649,7 +649,6 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
             }
         }
         d[i++] = (uint8_t)uval;
-        val_destroy(val2);
     }
     val_destroy(&iter->v);
 

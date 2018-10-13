@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1594 2018-07-31 17:02:16Z soci $
+    $Id: 64tass.c 1661 2018-10-06 07:50:38Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -75,6 +75,7 @@
 #include "macroobj.h"
 #include "mfuncobj.h"
 #include "memblocksobj.h"
+#include "identobj.h"
 
 struct Listing *listing = NULL;
 int temporary_label_branch; /* function declaration in function context, not good */
@@ -96,11 +97,12 @@ static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
     Wait_types what;
     struct linepos_s epoint;
-    address_t addr, addr2;
-    address2_t laddr, laddr2;
+    address_t addr;
+    address2_t laddr;
     Label *label;
     size_t memp, membp;
     struct section_s *section;
+    struct section_address_s *section_address;
     Obj *val;
     uint8_t skip;
     bool breakout;
@@ -118,10 +120,12 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x35" "assert",
     "\x5b" "autsiz",
     "\x3a" "bend",
+    "\x63" "bfor",
     "\x1a" "binary",
     "\x50" "binclude",
     "\x39" "block",
     "\x5a" "break",
+    "\x62" "brept",
     "\x05" "byte",
     "\x54" "case",
     "\x4e" "cdef",
@@ -154,6 +158,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x46" "ends",
     "\x56" "endswitch",
     "\x49" "endu",
+    "\x61" "endv",
     "\x58" "endweak",
     "\x40" "eor",
     "\x25" "error",
@@ -202,6 +207,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x00" "text",
     "\x48" "union",
     "\x42" "var",
+    "\x60" "virtual",
     "\x2b" "warn",
     "\x57" "weak",
     "\x0a" "word",
@@ -224,7 +230,8 @@ typedef enum Command_types {
     CMD_DUNION, CMD_SECTION, CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
     CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT,
     CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
-    CMD_MANSIZ, CMD_SEED, CMD_NAMESPACE, CMD_ENDN
+    CMD_MANSIZ, CMD_SEED, CMD_NAMESPACE, CMD_ENDN, CMD_VIRTUAL, CMD_ENDV,
+    CMD_BREPT, CMD_BFOR
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
@@ -347,29 +354,29 @@ static MUST_CHECK bool touval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t
  * Skip memory
  */
 static void memskip(address_t db) { /* poke_pos! */
-    if (current_section->moved) {
-        if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
-        if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
-        current_section->moved = false;
+    if (current_address->moved) {
+        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+        if (current_address->wrapwarn) {err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;}
+        current_address->moved = false;
     }
-    if (current_section->l_address.address > 0xffff || db > 0x10000 - current_section->l_address.address) {
-        current_section->l_address.address = ((current_section->l_address.address + db - 1) & 0xffff) + 1;
+    if (current_address->l_address.address > 0xffff || db > 0x10000 - current_address->l_address.address) {
+        current_address->l_address.address = ((current_address->l_address.address + db - 1) & 0xffff) + 1;
         err_msg_pc_wrap(poke_pos);
-    } else current_section->l_address.address += db;
-    if (db > (~current_section->address & all_mem2)) {
-        if (db - 1 + current_section->address == all_mem2) {
-            current_section->wrapwarn = current_section->moved = true;
-            if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
-            current_section->address = 0;
+    } else current_address->l_address.address += db;
+    if (db > (~current_address->address & all_mem2)) {
+        if (db - 1 + current_address->address == all_mem2) {
+            current_address->wrapwarn = current_address->moved = true;
+            if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
+            current_address->address = 0;
         } else {
-            if (current_section->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
-            if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
-            current_section->moved = false;
-            current_section->address = (current_section->address + db) & all_mem2;
-            err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;
+            if (current_address->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+            if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
+            current_address->moved = false;
+            current_address->address = (current_address->address + db) & all_mem2;
+            err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;
         }
-    } else current_section->address += db;
-    memjmp(current_section->mem, current_section->address);
+    } else current_address->address += db;
+    memjmp(current_address->mem, current_address->address);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -377,22 +384,22 @@ static void memskip(address_t db) { /* poke_pos! */
  * output one byte
  */
 FAST_CALL void pokeb(unsigned int byte) { /* poke_pos! */
-    if (current_section->moved) {
-        if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
-        if (current_section->wrapwarn) {err_msg_mem_wrap(poke_pos);current_section->wrapwarn = false;}
-        current_section->moved = false;
+    if (current_address->moved) {
+        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+        if (current_address->wrapwarn) {err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;}
+        current_address->moved = false;
     }
-    if (current_section->l_address.address > 0xffff) {
-        current_section->l_address.address = 0;
+    if (current_address->l_address.address > 0xffff) {
+        current_address->l_address.address = 0;
         err_msg_pc_wrap(poke_pos);
     }
-    if (current_section->dooutput) write_mem(current_section->mem, byte ^ outputeor);
-    current_section->address++;current_section->l_address.address++;
-    if ((current_section->address & ~all_mem2) != 0 || current_section->address == 0) {
-        current_section->wrapwarn = current_section->moved = true;
-        if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
-        current_section->address = 0;
-        memjmp(current_section->mem, current_section->address);
+    write_mem(current_address->mem, byte ^ outputeor);
+    current_address->address++;current_address->l_address.address++;
+    if ((current_address->address & ~all_mem2) != 0 || current_address->address == 0) {
+        current_address->wrapwarn = current_address->moved = true;
+        if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
+        current_address->address = 0;
+        memjmp(current_address->mem, current_address->address);
     }
 }
 
@@ -530,7 +537,7 @@ retry:
         iter = val->obj->getiter(val);
     }
 
-    iter_next = iter->v.obj->next;
+    iter_next = iter->next;
     while ((val2 = iter_next(iter)) != NULL) {
         switch (val2->obj->type) {
         case T_BITS:
@@ -591,7 +598,6 @@ retry:
         case T_NONE:
             warn = true;
         }
-        val_destroy(val2);
         if (*sum >= max) break;
     }
     val_destroy(&iter->v);
@@ -618,16 +624,15 @@ static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
         goto doit;
     }
     iter = type->getiter(val);
-    iter_next = iter->v.obj->next;
+    iter_next = iter->next;
     while ((val2 = iter_next(iter)) != NULL) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE:
             if (byterecursion(val2, prm, uninit, bits)) warn = true;
-            val_destroy(val2);
             continue;
         case T_GAP:
-            *uninit += (unsigned int)abs(bits) / 8; val_destroy(val2);
+            *uninit += (unsigned int)abs(bits) / 8;
             continue;
         default:
         doit:
@@ -641,7 +646,7 @@ static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
                 uv &= all_mem;
                 switch (am) {
                 case A_NONE:
-                    if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, tmp, poke_pos);
+                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, tmp, poke_pos);
                     break;
                 case A_KR:
                     break;
@@ -692,57 +697,87 @@ static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
         if (prm>=CMD_LINT) pokeb(ch2 >> 16);
         if (prm>=CMD_DINT) pokeb(ch2 >> 24);
         if (iter == NULL) return warn;
-        val_destroy(val2);
     }
     val_destroy(&iter->v);
     return warn;
 }
 
-static bool instrecursion(List *val, int prm, unsigned int w, linepos_t epoint, struct linepos_s *epoints) {
-    size_t i;
+static bool instrecursion(Obj *o1, int prm, unsigned int w, linepos_t epoint, struct linepos_s *epoints) {
+    iter_next_t iter_next;
+    Iter *iter = o1->obj->getiter(o1);
     Error *err;
     bool was = false;
-    for (i = 0; i < val->len; i++) {
-        Obj *tmp = val->data[i];
-        if (tmp->obj == TUPLE_OBJ || tmp->obj == LIST_OBJ) {
-            if (instrecursion((List *)tmp, prm, w, epoint, epoints)) was = true;
-            continue;
+    iter_next = iter->next;
+    while ((o1 = iter_next(iter)) != NULL) {
+        if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
+            if (instrecursion(o1, prm, w, epoint, epoints)) was = true;
+        } else {
+            err = instruction(prm, w, o1, epoint, epoints);
+            if (err != NULL) err_msg_output_and_destroy(err); else was = true;
         }
-        err = instruction(prm, w, tmp, epoint, epoints);
-        if (err != NULL) err_msg_output_and_destroy(err); else was = true;
     }
+    val_destroy(&iter->v);
     return was;
 }
 
 static void logical_close(linepos_t epoint) {
-    current_section->l_address.address = (waitfor->laddr.address + current_section->address - waitfor->addr) & 0xffff;
-    if (current_section->address > waitfor->addr) {
-        if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
+    current_address->l_address.address = (waitfor->laddr.address + current_address->address - waitfor->addr) & 0xffff;
+    if (current_address->address > waitfor->addr) {
+        if (current_address->l_address.address == 0) current_address->l_address.address = 0x10000;
     }
-    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->address - waitfor->addr) & ~(address_t)0xffff)) & all_mem;
-    if (current_section->l_address.bank > all_mem) {
-        current_section->l_address.bank &= all_mem;
-        if (epoint != NULL) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint);
+    current_address->l_address.bank = (waitfor->laddr.bank + ((current_address->address - waitfor->addr) & ~(address_t)0xffff)) & all_mem;
+    if (current_address->l_address.bank > all_mem) {
+        current_address->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg_big_address(epoint);
     }
-    val_destroy(current_section->l_address_val);
-    current_section->l_address_val = waitfor->val; waitfor->val = NULL;
-    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+    val_destroy(current_address->l_address_val);
+    current_address->l_address_val = waitfor->val; waitfor->val = NULL;
+    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
     current_section->logicalrecursion--;
 }
 
+static void virtual_close(linepos_t epoint) {
+    if (waitfor->label != NULL) {
+        address_t end = (current_address->end < current_address->address) ? current_address->address : current_address->end;
+        set_size(waitfor->label, end - current_address->start, current_address->mem, waitfor->memp, waitfor->membp);
+    }
+    val_destroy(current_address->l_address_val);
+    val_destroy(&current_address->mem->v);
+    free(current_address);
+    current_address = waitfor->section_address;
+    if (current_address->l_address.bank > all_mem) {
+        current_address->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg_big_address(epoint);
+    }
+}
+
+static void section_close(linepos_t epoint) {
+    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+    current_section = waitfor->section;
+    current_address = waitfor->section_address;
+    if (current_address->l_address.bank > all_mem) {
+        current_address->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg_big_address(epoint);
+    }
+}
+
 static void union_close(linepos_t epoint) {
-    current_section->l_address = current_section->l_unionend;
-    if (current_section->l_address.bank > all_mem) {
-        current_section->l_address.bank &= all_mem;
-        if (epoint != NULL) err_msg2(ERROR_ADDRESS_LARGE, NULL, epoint);
+    struct section_address_s *old = current_address;
+    address_t end;
+    current_address = waitfor->section_address;
+    if (current_address->l_address.bank > all_mem) {
+        current_address->l_address.bank &= all_mem;
+        if (epoint != NULL) err_msg_big_address(epoint);
     }
-    if (current_section->address != current_section->unionend) {
-        current_section->address = current_section->unionend;
-        memjmp(current_section->mem, current_section->address);
+    end = (old->end < old->address) ? old->address : old->end;
+    if (end != old->start) {
+        if (epoint != NULL) poke_pos = epoint;
+        memskip(end - old->start);
     }
-    current_section->unionmode = waitfor->breakout;
-    current_section->unionstart = waitfor->addr; current_section->unionend = waitfor->addr2;
-    current_section->l_unionstart = waitfor->laddr; current_section->l_unionend = waitfor->laddr2;
+    memref(current_address->mem, old->mem);
+    val_destroy(old->l_address_val);
+    val_destroy(&old->mem->v);
+    free(old);
 }
 
 static const char *check_waitfor(void) {
@@ -752,12 +787,12 @@ static const char *check_waitfor(void) {
     case W_SWITCH2:
     case W_SWITCH: return ".endswitch";
     case W_WEAK2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
         strength--;
         /* fall through */
     case W_WEAK: return ".endweak";
     case W_ENDP2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
         /* fall through */
     case W_ENDP: return ".endp";
     case W_ENDM2:
@@ -768,11 +803,11 @@ static const char *check_waitfor(void) {
     case W_PEND:
         if ((waitfor->skip & 1) != 0) {
             pop_context();
-            if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+            if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
         }
         return ".pend";
     case W_BEND2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
         pop_context();
         /* fall through */
     case W_BEND: return ".bend";
@@ -782,12 +817,11 @@ static const char *check_waitfor(void) {
     case W_ENDN: return ".endn";
     case W_ENDC: return ".endc";
     case W_ENDS:
-        if ((waitfor->skip & 1) != 0) current_section->unionmode = waitfor->breakout;
+        if ((waitfor->skip & 1) != 0) union_close(NULL);
         /* fall through */
     case W_ENDS2: return ".ends";
     case W_SEND2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
-        current_section = waitfor->section;
+        section_close(NULL);
         /* fall through */
     case W_SEND: return ".send";
     case W_ENDU:
@@ -798,6 +832,10 @@ static const char *check_waitfor(void) {
         logical_close(NULL);
         /* fall through */
     case W_HERE: return ".here";
+    case W_ENDV2:
+        virtual_close(NULL);
+        /* fall through */
+    case W_ENDV: return ".endv";
     case W_NEXT2:
     case W_NONE:
         break;
@@ -810,44 +848,103 @@ static bool section_start(linepos_t epoint) {
     str_t sectionname;
     struct linepos_s opoint;
 
-    new_waitfor(W_SEND, epoint);waitfor->section = current_section;
+    new_waitfor(W_SEND, epoint);waitfor->section = current_section;waitfor->section_address = current_address;
     opoint = lpoint;
     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); return true;}
-    if (current_section->structrecursion != 0 || !current_section->dooutput) {err_msg2(ERROR___NOT_ALLOWED, ".section", epoint); return true;}
     tmp = find_new_section(&sectionname);
     if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
-        tmp->end = tmp->start = tmp->restart = tmp->address = 0;
-        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
+        tmp->address.end = tmp->address.start = tmp->restart = tmp->address.address = 0;
+        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->address.l_address.address = tmp->address.l_address.bank = 0;
         if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
         else {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, epoint);
             fixeddig = false;
         }
         tmp->defpass = pass - 1;
-        val_destroy(&tmp->mem->v);
-        tmp->mem = new_memblocks();
-        tmp->mem->lastaddr = tmp->address;
+        val_destroy(&tmp->address.mem->v);
+        tmp->address.mem = new_memblocks();
+        tmp->address.mem->lastaddr = tmp->address.address;
         if (diagnostics.optimize) cpu_opt_invalidate();
     } else if (tmp->usepass != pass) {
-        if (!tmp->moved) {
-            if (tmp->end < tmp->address) tmp->end = tmp->address;
-            tmp->moved = true;
+        if (!tmp->address.moved) {
+            if (tmp->address.end < tmp->address.address) tmp->address.end = tmp->address.address;
+            tmp->address.moved = true;
         }
-        tmp->size = tmp->end - tmp->start;
-        tmp->end = tmp->start = tmp->restart;
-        tmp->wrapwarn = false;
-        tmp->address = tmp->restart;
-        tmp->l_address = tmp->l_restart;
-        val_destroy(&tmp->mem->v);
-        tmp->mem = new_memblocks();
-        tmp->mem->lastaddr = tmp->address;
+        tmp->size = tmp->address.end - tmp->address.start;
+        tmp->address.end = tmp->address.start = tmp->restart;
+        tmp->address.wrapwarn = false;
+        tmp->address.address = tmp->restart;
+        tmp->address.l_address = tmp->l_restart;
+        val_destroy(&tmp->address.mem->v);
+        tmp->address.mem = new_memblocks();
+        tmp->address.mem->lastaddr = tmp->address.address;
         if (diagnostics.optimize) cpu_opt_invalidate();
     }
     tmp->usepass = pass;
     waitfor->what = W_SEND2;
     current_section = tmp;
+    current_address = &tmp->address;
     return false;
+}
+
+static bool virtual_start(linepos_t epoint) {
+    struct section_address_s *section_address;
+    Obj *tmp = NULL;
+    bool retval = false;
+
+    if (diagnostics.optimize) cpu_opt_invalidate();
+    listing_line(listing, epoint->pos);
+    new_waitfor(W_ENDV2, epoint); waitfor->section_address = current_address;
+    section_address = (struct section_address_s *)mallocx(sizeof *section_address);
+    section_address->wrapwarn = section_address->moved = false;
+
+    do {
+        struct values_s *vs;
+        atype_t am;
+        uval_t uval;
+
+        if (!get_exp(0, 0, 1, epoint)) {retval = true;break;}
+        vs = get_val();
+        if (vs == NULL) break;
+        if (touval(vs->val->obj->address(vs->val, &am), &uval, all_mem_bits, &vs->epoint)) {retval = true; break;}
+        if (am != A_NONE && check_addr(am)) {
+            err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
+            retval = true;
+            break;
+        }
+        tmp = vs->val;
+        section_address->address = uval;
+        section_address->l_address.address = uval & 0xffff;
+        section_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+        section_address->l_address_val = val_reference(tmp == NULL ? &int_value[0]->v : (tmp->obj == CODE_OBJ) ? ((Code *)tmp)->addr : tmp);
+    } while (false);
+
+    if (tmp == NULL) {
+        section_address->address = current_address->address;
+        section_address->l_address = current_address->l_address;
+        section_address->l_address_val = val_reference(current_address->l_address_val);
+    }
+    section_address->unionmode = current_address->unionmode;
+    if (section_address->unionmode) {
+        section_address->l_start = section_address->l_address;
+    } else {
+        section_address->l_start.address = section_address->l_start.bank = 0;
+    }
+    section_address->start = section_address->end = section_address->address;
+    section_address->mem = new_memblocks();
+    section_address->mem->lastaddr = section_address->address;
+    current_address = section_address;
+    return retval;
+}
+
+static void union_start(struct section_address_s *section_address) {
+    section_address->wrapwarn = section_address->moved = false;
+    section_address->address = section_address->start = section_address->end = current_address->address;
+    section_address->l_address = current_address->l_address;
+    section_address->mem = new_memblocks();
+    section_address->mem->lastaddr = section_address->address;
+    section_address->l_address_val = val_reference(current_address->l_address_val);
 }
 
 static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
@@ -855,19 +952,15 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     atype_t am;
     address_t addr, laddr;
 
-    current_section->wrapwarn = false;
-    if (!current_section->moved) {
-        if (current_section->end < current_section->address) current_section->end = current_section->address;
-        current_section->moved = true;
+    current_address->wrapwarn = false;
+    if (!current_address->moved) {
+        if (current_address->end < current_address->address) current_address->end = current_address->address;
+        current_address->moved = true;
     }
     listing_line(listing, epoint->pos);
     do {
-        if (current_section->structrecursion != 0 && !current_section->dooutput) {
-            err_msg2(ERROR___NOT_ALLOWED, "*=", epoint);
-            break;
-        }
         {
-            address_t max = (current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
+            address_t max = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
             if (touval(val->obj->address(val, &am), &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, epoint2)) {
                 break;
             }
@@ -876,40 +969,40 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
         }
-        if (current_section->logicalrecursion == 0) {
-            current_section->l_address.address = uval & 0xffff;
-            current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
-            val_destroy(current_section->l_address_val);
+        if (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) {
+            current_address->l_address.address = uval & 0xffff;
+            current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+            val_destroy(current_address->l_address_val);
             if (val->obj == CODE_OBJ) {
-                current_section->l_address_val = val_reference(((Code *)val)->addr);
+                current_address->l_address_val = val_reference(((Code *)val)->addr);
                 val_destroy(val);
-            } else current_section->l_address_val = val;
+            } else current_address->l_address_val = val;
             addr = (address_t)uval & all_mem2;
-            if (current_section->address != addr) {
-                current_section->address = addr;
-                memjmp(current_section->mem, current_section->address);
+            if (current_address->address != addr) {
+                current_address->address = addr;
+                memjmp(current_address->mem, current_address->address);
             }
             return;
         }
-        laddr = (current_section->l_address.address + current_section->l_address.bank) & all_mem; /* overflow included! */
+        laddr = (current_address->l_address.address + current_address->l_address.bank) & all_mem; /* overflow included! */
         addr = (address_t)uval & all_mem;
         if (arguments.tasmcomp) addr = (uint16_t)addr;
         else if (addr >= laddr) {
-            addr = (current_section->address + (addr - laddr)) & all_mem2;
+            addr = (current_address->address + (addr - laddr)) & all_mem2;
         } else {
-            addr = (current_section->address - (laddr - addr)) & all_mem2;
+            addr = (current_address->address - (laddr - addr)) & all_mem2;
         }
-        if (current_section->address != addr) {
-            current_section->address = addr;
-            memjmp(current_section->mem, current_section->address);
+        if (current_address->address != addr) {
+            current_address->address = addr;
+            memjmp(current_address->mem, current_address->address);
         }
-        current_section->l_address.address = uval & 0xffff;
-        current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
-        val_destroy(current_section->l_address_val);
+        current_address->l_address.address = uval & 0xffff;
+        current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+        val_destroy(current_address->l_address_val);
         if (val->obj == CODE_OBJ) {
-            current_section->l_address_val = val_reference(((Code *)val)->addr);
+            current_address->l_address_val = val_reference(((Code *)val)->addr);
             val_destroy(val);
-        } else current_section->l_address_val = val;
+        } else current_address->l_address_val = val;
         return;
     } while (false);
     val_destroy(val);
@@ -952,10 +1045,438 @@ static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
         switch (wht) {
         case '<': return &o_MIN;
         case '>': return &o_MAX;
+        case ':': return &o_COND;
         default: return NULL;
         }
     }
     return NULL;
+}
+
+static MUST_CHECK Obj *tuple_scope_light(Obj **o, linepos_t epoint) {
+    Obj *nf, *val = *o;
+    if (val->obj != NAMESPACE_OBJ) {
+        val_destroy(val);
+        *o = val = (Obj *)new_namespace(current_file_list, epoint);
+    }
+    push_context((Namespace *)val);
+    nf = compile();
+    pop_context();
+    return nf;
+}
+
+static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
+    Obj *nf;
+    size_t size;
+    Code *code;
+    address_t oaddr;
+    size_t newmemp, newmembp;
+    Obj *val = *o;
+
+    if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
+    oaddr = current_address->address;
+    if (val->obj == CODE_OBJ) {
+        Obj *tmp = get_star_value(current_address->l_address_val);
+        code = (Code *)val;
+        if (!tmp->obj->same(tmp, code->addr)) {
+            val_destroy(code->addr); code->addr = tmp;
+            if (newlabel->usepass >= pass) {
+                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+                fixeddig = false;
+            }
+        } else val_destroy(tmp);
+        if (code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+            code->requires = current_section->requires;
+            code->conflicts = current_section->conflicts;
+            code->offs = 0;
+            if (newlabel->usepass >= pass) {
+                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+                fixeddig = false;
+            }
+        }
+    } else {
+        code = new_code();
+        code->addr = get_star_value(current_address->l_address_val);
+        code->size = 0;
+        code->offs = 0;
+        code->dtype = D_NONE;
+        code->pass = 0;
+        code->memblocks = ref_memblocks(current_address->mem);
+        code->names = new_namespace(current_file_list, &newlabel->epoint);
+        code->requires = current_section->requires;
+        code->conflicts = current_section->conflicts;
+        val_destroy(val);
+        *o = val = &code->v;
+    }
+    get_mem(current_address->mem, &newmemp, &newmembp);
+    code->apass = pass;
+    push_context(((Code *)val)->names);
+    nf = compile();
+    pop_context();
+    size = (current_address->address - oaddr) & all_mem2;
+    if (code->size != size) {
+        code->size = size;
+        if (code->pass != 0) {
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+            fixeddig = false;
+        }
+    }
+    code->pass = pass;
+    if (code->memblocks != current_address->mem) {
+        val_destroy(&code->memblocks->v);
+        code->memblocks = ref_memblocks(current_address->mem);
+    }
+    code->memp = newmemp;
+    code->membp = newmembp;
+    return nf;
+}
+
+static void list_extend(List *lst) {
+    size_t o = lst->len;
+    if (lst->data == lst->val) {
+        lst->data = (Obj **)mallocx(16 * sizeof *lst->data);
+        memcpy(lst->data, lst->val, lst->len * sizeof *lst->data);
+        lst->len = 16;
+    } else {
+        if (lst->len < 256) lst->len *= 2;
+        else {
+            lst->len += 256;
+            if (lst->len < 256) err_msg_out_of_memory(); /* overflow */
+        }
+        lst->data = (Obj **)reallocx(lst->data, lst->len * sizeof *lst->data);
+    }
+    while (o < lst->len) lst->data[o++] = (Obj *)ref_none();
+}
+
+static void list_shrink(List *lst, size_t i) {
+    size_t j = i;
+    while (j < lst->len) val_destroy(lst->data[j++]);
+    lst->len = i;
+    if (lst->data != lst->val) {
+        if (lst->len <= lenof(lst->val)) {
+            memcpy(lst->val, lst->data, lst->len * sizeof *lst->data);
+            free(lst->data);
+            lst->data = lst->val;
+        } else {
+            Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
+            if (v != NULL) lst->data =v;
+        }
+    }
+}
+
+static size_t for_command(Label *newlabel, List *lst, bool light, linepos_t epoint) {
+    int wht;
+    line_t lin, xlin;
+    struct linepos_s apoint, bpoint = {0, 0};
+    int nopos = -1;
+    struct oper_s tmp;
+    struct linepos_s epoint2, epoint3;
+    uint8_t *expr;
+    struct {
+        size_t p, len;
+        Label **data;
+        Label *val[4];
+    } labels;
+    Label *label;
+    Obj *val, *nf = NULL;
+    struct star_s *s;
+    struct avltree *stree_old;
+    line_t ovline, lvline;
+    bool starexists, foreach = false;
+    size_t lentmp;
+    Iter *iter = NULL;
+    labels.p = 0;
+    size_t i = 0;
+
+    if (diagnostics.optimize) cpu_opt_invalidate();
+    listing_line(listing, epoint->pos);
+    new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
+
+    do { /* label */
+        bool labelexists;
+        str_t varname;
+        epoint2 = lpoint;
+
+        varname.data = pline + lpoint.pos; varname.len = get_label();
+        if (varname.len == 0) break;
+
+        if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint2); goto error;}
+        ignore(); wht = here();
+        if (wht == ',') {
+            lpoint.pos++;
+            foreach = true;
+            val = (Obj *)ref_none();
+        } else {
+            if (wht != '=' || foreach) {
+                if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp && !foreach) lpoint.pos += 2;
+                else {
+                    size_t l = get_label();
+                    if (l != 2 || (pline[lpoint.pos-2] | arguments.caseinsensitive) != 'i' || (pline[lpoint.pos-1] | arguments.caseinsensitive) != 'n') {
+                        lpoint.pos -= l;
+                        err_msg(ERROR______EXPECTED, foreach ? "',' or 'in'" : "':=' or ',' or 'in'"); goto error;
+                    } else foreach = true;
+                }
+            } else lpoint.pos++;
+            if (foreach) { 
+                ignore();
+                epoint3 = lpoint;
+                if (!get_exp(0, 1, 0, &epoint3)) goto error;
+                val = get_vals_tuple();
+                if (val->obj->getiter == DEFAULT_OBJ->getiter) {
+                    Error *err = new_error_obj(ERROR______NOT_ITER, val, &epoint3);
+                    val_destroy(val); val = &err->v;
+                } else {
+                    iter = val->obj->getiter(val);
+                    val_destroy(val); val = (Obj *)ref_none();
+                }
+            } else {
+                struct linepos_s epoints[3];
+                if (!get_exp(1, 1, 1, &lpoint)) goto error;
+                val = get_vals_addrlist(epoints);
+            }
+            if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
+        }
+        label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, current_file_list);
+        if (foreach) {
+            if (labels.p == 0) {
+                labels.len = lenof(labels.val);
+                labels.data = labels.val;
+            } else if (labels.p >= labels.len) {
+                labels.len += 16;
+                if (/*labels.len < 16 ||*/ labels.len > SIZE_MAX / sizeof *labels.data) err_msg_out_of_memory(); /* overflow */
+                if (labels.data == labels.val) {
+                    labels.data = (Label **)mallocx(labels.len * sizeof *labels.data);
+                    memcpy(labels.data, labels.val, sizeof labels.val);
+                } else labels.data = (Label **)reallocx(labels.data, labels.len * sizeof *labels.data);
+            }
+            labels.data[labels.p++] = label;
+        }
+        if (labelexists) {
+            if (label->constant) {
+                err_msg_double_defined(label, &varname, &epoint2);
+                val_destroy(val);
+            } else {
+                if (label->defpass != pass) {
+                    label->ref = false;
+                    label->defpass = pass;
+                } else {
+                    if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
+                }
+                label->owner = false;
+                if (label->file_list != current_file_list) {
+                    label_move(label, &varname, current_file_list);
+                }
+                label->epoint = epoint2;
+                val_destroy(label->value);
+                label->value = val;
+                label->usepass = 0;
+            }
+        } else {
+            label->constant = false;
+            label->owner = false;
+            label->value = val;
+            label->epoint = epoint2;
+        }
+        ignore();
+    } while (wht == ',');
+    if (foreach) {
+        if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+    } else {
+        if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); 
+        error:
+            if (labels.p != 0 && labels.data != labels.val) free(labels.data);
+            return i;
+        }
+        lpoint.pos++;ignore();
+    }
+
+    s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
+    if (starexists && s->addr != star) {
+        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+        fixeddig = false;
+    }
+    s->addr = star;
+    star_tree = &s->tree; lvline = vline = 0;
+    lin = lpoint.line;
+
+    if (foreach) {
+        new_waitfor(W_NEXT2, epoint);
+        waitfor->breakout = false;
+        if (iter != NULL) {
+            iter_next_t iter_next = iter->next;
+            Obj *val2;
+
+            while ((val2 = iter_next(iter)) != NULL) {
+                if (labels.p == 1) {
+                    val_destroy(label->value);
+                    label->value = val_reference(val2);
+                } else {
+                    Iter *iter2 = val2->obj->getiter(val2);
+                    iter_next_t iter2_next;
+                    size_t j;
+                    iter2_next = iter2->next;
+                    for (j = 0; j < labels.p && (val2 = iter2_next(iter2)) != NULL; j++) {
+                        val_destroy(labels.data[j]->value);
+                        labels.data[j]->value = val_reference(val2);
+                    }
+                    j += iter2->len(iter2);
+                    if (j != labels.p) err_msg_cant_unpack(labels.p, j, epoint);
+                }
+                lpoint.line = lin;
+                waitfor->skip = 1; lvline = vline;
+                if (lst != NULL) {
+                    if (i >= lst->len) list_extend(lst);
+                    if (light) nf = tuple_scope_light(&lst->data[i], epoint);
+                    else nf = tuple_scope(newlabel, &lst->data[i]);
+                    i++;
+                } else nf = compile();
+                if (nf == NULL || waitfor->breakout) {
+                    break;
+                }
+                if ((waitfor->skip & 1) != 0 && val2 != NULL) listing_line_cut(listing, waitfor->epoint.pos);
+            }
+            val_destroy(&iter->v);
+        }
+        if (labels.p != 0 && labels.data != labels.val) free(labels.data);
+        expr = NULL;
+    } else {
+        xlin = lpoint.line; apoint = lpoint;
+        lentmp = strlen((const char *)pline) + 1;
+        expr = (uint8_t *)mallocx(lentmp);
+        memcpy(expr, pline, lentmp); label = NULL;
+        new_waitfor(W_NEXT2, epoint);
+        waitfor->breakout = false;
+        tmp.op = NULL;
+        for (;;) {
+            lpoint = apoint;
+            if (here() != ',' && here() != 0) {
+                struct values_s *vs;
+                bool truth;
+                if (!get_exp(1, 1, 1, &apoint)) break;
+                vs = get_val();
+                if (tobool(vs, &truth)) break;
+                if (!truth) break;
+            }
+            if (nopos < 0) {
+                ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); break;}
+                lpoint.pos++;ignore();
+                if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
+                else bpoint = lpoint;
+            } else {
+                if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
+            }
+            waitfor->skip = 1;lvline = vline;
+            if (lst != NULL) {
+                if (i >= lst->len) list_extend(lst);
+                if (light) nf = tuple_scope_light(&lst->data[i], epoint);
+                else nf = tuple_scope(newlabel, &lst->data[i]);
+                i++;
+            } else nf = compile();
+            xlin = lpoint.line;
+            pline = expr;
+            lpoint.line = lin;
+            if (nf == NULL || waitfor->breakout) break;
+            if (nopos < 0) {
+                str_t varname;
+                Namespace *context;
+                bool labelexists;
+                lpoint = bpoint;
+                varname.data = pline + lpoint.pos; varname.len = get_label();
+                if (varname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &bpoint);break;}
+                if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &bpoint); break;}
+                ignore(); wht = here();
+                while (wht != 0 && !arguments.tasmcomp) {
+                    int wht2 = pline[lpoint.pos + 1];
+                    if (wht2 == '=') {
+                        if (wht == ':') {
+                            wht = '=';
+                            lpoint.pos++;
+                            break;
+                        }
+                        tmp.op = oper_from_token(wht);
+                        if (tmp.op == NULL) break;
+                        epoint3 = lpoint;
+                        lpoint.pos += 2;
+                    } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                        if (wht == '?') break;
+                        tmp.op = oper_from_token2(wht, wht2);
+                        if (tmp.op == NULL) break;
+                        epoint3 = lpoint;
+                        lpoint.pos += 3;
+                    } else break;
+
+                    ignore();
+                    epoint2 = lpoint;
+                    tmp.epoint = &bpoint;
+                    tmp.epoint2 = &epoint2;
+                    tmp.epoint3 = &epoint3;
+                    break;
+                }
+                context = (varname.data[0] == '_') ? cheap_context : current_context;
+                if (tmp.op == NULL) {
+                    if (wht != '=') {err_msg(ERROR______EXPECTED, "':='"); break;}
+                    lpoint.pos++;ignore();
+                    label = new_label(&varname, context, strength, &labelexists, current_file_list);
+                    if (labelexists) {
+                        if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
+                        if (label->defpass != pass) {
+                            label->ref = false;
+                            label->defpass = pass;
+                        } else {
+                            if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
+                        }
+                        label->owner = false;
+                        if (label->file_list != current_file_list) {
+                            label_move(label, &varname, current_file_list);
+                        }
+                        label->epoint = bpoint;
+                    } else {
+                        label->constant = false;
+                        label->owner = false;
+                        label->value = (Obj *)ref_none();
+                        label->epoint = bpoint;
+                    }
+                } else {
+                    label = find_label2(&varname, context);
+                    if (label == NULL) {err_msg_not_defined2(&varname, context, false, &bpoint); break;}
+                    if (label->constant) {err_msg_not_variable(label, &varname, &bpoint); break;}
+                    if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &bpoint);
+                }
+                bpoint = lpoint; nopos = 1;
+            }
+            if (nopos > 0) {
+                struct linepos_s epoints[3];
+                lpoint = bpoint;
+                if (!get_exp(0, 0, 0, &bpoint)) break;
+                val = get_vals_addrlist(epoints);
+                if (tmp.op != NULL) {
+                    Obj *result2, *val1 = label->value;
+                    tmp.v1 = val1;
+                    tmp.v2 = val;
+                    result2 = tmp.v1->obj->calc2(&tmp);
+                    if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                    else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
+                        if (result2 == &true_value->v) val_replace(&result2, val1);
+                        else if (result2 == &false_value->v) val_replace(&result2, val);
+                    }
+                    val_destroy(val);
+                    val = result2;
+                }
+                val_destroy(label->value);
+                label->value = val;
+                label->usepass = 0;
+            }
+        }
+        lpoint.line = xlin;
+    }
+    if (nf != NULL) {
+        if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
+        else listing_line_cut2(listing, waitfor->epoint.pos);
+    }
+    close_waitfor(W_NEXT2);
+    free(expr);
+    if (nf != NULL) close_waitfor(W_NEXT);
+    star_tree = stree_old; vline = ovline + vline - lvline;
+    return i;
 }
 
 MUST_CHECK Obj *compile(void)
@@ -992,26 +1513,24 @@ MUST_CHECK Obj *compile(void)
         if (mtranslate()) break; /* expand macro parameters, if any */
         newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
-        if (current_section->unionmode) {
-            if (current_section->address > current_section->unionend) {
-                current_section->unionend = current_section->address;
-                current_section->l_unionend = current_section->l_address;
-            }
-            current_section->l_address = current_section->l_unionstart;
-            if (current_section->l_address.bank > all_mem) {
-                current_section->l_address.bank &= all_mem;
-                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-            }
-            if (current_section->address != current_section->unionstart) {
-                if (!current_section->moved) {
-                    if (current_section->end < current_section->address) current_section->end = current_section->address;
-                    current_section->moved = true;
+        if (current_address->unionmode) {
+            if (current_address->l_address.address != current_address->l_start.address || current_address->l_address.bank != current_address->l_start.bank) {
+                current_address->l_address = current_address->l_start;
+                if (current_address->l_address.bank > all_mem) {
+                    current_address->l_address.bank &= all_mem;
+                    err_msg_big_address(&epoint);
                 }
-                current_section->address = current_section->unionstart;
-                memjmp(current_section->mem, current_section->address);
+            }
+            if (current_address->address != current_address->start) {
+                if (!current_address->moved) {
+                    if (current_address->address > current_address->end) current_address->end = current_address->address;
+                    current_address->moved = true;
+                }
+                current_address->address = current_address->start;
+                memjmp(current_address->mem, current_address->address);
             }
         }
-        star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
         wht = here();
         switch (wht) {
         case '*':
@@ -1054,7 +1573,8 @@ MUST_CHECK Obj *compile(void)
         labelname.data = pline + lpoint.pos; labelname.len = get_label();
         if (labelname.len != 0) {
             struct linepos_s cmdpoint;
-            bool islabel = false;
+            bool islabel;
+            islabel = false;
             while (here() == '.' && pline[lpoint.pos+1] != '.') {
                 if ((waitfor->skip & 1) != 0) {
                     if (!islabel) {
@@ -1069,19 +1589,26 @@ MUST_CHECK Obj *compile(void)
                         tmp2 = find_label2(&labelname, mycontext);
                         if (tmp2 == NULL) {err_msg_not_defined2(&labelname, mycontext, false, &epoint); goto breakerr;}
                     }
-                    mycontext = get_namespace(tmp2->value);
-                    if (mycontext == NULL) {
-                        err_msg_wrong_type(tmp2->value, NULL, &epoint);
-                        goto breakerr;
-                    }
-                    tmp2->usepass = pass; /* touch_label(tmp2) */
                     if (diagnostics.case_symbol && str_cmp(&labelname, &tmp2->name) != 0) err_msg_symbol_case(&labelname, tmp2, &epoint);
+                    tmp2->usepass = pass; /* touch_label(tmp2) */
                 }
                 lpoint.pos++; islabel = true; epoint = lpoint;
                 labelname.data = pline + lpoint.pos; labelname.len = get_label();
                 if (labelname.len == 0) {
-                    if ((waitfor->skip & 1) != 0) err_msg(ERROR_GENERL_SYNTAX, NULL);
+                    if ((waitfor->skip & 1) != 0) err_msg2(ERROR______EXPECTED, "a symbol is", &lpoint);
                     goto breakerr;
+                }
+                if ((waitfor->skip & 1) != 0) {
+                    mycontext = get_namespace(tmp2->value);
+                    if (mycontext == NULL) {
+                        Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
+                        idn->name = labelname;
+                        idn->epoint = epoint;
+                        epoint.pos--;
+                        err_msg_invalid_oper(&o_MEMBER, &tmp2->v, &idn->v, &epoint);
+                        val_destroy(&idn->v);
+                        goto breakerr;
+                    }
                 }
             }
             if (!islabel && labelname.data[0] == '_') {
@@ -1132,7 +1659,9 @@ MUST_CHECK Obj *compile(void)
                 if (labelname.data[0] == '*') {
                     label = NULL;
                     if (diagnostics.optimize) cpu_opt_invalidate();
-                    val = get_star_value(current_section->l_address_val);
+                    val = get_star_value(current_address->l_address_val);
+                } else if (tmp.op == &o_COND) {
+                    label = NULL; val = NULL;
                 } else {
                     label = find_label2(&labelname, mycontext);
                     if (label == NULL) {
@@ -1174,7 +1703,39 @@ MUST_CHECK Obj *compile(void)
                     val2 = get_vals_addrlist(epoints);
                     referenceit = oldreferenceit;
                 }
-                oaddr = current_section->address;
+                oaddr = current_address->address;
+                if (val == NULL) {
+                    bool labelexists;
+                    label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
+                    if (labelexists) {
+                        if (label->constant) {
+                            err_msg_not_variable(label, &labelname, &epoint); goto breakerr;
+                            val_destroy(val2);
+                            goto breakerr;
+                        }
+                        if (label->defpass != pass) {
+                            label->ref = false;
+                            label->defpass = pass;
+                        } else {
+                            val_destroy(val2);
+                            goto finish;
+                        }
+                        label->owner = false;
+                        if (label->file_list != current_file_list) {
+                            label_move(label, &labelname, current_file_list);
+                        }
+                        label->epoint = epoint;
+                        val_destroy(label->value);
+                        label->value = val2;
+                        label->usepass = 0;
+                    } else {
+                        label->constant = false;
+                        label->owner = false;
+                        label->value = val2;
+                        label->epoint = epoint;
+                    }
+                    goto finish;
+                }
                 tmp.v1 = val;
                 tmp.v2 = val2;
                 tmp.epoint = &epoint;
@@ -1232,7 +1793,7 @@ MUST_CHECK Obj *compile(void)
                     if (label != NULL) {
                         labelexists = true;
                     } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                    oaddr = current_section->address;
+                    oaddr = current_address->address;
                     listing_equal(listing, val);
                     label->ref = false;
                     if (labelexists) {
@@ -1292,7 +1853,7 @@ MUST_CHECK Obj *compile(void)
                             labelexists = true;
                             if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                         } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                        oaddr = current_section->address;
+                        oaddr = current_address->address;
                         listing_equal(listing, val);
                         if (labelexists) {
                             if (label->constant) {
@@ -1526,20 +2087,23 @@ MUST_CHECK Obj *compile(void)
                     {
                         Label *label;
                         Struct *structure;
-                        struct section_s olds = *current_section;
+                        struct section_address_s section_address, *oldsection_address = current_address;
                         bool labelexists, doubledef = false;
                         Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
                         if (diagnostics.optimize) cpu_opt_invalidate();
-                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &cmdpoint);waitfor->skip = 0;
+                        new_waitfor((prm==CMD_STRUCT) ? W_ENDS : W_ENDU, &cmdpoint);waitfor->skip = 0;
                         label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
 
-                        current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
-                        current_section->end = current_section->start = current_section->restart = current_section->address = 0;
-                        current_section->l_restart.address = current_section->l_restart.bank = 0;
-                        current_section->l_address.address = current_section->l_address.bank = 0;
-                        current_section->dooutput = false;memjmp(current_section->mem, 0);
-                        current_section->l_address_val = (Obj *)ref_int(int_value[0]);
+                        section_address.wrapwarn = section_address.moved = false;
+                        section_address.unionmode = (prm == CMD_UNION);
+                        section_address.address = section_address.start = section_address.end = 0;
+                        section_address.l_start.address = section_address.l_start.bank = 0;
+                        section_address.l_address.address = section_address.l_address.bank = 0;
+                        section_address.l_address_val = (Obj *)ref_int(int_value[0]);
+                        section_address.mem = new_memblocks();
+                        section_address.mem->lastaddr = 0;
+                        current_address = &section_address;
 
                         structure = (Struct *)val_alloc(obj);
                         structure->file_list = current_file_list;
@@ -1591,45 +2155,41 @@ MUST_CHECK Obj *compile(void)
                         listing_line(listing, cmdpoint.pos);
                         current_section->structrecursion++;
                         if (current_section->structrecursion<100) {
-                            bool old_unionmode = current_section->unionmode;
-                            address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                            address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
-                            current_section->unionmode = (prm==CMD_UNION);
-                            current_section->unionstart = current_section->unionend = current_section->address;
-                            current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip = 1;
                             val = macro_recurse(W_ENDS, &structure->v, structure->names, &lpoint);
                             if (val != NULL) val_destroy(val);
-                            current_section->unionmode = old_unionmode;
-                            current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
-                            current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                         } else err_msg2(ERROR__MACRECURSION, NULL, &cmdpoint);
                         current_section->structrecursion--;
 
+                        current_address = oldsection_address;
+                        if (current_address->l_address.bank > all_mem) {
+                            current_address->l_address.bank &= all_mem;
+                            err_msg_big_address(&epoint);
+                        }
+
                         if (doubledef) val_destroy(&structure->v);
-                        else if (structure->size != (current_section->address & all_mem2)) {
-                            structure->size = current_section->address & all_mem2;
-                            if (label->usepass >= pass) {
-                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
-                                fixeddig = false;
+                        else {
+                            address_t end = (section_address.end < section_address.address) ? section_address.address : section_address.end;
+                            if (structure->size != (end & all_mem2)) {
+                                structure->size = end & all_mem2;
+                                if (label->usepass >= pass) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
+                                    fixeddig = false;
+                                }
                             }
                         }
-                        current_section->provides = olds.provides;current_section->requires = olds.requires;current_section->conflicts = olds.conflicts;
-                        current_section->end = olds.end;current_section->start = olds.start;current_section->restart = olds.restart;
-                        current_section->l_restart = olds.l_restart;current_section->address = olds.address;current_section->l_address = olds.l_address;
-                        current_section->dooutput = olds.dooutput;memjmp(current_section->mem, current_section->address);
-                        val_destroy(current_section->l_address_val);
-                        current_section->l_address_val = olds.l_address_val;
-                        if (current_section->l_address.bank > all_mem) {
-                            current_section->l_address.bank &= all_mem;
-                            err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                        }
+                        val_destroy(section_address.l_address_val);
+                        val_destroy(&section_address.mem->v);
                         goto breakerr;
                     }
                 case CMD_SECTION:
                     if (section_start(&cmdpoint)) goto breakerr;
-                    star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+                    star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                    break;
+                case CMD_VIRTUAL:
+                    if (virtual_start(&cmdpoint)) goto breakerr;
+                    star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
                     break;
                 }
                 break;
@@ -1667,7 +2227,7 @@ MUST_CHECK Obj *compile(void)
                     }
                 }
                 if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                oaddr = current_section->address;
+                oaddr = current_address->address;
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, &epoint);
@@ -1699,7 +2259,7 @@ MUST_CHECK Obj *compile(void)
                     if (!newlabel->update_after) {
                         Obj *tmp;
                         if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
-                        tmp = get_star_value(current_section->l_address_val);
+                        tmp = get_star_value(current_address->l_address_val);
                         code = (Code *)newlabel->value;
                         if (!tmp->obj->same(tmp, code->addr)) {
                             val_destroy(code->addr); code->addr = tmp;
@@ -1717,7 +2277,7 @@ MUST_CHECK Obj *compile(void)
                                 fixeddig = false;
                             }
                         }
-                        get_mem(current_section->mem, &newmemp, &newmembp);
+                        get_mem(current_address->mem, &newmemp, &newmembp);
                         code->apass = pass;
                         newlabel->defpass = pass;
                     }
@@ -1732,17 +2292,17 @@ MUST_CHECK Obj *compile(void)
                     newlabel->owner = true;
                     newlabel->value = (Obj *)code;
                     newlabel->epoint = epoint;
-                    code->addr = get_star_value(current_section->l_address_val);
+                    code->addr = get_star_value(current_address->l_address_val);
                     code->size = 0;
                     code->offs = 0;
                     code->dtype = D_NONE;
                     code->pass = 0;
                     code->apass = pass;
-                    code->memblocks = ref_memblocks(current_section->mem);
+                    code->memblocks = ref_memblocks(current_address->mem);
                     code->names = new_namespace(current_file_list, &epoint);
                     code->requires = current_section->requires;
                     code->conflicts = current_section->conflicts;
-                    get_mem(current_section->mem, &newmemp, &newmembp);
+                    get_mem(current_address->mem, &newmemp, &newmembp);
                 }
             }
             if (wht == '.') { /* .proc */
@@ -1750,8 +2310,8 @@ MUST_CHECK Obj *compile(void)
                 switch (prm) {
                 case CMD_PROC:
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_PEND, &epoint);waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
-                    if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {waitfor->skip = 0; set_size(newlabel, 0, current_section->mem, newmemp, newmembp);}
+                    new_waitfor(W_PEND, &epoint);waitfor->label = newlabel;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {waitfor->skip = 0; set_size(newlabel, 0, current_address->mem, newmemp, newmembp);}
                     else {         /* TODO: first time it should not compile */
                         push_context(((Code *)newlabel->value)->names);
                         newlabel->ref = false;
@@ -1761,27 +2321,29 @@ MUST_CHECK Obj *compile(void)
                 case CMD_DSTRUCT: /* .dstruct */
                 case CMD_DUNION:
                     {
-                        bool old_unionmode = current_section->unionmode;
+                        struct section_address_s section_address, *oldsection_address;
                         struct values_s *vs;
                         Type *obj;
                         Namespace *context;
-                        address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                        address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
 
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         listing_line(listing, epoint.pos);
                         newlabel->ref = false;
                         if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
-                        if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); goto finish; }
-                        if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); goto finish;}
+                        if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); goto breakerr; }
+                        if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
                         obj = (prm == CMD_DSTRUCT) ? STRUCT_OBJ : UNION_OBJ;
                         if (val->obj != obj) {err_msg_wrong_type(val, obj, &vs->epoint); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
-                        current_section->unionmode = (prm==CMD_DUNION);
-                        current_section->unionstart = current_section->unionend = current_section->address;
-                        current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
+
+                        oldsection_address = current_address;
+                        union_start(&section_address);
+                        section_address.l_start = section_address.l_address;
+                        section_address.unionmode = (prm == CMD_DUNION);
+                        current_address = &section_address;
+
                         if (!((Struct *)val)->retval && newlabel->value->obj == CODE_OBJ) {
                             context = ((Code *)newlabel->value)->names;
                         } else {
@@ -1812,7 +2374,7 @@ MUST_CHECK Obj *compile(void)
                             }
                             context = (Namespace *)label->value;
                         }
-                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, context, &epoint);
+                        val = macro_recurse((prm == CMD_DSTRUCT) ? W_ENDS2 : W_ENDU2, val, context, &epoint);
                         if (val != NULL) {
                             if (newlabel != NULL) {
                                 newlabel->update_after = true;
@@ -1820,13 +2382,29 @@ MUST_CHECK Obj *compile(void)
                             } else val_destroy(val);
                         }
                         current_section->structrecursion--;
-                        current_section->unionmode = old_unionmode;
-                        current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
-                        current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
+
+                        current_address = oldsection_address;
+                        if (current_address->l_address.bank > all_mem) {
+                            current_address->l_address.bank &= all_mem;
+                            err_msg_big_address(&epoint);
+                        }
+                        if (section_address.end < section_address.address) {
+                            section_address.end = section_address.address;
+                        }
+                        if (section_address.start < section_address.end) {
+                            poke_pos = &epoint;
+                            memskip(section_address.end - section_address.start);
+                        }
+                        memref(current_address->mem, section_address.mem);
+                        if (newlabel != NULL && !newlabel->update_after) set_size(newlabel, section_address.end - section_address.start, section_address.mem, 0, 0);
+                        val_destroy(section_address.l_address_val);
+                        val_destroy(&section_address.mem->v);
+                        newlabel = NULL;
                         goto breakerr;
                     }
                 case CMD_SECTION:
-                    waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                case CMD_VIRTUAL:
+                    waitfor->label = newlabel;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     listing_line(listing, epoint.pos);
                     newlabel->ref = false;
                     newlabel = NULL;
@@ -2109,7 +2687,7 @@ MUST_CHECK Obj *compile(void)
                     if ((waitfor->skip & 1) != 0) {
                         listing_line(listing, epoint.pos);
                         if (pop_context()) err_msg2(ERROR__MISSING_OPEN,".proc", &epoint);
-                        if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+                        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
                     }
                     close_waitfor(W_PEND);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
@@ -2119,7 +2697,7 @@ MUST_CHECK Obj *compile(void)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (waitfor->what==W_ENDS) {
                     if ((waitfor->skip & 1) != 0) {
-                        current_section->unionmode = waitfor->breakout;
+                        union_close(&epoint);
                         close_waitfor(W_ENDS);
                         break;
                     }
@@ -2154,8 +2732,7 @@ MUST_CHECK Obj *compile(void)
                             free(s);
                         }
                     }
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
-                    current_section = waitfor->section;
+                    section_close(&epoint);
                     close_waitfor(W_SEND2);
                 } else {err_msg2(ERROR__MISSING_OPEN,".section", &epoint);goto breakerr;}
                 break;
@@ -2167,15 +2744,6 @@ MUST_CHECK Obj *compile(void)
                     close_waitfor(W_ENDU);
                 } else if (close_waitfor(W_ENDU2)) {
                     nobreak = false;
-                    current_section->l_address = current_section->l_unionend;
-                    if (current_section->l_address.bank > all_mem) {
-                        current_section->l_address.bank &= all_mem;
-                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                    }
-                    if (current_section->address != current_section->unionend) {
-                        current_section->address = current_section->unionend;
-                        memjmp(current_section->mem, current_section->address);
-                    }
                 } else err_msg2(ERROR__MISSING_OPEN,".union", &epoint);
                 break;
             case CMD_ENDP: /* .endp */
@@ -2184,12 +2752,12 @@ MUST_CHECK Obj *compile(void)
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
                     if (diagnostics.page) {
-                        if (((current_section->l_address.address ^ waitfor->laddr.address) & 0xff00) != 0 ||
-                                current_section->l_address.bank != waitfor->laddr.bank) {
-                            err_msg_page((waitfor->laddr.address & 0xffff) | waitfor->laddr.bank, (current_section->l_address.address & 0xffff) | current_section->l_address.bank, &epoint);
+                        if (((current_address->l_address.address ^ waitfor->laddr.address) & 0xff00) != 0 ||
+                                current_address->l_address.bank != waitfor->laddr.bank) {
+                            err_msg_page((waitfor->laddr.address & 0xffff) | waitfor->laddr.bank, (current_address->l_address.address & 0xffff) | current_address->l_address.bank, &epoint);
                         }
                     }
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_ENDP2);
                 } else err_msg2(ERROR__MISSING_OPEN,".page", &epoint);
                 break;
@@ -2202,11 +2770,20 @@ MUST_CHECK Obj *compile(void)
                     close_waitfor(W_HERE2);
                 } else err_msg2(ERROR__MISSING_OPEN,".logical", &epoint);
                 break;
+            case CMD_ENDV: /* .endv */
+                if (diagnostics.optimize) cpu_opt_invalidate();
+                if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
+                if (close_waitfor(W_ENDV)) {
+                } else if (waitfor->what==W_ENDV2) {
+                    virtual_close(&epoint);
+                    close_waitfor(W_ENDV2);
+                } else err_msg2(ERROR__MISSING_OPEN,".virtual", &epoint);
+                break;
             case CMD_BEND: /* .bend */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_BEND)) {
                 } else if (waitfor->what==W_BEND2) {
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
                     if (pop_context()) err_msg2(ERROR__MISSING_OPEN,".block", &epoint);
                     close_waitfor(W_BEND2);
                 } else err_msg2(ERROR__MISSING_OPEN,".block", &epoint);
@@ -2223,7 +2800,7 @@ MUST_CHECK Obj *compile(void)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_WEAK)) {
                 } else if (waitfor->what==W_WEAK2) {
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_section->address - waitfor->addr, current_section->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_WEAK2);
                     strength--;
                 } else err_msg2(ERROR__MISSING_OPEN,".weak", &epoint);
@@ -2252,7 +2829,7 @@ MUST_CHECK Obj *compile(void)
                     address_t uninit = 0, sum = 0;
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
-                    mark_mem(current_section->mem, current_section->address, star);
+                    mark_mem(current_address->mem, current_address->address, star);
                     poke_pos = &epoint;
 
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
@@ -2286,8 +2863,7 @@ MUST_CHECK Obj *compile(void)
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
                             if (sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &sum, &epoint);
-
-                            if (current_section->dooutput) write_mark_mem(current_section->mem, sum-1);
+                            write_mark_mem(current_address->mem, sum-1);
                         }
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
                         int bits;
@@ -2364,7 +2940,7 @@ MUST_CHECK Obj *compile(void)
                     }
 
                     if (nolisting == 0) {
-                        list_mem(current_section->mem, current_section->dooutput);
+                        list_mem(current_address->mem);
                     }
                 }
                 break;
@@ -2375,24 +2951,18 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    if (!current_section->moved) {
-                        if (current_section->end < current_section->address) current_section->end = current_section->address;
-                        current_section->moved = true;
+                    if (!current_address->moved) {
+                        if (current_address->end < current_address->address) current_address->end = current_address->address;
+                        current_address->moved = true;
                     }
-                    current_section->wrapwarn = false;
+                    current_address->wrapwarn = false;
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) break;
                     if (ival != 0) {
-                        if (current_section->structrecursion != 0) {
-                            if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".offs", &epoint);
-                            else if (ival != 0) {
-                                poke_pos = &epoint;
-                                memskip((uval_t)ival);
-                            }
-                        } else current_section->address = (address_t)((int)current_section->address + ival);
-                        current_section->address &= all_mem2;
-                        memjmp(current_section->mem, current_section->address);
+                        current_address->address = (address_t)((int)current_address->address + ival);
+                        current_address->address &= all_mem2;
+                        memjmp(current_address->mem, current_address->address);
                     }
                 }
                 break;
@@ -2403,12 +2973,11 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = val_reference(current_section->l_address_val);
+                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_address->l_address;waitfor->label = newlabel;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = val_reference(current_address->l_address_val);
                     current_section->logicalrecursion++;
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".logical", &epoint);
-                    else do {
+                    do {
                         atype_t am;
                         Obj *tmp = vs->val;
                         if (touval(tmp->obj->address(tmp, &am), &uval, all_mem_bits, &vs->epoint)) break;
@@ -2416,14 +2985,20 @@ MUST_CHECK Obj *compile(void)
                             err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
                             break;
                         }
-                        current_section->l_address.address = uval & 0xffff;
-                        current_section->l_address.bank = uval & all_mem & ~(address_t)0xffff;
-                        val_destroy(current_section->l_address_val);
+                        current_address->l_address.address = uval & 0xffff;
+                        current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+                        val_destroy(current_address->l_address_val);
                         tmp = vs->val;
-                        current_section->l_address_val = val_reference(tmp->obj == CODE_OBJ ? ((Code *)tmp)->addr : tmp);
+                        current_address->l_address_val = val_reference(tmp->obj == CODE_OBJ ? ((Code *)tmp)->addr : tmp);
                     } while (false);
                     newlabel = NULL;
                 } else new_waitfor(W_HERE, &epoint);
+                break;
+            case CMD_VIRTUAL: if ((waitfor->skip & 1) != 0)
+                { /* .section */
+                    listing_line(listing, 0);
+                    if (virtual_start(&epoint)) goto breakerr;
+                } else new_waitfor(W_ENDV, &epoint);
                 break;
             case CMD_AS: /* .as */
             case CMD_AL: /* .al */
@@ -2452,7 +3027,7 @@ MUST_CHECK Obj *compile(void)
                     new_waitfor(W_BEND2, &epoint);
                     if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         push_context(((Code *)newlabel->value)->names);
-                        waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                        waitfor->label = newlabel;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                         newlabel = NULL;
                     } else {
                         Label *label;
@@ -2535,7 +3110,7 @@ MUST_CHECK Obj *compile(void)
             case CMD_WEAK: if ((waitfor->skip & 1) != 0)
                 { /* .weak */
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_WEAK2, &epoint);waitfor->label = newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    new_waitfor(W_WEAK2, &epoint);waitfor->label = newlabel;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     strength++;
                     newlabel = NULL;
                 } else new_waitfor(W_WEAK, &epoint);
@@ -2585,13 +3160,12 @@ MUST_CHECK Obj *compile(void)
                     }
                     if (!get_exp(0, 1, 2, &epoint)) goto breakerr;
                     if (prm == CMD_ALIGN) {
-                        address_t max = (current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
-                        if (current_section->structrecursion != 0 && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".align", &epoint);
+                        address_t max = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
                         vs = get_val();
                         if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                         else if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else if (uval > 1) {
-                            address_t itt = (current_section->logicalrecursion == 0) ? current_section->address : ((current_section->l_address.address + current_section->l_address.bank) & all_mem);
+                            address_t itt = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? current_address->address : ((current_address->l_address.address + current_address->l_address.bank - current_address->l_start.address - current_address->l_start.bank) & all_mem);
                             if (uval > max) {
                                 if (itt != 0) db = max - itt + 1;
                             } else {
@@ -2604,12 +3178,12 @@ MUST_CHECK Obj *compile(void)
                         if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                         else db = uval;
                     }
-                    mark_mem(current_section->mem, current_section->address, star);
+                    mark_mem(current_address->mem, current_address->address, star);
                     if ((vs = get_val()) != NULL) {
                         address_t uninit = 0, sum = 0;
                         size_t memp, membp;
                         int ch2 = -2;
-                        get_mem(current_section->mem, &memp, &membp);
+                        get_mem(current_address->mem, &memp, &membp);
 
                         poke_pos = &vs->epoint;
                         if (textrecursion(vs->val, CMD_TEXT, &ch2, &uninit, &sum, db)) {
@@ -2633,7 +3207,7 @@ MUST_CHECK Obj *compile(void)
                                 while (db != 0) { /* pattern repeat */
                                     int ch;
                                     db--;
-                                    ch = read_mem(current_section->mem, memp, membp, offs);
+                                    ch = read_mem(current_address->mem, memp, membp, offs);
                                     if (ch < 0) uninit++;
                                     else {
                                         if (uninit != 0) {memskip(uninit); uninit = 0;}
@@ -2650,7 +3224,7 @@ MUST_CHECK Obj *compile(void)
                         memskip(db);
                     }
                     if (nolisting == 0) {
-                        list_mem(current_section->mem, current_section->dooutput);
+                        list_mem(current_address->mem);
                     }
                 }
                 break;
@@ -2900,9 +3474,9 @@ MUST_CHECK Obj *compile(void)
                     for (cpui = cpus; cpui->name != NULL; cpui++) {
                         if (cpuname.len == strlen(cpui->name) && memcmp(cpui->name, cpuname.data, cpuname.len) == 0) {
                             const struct cpu_s *cpumode = (cpui->def != NULL) ? cpui->def : arguments.cpumode;
-                            if (current_section->l_address.bank > cpumode->max_address) {
-                                current_section->l_address.bank &= cpumode->max_address;
-                                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                            if (current_address->l_address.bank > cpumode->max_address) {
+                                current_address->l_address.bank &= cpumode->max_address;
+                                err_msg_big_address(&epoint);
                             }
                             set_cpumode(cpumode);
                             break;
@@ -2911,23 +3485,63 @@ MUST_CHECK Obj *compile(void)
                     if (cpui->name == NULL) err_msg2(ERROR___UNKNOWN_CPU, &cpuname, &vs->epoint);
                 }
                 break;
+            case CMD_BREPT:
             case CMD_REPT: if ((waitfor->skip & 1) != 0)
                 { /* .rept */
                     uval_t cnt;
-                    struct values_s *vs;
+                    bool light = (newlabel == NULL);
                     Obj *nf;
+                    List *lst = NULL;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
-                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
-                    vs = get_val();
-                    if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) break;
+                    if (!get_exp(0, 1, 1, &epoint)) cnt = 0;
+                    else {
+                        struct values_s *vs = get_val();
+                        if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) cnt = 0;
+                    }
+                    if (prm == CMD_BREPT) {
+                        size_t i;
+                        if (light) {
+                            Label *label;
+                            bool labelexists;
+                            str_t tmpname;
+                            if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
+                            else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                            anonident2.type = '.';
+                            anonident2.star_tree = star_tree;
+                            anonident2.vline = vline;
+                            tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                            label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
+                            if (labelexists) {
+                                if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                                label->constant = true;
+                                label->owner = true;
+                                label->defpass = pass;
+                            } else {
+                                label->constant = true;
+                                label->owner = true;
+                                label->value = (Obj *)ref_none();
+                                label->epoint = epoint;
+                            }
+                            newlabel = label;
+                        }
+                        if (newlabel->value->obj == TUPLE_OBJ) {
+                            List *old = (List *)newlabel->value;
+                            lst = new_tuple(old->len);
+                            for (i = 0; i < old->len; i++) lst->data[i] = val_reference(old->data[i]);
+                        } else {
+                            lst = new_tuple(cnt);
+                            for (i = 0; i < cnt; i++) lst->data[i] = (Obj *)ref_none();
+                        }
+                    }
                     if (cnt > 0) {
                         line_t lin = lpoint.line;
                         bool starexists;
                         struct star_s *s = new_star(vline, &starexists);
                         struct avltree *stree_old = star_tree;
                         line_t ovline = vline, lvline;
+                        size_t i = 0;
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2940,7 +3554,12 @@ MUST_CHECK Obj *compile(void)
                         for (;;) {
                             lpoint.line = lin;
                             waitfor->skip = 1; lvline = vline;
-                            nf = compile();
+                            if (lst != NULL) {
+                                if (i >= lst->len) list_extend(lst);
+                                if (light) nf = tuple_scope_light(&lst->data[i], &epoint);
+                                else nf = tuple_scope(newlabel, &lst->data[i]);
+                                i++;
+                            } else nf = compile();
                             if (nf == NULL || waitfor->breakout || (--cnt) == 0) {
                                 break;
                             }
@@ -2950,9 +3569,15 @@ MUST_CHECK Obj *compile(void)
                             if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
                             else listing_line_cut2(listing, waitfor->epoint.pos);
                         }
+                        if (lst != NULL && lst->len > i) list_shrink(lst, i);
                         close_waitfor(W_NEXT2);
                         if (nf != NULL) close_waitfor(W_NEXT);
                         star_tree = stree_old; vline = ovline + vline - lvline;
+                    }
+                    if (lst != NULL) {
+                        newlabel->update_after = true;
+                        const_assign(newlabel, &lst->v);
+                        newlabel = NULL;
                     }
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
@@ -3066,248 +3691,54 @@ MUST_CHECK Obj *compile(void)
                     goto breakerr;
                 }
                 break;
+            case CMD_BFOR:
             case CMD_FOR: if ((waitfor->skip & 1) != 0)
                 { /* .for */
-                    line_t lin, xlin;
-                    struct linepos_s apoint, bpoint = {0, 0};
-                    int nopos = -1;
-                    struct oper_s tmp;
-                    struct linepos_s epoint2, epoint3;
-                    uint8_t *expr;
-                    Label *label;
-                    Obj *nf = NULL;
-                    struct star_s *s;
-                    struct avltree *stree_old;
-                    line_t ovline, lvline;
-                    bool starexists, foreach = false;
-                    size_t lentmp;
+                    bool light = (newlabel == NULL);
+                    List *lst = NULL;
+                    size_t i;
 
-                    if (diagnostics.optimize) cpu_opt_invalidate();
-                    listing_line(listing, epoint.pos);
-                    new_waitfor(W_NEXT, &epoint);waitfor->skip = 0;
-                    { /* label */
-                        bool labelexists;
-                        str_t varname;
-                        epoint = lpoint;
-                        varname.data = pline + lpoint.pos; varname.len = get_label();
-                        if (varname.len != 0) {
-                            struct linepos_s epoints[3];
-                            if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
-                            ignore(); wht = here();
-                            if (wht != '=') {
-                                if (wht == ':' && pline[lpoint.pos + 1] == '=' && !arguments.tasmcomp) lpoint.pos += 2;
-                                else {
-                                    size_t l = get_label();
-                                    if (l != 2 || (pline[lpoint.pos-2] | arguments.caseinsensitive) != 'i' || (pline[lpoint.pos-1] | arguments.caseinsensitive) != 'n') {
-                                        lpoint.pos -= l;
-                                        err_msg(ERROR______EXPECTED, "'=' or 'in'"); goto breakerr;
-                                    } else foreach = true;
-                                }
-                            } else lpoint.pos++;
-                            if (!get_exp(1, 1, 1, &lpoint)) goto breakerr;
-                            val = get_vals_addrlist(epoints);
-                            if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
-                            label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, current_file_list);
+                    if (prm == CMD_BFOR) {
+                        if (light) {
+                            Label *label;
+                            bool labelexists;
+                            str_t tmpname;
+                            if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
+                            else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                            anonident2.type = '.';
+                            anonident2.star_tree = star_tree;
+                            anonident2.vline = vline;
+                            tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                            label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                             if (labelexists) {
-                                if (label->constant) {
-                                    err_msg_double_defined(label, &varname, &epoint);
-                                    val_destroy(val);
-                                } else {
-                                    if (label->defpass != pass) {
-                                        label->ref = false;
-                                        label->defpass = pass;
-                                    } else {
-                                        if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
-                                    }
-                                    label->owner = false;
-                                    if (label->file_list != current_file_list) {
-                                        label_move(label, &varname, current_file_list);
-                                    }
-                                    label->epoint = epoint;
-                                    val_destroy(label->value);
-                                    label->value = val;
-                                    label->usepass = 0;
-                                }
+                                if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                                label->constant = true;
+                                label->owner = true;
+                                label->defpass = pass;
                             } else {
-                                label->constant = false;
-                                label->owner = false;
-                                label->value = val;
+                                label->constant = true;
+                                label->owner = true;
+                                label->value = (Obj *)ref_none();
                                 label->epoint = epoint;
                             }
-                            ignore();
+                            newlabel = label;
+                        }
+                        if (newlabel->value->obj == TUPLE_OBJ) {
+                            List *old = (List *)newlabel->value;
+                            lst = new_tuple(old->len);
+                            for (i = 0; i < old->len; i++) lst->data[i] = val_reference(old->data[i]);
+                        } else {
+                            lst = new_tuple(lenof(lst->val));
+                            for (i = 0; i < lst->len; i++) lst->data[i] = (Obj *)ref_none();
                         }
                     }
-                    if (foreach) {
-                        if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    } else {
-                        if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); goto breakerr;}
-                        lpoint.pos++;ignore();
+                    i = for_command(newlabel, lst, light, &epoint);
+                    if (lst != NULL) {
+                        if (lst->len > i) list_shrink(lst, i);
+                        newlabel->update_after = true;
+                        const_assign(newlabel, &lst->v);
+                        newlabel = NULL;
                     }
-
-                    s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
-                    if (starexists && s->addr != star) {
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                        fixeddig = false;
-                    }
-                    s->addr = star;
-                    star_tree = &s->tree; lvline = vline = 0;
-                    lin = lpoint.line;
-
-                    if (foreach) {
-                        Iter *iter = val->obj->getiter(val);
-                        iter_next_t iter_next;
-                        Obj *val2;
-
-                        new_waitfor(W_NEXT2, &epoint);
-                        waitfor->breakout = false;
-                        iter_next = iter->v.obj->next;
-                        val2 = iter_next(iter);
-                        while (val2 != NULL) {
-                            val_destroy(label->value);
-                            label->value = val2;
-                            lpoint.line = lin;
-                            waitfor->skip = 1; lvline = vline;
-                            nf = compile();
-                            if (nf == NULL || waitfor->breakout) {
-                                break;
-                            }
-                            val2 = iter_next(iter);
-                            if ((waitfor->skip & 1) != 0 && val2 != NULL) listing_line_cut(listing, waitfor->epoint.pos);
-                        }
-                        val_destroy(&iter->v);
-                        expr = NULL;
-                    } else {
-                        xlin = lpoint.line; apoint = lpoint;
-                        lentmp = strlen((const char *)pline) + 1;
-                        expr = (uint8_t *)mallocx(lentmp);
-                        memcpy(expr, pline, lentmp); label = NULL;
-                        new_waitfor(W_NEXT2, &epoint);
-                        waitfor->breakout = false;
-                        tmp.op = NULL;
-                        for (;;) {
-                            lpoint = apoint;
-                            if (here() != ',' && here() != 0) {
-                                struct values_s *vs;
-                                bool truth;
-                                if (!get_exp(1, 1, 1, &apoint)) break;
-                                vs = get_val();
-                                if (tobool(vs, &truth)) break;
-                                if (!truth) break;
-                            }
-                            if (nopos < 0) {
-                                ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); break;}
-                                lpoint.pos++;ignore();
-                                if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
-                                else bpoint = lpoint;
-                            } else {
-                                if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
-                            }
-                            waitfor->skip = 1;lvline = vline;
-                            nf = compile();
-                            xlin = lpoint.line;
-                            pline = expr;
-                            lpoint.line = lin;
-                            if (nf == NULL || waitfor->breakout) break;
-                            if (nopos < 0) {
-                                str_t varname;
-                                Namespace *context;
-                                bool labelexists;
-                                lpoint = bpoint;
-                                varname.data = pline + lpoint.pos; varname.len = get_label();
-                                if (varname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &bpoint);break;}
-                                if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &bpoint); goto breakerr;}
-                                ignore(); wht = here();
-                                while (wht != 0 && !arguments.tasmcomp) {
-                                    int wht2 = pline[lpoint.pos + 1];
-                                    if (wht2 == '=') {
-                                        if (wht == ':') {
-                                            wht = '=';
-                                            lpoint.pos++;
-                                            break;
-                                        }
-                                        tmp.op = oper_from_token(wht);
-                                        if (tmp.op == NULL) break;
-                                        epoint3 = lpoint;
-                                        lpoint.pos += 2;
-                                    } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
-                                        tmp.op = oper_from_token2(wht, wht2);
-                                        if (tmp.op == NULL) break;
-                                        epoint3 = lpoint;
-                                        lpoint.pos += 3;
-                                    } else break;
-
-                                    ignore();
-                                    epoint2 = lpoint;
-                                    tmp.epoint = &bpoint;
-                                    tmp.epoint2 = &epoint2;
-                                    tmp.epoint3 = &epoint3;
-                                    break;
-                                }
-                                context = (varname.data[0] == '_') ? cheap_context : current_context;
-                                if (tmp.op == NULL) {
-                                    if (wht != '=') {err_msg(ERROR______EXPECTED, "'='"); break;}
-                                    lpoint.pos++;ignore();
-                                    label = new_label(&varname, context, strength, &labelexists, current_file_list);
-                                    if (labelexists) {
-                                        if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
-                                        if (label->defpass != pass) {
-                                            label->ref = false;
-                                            label->defpass = pass;
-                                        } else {
-                                            if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
-                                        }
-                                        label->owner = false;
-                                        if (label->file_list != current_file_list) {
-                                            label_move(label, &varname, current_file_list);
-                                        }
-                                        label->epoint = bpoint;
-                                    } else {
-                                        label->constant = false;
-                                        label->owner = false;
-                                        label->value = (Obj *)ref_none();
-                                        label->epoint = bpoint;
-                                    }
-                                } else {
-                                    label = find_label2(&varname, context);
-                                    if (label == NULL) {err_msg_not_defined2(&varname, context, false, &bpoint); break;}
-                                    if (label->constant) {err_msg_not_variable(label, &varname, &bpoint); break;}
-                                    if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &bpoint);
-                                }
-                                bpoint = lpoint; nopos = 1;
-                            }
-                            if (nopos > 0) {
-                                struct linepos_s epoints[3];
-                                lpoint = bpoint;
-                                if (!get_exp(0, 0, 0, &bpoint)) break;
-                                val = get_vals_addrlist(epoints);
-                                if (tmp.op != NULL) {
-                                    Obj *result2, *val1 = label->value;
-                                    tmp.v1 = val1;
-                                    tmp.v2 = val;
-                                    result2 = tmp.v1->obj->calc2(&tmp);
-                                    if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
-                                    else if (tmp.op == &o_MIN || tmp.op == &o_MAX) {
-                                        if (result2 == &true_value->v) val_replace(&result2, val1);
-                                        else if (result2 == &false_value->v) val_replace(&result2, val);
-                                    }
-                                    val_destroy(val);
-                                    val = result2;
-                                }
-                                val_destroy(label->value);
-                                label->value = val;
-                                label->usepass = 0;
-                            }
-                        }
-                        lpoint.line = xlin;
-                    }
-                    if (nf != NULL) {
-                        if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
-                        else listing_line_cut2(listing, waitfor->epoint.pos);
-                    }
-                    close_waitfor(W_NEXT2);
-                    free(expr);
-                    if (nf != NULL) close_waitfor(W_NEXT);
-                    star_tree = stree_old; vline = ovline + vline - lvline;
                     goto breakerr;
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
@@ -3332,7 +3763,7 @@ MUST_CHECK Obj *compile(void)
                 { /* .page */
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_section->address;waitfor->laddr = current_section->l_address;waitfor->label = newlabel;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_address->address;waitfor->laddr = current_address->l_address;waitfor->label = newlabel;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     newlabel = NULL;
                 } else new_waitfor(W_ENDP, &epoint);
                 break;
@@ -3433,67 +3864,59 @@ MUST_CHECK Obj *compile(void)
                 waitfor->skip = 0;waitfor->label = NULL;
                 break;
             case CMD_STRUCT: /* .struct */
-                new_waitfor(W_ENDS, &epoint);
-                if ((waitfor->skip & 1) != 0) {
-                    listing_line(listing, 0);
-                    waitfor->breakout = current_section->unionmode;
-                    current_section->unionmode = false;
-                }
-                break;
             case CMD_UNION: /* .union */
-                new_waitfor(W_ENDU, &epoint);
+                new_waitfor(prm == CMD_UNION ? W_ENDU : W_ENDS, &epoint);
                 if ((waitfor->skip & 1) != 0) {
-                    if (diagnostics.optimize) cpu_opt_invalidate();
+                    struct section_address_s *section_address;
+                    if (diagnostics.optimize && prm == CMD_UNION) cpu_opt_invalidate();
                     listing_line(listing, 0);
-                    waitfor->breakout = current_section->unionmode;
-                    waitfor->addr = current_section->unionstart; waitfor->addr2 = current_section->unionend;
-                    waitfor->laddr = current_section->l_unionstart; waitfor->laddr2 = current_section->l_unionend;
-                    current_section->unionmode = true;
-                    current_section->unionstart = current_section->unionend = current_section->address;
-                    current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
+                    waitfor->section_address = current_address;
+                    section_address = (struct section_address_s *)mallocx(sizeof *section_address);
+                    union_start(section_address);
+                    section_address->l_start = (prm == CMD_STRUCT) ? current_address->l_start : current_address->l_address;
+                    section_address->unionmode = (prm == CMD_UNION);
+                    current_address = section_address;
                 }
                 break;
+            case CMD_DUNION:
             case CMD_DSTRUCT: if ((waitfor->skip & 1) != 0)
                 { /* .dstruct */
-                    bool old_unionmode = current_section->unionmode;
+                    struct section_address_s section_address, *oldsection_address;
                     struct values_s *vs;
+                    Type *obj;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, 0);
-                    current_section->unionmode = false;
                     if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
                     if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
                     if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
-                    if (val->obj != STRUCT_OBJ) {err_msg_wrong_type(val, STRUCT_OBJ, &vs->epoint); goto breakerr;}
+                    obj = (prm == CMD_DUNION) ? UNION_OBJ : STRUCT_OBJ;
+                    if (val->obj != obj) {err_msg_wrong_type(val, obj, &vs->epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    val = macro_recurse(W_ENDS2, val, NULL, &epoint);
+                    oldsection_address = current_address;
+                    union_start(&section_address);
+                    section_address.l_start = section_address.l_address;
+                    section_address.unionmode = (prm == CMD_DUNION);
+                    current_address = &section_address;
+                    val = macro_recurse(prm == CMD_DUNION ? W_ENDU2 : W_ENDS2, val, NULL, &epoint);
                     if (val != NULL) val_destroy(val);
                     current_section->structrecursion--;
-                    current_section->unionmode = old_unionmode;
-                }
-                goto breakerr;
-            case CMD_DUNION: if ((waitfor->skip & 1) != 0)
-                { /* .dunion */
-                    bool old_unionmode = current_section->unionmode;
-                    struct values_s *vs;
-                    address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                    if (diagnostics.optimize) cpu_opt_invalidate();
-                    listing_line(listing, 0);
-                    current_section->unionmode = true;
-                    current_section->unionstart = current_section->unionend = current_section->address;
-                    if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
-                    vs = get_val(); val = vs->val;
-                    if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
-                    ignore();if (here() == ',') lpoint.pos++;
-                    if (val->obj != UNION_OBJ) {err_msg_wrong_type(val, UNION_OBJ, &vs->epoint); goto breakerr;}
-                    current_section->structrecursion++;
-                    val = macro_recurse(W_ENDU2, val, NULL, &epoint);
-                    if (val != NULL) val_destroy(val);
-                    current_section->structrecursion--;
-                    current_section->unionmode = old_unionmode;
-                    current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
+                    current_address = oldsection_address;
+                    if (current_address->l_address.bank > all_mem) {
+                        current_address->l_address.bank &= all_mem;
+                        err_msg_big_address(&epoint);
+                    }
+                    if (section_address.end < section_address.address) {
+                        section_address.end = section_address.address;
+                    }
+                    if (section_address.start < section_address.end) {
+                        poke_pos = &epoint;
+                        memskip(section_address.end - section_address.start);
+                    }
+                    memref(current_address->mem, section_address.mem);
+                    val_destroy(section_address.l_address_val);
+                    val_destroy(&section_address.mem->v);
                 }
                 goto breakerr;
             case CMD_DSECTION: if ((waitfor->skip & 1) != 0)
@@ -3503,7 +3926,7 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    if (current_section->structrecursion != 0 || !current_section->dooutput) { err_msg2(ERROR___NOT_ALLOWED, ".dsection", &epoint); goto breakerr; }
+                    if (current_section->structrecursion != 0) { err_msg2(ERROR___NOT_ALLOWED, ".dsection", &epoint); goto breakerr; }
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
@@ -3513,71 +3936,67 @@ MUST_CHECK Obj *compile(void)
                     } else {
                         address_t t;
                         if (tmp3->usepass == 0 || tmp3->defpass < pass - 1) {
-                            tmp3->wrapwarn = tmp3->moved = false;
-                            tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
-                            tmp3->l_restart = tmp3->l_address = current_section->l_address;
+                            tmp3->address.wrapwarn = tmp3->address.moved = false;
+                            tmp3->address.end = tmp3->address.start = tmp3->restart = tmp3->address.address = current_address->address;
+                            tmp3->l_restart = tmp3->address.l_address = current_address->l_address;
                             tmp3->usepass = pass;
-                            val_destroy(&tmp3->mem->v);
-                            tmp3->mem = new_memblocks();
-                            tmp3->mem->lastaddr = tmp3->address;
+                            val_destroy(&tmp3->address.mem->v);
+                            tmp3->address.mem = new_memblocks();
+                            tmp3->address.mem->lastaddr = tmp3->address.address;
                             if (diagnostics.optimize) cpu_opt_invalidate();
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
                         }
                         tmp3->provides = ~(uval_t)0;tmp3->requires = tmp3->conflicts = 0;
-                        tmp3->dooutput = current_section->dooutput;
-                        tmp3->unionmode = current_section->unionmode;
-                        tmp3->unionstart = current_section->unionstart;
-                        tmp3->unionend = current_section->unionend;
-                        tmp3->l_unionstart = current_section->l_unionstart;
-                        tmp3->l_unionend = current_section->l_unionend;
+                        tmp3->address.unionmode = current_address->unionmode;
+                        tmp3->address.l_start = current_address->l_start;
                         tmp3->structrecursion = current_section->structrecursion;
                         tmp3->logicalrecursion = current_section->logicalrecursion;
-                        val_destroy(tmp3->l_address_val); /* TODO: restart as well */
-                        tmp3->l_address_val = val_reference(current_section->l_address_val);
+                        val_destroy(tmp3->address.l_address_val); /* TODO: restart as well */
+                        tmp3->address.l_address_val = val_reference(current_address->l_address_val);
                         tmp3->file_list = current_file_list;
                         tmp3->epoint = epoint;
                         if (tmp3->usepass == pass) {
                             t = tmp3->size;
-                            if (t < tmp3->end - tmp3->start) t = tmp3->end - tmp3->start;
-                            if (!tmp3->moved) {
-                                if (t < tmp3->address - tmp3->start) t = tmp3->address - tmp3->start;
+                            if (t < tmp3->address.end - tmp3->address.start) t = tmp3->address.end - tmp3->address.start;
+                            if (!tmp3->address.moved) {
+                                if (t < tmp3->address.address - tmp3->address.start) t = tmp3->address.address - tmp3->address.start;
                             }
-                            if (tmp3->restart != current_section->address) {
-                                address_t change = current_section->address - tmp3->restart;
-                                tmp3->end = (tmp3->end + change) & all_mem2;
-                                tmp3->address = (tmp3->address + change) & all_mem2;
-                                tmp3->start = tmp3->restart = current_section->address;
-                                if (tmp3->end < tmp3->start) tmp3->end = all_mem2 + 1;
-                                memjmp(tmp3->mem, current_section->address);
+                            if (tmp3->restart != current_address->address) {
+                                address_t change = current_address->address - tmp3->restart;
+                                tmp3->address.end = (tmp3->address.end + change) & all_mem2;
+                                tmp3->address.address = (tmp3->address.address + change) & all_mem2;
+                                tmp3->address.start = tmp3->restart = current_address->address;
+                                if (tmp3->address.end < tmp3->address.start) tmp3->address.end = all_mem2 + 1;
+                                memjmp(tmp3->address.mem, current_address->address);
                             }
-                            if (tmp3->l_restart.address != current_section->l_address.address ||
-                                    tmp3->l_restart.bank != current_section->l_address.bank) {
-                                tmp3->l_address.address = (tmp3->l_address.address + current_section->l_address.address - tmp3->l_restart.address) & 0xffff;
-                                tmp3->l_address.bank = (tmp3->l_address.bank + current_section->l_address.bank - tmp3->l_restart.bank) & all_mem;
-                                tmp3->l_restart = current_section->l_address;
+                            if (tmp3->l_restart.address != current_address->l_address.address ||
+                                    tmp3->l_restart.bank != current_address->l_address.bank) {
+                                tmp3->address.l_address.address = (tmp3->address.l_address.address + current_address->l_address.address - tmp3->l_restart.address) & 0xffff;
+                                tmp3->address.l_address.bank = (tmp3->address.l_address.bank + current_address->l_address.bank - tmp3->l_restart.bank) & all_mem;
+                                tmp3->l_restart = current_address->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = false;
                             }
                         } else {
-                            if (!tmp3->moved) {
-                                if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
-                                tmp3->moved = true;
+                            if (!tmp3->address.moved) {
+                                if (tmp3->address.end < tmp3->address.address) tmp3->address.end = tmp3->address.address;
+                                tmp3->address.moved = true;
                             }
-                            tmp3->wrapwarn = false;
-                            t = tmp3->end - tmp3->start;
-                            tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
-                            tmp3->l_address = current_section->l_address;
-                            if (tmp3->l_restart.address != current_section->l_address.address ||
-                                    tmp3->l_restart.bank != current_section->l_address.bank) {
-                                tmp3->l_restart = current_section->l_address;
+                            tmp3->address.wrapwarn = false;
+                            t = tmp3->address.end - tmp3->address.start;
+                            tmp3->address.end = tmp3->address.start = tmp3->restart = tmp3->address.address = current_address->address;
+                            tmp3->address.l_address = current_address->l_address;
+                            if (tmp3->l_restart.address != current_address->l_address.address ||
+                                    tmp3->l_restart.bank != current_address->l_address.bank) {
+                                tmp3->l_restart = current_address->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = false;
                             }
                             tmp3->size = t;
-                            val_destroy(&tmp3->mem->v);
-                            tmp3->mem = new_memblocks();
-                            tmp3->mem->lastaddr = tmp3->address;
+                            val_destroy(&tmp3->address.mem->v);
+                            tmp3->address.mem = new_memblocks();
+                            tmp3->address.mem->lastaddr = tmp3->address.address;
                             if (diagnostics.optimize) cpu_opt_invalidate();
                         }
                         tmp3->usepass = pass;
@@ -3586,7 +4005,7 @@ MUST_CHECK Obj *compile(void)
                             poke_pos = &epoint;
                             memskip(t);
                         }
-                        memref(current_section->mem, (Memblocks *)val_reference(&tmp3->mem->v));
+                        memref(current_address->mem, tmp3->address.mem);
                     }
                 }
                 break;
@@ -3621,11 +4040,13 @@ MUST_CHECK Obj *compile(void)
                 default : err_msg_wrong_type(val, NULL, &vs->epoint); goto breakerr;
                 case T_MACRO:
                 case T_SEGMENT:
+                case T_STRUCT:
+                case T_UNION:
                 case T_MFUNC: break;
                 }
             as_macro:
                 listing_line_cut(listing, epoint.pos);
-                if (val->obj == MACRO_OBJ) {
+                if (val->obj == MACRO_OBJ || val->obj == STRUCT_OBJ || val->obj == UNION_OBJ) {
                     Namespace *context;
                     if (newlabel != NULL && !((Macro *)val)->retval && newlabel->value->obj == CODE_OBJ) {
                         context = ((Code *)newlabel->value)->names;
@@ -3657,7 +4078,7 @@ MUST_CHECK Obj *compile(void)
                         }
                         context = (Namespace *)label->value;
                     }
-                    val = macro_recurse(W_ENDM2, val, context, &epoint);
+                    val = macro_recurse(val->obj == MACRO_OBJ ? W_ENDM2 : val->obj == STRUCT_OBJ ? W_ENDS2 : W_ENDU2, val, context, &epoint);
                 } else if (val->obj == MFUNC_OBJ) {
                     Label *label;
                     Mfunc *mfunc;
@@ -3743,7 +4164,7 @@ MUST_CHECK Obj *compile(void)
                     if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
                         epoints[1] = epoints[0];
                         epoints[2] = epoints[0];
-                        if (!instrecursion((List *)val, prm, w, &epoint, epoints)) {
+                        if (!instrecursion(val, prm, w, &epoint, epoints)) {
                             listing_instr(listing, 0, 0, -1);
                         }
                         err = NULL;
@@ -3785,7 +4206,7 @@ MUST_CHECK Obj *compile(void)
     finish:
         ignore();if (here() != 0 && here() != ';' && (waitfor->skip & 1) != 0) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
-        if (newlabel != NULL && !newlabel->update_after) set_size(newlabel, current_section->address - oaddr, current_section->mem, newmemp, newmembp);
+        if (newlabel != NULL && !newlabel->update_after) set_size(newlabel, current_address->address - oaddr, current_address->mem, newmemp, newmembp);
     }
 
     while (oldwaitforp < waitfor_p) {
@@ -3804,8 +4225,8 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
     int i;
 
     fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
-    val_destroy(&root_section.mem->v);
-    root_section.mem = new_memblocks();
+    val_destroy(&root_section.address.mem->v);
+    root_section.address.mem = new_memblocks();
     if (diagnostics.optimize) cpu_opt_invalidate();
     for (i = opts - 1; i < argc; i++) {
         set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
@@ -3814,6 +4235,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         reset_waitfor();lpoint.line = vline = 0;outputeor = 0;forwr = backr = 1;
         reset_context();
         current_section = &root_section;
+        current_address = &root_section.address;
         reset_section(current_section);
         init_macro();
 
@@ -3827,8 +4249,8 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
                 if (val != NULL) val_destroy(val);
                 exitfile();
             }
-            val_destroy(&root_section.mem->v);
-            root_section.mem = new_memblocks();
+            val_destroy(&root_section.address.mem->v);
+            root_section.address.mem = new_memblocks();
             if (diagnostics.optimize) cpu_opt_invalidate();
             continue;
         }
@@ -3931,7 +4353,7 @@ static int main2(int *argc2, char **argv2[]) {
             sectionname.len = lpoint.pos;
             err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
         } else {
-            output_mem(section->mem, &arguments.output);
+            output_mem(section->address.mem, &arguments.output);
         }
     }
 

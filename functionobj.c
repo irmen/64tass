@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 1594 2018-07-31 17:02:16Z soci $
+    $Id: functionobj.c 1660 2018-09-22 11:39:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "variables.h"
 #include "error.h"
 #include "file.h"
+#include "arguments.h"
 
 #include "floatobj.h"
 #include "strobj.h"
@@ -39,6 +40,16 @@
 static Type obj;
 
 Type *const FUNCTION_OBJ = &obj;
+
+static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_FUNCTION: return val_reference(v1);
+    default: break;
+    }
+    return (Obj *)new_error_conv(v1, FUNCTION_OBJ, epoint);
+}
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
@@ -58,9 +69,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     if (epoint == NULL) return NULL;
     len = v1->name.len + 20;
-    if (len < 20) return (Obj *)new_error_mem(epoint); /* overflow */
+    if (len < 20) return NULL; /* overflow */
     if (len > maxsize) return NULL;
-    v = new_str(len);
+    v = new_str2(len);
+    if (v == NULL) return NULL;
     v->chars = len;
     s = v->data;
     memcpy(s, "<native_function '", 18);
@@ -69,6 +81,17 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     s += v1->name.len;
     *s = '\'';
     s[1] = '>';
+    return &v->v;
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
+    const Function *v1 = (const Function *)o1;
+    Str *v;
+    if (v1->name.len > maxsize) return NULL;
+    v = new_str2(v1->name.len);
+    if (v == NULL) return NULL;
+    v->chars = v1->name.len;
+    memcpy(v->data, v1->name.data, v1->name.len);
     return &v->v;
 }
 
@@ -86,14 +109,15 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
             size_t k;
             for (k = j + 1; k < args; k++) {
                 oval[k] = v[k].val;
-                if (v[k].val->obj == objt) {
-                   List *v2 = (List *)v[k].val;
-                   if (v2->len != 1 && v2->len != v1->len) {
-                       Error *err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
-                       err->u.broadcast.v1 = v1->len;
-                       err->u.broadcast.v2 = v2->len;
-                       return &err->v;
-                   }
+                if (oval[k]->obj == LIST_OBJ || oval[k]->obj == TUPLE_OBJ) {
+                    List *v2 = (List *)v[k].val;
+                    if (v2->len != 1 && v2->len != v1->len) {
+                        Error *err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
+                        err->u.broadcast.v1 = v1->len;
+                        err->u.broadcast.v2 = v2->len;
+                        return &err->v;
+                    }
+                    if (diagnostics.type_mixing && v[k].val->obj != objt) err_msg_type_mixing(&v[j].epoint);
                 }
             }
             if (v1->len != 0) {
@@ -106,7 +130,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
                     Obj *val;
                     v[j].val = v1->data[i];
                     for (k = j + 1; k < args; k++) {
-                        if (oval[k]->obj == objt) {
+                        if (oval[k]->obj == LIST_OBJ || oval[k]->obj == TUPLE_OBJ) {
                             List *v2 = (List *)oval[k];
                             v[k].val = v2->data[(v2->len == 1) ? 0 : i];
                         }
@@ -392,39 +416,52 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint) {
+    const Type *typ = o1->obj;
     Obj *err;
     double real;
-    if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
-        List *v1 = (List *)o1, *v;
-        if (v1->len != 0) {
-            bool error = true;
-            size_t i;
-            Obj **vals;
-            v = (List *)val_alloc(o1->obj);
-            vals = list_create_elements(v, v1->len);
-            for (i = 0; i < v1->len; i++) {
-                Obj *val = apply_func(v1->data[i], func, epoint);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                vals[i] = val;
-            }
-            v->len = i;
-            v->data = vals;
-            return &v->v;
+
+    if (typ == TUPLE_OBJ || typ == LIST_OBJ) {
+        iter_next_t iter_next;
+        Iter *iter = typ->getiter(o1);
+        size_t len = iter->len(iter);
+        List *v;
+        bool error = true;
+        size_t i;
+        Obj **vals;
+
+        if (len == 0) {
+            val_destroy(&iter->v);
+            return val_reference(typ == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
         }
-        return val_reference(&v1->v);
+
+        v = (List *)val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+        v->data = vals = list_create_elements(v, len);
+        iter_next = iter->next;
+        for (i = 0; i < len && (o1 = iter_next(iter)) != NULL; i++) {
+            Obj *val = apply_func(o1, func, epoint);
+            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
+            vals[i] = val;
+        }
+        val_destroy(&iter->v);
+        v->len = i;
+        return &v->v;
     }
     switch (func) {
-    case F_SIZE: return o1->obj->size(o1, epoint);
-    case F_SIGN: return o1->obj->sign(o1, epoint);
-    case F_CEIL: return o1->obj->function(o1, TF_CEIL, epoint);
-    case F_FLOOR: return o1->obj->function(o1, TF_FLOOR, epoint);
-    case F_ROUND: return o1->obj->function(o1, TF_ROUND, epoint);
-    case F_TRUNC: return o1->obj->function(o1, TF_TRUNC, epoint);
-    case F_ABS: return o1->obj->function(o1, TF_ABS, epoint);
-    case F_REPR: return o1->obj->repr(o1, epoint, SIZE_MAX);
+    case F_SIZE: return typ->size(o1, epoint);
+    case F_SIGN: return typ->sign(o1, epoint);
+    case F_CEIL: return typ->function(o1, TF_CEIL, epoint);
+    case F_FLOOR: return typ->function(o1, TF_FLOOR, epoint);
+    case F_ROUND: return typ->function(o1, TF_ROUND, epoint);
+    case F_TRUNC: return typ->function(o1, TF_TRUNC, epoint);
+    case F_ABS: return typ->function(o1, TF_ABS, epoint);
+    case F_REPR:
+        {
+            Obj *v = typ->repr(o1, epoint, SIZE_MAX);
+            return v != NULL ? v : (Obj *)new_error_mem(epoint);
+        }
     default: break;
     }
-    if (o1->obj == FLOAT_OBJ) {
+    if (typ == FLOAT_OBJ) {
         real = ((Float *)o1)->real;
     } else {
         err = FLOAT_OBJ->create(o1, epoint);
@@ -435,19 +472,19 @@ static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint
     switch (func) {
     case F_SQRT:
         if (real < 0.0) {
-            return (Obj *)new_error_key(ERROR_SQUARE_ROOT_N, o1, epoint);
+            return (Obj *)new_error_obj(ERROR_SQUARE_ROOT_N, o1, epoint);
         }
         real = sqrt(real);
         break;
     case F_LOG10:
         if (real <= 0.0) {
-            return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
+            return (Obj *)new_error_obj(ERROR_LOG_NON_POSIT, o1, epoint);
         }
         real = log10(real);
         break;
     case F_LOG:
         if (real <= 0.0) {
-            return (Obj *)new_error_key(ERROR_LOG_NON_POSIT, o1, epoint);
+            return (Obj *)new_error_obj(ERROR_LOG_NON_POSIT, o1, epoint);
         }
         real = log(real);
         break;
@@ -457,13 +494,13 @@ static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint
     case F_TAN: real = tan(real);break;
     case F_ACOS:
         if (real < -1.0 || real > 1.0) {
-            return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
+            return (Obj *)new_error_obj(ERROR___MATH_DOMAIN, o1, epoint);
         }
         real = acos(real);
         break;
     case F_ASIN:
         if (real < -1.0 || real > 1.0) {
-            return (Obj *)new_error_key(ERROR___MATH_DOMAIN, o1, epoint);
+            return (Obj *)new_error_obj(ERROR___MATH_DOMAIN, o1, epoint);
         }
         real = asin(real);
         break;
@@ -649,9 +686,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void functionobj_init(void) {
     new_type(&obj, T_FUNCTION, "function", sizeof(Function));
+    obj.create = create;
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;
+    obj.str = str;
     obj.calc2 = calc2;
 }
 

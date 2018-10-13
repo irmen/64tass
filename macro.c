@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1593 2018-07-31 15:41:51Z soci $
+    $Id: macro.c 1620 2018-08-30 20:26:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "errorobj.h"
 #include "macroobj.h"
 #include "mfuncobj.h"
+#include "memblocksobj.h"
 
 static int functionrecursion;
 
@@ -601,15 +602,12 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     Tuple *tuple;
     Obj *retval = NULL;
     Namespace *context;
-    struct section_s rsection;
-    struct section_s *oldsection = current_section;
     struct linepos_s xpoint;
 
     if (functionrecursion>100) {
         err_msg2(ERROR__FUNRECURSION, NULL, epoint);
         return NULL;
     }
-    init_section2(&rsection);
 
     xpoint.line = mfunc->line;
     xpoint.pos = 0;
@@ -659,6 +657,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         size_t oldbottom;
         bool in_macro_old = in_macro;
         in_macro = false;
+        struct section_address_s section_address, *oldsection_address = current_address;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -675,20 +674,28 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         }
         push_context(context);
         temporary_label_branch++;
-        current_section = &rsection;
-        reset_section(current_section);
-        current_section->provides = oldsection->provides;
-        current_section->requires = oldsection->requires;
-        current_section->conflicts = oldsection->conflicts;
-        current_section->l_address.address = star & 0xffff; /* TODO */
-        current_section->l_address.bank = star & ~(address_t)0xffff;
-        val_destroy(current_section->l_address_val);
-        current_section->l_address_val = val_reference(oldsection->l_address_val);
-        current_section->dooutput = false;
+
+        section_address.wrapwarn = section_address.moved = section_address.unionmode = false;
+        section_address.address = 0;
+        section_address.start = 0;
+        section_address.l_start.address = 0;
+        section_address.l_start.bank = 0;
+        section_address.end = 0;
+        section_address.mem = new_memblocks();
+        section_address.mem->lastaddr = 0;
+        section_address.l_address = current_address->l_address;
+        section_address.l_address_val = val_reference(current_address->l_address_val);
+        current_address = &section_address;
         functionrecursion++;
         retval = compile();
         functionrecursion--;
-        current_section = oldsection;
+        val_destroy(current_address->l_address_val);
+        val_destroy(&current_address->mem->v);
+        current_address = oldsection_address;
+        if (current_address->l_address.bank > all_mem) {
+            current_address->l_address.bank &= all_mem;
+            err_msg_big_address(epoint);
+        }
         context_set_bottom(oldbottom);
         pop_context();
         for (i = 0; i < mfunc->nslen; i++) {
@@ -706,7 +713,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     exitfile();
     if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(context);
     val_destroy(&context->v);
-    destroy_section2(&rsection);
+
     if (retval != NULL) return retval;
     return (Obj *)ref_tuple(null_tuple);
 }

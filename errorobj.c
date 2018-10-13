@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: errorobj.c 1637 2018-09-02 19:26:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,12 +46,24 @@ static FAST_CALL void destroy(Obj *o1) {
     case ERROR___NOT_DEFINED:
         val_destroy((Obj *)v1->u.notdef.names);
         return;
+    case ERROR__NOT_KEYVALUE:
+    case ERROR__NOT_HASHABLE:
+    case ERROR_____CANT_SIGN:
+    case ERROR______CANT_ABS:
+    case ERROR______CANT_INT:
+    case ERROR______CANT_LEN:
+    case ERROR_____CANT_SIZE:
+    case ERROR_____CANT_BOOL:
+    case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
-        val_destroy(v1->u.key);
+        val_destroy(v1->u.obj);
+        return;
+    case ERROR__INVALID_CONV:
+        val_destroy(v1->u.conv.val);
         return;
     default: return;
     }
@@ -92,12 +104,24 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     case ERROR___NOT_DEFINED:
         v = &v1->u.notdef.names->v;
         break;
+    case ERROR__NOT_KEYVALUE:
+    case ERROR__NOT_HASHABLE:
+    case ERROR_____CANT_SIGN:
+    case ERROR______CANT_ABS:
+    case ERROR______CANT_INT:
+    case ERROR______CANT_LEN:
+    case ERROR_____CANT_SIZE:
+    case ERROR_____CANT_BOOL:
+    case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
-        v = v1->u.key;
+        v = v1->u.obj;
+        break;
+    case ERROR__INVALID_CONV:
+        v = v1->u.conv.val;
         break;
     default: return;
     }
@@ -130,11 +154,20 @@ MALLOC Error *new_error_mem(linepos_t epoint) {
     return v;
 }
 
-MALLOC Error *new_error_key(Error_types num, Obj *v1, linepos_t epoint) {
+MALLOC Error *new_error_obj(Error_types num, Obj *v1, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;
     v->epoint = *epoint;
-    v->u.key = val_reference(v1);
+    v->u.obj = val_reference(v1);
+    return v;
+}
+
+MALLOC Error *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
+    Error *v = (Error *)val_alloc(ERROR_OBJ);
+    v->num = ERROR__INVALID_CONV;
+    v->epoint = *epoint;
+    v->u.conv.t = t;
+    v->u.conv.val = val_reference(v1);
     return v;
 }
 

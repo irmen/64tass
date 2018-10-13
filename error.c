@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1593 2018-07-31 15:41:51Z soci $
+    $Id: error.c 1660 2018-09-22 11:39:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "eval.h"
 #include "arguments.h"
 #include "opcodes.h"
+#include "section.h"
 
 #include "strobj.h"
 #include "addressobj.h"
@@ -231,7 +232,6 @@ static const char * const terr_error[] = {
     "extra characters on line",
     "more than two characters",
     "floating point overflow",
-    "address not in processor address space",
     "general syntax",
     "expression syntax",
     "label required",
@@ -240,7 +240,7 @@ static const char * const terr_error[] = {
     "most significiant bit must be clear in byte",
     "at least one byte is needed",
     "last byte must not be gap",
-    "address in different program bank",
+    "address in different program bank ",
     "address out of section",
     "negative number raised on fractional power",
     "square root of negative number",
@@ -248,32 +248,33 @@ static const char * const terr_error[] = {
     "not in range -1.0 to 1.0",
     "empty range not allowed",
     "empty string not allowed",
+    "empty list not allowed",
     "more than a single character",
     "too early to reference",
     "requirements not met",
     "conflict",
     "index out of range",
-    "key error",
+    "key error ",
     "offset out of range",
-    "not hashable",
-    "not a key and value pair",
-    "too large for a %u bit signed integer",
-    "too large for a %u bit unsigned integer",
-    "value needs to be non-negative",
+    "not hashable ",
+    "not a key and value pair ",
+    "too large for a %u bit signed integer ",
+    "too large for a %u bit unsigned integer ",
+    "value needs to be non-negative ",
     "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE,
-    "can't get sign of type",
-    "can't get absolute value of type",
-    "can't get integer value of type",
-    "can't get length of type",
-    "can't get size of type",
-    "can't get boolean value of type",
-    "not iterable",
+    "can't get sign of ",
+    "can't get absolute value of ",
+    "can't get integer value of ",
+    "can't get length of ",
+    "can't get size of ",
+    "can't get boolean value of ",
+    "not iterable ",
     "no byte sized addressing mode for opcode",
     "no word sized addressing mode for opcode",
     "no long sized addressing mode for opcode",
-    "not a direct page address",
-    "not a data bank address",
-    "not a bank 0 address",
+    "not a direct page address ",
+    "not a data bank address ",
+    "not a bank 0 address ",
     "out of memory",
     "addressing mode too complex",
     "empty encoding, add something or correct name",
@@ -297,7 +298,9 @@ static const char * const terr_fatal[] = {
 };
 
 static void err_msg_variable(Obj *val, linepos_t epoint) {
-    Obj *err = val->obj->repr(val, epoint, 40);
+    Obj *err;
+    adderror(val->obj->name);
+    err = val->obj->str(val, epoint, 40);
     if (err != NULL) {
         if (err->obj == STR_OBJ) {
             Str *str = (Str *)err;
@@ -454,7 +457,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_____NOT_BANK0:
         case ERROR____NOT_DIRECT:
         case ERROR__NOT_DATABANK:
-        case ERROR_ADDRESS_LARGE:
         case ERROR_CANT_CROSS_BA:
             adderror(terr_error[no - 0x40]);
             if (prm != NULL) err_msg_variable((Obj *)prm, epoint);
@@ -502,10 +504,18 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     if (name != NULL) str_name(name->data, name->len);
 }
 
-static void err_msg_char_name(const char *msg, const char *name, linepos_t epoint) {
+static void err_msg_obj(const char *msg, Obj *val, linepos_t epoint) {
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror(msg);
-    str_name((const uint8_t *)name, strlen(name));
+    err_msg_variable(val, epoint);
+}
+
+void err_msg_big_address(linepos_t epoint) {
+    Obj *val = get_star_value(current_address->l_address_val);
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("address not in processor address space ");
+    err_msg_variable(val, epoint);
+    val_destroy(val);
 }
 
 static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val, linepos_t epoint) {
@@ -513,6 +523,19 @@ static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val, li
     sprintf(msg2, msg, bits);
     adderror(msg2);
     err_msg_variable(val, epoint);
+}
+
+static void err_msg_invalid_conv(Obj *v1, const Type *t, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        err_msg_output((const Error *)v1);
+        return;
+    }
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("conversion of ");
+    err_msg_variable(v1, epoint);
+    adderror(" to ");
+    adderror(t->name);
+    adderror(" is not possible");
 }
 
 static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -633,21 +656,15 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepo
     adderror(msg2);
 }
 
-static void err_msg_key_error(Obj *val, const char *msg, linepos_t epoint) {
-    new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror(msg);
-    err_msg_variable(val, epoint);
-}
-
 void err_msg_output(const Error *val) {
     switch (val->num) {
     case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.notdef.ident, val->u.notdef.names, val->u.notdef.down, &val->epoint);break;
+    case ERROR__INVALID_CONV: err_msg_invalid_conv(val->u.conv.val, val->u.conv.t, &val->epoint);break;
     case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.invoper.op, val->u.invoper.v1, val->u.invoper.v2, &val->epoint);break;
     case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL:
     case ERROR______NOT_UVAL: new_error_msg(SV_ERROR, current_file_list, &val->epoint); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
-    case ERROR_ADDRESS_LARGE:
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
@@ -656,6 +673,7 @@ void err_msg_output(const Error *val) {
     case ERROR_NEGFRAC_POWER:
     case ERROR___EMPTY_RANGE:
     case ERROR__EMPTY_STRING:
+    case ERROR____EMPTY_LIST:
     case ERROR__BYTES_NEEDED:
     case ERROR___NO_LAST_GAP:
     case ERROR__NOT_ONE_CHAR:
@@ -666,6 +684,10 @@ void err_msg_output(const Error *val) {
     case ERROR_OUT_OF_MEMORY:
     case ERROR__ADDR_COMPLEX:
     case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->num - 0x40], NULL, &val->epoint);break;
+    case ERROR_NO_ADDRESSING: err_msg_no_addressing(SV_ERROR, val->u.addressing, &val->epoint);break;
+    case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
+    case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
+    case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
     case ERROR_____CANT_SIGN:
@@ -673,16 +695,13 @@ void err_msg_output(const Error *val) {
     case ERROR______CANT_INT:
     case ERROR______CANT_LEN:
     case ERROR_____CANT_SIZE:
-    case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->num - 0x40], val->u.objname, &val->epoint);break;
-    case ERROR_NO_ADDRESSING: err_msg_no_addressing(SV_ERROR, val->u.addressing, &val->epoint);break;
-    case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
-    case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
-    case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
+    case ERROR_____CANT_BOOL:
+    case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
-    case ERROR_____KEY_ERROR: err_msg_key_error(val->u.key, terr_error[val->num - 0x40], &val->epoint);break;
+    case ERROR_____KEY_ERROR: err_msg_obj(terr_error[val->num - 0x40], val->u.obj, &val->epoint);break;
     default: break;
     }
 }
@@ -701,6 +720,13 @@ void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
         adderror(expected->name);
     }
     adderror("'");
+}
+
+void err_msg_cant_unpack(size_t expect, size_t got, linepos_t epoint) {
+    char line[1024];
+    new_error_msg(SV_ERROR, current_file_list, epoint);
+    sprintf(line, "expected %" PRIuSIZE " values but got %" PRIuSIZE " to unpack", expect, got); 
+    adderror(line);
 }
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
@@ -895,14 +921,17 @@ void err_msg_unused_variable(Label *l) {
     adderror(" [-Wunused-variable]");
 }
 
+void err_msg_type_mixing(linepos_t epoint) {
+    new_error_msg(diagnostic_errors.type_mixing ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    adderror("mixed operation with lists and tuples was undefined and is different now [-Wtype-mixing]");
+}
+
 static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     adderror(op->name);
     adderror("' of ");
-    adderror(v1->obj->name);
     err_msg_variable(v1, epoint);
     if (v2 != NULL) {
         adderror(" and ");
-        adderror(v2->obj->name);
         err_msg_variable(v2, epoint);
     }
     adderror(" not possible");
@@ -944,10 +973,9 @@ void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
 }
 
 void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
-    const char *name = o->obj->name;
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
     adderror(terr_error[no - 0x40]);
-    str_name((const uint8_t *)name, strlen(name));
+    err_msg_variable(o, epoint);
     adderror(" [-Wstrict-bool]");
 }
 
@@ -1040,7 +1068,7 @@ static const uint8_t *printline(const struct file_list_s *cfile, linepos_t epoin
     return line;
 }
 
-static inline void print_error(FILE *f, const struct errorentry_s *err) {
+static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
     const uint8_t *line = NULL;
@@ -1087,7 +1115,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     print_use_bold = false;
 #endif
     putc('\n', f);
-    if (arguments.caret && line != NULL) {
+    if (arguments.caret && caret && line != NULL) {
         putc(' ', f);
         printable_print(line, f);
         fputs("\n ", f);
@@ -1104,6 +1132,13 @@ static void color_detect(FILE *f) {
 #else
 #define color_detect(f) {}
 #endif
+
+static bool different_line(const struct errorentry_s *err, const struct errorentry_s *err2) {
+    if (err->file_list->file != err2->file_list->file || err->line_len != err2->line_len ||
+            err->epoint.line != err2->epoint.line || err->epoint.pos != err2->epoint.pos) return true;
+    if (err->line_len == 0) return false;
+    return memcmp(err + 1, err2 + 1, err->line_len) != 0;
+}
 
 bool error_print() {
     const struct errorentry_s *err, *err2, *err3;
@@ -1148,7 +1183,7 @@ bool error_print() {
                         err->line_len != err3->line_len || err->error_len != err3->error_len ||
                         err->epoint.line != err3->epoint.line || err->epoint.pos != err3->epoint.pos ||
                         memcmp(err + 1, err3 + 1, err->line_len + err->error_len) != 0) {
-                    print_error(ferr, err3);
+                    print_error(ferr, err3, different_line(err, err3));
                 }
             }
             err3 = err2;
@@ -1176,13 +1211,13 @@ bool error_print() {
             errors++;
             break;
         }
-        if (err3 != NULL) print_error(ferr, err3);
+        if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
         err3 = err2;
         err2 = err;
         usenote = true;
     }
-    if (err3 != NULL) print_error(ferr, err3);
-    if (err2 != NULL) print_error(ferr, err2);
+    if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
+    if (err2 != NULL) print_error(ferr, err2, true);
     color_detect(stderr);
     if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors != 0;

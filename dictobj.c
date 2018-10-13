@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1580 2018-01-14 09:05:14Z soci $
+    $Id: dictobj.c 1630 2018-09-01 15:56:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -81,8 +81,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_DICT: return val_reference(v1);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, DICT_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -180,14 +179,14 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Obj *v;
     Str *str;
     uint8_t *s;
-    unsigned int def = (v1->def != NULL) ? 1 : 0;
+    size_t def = (v1->def != NULL) ? 1 : 0;
     if (v1->len != 0 || def != 0) {
         ln = v1->len * 2;
-        if (ln < v1->len) err_msg_out_of_memory(); /* overflow */
+        if (ln < v1->len) return NULL; /* overflow */
         ln += def;
-        if (ln < def) err_msg_out_of_memory(); /* overflow */
+        if (ln < def) return NULL; /* overflow */
         chars = ln + 1 + def;
-        if (chars < ln) err_msg_out_of_memory(); /* overflow */
+        if (chars < ln) return NULL; /* overflow */
         if (chars > maxsize) return NULL;
         list = new_tuple(ln);
         vals = list->data;
@@ -200,7 +199,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 if (v == NULL || v->obj != STR_OBJ) goto error;
                 str = (Str *)v;
                 ln += str->len;
-                if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+                if (ln < str->len) goto error2; /* overflow */
                 chars += str->chars;
                 if (chars > maxsize) goto error2;
                 vals[i++] = v;
@@ -209,7 +208,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                     if (v == NULL || v->obj != STR_OBJ) goto error;
                     str = (Str *)v;
                     ln += str->len;
-                    if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+                    if (ln < str->len) goto error2; /* overflow */
                     chars += str->chars;
                     if (chars > maxsize) goto error2;
                 } else {
@@ -223,28 +222,29 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         }
         if (def != 0) {
             v = v1->def->obj->repr(v1->def, epoint, maxsize - chars);
-            if (v == NULL || v->obj != STR_OBJ) {
+            if (v == NULL || v->obj != STR_OBJ) goto error;
+            str = (Str *)v;
+            ln += str->len;
+            if (ln < str->len) goto error2; /* overflow */
+            chars += str->chars;
+            if (chars > maxsize) {
+            error2:
+                val_destroy(v);
+                v = NULL;
             error:
                 list->len = i;
                 val_destroy(&list->v);
                 return v;
             }
-            str = (Str *)v;
-            ln += str->len;
-            if (ln < str->len) err_msg_out_of_memory(); /* overflow */
-            chars += str->chars;
-            if (chars > maxsize) {
-            error2:
-                list->len = i;
-                val_destroy(&list->v);
-                val_destroy(v);
-                return NULL;
-            }
             vals[i] = v;
         }
         list->len = i + def;
     }
-    str = new_str(ln);
+    str = new_str2(ln);
+    if (str == NULL) {
+        if (list != NULL) val_destroy(&list->v);
+        return NULL;
+    }
     str->chars = chars;
     s = str->data;
     *s++ = '{';
@@ -289,7 +289,7 @@ static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint2) {
     if (v1->def != NULL) {
         return val_reference(v1->def);
     }
-    return (Obj *)new_error_key(ERROR_____KEY_ERROR, o2, epoint2);
+    return (Obj *)new_error_obj(ERROR_____KEY_ERROR, o2, epoint2);
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
@@ -309,19 +309,24 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
 
     if (o2 == &none_value->v) return val_reference(o2);
     if (o2->obj == LIST_OBJ) {
-        size_t i;
-        List *v2 = (List *)o2, *v;
+        iter_next_t iter_next;
+        Iter *iter = o2->obj->getiter(o2);
+        size_t i, len2 = iter->len(iter);
+        List *v;
         Obj **vals;
         bool error;
-        if (v2->len == 0) {
+
+        if (len2 == 0) {
+            val_destroy(&iter->v);
             return val_reference(&null_list->v);
         }
         v = (List *)val_alloc(LIST_OBJ);
-        v->data = vals = list_create_elements(v, v2->len);
+        v->data = vals = list_create_elements(v, len2);
         error = true;
         pair_oper.epoint3 = epoint2;
-        for (i = 0; i < v2->len; i++) {
-            vv = findit(v1, v2->data[i], epoint2);
+        iter_next = iter->next;
+        for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
+            vv = findit(v1, o2, epoint2);
             if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
             if (vv->obj == ERROR_OBJ) {
                 if (error) {err_msg_output((Error *)vv); error = false;}
@@ -331,6 +336,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             }
             vals[i] = vv;
         }
+        val_destroy(&iter->v);
         v->len = i;
         return &v->v;
     }
@@ -405,7 +411,7 @@ Obj *dictobj_parse(struct values_s *values, unsigned int args) {
             Colonlist *list = (Colonlist *)key;
             if (list->len != 2 || list->data[1] == &default_value->v) {
                 err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
-                err->u.objname = key->obj->name;
+                err->u.obj = val_reference(key);
                 val_destroy(&dict->v);
                 return &err->v;
             }

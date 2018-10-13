@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: errorobj.h 1623 2018-08-30 21:06:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,11 @@ typedef struct Error {
             unsigned int bits;
             Obj *val;
         } intconv;
-        const char *objname;
+        struct {
+            const struct Type *t;
+            Obj *val;
+        } conv;
+        Obj *obj;
         uint32_t addressing;
         struct Register *reg;
         size_t opers;
@@ -56,7 +60,6 @@ typedef struct Error {
             size_t v1;
             size_t v2;
         } broadcast;
-        Obj *key;
     } u;
 } Error;
 
@@ -64,6 +67,7 @@ extern void errorobj_init(void);
 
 extern MALLOC Error *new_error(Error_types, linepos_t);
 extern MALLOC Error *new_error_mem(linepos_t);
-extern MALLOC Error *new_error_key(Error_types, Obj *, linepos_t);
+extern MALLOC Error *new_error_obj(Error_types, Obj *, linepos_t);
+extern MALLOC Error *new_error_conv(Obj *, struct Type *, linepos_t);
 
 #endif

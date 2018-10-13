@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 1575 2017-12-28 12:56:31Z soci $
+    $Id: typeobj.h 1627 2018-09-01 11:44:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ typedef enum Type_types {
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
     T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
-    T_LABEL, T_NAMESPACE, T_MEMBLOCKS
+    T_LABEL, T_NAMESPACE, T_MEMBLOCKS, T_FOLD
 } Type_types;
 
 typedef enum Func_types {
@@ -40,8 +40,6 @@ typedef enum Func_types {
 } Func_types;
 
 struct Error;
-
-typedef MUST_CHECK Obj *(*iter_next_t)(Iter *);
 
 typedef struct Type {
     Obj v;
@@ -56,6 +54,7 @@ typedef struct Type {
     Obj *(*truth)(Obj *, Truth_types, linepos_t) MUST_CHECK;
     struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t, size_t) MUST_CHECK;
+    Obj *(*str)(Obj *, linepos_t, size_t) MUST_CHECK;
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
     Obj *(*calc2)(struct oper_s *) MUST_CHECK;
     Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
@@ -69,7 +68,6 @@ typedef struct Type {
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
     Iter *(*getiter)(Obj *) MUST_CHECK;
-    iter_next_t next;
 } Type;
 
 extern void typeobj_init(void);

@@ -1,5 +1,5 @@
 /*
-    $Id: wait_e.h 1595 2018-08-24 14:17:29Z soci $
+    $Id: foldobj.h 1600 2018-08-25 16:23:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,12 +16,24 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef WAIT_E_H
-#define WAIT_E_H
-typedef enum Wait_types {
-    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
-    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
-    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2,
-    W_ENDN, W_ENDN2, W_ENDV, W_ENDV2
-} Wait_types;
+#ifndef FOLDOBJ_H
+#define FOLDOBJ_H
+#include "obj.h"
+
+extern struct Type *FOLD_OBJ;
+
+typedef struct Fold {
+    Obj v;
+    int *dummy;
+} Fold;
+
+extern Fold *fold_value;
+
+extern void foldobj_init(void);
+extern void foldobj_destroy(void);
+
+static inline Fold *ref_fold(void) {
+    fold_value->v.refcount++; return fold_value;
+}
+
 #endif

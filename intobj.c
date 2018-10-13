@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: intobj.c 1613 2018-08-26 13:20:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -68,8 +68,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_ADDRESS: return int_from_address((Address *)v1, epoint);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, INT_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -169,7 +168,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Int *v1 = (Int *)o1;
     size_t len = intlen(v1);
     bool neg = v1->len < 0;
@@ -184,18 +183,19 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         if (len != 0) len = (size_t)sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0] = '0';len = 1;}
         if (len > maxsize) return NULL;
-        v = new_str(len);
+        v = new_str2(len);
+        if (v == NULL) return NULL;
         v->chars = len;
         memcpy(v->data, tmp2, len);
         return &v->v;
     }
 
     sz = len * SHIFT / (3 * DSHIFT);
-    if (len > SSIZE_MAX / SHIFT) goto failed; /* overflow */
+    if (len > SSIZE_MAX / SHIFT) return NULL; /* overflow */
     if (sz * DSHIFT > maxsize) return NULL;
     sz++;
     out = inew2(&tmp, sz);
-    if (out == NULL) goto failed;
+    if (out == NULL) return NULL;
 
     for (sz = 0, i = len; (i--) != 0;) {
         digit_t h = v1->data[i];
@@ -220,15 +220,14 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     }
     len2 = sz * DSHIFT;
     slen += len2;
-    if (slen < len2 || sz > SIZE_MAX / DSHIFT) { /* overflow */
-        if (tmp.val != out) free(out);
-        goto failed;
-    }
+    if (slen < len2 || sz > SIZE_MAX / DSHIFT) goto error; /* overflow */
     if (slen > maxsize) {
+    error:
         if (tmp.val != out) free(out);
         return NULL;
     }
-    v = new_str(slen);
+    v = new_str2(slen);
+    if (v == NULL) goto error;
     v->chars = slen;
     s = v->data + slen;
     for (i = 0; i < sz; i++) {
@@ -247,8 +246,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 
     if (tmp.val != out) free(out);
     return &v->v;
-failed:
-    return (epoint != NULL) ? (Obj *)new_error_mem(epoint) : NULL;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {

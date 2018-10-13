@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1590 2018-07-19 06:00:59Z soci $
+    $Id: section.c 1595 2018-08-24 14:17:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
+struct section_address_s *current_address = &root_section.address;
 static struct section_s *prev_section = &root_section;
 
 static int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -48,8 +49,8 @@ static void section_free(struct avltree_node *aa)
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, section_free);
     longjump_destroy(&a->longjump);
-    val_destroy(&a->mem->v);
-    val_destroy(a->l_address_val);
+    val_destroy(&a->address.mem->v);
+    val_destroy(a->address.l_address_val);
     cpu_opt_destroy(a->optimizer);
     free(a);
 }
@@ -98,21 +99,20 @@ struct section_s *new_section(const str_t *name) {
         else str_cfcpy(&lastsc->cfname, NULL);
         lastsc->parent = current_section;
         lastsc->provides = ~(uval_t)0;lastsc->requires = lastsc->conflicts = 0;
-        lastsc->end = lastsc->address = lastsc->l_address.address = lastsc->l_address.bank = lastsc->size = 0;
-        lastsc->l_address_val = (Obj *)ref_int(int_value[0]);
-        lastsc->dooutput = true;
+        lastsc->address.end = lastsc->address.address = lastsc->address.l_address.address = lastsc->address.l_address.bank = lastsc->address.l_start.address = lastsc->address.l_start.bank = lastsc->size = 0;
+        lastsc->address.l_address_val = (Obj *)ref_int(int_value[0]);
         lastsc->defpass = 0;
         lastsc->usepass = 0;
-        lastsc->unionmode = false;
+        lastsc->address.unionmode = false;
         lastsc->structrecursion = 0;
         lastsc->logicalrecursion = 0;
-        lastsc->moved = false;
-        lastsc->wrapwarn = false;
+        lastsc->address.moved = false;
+        lastsc->address.wrapwarn = false;
         lastsc->next = NULL;
         lastsc->optimizer = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
-        lastsc->mem = new_memblocks();
+        lastsc->address.mem = new_memblocks();
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
         tmp = lastsc;
@@ -144,49 +144,40 @@ struct section_s *find_this_section(const char *here) {
 
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
-    section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
-    val_destroy(section->l_address_val);
-    section->l_address_val = (Obj *)ref_int(int_value[0]);
-    section->dooutput = true;
+    section->address.end = section->address.start = section->restart = section->l_restart.address = section->l_restart.bank = section->address.address = section->address.l_address.address = section->address.l_address.bank = section->address.l_start.address = section->address.l_start.bank = 0;
+    val_destroy(section->address.l_address_val);
+    section->address.l_address_val = (Obj *)ref_int(int_value[0]);
     section->structrecursion = 0;
     section->logicalrecursion = 0;
-    section->moved = false;
-    section->wrapwarn = false;
-    section->unionmode = false;
-}
-
-void init_section2(struct section_s *section) {
-    section->parent = NULL;
-    section->name.data = NULL;
-    section->name.len = 0;
-    section->cfname.data = NULL;
-    section->cfname.len = 0;
-    section->next = NULL;
-    section->optimizer = NULL;
-    section->mem = new_memblocks();
-    section->l_address_val = (Obj *)ref_int(int_value[0]);
-    avltree_init(&section->members);
-    avltree_init(&section->longjump);
+    section->address.moved = false;
+    section->address.wrapwarn = false;
+    section->address.unionmode = false;
 }
 
 void init_section(void) {
-    init_section2(&root_section);
+    root_section.parent = NULL;
+    root_section.name.data = NULL;
+    root_section.name.len = 0;
+    root_section.cfname.data = NULL;
+    root_section.cfname.len = 0;
+    root_section.next = NULL;
+    root_section.optimizer = NULL;
+    root_section.address.mem = new_memblocks();
+    root_section.address.l_address_val = (Obj *)ref_int(int_value[0]);
+    avltree_init(&root_section.members);
+    avltree_init(&root_section.longjump);
     prev_section = &root_section;
-}
-
-void destroy_section2(struct section_s *section) {
-    avltree_destroy(&section->members, section_free);
-    longjump_destroy(&section->longjump);
-    val_destroy(&section->mem->v);
-    val_destroy(section->l_address_val);
-    section->l_address_val = NULL;
-    cpu_opt_destroy(section->optimizer);
-    section->optimizer = NULL;
 }
 
 void destroy_section(void) {
     free(lastsc);
-    destroy_section2(&root_section);
+    avltree_destroy(&root_section.members, section_free);
+    longjump_destroy(&root_section.longjump);
+    val_destroy(&root_section.address.mem->v);
+    val_destroy(root_section.address.l_address_val);
+    root_section.address.l_address_val = NULL;
+    cpu_opt_destroy(root_section.optimizer);
+    root_section.optimizer = NULL;
 }
 
 static void sectionprint2(const struct section_s *l) {
@@ -199,10 +190,10 @@ static void sectionprint2(const struct section_s *l) {
 
 static void printrange(const struct section_s *l) {
     char temp[10], temp2[10], temp3[10];
-    sprintf(temp, "$%04" PRIaddress, l->start);
+    sprintf(temp, "$%04" PRIaddress, l->address.start);
     temp2[0] = 0;
     if (l->size != 0) {
-        sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->start + l->size - 1));
+        sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->address.start + l->size - 1));
     }
     sprintf(temp3, "$%04" PRIaddress, l->size);
     printf("Section: %15s%-8s %-7s", temp, temp2, temp3);
@@ -215,7 +206,7 @@ void sectionprint(void) {
         printrange(l);
         putchar('\n');
     }
-    memprint(l->mem);
+    memprint(l->address.mem);
     l = root_section.next;
     while (l != NULL) {
         if (l->defpass == pass) {
@@ -224,7 +215,7 @@ void sectionprint(void) {
             sectionprint2(l->parent);
             printable_print2(l->name.data, stdout, l->name.len);
             putchar('\n');
-            memprint(l->mem);
+            memprint(l->address.mem);
         }
         l = l->next;
     }
@@ -234,7 +225,7 @@ void section_sizecheck(void) {
     struct section_s *l = root_section.next;
     while (l != NULL) {
         if (l->defpass == pass) {
-            if (l->size != ((!l->moved && l->end < l->address) ? l->address : l->end) - l->start) {
+            if (l->size != ((!l->address.moved && l->address.end < l->address.address) ? l->address.address : l->address.end) - l->address.start) {
                 if (pass > max_pass) err_msg_cant_calculate2(&l->name, l->file_list, &l->epoint);
                 fixeddig = false;
                 return;

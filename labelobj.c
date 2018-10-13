@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 1583 2018-01-14 10:59:09Z soci $
+    $Id: labelobj.c 1621 2018-08-30 20:34:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "strobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "errorobj.h"
 
 static Type obj;
 
@@ -38,8 +39,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_LABEL: return val_reference(v1);
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return (Obj *)new_error_conv(v1, LABEL_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -90,16 +90,17 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     uint8_t *s;
     Str *v;
     if (epoint == NULL) return NULL;
-    len = v1->name.len;
     switch (v1->name.data[0]) {
     case '+':
     case '-': len = 1; break;
     case '#':
     case '.': len = 0; break;
+    default: len = v1->name.len;
     }
     len2 = len + 10;
     if (len2 > maxlen) return NULL;
-    v = new_str(len2);
+    v = new_str2(len2);
+    if (v == NULL) return NULL;
     v->chars = calcpos(v1->name.data, len);
     s = v->data;
     memcpy(s, "<label '", 8);
@@ -110,6 +111,26 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     return &v->v;
 }
 
+static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxlen) {
+    Label *v1 = (Label *)o1;
+    size_t len, chars;
+    Str *v;
+    switch (v1->name.data[0]) {
+    case '+':
+    case '-': len = 1; break;
+    case '#':
+    case '.': return NULL;
+    default: len = v1->name.len;
+    }
+    chars = calcpos(v1->name.data, len);
+    if (chars > maxlen) return NULL;
+    v = new_str2(len);
+    if (v == NULL) return NULL;
+    v->chars = chars;
+    memcpy(v->data, v1->name.data, len);
+    return &v->v;
+}
+
 void labelobj_init(void) {
     new_type(&obj, T_LABEL, "label", sizeof(Label));
     obj.create = create;
@@ -117,4 +138,5 @@ void labelobj_init(void) {
     obj.garbage = garbage;
     obj.same = same;
     obj.repr = repr;
+    obj.str = str;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: obj.h 1629 2018-09-01 15:37:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,11 +38,17 @@ typedef struct Lbl_s {
     struct Namespace *parent;
 } Lbl;
 
+struct Iter;
+typedef MUST_CHECK Obj *(*iter_next_t)(struct Iter *);
+typedef size_t (*iter_len_t)(struct Iter *);
+
 typedef struct Iter {
     Obj v;
-    void *iter;
+    Obj *iter;
     size_t val;
     Obj *data;
+    iter_next_t next;
+    iter_len_t len;
 } Iter;
 
 typedef struct Funcargs {

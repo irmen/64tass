@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 1590 2018-07-19 06:00:59Z soci $
+    $Id: section.h 1595 2018-08-24 14:17:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,19 @@ struct Obj;
 struct Memblocks;
 struct optimizer_s;
 
+struct section_address_s {
+    address_t address;
+    address2_t l_address;
+    address_t start;
+    address_t end;
+    address2_t l_start;
+    struct Obj *l_address_val;
+    struct Memblocks *mem;
+    bool moved;
+    bool wrapwarn;
+    bool unionmode;
+};
+
 struct section_s {
     int name_hash;
     str_t name;
@@ -38,26 +51,13 @@ struct section_s {
     uval_t provides;
     address_t restart;
     address2_t l_restart;
-    address_t address;
-    address2_t l_address;
-    struct Obj *l_address_val;
-    address_t start;
-    address_t end;
-    address_t unionstart;
-    address_t unionend;
-    address2_t l_unionstart;
-    address2_t l_unionend;
     address_t size;
-    struct Memblocks *mem;
+    struct section_address_s address;
     uint8_t usepass;
     uint8_t defpass;
     uint8_t structrecursion;
     uint8_t logicalrecursion;
-    bool dooutput;
     bool declared;
-    bool unionmode;
-    bool moved;
-    bool wrapwarn;
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;
@@ -71,11 +71,10 @@ extern struct section_s *new_section(const str_t *);
 extern struct section_s *find_new_section(const str_t *);
 extern struct section_s *find_this_section(const char *);
 extern void init_section(void);
-extern void init_section2(struct section_s *);
 extern void destroy_section(void);
-extern void destroy_section2(struct section_s *);
 extern void reset_section(struct section_s *);
 extern void sectionprint(void);
 extern void section_sizecheck(void);
 extern struct section_s *current_section, root_section;
+extern struct section_address_s *current_address;
 #endif

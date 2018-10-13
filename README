@@ -1,10 +1,4 @@
-64tass by Soci/Singular
------------------------
-This is a Git-clone of the original project page: http://sourceforge.net/projects/tass64/
-(source tracked from there via Subversion)
------------------------
-
-64tass v1.53 reference manual
+64tass v1.53 r1515 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -33,7 +27,10 @@ This is a development version. Features or syntax may change as a result of
 corrections in non-backwards compatible ways in some rare cases. It's difficult
 to get everything `right' first time.
 
+Project page: http://sourceforge.net/projects/tass64/
 
+The page hosts the latest and older versions with sources and a bug and a
+feature request tracker.
 
 -------------------------------------------------------------------------------
 
@@ -211,7 +208,7 @@ solution is to not use an initial value by using `?' or not giving a fill byte
 value to .fill.
 
 *       = $02
-p1      .word ?         ;a zero page pointer
+p1      .addr ?         ;a zero page pointer
 temp    .fill 10        ;a 10 byte temporary area
 
 Space allocated this way is not saved in the output as there's no data to save
@@ -251,9 +248,9 @@ jumpcmd lda hibytes,x   ; selected routine in X register
         pha
         rts             ; jump, rts will increase pc by one!
 ; Build an anonymous list of jump addresses minus 1
--       = (cmd_p, cmd_c, cmd_m, cmd_s, cmd_r, cmd_l, cmd_e)-1
-lobytes .byte <(-)      ; low bytes of jump addresses
-hibytes .byte >(-)      ; high bytes
+_       := (cmd_p, cmd_c, cmd_m, cmd_s, cmd_r, cmd_l, cmd_e)-1
+lobytes .byte <_        ; low bytes of jump addresses
+hibytes .byte >_        ; high bytes
 
 There are some other tips below in the descriptions.
 
@@ -351,12 +348,12 @@ x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
 x ** y      x raised t power of y            2.0 ** -1 is 0.5
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
+~x          almost -x                        ~2.1 is almost -2.1
 x | y       bitwise or                       2.5 | 6.5 is 6.5
 x ^ y       bitwise xor                      2.5 ^ 6.5 is 4.0
 x & y       bitwise and                      2.5 & 6.5 is 2.5
 x << y      logical shift left               1.0 << 3.0 is 8.0
 x >> y      arithmetic shift right           -8.0 >> 4 is -0.5
-~x          almost -x                        ~2.1 is almost -2.1
 
 As usual comparing floating point numbers for (non) equality is a bad idea due
 to rounding errors.
@@ -378,8 +375,10 @@ This is the reason for the strange definition of inversion.
 Character string constants
 
 Character strings are enclosed in single or double quotes and can hold any
-Unicode character. Operations like indexing or slicing are always done on the
-original representation. The current encoding is only applied when it's used in
+Unicode character.
+
+Operations like indexing or slicing are always done on the original
+representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside string literals escapes them and results in a single
 quote.
@@ -418,20 +417,21 @@ Byte string constants
 
 Byte strings are like character strings, but hold bytes instead of characters.
 
-Quoted character strings prefixing by `b', `l', `n', `p' or `s' characters can
-be used to create byte strings. The resulting byte string contains what .text,
-.shiftl, .null, .ptext and .shift would create.
+Quoted character strings prefixing by `b', `l', `n', `p', `s' or `x' characters
+can be used to create byte strings. The resulting byte string contains what
+.text, .shiftl, .null, .ptext and .shift would create. Direct hexadecimal entry
+can be done using the `x' prefix which.
 
-       Byte string operators and functions
-y .. x concatenate strings b"a" .. b"b" is b"ab"
-y in x is substring of     b"b" in b"abc" is true
-a x n  repeat              b"ab" x 3 is b"ababab"
-a[i]   byte from start     b"abc"[1] is b"b"
-a[i]   byte from end       b"abc"[-1] is b"c"
-a[s]   no change           b"abc"[:] is b"abc"
-a[s]   cut off start       b"abc"[1:] is b"bc"
-a[s]   cut off end         b"abc"[:-1] is b"ab"
-a[s]   reverse             b"abc"[::-1] is b"cba"
+          Byte string operators and functions
+y .. x concatenate strings x"12" .. x"34" is x"1234"
+y in x is substring of     x"34" in x"1234" is true
+a x n  repeat              x"ab" x 3 is x"ababab"
+a[i]   byte from start     x"abcd12"[1] is x"cd"
+a[i]   byte from end       x"abcd"[-1] is x"cd"
+a[s]   no change           x"abcd"[:] is x"abcd"
+a[s]   cut off start       x"abcdef"[1:] is x"cdef"
+a[s]   cut off end         x"abcdef"[:-1] is x"abcd"
+a[s]   reverse             x"abcdef"[::-1] is x"efcdab"
 
 Byte strings support indexing and slicing. This is explained in detail in
 section `Slicing and indexing'.
@@ -447,6 +447,7 @@ mystr   = b"oeU"        ;convert text to bytes, like .text
         .text l"p2"     ;convert to bytes like .shiftl
         .text n"p3"     ;convert to bytes like .null
         .text p"p4"     ;convert to bytes like .ptext
+        .text x"fce2"   ;2 bytes: $fc and $e2
 
 Lists and tuples
 
@@ -457,17 +458,19 @@ Tuples are similar but are enclosed in parentheses instead. An empty tuple is
 expression parentheses. When nested they function similar to an array.
 Currently both types are immutable.
 
-         List and tuple operators and functions
-y .. x concatenate lists    [1] .. [2] is [1, 2]
-y in x is member of list    2 in [1, 2, 3] is true
-a x n  repeat               [1, 2] x 2 is [1, 2, 1, 2]
-a[i]   element from start   ("1", 2)[1] is 2
-a[i]   element from end     ("1", 2, 3)[-1] is 3
-a[s]   no change            (1, 2, 3)[:] is (1, 2, 3)
-a[s]   cut off start        (1, 2, 3)[1:] is (2, 3)
-a[s]   cut off end          (1, 2.0, 3)[:-1] is (1, 2.0)
-a[s]   reverse              (1, 2, 3)[::-1] is (3, 2, 1)
-*a     convert to arguments format("%d: %s", *mylist)
+          List and tuple operators and functions
+y .. x   concatenate lists    [1] .. [2] is [1, 2]
+y in x   is member of list    2 in [1, 2, 3] is true
+a x n    repeat               [1, 2] x 2 is [1, 2, 1, 2]
+a[i]     element from start   ("1", 2)[1] is 2
+a[i]     element from end     ("1", 2, 3)[-1] is 3
+a[s]     no change            (1, 2, 3)[:] is (1, 2, 3)
+a[s]     cut off start        (1, 2, 3)[1:] is (2, 3)
+a[s]     cut off end          (1, 2.0, 3)[:-1] is (1, 2.0)
+a[s]     reverse              (1, 2, 3)[::-1] is (3, 2, 1)
+*a       convert to arguments format("%d: %s", *mylist)
+... op a left fold            ... + (1, 2, 3) is ((1+2)+3)
+a op ... right fold           (1, 2, 3) - ... is (1-(2-3))
 
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
@@ -490,6 +493,18 @@ keys    .text mylist[::2]    ; keys ("e", "g", "i")
 call_l  .byte <mylist[1::2]-1; routines (<cmd_e-1, <cmd_g-1, <cmd_i-1)
 call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
 
+Folding is done on pair of elements either forward (left) or reverse (right).
+The list must contain at least one element. Here are some folding examples:
+
+minimum = size([part1, part2, part3]) <? ...
+maximum = size([part1, part2, part3]) >? ...
+sum     = size([part1, part2, part3]) + ...
+xorall  = list_of_numbers ^ ...
+join    = list_of_strings .. ...
+allbits = sprites.(left, middle, right).bits | ...
+all     = [true, true, true, true] && ...
+any     = [false, false, false, true] || ...
+
 The range(start, end, step) built-in function can be used to create lists of
 integers in a range with a given step value. At least the end must be given,
 the start defaults to 0 and the step to 1. Sounds not very useful, so here are
@@ -500,9 +515,9 @@ a few examples:
 ;Classic 256 byte single period sinus table with values of 0-255.
         .byte 128.5 + 127 * sin(range(256) * rad(360.0/256))
 ;Screen row address tables
--       = $400 + range(0, 1000, 40)
-scrlo   .byte <(-)
-scrhi   .byte >(-)
+_       := $400 + range(0, 1000, 40)
+scrlo   .byte <_
+scrhi   .byte >_
 
 Dictionaries
 
@@ -587,40 +602,39 @@ complexity is limited to 4 operators. This is enough to describe all addressing
 modes of the supported CPUs.
 
                   Valid addressing mode operator combinations
-#              immediate                            lda #$12
-#+             signed immediate                     lda #+127
-#-             signed immediate                     lda #-128
-#addr,#addr    move                                 mvp #5,#6
-addr           direct or relative                   lda $12 lda $1234 bne $1234
-addr,addr      direct page bit                      rmb 5,$12
-addr,addr,addr direct page bit relative jump        bbs 5,$12,$1234
-(addr)         indirect                             lda ($12) jmp ($1234)
-(addr),y       indirect y indexed                   lda ($12),y
-(addr),z       indirect z indexed                   lda ($12),z
-(addr,x)       x indexed indirect                   lda ($12,x) jmp ($1234,x)
-[addr]         long indirect                        lda [$12] jmp [$1234]
-[addr],y       long indirect y indexed              lda [$12],y
-#addr,b        data bank indexed                    lda #0,b
-#addr,b,x      data bank x indexed                  lda #0,b,x
-#addr,b,y      data bank y indexed                  lda #0,b,y
-#addr,d        direct page indexed                  lda #0,d
-#addr,d,x      direct page x indexed                lda #0,d,x
-#addr,d,y      direct page y indexed                ldx #0,d,y
-(#addr,d)      direct page indirect                 lda (#$12,d)
-(#addr,d,x)    direct page x indexed indirect       lda (#$12,d,x)
-(#addr,d),y    direct page indirect y indexed       lda (#$12,d),y
-(#addr,d),z    direct page indirect z indexed       lda (#$12,d),z
-[#addr,d]      direct page long indirect            lda [#$12,d]
-[#addr,d],y    direct page long indirect y indexed  lda [#$12,d],y
-#addr,k        program bank indexed                 jsr #0,k
-(#addr,k,x)    program bank x indexed indirect      jmp (#$1234,k,x)
-#addr,r        data stack indexed                   lda #1,r
-(#addr,r),y    data stack indexed indirect y        lda #($12,r),y
-               indexed
-#addr,s        stack indexed                        lda #1,s
-(#addr,s),y    stack indexed indirect y indexed     lda (#$12,s),y
-addr,x         x indexed                            lda $12,x
-addr,y         y indexed                            lda $12,y
+#             immediate                             lda #$12
+#+            signed immediate                      lda #+127
+#-            signed immediate                      lda #-128
+#addr,#addr   move                                  mvp #5,#6
+addr          direct or relative                    lda $12 lda $1234 bne $1234
+bit,addr      direct page bit                       rmb 5,$12
+bit,addr,addr direct page bit relative jump         bbs 5,$12,$1234
+(addr)        indirect                              lda ($12) jmp ($1234)
+(addr),y      indirect y indexed                    lda ($12),y
+(addr),z      indirect z indexed                    lda ($12),z
+(addr,x)      x indexed indirect                    lda ($12,x) jmp ($1234,x)
+[addr]        long indirect                         lda [$12] jmp [$1234]
+[addr],y      long indirect y indexed               lda [$12],y
+#addr,b       data bank indexed                     lda #0,b
+#addr,b,x     data bank x indexed                   lda #0,b,x
+#addr,b,y     data bank y indexed                   lda #0,b,y
+#addr,d       direct page indexed                   lda #0,d
+#addr,d,x     direct page x indexed                 lda #0,d,x
+#addr,d,y     direct page y indexed                 ldx #0,d,y
+(#addr,d)     direct page indirect                  lda (#$12,d)
+(#addr,d,x)   direct page x indexed indirect        lda (#$12,d,x)
+(#addr,d),y   direct page indirect y indexed        lda (#$12,d),y
+(#addr,d),z   direct page indirect z indexed        lda (#$12,d),z
+[#addr,d]     direct page long indirect             lda [#$12,d]
+[#addr,d],y   direct page long indirect y indexed   lda [#$12,d],y
+#addr,k       program bank indexed                  jsr #0,k
+(#addr,k,x)   program bank x indexed indirect       jmp (#$1234,k,x)
+#addr,r       data stack indexed                    lda #1,r
+(#addr,r),y   data stack indexed indirect y indexed lda #($12,r),y
+#addr,s       stack indexed                         lda #1,s
+(#addr,s),y   stack indexed indirect y indexed      lda (#$12,s),y
+addr,x        x indexed                             lda $12,x
+addr,y        y indexed                             lda $12,y
 
 Direct page, data bank, program bank indexed and long addressing modes of
 instructions are intelligently chosen based on the instruction type, the
@@ -853,7 +867,7 @@ when segments are copied into the code with their internal references.
         #somemakro      ;let's hope that this segment does
 +       nop             ;not contain forward references...
 
-A anonymous symbols are looked up first in the current scope, then in lower
+Anonymous symbols are looked up first in the current scope, then in lower
 scopes until the global scope is reached.
 
 Anonymous labels within conditionally assembled code are counted even if the
@@ -871,18 +885,21 @@ Symbols in front of code or certain assembler directives are created as
 constant symbols too. They are bound to the object following them.
 
 Re-definable symbols can be created by the .var directive or := construct.
-These are also called as variables as they don't carry their content over from
-the previous pass. Therefore it's not possible to use them before their
+These are also called as variables. They don't carry their content over from
+the previous pass therefore it's not possible to use them before their
 definition.
 
-border  = $d020         ;a constant
-        inc border      ;inc $d020
+Variables can be conditionally defined using the :?= construct. If the variable
+was defined already then the original value is retained otherwise a new one is
+created with this value.
+
+WIDTH   = 40            ;a constant
+        lda #WIDTH      ;lda #$28
 variabl .var 1          ;a variable
 var2    := 1            ;another variable
-        .rept 10
-        .byte variabl
-variabl .var variabl+1  ;increment it
-        .next
+variabl .var variabl + 1;update it verbosely
+var2    += 1            ;compound assignment (add one)
+var3    :?= 5           ;assign 5 if undefined
 
 The star label
 
@@ -965,7 +982,7 @@ all(<expression>)
     all bits set or no bits at all        all($f) is true
     all characters non-zero or empty      all("c") is true
     string
-    all bytes non-zero or no bytes        all(b"c") is true
+    all bytes non-zero or no bytes        all(x"ac24") is true
     all elements true or empty list       all([true, true, false]) is false
 
     Only booleans in a list are accepted with the `-Wstrict-bool' command line
@@ -977,7 +994,7 @@ any(<expression>)
                             Any function
     at least one bit set             any(~$f) is false
     at least one non-zero character  any("c") is true
-    at least one non-zero byte       any(b"c") is true
+    at least one non-zero byte       any(x"ac24") is true
     at least one true element        any([true, true, false]) is true
 
     Only booleans in a list are accepted with the `-Wstrict-bool' command line
@@ -1041,7 +1058,7 @@ len(<expression>)
                    Length of various types
     bit string       length in bits       len($034) is 12
     character string number of characters len("abc") is 3
-    byte string      number of bytes      len(b"abc") is 3
+    byte string      number of bytes      len(x"abcd23") is 3
     tuple, list      number of elements   len([1, 2, 3]) is 3
     dictionary       number of elements   len({1:2, 3:4]) is 2
     code             number of elements   len(label)
@@ -1355,9 +1372,34 @@ it does not need to be.
     .1004   0304     4c 00 03       jmp $0300               jmp drive
                                                             .here
 
+.virtual [<expression>]
+.endv
+    Changes the program counter to the expression (if given) and discards the
+    result of compilation.
+
+    This is useful to define structures to fixed addresses.
+
+            .virtual $d400  ; base address
+    sid     .block
+    freq    .word ?         ; frequency
+    pulsew  .word ?         ; pulse width
+    control .byte ?         ; control
+    ad      .byte ?         ; attack/decay
+    sr      .byte ?         ; sustain/release
+            .bend
+            .endv
+
+    Or to define stack "allocated" variables on 65816.
+
+            .virtual #1,s
+    p1      .addr ?         ; at #1,s
+    tmp     .byte ?         ; at #3,s
+            .endv
+            lda (p1),y      ; lda ($01,s),y
+
 .align <expression>[, <fill>]
-    Align code to a dividable program counter address by inserting
-    uninitialized memory or repeated bytes.
+    Align the program counter to a dividable address by inserting uninitialized
+    memory or repeated bytes.
 
     Usually used to page align data or code to avoid penalty cycles when
     indexing or branching.
@@ -1368,6 +1410,11 @@ it does not need to be.
     .1000            ee 19 d0       inc $d019       irq     inc $d019
     >1003            ea                                     .align 4, $ea
     .1004            69 01          adc #$01        loop    adc #1
+
+    When alignment is done within named structures then it's relative to the
+    start of the structure. This means the structure layout will be always the
+    same independent which address it's instantiated at. Anonymous structures
+    do not change the way the alignment works.
 
 Dumping data
 
@@ -1938,39 +1985,90 @@ Comment
 Repetitions
 
 .for [<assignment>], [<condition>], [<assignment>]
+.bfor [<assignment>], [<condition>], [<assignment>]
 .next
-    Loop while the condition is true. If there's no condition then it's an
-    infinite loop and .break must be used to terminate it.
+    Assign initial value, loop while the condition is true and modify value.
+
+    The .for directive is more useful calculate data as normal labels will be
+    double defined when used.
+
+    The .bfor directive creates a new scope for each iteration therefore it
+    also works with normal labels but is a bit more resource intensive.
+
+    If the .bfor directive was prefixed with a label then individual scopes are
+    accessible through that label using indexing, otherwise these are not
+    accessible. Variable access needs dot notation in addition of course.
 
             ldx #0
             lda #32
-    lp      .for ue = $400, ue < $800, ue += $100
-            sta ue,x
+    lp      .for ue := $400, ue < $800, ue += $100
+            sta ue,x         ;do $400, $500, $600 and $700
             .next
             dex
             bne lp
 
-.for <variable> in <expression>
-.next
-    Assign variable to each item of expression in sequence.
+    First a variable is set, usually this is used for counting. This is
+    optional, the variable may be set already before the loop.
 
-            .for col in [0, 11, 12, 15, 1]
-            lda #col
+    Then the condition is checked and the enclosed lines are compiled if it's
+    true. If there's no condition then it's an infinite loop and .break must be
+    used to terminate it.
+
+    After an iteration the second assignment is calculated, usually it's
+    updating the loop counter variable. This is optional as well.
+
+.for <variable>[, <variable>, ...] in <expression>
+.bfor <variable>[, <variable>, ...] in <expression>
+.next
+    Assign variable(s) to values in sequence one-by-one in order.
+
+    The expression is usually the range function or some sort of list.
+
+            .for col in 0, 11, 12, 15, 1
+            lda #col         ;0, 11, 12, 15 and 1
             sta $d020
             .next
 
 .rept <expression>
+.brept <expression>
 .next
-    Repeat by expression number of times.
+    Repeat enclosed lines the specified number of times.
+
+    The .rept directive is useful to repeat data definitions as normal labels
+    will be double defined when used.
+
+    The .brept directive creates a new scope for each repetition therefore it
+    also works with normal labels but is a bit more resource intensive.
+
+    If the .brept directive was prefixed with a label the scopes are accessible
+    through that label using indexing, otherwise not at all. Variable access
+    needs dot notation in addition of course.
 
             .rept 100
-            nop
+    -       inx
+            bne -
             .next
+
+    lst     .brept 100       ;each iteration into a tuple
+    label   jmp label        ;not a duplicate definition
+            .next
+            jmp lst[5].label ;use label of 6th iteration
 
 .break
     Exit current loop immediately.
+
+    Can be used inside .for, .bfor, .rept and .brept to terminate the loop
+    immediately.
+
 .continue
     Continue current loop's next iteration.
+
+    Can be used inside .for, .bfor, .rept and .brept to start the next
+    iteration immediately.
+
+.next
+    Closing directive of .for, .bfor, .rept and .brept loop.
+
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
@@ -2062,6 +2160,18 @@ global one with the same name.
     count   ldx #0
             .bend
 
+.namespace [<symbol>]
+.endn
+    Namespace area
+
+    This directive either creates a new scope (if used without a parameter) or
+    activates the one in the parameter.
+
+    The scope can be assigned to a symbol in front of the directive so that it
+    can be reactivated later.
+
+    This enabled label definitions into the same scope in different files.
+
 .weak
 .endweak
     Weak symbol area
@@ -2091,18 +2201,6 @@ global one with the same name.
 
     Please note that .ifdef/.ifndef directives are left out from 64tass for of
     technical reasons, so don't wait for them to appear anytime soon.
-
-.namespace [<symbol>]
-.endn
-    Namespace area
-
-    This directive either creates a new scope (if used without a parameter) or
-    activates the one in the parameter.
-
-    The scope can be assigned to a symbol in front of the directive so that it
-    can be reactivated later.
-
-    This enabled label definitions into the same scope in different files.
 
 Sections
 
@@ -2148,7 +2246,7 @@ ss      .word 0
 
 start   sei
         .section zp     ;declare some new zero page variables
-p2      .word ?         ;a pointer
+p2      .addr ?         ;a pointer
         .send zp
         .section bss    ;new variables
 buffer  .fill 10        ;temporary area
@@ -2165,7 +2263,7 @@ label   .null "message"
 
         jmp error
         .section zp     ;declare some more zero page variables
-p3      .word ?         ;a pointer
+p3      .addr ?         ;a pointer
         .send zp
         .send code
 
@@ -2177,7 +2275,7 @@ The compiled code will look like:
 
 .080d    78                             start   sei
 
->0002                                   p2      .word ?         ;a pointer
+>0002                                   p2      .addr ?         ;a pointer
 >0334                                   buffer  .fill 10        ;temporary area
 
 .080e    b1 02                                  lda (p2),y
@@ -2189,7 +2287,7 @@ The compiled code will look like:
 
 .0817    4c e2 fc                               jmp error
 
->0004                                   p2      .word ?         ;a pointer
+>0004                                   p2      .addr ?         ;a pointer
 
 Sections can form a hierarchy by nesting a .dsection into another section. The
 section names must only be unique within a section but can be reused otherwise.
@@ -2246,7 +2344,7 @@ buffer  .fill 10
         .send bss
 
         .section data  ;Data section (in bank1)
-routine .word print
+routine .addr print
         .send bss
 
 65816 related
@@ -2381,7 +2479,7 @@ Printer control
             .fill $2000, $ff ;Pre-fill ROM area
             .pron
     *       = $8000
-            .word reset, restore
+            .addr reset, restore
             .text "CBM80"
     reset   cld
 
@@ -2656,7 +2754,7 @@ Output options
 
     64tass --atari-xex a.asm
     *       = $02e0
-            .word start      ;run address
+            .addr start      ;run address
     *       = $2000
     start   rts
 
@@ -2786,15 +2884,20 @@ Operation options
     Label   nop     ;Ok, it's a different label...
 
 -D <label>=<value>
-    Define <label> to <value>. Defines a label to a value. Same syntax is
-    allowed as in source files. Be careful with strings, the shell might eat
-    the quotes unless escaped.
+    Command line definition.
 
-    64tass -D ii=2 -D var=\"string\" a.asm
+    Same syntax is allowed as in source files. Be careful with strings, the
+    shell might eat the quotes unless escaped.
+
+    64tass -D ii=2 -D var=\"string\" -D FAST:=true a.asm
             lda #ii ;result: $a9, $02
+    FAST    :?= false ;define if undefined
 
 -w, --no-warn
-    Suppress warnings. Disables warnings during compile.
+    Suppress warnings.
+
+    Disables warnings during compile. For fine grained diagnostic message
+    suppression see the diagnostic options section.
 
     64tass --no-warn a.asm
 
@@ -3416,6 +3519,8 @@ deprecated not equal operator, use '!=' instead
     update source
 directive ignored
     an assembler directive was ignored for compatibility reasons
+expected ? values but got ? to unpack
+    the number of variables must match the number of values when unpacking
 immediate addressing mode suggested
     numeric constant was used as an address which was likely meant as an
     immediate value
@@ -3499,22 +3604,24 @@ can't calculate this
     could not get any value, is this a circular reference?
 can't encode character '?' ($xx) in encoding '?'
     can't translate character in this encoding as no definition was given
-can't get absolute value of type '?'
+can't get absolute value of
     not possible to calculate the absolute value of this type
-can't get boolean value of type '?'
+can't get boolean value of
     not possible to determine if this value is true or false
-can't get integer value of type '?'
+can't get integer value of
     this value is not a number
-can't get length of type '?'
+can't get length of
     this type has no length
-can't get sign of type '?'
+can't get sign of
     this type does not have a sign as it's not a number
-can't get size of type '?'
+can't get size of
     this type has no size
 closing/opening directive '?' not found
     couldn't find the other half of block directive pair
 conflict
     at least one feature is provided, which shouldn't be there
+conversion of ? '?' to ? is not possible
+    this type conversion can't be done
 division by zero
     dividing with zero can't be done
 double defined escape
@@ -3527,6 +3634,8 @@ duplicate definition
 empty encoding, add something or correct name
     probably a typo in the name of encoding but if not then use .cdef/.edef to
     define something
+empty list not allowed
+    at least one element is required
 empty range not allowed
     invalid range but there must be at least one element
 empty string not allowed
@@ -4158,15 +4267,15 @@ Appendix
 
 Assembler directives
 
-.addr .al .align .as .assert .autsiz .bend .binary .binclude .block .break
-.byte .case .cdef .cerror .char .check .comment .continue .cpu .cwarn .databank
-.default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
-.end .endc .endf .endif .endm .endn .endp .ends .endswitch .endu .endweak .eor
-.error .fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne
-.ifpl .include .lbl .lint .logical .long .macro .mansiz .namespace .next .null
-.offs .option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
-.segment .send .shift .shiftl .showmac .sint .struct .switch .text .union .var
-.warn .weak .word .xl .xs
+.addr .al .align .as .assert .autsiz .bend .binary .binclude .bfor .block
+.break .brept .byte .case .cdef .cerror .char .check .comment .continue .cpu
+.cwarn .databank .default .dint .dpage .dsection .dstruct .dunion .dword .edef
+.else .elsif .enc .end .endc .endf .endif .endm .endn .endp .ends .endswitch
+.endu .endv .endweak .eor .error .fi .fill .for .function .goto .here .hidemac
+.if .ifeq .ifmi .ifne .ifpl .include .lbl .lint .logical .long .macro .mansiz
+.namespace .next .null .offs .option .page .pend .proc .proff .pron .ptext
+.rept .rta .section .seed .segment .send .shift .shiftl .showmac .sint .struct
+.switch .text .union .var .virtual .warn .weak .word .xl .xs
 
 -------------------------------------------------------------------------------
 

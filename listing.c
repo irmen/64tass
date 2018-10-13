@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 1539 2017-06-06 18:27:36Z soci $
+    $Id: listing.c 1595 2018-08-24 14:17:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ static void out_db(Listing *ls, unsigned int adr) {
 
 static void out_pb(Listing *ls, unsigned int adr) {
     ls->s[ls->i++] = '$';
-    if (current_section->l_address.bank != 0) out_hex(ls, current_section->l_address.bank >> 16);
+    if (current_address->l_address.bank != 0) out_hex(ls, current_address->l_address.bank >> 16);
     out_hex(ls, adr >> 8);
     out_hex(ls, adr);
 }
@@ -347,13 +347,13 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_ZP_Y: out_zp(ls, adr); break;
     case ADR_ADDR_I:
     case ADR_ADDR_LI: out_word(ls, adr); break;
-    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_section->l_address.address)); else ls->i--; return;
+    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_address->l_address.address)); else ls->i--; return;
     case ADR_BIT_ZP_REL:
         out_bit(ls, cod, adr);
         ls->s[ls->i++] = ',';
-        out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_section->l_address.address));
+        out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_address->l_address.address));
         return;
-    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_section->l_address.address); else ls->i--; return;
+    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_address->l_address.address); else ls->i--; return;
     case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; out_byte(ls, adr); return;
     case ADR_LEN: return;/* not an addressing mode */
     }
@@ -373,10 +373,10 @@ void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
     if (ls == NULL) {
         address_t addr;
         if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
-        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        addr = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
-        if (i < pos && current_section->address != addr) listing_pccolumn = true;
+        if (i < pos && current_address->address != addr) listing_pccolumn = true;
         return;
     }
     if (!ls->source) return;
@@ -387,7 +387,7 @@ void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
             printline(ls);
             padding2(ls, ls->columns.addr);
         }
-        printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+        printaddr(ls, '.', current_address->address, (current_address->l_address.address & 0xffff) | current_address->l_address.bank);
         flushbuf(ls);
     }
     if (ls->verbose) {
@@ -409,10 +409,10 @@ void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
     if (ls == NULL) {
         address_t addr;
         if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
-        addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
+        addr = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
-        if (i < pos && current_section->address != addr) listing_pccolumn = true;
+        if (i < pos && current_address->address != addr) listing_pccolumn = true;
         return;
     }
     if (!ls->source) return;
@@ -423,7 +423,7 @@ void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
             printline(ls);
             padding2(ls, ls->columns.addr);
         }
-        printaddr(ls, '.', current_section->address, (current_section->l_address.address & 0xffff) | current_section->l_address.bank);
+        printaddr(ls, '.', current_address->address, (current_address->l_address.address & 0xffff) | current_address->l_address.bank);
         flushbuf(ls);
         printsource(ls, pos);
     }
@@ -453,8 +453,8 @@ void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
     if (nolisting != 0 || temporary_label_branch != 0) return;
     if (ls == NULL) {
         if (!fixeddig || constcreated || listing_pccolumn) return;
-        addr = (((int)current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
-        addr2 = (address_t)((int)current_section->address - ln - 1) & all_mem2;
+        addr = (((int)current_address->l_address.address - ln - 1) & 0xffff) | current_address->l_address.bank;
+        addr2 = (address_t)((int)current_address->address - ln - 1) & all_mem2;
         if (addr2 != addr) listing_pccolumn = true;
         return;
     }
@@ -462,10 +462,10 @@ void listing_instr(Listing *ls, uint8_t cod, uint32_t adr, int ln) {
         if (llist != NULL) printline(ls);
         padding2(ls, ls->columns.addr);
     }
-    addr = (((int)current_section->l_address.address - ln - 1) & 0xffff) | current_section->l_address.bank;
-    addr2 = (address_t)((int)current_section->address - ln - 1) & all_mem2;
+    addr = (((int)current_address->l_address.address - ln - 1) & 0xffff) | current_address->l_address.bank;
+    addr2 = (address_t)((int)current_address->address - ln - 1) & all_mem2;
     printaddr(ls, '.', addr2, addr);
-    if (current_section->dooutput && ln >= 0) {
+    if (ln >= 0) {
         printhex(ls, cod, outputeor, ln, adr);
         if (ls->monitor) {
             printmon(ls, cod, ln, adr);

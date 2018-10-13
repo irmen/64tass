@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 1575 2017-12-28 12:56:31Z soci $
+    $Id: mem.c 1595 2018-08-24 14:17:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -144,7 +144,7 @@ void memref(Memblocks *memblocks, Memblocks *ref) {
     block = &memblocks->data[memblocks->p++];
     block->len = 0;
     block->p = memblocks->lastp;
-    block->ref = ref;
+    block->ref = (Memblocks *)val_reference(&ref->v);
     block->addr = memblocks->lastaddr;
 }
 
@@ -557,7 +557,7 @@ void write_mark_mem(Memblocks *memblocks, unsigned int c) {
     memblocks->mem.data[ptextaddr] = (uint8_t)c;
 }
 
-void list_mem(const Memblocks *memblocks, bool dooutput) {
+void list_mem(const Memblocks *memblocks) {
     address_t myaddr;
     size_t len;
     bool first = true, print = true;
@@ -583,7 +583,7 @@ void list_mem(const Memblocks *memblocks, bool dooutput) {
                 }
             }
         }
-        listing_mem(listing, memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
+        listing_mem(listing, memblocks->mem.data + ptextaddr, len, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
         print = false;
         ptextaddr += len;
     }
