@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1661 2018-10-06 07:50:38Z soci $
+    $Id: 64tass.c 1665 2018-11-08 18:51:03Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -2088,6 +2088,7 @@ MUST_CHECK Obj *compile(void)
                         Label *label;
                         Struct *structure;
                         struct section_address_s section_address, *oldsection_address = current_address;
+                        uval_t provides = current_section->provides, requires = current_section->requires, conflicts = current_section->conflicts;
                         bool labelexists, doubledef = false;
                         Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
@@ -2095,6 +2096,7 @@ MUST_CHECK Obj *compile(void)
                         new_waitfor((prm==CMD_STRUCT) ? W_ENDS : W_ENDU, &cmdpoint);waitfor->skip = 0;
                         label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
 
+                        current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
                         section_address.wrapwarn = section_address.moved = false;
                         section_address.unionmode = (prm == CMD_UNION);
                         section_address.address = section_address.start = section_address.end = 0;
@@ -2162,6 +2164,7 @@ MUST_CHECK Obj *compile(void)
                         } else err_msg2(ERROR__MACRECURSION, NULL, &cmdpoint);
                         current_section->structrecursion--;
 
+                        current_section->provides = provides; current_section->requires = requires; current_section->conflicts = conflicts;
                         current_address = oldsection_address;
                         if (current_address->l_address.bank > all_mem) {
                             current_address->l_address.bank &= all_mem;

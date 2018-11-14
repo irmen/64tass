@@ -630,7 +630,7 @@ bit,addr,addr direct page bit relative jump         bbs 5,$12,$1234
 #addr,k       program bank indexed                  jsr #0,k
 (#addr,k,x)   program bank x indexed indirect       jmp (#$1234,k,x)
 #addr,r       data stack indexed                    lda #1,r
-(#addr,r),y   data stack indexed indirect y indexed lda #($12,r),y
+(#addr,r),y   data stack indexed indirect y indexed lda (#$12,r),y
 #addr,s       stack indexed                         lda #1,s
 (#addr,s),y   stack indexed indirect y indexed      lda (#$12,s),y
 addr,x        x indexed                             lda $12,x
