@@ -25,7 +25,7 @@ mandir = $(datarootdir)/man
 man1dir = $(mandir)/man1
 docdir = $(datarootdir)/doc/$(TARGET)
 
-.SILENT:
+# .SILENT:
 
 all: $(TARGET) README
 

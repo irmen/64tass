@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1660 2018-09-22 11:39:02Z soci $
+    $Id: error.c 1666 2018-11-25 19:52:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -243,9 +243,9 @@ static const char * const terr_error[] = {
     "address in different program bank ",
     "address out of section",
     "negative number raised on fractional power",
-    "square root of negative number",
-    "logarithm of non-positive number",
-    "not in range -1.0 to 1.0",
+    "square root of negative number ",
+    "logarithm of non-positive number ",
+    "not in range -1.0 to 1.0 ",
     "empty range not allowed",
     "empty string not allowed",
     "empty list not allowed",
@@ -253,7 +253,7 @@ static const char * const terr_error[] = {
     "too early to reference",
     "requirements not met",
     "conflict",
-    "index out of range",
+    "index out of range ",
     "key error ",
     "offset out of range",
     "not hashable ",
