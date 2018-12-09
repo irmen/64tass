@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1661 2018-10-06 07:50:38Z soci $
+    $Id: eval.c 1670 2018-12-03 21:46:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1564,6 +1564,7 @@ static bool get_exp2(int stop) {
                     push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
                 }
             } else {
+                prec = o_HASH.prio;
                 while (operp != 0 && prec <= o_oper[operp - 1].val->prio && o_oper[operp - 1].val != &o_COLON2 && o_oper[operp - 1].val != &o_COND) {
                     operp--;
                     push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);

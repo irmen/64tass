@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1630 2018-09-01 15:56:30Z soci $
+    $Id: obj.c 1676 2018-12-08 11:56:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -81,6 +81,9 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR: return val_reference(v1);
+    case T_ADDRESS:
+        if (((Address *)v1)->val == &none_value->v) return val_reference(((Address *)v1)->val);
+        break;
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
@@ -145,6 +148,10 @@ static MUST_CHECK Obj *invalid_calc2(oper_t op) {
     if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
         return val_reference(o2);
     }
+    if (o2->obj == ADDRESS_OBJ) {
+        Obj *val = ((Address *)o2)->val;
+        if (val == &none_value->v) return val_reference(val);
+    }
     return obj_oper_error(op);
 }
 
@@ -153,16 +160,25 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     if (o1 == &none_value->v || o1->obj == ERROR_OBJ) {
         return val_reference(o1);
     }
+    if (o1->obj == ADDRESS_OBJ) {
+        Obj *val = ((Address *)o1)->val;
+        if (val == &none_value->v) return val_reference(val);
+    }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_slice(Obj *UNUSED(v1), oper_t op, size_t indx) {
-    if (op->v2->obj == ERROR_OBJ) {
-        return val_reference(op->v2);
-    }
-    if (indx != 0) {
-        Obj *o2 = op->v2;
-        Funcargs *args = (Funcargs *)o2;
+    Funcargs *args = (Funcargs *)op->v2;
+    if (indx == 0) {
+        Obj *o2 = args->val[0].val;
+        if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
+            return val_reference(o2);
+        }
+        if (o2->obj == ADDRESS_OBJ) {
+            Obj *val = ((Address *)o2)->val;
+            if (val == &none_value->v) return val_reference(val);
+        }
+    } else {
         err_msg_argnum(args->len, 1, indx, op->epoint2);
         return (Obj *)ref_none();
     }

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1665 2018-11-08 18:51:03Z soci $
+    $Id: 64tass.c 1677 2018-12-08 14:54:11Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1776,6 +1776,10 @@ MUST_CHECK Obj *compile(void)
                     lpoint.pos++; ignore();
                     epoints[0] = lpoint; /* for no elements! */
                     if (here() == 0 || here() == ';') {
+                        if (labelname.data[0] == '*') {
+                            err_msg(ERROR______EXPECTED, "an expression is");
+                            goto breakerr;
+                        }
                         val = (Obj *)ref_addrlist(null_addrlist);
                     } else {
                         bool oldreferenceit = referenceit;
@@ -1937,12 +1941,8 @@ MUST_CHECK Obj *compile(void)
                         vs = get_val(); 
                         if (vs != NULL) {
                             val = vs->val;
-                            if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = NULL; }
-                            else if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); val = NULL; }
-                            else {
-                                val = (Obj *)get_namespace(val);
-                                if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
-                            }
+                            val = (Obj *)get_namespace(val);
+                            if (val == NULL) err_msg_wrong_type2(vs->val, NULL, &vs->epoint);
                         } else val = NULL;
                         label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
@@ -2334,10 +2334,8 @@ MUST_CHECK Obj *compile(void)
                         newlabel->ref = false;
                         if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                         vs = get_val(); val = vs->val;
-                        if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); goto breakerr; }
-                        if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); goto breakerr;}
                         obj = (prm == CMD_DSTRUCT) ? STRUCT_OBJ : UNION_OBJ;
-                        if (val->obj != obj) {err_msg_wrong_type(val, obj, &vs->epoint); goto breakerr;}
+                        if (val->obj != obj) {err_msg_wrong_type2(val, obj, &vs->epoint); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
 
@@ -3074,12 +3072,8 @@ MUST_CHECK Obj *compile(void)
                     vs = get_val();
                     if (vs != NULL) {
                         val = vs->val;
-                        if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = NULL; }
-                        else if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint); val = NULL; }
-                        else {
-                            val = (Obj *)get_namespace(val);
-                            if (val == NULL) err_msg_wrong_type(vs->val, NULL, &vs->epoint);
-                        }
+                        val = (Obj *)get_namespace(val);
+                        if (val == NULL) err_msg_wrong_type2(vs->val, NULL, &vs->epoint);
                     } else val = NULL;
                     if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                     else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
@@ -3801,9 +3795,7 @@ MUST_CHECK Obj *compile(void)
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &epoint);
                     vs = get_val(); val = vs->val;
-                    if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); break; }
-                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); break; }
-                    if (val->obj != LBL_OBJ) {err_msg_wrong_type(val, LBL_OBJ, &vs->epoint); break;}
+                    if (val->obj != LBL_OBJ) {err_msg_wrong_type2(val, LBL_OBJ, &vs->epoint); break;}
                     lbl = (Lbl *)val;
                     if (lbl->file_list == current_file_list && lbl->parent == current_context) {
                         while (lbl->waitforp < waitfor_p) {
@@ -3891,11 +3883,9 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, 0);
                     if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
                     vs = get_val(); val = vs->val;
-                    if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); goto breakerr; }
-                    if (val == &none_value->v) {err_msg_still_none(NULL, &vs->epoint); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
                     obj = (prm == CMD_DUNION) ? UNION_OBJ : STRUCT_OBJ;
-                    if (val->obj != obj) {err_msg_wrong_type(val, obj, &vs->epoint); goto breakerr;}
+                    if (val->obj != obj) {err_msg_wrong_type2(val, obj, &vs->epoint); goto breakerr;}
                     current_section->structrecursion++;
                     oldsection_address = current_address;
                     union_start(&section_address);
@@ -4038,14 +4028,12 @@ MUST_CHECK Obj *compile(void)
                 if (!get_exp(2, 1, 1, &epoint)) goto breakerr;
                 vs = get_val(); val = vs->val;
                 switch (val->obj->type) {
-                case T_ERROR: err_msg_output((Error *)val); goto breakerr;
-                case T_NONE: err_msg_still_none(NULL, &vs->epoint); goto breakerr;
-                default : err_msg_wrong_type(val, NULL, &vs->epoint); goto breakerr;
                 case T_MACRO:
                 case T_SEGMENT:
                 case T_STRUCT:
                 case T_UNION:
                 case T_MFUNC: break;
+                default : err_msg_wrong_type2(val, NULL, &vs->epoint); goto breakerr;
                 }
             as_macro:
                 listing_line_cut(listing, epoint.pos);

@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 1661 2018-10-06 07:50:38Z soci $
+    $Id: operobj.c 1669 2018-12-03 21:10:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,14 +65,6 @@ Oper o_COND        = { {&obj, 0}, "condition '?", O_COND, 3, 1};
 Oper o_COLON2      = { {&obj, 0}, "':", O_COLON2, 3, 1};
 Oper o_HASH        = { {&obj, 0}, "immediate '#", O_HASH, 3, 1};
 Oper o_HASH_SIGNED = { {&obj, 0}, "signed immediate '#+", O_HASH_SIGNED, 3, 2};
-Oper o_COMMAX      = { {&obj, 0}, "register indexing ',x", O_COMMAX, 3, 2};
-Oper o_COMMAY      = { {&obj, 0}, "register indexing ',y", O_COMMAY, 3, 2};
-Oper o_COMMAZ      = { {&obj, 0}, "register indexing ',z", O_COMMAZ, 3, 2};
-Oper o_COMMAS      = { {&obj, 0}, "register indexing ',s", O_COMMAS, 3, 2};
-Oper o_COMMAR      = { {&obj, 0}, "register indexing ',r", O_COMMAR, 3, 2};
-Oper o_COMMAD      = { {&obj, 0}, "register indexing ',d", O_COMMAD, 3, 2};
-Oper o_COMMAB      = { {&obj, 0}, "register indexing ',b", O_COMMAB, 3, 2};
-Oper o_COMMAK      = { {&obj, 0}, "register indexing ',k", O_COMMAK, 3, 2};
 Oper o_WORD        = { {&obj, 0}, "word '<>", O_WORD, 4, 2};
 Oper o_HWORD       = { {&obj, 0}, "high word '>`", O_HWORD, 4, 2};
 Oper o_BSWORD      = { {&obj, 0}, "swapped word '><", O_BSWORD, 4, 2};
@@ -111,7 +103,15 @@ Oper o_LNOT        = { {&obj, 0}, "logical not '!", O_LNOT, 17, 1};
 Oper o_SPLAT       = { {&obj, 0}, "unary splat '*", O_SPLAT, 18, 1};
 Oper o_CONCAT      = { {&obj, 0}, "concatenate '..", O_CONCAT, 19, 2};
 Oper o_X           = { {&obj, 0}, "repeat 'x", O_X, 20, 1};
-Oper o_MEMBER      = { {&obj, 0}, "member '.", O_MEMBER, 21, 1};
+Oper o_COMMAX      = { {&obj, 0}, "register indexing ',x", O_COMMAX, 21, 2};
+Oper o_COMMAY      = { {&obj, 0}, "register indexing ',y", O_COMMAY, 21, 2};
+Oper o_COMMAZ      = { {&obj, 0}, "register indexing ',z", O_COMMAZ, 21, 2};
+Oper o_COMMAS      = { {&obj, 0}, "register indexing ',s", O_COMMAS, 21, 2};
+Oper o_COMMAR      = { {&obj, 0}, "register indexing ',r", O_COMMAR, 21, 2};
+Oper o_COMMAD      = { {&obj, 0}, "register indexing ',d", O_COMMAD, 21, 2};
+Oper o_COMMAB      = { {&obj, 0}, "register indexing ',b", O_COMMAB, 21, 2};
+Oper o_COMMAK      = { {&obj, 0}, "register indexing ',k", O_COMMAK, 21, 2};
+Oper o_MEMBER      = { {&obj, 0}, "member '.", O_MEMBER, 22, 1};
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Oper *v1 = (Oper *)o1;

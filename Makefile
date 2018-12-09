@@ -33,7 +33,7 @@ $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 README: README.html
-	-sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
+	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
 
 64tass.o: 64tass.c 64tass.h attributes.h stdbool.h inttypes.h wait_e.h \
  wchar.h error.h errors_e.h avl.h obj.h str.h opcodes.h eval.h values.h \
@@ -80,7 +80,7 @@ error.o: error.c error.h attributes.h stdbool.h errors_e.h avl.h obj.h \
  inttypes.h str.h wchar.h wctype.h file.h 64tass.h wait_e.h macro.h \
  unicode.h unicodedata.h eval.h arguments.h opcodes.h section.h mem.h \
  strobj.h addressobj.h values.h registerobj.h namespaceobj.h operobj.h \
- typeobj.h labelobj.h errorobj.h
+ typeobj.h labelobj.h errorobj.h noneobj.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
  errors_e.h str.h stdbool.h eval.h values.h typeobj.h registerobj.h \
  namespaceobj.h avl.h
@@ -123,7 +123,8 @@ intobj.o: intobj.c intobj.h obj.h attributes.h inttypes.h math.h \
  errorobj.h addressobj.h
 isnprintf.o: isnprintf.c isnprintf.h attributes.h inttypes.h unicode.h \
  str.h unicodedata.h eval.h obj.h stdbool.h error.h errors_e.h avl.h \
- floatobj.h values.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h
+ floatobj.h values.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h \
+ addressobj.h
 labelobj.o: labelobj.c labelobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h error.h errors_e.h avl.h unicode.h unicodedata.h \
  file.h strobj.h typeobj.h noneobj.h errorobj.h
