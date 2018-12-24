@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 1587 2018-05-13 17:52:41Z soci $
+    $Id: variables.h 1729 2018-12-24 08:25:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ struct Mfunc;
 struct symbol_output_s;
 struct file_list_s;
 
+extern void push_dummy_context(void);
 extern void push_context(struct Namespace *);
 extern bool pop_context(void);
 extern void reset_context(void);

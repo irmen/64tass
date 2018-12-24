@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1670 2018-12-03 21:46:08Z soci $
+    $Id: eval.c 1709 2018-12-15 23:05:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -806,9 +806,6 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am) {
             v->data = vals;
             return &v->v;
         }
-    case T_ERROR:
-        err_msg_output((Error *)o1);
-        return (Obj *)new_address((Obj *)ref_none(), am);
     default:
         return (Obj *)new_address(val_reference(o1), am);
     }
@@ -869,6 +866,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 oper.epoint = &v1->epoint;
                 oper.epoint2 = (args != 0) ? &tmp->val->epoint : &o_out->epoint;
                 oper.epoint3 = &o_out->epoint;
+                oper.inplace = NULL;
                 if (op == O_BRACKET) {
                     v1->val = oper.v1->obj->slice(oper.v1, &oper, 0);
                 } else {
@@ -929,7 +927,6 @@ static bool get_val2(struct eval_context_s *ev) {
                     list->data = list_create_elements(list, args);
                     while ((args--) != 0) {
                         v2 = &values[vsp - 1];
-                        if (v2->val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v2->val); v2->val = (Obj *)ref_none(); }
                         list->data[args] = v2->val;
                         v2->val = NULL;
                         vsp--;
@@ -993,66 +990,52 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_COLON:
             v2 = v1; v1 = &values[--vsp - 1];
             if (vsp == 0) goto syntaxe;
-            switch (v1->val->obj->type) {
-            case T_COLONLIST:
-                if (v1->val->refcount == 1) {
-                    Colonlist *l1 = (Colonlist *)v1->val;
-                    Colonlist *list = new_colonlist();
-                    if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
-                        Colonlist *l2 = (Colonlist *)v2->val;
-                        list->len = l1->len + l2->len;
-                        if (list->len < l2->len) err_msg_out_of_memory(); /* overflow */
-                        list->data = list_create_elements(list, list->len);
-                        memcpy(list->data, l1->data, l1->len * sizeof *list->data);
-                        memcpy(list->data + l1->len, l2->data, l2->len * sizeof *list->data);
-                        l1->len = 0;
-                        l2->len = 0;
-                        val_destroy(v1->val); v1->val = (Obj *)list;
-                        continue;
-                    }
-                    list->len = l1->len + 1;
-                    if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+            if (v1->val->obj == COLONLIST_OBJ && v1->val->refcount == 1) {
+                Colonlist *l1 = (Colonlist *)v1->val;
+                Colonlist *list = new_colonlist();
+                if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
+                    Colonlist *l2 = (Colonlist *)v2->val;
+                    list->len = l1->len + l2->len;
+                    if (list->len < l2->len) err_msg_out_of_memory(); /* overflow */
                     list->data = list_create_elements(list, list->len);
                     memcpy(list->data, l1->data, l1->len * sizeof *list->data);
-                    list->data[l1->len] = v2->val;
+                    memcpy(list->data + l1->len, l2->data, l2->len * sizeof *list->data);
                     l1->len = 0;
-                    v2->val = v1->val;
-                    v1->val = (Obj *)list;
+                    l2->len = 0;
+                    val_destroy(v1->val); v1->val = (Obj *)list;
                     continue;
                 }
-                /* fall through */
-            default:
-                switch (v2->val->obj->type) {
-                case T_COLONLIST:
-                    if (v2->val->refcount == 1) {
-                        Colonlist *l2 = (Colonlist *)v2->val;
-                        Colonlist *list = new_colonlist();
-                        list->len = l2->len + 1;
-                        if (list->len < 1) err_msg_out_of_memory(); /* overflow */
-                        list->data = list_create_elements(list, list->len);
-                        list->data[0] = v1->val;
-                        memcpy(&list->data[1], l2->data, l2->len * sizeof *list->data);
-                        v1->val = (Obj *)list;
-                        l2->len = 0;
-                        continue;
-                    }
-                    /* fall through */
-                default:
-                    {
-                        Colonlist *list = new_colonlist();
-                        list->len = 2;
-                        list->data = list_create_elements(list, 2);
-                        list->data[0] = v1->val;
-                        list->data[1] = v2->val;
-                        v1->val = (Obj *)list;
-                        v2->val = NULL;
-                        continue;
-                    }
-                case T_ERROR:
-                    val_replace(&v1->val, v2->val);
-                    continue;
-                }
-            case T_ERROR:continue;
+                list->len = l1->len + 1;
+                if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                list->data = list_create_elements(list, list->len);
+                memcpy(list->data, l1->data, l1->len * sizeof *list->data);
+                list->data[l1->len] = v2->val;
+                l1->len = 0;
+                v2->val = v1->val;
+                v1->val = (Obj *)list;
+                continue;
+            }
+            if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
+                Colonlist *l2 = (Colonlist *)v2->val;
+                Colonlist *list = new_colonlist();
+                list->len = l2->len + 1;
+                if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                list->data = list_create_elements(list, list->len);
+                list->data[0] = v1->val;
+                memcpy(&list->data[1], l2->data, l2->len * sizeof *list->data);
+                v1->val = (Obj *)list;
+                l2->len = 0;
+                continue;
+            }
+            {
+                Colonlist *list = new_colonlist();
+                list->len = 2;
+                list->data = list_create_elements(list, 2);
+                list->data[0] = v1->val;
+                list->data[1] = v2->val;
+                v1->val = (Obj *)list;
+                v2->val = NULL;
+                continue;
             }
         case O_WORD:    /* <> */
         case O_HWORD:   /* >` */
@@ -1070,6 +1053,7 @@ static bool get_val2(struct eval_context_s *ev) {
             oper.v2 = NULL;
             oper.epoint = &v1->epoint;
             oper.epoint3 = &o_out->epoint;
+            oper.inplace = (oper.v1->refcount == 1) ? oper.v1 : NULL;
             val = oper.v1->obj->calc1(&oper);
             val_destroy(v1->val); v1->val = val;
             v1->epoint = o_out->epoint;
@@ -1106,7 +1090,6 @@ static bool get_val2(struct eval_context_s *ev) {
                 Obj *tmp;
 
                 if (len2 < len) err_msg_out_of_memory(); /* overflow */
-                v1->val = NULL;
                 vsp--;
                 if (len2 >= ev->values_size) values = extend_values(ev, len);
                 iter_next = iter->next;
@@ -1194,6 +1177,7 @@ static bool get_val2(struct eval_context_s *ev) {
             oper.epoint = &v1->epoint;
             oper.epoint2 = &v2->epoint;
             oper.epoint3 = &o_out->epoint;
+            oper.inplace = NULL;
             val = oper.v1->obj->calc2(&oper);
             if (val->obj != BOOL_OBJ) {
                 val_destroy(v1->val); v1->val = val;
@@ -1221,6 +1205,7 @@ static bool get_val2(struct eval_context_s *ev) {
         oper.epoint = &v1->epoint;
         oper.epoint2 = &v2->epoint;
         oper.epoint3 = &o_out->epoint;
+        oper.inplace = (oper.v1->refcount == 1) ? v1->val : NULL;
         val = oper.v1->obj->calc2(&oper);
         val_destroy(v1->val); v1->val = val;
     }
@@ -1771,19 +1756,13 @@ Obj *get_vals_tuple(void) {
     case 0:
         return (Obj *)ref_tuple(null_tuple);
     case 1:
-        {
-            Obj *val = pull_val(NULL);
-            if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
-            return val;
-        }
+        return pull_val(NULL);
     default:
         break;
     }
     list = new_tuple(len);
     for (i = 0; i < len; i++) {
-        Obj *val2 = pull_val(NULL);
-        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }
-        list->data[i] = val2;
+        list->data[i] = pull_val(NULL);
     }
     return (Obj *)list;
 }
@@ -1797,11 +1776,7 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
     case 0:
         return (Obj *)ref_addrlist(null_addrlist);
     case 1:
-        {
-            Obj *val = pull_val(&epoints[0]);
-            if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
-            return val;
-        }
+        return pull_val(&epoints[0]);
     default:
         break;
     }
@@ -1809,8 +1784,7 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
     list->data = list_create_elements(list, len);
     for (i = j = 0; j < len; j++) {
         Obj *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
-        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }
-        else if (val2->obj == REGISTER_OBJ && ((Register *)val2)->len == 1 && i != 0) {
+        if (val2->obj == REGISTER_OBJ && ((Register *)val2)->len == 1 && i != 0) {
             Address_types am;
             switch (((Register *)val2)->data[0]) {
             case 's': am = A_SR; break;

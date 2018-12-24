@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1641 2018-09-03 23:43:09Z soci $
+    $Id: bytesobj.c 1686 2018-12-09 17:40:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -106,6 +106,26 @@ static MALLOC Bytes *new_bytes2(size_t ln) {
         v->data = v->u.val;
     }
     return v;
+}
+
+static uint8_t *extend_bytes(Bytes *v, size_t ln) {
+    uint8_t *tmp;
+    if (ln <= sizeof v->u.val) {
+        return v->u.val;
+    }
+    if (v->u.val != v->data) {
+        tmp = (uint8_t *)realloc(v->data, ln);
+        if (tmp != NULL) {
+            v->data = tmp;
+        }
+        return tmp;
+    }
+    tmp = (uint8_t *)malloc(ln);
+    if (tmp != NULL) {
+        memcpy(tmp, v->u.val, v->len);
+        v->data = tmp;
+    }
+    return tmp;
 }
 
 static MUST_CHECK Obj *invert(const Bytes *v1, linepos_t epoint) {
@@ -762,7 +782,7 @@ static size_t iter_len(Iter *v1) {
     return ((Bytes *)v1->data)->len - v1->val;
 }
 
-static MUST_CHECK Obj *next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
     Bytes *iter;
     const Bytes *vv1 = (Bytes *)v1->data;
     if (v1->val >= byteslen(vv1)) return NULL;
@@ -771,12 +791,12 @@ static MUST_CHECK Obj *next(Iter *v1) {
     renew:
         iter = new_bytes(1);
         v1->iter = &iter->v;
+        iter->len = (vv1->len < 0) ? ~1 : 1;
     } else if (iter->v.refcount != 1) {
         iter->v.refcount--;
         goto renew;
     }
     iter->data[0] = vv1->data[v1->val++];
-    iter->len = (vv1->len < 0) ? ~1 : 1;
     return &iter->v;
 }
 
@@ -902,10 +922,9 @@ static MUST_CHECK Obj *xor_(const Bytes *vv1, const Bytes *vv2, linepos_t epoint
     return &vv->v;
 }
 
-static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
-    Bytes *v;
+static MUST_CHECK Obj *concat(oper_t op) {
+    Bytes *v1 = (Bytes *)op->v1, *v2 = (Bytes *)op->v2, *v;
     uint8_t *s;
-    bool inv;
     size_t ln, i, len1, len2;
 
     if (v1->len == 0) {
@@ -919,20 +938,23 @@ static MUST_CHECK Obj *concat(Bytes *v1, Bytes *v2, linepos_t epoint) {
     ln = len1 + len2;
     if (ln < len2 || ln > SSIZE_MAX) goto failed; /* overflow */
 
-    v = new_bytes2(ln);
-    if (v == NULL) goto failed;
-    s = v->data;
-    inv = (v2->len ^ v1->len) < 0;
-
-    memcpy(s, v1->data, len1);
-    if (inv) {
+    if (op->inplace == &v1->v) {
+        s = extend_bytes(v1, ln);
+        if (s == NULL) goto failed;
+        v = ref_bytes(v1);
+    } else {
+        v = new_bytes2(ln);
+        if (v == NULL) goto failed;
+        s = v->data;
+        memcpy(s, v1->data, len1);
+    }
+    if ((v2->len ^ v1->len) < 0) {
         for (i = 0; i < len2; i++) s[i + len1] = ~v2->data[i];
     } else memcpy(s + len1, v2->data, len2);
     v->len = (v1->len < 0) ? (ssize_t)~ln : (ssize_t)ln;
-    v->data = s;
     return &v->v;
 failed:
-    return (Obj *)new_error_mem(epoint);
+    return (Obj *)new_error_mem(op->epoint3);
 }
 
 static int icmp(Bytes *v1, Bytes *v2) {
@@ -979,7 +1001,10 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (v1->len < ~0) return (Obj *)bytes_from_u16(~((unsigned int)v1->data[0] << 8));
         return (Obj *)bytes_from_u16((v1->len < 0) ? ~0U : 0);
     case O_POS: return val_reference(&v1->v);
-    case O_INV: return invert(v1, op->epoint3);
+    case O_INV: 
+        if (op->inplace != &v1->v) return invert(v1, op->epoint3);
+        v1->len = ~v1->len;
+        return val_reference(&v1->v);
     case O_NEG:
         v = negate(v1, op->epoint3);
         if (v != NULL) return v;
@@ -987,6 +1012,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_STRING:
         tmp = int_from_bytes(v1, op->epoint);
         op->v1 = tmp;
+        op->inplace = NULL;
         v = tmp->obj->calc1(op);
         val_destroy(tmp);
         return v;
@@ -1014,6 +1040,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             tmp2 = int_from_bytes(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -1030,6 +1057,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             tmp2 = bits_from_bytes(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -1047,7 +1075,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
     case O_MAX:
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-    case O_CONCAT: return concat(v1, v2, op->epoint3);
+    case O_CONCAT: return concat(op);
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
@@ -1237,6 +1265,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             default: tmp = int_from_bytes(v1, op->epoint);
             }
             op->v1 = tmp;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp);
             return result;
@@ -1283,6 +1312,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             default: tmp = int_from_bytes(v2, op->epoint2);
             }
             op->v2 = tmp;
+            op->inplace = NULL;
             result = o1->obj->calc2(op);
             val_destroy(tmp);
             return result;

@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1674 2018-12-08 10:12:56Z soci $
+    $Id: strobj.c 1683 2018-12-09 16:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -121,6 +121,26 @@ MALLOC Str *new_str2(size_t ln) {
     return v;
 }
 
+static uint8_t *extend_str(Str *v, size_t ln) {
+    uint8_t *tmp;
+    if (ln <= sizeof v->u.val) {
+        return v->u.val;
+    }
+    if (v->u.val != v->data) {
+        tmp = (uint8_t *)realloc(v->data, ln);
+        if (tmp != NULL) {
+            v->data = tmp;
+        }
+        return tmp;
+    }
+    tmp = (uint8_t *)malloc(ln);
+    if (tmp != NULL) {
+        memcpy(tmp, v->u.val, v->len);
+        v->data = tmp;
+    }
+    return tmp;
+}
+
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v1 = (Str *)o1;
     size_t i2, i, chars;
@@ -234,7 +254,7 @@ static size_t iter_len(Iter *v1) {
     return ((Str *)v1->data)->chars - v1->val;
 }
 
-static MUST_CHECK Obj *next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
     Str *iter;
     const Str *str = (Str *)v1->data;
     unsigned int ln;
@@ -353,6 +373,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     default: return obj_oper_error(op);
     }
     op->v1 = tmp;
+    op->inplace = NULL;
     v = tmp->obj->calc1(op);
     val_destroy(tmp);
     return v;
@@ -374,6 +395,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             tmp2 = int_from_str(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -388,6 +410,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             tmp2 = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v1 = tmp;
             op->v2 = tmp2;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -401,6 +424,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             tmp2 = bits_from_str(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -430,6 +454,23 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             size_t ln = v1->len + v2->len;
             if (ln < v2->len) break; /* overflow */
 
+            if (op->inplace == &v1->v) {
+                s = extend_str(v1, ln);
+                if (s == NULL) break;
+                memcpy(s + v1->len, v2->data, v2->len);
+                v1->len = ln;
+                v1->chars += v2->chars;
+                return val_reference(&v1->v);
+            }
+            if (op->inplace == &v2->v) {
+                s = extend_str(v2, ln);
+                if (s == NULL) break;
+                memmove(s + v1->len, v2->data, v2->len);
+                memcpy(s, v1->data, v1->len);
+                v2->len = ln;
+                v2->chars += v1->chars;
+                return val_reference(&v2->v);
+            }
             v = new_str2(ln);
             if (v == NULL) break;
             v->chars = v1->chars + v2->chars;
@@ -766,6 +807,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             default: tmp = int_from_str(v1, op->epoint);
             }
             op->v1 = tmp;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp);
             return result;
@@ -775,6 +817,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             Obj *result;
             tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
             op->v1 = tmp;
+            op->inplace = NULL;
             result = tmp->obj->calc2(op);
             val_destroy(tmp);
             return result;
@@ -819,6 +862,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             default: tmp = int_from_str(v2, op->epoint2);
             }
             op->v2 = tmp;
+            op->inplace = NULL;
             result = t1->calc2(op);
             val_destroy(tmp);
             return result;
@@ -828,6 +872,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             Obj *result;
             tmp = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v2 = tmp;
+            op->inplace = NULL;
             result = t1->calc2(op);
             val_destroy(tmp);
             return result;

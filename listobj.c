@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1660 2018-09-22 11:39:02Z soci $
+    $Id: listobj.c 1711 2018-12-15 23:25:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -94,8 +94,30 @@ static Obj **lnew(List *v, size_t len) {
         }
     }
     v->len = 0;
+    v->data = v->val;
     val_destroy(&v->v);
     return NULL;
+}
+
+static Obj **lextend(List *v, size_t len) {
+    Obj **tmp;
+    if (len <= lenof(v->val)) {
+        return v->val;
+    }
+    if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
+    if (v->val != v->data) {
+        tmp = (Obj **)realloc(v->data, len * sizeof *v->data);
+        if (tmp != NULL) {
+            v->data = tmp;
+        }
+        return tmp;
+    }
+    tmp = (Obj **)malloc(len * sizeof *v->data);
+    if (tmp != NULL) {
+        memcpy(tmp, v->val, v->len * sizeof *v->data);
+        v->data = tmp;
+    }
+    return tmp;
 }
 
 static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ, linepos_t epoint) {
@@ -156,7 +178,6 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     case TRUTH_ALL:
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
-            if (val->obj != BOOL_OBJ) return val;
             if ((Bool *)val != true_value) return val;
             val_destroy(val);
         }
@@ -164,8 +185,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     case TRUTH_ANY:
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
-            if (val->obj != BOOL_OBJ) return val;
-            if ((Bool *)val == true_value) return val;
+            if ((Bool *)val != false_value) return val;
             val_destroy(val);
         }
         return (Obj *)ref_bool(false_value);
@@ -244,7 +264,7 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)int_from_size(v1->len);
 }
 
-static MUST_CHECK Obj *next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
     const List *vv1 = (List *)v1->data;
     if (v1->val >= vv1->len) return NULL;
     return vv1->data[v1->val++];
@@ -287,16 +307,22 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     List *v1 = (List *)o1, *v;
     if (v1->len != 0) {
         Obj **vals;
-        bool error = true;
+        bool inplace = (op->inplace == o1);
         size_t i;
-        v = (List *)val_alloc(o1->obj);
-        vals = lnew(v, v1->len);
-        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        if (inplace) {
+            v = ref_list(v1);
+            vals = v1->data;
+        } else {
+            v = (List *)val_alloc(o1->obj);
+            vals = lnew(v, v1->len);
+            if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        }
         for (i = 0; i < v1->len; i++) {
-            Obj *val;
-            op->v1 = v1->data[i];
+            Obj *val = v1->data[i];
+            op->v1 = val;
+            op->inplace = (inplace && val->refcount == 1) ? val : NULL;
             val = op->v1->obj->calc1(op);
-            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
+            if (inplace) val_destroy(vals[i]);
             vals[i] = val;
         }
         return &v->v;
@@ -338,19 +364,33 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             if (v1->len == v2->len) {
                 if (v1->len != 0) {
                     Obj **vals;
-                    bool error = true;
-                    List *v = (List *)val_alloc(o1->obj);
-                    vals = lnew(v, v1->len);
-                    if (vals == NULL) goto failed;
+                    bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+                    List *v, *inplace;
+                    if (op->inplace == &v1->v) {
+                        v = ref_list(v1);
+                        vals = v1->data;
+                        inplace = v1;
+                    } else if (op->inplace == &v2->v) {
+                        v = ref_list(v2);
+                        vals = v2->data;
+                        inplace = v2;
+                    } else {
+                        v = (List *)val_alloc(o1->obj);
+                        vals = lnew(v, v1->len);
+                        if (vals == NULL) goto failed;
+                        inplace = NULL;
+                    }
                     for (i = 0; i < v1->len; i++) {
                         Obj *oo1 = op->v1 = v1->data[i];
                         Obj *oo2 = op->v2 = v2->data[i];
-                        Obj *val = op->v1->obj->calc2(op);
-                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                        else if (op->op == &o_MIN || op->op == &o_MAX) {
+                        Obj *val; 
+                        op->inplace = (inplace == v1 && oo1->refcount == 1 && !minmax) ? oo1 : NULL;
+                        val = op->v1->obj->calc2(op);
+                        if (minmax) {
                             if (val == &true_value->v) val_replace(&val, oo1);
                             else if (val == &false_value->v) val_replace(&val, oo2);
                         }
+                        if (inplace != NULL) val_destroy(vals[i]);
                         vals[i] = val;
                     }
                     return &v->v;
@@ -358,10 +398,12 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                 return val_reference(&v1->v);
             }
             if (v1->len == 1) {
+                if (op->inplace == o1) op->inplace = NULL;
                 op->v1 = v1->data[0];
                 return op->v2->obj->rcalc2(op);
             }
             if (v2->len == 1) {
+                if (op->inplace == o2) op->inplace = NULL;
                 op->v2 = v2->data[0];
                 return op->v1->obj->calc2(op);
             }
@@ -373,7 +415,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
     case O_CONCAT:
         {
             Obj **vals;
-            size_t ln;
+            size_t ln, j;
             List *v;
 
             if (v1->len == 0) {
@@ -384,14 +426,31 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             }
             ln = v1->len + v2->len;
             if (ln < v2->len) goto failed; /* overflow */
-            v = (List *)val_alloc(o1->obj);
-            vals = lnew(v, ln);
-            if (vals == NULL) goto failed;
-            for (i = 0; i < v1->len; i++) {
-                vals[i] = val_reference(v1->data[i]);
+            if (op->inplace == &v1->v) {
+                vals = lextend(v1, ln);
+                if (vals == NULL) goto failed;
+                i = v1->len;
+                v1->len = ln;
+                v = (List *)val_reference(o1);
+            } else if (op->inplace == &v2->v) {
+                vals = lextend(v2, ln);
+                if (vals == NULL) goto failed;
+                memmove(vals + v1->len, v2->data, v2->len * sizeof *v2->data);
+                v2->len = ln;
+                for (i = 0; i < v1->len; i++) {
+                    vals[i] = val_reference(v1->data[i]);
+                }
+                return val_reference(o2);
+            } else {
+                v = (List *)val_alloc(o1->obj);
+                vals = lnew(v, ln);
+                if (vals == NULL) goto failed;
+                for (i = 0; i < v1->len; i++) {
+                    vals[i] = val_reference(v1->data[i]);
+                }
             }
-            for (; i < ln; i++) {
-                vals[i] = val_reference(v2->data[i - v1->len]);
+            for (j = 0; i < ln; i++) {
+                vals[i] = val_reference(v2->data[j++]);
             }
             return &v->v;
         }
@@ -553,16 +612,16 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (o2->obj == FOLD_OBJ) {
         if (v1->len != 0) {
             Obj *val;
-            bool error = true;
+            bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
             val = val_reference(v1->data[v1->len - 1]);
             for (i = 1; i < v1->len; i++) {
                 Obj *oo1 = v1->data[v1->len - i - 1];
                 Obj *oo2 = val;
                 op->v1 = oo1;
                 op->v2 = oo2;
+                op->inplace = (val->refcount == 1 && !minmax) ? val : NULL;
                 val = op->v1->obj->calc2(op);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                else if (op->op == &o_MIN || op->op == &o_MAX) {
+                if (minmax) {
                     if (val == &true_value->v) val_replace(&val, oo1);
                     else if (val == &false_value->v) val_replace(&val, oo2);
                 }
@@ -573,21 +632,28 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return (Obj *)new_error(ERROR____EMPTY_LIST, op->epoint);
     }
     if (v1->len != 0) {
-        bool error = true;
-        List *list = (List *)val_alloc(o1->obj);
-        vals = lnew(list, v1->len);
-        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX), inplace = (op->inplace == o1);
+        List *list;
+        if (inplace) {
+            list = (List *)val_reference(o1);
+            vals = list->data;
+        } else {
+            list = (List *)val_alloc(o1->obj);
+            vals = lnew(list, v1->len);
+            if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        }
         for (;i < v1->len; i++) {
             Obj *val;
             Obj *oo1 = v1->data[i];
             op->v1 = oo1;
             op->v2 = o2;
+            op->inplace = (inplace && oo1->refcount == 1 && !minmax) ? oo1 : NULL;
             val = op->v1->obj->calc2(op);
-            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-            else if (op->op == &o_MIN || op->op == &o_MAX) {
+            if (minmax) {
                 if (val == &true_value->v) val_replace(&val, oo1);
                 else if (val == &false_value->v) val_replace(&val, o2);
             }
+            if (inplace) val_destroy(vals[i]);
             vals[i] = val;
         }
         return &list->v;
@@ -607,6 +673,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             Obj *result;
             op->v1 = o1;
             op->v2 = v2->data[i];
+            op->inplace = NULL;
             result = o1->obj->calc2(op);
             if ((Bool *)result == true_value) {
                 op->op = &o_IN;
@@ -627,16 +694,16 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     if (o1->obj == FOLD_OBJ) {
         if (v2->len != 0) {
             Obj *val;
-            bool error = true;
+            bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
             val = val_reference(v2->data[0]);
             for (i = 1; i < v2->len; i++) {
                 Obj *oo1 = val;
                 Obj *oo2 = v2->data[i];
                 op->v1 = oo1;
                 op->v2 = oo2;
+                op->inplace = (val->refcount == 1 && !minmax) ? val : NULL;
                 val = op->v1->obj->calc2(op);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                else if (op->op == &o_MIN || op->op == &o_MAX) {
+                if (minmax) {
                     if (val == &true_value->v) val_replace(&val, oo1);
                     else if (val == &false_value->v) val_replace(&val, oo2);
                 }
@@ -647,21 +714,28 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         return (Obj *)new_error(ERROR____EMPTY_LIST, op->epoint2);
     }
     if (v2->len != 0) {
-        bool error = true;
-        List *v = (List *)val_alloc(o2->obj);
-        vals = lnew(v, v2->len);
-        if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX), inplace = (op->inplace == o2);
+        List *v;
+        if (inplace) {
+            v = (List *)val_reference(o2);
+            vals = v->data;
+        } else {
+            v = (List *)val_alloc(o2->obj);
+            vals = lnew(v, v2->len);
+            if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
+        }
         for (;i < v2->len; i++) {
             Obj *val;
             Obj *oo2 = v2->data[i];
             op->v2 = oo2;
             op->v1 = o1;
+            op->inplace = (inplace && oo2->refcount == 1 && !minmax) ? oo2 : NULL;
             val = o1->obj->calc2(op);
-            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-            else if (op->op == &o_MIN || op->op == &o_MAX) {
+            if (minmax) {
                 if (val == &true_value->v) val_replace(&val, o1);
                 else if (val == &false_value->v) val_replace(&val, oo2);
             }
+            if (inplace) val_destroy(vals[i]);
             vals[i] = val;
         }
         return &v->v;

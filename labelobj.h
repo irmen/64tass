@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.h 1578 2018-01-14 00:28:34Z soci $
+    $Id: labelobj.h 1710 2018-12-15 23:08:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,5 +42,9 @@ typedef struct Label {
 } Label;
 
 extern void labelobj_init(void);
+
+static inline Label *ref_label(Label *v1) {
+    v1->v.refcount++; return v1;
+}
 
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1593 2018-07-31 15:41:51Z soci $
+    $Id: 64tass.h 1729 2018-12-24 08:25:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,8 +48,7 @@ extern struct avltree *star_tree;
 extern bool fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline;
-extern uint16_t reffile, curfile;
-extern uint32_t backr, forwr;
+extern uint16_t curfile;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
 extern const struct cpu_s *current_cpu;

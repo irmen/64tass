@@ -1,6 +1,6 @@
 /*
  * avltree - Implements an AVL tree with parent pointers.
- * $Id: avl.c 1539 2017-06-06 18:27:36Z soci $
+ * $Id: avl.c 1724 2018-12-23 16:28:41Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -76,7 +76,6 @@ struct avltree_node *avltree_prev(const struct avltree_node *node)
  * to slower insertion and removal but faster retrieval.
  */
 
-/* node->balance = height(node->right) - height(node->left); */
 static void rotate_left(struct avltree_node *node, struct avltree *tree)
 {
         struct avltree_node *p = node;
@@ -194,7 +193,6 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
         if (parent == NULL) {
                 tree->root = node;
                 tree->first = tree->last = node;
-                tree->height++;
                 return NULL;
         }
         if (is_left) {
@@ -221,8 +219,6 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 
         switch (unbalanced->balance) {
         case  1: case -1:
-                tree->height++;
-                break;
         case 0:
                 break;
         case 2: {
@@ -288,7 +284,6 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 void avltree_init(struct avltree *tree)
 {
         tree->root = NULL;
-        tree->height = -1;
         tree->first = NULL;
         tree->last = NULL;
 }

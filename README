@@ -247,7 +247,7 @@ jumpcmd lda hibytes,x   ; selected routine in X register
         lda lobytes,x   ; push address to stack
         pha
         rts             ; jump, rts will increase pc by one!
-; Build an anonymous list of jump addresses minus 1
+; Build a list of jump addresses minus 1
 _       := (cmd_p, cmd_c, cmd_m, cmd_s, cmd_r, cmd_l, cmd_e)-1
 lobytes .byte <_        ; low bytes of jump addresses
 hibytes .byte >_        ; high bytes

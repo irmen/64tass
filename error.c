@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1676 2018-12-08 11:56:27Z soci $
+    $Id: error.c 1736 2018-12-24 19:51:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -120,14 +120,9 @@ static void close_error(void) {
     }
 }
 
-static void new_error_msg(Severity_types severity, const struct file_list_s *flist, linepos_t epoint) {
+static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len) {
     struct errorentry_s *err;
-    size_t line_len;
     close_error();
-    switch (severity) {
-    case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && flist->file != NULL && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
-    }
     error_list.header_pos = ALIGN(error_list.len);
     error_list.len = error_list.header_pos + sizeof *err;
     if (error_list.len < sizeof *err) err_msg_out_of_memory2(); /* overflow */
@@ -145,7 +140,22 @@ static void new_error_msg(Severity_types severity, const struct file_list_s *fli
     err->line_len = line_len;
     err->file_list = flist;
     err->epoint = *epoint;
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof *err], pline, line_len);
+}
+
+static void new_error_msg(Severity_types severity, const struct file_list_s *flist, linepos_t epoint) {
+    size_t line_len;
+    switch (severity) {
+    case SV_NOTE: line_len = 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && flist->file != NULL && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
+    }
+    new_error_msg_common(severity, flist, epoint, line_len);
+    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
+}
+
+static void new_error_msg_err(const Error *err) {
+    size_t line_len = (err->line != NULL) ? (strlen((const char *)err->line) + 1) : 0;
+    new_error_msg_common(SV_ERROR, err->file_list, &err->epoint, line_len);
+    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], err->line, line_len);
 }
 
 static void new_error_msg2(bool type, linepos_t epoint) {
@@ -308,7 +318,7 @@ static void err_msg_variable(Obj *val, linepos_t epoint) {
             adderror(" '");
             adderror2(str->data, str->len);
             adderror("'");
-        } else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
+        }
         val_destroy(err);
     }
 }
@@ -505,12 +515,6 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     if (name != NULL) str_name(name->data, name->len);
 }
 
-static void err_msg_obj(const char *msg, Obj *val, linepos_t epoint) {
-    new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror(msg);
-    err_msg_variable(val, epoint);
-}
-
 void err_msg_big_address(linepos_t epoint) {
     Obj *val = get_star_value(current_address->l_address_val);
     new_error_msg(SV_ERROR, current_file_list, epoint);
@@ -526,16 +530,17 @@ static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val, li
     err_msg_variable(val, epoint);
 }
 
-static void err_msg_invalid_conv(Obj *v1, const Type *t, linepos_t epoint) {
+static void err_msg_invalid_conv(const Error *err) {
+    Obj *v1 = err->u.conv.val;
     if (v1->obj == ERROR_OBJ) {
         err_msg_output((const Error *)v1);
         return;
     }
-    new_error_msg(SV_ERROR, current_file_list, epoint);
+    new_error_msg_err(err);
     adderror("conversion of ");
-    err_msg_variable(v1, epoint);
+    err_msg_variable(v1, &err->epoint);
     adderror(" to ");
-    adderror(t->name);
+    adderror(err->u.conv.t->name);
     adderror(" is not possible");
 }
 
@@ -556,7 +561,9 @@ static void notdefines_free(struct avltree_node *aa) {
 }
 
 static struct notdefines_s *lastnd = NULL;
-void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t epoint) {
+static void err_msg_not_defined3(const Error *err) {
+    Namespace *l = err->u.notdef.names;
+    const str_t *name = &err->u.notdef.ident;
     struct notdefines_s *tmp2;
     struct avltree_node *b;
 
@@ -585,7 +592,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
         }
     }
 
-    new_error_msg(SV_ERROR, current_file_list, epoint);
+    new_error_msg_err(err);
     adderror("not defined");
     if (name->data != NULL) {
         str_name(name->data, name->len);
@@ -601,17 +608,27 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
 
     if (l->file_list == NULL) {
         struct linepos_s nopoint = {0, 0};
-        new_error_msg(SV_NOTE, current_file_list, &nopoint);
+        new_error_msg(SV_NOTE, err->file_list, &nopoint);
         adderror("searched in the global scope");
     } else {
         new_error_msg(SV_NOTE, l->file_list, &l->epoint);
-        if (down) adderror("searched in this scope and in all it's parents");
+        if (err->u.notdef.down) adderror("searched in this scope and in all it's parents");
         else adderror("searched in this object only");
     }
 }
 
-static void err_msg_no_addressing(Severity_types severity, atype_t addrtype, linepos_t epoint) {
-    new_error_msg(severity, current_file_list, epoint);
+void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t epoint) {
+    Error err;
+    err.file_list = current_file_list;
+    err.epoint = *epoint;
+    err.line = NULL;
+    err.u.notdef.down = down;
+    err.u.notdef.names = l;
+    err.u.notdef.ident = *name;
+    err_msg_not_defined3(&err);
+}
+
+static void err_msg_no_addressing(atype_t addrtype) {
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
     for (; (addrtype & MAX_ADDRESS_MASK) != 0; addrtype <<= 4) {
@@ -636,36 +653,69 @@ static void err_msg_no_addressing(Severity_types severity, atype_t addrtype, lin
     adderror(" addressing mode for opcode");
 }
 
-static void err_msg_no_register(Register *val, linepos_t epoint) {
-    new_error_msg(SV_ERROR, current_file_list, epoint);
+static void err_msg_no_register(Register *val) {
     adderror("no register '");
     adderror2(val->data, val->len);
     adderror("' addressing mode for opcode");
 }
 
-static void err_msg_no_lot_operand(size_t opers, linepos_t epoint) {
+static void err_msg_no_lot_operand(size_t opers) {
     char msg2[256];
-    new_error_msg(SV_ERROR, current_file_list, epoint);
     sprintf(msg2, "no %" PRIuSIZE " operand addressing mode for opcode", opers);
     adderror(msg2);
 }
 
-static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepos_t epoint) {
+static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2) {
     char msg2[256];
-    new_error_msg(SV_ERROR, current_file_list, epoint);
     sprintf(msg2, msg, v1, v2);
     adderror(msg2);
 }
 
+static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
+    adderror(op->name);
+    adderror("' of ");
+    err_msg_variable(v1, epoint);
+    if (v2 != NULL) {
+        adderror(" and ");
+        err_msg_variable(v2, epoint);
+    }
+    adderror(" not possible");
+}
+
+static void err_msg_invalid_oper3(const Error *err) {
+    Obj *v1 = err->u.invoper.v1, *v2;
+    if (v1->obj == ERROR_OBJ) {
+        err_msg_output((const Error *)v1);
+        return;
+    }
+    v2 = err->u.invoper.v2;
+    if (v2 != NULL && v2->obj == ERROR_OBJ) {
+        err_msg_output((const Error *)v2);
+        return;
+    }
+
+    new_error_msg_err(err);
+    err_msg_invalid_oper2(err->u.invoper.op, v1, v2, &err->epoint);
+}
+
+static void err_msg_still_none2(const Error *err) {
+    struct errorentry_s *e;
+    if ((constcreated || !fixeddig) && pass < max_pass) return;
+    new_error_msg_err(err);
+    e = (struct errorentry_s *)&error_list.data[error_list.header_pos];
+    e->severity = SV_NONEERROR;
+    adderror("can't calculate this");
+}
+
 void err_msg_output(const Error *val) {
     switch (val->num) {
-    case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.notdef.ident, val->u.notdef.names, val->u.notdef.down, &val->epoint);break;
-    case ERROR__INVALID_CONV: err_msg_invalid_conv(val->u.conv.val, val->u.conv.t, &val->epoint);break;
-    case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.invoper.op, val->u.invoper.v1, val->u.invoper.v2, &val->epoint);break;
-    case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
+    case ERROR___NOT_DEFINED: err_msg_not_defined3(val);break;
+    case ERROR__INVALID_CONV: err_msg_invalid_conv(val);break;
+    case ERROR__INVALID_OPER: err_msg_invalid_oper3(val);break;
+    case ERROR____STILL_NONE: err_msg_still_none2(val); break;
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL:
-    case ERROR______NOT_UVAL: new_error_msg(SV_ERROR, current_file_list, &val->epoint); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
+    case ERROR______NOT_UVAL: new_error_msg_err(val); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
@@ -684,11 +734,11 @@ void err_msg_output(const Error *val) {
     case ERROR_NO_ZERO_VALUE:
     case ERROR_OUT_OF_MEMORY:
     case ERROR__ADDR_COMPLEX:
-    case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->num - 0x40], NULL, &val->epoint);break;
-    case ERROR_NO_ADDRESSING: err_msg_no_addressing(SV_ERROR, val->u.addressing, &val->epoint);break;
-    case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
-    case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
-    case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
+    case ERROR_DIVISION_BY_Z: new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); break;
+    case ERROR_NO_ADDRESSING: new_error_msg_err(val); err_msg_no_addressing(val->u.addressing);break;
+    case ERROR___NO_REGISTER: new_error_msg_err(val); err_msg_no_register(val->u.reg);break;
+    case ERROR___NO_LOT_OPER: new_error_msg_err(val); err_msg_no_lot_operand(val->u.opers);break;
+    case ERROR_CANT_BROADCAS: new_error_msg_err(val); err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2);break;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
     case ERROR_____CANT_SIGN:
@@ -702,7 +752,7 @@ void err_msg_output(const Error *val) {
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
-    case ERROR_____KEY_ERROR: err_msg_obj(terr_error[val->num - 0x40], val->u.obj, &val->epoint);break;
+    case ERROR_____KEY_ERROR: new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj, &val->epoint);break;
     default: break;
     }
 }
@@ -726,7 +776,7 @@ void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
 void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
     if (val->obj == ADDRESS_OBJ) {
         const Obj *val2 = ((Address *)val)->val;
-        if (val2 == &none_value->v) val = val2;
+        if (val2 == &none_value->v || val2->obj == ERROR_OBJ) val = val2;
     }
     if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
     else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, epoint);
@@ -937,29 +987,15 @@ void err_msg_type_mixing(linepos_t epoint) {
     adderror("mixed operation with lists and tuples was undefined and is different now [-Wtype-mixing]");
 }
 
-static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
-    adderror(op->name);
-    adderror("' of ");
-    err_msg_variable(v1, epoint);
-    if (v2 != NULL) {
-        adderror(" and ");
-        err_msg_variable(v2, epoint);
-    }
-    adderror(" not possible");
-}
-
 void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        err_msg_output((const Error *)v1);
-        return;
-    }
-    if (v2 != NULL && v2->obj == ERROR_OBJ) {
-        err_msg_output((const Error *)v2);
-        return;
-    }
-
-    new_error_msg(SV_ERROR, current_file_list, epoint);
-    err_msg_invalid_oper2(op, v1, v2, epoint);
+    Error err;
+    err.u.invoper.op = op;
+    err.u.invoper.v1 = v1; 
+    err.u.invoper.v2 = v2; 
+    err.file_list = current_file_list; 
+    err.epoint = *epoint;
+    err.line = NULL;
+    err_msg_invalid_oper3(&err);
 }
 
 void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
@@ -1003,7 +1039,8 @@ void err_msg_bool_oper(oper_t op) {
 }
 
 void err_msg_implied_reg(linepos_t epoint) {
-    err_msg_no_addressing(diagnostic_errors.implied_reg ? SV_ERROR : SV_WARNING, A_NONE, epoint);
+    new_error_msg(diagnostic_errors.implied_reg ? SV_ERROR : SV_WARNING, current_file_list, epoint);
+    err_msg_no_addressing(A_NONE);
     adderror(" [-Wimplied-reg]");
 }
 

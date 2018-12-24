@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 1587 2018-05-13 17:52:41Z soci $
+    $Id: variables.c 1729 2018-12-24 08:25:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,6 +83,10 @@ void push_context(Namespace *name) {
     context_stack.p++;
 }
 
+void push_dummy_context(void) {
+    push_context(builtin_namespace);
+}
+
 bool pop_context(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
@@ -106,6 +110,7 @@ void reset_context(void) {
     val_destroy(&cheap_context->v);
     cheap_context = ref_namespace(root_namespace);
     push_context(root_namespace);
+    root_namespace->backr = root_namespace->forwr = 0;
 }
 
 struct label_stack_s {
@@ -269,8 +274,7 @@ Label *find_label2(const str_t *name, Namespace *context) {
 
 static struct {
     uint8_t dir;
-    uint8_t padding;
-    uint16_t reffile;
+    uint8_t padding[3];
     int32_t count;
 } anon_idents;
 
@@ -299,16 +303,15 @@ Label *find_anonlabel(int32_t count) {
     Label label;
 
     anon_idents.dir = (count >= 0) ? '+' : '-';
-    anon_idents.reffile = reffile;
-    anon_idents.count = (int32_t)((count >= 0) ? forwr : backr) + count;
 
     label.cfname.data = (const uint8_t *)&anon_idents;
     label.cfname.len = sizeof anon_idents;
-    tmp.hash = str_hash(&label.cfname);
     tmp.key = &label;
 
     while (context_stack.bottom < p) {
         context = context_stack.stack[--p].normal;
+        anon_idents.count = (int32_t)((count >= 0) ? context->forwr : context->backr) + count;
+        tmp.hash = str_hash(&label.cfname);
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b != NULL) {
             c = strongest_label(b);
@@ -327,8 +330,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
     Label label;
 
     anon_idents.dir = (count >= 0) ? '+' : '-';
-    anon_idents.reffile = reffile;
-    anon_idents.count = (int32_t)((count >= 0) ? forwr : backr) + count;
+    anon_idents.count = (int32_t)((count >= 0) ? 0 : context->backr) + count;
 
     label.cfname.data = (const uint8_t *)&anon_idents;
     label.cfname.len = sizeof anon_idents;

@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.h 1579 2018-01-14 08:28:43Z soci $
+    $Id: namespaceobj.h 1729 2018-12-24 08:25:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ typedef struct Namespace {
     struct avltree members;
     const struct file_list_s *file_list;
     struct linepos_s epoint;
+    uint32_t backr, forwr;
 } Namespace;
 
 extern void namespaceobj_init(void);

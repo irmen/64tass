@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 1676 2018-12-08 11:56:27Z soci $
+   $Id: isnprintf.c 1689 2018-12-09 20:44:31Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -426,7 +426,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
         return val_reference(val);
     case T_STR: break;
     case T_ADDRESS:
-        if (((Address *)val)->val == &none_value->v) return val_reference(((Address *)val)->val);
+        if (((Address *)val)->val == &none_value->v || ((Address *)val)->val->obj == ERROR_OBJ) return val_reference(((Address *)val)->val);
         /* fall through */
     default:
         err_msg_wrong_type(val, STR_OBJ, &v[0].epoint);

@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 1629 2018-09-01 15:37:30Z soci $
+    $Id: obj.h 1681 2018-12-09 15:14:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ typedef struct Lbl_s {
 } Lbl;
 
 struct Iter;
-typedef MUST_CHECK Obj *(*iter_next_t)(struct Iter *);
+typedef FAST_CALL MUST_CHECK Obj *(*iter_next_t)(struct Iter *);
 typedef size_t (*iter_len_t)(struct Iter *);
 
 typedef struct Iter {

@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1613 2018-08-26 13:20:36Z soci $
+    $Id: namespaceobj.c 1729 2018-12-24 08:25:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -106,19 +106,45 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Namespace *v1 = (const Namespace *)o1, *v2 = (const Namespace *)o2;
-    const struct avltree_node *n;
-    const struct avltree_node *n2;
+    const struct avltree_node *n, *n2;
+    struct avltree_node *f, *f2;
     if (o2->obj != NAMESPACE_OBJ) return false;
-    n = avltree_first(&v1->members);
-    n2 = avltree_first(&v2->members);
+    n = f = avltree_first(&v1->members);
+    n2 = f2 = avltree_first(&v2->members);
+    ((Namespace *)v1)->members.first = NULL;
+    ((Namespace *)v2)->members.first = NULL;
     while (n != NULL && n2 != NULL) {
-        const struct namespacekey_s *p = cavltree_container_of(n, struct namespacekey_s, node);
-        const struct namespacekey_s *p2 = cavltree_container_of(n2, struct namespacekey_s, node);
+        const struct namespacekey_s *p, *p2;
+        for (;;) {
+            p = cavltree_container_of(n, struct namespacekey_s, node);
+            if (p->key == NULL) break;
+            if (p->key->defpass != pass && !(p->key->constant && (!fixeddig || p->key->defpass == pass - 1))) {
+                n = avltree_next(n);
+                if (n != NULL) continue;
+            }
+            break;
+        }
+        for (;;) {
+            p2 = cavltree_container_of(n2, struct namespacekey_s, node);
+            if (p2->key == NULL) break;
+            if (p2->key->defpass != pass && !(p2->key->constant && (!fixeddig || p2->key->defpass == pass - 1))) {
+                n2 = avltree_next(n2);
+                if (n2 != NULL) continue;
+            }
+            break;
+        }
+        if (n == NULL || n2 == NULL) break;
         if ((p->key == NULL) != (p2->key == NULL)) return false;
-        if (p->key != NULL && p2->key != NULL && !p->key->v.obj->same((Obj *)p->key, (Obj *)p2->key)) return false;
+        if (p->key != NULL && p2->key != NULL && !p->key->v.obj->same((Obj *)p->key, (Obj *)p2->key)) {
+            ((Namespace *)v1)->members.first = f;
+            ((Namespace *)v2)->members.first = f2;
+            return false;
+        }
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
+    ((Namespace *)v1)->members.first = f;
+    ((Namespace *)v2)->members.first = f2;
     return n == n2;
 }
 
@@ -253,6 +279,8 @@ MALLOC Namespace *new_namespace(const struct file_list_s *file_list, linepos_t e
     val->file_list = file_list;
     val->epoint = *epoint;
     val->len = 0;
+    val->backr = 0;
+    val->forwr = 0;
     return val;
 }
 

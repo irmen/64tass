@@ -1,6 +1,6 @@
 /*
  * avl.h - this file is part of Libtree.
- * $Id: avl.h 1539 2017-06-06 18:27:36Z soci $
+ * $Id: avl.h 1724 2018-12-23 16:28:41Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -56,7 +56,6 @@ typedef void (*avltree_free_fn_t)(struct avltree_node *);
 
 struct avltree {
         struct avltree_node *root;
-        int height;
         struct avltree_node *first, *last;
 };
 

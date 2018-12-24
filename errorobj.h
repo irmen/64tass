@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 1623 2018-08-30 21:06:43Z soci $
+    $Id: errorobj.h 1692 2018-12-09 23:12:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,10 +32,12 @@ struct Register;
 typedef struct Error {
     Obj v;
     Error_types num;
+    const struct file_list_s *file_list;
     struct linepos_s epoint;
+    const uint8_t *line;
     union {
         struct {
-            struct Oper *op;
+            const struct Oper *op;
             Obj *v1;
             Obj *v2;
         } invoper;

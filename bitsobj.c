@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 1631 2018-09-01 16:27:15Z soci $
+    $Id: bitsobj.c 1702 2018-12-12 21:24:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -97,20 +97,17 @@ static MALLOC Bits *new_bits(size_t len) {
 
 static MALLOC Bits *new_bits2(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
-    if (len <= lenof(v->u.val)) {
-        v->data = v->u.val;
-        return v;
-    }
-    if (len <= SIZE_MAX / sizeof *v->data) { /* overflow */
-        bdigit_t *n = (bdigit_t *)malloc(len * sizeof *v->data);
-        if (n != NULL) {
-            v->u.hash = -1;
-            v->data = n;
-            return v;
+    if (len > lenof(v->u.val)) {
+        v->u.hash = -1;
+        v->data = (len <= SIZE_MAX / sizeof *v->data) ? (bdigit_t *)malloc(len * sizeof *v->data) : NULL;
+        if (v->data == NULL) {
+            val_destroy(&v->v);
+            v = NULL;
         }
+    } else {
+        v->data = v->u.val;
     }
-    val_destroy(&v->v);
-    return NULL;
+    return v;
 }
 
 static MUST_CHECK Obj *invert(const Bits *v1, linepos_t epoint) {
@@ -751,7 +748,10 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_BSWORD:
         uv = ldigit(v1);
         return (Obj *)bytes_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-    case O_INV: return invert(v1, op->epoint3);
+    case O_INV: 
+        if (op->inplace != &v1->v) return invert(v1, op->epoint3);
+        v1->len = ~v1->len;
+        return val_reference(&v1->v);
     case O_POS: return val_reference(&v1->v);
     case O_NEG:
         v = negate(v1, op->epoint3);
@@ -760,6 +760,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_STRING:
         tmp = int_from_bits(v1, op->epoint);
         op->v1 = tmp;
+        op->inplace = NULL;
         v = tmp->obj->calc1(op);
         val_destroy(tmp);
         return v;
@@ -1051,6 +1052,31 @@ static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s, linepos_t epoint) {
     return normalize(vv, sz, (vv1->len < 0));
 }
 
+static MUST_CHECK Obj *calc2_bits(oper_t op) {
+    Bits *v1 = (Bits *)op->v1, *v2 = (Bits *)op->v2;
+    ssize_t val;
+    switch (op->op->op) {
+    case O_CMP:
+        val = icmp(v1, v2);
+        if (val < 0) return (Obj *)ref_int(minus1_value);
+        return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
+    case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+    case O_NE: return truth_reference(icmp(v1, v2) != 0);
+    case O_MIN:
+    case O_LT: return truth_reference(icmp(v1, v2) < 0);
+    case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+    case O_MAX:
+    case O_GT: return truth_reference(icmp(v1, v2) > 0);
+    case O_GE: return truth_reference(icmp(v1, v2) >= 0);
+    case O_AND: return and_(v1, v2, op->epoint3);
+    case O_OR: return or_(v1, v2, op->epoint3);
+    case O_XOR: return xor_(v1, v2, op->epoint3);
+    case O_CONCAT: return concat(v1, v2, op->epoint3);
+    case O_IN: return obj_oper_error(op); /* TODO */
+    default: return NULL;
+    }
+}
+
 static inline MUST_CHECK Obj *repeat(oper_t op) {
     Bits *vv1 = (Bits *)op->v1, *vv;
     bdigit_t *v, *v1;
@@ -1086,26 +1112,28 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     rbits = vv1->bits / SHIFT;
     abits = vv1->bits % SHIFT;
     l = bitslen(vv1);
-    while ((rep--) != 0) {
+    for (; rep != 0; rep--) {
         if (bits != 0) {
             for (j = 0; j < rbits && j < l; j++) {
                 v[i++] = uv | (v1[j] << bits);
                 uv = (v1[j] >> (SHIFT - bits));
             }
-            uv |= v1[j] << bits;
-            if (j < rbits) { v[i++] = uv; uv = 0; j++;}
-            for (; j < rbits; j++) v[i++] = 0;
+            if (j < l) uv |= v1[j] << bits;
+            if (j < rbits) { 
+                v[i++] = uv; uv = 0; j++;
+                for (; j < rbits; j++) v[i++] = 0;
+            }
             bits += abits;
             if (bits >= SHIFT) {
-                v[i++] = uv;
                 bits -= SHIFT;
-                if (bits != 0) uv = v1[j] >> (abits - bits);
+                v[i++] = uv;
+                if (bits != 0 && j < l) uv = v1[j] >> (abits - bits);
                 else uv = 0;
             }
         } else {
             for (j = 0; j < rbits && j < l; j++) v[i++] = v1[j];
             for (; j < rbits; j++) v[i++] = 0;
-            uv = v1[j];
+            uv = (j < l) ? v1[j] : 0;
             bits = abits;
         }
     }
@@ -1278,7 +1306,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp, *result;
     Error *err;
     ival_t shift;
-    ssize_t val;
 
     if (op->op == &o_X) {
         return repeat(op);
@@ -1295,31 +1322,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         op->v2 = (Obj *)bits_value[(Bool *)o2 == true_value ? 1 : 0];
+        op->inplace = NULL;
         return calc2(op);
     case T_BITS:
-        {
-            Bits *v2 = (Bits *)o2;
-            switch (op->op->op) {
-            case O_CMP:
-                val = icmp(v1, v2);
-                if (val < 0) return (Obj *)ref_int(minus1_value);
-                return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
-            case O_EQ: return truth_reference(icmp(v1, v2) == 0);
-            case O_NE: return truth_reference(icmp(v1, v2) != 0);
-            case O_MIN:
-            case O_LT: return truth_reference(icmp(v1, v2) < 0);
-            case O_LE: return truth_reference(icmp(v1, v2) <= 0);
-            case O_MAX:
-            case O_GT: return truth_reference(icmp(v1, v2) > 0);
-            case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-            case O_AND: return and_(v1, v2, op->epoint3);
-            case O_OR: return or_(v1, v2, op->epoint3);
-            case O_XOR: return xor_(v1, v2, op->epoint3);
-            case O_CONCAT: return concat(v1, v2, op->epoint3);
-            case O_IN: return obj_oper_error(op); /* TODO */
-            default: break;
-            }
-        }
+        result = calc2_bits(op);
+        if (result != NULL) return result;
         /* fall through */
     case T_INT:
         switch (op->op->op) {
@@ -1337,6 +1344,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
         tmp = int_from_bits(v1, op->epoint);
         op->v1 = tmp;
+        op->inplace = NULL;
         result = tmp->obj->calc2(op);
         val_destroy(tmp);
         return result;
@@ -1353,40 +1361,21 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Bits *v2 = (Bits *)op->v2;
     Obj *o1 = op->v1;
     Obj *tmp, *result;
-    ssize_t val;
+
     switch (o1->obj->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         op->v1 = (Obj *)bits_value[(Bool *)o1 == true_value ? 1 : 0];
+        op->inplace = NULL;
         return calc2(op);
     case T_BITS:
-        {
-            Bits *v1 = (Bits *)o1;
-            switch (op->op->op) {
-            case O_CMP:
-                val = icmp(v1, v2);
-                if (val < 0) return (Obj *)ref_int(minus1_value);
-                return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
-            case O_EQ: return truth_reference(icmp(v1, v2) == 0);
-            case O_NE: return truth_reference(icmp(v1, v2) != 0);
-            case O_MIN:
-            case O_LT: return truth_reference(icmp(v1, v2) < 0);
-            case O_LE: return truth_reference(icmp(v1, v2) <= 0);
-            case O_MAX:
-            case O_GT: return truth_reference(icmp(v1, v2) > 0);
-            case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-            case O_AND: return and_(v1, v2, op->epoint3);
-            case O_OR: return or_(v1, v2, op->epoint3);
-            case O_XOR: return xor_(v1, v2, op->epoint3);
-            case O_CONCAT: return concat(v1, v2, op->epoint3);
-            case O_IN: return obj_oper_error(op); /* TODO */
-            default: break;
-            }
-        }
+        result = calc2_bits(op);
+        if (result != NULL) return result;
         /* fall through */
     case T_INT:
         tmp = int_from_bits(v2, op->epoint2);
         op->v2 = tmp;
+        op->inplace = NULL;
         result = o1->obj->calc2(op);
         val_destroy(tmp);
         return result;

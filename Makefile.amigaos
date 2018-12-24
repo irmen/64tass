@@ -68,8 +68,8 @@ error.o: error.c error.h attributes.h stdbool.h errors_e.h avl.h obj.h \
  strobj.h addressobj.h values.h registerobj.h namespaceobj.h operobj.h \
  typeobj.h labelobj.h errorobj.h noneobj.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
- errors_e.h str.h stdbool.h eval.h values.h typeobj.h registerobj.h \
- namespaceobj.h avl.h
+ errors_e.h str.h stdbool.h eval.h values.h error.h avl.h 64tass.h \
+ wait_e.h file.h typeobj.h registerobj.h namespaceobj.h
 eval.o: eval.c eval.h attributes.h obj.h inttypes.h stdbool.h math.h \
  file.h avl.h section.h str.h mem.h encoding.h errors_e.h macro.h \
  wait_e.h variables.h 64tass.h unicode.h unicodedata.h listing.h error.h \

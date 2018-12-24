@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1676 2018-12-08 11:56:27Z soci $
+    $Id: obj.c 1696 2018-12-10 10:41:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR: return val_reference(v1);
     case T_ADDRESS:
-        if (((Address *)v1)->val == &none_value->v) return val_reference(((Address *)v1)->val);
+        if (((Address *)v1)->val == &none_value->v || ((Address *)v1)->val->obj == ERROR_OBJ) return val_reference(((Address *)v1)->val);
         break;
     default: break;
     }
@@ -150,7 +150,7 @@ static MUST_CHECK Obj *invalid_calc2(oper_t op) {
     }
     if (o2->obj == ADDRESS_OBJ) {
         Obj *val = ((Address *)o2)->val;
-        if (val == &none_value->v) return val_reference(val);
+        if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
     }
     return obj_oper_error(op);
 }
@@ -162,7 +162,7 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     }
     if (o1->obj == ADDRESS_OBJ) {
         Obj *val = ((Address *)o1)->val;
-        if (val == &none_value->v) return val_reference(val);
+        if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
     }
     return obj_oper_error(op);
 }
@@ -170,13 +170,15 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
 static MUST_CHECK Obj *invalid_slice(Obj *UNUSED(v1), oper_t op, size_t indx) {
     Funcargs *args = (Funcargs *)op->v2;
     if (indx == 0) {
-        Obj *o2 = args->val[0].val;
-        if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
-            return val_reference(o2);
-        }
-        if (o2->obj == ADDRESS_OBJ) {
-            Obj *val = ((Address *)o2)->val;
-            if (val == &none_value->v) return val_reference(val);
+        if (args->len > 0) {
+            Obj *o2 = args->val[0].val;
+            if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
+                return val_reference(o2);
+            }
+            if (o2->obj == ADDRESS_OBJ) {
+                Obj *val = ((Address *)o2)->val;
+                if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
+            }
         }
     } else {
         err_msg_argnum(args->len, 1, indx, op->epoint2);
@@ -222,7 +224,7 @@ static size_t invalid_iter_len(Iter *v1) {
     return 1 - v1->val;
 }
 
-static MUST_CHECK Obj *invalid_next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *invalid_next(Iter *v1) {
     if (v1->val != 0) return NULL;
     v1->val = 1;
     return v1->data;

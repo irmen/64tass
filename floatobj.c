@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 1613 2018-08-26 13:20:36Z soci $
+    $Id: floatobj.c 1712 2018-12-15 23:51:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -175,7 +175,11 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_INV: return float_from_double(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1, op->epoint);
     case O_NEG: return float_from_double(-v1, op->epoint);
     case O_POS: return val_reference(op->v1);
-    case O_STRING: return repr(op->v1, op->epoint, SIZE_MAX);
+    case O_STRING:
+        {
+            Obj *o = repr(op->v1, op->epoint, SIZE_MAX);
+            return (o != NULL) ? o : (Obj *)new_error_mem(op->epoint);
+        }
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return truth_reference(v1 == 0.0);

@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 1614 2018-08-26 13:43:25Z soci $
+    $Id: gapobj.c 1690 2018-12-09 21:07:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -219,7 +219,7 @@ void gapobj_names(void) {
 void gapobj_destroy(void) {
 #ifdef DEBUG
     if (gap_value->v.refcount != 1) fprintf(stderr, "gap %" PRIuSIZE "\n", gap_value->v.refcount - 1);
-    if (gap_repr->v.refcount != 1) fprintf(stderr, "gaprepr %" PRIuSIZE "\n", gap_repr->v.refcount - 1);
+    if (gap_repr != NULL && gap_repr->v.refcount != 1) fprintf(stderr, "gaprepr %" PRIuSIZE "\n", gap_repr->v.refcount - 1);
 #endif
 
     val_destroy(&gap_value->v);

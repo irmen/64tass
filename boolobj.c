@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 1624 2018-08-30 21:31:25Z soci $
+    $Id: boolobj.c 1690 2018-12-09 21:07:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -251,8 +251,8 @@ void boolobj_destroy(void) {
 #ifdef DEBUG
     if (false_value->v.refcount != 1) fprintf(stderr, "false %" PRIuSIZE "\n", false_value->v.refcount - 1);
     if (true_value->v.refcount != 1) fprintf(stderr, "true %" PRIuSIZE "\n", true_value->v.refcount - 1);
-    if (bool_repr[0]->v.refcount != 1) fprintf(stderr, "boolrepr[0] %" PRIuSIZE "\n", bool_repr[0]->v.refcount - 1);
-    if (bool_repr[1]->v.refcount != 1) fprintf(stderr, "boolrepr[1] %" PRIuSIZE "\n", bool_repr[1]->v.refcount - 1);
+    if (bool_repr[0] != NULL && bool_repr[0]->v.refcount != 1) fprintf(stderr, "boolrepr[0] %" PRIuSIZE "\n", bool_repr[0]->v.refcount - 1);
+    if (bool_repr[1] != NULL && bool_repr[1]->v.refcount != 1) fprintf(stderr, "boolrepr[1] %" PRIuSIZE "\n", bool_repr[1]->v.refcount - 1);
 #endif
 
     val_destroy(&false_value->v);

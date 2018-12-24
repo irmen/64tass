@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1672 2018-12-07 07:24:01Z soci $
+    $Id: codeobj.c 1683 2018-12-09 16:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -398,6 +398,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         op->v1 = v1->addr;
+        op->inplace = NULL;
         return op->v1->obj->calc1(op);
     case O_BANK:
     case O_HIGHER:
@@ -412,6 +413,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         err = access_check(v1, op->epoint);
         if (err != NULL) return &err->v;
         op->v1 = v1->addr;
+        op->inplace = NULL;
         return op->v1->obj->calc1(op);
     default: break;
     }
@@ -470,6 +472,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
+            op->inplace = NULL;
             return op->v1->obj->calc2(op);
         }
     case T_BOOL:
@@ -482,16 +485,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BYTES:
     case T_ADDRESS:
         op->v1 = v1->addr;
+        op->inplace = NULL;
         switch (op->op->op) {
         case O_ADD:
         case O_SUB:
             {
                 ival_t iv;
                 err = o2->obj->ival(o2, &iv, 31, op->epoint2);
-                if (err != NULL) {
-                    op->v1 = &v1->v;
-                    return &err->v;
-                }
+                if (err != NULL) return &err->v;
                 v = new_code();
                 memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v1) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
                 v->memblocks = ref_memblocks(v1->memblocks);
@@ -555,6 +556,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             tmp = code_item(v2, (ssize_t)i + offs, ln2);
             oper.v1 = tmp;
             oper.v2 = o1;
+            oper.inplace = NULL;
             result = tmp->obj->calc2(&oper);
             val_destroy(tmp);
             if ((Bool *)result == true_value) return result;
@@ -572,6 +574,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
+            op->inplace = NULL;
             return op->v1->obj->calc2(op);
         }
     case T_BOOL:
@@ -582,13 +585,11 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_FLOAT:
     case T_ADDRESS:
         op->v2 = v2->addr;
+        op->inplace = NULL;
         if (op->op == &o_ADD) {
             ival_t iv;
             err = o1->obj->ival(o1, &iv, 31, op->epoint);
-            if (err != NULL) {
-                op->v2 = &v2->v;
-                return &err->v;
-            }
+            if (err != NULL) return &err->v;
             v = new_code();
             memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v2) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
             v->memblocks = ref_memblocks(v2->memblocks);

@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 1632 2018-09-01 23:02:59Z soci $
+    $Id: typeobj.c 1689 2018-12-09 20:44:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -106,7 +106,6 @@ static MUST_CHECK Obj *apply_convert(Obj *o2, const Type *v1, linepos_t epoint) 
             Iter *iter = v2->getiter(o2);
             size_t i, len = iter->len(iter);
             Obj **vals;
-            bool error;
             List *v;
 
             if (len == 0) {
@@ -116,12 +115,9 @@ static MUST_CHECK Obj *apply_convert(Obj *o2, const Type *v1, linepos_t epoint) 
 
             v = (List *)val_alloc(v2 == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
             v->data = vals = list_create_elements(v, len);
-            error = true;
             iter_next = iter->next;
             for (i = 0;i < len && (o2 = iter_next(iter)) != NULL; i++) {
-                Obj *val = apply_convert(o2, v1, epoint);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output((Error *)val); error = false;} val_destroy(val); val = (Obj *)ref_none(); }
-                vals[i] = val;
+                vals[i] = apply_convert(o2, v1, epoint);
             }
             val_destroy(&iter->v);
             v->len = i;

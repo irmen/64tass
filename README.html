@@ -384,7 +384,7 @@ jumpcmd <b>lda</b> <u>hibytes</u>,x   <i>; selected routine in X register</i>
         <b>lda</b> <u>lobytes</u>,x   <i>; push address to stack</i>
         <b>pha</b>
         <b>rts</b>             <i>; jump, rts will increase pc by one!</i>
-<i>; Build an anonymous list of jump addresses minus 1</i>
+<i>; Build a list of jump addresses minus 1</i>
 _	<b>:=</b> (<u>cmd_p</u>, <u>cmd_c</u>, <u>cmd_m</u>, <u>cmd_s</u>, <u>cmd_r</u>, <u>cmd_l</u>, <u>cmd_e</u>)-<span>1</span>
 lobytes <b class="d">.byte</b> &lt;<u>_</u>        <i>; low bytes of jump addresses</i>
 hibytes <b class="d">.byte</b> &gt;<u>_</u>        <i>; high bytes</i>

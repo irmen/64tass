@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1620 2018-08-30 20:26:55Z soci $
+    $Id: macro.c 1732 2018-12-24 12:31:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -256,7 +256,9 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     bool in_macro_old;
     Obj *val;
     Macro *macro = (Macro *)tmp2;
+    if (macro->recursion_pass == pass) return NULL;
     if (macro_parameters.p > 100) {
+        macro->recursion_pass = pass;
         err_msg2(ERROR__MACRECURSION, NULL, epoint);
         return NULL;
     }
@@ -359,7 +361,9 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
     Tuple *tuple = NULL;
     size_t max = 0, args = get_val_remaining();
 
+    if (mfunc->recursion_pass == pass) return NULL;
     if (functionrecursion>100) {
+        mfunc->recursion_pass = pass;
         err_msg2(ERROR__FUNRECURSION, NULL, epoint);
         return NULL;
     }
@@ -369,7 +373,6 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
             size_t j = 0;
             tuple = new_tuple(get_val_remaining());
             for (j = 0; (val = pull_val(NULL)) != NULL; j++) {
-                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
                 tuple->data[j] = val;
             }
             val = &tuple->v;
@@ -381,7 +384,6 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
                 if (val == NULL) { max = i + 1; val = (Obj *)none_value; }
             } else {
                 val = vs->val;
-                if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
             }
         }
         label = new_label(&mfunc->param[i].name, context, strength, &labelexists, mfunc->file_list);
@@ -495,15 +497,12 @@ void get_func_params(Mfunc *v) {
         } else {
             new_mfunc.param[i].init = NULL;
             if (here() == '=') {
-                Obj *val;
                 lpoint.pos++;
                 if (!get_exp(1, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }
-                val = pull_val(NULL);
-                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
-                new_mfunc.param[i].init = val;
+                new_mfunc.param[i].init = pull_val(NULL);
             }
         }
         if (here() == 0 || here() == ';') {
@@ -604,7 +603,9 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     Namespace *context;
     struct linepos_s xpoint;
 
+    if (mfunc->recursion_pass == pass) return NULL;
     if (functionrecursion>100) {
+        mfunc->recursion_pass = pass;
         err_msg2(ERROR__FUNRECURSION, NULL, epoint);
         return NULL;
     }
@@ -656,8 +657,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         const uint8_t *ollist = llist;
         size_t oldbottom;
         bool in_macro_old = in_macro;
-        in_macro = false;
         struct section_address_s section_address, *oldsection_address = current_address;
+        in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (labelexists && s->addr != star) {
@@ -667,7 +668,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         s->addr = star;
         star_tree = &s->tree;vline = 0;
         lpoint.line = mfunc->line;
-        new_waitfor(W_ENDF2, epoint);
+        new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);

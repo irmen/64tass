@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 1593 2018-07-31 15:41:51Z soci $
+    $Id: eval.h 1683 2018-12-09 16:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ struct oper_s {
     linepos_t epoint;
     linepos_t epoint2;
     linepos_t epoint3;
+    Obj *inplace;
 };
 typedef struct oper_s *oper_t;
 

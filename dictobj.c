@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1630 2018-09-01 15:56:30Z soci $
+    $Id: dictobj.c 1689 2018-12-09 20:44:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,6 +136,7 @@ static int pair_compare(const struct avltree_node *aa, const struct avltree_node
     }
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
+    pair_oper.inplace = NULL;
     result = pair_oper.v1->obj->calc2(&pair_oper);
     if (result->obj == INT_OBJ) h = (int)((Int *)result)->len;
     else h = a->key->obj->type - b->key->obj->type;
@@ -314,7 +315,6 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         size_t i, len2 = iter->len(iter);
         List *v;
         Obj **vals;
-        bool error;
 
         if (len2 == 0) {
             val_destroy(&iter->v);
@@ -322,18 +322,11 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         }
         v = (List *)val_alloc(LIST_OBJ);
         v->data = vals = list_create_elements(v, len2);
-        error = true;
         pair_oper.epoint3 = epoint2;
         iter_next = iter->next;
         for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
             vv = findit(v1, o2, epoint2);
             if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
-            if (vv->obj == ERROR_OBJ) {
-                if (error) {err_msg_output((Error *)vv); error = false;}
-                val_destroy(vv);
-                vals[i] = (Obj *)ref_none();
-                continue;
-            }
             vals[i] = vv;
         }
         val_destroy(&iter->v);

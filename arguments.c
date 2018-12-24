@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 1660 2018-09-22 11:39:02Z soci $
+    $Id: arguments.c 1687 2018-12-09 17:44:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -607,9 +607,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                " Misc:\n"
                "  -?, --help            Give this help list\n"
                "      --usage           Give a short usage message\n"
-               "  -V, --version         Print program version\n"
-               "\n"
-               "Mandatory or optional arguments to long options are also mandatory or optional\n"
+               "  -V, --version         Print program version\n");
+               puts("Mandatory or optional arguments to long options are also mandatory or optional\n"
                "for any corresponding short options.\n"
                "\n"
                "Report bugs to <soci" "\x40" "c64.rulez.org>.");

@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1613 2018-08-26 13:20:36Z soci $
+    $Id: intobj.c 1734 2018-12-24 15:35:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -123,11 +123,10 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, bool neg) {
 
 static MUST_CHECK Int *return_int(digit_t c, bool neg) {
     Int *vv;
-    digit_t *v;
     if (c < lenof(int_value) && !neg) return ref_int(int_value[c]);
     vv = new_int();
-    vv->data = v = vv->val;
-    v[0] = c;
+    vv->data = vv->val;
+    vv->val[0] = c;
     vv->len = neg ? -1 : 1;
     return vv;
 }
@@ -344,9 +343,16 @@ static MUST_CHECK Obj *calc1(oper_t op) {
             v->len = -v->len;
         }
         return &v->v;
-    case O_NEG: return negate(v1, op->epoint3);
+    case O_NEG: 
+        if (op->inplace != &v1->v) return (Obj *)negate(v1, op->epoint3);
+        v1->len = -v1->len;
+        return val_reference(&v1->v);
     case O_POS: return (Obj *)ref_int(v1);
-    case O_STRING: return repr(&v1->v, op->epoint, SIZE_MAX);
+    case O_STRING:
+        {
+            Obj *o = repr(&v1->v, op->epoint, SIZE_MAX);
+            return (o != NULL) ? o : (Obj *)new_error_mem(op->epoint);
+        }
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return truth_reference(v1->len == 0);
@@ -1444,7 +1450,11 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
     *ln2 = i;
     if (i < 10) {
         if (val >= lenof(int_value)) {
-            return (Obj *)return_int(val, false);
+            v = new_int();
+            v->data = v->val;
+            v->val[0] = val;
+            v->len = 1;
+            return &v->v;
         }
         return val_reference(&int_value[val]->v);
     }
@@ -1629,6 +1639,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         tmp = int_from_str((Str *)v2, op->epoint2);
     conv:
         op->v2 = tmp;
+        op->inplace = NULL;
         ret = calc2(op);
         val_destroy(tmp);
         return ret;
@@ -1651,6 +1662,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         default: tmp = (Obj *)int_value[(Bool *)v1 == true_value ? 1 : 0]; break;
         }
         op->v1 = tmp;
+        op->inplace = NULL;
         return tmp->obj->calc2(op);
     }
     return obj_oper_error(op);

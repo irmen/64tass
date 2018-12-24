@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: macroobj.h 1731 2018-12-24 10:39:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ typedef struct Macro {
     struct file_list_s *file_list;
     line_t line;
     bool retval;
+    uint8_t recursion_pass;
 } Macro;
 typedef struct Macro Segment;
 
@@ -51,6 +52,7 @@ typedef struct Struct {
     struct file_list_s *file_list;
     line_t line;
     bool retval;
+    uint8_t recursion_pass;
     address_t size; /* first part same as macro! */
     struct Namespace *names;
 } Struct;

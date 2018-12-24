@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 1621 2018-08-30 20:34:53Z soci $
+    $Id: labelobj.c 1725 2018-12-23 17:08:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -75,13 +75,14 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
-    return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
-        && str_cmp(&v1->name, &v2->name) == 0
-        && str_cmp(&v1->cfname, &v2->cfname) == 0
-        && v1->file_list == v2->file_list
+    return o2->obj == LABEL_OBJ
         && v1->epoint.pos == v2->epoint.pos
         && v1->epoint.line == v2->epoint.line
-        && v1->strength == v2->strength;
+        && v1->file_list == v2->file_list
+        && v1->strength == v2->strength
+        && str_cmp(&v1->name, &v2->name) == 0
+        && str_cmp(&v1->cfname, &v2->cfname) == 0
+        && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value));
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
