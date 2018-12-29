@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1686 2018-12-09 17:40:04Z soci $
+    $Id: bytesobj.c 1741 2018-12-25 20:35:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -516,9 +516,8 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
                 free(s);
                 v->data = v->u.val;
             } else if (len2 < len) {
-                s = (uint8_t *)realloc(s, len2);
-                if (s == NULL) goto failed2;
-                v->data = s;
+                uint8_t *s2 = (uint8_t *)realloc(s, len2);
+                v->data = (s2 != NULL) ? s2 : s;
             }
         }
         if (len2 > SSIZE_MAX) goto failed2; /* overflow */
@@ -677,9 +676,8 @@ static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
             free(d);
             v->data = v->u.val;
         } else if (sz < i) {
-            d = (uint8_t *)realloc(d, sz);
-            if (d == NULL) goto failed2;
-            v->data = d;
+            uint8_t *d2 = (uint8_t *)realloc(d, sz);
+            v->data = (d2 != NULL) ? d2 : d;
         }
     }
     if (sz > SSIZE_MAX) goto failed2; /* overflow */

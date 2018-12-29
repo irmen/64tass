@@ -690,7 +690,7 @@ useful, so here are a few examples:</p>
 <i>;Bitmask table, 8 bits from left to right</i>
         <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; <span class="k">range</span>(<span>8</span>)
 <i>;Classic 256 byte single period sinus table with values of 0&minus;255.</i>
-        <b class="d">.byte</b> <span>128.5</span> + <span>127</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
+        <b class="d">.byte</b> <span>128</span> + <span>127.5</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
 <i>;Screen row address tables</i>
 _       <b>:=</b> <span>$400</span> + <span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
 scrlo   <b class="d">.byte</b> &lt;<u>_</u>

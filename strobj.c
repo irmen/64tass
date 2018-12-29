@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1683 2018-12-09 16:56:17Z soci $
+    $Id: strobj.c 1741 2018-12-25 20:35:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -647,9 +647,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     free(o);
                     v->data = v->u.val;
                 } else {
-                    o = (uint8_t *)realloc(o, len2);
-                    if (o == NULL) goto failed2;
-                    v->data = o;
+                    uint8_t *oo = (uint8_t *)realloc(o, len2);
+                    v->data = (oo != NULL) ? oo : o;
                 }
             }
             v->len = len2;
@@ -734,9 +733,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     free(o);
                     v->data = v->u.val;
                 } else {
-                    o = (uint8_t *)realloc(o, len2);
-                    if (o == NULL) goto failed2;
-                    v->data = o;
+                    uint8_t *oo = (uint8_t *)realloc(o, len2);
+                    v->data = (oo != NULL) ? oo : o;
                 }
             }
             v->len = len2;

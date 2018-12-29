@@ -513,7 +513,7 @@ a few examples:
 ;Bitmask table, 8 bits from left to right
         .byte %10000000 >> range(8)
 ;Classic 256 byte single period sinus table with values of 0-255.
-        .byte 128.5 + 127 * sin(range(256) * rad(360.0/256))
+        .byte 128 + 127.5 * sin(range(256) * rad(360.0/256))
 ;Screen row address tables
 _       := $400 + range(0, 1000, 40)
 scrlo   .byte <_
