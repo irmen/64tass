@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1711 2018-12-15 23:25:02Z soci $
+    $Id: listobj.c 1761 2018-12-31 21:12:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -566,17 +566,15 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         v = (List *)val_alloc(o1->obj);
         vals = lnew(v, length);
         if (vals == NULL) goto failed;
-        i = 0;
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
+        for (i = 0; i < length; i++) {
             if (more) {
                 Obj *vv = v1->data[offs];
                 vals[i] = vv->obj->slice(vv, op, indx + 1);
             } else {
                 vals[i] = val_reference(v1->data[offs]);
             }
-            i++; offs += step;
+            offs += step;
         }
-        v->len = i;
         return &v->v;
     }
     err = indexoffs(o2, ln, &offs2, epoint2);

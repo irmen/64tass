@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 1718 2018-12-16 17:13:48Z soci $
+    $Id: memblocksobj.h 1753 2018-12-31 12:14:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,5 +49,5 @@ static inline Memblocks *ref_memblocks(Memblocks *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MALLOC Memblocks *new_memblocks(void);
+extern MALLOC Memblocks *new_memblocks(size_t);
 #endif

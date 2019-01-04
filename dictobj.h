@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: dictobj.h 1752 2018-12-31 08:48:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ typedef struct Dict {
 
 extern void dictobj_init(void);
 extern void dictobj_names(void);
+extern void destroy_pairs(void);
 
 struct pair_s {
     int hash;

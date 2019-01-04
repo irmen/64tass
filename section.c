@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1595 2018-08-24 14:17:29Z soci $
+    $Id: section.c 1771 2019-01-02 22:12:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ struct section_s *new_section(const str_t *name) {
         else str_cfcpy(&lastsc->cfname, NULL);
         lastsc->parent = current_section;
         lastsc->provides = ~(uval_t)0;lastsc->requires = lastsc->conflicts = 0;
-        lastsc->address.end = lastsc->address.address = lastsc->address.l_address.address = lastsc->address.l_address.bank = lastsc->address.l_start.address = lastsc->address.l_start.bank = lastsc->size = 0;
+        lastsc->address.end = lastsc->address.address = lastsc->address.l_address.address = lastsc->address.l_address.bank = lastsc->address.l_start.address = lastsc->address.l_start.bank = lastsc->address.l_union.address = lastsc->address.l_union.bank = lastsc->size = 0;
         lastsc->address.l_address_val = (Obj *)ref_int(int_value[0]);
         lastsc->defpass = 0;
         lastsc->usepass = 0;
@@ -112,7 +112,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->optimizer = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
-        lastsc->address.mem = new_memblocks();
+        lastsc->address.mem = new_memblocks(0);
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
         tmp = lastsc;
@@ -144,7 +144,7 @@ struct section_s *find_this_section(const char *here) {
 
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
-    section->address.end = section->address.start = section->restart = section->l_restart.address = section->l_restart.bank = section->address.address = section->address.l_address.address = section->address.l_address.bank = section->address.l_start.address = section->address.l_start.bank = 0;
+    section->address.end = section->address.start = section->restart = section->l_restart.address = section->l_restart.bank = section->address.address = section->address.l_address.address = section->address.l_address.bank = section->address.l_start.address = section->address.l_start.bank = section->address.l_union.address = section->address.l_union.bank = 0;
     val_destroy(section->address.l_address_val);
     section->address.l_address_val = (Obj *)ref_int(int_value[0]);
     section->structrecursion = 0;
@@ -162,7 +162,7 @@ void init_section(void) {
     root_section.cfname.len = 0;
     root_section.next = NULL;
     root_section.optimizer = NULL;
-    root_section.address.mem = new_memblocks();
+    root_section.address.mem = new_memblocks(0);
     root_section.address.l_address_val = (Obj *)ref_int(int_value[0]);
     avltree_init(&root_section.members);
     avltree_init(&root_section.longjump);

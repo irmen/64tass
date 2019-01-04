@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.c 1539 2017-06-06 18:27:36Z soci $
+    $Id: opt_bit.c 1758 2018-12-31 19:07:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,10 +56,8 @@ static MALLOC Bit *bit_alloc(void) {
 #ifdef DEBUG
     bit = (Bit *)mallocx(sizeof *bit);
 #else
-    size_t i;
-    bit = (Bit *)bits_free;
-    bits_free = bits_free->next;
     if (bits_free == NULL) {
+        size_t i;
         struct bits_s *old = bits;
         bits = (struct bits_s *)mallocx(sizeof *bits);
         for (i = 0; i < 254; i++) {
@@ -69,6 +67,8 @@ static MALLOC Bit *bit_alloc(void) {
         bits->next = old;
         bits_free = &bits->bits[0];
     }
+    bit = (Bit *)bits_free;
+    bits_free = bits_free->next;
 #endif
     return bit;
 }
@@ -493,19 +493,6 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
         }
         return new_bitu();         /* u+u+u = ? */
     }
-}
-
-void init_opt_bit(void)
-{
-    size_t i;
-    bits = (struct bits_s *)mallocx(sizeof *bits);
-    for (i = 0; i < 254; i++) {
-        bits->bits[i].next = &bits->bits[i + 1];
-    }
-    bits->bits[i].next = NULL;
-    bits->next = NULL;
-
-    bits_free = &bits->bits[0];
 }
 
 void destroy_opt_bit(void)

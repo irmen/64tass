@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1683 2018-12-09 16:56:17Z soci $
+    $Id: codeobj.c 1761 2018-12-31 21:12:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -378,9 +378,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         }
         v = new_tuple(length);
         vals = v->data;
-        i = 0;
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            vals[i++] = code_item(v1, offs + offs0, ln2);
+        for (i = 0; i < length; i++) {
+            vals[i] = code_item(v1, offs + offs0, ln2);
             offs += step;
         }
         return &v->v;

@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1741 2018-12-25 20:35:17Z soci $
+    $Id: intobj.c 1776 2019-01-03 17:43:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, bool neg) {
 
 static MUST_CHECK Int *return_int(digit_t c, bool neg) {
     Int *vv;
-    if (c < lenof(int_value) && !neg) return ref_int(int_value[c]);
+    if (c < lenof(int_value) && (!neg || c == 0)) return ref_int(int_value[c]);
     vv = new_int();
     vv->data = vv->val;
     vv->val[0] = c;

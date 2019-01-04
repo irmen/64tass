@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1736 2018-12-24 19:51:30Z soci $
+    $Id: error.c 1770 2019-01-02 22:10:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -171,28 +171,29 @@ static int file_list_compare(const struct avltree_node *aa, const struct avltree
     return a->file->uid - b->file->uid;
 }
 
-static void file_list_free(struct avltree_node *aa)
-{
-    struct file_list_s *a = avltree_container_of(aa, struct file_list_s, node);
-    avltree_destroy(&a->members, file_list_free);
-    free(a);
-}
+static struct file_lists_s {
+    struct file_list_s file_lists[90];
+    struct file_lists_s *next;
+} *file_lists = NULL;
 
-static struct file_list_s *lastfl = NULL;
+static struct file_list_s *lastfl;
+static int file_listsp;
 void enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
-    if (lastfl == NULL) {
-        lastfl = (struct file_list_s *)mallocx(sizeof *lastfl);
-    }
     lastfl->file = file;
     lastfl->epoint = *epoint;
-
     b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
     if (b == NULL) {
         lastfl->parent = current_file_list;
         avltree_init(&lastfl->members);
         current_file_list = lastfl;
-        lastfl = NULL;
+        if (file_listsp == 89) {
+            struct file_lists_s *old = file_lists;
+            file_lists = (struct file_lists_s *)mallocx(sizeof *file_lists);
+            file_lists->next = old;
+            file_listsp = 0;
+        } else file_listsp++;
+        lastfl = &file_lists->file_lists[file_listsp];
     } else {
         current_file_list = avltree_container_of(b, struct file_list_s, node);
     }
@@ -516,7 +517,11 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
 }
 
 void err_msg_big_address(linepos_t epoint) {
-    Obj *val = get_star_value(current_address->l_address_val);
+    address_t oldstar = star;
+    Obj *val;
+    star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+    val = get_star_value(current_address->l_address_val);
+    star = oldstar;
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("address not in processor address space ");
     err_msg_variable(val, epoint);
@@ -1281,6 +1286,10 @@ void err_init(const char *name) {
     prgname = name;
     setvbuf(stderr, NULL, _IOLBF, 1024);
     color_detect(stderr);
+    file_lists = (struct file_lists_s *)mallocx(sizeof *file_lists);
+    file_lists->next = NULL;
+    file_listsp = 0;
+    lastfl = &file_lists->file_lists[file_listsp];
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
     error_list.data = NULL;
@@ -1290,8 +1299,11 @@ void err_init(const char *name) {
 }
 
 void err_destroy(void) {
-    avltree_destroy(&file_list.members, file_list_free);
-    free(lastfl);
+    while (file_lists != NULL) {
+        struct file_lists_s *old = file_lists;
+        file_lists = file_lists->next;
+        free(old);
+    }
     free(error_list.data);
     avltree_destroy(&notdefines, notdefines_free);
     free(lastnd);

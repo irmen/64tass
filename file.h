@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 1650 2018-09-16 07:55:42Z soci $
+    $Id: file.h 1764 2019-01-01 09:04:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "stdbool.h"
 #include "inttypes.h"
 #include "avl.h"
+#include "str.h"
 
 typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO
@@ -31,7 +32,7 @@ typedef enum Encoding_types {
 struct file_s {
     const char *name;
     const char *realname;
-    const char *base;
+    str_t base;
     uint8_t *nomacro;
     size_t *line;
     line_t lines;
@@ -69,6 +70,7 @@ extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
+extern size_t get_base(const char *);
 extern char *get_path(const struct str_t *, const char *);
 extern void makefile(int, char *[]);
 

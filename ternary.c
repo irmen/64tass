@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 1412 2017-03-30 18:14:47Z soci $
+   $Id: ternary.c 1752 2018-12-31 08:48:49Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -48,10 +48,8 @@ static ternary_node *tern_alloc(void) {
 #ifdef DEBUG
     tern = (ternary_node *)mallocx(sizeof *tern);
 #else
-    size_t i;
-    tern = (ternary_node *)terns_free;
-    terns_free = terns_free->next;
     if (terns_free == NULL) {
+        size_t i;
         struct terns_s *old = terns;
         terns = (struct terns_s *)mallocx(sizeof *terns);
         for (i = 0; i < 254; i++) {
@@ -61,6 +59,8 @@ static ternary_node *tern_alloc(void) {
         terns->next = old;
         terns_free = &terns->terns[0];
     }
+    tern = (ternary_node *)terns_free;
+    terns_free = terns_free->next;
 #endif
     return tern;
 }
@@ -166,25 +166,10 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     return (last != NULL) ? (void *)last->eqkid : NULL;
 }
 
-void init_ternary(void)
-{
-    size_t i;
-    terns = (struct terns_s *)mallocx(sizeof *terns);
-    for (i = 0; i < 254; i++) {
-        terns->terns[i].next = &terns->terns[i + 1];
-    }
-    terns->terns[i].next = NULL;
-    terns->next = NULL;
-
-    terns_free = &terns->terns[0];
-}
-
 void destroy_ternary(void)
 {
-    struct terns_s *old;
-
     while (terns != NULL) {
-        old = terns;
+        struct terns_s *old = terns;
         terns = terns->next;
         free(old);
     }

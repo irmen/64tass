@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1732 2018-12-24 12:31:03Z soci $
+    $Id: macro.c 1771 2019-01-02 22:12:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,13 +80,20 @@ bool mtranslate(void) {
 
     q = p = 0; last = 0; fault = false;
     for (; (ch = here()) != 0; lpoint.pos++) {
-        if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
-        else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
-        else if ((ch == ';') && q == 0) { q = 4; }
-        else if ((ch == '\\') && q == 0) {
+        switch (ch) {
+        case '"': 
+            if ((q & 2) == 0) q ^= 1;
+            break;
+        case '\'': 
+            if ((q & 1) == 0) q ^= 2;
+            break;
+        case ';': 
+            if (q == 0) q = 4;
+            break;
+        case '\\':
+            if (q != 0) break;
             /* normal parameter reference */
-            ch = pline[lpoint.pos + 1];
-            j = (uint8_t)(ch - '1');
+            j = (uint8_t)(pline[lpoint.pos + 1] - '1');
             if (j < 9) {
                 str_t param, *params = macro_parameters.current->param;
                 /* \1..\9 */
@@ -100,30 +107,32 @@ bool mtranslate(void) {
                         param.len = 1;
                     }
                 } else param = params[j];
+                if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
                 if (p + param.len > mline->len) {
-                    mline->len += param.len + 1024;
-                    if (mline->len < 1024) err_msg_out_of_memory();
-                    mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
+                    mline->len = p + param.len + 1024;
+                    if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
+                    mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                 }
                 if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
                 if (param.len != 0) {
-                    memcpy((char *)mline->data + p, param.data, param.len);
+                    memcpy(mline->data + p, param.data, param.len);
                     p += param.len;
                 }
                 last = p; changed = true;
                 lpoint.pos++;continue;
             }
-            if (ch == '@') {
+            if (j == ('@' - '1')) {
                 /* \@ gives complete parameter list */
                 str_t *all = &macro_parameters.current->all;
+                if (p + all->len < p) err_msg_out_of_memory(); /* overflow */
                 if (p + all->len > mline->len) {
-                    mline->len += all->len + 1024;
-                    if (mline->len < 1024) err_msg_out_of_memory();
-                    mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
+                    mline->len = p + all->len + 1024;
+                    if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
+                    mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                 }
                 if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
                 if (all->len != 0) {
-                    memcpy((char *)mline->data + p, all->data, all->len);
+                    memcpy(mline->data + p, all->data, all->len);
                     p += all->len;
                 }
                 last = p; changed = true;
@@ -133,7 +142,7 @@ bool mtranslate(void) {
                 str_t label;
                 lpoint.pos++;
                 label.data = pline + lpoint.pos;
-                if (ch == '{') {
+                if (j == ('{' - '1')) {
                     lpoint.pos++;
                     label.data++;
                     label.len = get_label();
@@ -164,14 +173,15 @@ bool mtranslate(void) {
                         err_msg_unknown_argument(&label, &e);
                         param.len = 0; fault = true;
                     }
+                    if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
                     if (p + param.len > mline->len) {
-                        mline->len += param.len + 1024;
-                        if (mline->len < 1024) err_msg_out_of_memory();
-                        mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
+                        mline->len = p + param.len + 1024;
+                        if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
+                        mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                     }
                     if (p != last) memcpy(mline->data + last, pline + e.pos - p + last, p - last); 
                     if (param.len != 0) {
-                        memcpy((char *)mline->data + p, param.data, param.len);
+                        memcpy(mline->data + p, param.data, param.len);
                         p += param.len;
                     }
                     last = p; changed = true;
@@ -179,40 +189,48 @@ bool mtranslate(void) {
                 }
                 lpoint = e;
             }
-        } else if (ch == '@' && arguments.tasmcomp) {
-            /* text parameter reference */
-            j = (uint8_t)(pline[lpoint.pos + 1] - '1');
-            if (j < 9) {
-                /* @1..@9 */
-                str_t *param = macro_parameters.current->param;
-                if (j >= macro_parameters.current->len) {
-                    err_msg_missing_argument(current_file_list, &lpoint, j);
-                    lpoint.pos++; p += 2; changed = fault = true; continue;
+            break;
+        case '@':
+            if (arguments.tasmcomp) {
+                /* text parameter reference */
+                j = (uint8_t)(pline[lpoint.pos + 1] - '1');
+                if (j < 9) {
+                    /* @1..@9 */
+                    str_t *param = macro_parameters.current->param;
+                    if (j >= macro_parameters.current->len) {
+                        err_msg_missing_argument(current_file_list, &lpoint, j);
+                        lpoint.pos++; p += 2; changed = fault = true; continue;
+                    }
+                    if (p + param[j].len < p) err_msg_out_of_memory(); /* overflow */
+                    if (p + param[j].len > mline->len) {
+                        mline->len = p + param[j].len + 1024;
+                        if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
+                        mline->data = (uint8_t *)reallocx(mline->data, mline->len);
+                    }
+                    if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                    if (param[j].len > 1 && param[j].data[0] == '"' && param[j].data[param[j].len-1]=='"') {
+                        memcpy(mline->data + p, param[j].data + 1, param[j].len - 2);
+                        p += param[j].len - 2;
+                    } else {
+                        memcpy(mline->data + p, param[j].data, param[j].len);
+                        p += param[j].len;
+                    }
+                    last = p; changed = true;
+                    lpoint.pos++;continue;
                 }
-                if (p + param[j].len > mline->len) {
-                    mline->len += param[j].len + 1024;
-                    if (mline->len < 1024) err_msg_out_of_memory();
-                    mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
-                }
-                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
-                if (param[j].len > 1 && param[j].data[0] == '"' && param[j].data[param[j].len-1]=='"') {
-                    memcpy((char *)mline->data + p, param[j].data + 1, param[j].len - 2);
-                    p += param[j].len - 2;
-                } else {
-                    memcpy((char *)mline->data + p, param[j].data, param[j].len);
-                    p += param[j].len;
-                }
-                last = p; changed = true;
-                lpoint.pos++;continue;
             }
+            break;
+        default:
+            break;
         }
         p++;
     }
     if (changed) {
+        if (p + 1 < 1) err_msg_out_of_memory(); /* overflow */
         if (p + 1 > mline->len) {
-            mline->len += 1024;
+            mline->len = p + 1024;
             if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-            mline->data = (uint8_t *)reallocx((char *)mline->data, mline->len);
+            mline->data = (uint8_t *)reallocx(mline->data, mline->len);
         }
         if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
         while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
@@ -370,10 +388,10 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
     for (i = 0; i < mfunc->argc; i++) {
         bool labelexists;
         if (mfunc->param[i].init == &default_value->v) {
-            size_t j = 0;
-            tuple = new_tuple(get_val_remaining());
-            for (j = 0; (val = pull_val(NULL)) != NULL; j++) {
-                tuple->data[j] = val;
+            size_t j, len = get_val_remaining();
+            tuple = new_tuple(len);
+            for (j = 0; j < len; j++) {
+                tuple->data[j] = pull_val(NULL);
             }
             val = &tuple->v;
         } else {
@@ -535,6 +553,7 @@ void get_macro_params(Obj *v) {
     size_t len = 0, i, j;
     str_t label;
     struct linepos_s *epoints = NULL;
+    const struct file_s *cfile = macro->file_list->file;
 
     new_macro.param = NULL;
     for (i = 0;;i++) {
@@ -552,8 +571,10 @@ void get_macro_params(Obj *v) {
             str_t cf;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
             str_cfcpy(&cf, &label);
-            if (cf.data == label.data) str_cpy(&new_macro.param[i].cfname, &label);
-            else {str_cfcpy(&cf, NULL); new_macro.param[i].cfname = cf;}
+            if (cf.data == label.data) {
+                if ((size_t)(label.data - cfile->data) < cfile->len) new_macro.param[i].cfname = label;
+                else str_cpy(&new_macro.param[i].cfname, &label);
+            } else {str_cfcpy(&cf, NULL); new_macro.param[i].cfname = cf;}
             for (j = 0; j < i; j++) if (new_macro.param[j].cfname.data != NULL) {
                 if (str_cmp(&new_macro.param[j].cfname, &cf) == 0) break;
             }
@@ -566,7 +587,8 @@ void get_macro_params(Obj *v) {
             lpoint.pos++;
             label.data = pline + lpoint.pos;
             label.len = macro_param_find();
-            str_cpy(&new_macro.param[i].init, &label);
+            if ((size_t)(label.data - cfile->data) < cfile->len) new_macro.param[i].init = label;
+            else str_cpy(&new_macro.param[i].init, &label);
         } else {new_macro.param[i].init.len = 0; new_macro.param[i].init.data = NULL;}
         ignore();
         if (here() == 0 || here() == ';') {
@@ -681,8 +703,10 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         section_address.start = 0;
         section_address.l_start.address = 0;
         section_address.l_start.bank = 0;
+        section_address.l_union.address = 0;
+        section_address.l_union.bank = 0;
         section_address.end = 0;
-        section_address.mem = new_memblocks();
+        section_address.mem = new_memblocks(0);
         section_address.mem->lastaddr = 0;
         section_address.l_address = current_address->l_address;
         section_address.l_address_val = val_reference(current_address->l_address_val);
@@ -694,8 +718,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         val_destroy(&current_address->mem->v);
         current_address = oldsection_address;
         if (current_address->l_address.bank > all_mem) {
-            current_address->l_address.bank &= all_mem;
             err_msg_big_address(epoint);
+            current_address->l_address.bank &= all_mem;
         }
         context_set_bottom(oldbottom);
         pop_context();

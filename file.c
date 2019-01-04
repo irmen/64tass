@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1650 2018-09-16 07:55:42Z soci $
+    $Id: file.c 1765 2019-01-01 09:08:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -69,43 +69,32 @@ void include_list_add(const char *path)
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
 static inline bool is_driveletter(const char *name) {
-    uint8_t c = name[0] | 0x20;
-    return c >= 'a' && c <= 'z' && name[1] == ':';
+    return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
+
+size_t get_base(const char *base) {
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    size_t i, j = is_driveletter(base) ? 2 : 0;
+    for (i = j; base[i] != '\0'; i++) {
+        if (base[i] == '/' || base[i] == '\\') j = i + 1;
+    }
+    return j;
+#else
+    const char *c = strrchr(base, '/');
+    return (c != NULL) ? (size_t)(c - base) + 1 : 0;
+#endif
+}
 
 char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    size_t j;
-
-    i = strlen(base);
-    j = is_driveletter(base) ? 2 : 0;
-    while (i > j) {
-        if (base[i - 1] == '/' || base[i - 1] == '\\') break;
-        i--;
-    }
-#else
-    const char *c;
-    c = strrchr(base, '/');
-    i = (c != NULL) ? (size_t)(c - base) + 1 : 0;
-#endif
-
-    if (v == NULL) {
-        len = i + 1;
-        if (len < 1) err_msg_out_of_memory(); /* overflow */
-        path = (char *)mallocx(len);
-        memcpy(path, base, i);
-        path[i] = 0;
-        return path;
-    }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = j;
-    else if (v->len > 1 && is_driveletter((const char *)v->data)) i = 0;
+    if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = is_driveletter(base) ? 2 : 0;
+    else i = (v->len > 1 && is_driveletter((const char *)v->data)) ? 0 : get_base(base);
 #else
-    if (v->len != 0 && v->data[0] == '/') i = 0;
+    i = (v->len != 0 && v->data[0] == '/') ? 0 : get_base(base);
 #endif
     len = i + v->len;
     if (len < i) err_msg_out_of_memory(); /* overflow */
@@ -272,7 +261,7 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
     const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
     int c = strcmp(a->name, b->name);
     if (c != 0) return c;
-    c = strcmp(a->base, b->base);
+    c = str_cmp(&a->base, &b->base);
     if (c != 0) return c;
     return a->type - b->type;
 }
@@ -292,9 +281,8 @@ static void file_free(struct avltree_node *aa)
     free(a->data);
     free(a->line);
     free(a->nomacro);
-    free((char *)a->name);
+    if (a->name != a->realname) free((char *)a->name);
     free((char *)a->realname);
-    free((char *)a->base);
     free(a);
 }
 
@@ -366,16 +354,15 @@ static inline uchar_t fromiso(uchar_t c) {
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static uint16_t curfnum = 1;
-struct file_s *openfile(const char* name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
-    char *base2;
+struct file_s *openfile(const char *name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
     struct avltree_node *b;
     struct file_s *tmp;
     char *s;
     if (lastfi == NULL) {
         lastfi = (struct file_s *)mallocx(sizeof *lastfi);
     }
-    base2 = get_path(NULL, base);
-    lastfi->base = base2;
+    lastfi->base.data = (const uint8_t *)base;
+    lastfi->base.len = get_base(base);
     lastfi->type = ftype;
     if (name != NULL) {
         lastfi->name = name;
@@ -385,7 +372,6 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         if (command_line == NULL) command_line = lastfi;
     }
     if (b != NULL) {
-        free(base2);
         tmp = avltree_container_of(b, struct file_s, node);
     } else { /* new file */
         Encoding_types encoding = E_UNKNOWN;
@@ -424,11 +410,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             } else {
                 f = dash_name(name) ? stdin : file_open(name, "rb");
             }
-            if (path == NULL) {
-                s = (char *)mallocx(namelen);
-                memcpy(s, name, namelen);
-                path = s;
-            }
+            if (path == NULL) path = s;
             tmp->realname = path;
             if (arguments.quiet) {
                 printf((ftype == 1) ? "Reading file:      " : "Assembling file:   ");
@@ -828,7 +810,6 @@ void init_file(void) {
 
 void makefile(int argc, char *argv[]) {
     FILE *f;
-    char *path;
     struct linepos_s nopoint = {0, 0};
     struct avltree_node *n;
     size_t len = 0;
@@ -841,9 +822,7 @@ void makefile(int argc, char *argv[]) {
     }
     clearerr(f); errno = 0;
     if (!dash_name(arguments.output.name)) {
-        path = get_path(NULL, arguments.output.name);
-        len += argv_print(arguments.output.name + strlen(path), f);
-        free(path);
+        len += argv_print(arguments.output.name + get_base(arguments.output.name), f);
     }
     if (len > 0) {
         len++;

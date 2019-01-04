@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 1718 2018-12-16 17:13:48Z soci $
+    $Id: section.h 1771 2019-01-02 22:12:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ struct section_address_s {
     address_t start;
     address_t end;
     address2_t l_start;
+    address2_t l_union;
     bool moved;
     bool wrapwarn;
     bool unionmode;

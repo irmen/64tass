@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1709 2018-12-15 23:05:38Z soci $
+    $Id: eval.c 1767 2019-01-01 16:02:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -174,21 +174,12 @@ static double toreal_destroy(Obj *v, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
-    double real;
-    switch (here() | 0x20) {
-    case 'e':
-    case 'p':
-        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
-            if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
-                real = toreal_destroy(v, &lpoint);
-                return get_exponent(real, epoint);
-            }
-        } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            real = toreal_destroy(v, &lpoint);
-            return get_exponent(real, epoint);
+    if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
+        if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
+            return get_exponent(toreal_destroy(v, &lpoint), epoint);
         }
-        break;
-    default: break;
+    } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
+        return get_exponent(toreal_destroy(v, &lpoint), epoint);
     }
     return v;
 }
@@ -213,7 +204,13 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
-    return get_exponent2(v, epoint);
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        return get_exponent2(v, epoint);
+    default: 
+        return v;
+    }
 }
 
 static MUST_CHECK Obj *get_bin(linepos_t epoint) {
@@ -236,7 +233,13 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
-    return get_exponent2(v, epoint);
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        return get_exponent2(v, epoint);
+    default: 
+        return v;
+    }
 }
 
 static MUST_CHECK Obj *get_float(linepos_t epoint) {
@@ -257,7 +260,13 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
-    return get_exponent2(v, epoint);
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        return get_exponent2(v, epoint);
+    default: 
+        return v;
+    }
 }
 
 static MUST_CHECK Obj *get_bytes(linepos_t epoint, bool z85) {
@@ -1221,14 +1230,10 @@ struct values_s *get_val(void) {
 
 Obj *pull_val(struct linepos_s *epoint) {
     Obj *val;
-    struct values_s *value;
-
-    if (eval->values_p >= eval->values_len) return NULL;
-
-    value = &eval->values[eval->values_p];
+    struct values_s *value = &eval->values[eval->values_p++];
     if (epoint != NULL) *epoint = value->epoint;
     val = value->val;
-    eval->values[eval->values_p++].val = NULL;
+    value->val = NULL;
     return val;
 }
 
@@ -1770,7 +1775,6 @@ Obj *get_vals_tuple(void) {
 Obj *get_vals_addrlist(struct linepos_s *epoints) {
     size_t i, j, len = get_val_remaining();
     Addrlist *list;
-    struct linepos_s epoint;
 
     switch (len) {
     case 0:
@@ -1783,7 +1787,7 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
     list = new_addrlist();
     list->data = list_create_elements(list, len);
     for (i = j = 0; j < len; j++) {
-        Obj *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
+        Obj *val2 = pull_val((i < 3) ? &epoints[i] : NULL);
         if (val2->obj == REGISTER_OBJ && ((Register *)val2)->len == 1 && i != 0) {
             Address_types am;
             switch (((Register *)val2)->data[0]) {

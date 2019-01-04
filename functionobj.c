@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 1689 2018-12-09 20:44:31Z soci $
+    $Id: functionobj.c 1761 2018-12-31 21:12:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -155,7 +155,7 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     List *new_value;
     Error *err = NULL;
     ival_t start = 0, end, step = 1;
-    size_t len2;
+    size_t len2, i;
     Obj **val;
 
     switch (vals->len) {
@@ -186,12 +186,9 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     }
     new_value = new_list();
     val = list_create_elements(new_value, len2);
-    if (len2 != 0) {
-        size_t i = 0;
-        while ((end > start && step > 0) || (end < start && step < 0)) {
-            val[i] = (Obj *)int_from_ival(start);
-            i++; start += step;
-        }
+    for (i = 0; i < len2; i++) {
+        val[i] = (Obj *)int_from_ival(start);
+        start += step;
     }
     new_value->len = len2;
     new_value->data = val;

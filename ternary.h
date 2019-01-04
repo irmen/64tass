@@ -1,5 +1,5 @@
 /* ternary.h - Ternary Search Trees
-   $Id: ternary.h 1539 2017-06-06 18:27:36Z soci $
+   $Id: ternary.h 1752 2018-12-31 08:48:49Z soci $
 
    Copyright 2001 Free Software Foundation, Inc.
 
@@ -37,7 +37,6 @@ typedef struct ternary_node_def
 }
 ternary_node;
 
-void init_ternary(void);
 void destroy_ternary(void);
 
 /* Insert string S into tree P, associating it with DATA.
