@@ -1,4 +1,5 @@
 CC = i686-w64-mingw32-gcc
+#CC = x86_64-w64-mingw32-gcc
 OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -9,12 +10,12 @@ OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
 LDLIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep --color=none "^[1-9]" || echo "1515?")
-CFLAGS = -O2 -march=i586 -W -Wall -Wextra -DREVISION="\"$(REVISION)\""
+CFLAGS = -O3 -W -Wall -Wextra -DREVISION="\"$(REVISION)\""
 LDFLAGS = -s
 CFLAGS += $(LDFLAGS)
-TARGET = 64tass
+TARGET = 64tass.exe
 
-.SILENT:
+# .SILENT:
 
 $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
