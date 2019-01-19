@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 1560 2017-08-03 21:44:46Z soci $
+    $Id: values.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "error.h"
 #include "strobj.h"
 #include "typeobj.h"
-#include "noneobj.h"
 
 #define SLOTS 128
 #define ALIGN sizeof(int *)

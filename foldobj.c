@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 1613 2018-08-26 13:20:36Z soci $
+    $Id: foldobj.c 1796 2019-01-12 16:28:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 
 #include "typeobj.h"
 #include "operobj.h"
-#include "noneobj.h"
 #include "strobj.h"
 #include "errorobj.h"
 

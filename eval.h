@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 1683 2018-12-09 16:56:17Z soci $
+    $Id: eval.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 
 struct List;
 struct Label;
-struct Error;
 struct Oper;
 
 struct oper_s {

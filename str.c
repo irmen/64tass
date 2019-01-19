@@ -1,5 +1,5 @@
 /*
-    $Id: str.c 1389 2017-03-27 01:13:30Z soci $
+    $Id: str.c 1789 2019-01-12 08:36:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     if (arguments.caseinsensitive == 0) {
         for (i = 0; i < l; i++) {
             if ((d[i] & 0x80) != 0) {
-                unfkc(&cache, s2, 0);
+                if (unfkc(&cache, s2, 0)) err_msg_out_of_memory();
                 s1->len = cache.len;
                 s1->data = cache.data;
                 return;
@@ -71,7 +71,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
         uint8_t *s, ch = d[i];
         if (ch < 'A' || (ch > 'Z' && ch < 0x80)) continue;
         if ((ch & 0x80) != 0) {
-            unfkc(&cache, s2, 1);
+            if (unfkc(&cache, s2, 1)) err_msg_out_of_memory();
             s1->len = cache.len;
             s1->data = cache.data;
             return;
@@ -94,7 +94,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
                 continue;
             }
             if ((ch & 0x80) != 0) {
-                unfkc(&cache, s2, 1);
+                if (unfkc(&cache, s2, 1)) err_msg_out_of_memory();
                 s1->len = cache.len;
                 s1->data = cache.data;
                 return;

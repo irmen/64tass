@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 1630 2018-09-01 15:56:30Z soci $
+    $Id: encoding.c 1823 2019-01-18 05:57:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "ternary.h"
 #include "unicode.h"
 #include "values.h"
+#include "64tass.h"
 
 #include "strobj.h"
 #include "bytesobj.h"
@@ -36,8 +37,11 @@ struct encoding_s {
     bool empty;
     bool failed;
     ternary_tree escape;
+    size_t escape_length;
     struct avltree trans;
     struct avltree_node node;
+    uint8_t table[128];
+    uint32_t table_use[4];
 };
 
 struct trans2_s {
@@ -515,12 +519,6 @@ static int trans_compare(const struct avltree_node *aa, const struct avltree_nod
     return 0;
 }
 
-static void trans_free(struct avltree_node *aa)
-{
-    struct trans_s *a = avltree_container_of(aa, struct trans_s, node);
-    free(a);
-}
-
 static int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
@@ -542,7 +540,6 @@ static void encoding_free(struct avltree_node *aa)
     free((char *)a->name.data);
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     ternary_cleanup(a->escape, escape_free);
-    avltree_destroy(&a->trans, trans_free);
     free(a);
 }
 
@@ -562,9 +559,11 @@ struct encoding_s *new_encoding(const str_t *name, linepos_t epoint)
         if (lasten->cfname.data == name->data) lasten->cfname = lasten->name;
         else str_cfcpy(&lasten->cfname, NULL);
         lasten->escape = NULL;
+        lasten->escape_length = SIZE_MAX;
         lasten->empty = true;
         lasten->failed = false;
         avltree_init(&lasten->trans);
+        memset(lasten->table_use, 0, sizeof(lasten->table_use));
         tmp = lasten;
         lasten = NULL;
         return tmp;
@@ -574,13 +573,26 @@ struct encoding_s *new_encoding(const str_t *name, linepos_t epoint)
     return tmp;            /* already exists */
 }
 
+static struct transs_s {
+    struct trans_s transs[31];
+    struct transs_s *next;
+} *transs = NULL;
+
+static unsigned int transs_i = lenof(transs->transs);
+
 static struct trans_s *lasttr = NULL;
-struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
+struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc, linepos_t epoint)
 {
     struct avltree_node *b;
     struct trans_s *tmp;
     if (lasttr == NULL) {
-        lasttr = (struct trans_s *)mallocx(sizeof *lasttr);
+        if (transs_i == lenof(transs->transs)) {
+            struct transs_s *old = transs;
+            transs = (struct transs_s *)mallocx(sizeof *transs);
+            transs->next = old;
+            transs_i = 0;
+        }
+        lasttr = &transs->transs[transs_i++];
     }
     lasttr->start = trans->start;
     lasttr->end = trans->end;
@@ -588,8 +600,11 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     b = avltree_insert(&lasttr->node, &enc->trans, trans_compare);
     if (b == NULL) { /* new encoding */
         tmp = lasttr;
+        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+        fixeddig = false;
         lasttr = NULL;
         enc->empty = false;
+        if (trans->start < 128) memset(enc->table_use, 0, sizeof(enc->table_use));
         return tmp;
     }
     return avltree_container_of(b, struct trans_s, node);            /* already exists */
@@ -662,8 +677,11 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
         lastes->strlen = v->len;
         lastes->len = i;
         lastes->data = d; /* unlock new */
+        if (v->len < enc->escape_length) enc->escape_length = v->len;
         lastes = NULL;
         enc->empty = false;
+        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+        fixeddig = false;
         return false;
     }
     b->data = odata; /* unlock old */
@@ -691,11 +709,12 @@ static void add_esc(const char *s, struct encoding_s *enc) {
 static void add_trans(struct trans2_s *t, size_t ln, struct encoding_s *tmp) {
     size_t i;
     struct trans_s tmp2;
+    struct linepos_s nopoint = {0, 0};
     for (i = 0; i < ln; i++) {
         tmp2.start = t[i].start;
         tmp2.end = t[i].end;
         tmp2.offset = t[i].offset;
-        new_trans(&tmp2, tmp);
+        new_trans(&tmp2, tmp, &nopoint);
     }
 }
 
@@ -729,7 +748,6 @@ void encode_error(Error_types no) {
 int encode_string(void) {
     uchar_t ch;
     unsigned int ln;
-    const struct escape_s *e;
     const struct avltree_node *c;
     const struct trans_s *t;
     struct trans_s tmp;
@@ -740,17 +758,25 @@ int encode_string(void) {
 next:
     if (encode_state.i >= encode_state.len) return EOF;
     encode_state.i2 = encode_state.i;
-    e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
-    if (e != NULL && e->data != NULL) {
-        encode_state.i += e->strlen;
-        encode_state.data2 = e->data;
-        encode_state.len2 = e->len;
-        if (encode_state.len2 < 1) goto next;
-        encode_state.j = 1;
-        return e->data[0];
+    if (encode_state.len - encode_state.i >= actual_encoding->escape_length) {
+        const struct escape_s *e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
+        if (e != NULL && e->data != NULL) {
+            encode_state.i += e->strlen;
+            encode_state.data2 = e->data;
+            encode_state.len2 = e->len;
+            if (encode_state.len2 < 1) goto next;
+            encode_state.j = 1;
+            return e->data[0];
+        }
     }
     ch = encode_state.data[encode_state.i];
-    if ((ch & 0x80) != 0) ln = utf8in(encode_state.data + encode_state.i, &ch); else ln = 1;
+    if ((ch & 0x80) != 0) ln = utf8in(encode_state.data + encode_state.i, &ch); else {
+        if ((actual_encoding->table_use[ch / 32] & (1 << (ch % 32))) != 0) {
+            encode_state.i++;
+            return actual_encoding->table[ch];
+        }
+        ln = 1;
+    }
     tmp.start = tmp.end = ch;
 
     c = avltree_lookup(&tmp.node, &actual_encoding->trans, trans_compare);
@@ -758,6 +784,10 @@ next:
         t = cavltree_container_of(c, struct trans_s, node);
         if (tmp.start >= t->start && tmp.end <= t->end) {
             encode_state.i += ln;
+            if ((ch & 0x80) == 0) {
+                actual_encoding->table_use[ch / 32] |= 1 << (ch % 32);
+                actual_encoding->table[ch] = (uint8_t)(ch - t->start + t->offset);
+            }
             return (uint8_t)(ch - t->start + t->offset);
         }
     }
@@ -814,6 +844,11 @@ void destroy_encoding(void)
 {
     avltree_destroy(&encoding_tree, encoding_free);
     free(lasten);
-    free(lasttr);
     free(lastes);
+
+    while (transs != NULL) {
+        struct transs_s *old = transs;
+        transs = transs->next;
+        free(old);
+    }
 }

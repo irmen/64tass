@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1761 2018-12-31 21:12:43Z soci $
+    $Id: strobj.c 1819 2019-01-13 20:38:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "arguments.h"
 
 #include "boolobj.h"
-#include "floatobj.h"
 #include "bytesobj.h"
 #include "intobj.h"
 #include "bitsobj.h"
@@ -112,7 +111,8 @@ MALLOC Str *new_str2(size_t ln) {
         v->data = v->u.val;
         return v;
     }
-    v->u.hash = -1;
+    v->u.s.max = ln;
+    v->u.s.hash = -1;
     v->data = (uint8_t *)malloc(ln);
     if (v->data == NULL) {
         val_destroy(&v->v);
@@ -127,9 +127,15 @@ static uint8_t *extend_str(Str *v, size_t ln) {
         return v->u.val;
     }
     if (v->u.val != v->data) {
+        size_t ln2;
+        if (ln <= v->u.s.max) return v->data;
+        ln2 = ln + (ln < 1024 ? ln : 1024);
+        if (ln2 > ln) ln = ln2;
         tmp = (uint8_t *)realloc(v->data, ln);
         if (tmp != NULL) {
             v->data = tmp;
+            v->u.s.max = ln;
+            v->u.s.hash = -1;
         }
         return tmp;
     }
@@ -137,6 +143,8 @@ static uint8_t *extend_str(Str *v, size_t ln) {
     if (tmp != NULL) {
         memcpy(tmp, v->u.val, v->len);
         v->data = tmp;
+        v->u.s.max = ln;
+        v->u.s.hash = -1;
     }
     return tmp;
 }
@@ -181,8 +189,8 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->len;
     const uint8_t *s2 = v1->data;
     unsigned int h;
-    if (s2 != v1->u.val && v1->u.hash >= 0) {
-        *hs = v1->u.hash;
+    if (s2 != v1->u.val && v1->u.s.hash >= 0) {
+        *hs = v1->u.s.hash;
         return NULL;
     }
     if (l == 0) {
@@ -193,7 +201,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
     h ^= v1->len;
     h &= ((~0U) >> 1);
-    if (v1->data != v1->u.val) v1->u.hash = h;
+    if (v1->data != v1->u.val) v1->u.s.hash = h;
     *hs = h;
     return NULL;
 }
@@ -338,7 +346,8 @@ MALLOC Str *new_str(size_t ln) {
     Str *v = (Str *)val_alloc(STR_OBJ);
     v->len = ln;
     if (ln > sizeof v->u.val) {
-        v->u.hash = -1;
+        v->u.s.max = ln;
+        v->u.s.hash = -1;
         v->data = (uint8_t *)mallocx(ln);
         return v;
     }
@@ -625,7 +634,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                         }
                         v->data = o;
                         memcpy(o, v->u.val, m - 4096);
-                        v->u.hash = -1;
+                        v->u.s.hash = -1;
                     } else {
                         o = (uint8_t *)realloc(o, m);
                         if (o == NULL) {
@@ -634,6 +643,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                         }
                         v->data = o;
                     }
+                    v->u.s.max = m;
                     p2 += o - r;
                 }
                 memcpy(p2, p, k);p2 += k;
@@ -649,6 +659,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 } else {
                     uint8_t *oo = (uint8_t *)realloc(o, len2);
                     v->data = (oo != NULL) ? oo : o;
+                    v->u.s.max = len2;
                 }
             }
             v->len = len2;
@@ -736,6 +747,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 } else {
                     uint8_t *oo = (uint8_t *)realloc(o, len2);
                     v->data = (oo != NULL) ? oo : o;
+                    v->u.s.max = len2;
                 }
             }
             v->len = len2;

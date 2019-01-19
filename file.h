@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 1764 2019-01-01 09:04:51Z soci $
+    $Id: file.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,8 +60,6 @@ struct star_s {
 static inline bool dash_name(const char *name) {
     return (name[0] == '-' && name[1] == 0);
 }
-
-struct str_t;
 
 extern struct file_s *openfile(const char *, const char *, int, const struct str_t *, linepos_t);
 extern void closefile(struct file_s*);

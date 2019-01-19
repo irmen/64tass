@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.h 1407 2017-03-30 15:10:21Z soci $
+    $Id: instruction.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "inttypes.h"
 struct cpu_s;
 
-struct Error;
 struct Obj;
 
 extern MUST_CHECK struct Error *instruction(int, unsigned int, struct Obj *, linepos_t, struct linepos_s *);

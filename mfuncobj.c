@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 1689 2018-12-09 20:44:31Z soci $
+    $Id: mfuncobj.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@
 #include "typeobj.h"
 #include "namespaceobj.h"
 #include "operobj.h"
-#include "noneobj.h"
-#include "errorobj.h"
 #include "listobj.h"
 
 static Type obj;

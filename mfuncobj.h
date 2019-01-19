@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 1732 2018-12-24 12:31:03Z soci $
+    $Id: mfuncobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 #include "str.h"
 
 extern struct Type *const MFUNC_OBJ;
-
-struct Namespace;
 
 struct mfunc_param_s {
     str_t name;

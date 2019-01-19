@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1696 2018-12-10 10:41:04Z soci $
+    $Id: obj.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "eval.h"
 #include "error.h"
 #include "values.h"
-#include "macro.h"
 
 #include "boolobj.h"
 #include "floatobj.h"

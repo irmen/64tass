@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 1621 2018-08-30 20:34:53Z soci $
+    $Id: registerobj.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include "intobj.h"
 #include "operobj.h"
 #include "typeobj.h"
-#include "noneobj.h"
 #include "errorobj.h"
 
 static Type obj;

@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.h 1523 2017-05-06 10:57:20Z soci $
+    $Id: wchar.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@ extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #include <wchar.h>
 #else
-#include "inttypes.h"
-
 typedef uint32_t wint_t;
 
 typedef struct {

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1771 2019-01-02 22:12:22Z soci $
+    $Id: macro.c 1807 2019-01-13 09:51:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 #include "noneobj.h"
 #include "namespaceobj.h"
 #include "labelobj.h"
-#include "errorobj.h"
 #include "macroobj.h"
 #include "mfuncobj.h"
 #include "memblocksobj.h"
@@ -251,22 +250,33 @@ bool mtranslate(void) {
 
 static size_t macro_param_find(void) {
     uint8_t q = 0, ch;
-    uint8_t pp = 0;
-    uint8_t par[256];
-
+    size_t pp = 0, pl = 64;
+    uint8_t pbuf[64];
+    uint8_t *par = pbuf;
     struct linepos_s opoint2, npoint2;
+
     opoint2.pos = lpoint.pos;
     while ((ch = here()) != 0 && (q != 0 || (ch != ';' && (ch != ',' || pp != 0)))) {
         if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
         else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
         if (q == 0) {
-            if (ch == '(' || ch == '[' || ch == '{') par[pp++] = ch;
-            else if (pp != 0 && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
+            if (ch == '(' || ch == '[' || ch == '{') {
+                if (pp >= pl) {
+                    pl += 256;
+                    if (pl < 256) err_msg_out_of_memory();
+                    if (par == pbuf) {
+                        par = (uint8_t *)mallocx(pl);
+                        memcpy(par, pbuf, pp);
+                    } else par = (uint8_t *)reallocx(par, pl);
+                }
+                par[pp++] = ch;
+            } else if (pp != 0 && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
         }
         lpoint.pos++;
     }
     npoint2.pos = lpoint.pos;
     while (npoint2.pos > opoint2.pos && (pline[npoint2.pos-1] == 0x20 || pline[npoint2.pos-1] == 0x09)) npoint2.pos--;
+    if (par != pbuf) free(par);
     return npoint2.pos - opoint2.pos;
 }
 
@@ -360,19 +370,20 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         if (context != NULL) push_context(context);
         val = compile();
         if (context != NULL) pop_context();
+        close_waitfor(t);
         star = s->addr;
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
     }
-    val_destroy(macro_parameters.current->macro);
+    val_destroy(&macro->v);
     macro_parameters.p--;
     in_macro = in_macro_old;
     if (macro_parameters.p != 0) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
     return val;
 }
 
-Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epoint, uint8_t strength) {
+Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t epoint) {
     size_t i;
     Label *label;
     Obj *val;
@@ -451,7 +462,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         star_tree = &s->tree;vline = 0;
         enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
-        new_waitfor(t, epoint);
+        new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);
@@ -465,6 +476,7 @@ Obj *mfunc_recurse(Wait_types t, Mfunc *mfunc, Namespace *context, linepos_t epo
         for (i = 0; i < mfunc->nslen; i++) {
             pop_context();
         }
+        close_waitfor(W_ENDF3);
         star = s->addr;
         exitfile();
         star_tree = stree_old; vline = ovline;
@@ -726,6 +738,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         for (i = 0; i < mfunc->nslen; i++) {
             pop_context();
         }
+        close_waitfor(W_ENDF3);
         star = s->addr;
         temporary_label_branch--;
         lpoint = opoint;

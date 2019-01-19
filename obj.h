@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 1681 2018-12-09 15:14:06Z soci $
+    $Id: obj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "inttypes.h"
 
 struct oper_s;
-struct Namespace;
 struct Type;
 
 typedef struct Obj {

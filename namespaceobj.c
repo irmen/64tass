@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1729 2018-12-24 08:25:16Z soci $
+    $Id: namespaceobj.c 1812 2019-01-13 15:53:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include "arguments.h"
 #include "64tass.h"
 
-#include "intobj.h"
 #include "listobj.h"
 #include "strobj.h"
 #include "operobj.h"
@@ -235,7 +234,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
                 touch_label(l);
                 return val_reference(l->value);
             }
-            if (!referenceit) {
+            if (!referenceit || (constcreated && pass < max_pass)) {
                 return (Obj *)ref_none();
             }
             err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
@@ -253,7 +252,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
                 touch_label(l);
                 return val_reference(l->value);
             }
-            if (!referenceit) {
+            if (!referenceit || (constcreated && pass < max_pass)) {
                 return (Obj *)ref_none();
             }
             count = v2->count;

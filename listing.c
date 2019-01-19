@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 1595 2018-08-24 14:17:29Z soci $
+    $Id: listing.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include "section.h"
 #include "instruction.h"
 #include "obj.h"
-#include "mem.h"
 #include "values.h"
 #include "arguments.h"
 

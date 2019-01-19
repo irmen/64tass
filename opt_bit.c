@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.c 1758 2018-12-31 19:07:53Z soci $
+    $Id: opt_bit.c 1825 2019-01-19 14:21:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,10 @@ typedef struct Bit {
 static Bit bit0 = { 1, B0, NULL };
 static Bit bit1 = { 1, B1, NULL };
 
+#ifdef DEBUG
+#define bit_free(bit) free(bit)
+#define bit_alloc() (Bit *)mallocx(sizeof(Bit))
+#else
 static union bit_u {
     struct Bit bit;
     union bit_u *next;
@@ -43,35 +47,30 @@ static struct bits_s {
 } *bits = NULL;
 
 static void bit_free(union bit_u *bit) {
-#ifdef DEBUG
-    free(bit);
-#else
     bit->next = bits_free;
     bits_free = bit;
-#endif
+}
+
+static union bit_u *bits_alloc(void) {
+    size_t i;
+    struct bits_s *old = bits;
+    bits = (struct bits_s *)mallocx(sizeof *bits);
+    for (i = 0; i < 254; i++) {
+        bits->bits[i].next = &bits->bits[i + 1];
+    }
+    bits->bits[i].next = NULL;
+    bits->next = old;
+    return &bits->bits[0];
 }
 
 static MALLOC Bit *bit_alloc(void) {
     Bit *bit;
-#ifdef DEBUG
-    bit = (Bit *)mallocx(sizeof *bit);
-#else
-    if (bits_free == NULL) {
-        size_t i;
-        struct bits_s *old = bits;
-        bits = (struct bits_s *)mallocx(sizeof *bits);
-        for (i = 0; i < 254; i++) {
-            bits->bits[i].next = &bits->bits[i + 1];
-        }
-        bits->bits[i].next = NULL;
-        bits->next = old;
-        bits_free = &bits->bits[0];
-    }
+    if (bits_free == NULL) bits_free = bits_alloc();
     bit = (Bit *)bits_free;
     bits_free = bits_free->next;
-#endif
     return bit;
 }
+#endif
 
 Bit *new_bit0(void) {
     bit0.refcount++;
@@ -497,16 +496,14 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
 
 void destroy_opt_bit(void)
 {
-    struct bits_s *old;
-
-    while (bits != NULL) {
-        old = bits;
-        bits = bits->next;
-        free(old);
-    }
-
 #ifdef DEBUG
     if (bit0.refcount != 1) fprintf(stderr, "bit0 %" PRIuSIZE "\n", bit0.refcount - 1);
     if (bit1.refcount != 1) fprintf(stderr, "bit1 %" PRIuSIZE "\n", bit1.refcount - 1);
+#else
+    while (bits != NULL) {
+        struct bits_s *old = bits;
+        bits = bits->next;
+        free(old);
+    }
 #endif
 }

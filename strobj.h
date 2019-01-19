@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 1610 2018-08-26 12:34:15Z soci $
+    $Id: strobj.h 1818 2019-01-13 20:30:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,10 @@ typedef struct Str {
     uint8_t *data;
     union {
         uint8_t val[16];
-        int hash;
+        struct {
+            size_t max;
+            int hash;
+        } s;
     } u;
 } Str;
 

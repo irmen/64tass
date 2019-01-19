@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1765 2019-01-01 09:08:06Z soci $
+    $Id: file.c 1824 2019-01-18 06:01:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #include "64tass.h"
 #include "unicode.h"
 #include "error.h"
-#include "strobj.h"
 #include "arguments.h"
+#include "unicodedata.h"
 
 #define REPLACEMENT_CHARACTER 0xfffd
 
@@ -266,18 +266,10 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
     return a->type - b->type;
 }
 
-static void star_free(struct avltree_node *aa)
-{
-    struct star_s *a = avltree_container_of(aa, struct star_s, node);
-
-    avltree_destroy(&a->tree, star_free);
-}
-
 static void file_free(struct avltree_node *aa)
 {
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
 
-    avltree_destroy(&a->star, star_free);
     free(a->data);
     free(a->line);
     free(a->nomacro);
@@ -297,14 +289,8 @@ static bool extendfile(struct file_s *tmp) {
     return false;
 }
 
-static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp) {
+static uint8_t *flush_ubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp) {
     size_t i;
-    if (ubuff->data == NULL) {
-        ubuff->data = (uchar_t *)malloc(16 * sizeof *ubuff->data);
-        if (ubuff->data == NULL) return NULL;
-        ubuff->len = 16;
-        return p;
-    }
     for (i = 0; i < ubuff->p; i++) {
         size_t o = (size_t)(p - tmp->data);
         uchar_t ch;
@@ -316,17 +302,6 @@ static uint8_t *flushubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp
         if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
     }
     return p;
-}
-
-static bool extendbuff(struct ubuff_s *ubuff) {
-    uchar_t *d;
-    size_t len2 = ubuff->len + 16;
-    if (/*len2 < 16 ||*/ len2 > SIZE_MAX / sizeof *ubuff->data) return true; /* overflow */
-    d = (uchar_t *)realloc(ubuff->data, len2 * sizeof *ubuff->data);
-    if (d == NULL) return true;
-    ubuff->data = d;
-    ubuff->len = len2;
-    return false;
 }
 
 static uchar_t fromiso2(uchar_t c) {
@@ -353,6 +328,7 @@ static inline uchar_t fromiso(uchar_t c) {
 
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
+static struct ubuff_s last_ubuff;
 static uint16_t curfnum = 1;
 struct file_s *openfile(const char *name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
     struct avltree_node *b;
@@ -453,7 +429,7 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                     }
                 }
             } else {
-                struct ubuff_s ubuff = {NULL, 0, 0};
+                struct ubuff_s ubuff = last_ubuff;
                 size_t max_lines = 0;
                 line_t lines = 0;
                 uint8_t buffer[BUFSIZ * 2];
@@ -478,6 +454,7 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
 #ifdef _WIN32
                 setlocale(LC_CTYPE, "");
 #endif
+                ubuff.p = 0;
                 do {
                     size_t k;
                     uint8_t *p;
@@ -579,10 +556,10 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                                 encoding = E_ISO;
                                 i = (j - i) * 6;
                                 qc = false;
-                                if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
+                                if (ubuff.p >= ubuff.len && extend_ubuff(&ubuff)) goto failed;
                                 ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
                                 for (;i != 0; i-= 6) {
-                                    if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
+                                    if (ubuff.p >= ubuff.len && extend_ubuff(&ubuff)) goto failed;
                                     ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                 }
                                 if (bp == bl) goto eof;
@@ -638,13 +615,13 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                             }
                             cclass = 0;
                             if (!qc) {
-                                unfc(&ubuff);
+                                if (unfc(&ubuff)) goto failed;
                                 qc = true;
                             }
                             if (ubuff.p == 1) {
                                 if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                             } else {
-                                p = flushubuff(&ubuff, p, tmp);
+                                p = flush_ubuff(&ubuff, p, tmp);
                                 if (p == NULL) goto failed;
                                 ubuff.p = 1;
                             }
@@ -654,17 +631,17 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                             uint8_t ncclass = prop->combclass;
                             if ((ncclass != 0 && cclass > ncclass) || (prop->property & (qc_N | qc_M)) != 0) {
                                 qc = false;
-                                if (ubuff.p >= ubuff.len && extendbuff(&ubuff)) goto failed;
+                                if (ubuff.p >= ubuff.len && extend_ubuff(&ubuff)) goto failed;
                                 ubuff.data[ubuff.p++] = c;
                             } else {
                                 if (!qc) {
-                                    unfc(&ubuff);
+                                    if (unfc(&ubuff)) goto failed;
                                     qc = true;
                                 }
                                 if (ubuff.p == 1) {
                                     if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
                                 } else {
-                                    p = flushubuff(&ubuff, p, tmp);
+                                    p = flush_ubuff(&ubuff, p, tmp);
                                     if (p == NULL) goto failed;
                                     ubuff.p = 1;
                                 }
@@ -674,8 +651,8 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                         }
                     }
                 eof:
-                    if (!qc) unfc(&ubuff);
-                    p = flushubuff(&ubuff, p, tmp);
+                    if (!qc && unfc(&ubuff)) goto failed;
+                    p = flush_ubuff(&ubuff, p, tmp);
                     if (p == NULL) goto failed;
                     ubuff.p = 0;
                     k = (size_t)(p - tmp->data) - fp;
@@ -689,7 +666,7 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
 #ifdef _WIN32
                 setlocale(LC_CTYPE, "C");
 #endif
-                free(ubuff.data);
+                last_ubuff = ubuff;
                 tmp->lines = lines;
                 if (lines != max_lines) {
                     size_t *d = (size_t *)realloc(tmp->line, lines * sizeof *tmp->line);
@@ -784,6 +761,7 @@ void destroy_file(void) {
 
     avltree_destroy(&file_tree, file_free);
     free(lastfi);
+    free(last_ubuff.data);
     if (command_line != NULL) file_free(&command_line->node);
 
     include_list_last = include_list.next;
@@ -806,6 +784,8 @@ void init_file(void) {
     stars->next = NULL;
     starsp = 0;
     lastst = &stars->stars[starsp];
+    last_ubuff.data = (uchar_t *)mallocx(16 * sizeof *last_ubuff.data);
+    last_ubuff.len = 16;
 }
 
 void makefile(int argc, char *argv[]) {

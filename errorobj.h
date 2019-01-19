@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 1692 2018-12-09 23:12:37Z soci $
+    $Id: errorobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 #include "stdbool.h"
 
 extern struct Type *const ERROR_OBJ;
-
-struct Namespace;
-struct Oper;
-struct Register;
 
 typedef struct Error {
     Obj v;

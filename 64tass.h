@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1729 2018-12-24 08:25:16Z soci $
+    $Id: 64tass.h 1803 2019-01-13 07:29:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
 #define here() pline[lpoint.pos]
 
-struct Label;
 struct Obj;
 struct Listing;
 
@@ -53,6 +52,7 @@ extern uint8_t pass, max_pass;
 extern bool referenceit;
 extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
+extern bool close_waitfor(Wait_types);
 extern struct Obj *compile(void);
 extern FAST_CALL void pokeb(unsigned int);
 #endif

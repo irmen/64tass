@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1761 2018-12-31 21:12:43Z soci $
+    $Id: listobj.c 1817 2019-01-13 20:00:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ static FAST_CALL void destroy(Obj *o1) {
     for (i = 0; i < v1->len; i++) {
         val_destroy(v1->data[i]);
     }
-    if (v1->val != v1->data) free(v1->data);
+    if (v1->u.val != v1->data) free(v1->data);
 }
 
 static FAST_CALL void garbage(Obj *o1, int j) {
@@ -66,7 +66,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         }
         return;
     case 0:
-        if (v1->val != v1->data) free(v1->data);
+        if (v1->u.val != v1->data) free(v1->data);
         return;
     case 1:
         for (i = 0; i < v1->len; i++) {
@@ -82,40 +82,47 @@ static FAST_CALL void garbage(Obj *o1, int j) {
 
 static Obj **lnew(List *v, size_t len) {
     v->len = len;
-    if (len <= lenof(v->val)) {
-        v->data = v->val;
-        return v->val;
+    if (len <= lenof(v->u.val)) {
+        v->data = v->u.val;
+        return v->u.val;
     }
     if (len <= SIZE_MAX / sizeof *v->data) { /* overflow */
         Obj **n = (Obj **)malloc(len * sizeof *v->data);
         if (n != NULL) {
             v->data = n;
+            v->u.max = len;
             return n;
         }
     }
     v->len = 0;
-    v->data = v->val;
+    v->data = v->u.val;
     val_destroy(&v->v);
     return NULL;
 }
 
 static Obj **lextend(List *v, size_t len) {
     Obj **tmp;
-    if (len <= lenof(v->val)) {
-        return v->val;
+    if (len <= lenof(v->u.val)) {
+        return v->u.val;
     }
     if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
-    if (v->val != v->data) {
+    if (v->u.val != v->data) {
+        size_t len2;
+        if (len <= v->u.max) return v->data;
+        len2 = len + (len < 1024 ? len : 1024);
+        if (len2 > len) len = len2;
         tmp = (Obj **)realloc(v->data, len * sizeof *v->data);
         if (tmp != NULL) {
             v->data = tmp;
+            v->u.max = len;
         }
         return tmp;
     }
     tmp = (Obj **)malloc(len * sizeof *v->data);
     if (tmp != NULL) {
-        memcpy(tmp, v->val, v->len * sizeof *v->data);
+        memcpy(tmp, v->u.val, v->len * sizeof *v->data);
         v->data = tmp;
+        v->u.max = len;
     }
     return tmp;
 }
@@ -285,19 +292,21 @@ static MUST_CHECK Iter *getiter(Obj *v1) {
 }
 
 Obj **list_create_elements(List *v, size_t n) {
-    if (n <= lenof(v->val)) return v->val;
+    if (n <= lenof(v->u.val)) return v->u.val;
     if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+    v->u.max = n;
     return (Obj **)mallocx(n * sizeof *v->data);
 }
 
 MUST_CHECK Tuple *new_tuple(size_t n) {
      Tuple *v = (Tuple *)val_alloc(TUPLE_OBJ);
      v->len = n;
-     if (n <= lenof(v->val)) {
-         v->data = v->val;
+     if (n <= lenof(v->u.val)) {
+         v->data = v->u.val;
          return v;
      }
      if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
+     v->u.max = n;
      v->data = (Obj **)mallocx(n * sizeof *v->data);
      return v;
 }
@@ -776,10 +785,10 @@ void listobj_init(void) {
     null_tuple = new_tuple(0);
     null_list = new_list();
     null_list->len = 0;
-    null_list->data = NULL;
+    null_list->data = null_list->u.val;
     null_addrlist = new_addrlist();
     null_addrlist->len = 0;
-    null_addrlist->data = NULL;
+    null_addrlist->data = null_addrlist->u.val;
 }
 
 void listobj_names(void) {

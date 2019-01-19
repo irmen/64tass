@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1771 2019-01-02 22:12:22Z soci $
+    $Id: section.c 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "longjump.h"
 #include "optimizer.h"
 #include "eval.h"
+#include "mem.h"
 
 #include "memblocksobj.h"
 

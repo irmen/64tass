@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1616 2018-08-26 20:29:28Z soci $
+    $Id: instruction.c 1813 2019-01-13 16:06:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include "instruction.h"
 #include <string.h>
 #include "opcodes.h"
-#include "obj.h"
 #include "64tass.h"
 #include "section.h"
 #include "file.h"
@@ -71,14 +70,18 @@ void select_opcodes(const struct cpu_s *cpumode) {
 }
 
 MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Error *err = v1->obj->uval(v1, uv, bits, epoint);
+    Error *err;
+    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    err = v1->obj->uval(v1, uv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
     return true;
 }
 
 MUST_CHECK bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    Error *err = v1->obj->ival(v1, iv, bits, epoint);
+    Error *err;
+    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    err = v1->obj->ival(v1, iv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
     return true;
@@ -748,7 +751,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toival(val, (ival_t *)&uval, 8, epoint2)) break;
         } else {
             if (touval(val, &uval, 8, epoint2)) {
-                if (adrgen == AG_SBYTE && diagnostics.pitfalls) {
+                if (adrgen == AG_SBYTE && diagnostics.pitfalls && val != &none_value->v) {
                     err = val->obj->ival(val, (ival_t *)&uval, 8, epoint2);
                     if (err != NULL) val_destroy(&err->v);
                     else if (once != pass) {
@@ -885,7 +888,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toival(val, (ival_t *)&uval, 16, epoint2)) break;
         } else {
             if (touval(val, &uval, 16, epoint2)) {
-                if (adrgen == AG_SWORD && diagnostics.pitfalls) {
+                if (adrgen == AG_SWORD && diagnostics.pitfalls && val != &none_value->v) {
                     err = val->obj->ival(val, (ival_t *)&uval, 16, epoint2);
                     if (err != NULL) val_destroy(&err->v);
                     else if (once != pass) {

@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 1753 2018-12-31 12:14:50Z soci $
+    $Id: memblocksobj.c 1797 2019-01-12 16:48:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "error.h"
 
 #include "typeobj.h"
-#include "mem.h"
 
 static Type obj;
 

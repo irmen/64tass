@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 1771 2019-01-02 22:12:22Z soci $
+    $Id: section.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "avl.h"
 #include "stdbool.h"
 #include "str.h"
-#include "mem.h"
 
 struct Obj;
 struct Memblocks;

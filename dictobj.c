@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1752 2018-12-31 08:48:49Z soci $
+    $Id: dictobj.c 1826 2019-01-19 14:40:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,10 @@ static Type obj;
 
 Type *const DICT_OBJ = &obj;
 
+#ifdef DEBUG
+#define pair_free(pair) free(pair)
+#define pair_alloc() (struct pair_s *)mallocx(sizeof(struct pair_s))
+#else
 static union pair_u {
     struct pair_s pair;
     union pair_u *next;
@@ -46,35 +50,30 @@ static struct pairs_s {
 } *pairs = NULL;
 
 static void pair_free(struct pair_s *pair) {
-#ifdef DEBUG
-    free(pair);
-#else
     ((union pair_u *)pair)->next = pairs_free;
     pairs_free = (union pair_u *)pair;
-#endif
 }
 
-static struct pair_s *pair_alloc(void) {
-    struct pair_s *pair;
-#ifdef DEBUG
-    pair = (struct pair_s *)mallocx(sizeof *pair);
-#else
-    if (pairs_free == NULL) {
-        size_t i;
-        struct pairs_s *old = pairs;
-        pairs = (struct pairs_s *)mallocx(sizeof *pairs);
-        for (i = 0; i < 126; i++) {
-            pairs->pairs[i].next = &pairs->pairs[i + 1];
-        }
-        pairs->pairs[i].next = NULL;
-        pairs->next = old;
-        pairs_free = &pairs->pairs[0];
+static union pair_u *pairs_alloc(void) {
+    size_t i;
+    struct pairs_s *old = pairs;
+    pairs = (struct pairs_s *)mallocx(sizeof *pairs);
+    for (i = 0; i < 126; i++) {
+        pairs->pairs[i].next = &pairs->pairs[i + 1];
     }
+    pairs->pairs[i].next = NULL;
+    pairs->next = old;
+    return &pairs->pairs[0];
+}
+
+static MALLOC struct pair_s *pair_alloc(void) {
+    struct pair_s *pair;
+    if (pairs_free == NULL) pairs_free = pairs_alloc();
     pair = (struct pair_s *)pairs_free;
     pairs_free = pairs_free->next;
-#endif
     return pair;
 }
+#endif
 
 static void dict_free(struct avltree_node *aa)
 {
@@ -504,9 +503,11 @@ void dictobj_names(void) {
 }
 
 void destroy_pairs(void) {
+#ifndef DEBUG
     while (pairs != NULL) {
         struct pairs_s *old = pairs;
         pairs = pairs->next;
         free(old);
     }
+#endif
 }

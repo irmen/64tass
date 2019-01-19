@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.h 1442 2017-04-02 22:43:30Z soci $
+    $Id: encoding.h 1816 2019-01-13 18:35:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ struct str_t;
 struct Str;
 
 extern struct encoding_s *new_encoding(const struct str_t *, linepos_t);
-extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
+extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *, linepos_t);
 extern bool new_escape(const struct str_t *, struct Obj *, struct encoding_s *, linepos_t);
 extern void encode_string_init(const struct Str *, linepos_t);
 extern int encode_string(void);

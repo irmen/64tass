@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 1580 2018-01-14 09:05:14Z soci $
+    $Id: listobj.h 1817 2019-01-13 20:00:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,10 @@ typedef struct List {
     Obj v;
     size_t len;
     Obj **data;
-    Obj *val[5];
+    union {
+        size_t max;
+        Obj *val[5];
+    } u;
 } List;
 typedef struct List Tuple;
 typedef struct List Addrlist;

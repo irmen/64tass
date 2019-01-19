@@ -1,5 +1,5 @@
 /*
-    $Id: mem.h 1595 2018-08-24 14:17:29Z soci $
+    $Id: mem.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 */
 #ifndef MEM_H
 #define MEM_H
-#include "obj.h"
 #include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"

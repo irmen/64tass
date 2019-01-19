@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 1539 2017-06-06 18:27:36Z soci $
+    $Id: unicode.c 1795 2019-01-12 15:47:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "error.h"
+#include "unicodedata.h"
 
 #define U_CASEFOLD 1
 #define U_COMPAT 2
@@ -120,77 +121,80 @@ static inline unsigned int utf8outlen(uchar_t i) {
     return 6;
 }
 
-static void extbuff(struct ubuff_s *d) {
-    d->len += 16;
-    if (/*d->len < 16 ||*/ d->len > SIZE_MAX / sizeof *d->data) err_msg_out_of_memory(); /* overflow */
-    d->data = (uchar_t *)reallocx(d->data, d->len * sizeof *d->data);
+MUST_CHECK bool extend_ubuff(struct ubuff_s *d) {
+    size_t len = d->len + 16;
+    uchar_t *data;
+    if (/*d->len < 16 ||*/ len > SIZE_MAX / sizeof *data) return true;
+    data = (uchar_t *)realloc(d->data, len * sizeof *data);
+    if (data == NULL) return true;
+    d->data = data;
+    d->len = len;
+    return false;
 }
 
-static void udecompose(uchar_t ch, struct ubuff_s *d, int options) {
+static MUST_CHECK bool udecompose(uchar_t ch, struct ubuff_s *d, int options) {
     const struct properties_s *prop;
     if (ch >= 0xac00 && ch <= 0xd7a3) {
         uchar_t ht, hs = ch - 0xac00;
-        if (d->p >= d->len) extbuff(d);
+        if (d->p + 3 > d->len && extend_ubuff(d)) return true;
         d->data[d->p++] = 0x1100 + hs / 588;
-        if (d->p >= d->len) extbuff(d);
         d->data[d->p++] = 0x1161 + (hs % 588) / 28;
         ht = hs % 28;
         if (ht != 0) {
-            if (d->p >= d->len) extbuff(d);
             d->data[d->p++] = 0x11a7 + ht;
         }
-        return;
+        return false;
     }
     prop = uget_property(ch);
     if ((options & U_CASEFOLD) != 0 && prop->casefold != 0) {
         if (prop->casefold > 0) {
-            if (d->p >= d->len) extbuff(d);
+            if (d->p >= d->len && extend_ubuff(d)) return true;
             d->data[d->p++] = (uint16_t)prop->casefold;
-            return;
+            return false;
         }
         if (prop->casefold > -16384) {
-            const int16_t *p = &usequences[-prop->casefold];
-            for (;;) {
-                if (d->p >= d->len) extbuff(d);
+            const int16_t *p;
+            for (p = &usequences[-prop->casefold];; p++) {
+                if (d->p >= d->len && extend_ubuff(d)) return true;
                 d->data[d->p++] = (uint16_t)abs(*p);
-                if (*p < 0) return;
-                p++;
+                if (*p < 0) return false;
             }
         } else {
-            const int32_t *p = &usequences2[-prop->casefold - 16384];
-            for (;;) {
-                if (d->p >= d->len) extbuff(d);
+            const int32_t *p;
+            for (p = &usequences2[-prop->casefold - 16384];; p++) {
+                if (d->p >= d->len && extend_ubuff(d)) return true;
                 d->data[d->p++] = (uint32_t)abs(*p);
-                if (*p < 0) return;
-                p++;
+                if (*p < 0) return false;
             }
         }
     }
     if (prop->decompose != 0) {
         if ((prop->property & pr_compat) == 0 || (options & U_COMPAT) != 0) {
             if (prop->decompose > 0) {
-                udecompose((uint16_t)prop->decompose, d, options);
-                return;
+                return udecompose((uint16_t)prop->decompose, d, options);
             }
             if (prop->decompose > -16384) {
-                const int16_t *p = &usequences[-prop->decompose];
-                for (;;) {
-                    udecompose((uint16_t)abs(*p), d, options);
-                    if (*p < 0) return;
-                    p++;
+                const int16_t *p;
+                for (p = &usequences[-prop->decompose];; p++) {
+                    uchar_t ch2 = (uint16_t)abs(*p);
+                    if (ch2 < 0x80 || (uint16_t)(ch2 - 0x300) < 0x40u) {
+                        if (d->p >= d->len && extend_ubuff(d)) return true;
+                        d->data[d->p++] = ch2;
+                    } else if (udecompose(ch2, d, options)) return true;
+                    if (*p < 0) return false;
                 }
             } else {
-                const int32_t *p = &usequences2[-prop->decompose - 16384];
-                for (;;) {
-                    udecompose((uint32_t)abs(*p), d, options);
-                    if (*p < 0) return;
-                    p++;
+                const int32_t *p;
+                for (p = &usequences2[-prop->decompose - 16384];; p++) {
+                    if (udecompose((uint32_t)abs(*p), d, options)) return true;
+                    if (*p < 0) return false;
                 }
             }
         }
     }
-    if (d->p >= d->len) extbuff(d);
+    if (d->p >= d->len && extend_ubuff(d)) return true;
     d->data[d->p++] = ch;
+    return false;
 }
 
 static void unormalize(struct ubuff_s *d) {
@@ -199,19 +203,19 @@ static void unormalize(struct ubuff_s *d) {
     pos = 0;
     max = d->p - 1;
     while (pos < max) {
-        uchar_t ch1, ch2;
-        uint8_t cc1, cc2;
-        ch2 = d->data[pos + 1];
-        cc2 = uget_property(ch2)->combclass;
-        if (cc2 != 0) {
-            ch1 = d->data[pos];
-            cc1 = uget_property(ch1)->combclass;
-            if (cc1 > cc2) {
-                d->data[pos] = ch2;
-                d->data[pos + 1] = ch1;
-                if (pos != 0) {
-                    pos--;
-                    continue;
+        uchar_t ch2 = d->data[pos + 1];
+        if (ch2 >= 0x300) {
+            uint8_t cc2 = uget_property(ch2)->combclass;
+            if (cc2 != 0) {
+                uchar_t ch1 = d->data[pos];
+                uint8_t cc1 = uget_property(ch1)->combclass;
+                if (cc1 > cc2) {
+                    d->data[pos] = ch2;
+                    d->data[pos + 1] = ch1;
+                    if (pos != 0) {
+                        pos--;
+                        continue;
+                    }
                 }
             }
         }
@@ -219,7 +223,7 @@ static void unormalize(struct ubuff_s *d) {
     }
 }
 
-static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
+static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
     const struct properties_s *prop, *sprop = NULL;
     uchar_t ch;
     int mclass = -1;
@@ -263,85 +267,72 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
             sprop = prop;
             mclass = -1;
         }
-        if (d->p >= d->len) extbuff(d);
+        if (d->p >= d->len && extend_ubuff(d)) return true;
         d->data[d->p++] = ch;
     }
+    return false;
 }
 
-void unfc(struct ubuff_s *b) {
+MUST_CHECK bool unfc(struct ubuff_s *b) {
     size_t i;
     static struct ubuff_s dbuf;
     if (b == NULL) {
         free(dbuf.data);
-        return;
+        return false;
     }
     for (dbuf.p = i = 0; i < b->p; i++) {
-        udecompose(b->data[i], &dbuf, 0);
+        if (udecompose(b->data[i], &dbuf, 0)) return true;
     }
     unormalize(&dbuf);
-    ucompose(&dbuf, b);
+    return ucompose(&dbuf, b);
 }
 
-void unfkc(str_t *s1, const str_t *s2, int mode) {
-    const uint8_t *d, *m;
-    uint8_t *s, *dd;
+MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
+    const uint8_t *d;
+    uint8_t *s;
     size_t i, l;
     static struct ubuff_s dbuf, dbuf2;
     if (s2 == NULL) {
         free(dbuf.data);
         free(dbuf2.data);
-        return;
+        return false;
     }
     mode = ((mode != 0) ? U_CASEFOLD : 0) | U_COMPAT;
     d = s2->data;
     for (dbuf.p = i = 0; i < s2->len;) {
-        uchar_t ch;
-        ch = d[i];
+        uchar_t ch = d[i];
         if ((ch & 0x80) != 0) {
             i += utf8in(d + i, &ch);
-            udecompose(ch, &dbuf, mode);
+            if (udecompose(ch, &dbuf, mode)) return true;
             continue;
         }
         if ((mode & U_CASEFOLD) != 0 && ch >= 'A' && ch <= 'Z') ch |= 0x20;
-        if (dbuf.p >= dbuf.len) extbuff(&dbuf);
+        if (dbuf.p >= dbuf.len && extend_ubuff(&dbuf)) return true;
         dbuf.data[dbuf.p++] = ch;
         i++;
     }
     unormalize(&dbuf);
-    ucompose(&dbuf, &dbuf2);
-    l = s2->len;
-    if (l > s1->len) {
-        s1->data = (uint8_t *)reallocx((uint8_t *)s1->data, l);
+    if (ucompose(&dbuf, &dbuf2)) return true;
+    for (l = i = 0; i < dbuf2.p; i++) {
+        uchar_t ch = dbuf2.data[i];
+        l += (ch != 0 && ch < 0x80) ? 1 : utf8outlen(ch);
     }
-    dd = s = (uint8_t *)s1->data;
-    m = dd + l;
+    s = (uint8_t *)s1->data;
+    if (l > s1->len) {
+        s = (uint8_t *)realloc(s, l);
+        if (s == NULL) return true;
+        s1->data = s;
+    }
+    s1->len = l;
     for (i = 0; i < dbuf2.p; i++) {
-        uchar_t ch;
-        ch = dbuf2.data[i];
+        uchar_t ch = dbuf2.data[i];
         if (ch != 0 && ch < 0x80) {
-            if (s >= m) {
-                size_t o = (size_t)(s - dd);
-                l += 16;
-                if (l < 16) err_msg_out_of_memory();
-                dd = (uint8_t *)reallocx(dd, l);
-                s = dd + o;
-                m = dd + l;
-            }
             *s++ = (uint8_t)ch;
             continue;
         }
-        if (s + utf8outlen(ch) > m) {
-            size_t o = (size_t)(s - dd);
-            l += 16;
-            if (l < 16) err_msg_out_of_memory();
-            dd = (uint8_t *)reallocx(dd, l);
-            s = dd + o;
-            m = dd + l;
-        }
         s = utf8out(ch, s);
     }
-    s1->len = (size_t)(s - dd);
-    s1->data = dd;
+    return false;
 }
 
 size_t argv_print(const char *line, FILE *f) {

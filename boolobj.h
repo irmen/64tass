@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: boolobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,9 +43,6 @@ static inline Bool *ref_bool(Bool *v1) {
 static inline MUST_CHECK Obj *truth_reference(bool i) {
     return (Obj *)ref_bool(bool_value[i ? 1 : 0]);
 }
-
-struct Int;
-struct Float;
 
 extern MUST_CHECK struct Obj *int_from_bool(const struct Bool *);
 extern MUST_CHECK struct Float *float_from_bool(const struct Bool *);

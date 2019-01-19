@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 1627 2018-09-01 11:44:10Z soci $
+    $Id: typeobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,8 +38,6 @@ typedef enum Type_types {
 typedef enum Func_types {
     TF_ABS, TF_TRUNC, TF_CEIL, TF_FLOOR, TF_ROUND
 } Func_types;
-
-struct Error;
 
 typedef struct Type {
     Obj v;

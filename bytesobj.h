@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 1639 2018-09-03 21:44:44Z soci $
+    $Id: bytesobj.h 1819 2019-01-13 20:38:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,10 @@ typedef struct Bytes {
     uint8_t *data;
     union {
         uint8_t val[16];
-        int hash;
+        struct {
+            size_t max;
+            int hash;
+        } s;
     } u;
 } Bytes;
 

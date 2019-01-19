@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 1690 2018-12-09 21:07:14Z soci $
+    $Id: gapobj.c 1796 2019-01-12 16:28:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 */
 #include "gapobj.h"
 #include <string.h>
-#include "error.h"
 #include "eval.h"
 #include "variables.h"
 #include "values.h"
@@ -28,7 +27,6 @@
 #include "intobj.h"
 #include "boolobj.h"
 #include "typeobj.h"
-#include "noneobj.h"
 #include "errorobj.h"
 
 static Type obj;

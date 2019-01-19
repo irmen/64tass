@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.h 1731 2018-12-24 10:39:48Z soci $
+    $Id: macroobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@ extern struct Type *const MACRO_OBJ;
 extern struct Type *const SEGMENT_OBJ;
 extern struct Type *const STRUCT_OBJ;
 extern struct Type *const UNION_OBJ;
-
-struct file_list_s;
 
 struct macro_param_s {
     str_t cfname;

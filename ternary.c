@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 1752 2018-12-31 08:48:49Z soci $
+   $Id: ternary.c 1826 2019-01-19 14:40:58Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -24,6 +24,10 @@
 #include "unicode.h"
 #include "error.h"
 
+#ifdef DEBUG
+#define tern_free(tern) free(tern)
+#define tern_alloc() (ternary_node *)mallocx(sizeof(ternary_node))
+#else
 static union tern_u {
     ternary_node tern;
     union tern_u *next;
@@ -35,35 +39,30 @@ static struct terns_s {
 } *terns = NULL;
 
 static void tern_free(union tern_u *tern) {
-#ifdef DEBUG
-    free(tern);
-#else
     tern->next = terns_free;
     terns_free = tern;
-#endif
 }
 
-static ternary_node *tern_alloc(void) {
-    ternary_node *tern;
-#ifdef DEBUG
-    tern = (ternary_node *)mallocx(sizeof *tern);
-#else
-    if (terns_free == NULL) {
-        size_t i;
-        struct terns_s *old = terns;
-        terns = (struct terns_s *)mallocx(sizeof *terns);
-        for (i = 0; i < 254; i++) {
-            terns->terns[i].next = &terns->terns[i + 1];
-        }
-        terns->terns[i].next = NULL;
-        terns->next = old;
-        terns_free = &terns->terns[0];
+static union tern_u *terns_alloc() {
+    size_t i;
+    struct terns_s *old = terns;
+    terns = (struct terns_s *)mallocx(sizeof *terns);
+    for (i = 0; i < 254; i++) {
+        terns->terns[i].next = &terns->terns[i + 1];
     }
+    terns->terns[i].next = NULL;
+    terns->next = old;
+    return &terns->terns[0];
+}
+
+static MALLOC ternary_node *tern_alloc(void) {
+    ternary_node *tern;
+    if (terns_free == NULL) terns_free = terns_alloc();
     tern = (ternary_node *)terns_free;
     terns_free = terns_free->next;
-#endif
     return tern;
 }
+#endif
 
 /* Non-recursive so we don't waste stack space/time on large
    insertions. */
@@ -168,9 +167,11 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
 
 void destroy_ternary(void)
 {
+#ifndef DEBUG
     while (terns != NULL) {
         struct terns_s *old = terns;
         terns = terns->next;
         free(old);
     }
+#endif
 }

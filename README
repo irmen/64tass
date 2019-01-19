@@ -3766,6 +3766,8 @@ too many passes
     situations but try to avoid this
 unknown option '?'
     option not known
+weak recursion
+    excessive nesting of .weak
 
 -------------------------------------------------------------------------------
 

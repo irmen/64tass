@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1775 2019-01-03 07:46:53Z soci $
+    $Id: 64tass.c 1817 2019-01-13 20:00:20Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -53,11 +53,12 @@
 #include "ternary.h"
 #include "opt_bit.h"
 #include "longjump.h"
+#include "mem.h"
+#include "unicodedata.h"
 
 #include "listobj.h"
 #include "codeobj.h"
 #include "strobj.h"
-#include "floatobj.h"
 #include "addressobj.h"
 #include "boolobj.h"
 #include "bytesobj.h"
@@ -97,17 +98,68 @@ const struct cpu_s *current_cpu;
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
     Wait_types what;
-    struct linepos_s epoint;
-    address_t addr, addr2;
-    address2_t laddr;
-    Label *label;
-    size_t memp, membp;
-    struct section_s *section;
-    struct section_address_s *section_address;
-    Obj *val;
     uint8_t skip;
-    bool breakout, unionmode;
-} *waitfors, *waitfor, *prevwaitfor;
+    struct linepos_s epoint;
+    union {
+        struct {
+            address2_t laddr;
+            Obj *val;
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } logical;
+        struct {
+            struct section_address_s *section_address;
+            Label *label;
+            size_t memp, membp;
+        } virtual;
+        struct {
+            struct section_s *section;
+            struct section_address_s *section_address;
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } section;
+        struct {
+            bool unionmode;
+            address2_t laddr;
+            address_t addr, addr2;
+        } unio;
+        struct {
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } weak;
+        struct {
+            address2_t laddr;
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } page;
+        struct {
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } proc;
+        struct {
+            address_t addr;
+            Label *label;
+            size_t memp, membp;
+        } block;
+        struct {
+            bool unionmode;
+        } strut;
+        struct {
+            bool breakout;
+        } rept;
+        struct {
+            Obj *val;
+        } macro;
+        struct {
+            Obj *val;
+        } switc;
+    } u;
+} *waitfors, *waitfor;
 
 uint16_t curfile;
 struct avltree *star_tree = NULL;
@@ -250,8 +302,8 @@ static void tfree(void) {
     destroy_pairs();
     destroy_opt_bit();
     free(arguments.symbol_output);
-    unfc(NULL);
-    unfkc(NULL, NULL, 0);
+    if (unfc(NULL)) {}
+    if (unfkc(NULL, NULL, 0)) {}
     str_cfcpy(NULL, NULL);
 }
 
@@ -268,6 +320,7 @@ static void status(void) {
 }
 
 void new_waitfor(Wait_types what, linepos_t epoint) {
+    uint8_t skwait = waitfor->skip;
     waitfor_p++;
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
@@ -275,29 +328,24 @@ void new_waitfor(Wait_types what, linepos_t epoint) {
         waitfors = (struct waitfor_s *)reallocx(waitfors, waitfor_len * sizeof *waitfors);
     }
     waitfor = &waitfors[waitfor_p];
-    prevwaitfor = (waitfor_p != 0) ? &waitfors[waitfor_p - 1] : waitfor;
     waitfor->what = what;
+    waitfor->skip = skwait;
     waitfor->epoint = *epoint;
-    waitfor->label = NULL;
-    waitfor->val = NULL;
-    waitfor->skip = prevwaitfor->skip;
 }
 
 static void reset_waitfor(void) {
+    struct waitfor_s dummy;
     struct linepos_s lpos = {0, 0};
+    dummy.skip = 1;
     waitfor_p = (size_t)-1;
+    waitfor = &dummy;
     new_waitfor(W_NONE, &lpos);
-    waitfor->skip = 1;
-    prevwaitfor = waitfor;
 }
 
-static bool close_waitfor(Wait_types what) {
+bool close_waitfor(Wait_types what) {
     if (waitfor->what == what) {
-        if (waitfor->val != NULL) val_destroy(waitfor->val);
-        if (waitfor->label != NULL) val_destroy(&waitfor->label->v);
         waitfor_p--;
         waitfor = &waitfors[waitfor_p];
-        prevwaitfor = (waitfor_p != 0) ? &waitfors[waitfor_p - 1] : waitfor;
         return true;
     }
     return false;
@@ -408,36 +456,56 @@ FAST_CALL void pokeb(unsigned int byte) { /* poke_pos! */
 
 /* --------------------------------------------------------------------------- */
 static int get_command(void) {
-    unsigned int no, also = 0, felso, elozo;
+    unsigned int no, also, felso, elozo;
     const uint8_t *label;
-    size_t l;
-    int s4;
+    uint8_t tmp[10];
     lpoint.pos++;
     label = pline + lpoint.pos;
-    l = get_label();
-    if ((size_t)(l - 2) < 17) {
-        uint8_t cmd[20];
-        if (arguments.caseinsensitive != 0) {
-            size_t i;
-            for (i = 0; i < l; i++) cmd[i] = label[i] | 0x20;
-        } else memcpy(cmd, label, l);
-        cmd[l] = 0;
-        if (l != 0) {
-            felso = sizeof(command)/sizeof(command[0]);
-            no = felso/2;
-            for (;;) {  /* do binary search */
-                const uint8_t *cmd2 = (const uint8_t *)command[no];
-                if ((s4=cmd[0]-cmd2[1]) == 0 && (s4=cmd[1]-cmd2[2]) == 0 && (s4=strcmp((const char *)cmd + 2, (const char *)cmd2 + 3)) == 0) {
-                    return (uint8_t)command[no][0];
-                }
-
-                elozo = no;
-                no = ((s4 > 0) ? (felso + (also = no)) : (also + (felso = no)))/2;
-                if (elozo == no) break;
-            }
+    if (arguments.caseinsensitive) {
+        int i, j;
+        for (i = j = 0; i < 10; i++) {
+            if ((uint8_t)(label[i] - 'a') <= ('z' - 'a')) continue;
+            if ((uint8_t)(label[i] - 'A') > ('Z' - 'A')) break;
+            while (j < i) { tmp[j] = label[j]; j++; }
+            tmp[j++] = label[i] | 0x20;
+        }
+        if ((unsigned int)(i - 2) >= (10 - 2)) return lenof(command);
+        if (j != 0) {
+            while (j <= i) { tmp[j] = label[j]; j++; }
+            label = tmp;
         }
     }
-    lpoint.pos -= l;
+ 
+    also = 0;
+    felso = lenof(command);
+    no = lenof(command)/2;
+    do {  /* do binary search */
+        const uint8_t *cmd2 = (const uint8_t *)command[no];
+        int s4 = label[0] - cmd2[1];
+        if (s4 == 0) {
+            int l = 1;
+            for (;;) {
+                s4 = label[l] - cmd2[l + 1];
+                if (s4 != 0) break;
+                l++;
+                if (cmd2[l + 1] != 0) continue;
+                if (label[l] >= '0') {
+                    if ((uint8_t)(label[l] - 'a') <= ('z' - 'a')) break;
+                    if ((label[l] & 0x80) != 0) {
+                        if (arguments.to_ascii) {
+                            uint32_t ch;
+                            utf8in(label + l, &ch);
+                            if ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) return lenof(command);
+                        }
+                    } else if (label[l] <= '9' || (uint8_t)(label[l] - 'A') <= ('Z' - 'A') || label[l] == '_') return lenof(command);
+                }
+                lpoint.pos += l;
+                return cmd2[0];
+            }
+        }
+        elozo = no;
+        no = ((s4 >= 0) ? (felso + (also = no)) : (also + (felso = no)))/2;
+    } while (elozo != no);
     return lenof(command);
 }
 
@@ -727,35 +795,39 @@ static bool instrecursion(Obj *o1, int prm, unsigned int w, linepos_t epoint, st
 static void logical_close(linepos_t epoint) {
     address_t diff;
     if (current_address->unionmode) {
-        current_address->l_union = waitfor->laddr;
+        current_address->l_union = waitfor->u.logical.laddr;
         diff = 0;
     } else {
-        diff = current_address->address - waitfor->addr;
-        current_address->l_address.address = (waitfor->laddr.address + diff) & 0xffff;
-        if (current_address->address > waitfor->addr) {
+        diff = current_address->address - waitfor->u.logical.addr;
+        current_address->l_address.address = (waitfor->u.logical.laddr.address + diff) & 0xffff;
+        if (current_address->address > waitfor->u.logical.addr) {
             if (current_address->l_address.address == 0) current_address->l_address.address = 0x10000;
         }
-        current_address->l_address.bank = waitfor->laddr.bank + (current_address->address & ~(address_t)0xffff) - (waitfor->addr & ~(address_t)0xffff);
+        current_address->l_address.bank = waitfor->u.logical.laddr.bank + (current_address->address & ~(address_t)0xffff) - (waitfor->u.logical.addr & ~(address_t)0xffff);
         if (current_address->l_address.bank > all_mem) {
             if (epoint != NULL) err_msg_big_address(epoint);
             current_address->l_address.bank &= all_mem;
         }
     }
     val_destroy(current_address->l_address_val);
-    current_address->l_address_val = waitfor->val; waitfor->val = NULL;
-    if (waitfor->label != NULL) set_size(waitfor->label, diff, current_address->mem, waitfor->memp, waitfor->membp);
+    current_address->l_address_val = waitfor->u.logical.val;
+    if (waitfor->u.logical.label != NULL) {
+        set_size(waitfor->u.logical.label, diff, current_address->mem, waitfor->u.logical.memp, waitfor->u.logical.membp);
+        val_destroy(&waitfor->u.logical.label->v);
+    }
     current_section->logicalrecursion--;
 }
 
 static void virtual_close(linepos_t epoint) {
-    if (waitfor->label != NULL) {
+    if (waitfor->u.virtual.label != NULL) {
         address_t end = (current_address->end < current_address->address) ? current_address->address : current_address->end;
-        set_size(waitfor->label, end - current_address->start, current_address->mem, waitfor->memp, waitfor->membp);
+        set_size(waitfor->u.virtual.label, end - current_address->start, current_address->mem, waitfor->u.virtual.memp, waitfor->u.virtual.membp);
+        val_destroy(&waitfor->u.virtual.label->v);
     }
     val_destroy(current_address->l_address_val);
     val_destroy(&current_address->mem->v);
     free(current_address);
-    current_address = waitfor->section_address;
+    current_address = waitfor->u.virtual.section_address;
     if (current_address->l_address.bank > all_mem) {
         if (epoint != NULL) err_msg_big_address(epoint);
         current_address->l_address.bank &= all_mem;
@@ -763,9 +835,12 @@ static void virtual_close(linepos_t epoint) {
 }
 
 static void section_close(linepos_t epoint) {
-    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
-    current_section = waitfor->section;
-    current_address = waitfor->section_address;
+    if (waitfor->u.section.label != NULL) {
+        set_size(waitfor->u.section.label, current_address->address - waitfor->u.section.addr, current_address->mem, waitfor->u.section.memp, waitfor->u.section.membp);
+        val_destroy(&waitfor->u.section.label->v);
+    }
+    current_section = waitfor->u.section.section;
+    current_address = waitfor->u.section.section_address;
     if (current_address->l_address.bank > all_mem) {
         if (epoint != NULL) err_msg_big_address(epoint);
         current_address->l_address.bank &= all_mem;
@@ -774,11 +849,11 @@ static void section_close(linepos_t epoint) {
 
 static void union_close(linepos_t epoint) {
     address_t end;
-    current_address->unionmode = waitfor->unionmode;
-    current_address->l_union = waitfor->laddr;
-    current_address->start = waitfor->addr;
+    current_address->unionmode = waitfor->u.unio.unionmode;
+    current_address->l_union = waitfor->u.unio.laddr;
+    current_address->start = waitfor->u.unio.addr;
     end = (current_address->address < current_address->end) ? current_address->end : current_address->address;
-    current_address->end = (waitfor->addr2 > end) ? waitfor->addr2 : end;
+    current_address->end = (waitfor->u.unio.addr2 > end) ? waitfor->u.unio.addr2 : end;
     if (end > current_address->address) {
         poke_pos = epoint;
         memskip(end - current_address->address);
@@ -790,19 +865,21 @@ static const char *check_waitfor(void) {
     case W_FI2:
     case W_FI: return ".fi";
     case W_SWITCH2:
-    case W_SWITCH: return ".endswitch";
+    case W_SWITCH: 
+        if (waitfor->u.switc.val != NULL) val_destroy(waitfor->u.switc.val);
+        return ".endswitch";
     case W_WEAK2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->u.weak.label != NULL) {set_size(waitfor->u.weak.label, current_address->address - waitfor->u.weak.addr, current_address->mem, waitfor->u.weak.memp, waitfor->u.weak.membp);val_destroy(&waitfor->u.weak.label->v);}
         strength--;
         /* fall through */
     case W_WEAK: return ".endweak";
     case W_ENDP2:
-        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->u.page.label != NULL) {set_size(waitfor->u.page.label, current_address->address - waitfor->u.page.addr, current_address->mem, waitfor->u.page.memp, waitfor->u.page.membp);val_destroy(&waitfor->u.page.label->v);}
         /* fall through */
     case W_ENDP: return ".endp";
-    case W_ENDM2:
-    case W_ENDM: return ".endm";
-    case W_ENDF2:
+    case W_ENDM: 
+        if (waitfor->u.macro.val != NULL) val_destroy(waitfor->u.macro.val);
+        return ".endm";
     case W_ENDF: return ".endf";
     case W_NEXT3:
         pop_context();
@@ -810,12 +887,13 @@ static const char *check_waitfor(void) {
     case W_NEXT: return ".next";
     case W_PEND:
         pop_context();
-        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+        if (waitfor->u.proc.label != NULL) {set_size(waitfor->u.proc.label, current_address->address - waitfor->u.proc.addr, current_address->mem, waitfor->u.proc.memp, waitfor->u.proc.membp);val_destroy(&waitfor->u.proc.label->v);}
         return ".pend";
     case W_BEND2:
+        if (waitfor->u.block.label != NULL) {set_size(waitfor->u.block.label, current_address->address - waitfor->u.block.addr, current_address->mem, waitfor->u.block.memp, waitfor->u.block.membp);val_destroy(&waitfor->u.block.label->v);}
+        /* fall through */
     case W_BEND: 
         pop_context();
-        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
         return ".bend";
     case W_ENDN2:
     case W_ENDN: 
@@ -823,9 +901,7 @@ static const char *check_waitfor(void) {
         return ".endn";
     case W_ENDC: return ".endc";
     case W_ENDS:
-        if ((waitfor->skip & 1) != 0) {
-            current_address->unionmode = waitfor->unionmode;
-        }
+        if ((waitfor->skip & 1) != 0) current_address->unionmode = waitfor->u.strut.unionmode;
         /* fall through */
     case W_ENDS2: return ".ends";
     case W_SEND2:
@@ -860,7 +936,7 @@ static bool section_start(linepos_t epoint) {
     str_t sectionname;
     struct linepos_s opoint;
 
-    new_waitfor(W_SEND, epoint);waitfor->section = current_section;waitfor->section_address = current_address;
+    new_waitfor(W_SEND, epoint);waitfor->u.section.section = current_section;waitfor->u.section.section_address = current_address;
     opoint = lpoint;
     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); return true;}
@@ -897,6 +973,7 @@ static bool section_start(linepos_t epoint) {
     }
     tmp->usepass = pass;
     waitfor->what = W_SEND2;
+    waitfor->u.section.label = NULL;
     current_section = tmp;
     current_address = &tmp->address;
     return false;
@@ -909,7 +986,7 @@ static bool virtual_start(linepos_t epoint) {
 
     if (diagnostics.optimize) cpu_opt_invalidate();
     listing_line(listing, epoint->pos);
-    new_waitfor(W_ENDV2, epoint); waitfor->section_address = current_address;
+    new_waitfor(W_ENDV2, epoint); waitfor->u.virtual.section_address = current_address; waitfor->u.virtual.label = NULL;
     section_address = (struct section_address_s *)mallocx(sizeof *section_address);
     section_address->wrapwarn = section_address->moved = false;
 
@@ -986,7 +1063,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             }
             return;
         }
-        laddr = (current_address->l_address.address + current_address->l_address.bank) & all_mem; /* overflow included! */
+        laddr = current_address->l_address.address + (current_address->l_address.bank & all_mem); /* overflow included! */
         addr = (address_t)uval & all_mem;
         if (arguments.tasmcomp) addr = (uint16_t)addr;
         else if (addr >= laddr) {
@@ -1136,11 +1213,11 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
 static MUST_CHECK bool list_extend(List *lst) {
     Obj **vals;
     size_t o = lst->len, n;
-    if (lst->data == lst->val) {
+    if (lst->data == lst->u.val) {
         n = 16;
         vals = (Obj **)malloc(n * sizeof *lst->data);
         if (vals == NULL) return true;
-        memcpy(vals, lst->val, o * sizeof *lst->data);
+        memcpy(vals, lst->u.val, o * sizeof *lst->data);
     } else {
         if (o < 256) n = o * 2;
         else {
@@ -1153,6 +1230,7 @@ static MUST_CHECK bool list_extend(List *lst) {
     while (o < n) vals[o++] = (Obj *)ref_none();
     lst->data = vals;
     lst->len = n;
+    lst->u.max = n;
     return false;
 }
 
@@ -1160,14 +1238,17 @@ static void list_shrink(List *lst, size_t i) {
     size_t j = i;
     while (j < lst->len) val_destroy(lst->data[j++]);
     lst->len = i;
-    if (lst->data != lst->val) {
-        if (lst->len <= lenof(lst->val)) {
-            memcpy(lst->val, lst->data, lst->len * sizeof *lst->data);
+    if (lst->data != lst->u.val) {
+        if (lst->len <= lenof(lst->u.val)) {
+            memcpy(lst->u.val, lst->data, lst->len * sizeof *lst->data);
             free(lst->data);
-            lst->data = lst->val;
+            lst->data = lst->u.val;
         } else {
             Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
-            if (v != NULL) lst->data =v;
+            if (v != NULL) {
+                lst->data = v;
+                lst->u.max = lst->len;
+            }
         }
     }
 }
@@ -1312,7 +1393,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
 
     if (foreach) {
         new_waitfor(W_NEXT2, epoint);
-        waitfor->breakout = false;
+        waitfor->u.rept.breakout = false;
         if (iter != NULL) {
             iter_next_t iter_next = iter->next;
             Obj *val2;
@@ -1341,7 +1422,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                     else nf = tuple_scope(newlabel, &lst->data[i]);
                     i++;
                 } else nf = compile();
-                if (nf == NULL || waitfor->breakout) {
+                if (nf == NULL || waitfor->u.rept.breakout) {
                     break;
                 }
                 if ((waitfor->skip & 1) != 0 && val2 != NULL) listing_line_cut(listing, waitfor->epoint.pos);
@@ -1357,7 +1438,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         expr = (uint8_t *)mallocx(lentmp);
         memcpy(expr, pline, lentmp); label = NULL;
         new_waitfor(W_NEXT2, epoint);
-        waitfor->breakout = false;
+        waitfor->u.rept.breakout = false;
         tmp.op = NULL;
         for (;;) {
             lpoint = apoint;
@@ -1387,7 +1468,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
             xlin = lpoint.line;
             pline = expr;
             lpoint.line = lin;
-            if (nf == NULL || waitfor->breakout) break;
+            if (nf == NULL || waitfor->u.rept.breakout) break;
             if (nopos < 0) {
                 str_t varname;
                 Namespace *context;
@@ -1449,7 +1530,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                         label->epoint = bpoint;
                     }
                 } else {
-                    label = find_label2(&varname, context);
+                    label = find_label3(&varname, context, strength);
                     if (label == NULL) {err_msg_not_defined2(&varname, context, false, &bpoint); break;}
                     if (label->constant) {err_msg_not_variable(label, &varname, &bpoint); break;}
                     if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &bpoint);
@@ -1521,7 +1602,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
         s->addr = star;
         star_tree = &s->tree;vline = 0;
         new_waitfor(W_NEXT2, epoint);
-        waitfor->breakout = false;
+        waitfor->u.rept.breakout = false;
         for (;;) {
             lpoint.line = lin;
             waitfor->skip = 1; lvline = vline;
@@ -1531,7 +1612,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
                 else nf = tuple_scope(newlabel, &lst->data[i]);
                 i++;
             } else nf = compile();
-            if (nf == NULL || waitfor->breakout || (--cnt) == 0) {
+            if (nf == NULL || waitfor->u.rept.breakout || (--cnt) == 0) {
                 break;
             }
             if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
@@ -1732,7 +1813,7 @@ MUST_CHECK Obj *compile(void)
                 } else if (tmp.op == &o_COND) {
                     label = NULL; val = NULL;
                 } else {
-                    label = find_label2(&labelname, mycontext);
+                    label = find_label3(&labelname, mycontext, strength);
                     if (label == NULL) {
                         if (tmp.op == &o_MUL) {
                             if (diagnostics.star_assign) {
@@ -2073,7 +2154,7 @@ MUST_CHECK Obj *compile(void)
                         if (labelexists) {
                             macro->retval = (label->value->obj == obj) && ((Macro *)label->value)->retval;
                             if (label->defpass == pass) {
-                                waitfor->val = &macro->v;
+                                waitfor->u.macro.val = &macro->v;
                                 err_msg_double_defined(label, &labelname, &epoint);
                             } else {
                                 if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
@@ -2087,7 +2168,7 @@ MUST_CHECK Obj *compile(void)
                                 }
                                 label->epoint = epoint;
                                 const_assign(label, &macro->v);
-                                waitfor->val = val_reference(label->value);
+                                waitfor->u.macro.val = val_reference(label->value);
                             }
                         } else {
                             macro->retval = false;
@@ -2099,7 +2180,7 @@ MUST_CHECK Obj *compile(void)
                             label->owner = true;
                             label->value = &macro->v;
                             label->epoint = epoint;
-                            waitfor->val = val_reference(&macro->v);
+                            waitfor->u.macro.val = val_reference(&macro->v);
                         }
                         label->ref = false;
                         goto finish;
@@ -2237,6 +2318,7 @@ MUST_CHECK Obj *compile(void)
                         val = macro_recurse(W_ENDS, &structure->v, structure->names, &cmdpoint);
                         structure->retval = (val != NULL);
                         if (val != NULL) val_destroy(val);
+                        close_waitfor((prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2);
                         current_section->structrecursion--;
 
                         current_section->provides = provides; current_section->requires = requires; current_section->conflicts = conflicts;
@@ -2307,7 +2389,7 @@ MUST_CHECK Obj *compile(void)
                             lst = new_tuple(old->len);
                             for (i = 0; i < old->len; i++) lst->data[i] = val_reference(old->data[i]);
                         } else {
-                            lst = new_tuple(lenof(lst->val));
+                            lst = new_tuple(lenof(lst->u.val));
                             for (i = 0; i < lst->len; i++) lst->data[i] = (Obj *)ref_none();
                         }
                         label = ref_label(label);
@@ -2591,19 +2673,26 @@ MUST_CHECK Obj *compile(void)
                 switch (prm) {
                 case CMD_PROC:
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_PEND, &epoint);waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;if (newlabel != NULL) waitfor->label = ref_label(newlabel);
+                    new_waitfor(W_PEND, &epoint);
                     if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {
                         waitfor->skip = 0; set_size(newlabel, 0, current_address->mem, newmemp, newmembp);
                         push_dummy_context();
+                        waitfor->u.proc.label = NULL;
                     } else {         /* TODO: first time it should not compile */
                         push_context(((Code *)newlabel->value)->names);
                         newlabel->ref = false;
+                        waitfor->u.proc.addr = current_address->address;waitfor->u.proc.memp = newmemp;waitfor->u.proc.membp = newmembp;waitfor->u.proc.label = ref_label(newlabel);
                     }
                     newlabel = NULL;
                     goto finish;
                 case CMD_SECTION:
+                    waitfor->u.section.addr = current_address->address;waitfor->u.section.memp = newmemp;waitfor->u.section.membp = newmembp;waitfor->u.section.label = ref_label(newlabel);
+                    listing_line(listing, epoint.pos);
+                    newlabel->ref = false;
+                    newlabel = NULL;
+                    goto finish;
                 case CMD_VIRTUAL:
-                    waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;if (newlabel != NULL) waitfor->label = ref_label(newlabel);
+                    waitfor->u.virtual.memp = newmemp;waitfor->u.virtual.membp = newmembp;waitfor->u.virtual.label = ref_label(newlabel);
                     listing_line(listing, epoint.pos);
                     newlabel->ref = false;
                     newlabel = NULL;
@@ -2695,7 +2784,10 @@ MUST_CHECK Obj *compile(void)
             case CMD_ENDSWITCH: /* .endswitch */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
-                    if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) {err_msg2(ERROR__MISSING_OPEN, ".switch", &epoint); goto breakerr;}
+                    if (waitfor->what==W_SWITCH || waitfor->what==W_SWITCH2) {
+                        if (waitfor->u.switc.val != NULL) val_destroy(waitfor->u.switc.val);
+                        close_waitfor(waitfor->what);
+                    } else {err_msg2(ERROR__MISSING_OPEN, ".switch", &epoint); goto breakerr;}
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
@@ -2738,7 +2830,7 @@ MUST_CHECK Obj *compile(void)
                     switch (prm) {
                     case CMD_IF:
                         if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
-                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                        waitfor->skip = truth ? (skwait & 1) : (uint8_t)((skwait & 1) << 1);
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
@@ -2749,14 +2841,14 @@ MUST_CHECK Obj *compile(void)
                             val_destroy(err);
                             waitfor->skip = 0; break;
                         }
-                        waitfor->skip = ((((Int *)err)->len == 0) != (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                        waitfor->skip = ((((Int *)err)->len == 0) != (prm == CMD_IFNE)) ? (skwait & 1) : (uint8_t)((skwait & 1) << 1);
                         val_destroy(err);
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
                             if (toival(val, &ival, 8 * sizeof ival, &vs->epoint)) { waitfor->skip = 0; break; }
-                            waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = (((ival & 0x8000) == 0) != (prm == CMD_IFMI)) ? (skwait & 1) : (uint8_t)((skwait & 1) << 1);
                         } else {
                             err = val->obj->sign(val, &vs->epoint);
                             if (err->obj != INT_OBJ) {
@@ -2765,7 +2857,7 @@ MUST_CHECK Obj *compile(void)
                                 val_destroy(err);
                                 waitfor->skip = 0; break;
                             }
-                            waitfor->skip = ((((Int *)err)->len >= 0) != (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                            waitfor->skip = ((((Int *)err)->len >= 0) != (prm == CMD_IFMI)) ? (skwait & 1) : (uint8_t)((skwait & 1) << 1);
                             val_destroy(err);
                         }
                         break;
@@ -2797,13 +2889,13 @@ MUST_CHECK Obj *compile(void)
                     new_waitfor(W_SWITCH2, &epoint);
                     if (skwait == 1) {
                         struct values_s *vs;
-                        if (!get_exp(0, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
+                        if (!get_exp(0, 1, 1, &epoint)) {waitfor->skip = 0; waitfor->u.switc.val = NULL; goto breakerr;}
                         vs = get_val(); val = vs->val;
                         if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); val = (Obj *)none_value; }
                         else if (val == &none_value->v) err_msg_still_none(NULL, &vs->epoint);
                     } else val = (Obj *)none_value;
-                    waitfor->val = val_reference(val);
-                    waitfor->skip = (val == &none_value->v) ? 0 : (uint8_t)((prevwaitfor->skip & 1) << 1);
+                    waitfor->u.switc.val = val_reference(val);
+                    waitfor->skip = (val == &none_value->v) ? 0 : (uint8_t)((skwait & 1) << 1);
                 }
                 break;
             case CMD_CASE: /* .case */
@@ -2825,7 +2917,7 @@ MUST_CHECK Obj *compile(void)
                             val = vs->val;
                             if (val->obj == ERROR_OBJ) { err_msg_output((Error *)val); continue; }
                             if (val == &none_value->v) { err_msg_still_none(NULL, &vs->epoint);continue; }
-                            tmp.v1 = waitfor->val;
+                            tmp.v1 = waitfor->u.switc.val;
                             tmp.v2 = val;
                             tmp.epoint2 = &vs->epoint;
                             tmp.inplace = NULL;
@@ -2845,10 +2937,13 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_ENDM: /* .endm */
                 if (waitfor->what==W_ENDM) {
-                    if (waitfor->val != NULL) ((Macro *)waitfor->val)->retval = (here() != 0 && here() != ';');
+                    if (waitfor->u.macro.val != NULL) {
+                        ((Macro *)waitfor->u.macro.val)->retval = (here() != 0 && here() != ';');
+                        val_destroy(waitfor->u.macro.val);
+                    }
                     close_waitfor(W_ENDM);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
-                } else if (close_waitfor(W_ENDM3) || close_waitfor(W_ENDM2)) {
+                } else if (waitfor->what==W_ENDM3) { /* not closed here */
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -2859,7 +2954,7 @@ MUST_CHECK Obj *compile(void)
             case CMD_ENDF: /* .endf */
                 if (close_waitfor(W_ENDF)) {
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
-                } else if (close_waitfor(W_ENDF3) || close_waitfor(W_ENDF2)) {
+                } else if (waitfor->what==W_ENDF3) { /* not closed here */
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -2883,7 +2978,7 @@ MUST_CHECK Obj *compile(void)
                     if ((waitfor->skip & 1) != 0) {
                         listing_line(listing, epoint.pos);
                         if (pop_context()) err_msg2(ERROR__MISSING_OPEN, ".proc", &epoint);
-                        if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+                        if (waitfor->u.proc.label != NULL) {set_size(waitfor->u.proc.label, current_address->address - waitfor->u.proc.addr, current_address->mem, waitfor->u.proc.memp, waitfor->u.proc.membp);val_destroy(&waitfor->u.proc.label->v);}
                     } else pop_context();
                     close_waitfor(W_PEND);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
@@ -2893,12 +2988,12 @@ MUST_CHECK Obj *compile(void)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (waitfor->what==W_ENDS) {
                     if ((waitfor->skip & 1) != 0) {
-                        current_address->unionmode = waitfor->unionmode;
+                        current_address->unionmode = waitfor->u.strut.unionmode;
                         close_waitfor(W_ENDS);
                         break;
                     }
                     close_waitfor(W_ENDS);
-                } else if (close_waitfor(W_ENDS3) || close_waitfor(W_ENDS2)) {
+                } else if (waitfor->what==W_ENDS3 || waitfor->what==W_ENDS2) { /* not closed here */
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -2936,10 +3031,10 @@ MUST_CHECK Obj *compile(void)
                     if ((waitfor->skip & 1) != 0) union_close(&epoint);
                     close_waitfor(W_ENDU);
                     oaddr = current_address->address;
-                } else if (close_waitfor(W_ENDU3)) {
+                } else if (waitfor->what==W_ENDU3) { /* not closed here */
                     nobreak = false;
                     goto breakerr;
-                } else if (close_waitfor(W_ENDU2)) {
+                } else if (waitfor->what==W_ENDU2) { /* not closed here */
                     nobreak = false;
                 } else {err_msg2(ERROR__MISSING_OPEN, ".union", &epoint); goto breakerr;}
                 break;
@@ -2949,12 +3044,12 @@ MUST_CHECK Obj *compile(void)
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
                     if (diagnostics.page) {
-                        if (((current_address->l_address.address ^ waitfor->laddr.address) & 0xff00) != 0 ||
-                                current_address->l_address.bank != waitfor->laddr.bank) {
-                            err_msg_page((waitfor->laddr.address & 0xffff) | waitfor->laddr.bank, (current_address->l_address.address & 0xffff) | current_address->l_address.bank, &epoint);
+                        if (((current_address->l_address.address ^ waitfor->u.page.laddr.address) & 0xff00) != 0 ||
+                                current_address->l_address.bank != waitfor->u.page.laddr.bank) {
+                            err_msg_page((waitfor->u.page.laddr.address & 0xffff) | waitfor->u.page.laddr.bank, (current_address->l_address.address & 0xffff) | current_address->l_address.bank, &epoint);
                         }
                     }
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->u.page.label != NULL) {set_size(waitfor->u.page.label, current_address->address - waitfor->u.page.addr, current_address->mem, waitfor->u.page.memp, waitfor->u.page.membp);val_destroy(&waitfor->u.page.label->v);}
                     close_waitfor(W_ENDP2);
                 } else {err_msg2(ERROR__MISSING_OPEN, ".page", &epoint); goto breakerr;}
                 break;
@@ -2981,7 +3076,7 @@ MUST_CHECK Obj *compile(void)
                 if (close_waitfor(W_BEND)) {
                     pop_context();
                 } else if (waitfor->what==W_BEND2) {
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->u.block.label != NULL) {set_size(waitfor->u.block.label, current_address->address - waitfor->u.block.addr, current_address->mem, waitfor->u.block.memp, waitfor->u.block.membp);val_destroy(&waitfor->u.block.label->v);}
                     if (pop_context()) err_msg2(ERROR__MISSING_OPEN, ".block", &epoint);
                     close_waitfor(W_BEND2);
                 } else {err_msg2(ERROR__MISSING_OPEN, ".block", &epoint); goto breakerr;}
@@ -2999,7 +3094,7 @@ MUST_CHECK Obj *compile(void)
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_WEAK)) {
                 } else if (waitfor->what==W_WEAK2) {
-                    if (waitfor->label != NULL) set_size(waitfor->label, current_address->address - waitfor->addr, current_address->mem, waitfor->memp, waitfor->membp);
+                    if (waitfor->u.weak.label != NULL) {set_size(waitfor->u.weak.label, current_address->address - waitfor->u.weak.addr, current_address->mem, waitfor->u.weak.memp, waitfor->u.weak.membp);val_destroy(&waitfor->u.weak.label->v);}
                     close_waitfor(W_WEAK2);
                     strength--;
                 } else {err_msg2(ERROR__MISSING_OPEN, ".weak", &epoint); goto breakerr;}
@@ -3174,8 +3269,13 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_address->unionmode ? current_address->l_union : current_address->l_address;waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = val_reference(current_address->l_address_val);if (newlabel != NULL) waitfor->label = ref_label(newlabel);
-                    newlabel = NULL;
+                    new_waitfor(W_HERE2, &epoint);
+                    waitfor->u.logical.laddr = current_address->unionmode ? current_address->l_union : current_address->l_address;waitfor->u.logical.addr = current_address->address;waitfor->u.logical.val = val_reference(current_address->l_address_val);
+                    if (newlabel == NULL) waitfor->u.logical.label = NULL;
+                    else {
+                        waitfor->u.logical.memp = newmemp;waitfor->u.logical.membp = newmembp;waitfor->u.logical.label = ref_label(newlabel);
+                        newlabel = NULL;
+                    }
                     current_section->logicalrecursion++;
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
@@ -3230,12 +3330,13 @@ MUST_CHECK Obj *compile(void)
                     new_waitfor(W_BEND2, &epoint);
                     if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         push_context(((Code *)newlabel->value)->names);
-                        waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;if (newlabel != NULL) waitfor->label = ref_label(newlabel);
+                        waitfor->u.block.addr = current_address->address;waitfor->u.block.memp = newmemp;waitfor->u.block.membp = newmembp;waitfor->u.block.label = ref_label(newlabel);
                         newlabel = NULL;
                     } else {
                         Label *label;
                         bool labelexists;
                         str_t tmpname;
+                        waitfor->u.block.label = NULL;
                         if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
                         else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
                         anonident2.type = '.';
@@ -3312,9 +3413,14 @@ MUST_CHECK Obj *compile(void)
             case CMD_WEAK: if ((waitfor->skip & 1) != 0)
                 { /* .weak */
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_WEAK2, &epoint);waitfor->addr = current_address->address;waitfor->memp = newmemp;waitfor->membp = newmembp;if (newlabel != NULL) waitfor->label = ref_label(newlabel);
+                    new_waitfor(W_WEAK2, &epoint);
+                    if (newlabel == NULL) waitfor->u.weak.label = NULL;
+                    else {
+                        waitfor->u.weak.addr = current_address->address;waitfor->u.weak.memp = newmemp;waitfor->u.weak.membp = newmembp;waitfor->u.weak.label = ref_label(newlabel);
+                        newlabel = NULL;
+                    }
                     strength++;
-                    newlabel = NULL;
+                    if (strength == 0) err_msg2(ERROR_WEAKRECURSION, NULL, &epoint);
                 } else new_waitfor(W_WEAK, &epoint);
                 break;
             case CMD_SEED:
@@ -3608,7 +3714,7 @@ MUST_CHECK Obj *compile(void)
                                 tmp.start = tmp.end;
                                 tmp.end = tmpe;
                             }
-                            t = new_trans(&tmp, actual_encoding);
+                            t = new_trans(&tmp, actual_encoding, &epoint);
                             if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
                                 err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
                             }
@@ -3820,7 +3926,7 @@ MUST_CHECK Obj *compile(void)
                         lst = new_tuple(old->len);
                         for (i = 0; i < old->len; i++) lst->data[i] = val_reference(old->data[i]);
                     } else {
-                        lst = new_tuple(lenof(lst->val));
+                        lst = new_tuple(lenof(lst->u.val));
                         for (i = 0; i < lst->len; i++) lst->data[i] = (Obj *)ref_none();
                     }
                     i = (prm == CMD_BFOR) ? for_command(NULL, lst, &epoint) : rept_command(NULL, lst, &epoint);
@@ -3849,7 +3955,7 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, epoint.pos);
                     while ((wp--) != 0) {
                         if (waitfors[wp].what == W_NEXT2) {
-                            if (wp != 0 && prm == CMD_BREAK) waitfors[wp].breakout = true;
+                            if (wp != 0 && prm == CMD_BREAK) waitfors[wp].u.rept.breakout = true;
                             for (;wp <= waitfor_p; wp++) waitfors[wp].skip = 0;
                             nok = false;
                             break;
@@ -3862,8 +3968,13 @@ MUST_CHECK Obj *compile(void)
                 { /* .page */
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_address->address;waitfor->laddr = current_address->l_address;waitfor->memp = newmemp;waitfor->membp = newmembp;if (newlabel != NULL) waitfor->label = ref_label(newlabel);
-                    newlabel = NULL;
+                    new_waitfor(W_ENDP2, &epoint);
+                    waitfor->u.page.laddr = current_address->l_address;
+                    if (newlabel == NULL) waitfor->u.page.label = NULL;
+                    else {
+                        waitfor->u.page.addr = current_address->address;waitfor->u.page.memp = newmemp;waitfor->u.page.membp = newmembp;waitfor->u.page.label = ref_label(newlabel);
+                        newlabel = NULL;
+                    }
                 } else new_waitfor(W_ENDP, &epoint);
                 break;
             case CMD_OPTION: if ((waitfor->skip & 1) != 0)
@@ -3928,6 +4039,7 @@ MUST_CHECK Obj *compile(void)
                     if (labelname.len == 0) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                 }
                 new_waitfor(W_ENDM, &epoint);
+                waitfor->u.macro.val = NULL;
                 waitfor->skip = 0;
                 break;
             case CMD_FUNCTION: /* .function */
@@ -3959,13 +4071,13 @@ MUST_CHECK Obj *compile(void)
                 } 
                 push_dummy_context();
                 new_waitfor(W_PEND, &epoint);
-                waitfor->skip = 0;waitfor->label = NULL;
+                waitfor->skip = 0;waitfor->u.proc.label = NULL;
                 break;
             case CMD_STRUCT: /* .struct */
                 new_waitfor(W_ENDS, &epoint);
                 if ((waitfor->skip & 1) != 0) {
                     listing_line(listing, 0);
-                    waitfor->unionmode = current_address->unionmode;
+                    waitfor->u.strut.unionmode = current_address->unionmode;
                     current_address->unionmode = false;
                 }
                 break;
@@ -3974,11 +4086,11 @@ MUST_CHECK Obj *compile(void)
                 if ((waitfor->skip & 1) != 0) {
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, 0);
-                    waitfor->unionmode = current_address->unionmode;
+                    waitfor->u.unio.unionmode = current_address->unionmode;
                     current_address->unionmode = true;
-                    waitfor->addr = current_address->start;
-                    waitfor->addr2 = current_address->end;
-                    waitfor->laddr = current_address->l_union;
+                    waitfor->u.unio.addr = current_address->start;
+                    waitfor->u.unio.addr2 = current_address->end;
+                    waitfor->u.unio.laddr = current_address->l_union;
                     current_address->start = current_address->end = current_address->address;
                     current_address->l_union = current_address->l_address;
                 }
@@ -4217,7 +4329,7 @@ MUST_CHECK Obj *compile(void)
                         val_destroy(&mfunc->v);
                         goto breakerr;
                     }
-                    val = mfunc_recurse(W_ENDF3, mfunc, (Namespace *)label->value, &epoint, strength);
+                    val = mfunc_recurse(mfunc, (Namespace *)label->value, strength, &epoint);
                     val_destroy(&mfunc->v);
                 } else val = macro_recurse(W_ENDM3, val, NULL, &epoint);
                 if (val != NULL) {

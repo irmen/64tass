@@ -1,5 +1,5 @@
 /*
-    $Id: isnprintf.h 1407 2017-03-30 15:10:21Z soci $
+    $Id: isnprintf.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "inttypes.h"
 
 struct Funcargs;
-struct Obj;
 
 extern MUST_CHECK struct Obj *isnprintf(struct  Funcargs *, linepos_t);
 #endif

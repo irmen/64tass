@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.c 1621 2018-08-30 20:34:53Z soci $
+    $Id: identobj.c 1796 2019-01-12 16:28:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "unicode.h"
 
 #include "typeobj.h"
-#include "errorobj.h"
 #include "operobj.h"
 #include "strobj.h"
 

@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 1575 2017-12-28 12:56:31Z soci $
+    $Id: codeobj.h 1794 2019-01-12 15:36:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,9 +34,6 @@ typedef enum Code_types {
     D_LONG = 3,
     D_DWORD = 4
 } Code_types;
-
-struct Namespace;
-struct Memblocks;
 
 typedef struct Code {
     Obj v;
