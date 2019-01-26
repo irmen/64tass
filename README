@@ -3853,6 +3853,19 @@ a-z      U+0061-U+007A         41-5A    ?        U+00A3                5C
 ?        U+25E5                DF       ?        U+2660                C1
 ?        U+2663                D8       ?        U+2665                D3
 ?        U+2666                DA       ?        U+2713                BA
+?        U+1FB70               D4       ?        U+1FB71               C7
+?        U+1FB72               C2       ?        U+1FB73               DD
+?        U+1FB74               C8       ?        U+1FB75               D9
+?        U+1FB76               C5       ?        U+1FB77               C4
+?        U+1FB78               C3       ?        U+1FB79               C0
+?        U+1FB7A               C6       ?        U+1FB7B               D2
+?        U+1FB7C               CC       ?        U+1FB7D               CF
+?        U+1FB7E               D0       ?        U+1FB7F               BA
+?        U+1FB82               B7       ?        U+1FB83               B8
+?        U+1FB87               AA       ?        U+1FB88               B6
+?        U+1FB8C               DC       ?        U+1FB8F               A8
+?        U+1FB95               FF       ?        U+1FB98               DF
+?        U+1FB99               A9
 
                        Built-in PETSCII escape sequences
       Escape       Byte         Escape        Byte          Escape         Byte
@@ -3965,7 +3978,19 @@ A-Z     U+0041-U+005A     41-5A         [       U+005B            1B
 ?       U+25E4            69            ?       U+25E5            5F
 ?       U+2660            41            ?       U+2663            58
 ?       U+2665            53            ?       U+2666            5A
-?       U+2713            7A
+?       U+2713            7A            ?       U+1FB70           54
+?       U+1FB71           47            ?       U+1FB72           42
+?       U+1FB73           5D            ?       U+1FB74           48
+?       U+1FB75           59            ?       U+1FB76           45
+?       U+1FB77           44            ?       U+1FB78           43
+?       U+1FB79           40            ?       U+1FB7A           46
+?       U+1FB7B           52            ?       U+1FB7C           4C
+?       U+1FB7D           4F            ?       U+1FB7E           50
+?       U+1FB7F           7A            ?       U+1FB82           77
+?       U+1FB83           78            ?       U+1FB87           6A
+?       U+1FB88           76            ?       U+1FB8C           5C
+?       U+1FB8F           68            ?       U+1FB95           5E
+?       U+1FB98           5F            ?       U+1FB99           69
 
                  Built-in PETSCII screen code escape sequences
    Escape      Byte         Escape         Byte          Escape           Byte

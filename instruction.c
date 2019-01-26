@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1813 2019-01-13 16:06:49Z soci $
+    $Id: instruction.c 1828 2019-01-19 22:05:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,11 +40,11 @@ static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
 
-bool longaccu = false, longindex = false, autosize = false; /* hack */
-uint32_t dpage = 0;
-unsigned int databank = 0;
-bool longbranchasjmp = false;
-bool allowslowbranch = true;
+bool longaccu, longindex, autosize; /* hack */
+uint32_t dpage;
+unsigned int databank;
+bool longbranchasjmp;
+bool allowslowbranch;
 
 int lookup_opcode(const uint8_t *s) {
     int32_t s4;

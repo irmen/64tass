@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 1662 2018-10-06 08:20:24Z soci $
+" $Id: 64tass.vim 1830 2019-01-20 21:41:22Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -145,6 +145,15 @@ syn match tass64Escapes /{space}/ contained conceal cchar=
 syn match tass64Escapes /{cbm-9}/ contained conceal cchar=)
 syn match tass64Escapes /{cbm-0}/ contained conceal cchar=0
 syn match tass64Escapes /{shift-0}/ contained conceal cchar=0
+syn match tass64Escapes /{shift-1}/ contained conceal cchar=!
+syn match tass64Escapes /{shift-2}/ contained conceal cchar="
+syn match tass64Escapes /{shift-3}/ contained conceal cchar=#
+syn match tass64Escapes /{shift-4}/ contained conceal cchar=$
+syn match tass64Escapes /{shift-5}/ contained conceal cchar=%
+syn match tass64Escapes /{shift-6}/ contained conceal cchar=&
+syn match tass64Escapes /{shift-7}/ contained conceal cchar='
+syn match tass64Escapes /{shift-8}/ contained conceal cchar=(
+syn match tass64Escapes /{shift-9}/ contained conceal cchar=)
 syn match tass64Escapes /{shift-,}/ contained conceal cchar=<
 syn match tass64Escapes /{shift-\.}/ contained conceal cchar=>
 syn match tass64Escapes /{shift-\/}/ contained conceal cchar=?
@@ -158,6 +167,19 @@ if &enc == 'utf-8'
     syn match tass64Escapes "{shift--}" contained conceal cchar=│
     syn match tass64Escapes "{shift-+}" contained conceal cchar=┼
     syn match tass64Escapes "{shift-\*}" contained conceal cchar=─
+    syn match tass64Escapes "{shift-a}" contained conceal cchar=♠
+    syn match tass64Escapes "{shift-i}" contained conceal cchar=╮
+    syn match tass64Escapes "{shift-j}" contained conceal cchar=╰
+    syn match tass64Escapes "{shift-k}" contained conceal cchar=╯
+    syn match tass64Escapes "{shift-m}" contained conceal cchar=╲
+    syn match tass64Escapes "{shift-n}" contained conceal cchar=╱
+    syn match tass64Escapes "{shift-q}" contained conceal cchar=●
+    syn match tass64Escapes "{shift-s}" contained conceal cchar=♥
+    syn match tass64Escapes "{shift-u}" contained conceal cchar=╭
+    syn match tass64Escapes "{shift-v}" contained conceal cchar=╳
+    syn match tass64Escapes "{shift-w}" contained conceal cchar=○
+    syn match tass64Escapes "{shift-x}" contained conceal cchar=♣
+    syn match tass64Escapes "{shift-z}" contained conceal cchar=♦
     syn match tass64Escapes "{cbm-q}" contained conceal cchar=├
     syn match tass64Escapes "{cbm-w}" contained conceal cchar=┤
     syn match tass64Escapes "{cbm-z}" contained conceal cchar=└
@@ -180,6 +202,8 @@ if &enc == 'utf-8'
     syn match tass64Escapes "{cbm-o}" contained conceal cchar=▃
     syn match tass64Escapes "{cbm-p}" contained conceal cchar=▂
     syn match tass64Escapes "{cbm-@}" contained conceal cchar=▁
+    syn match tass64Escapes "{cbm-+}" contained conceal cchar=▒
+    syn match tass64Escapes "{pi}" contained conceal cchar=π
 endif
 " String formatting
 syn match tass64Escapes "%%" contained conceal cchar=%

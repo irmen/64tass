@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1817 2019-01-13 20:00:20Z soci $
+    $Id: 64tass.c 1832 2019-01-26 09:06:41Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -798,12 +798,14 @@ static void logical_close(linepos_t epoint) {
         current_address->l_union = waitfor->u.logical.laddr;
         diff = 0;
     } else {
-        diff = current_address->address - waitfor->u.logical.addr;
-        current_address->l_address.address = (waitfor->u.logical.laddr.address + diff) & 0xffff;
-        if (current_address->address > waitfor->u.logical.addr) {
-            if (current_address->l_address.address == 0) current_address->l_address.address = 0x10000;
-        }
-        current_address->l_address.bank = waitfor->u.logical.laddr.bank + (current_address->address & ~(address_t)0xffff) - (waitfor->u.logical.addr & ~(address_t)0xffff);
+        diff = (current_address->address - waitfor->u.logical.addr) & all_mem2;
+        if (diff != 0) {
+            if (waitfor->u.logical.laddr.address > 0xffff || diff > 0x10000 - waitfor->u.logical.laddr.address) {
+                current_address->l_address.address = ((waitfor->u.logical.laddr.address + diff - 1) & 0xffff) + 1;
+                if (epoint != NULL) err_msg_pc_wrap(epoint);
+            } else current_address->l_address.address = waitfor->u.logical.laddr.address + diff;
+        } else current_address->l_address.address = waitfor->u.logical.laddr.address;
+        current_address->l_address.bank = waitfor->u.logical.laddr.bank;
         if (current_address->l_address.bank > all_mem) {
             if (epoint != NULL) err_msg_big_address(epoint);
             current_address->l_address.bank &= all_mem;
@@ -4449,7 +4451,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
     for (i = opts - 1; i < argc; i++) {
         set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
         star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
-        allowslowbranch = true;temporary_label_branch = 0;
+        allowslowbranch = true; longbranchasjmp = false; temporary_label_branch = 0;
         reset_waitfor();lpoint.line = vline = 0;outputeor = 0;
         reset_context();
         current_section = &root_section;
