@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 1818 2019-01-13 20:30:50Z soci $
+   $Id: isnprintf.c 1834 2019-01-26 22:15:13Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -563,6 +563,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 error2:
                     epoint2 = v[0].epoint;
                     epoint2.pos = interstring_position(&epoint2, ((Str *)val)->data, (size_t)(data.pf - ((Str *)val)->data));
+                    msg.data = data.pf;
                     if ((c & 0x80) != 0) msg.len = utf8in(data.pf, &c); else msg.len = 1;
                     err_msg_not_defined(&msg, &epoint2);
                     err = star_args(&data);

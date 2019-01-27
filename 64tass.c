@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1832 2019-01-26 09:06:41Z soci $
+    $Id: 64tass.c 1833 2019-01-26 18:53:24Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -765,9 +765,13 @@ static bool byterecursion(Obj *val, int prm, address_t *uninit, int bits) {
         }
         if (*uninit != 0) {memskip(*uninit);*uninit = 0;}
         pokeb(ch2);
-        if (prm>=CMD_RTA) pokeb(ch2 >> 8);
-        if (prm>=CMD_LINT) pokeb(ch2 >> 16);
-        if (prm>=CMD_DINT) pokeb(ch2 >> 24);
+        if (prm >= CMD_RTA) {
+            pokeb(ch2 >> 8);
+            if (prm >= CMD_LINT) {
+                pokeb(ch2 >> 16);
+                if (prm >= CMD_DINT) pokeb(ch2 >> 24);
+            }
+        }
         if (iter == NULL) return warn;
     }
     val_destroy(&iter->v);
