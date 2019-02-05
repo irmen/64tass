@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.53 r1515 reference manual</title>
+<title>64tass v1.54 r1864 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -84,7 +84,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.53 r1515 reference manual</h1>
+<h1>64tass v1.54 r1864 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -270,7 +270,7 @@ difficult to get everything <q>right</q> first time.</b></p>
 <h2>Usage tips<a name="usage-tips" href="#usage-tips"></a></h2>
 <p>64tass is a command line assembler, the source can be written in any text
 editor. As a minimum the source filename must be given on the command line. The
-<q><a href="#o_ascii"><tt>-a</tt></a></q> command line option is highly recommended if the source is Unicode or
+<q><a href="#o_ascii"><code>-a</code></a></q> command line option is highly recommended if the source is Unicode or
 ASCII.</p>
 
 <pre width=80>
@@ -921,7 +921,7 @@ logical operators (<code>&amp;&amp;</code>, <code>||</code>, <code>^^</code>,
 <code>all</code> and <code>any</code> functions.</p>
 
 <p>Normally in numeric expressions <code>true</code> is <code>1</code> and
-<code>false</code> is <code>0</code>, unless the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option was
+<code>false</code> is <code>0</code>, unless the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option was
 used.</p>
 
 <p>Other types can be converted to boolean by using the type <code>bool</code>.</p>
@@ -988,7 +988,7 @@ by using the dot operator, which is applied between the name of the scope and th
 <h4>Regular symbols<a name="symbols-regular" href="#symbols-regular"></a></h4>
 
 <p>Regular symbol names are starting with a letter and containing
-letters, numbers and underscores. Unicode letters are allowed if the <q><a href="#o_ascii"><tt>-a</tt></a></q> command line option was used.
+letters, numbers and underscores. Unicode letters are allowed if the <q><a href="#o_ascii"><code>-a</code></a></q> command line option was used.
 There's no restriction on the length of symbol names.</p>
 
 <p>Care must be taken to not use duplicate names in the same scope when
@@ -996,15 +996,15 @@ the symbol is used as a constant as there can be only one definition for them.</
 
 <p>Duplicate names in parent scopes are not a problem and this gives the
 ability to override names defined in lower scopes. However this can just as well lead to mistakes if
-a lower scoped symbol with the same name was meant so there's a 
+a lower scoped symbol with the same name was meant so there's a
 <a href="#o_Wshadow">-Wshadow</a> command line option to warn if such ambiguity exists.</p>
 
 <p>Case sensitivity can be enabled with the
-<q><a href="#o_case-sensitive"><tt>-C</tt></a></q> command line option, otherwise all
+<q><a href="#o_case-sensitive"><code>-C</code></a></q> command line option, otherwise all
 symbols are matched case insensitive.</p>
 
 <p>For case insensitive matching it's possible to check for consistent symbol name use
-with the <q><a href="#o_Wcase-symbol"><tt>-Wcase-symbol</tt></a></q> command
+with the <q><a href="#o_Wcase-symbol"><code>-Wcase-symbol</code></a></q> command
 line option.</p>
 
 <p>A regular symbol is looked up first in the current scope, then in lower scopes
@@ -1034,7 +1034,7 @@ macros, functions, structures and unions are ignored. Also symbols defined by
 <a href="#d_var"><code>.var</code></a>, <code>:=</code> or <code>=</code> don't apply, and there are a few more
 exceptions, so stick to using plain code labels.</p>
 
-<p>The name must start with an underscore (<tt>_</tt>), otherwise the same character
+<p>The name must start with an underscore (<code>_</code>), otherwise the same character
 restrictions apply as for regular symbols. There's no restriction on the length of the name.</p>
 
 <p>Care must be taken to not use the duplicate names in the same scope when the
@@ -1269,7 +1269,7 @@ parameters to functions.</p>
 </tbody>
 </table></div>
 
-<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option.</p>
+<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option.</p>
 
 <dt><code><b>any(</b>&lt;expression&gt;<b>)</b></code><a name="f_any" href="#f_any"></a>
 <dd>Return truth for various definitions of <q>any</q>.
@@ -1283,9 +1283,9 @@ parameters to functions.</p>
 </tbody>
 </table></div>
 
-<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option.</p>
+<p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option.</p>
 
-<dt><code><b>binary(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_binary" href="#f_binary"></a>
+<dt><code><b>binary(</b>&lt;string expression&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<b>)</b></code><a name="f_binary" href="#f_binary"></a>
 <dd>Returns the binary file content as bytes.
 <p>This function reads the content of a binary file as a <a href="#byte-string">byte string</a>. It also accepts optional offset and length parameters.
 <div><table border="0">
@@ -1308,7 +1308,7 @@ play    <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$0c</span>, <sp
 <dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
 <dd>Create string from values according to a format string.
 <p>The <code>format</code> function converts a list of values into a character string.
-The converted values are inserted in place of the <code>%</code> sign. Optional 
+The converted values are inserted in place of the <code>%</code> sign. Optional
 conversion flags and minimum field length may follow, before the conversion
 type character. These flags can be used:</p>
 
@@ -1555,7 +1555,7 @@ light   <b class="d">.byte</b> <span>0</span> &gt;? <span class="k">range</span>
 <p>Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.</p>
 
-<p>With the <q><a href="#o_Wstrict-bool"><tt>-Wstrict-bool</tt></a></q> command line option
+<p>With the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option
 booleans are required as arguments and only the <q><code>?</code></q> operator may return something else.</p>
 
 <h4>Address length forcing<a name="addresslength" href="#addresslength"></a></h4>
@@ -1927,7 +1927,7 @@ The last byte can't be uninitialized or missing of course.</p>
 .100c  28             plp                     <b>plp</b>
 .100d  10 f3          bpl $1002               <b>bpl</b> <u>loop</u>
 .100f  60             rts                     <b>rts</b>
-&gt;1010  53 49 4e 47 4c 45 20 53        txt     <b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span> 
+&gt;1010  53 49 4e 47 4c 45 20 53        txt     <b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
 &gt;1018  54 52 49 4e c7
 </pre>
 
@@ -1947,7 +1947,7 @@ The last byte can't be uninitialized or missing of course.</p>
 .100a  90 f6          bcc $1002               <b>bcc</b> <u>loop</u>
 .100c  60             rts                     <b>rts</b>
                                               <b class="k">.enc</b> <span class="s">"screen"</span>
-&gt;100d  a6 92 9c 8e 98 8a 40 a6                <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span> 
+&gt;100d  a6 92 9c 8e 98 8a 40 a6                <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
 &gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> <span class="s">"none"</span>
 </pre>
 
@@ -2451,7 +2451,7 @@ and <a href="#d_brept"><code>.brept</code></a> to start the next iteration immed
 <dt><code><b class="k">.next</b></code><a name="d_next" href="#d_next"></a>
 <dd>Closing directive of <a href="#d_for"><code>.for</code></a>,
 <a href="#d_bfor"><code>.bfor</code></a>, <a href="#d_rept"><code>.rept</code></a>
-and <a href="#d_brept"><code>.brept</code></a> loop.</p>
+and <a href="#d_brept"><code>.brept</code></a> loop.
 
 <dt><code><b class="k">.lbl</b></code><a name="d_lbl" href="#d_lbl"></a>
 <dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
@@ -2500,8 +2500,11 @@ menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;
 </pre>
 
 <dt><code><b class="d">.binary</b></code> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<a name="d_binary" href="#d_binary"></a>
-<dd>Include raw binary data from file. By using offset and length it's possible to break out chunks of data from a
-file separately, like bitmap and colors for example.
+<dd>Include raw binary data from file.
+
+<p>By using offset and length it's possible to break out chunks of data from a
+file separately, like bitmap and colors for example. Negative offsets are calculated from the end of file.</p>
+
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>     <i>;skip start address</i>
@@ -2998,7 +3001,7 @@ anonymous labels defined after the jump instruction when jumping forward!</p>
 <p>To avoid branch too long errors the assembler also supports long branches.
 It can automatically convert conditional relative branches to it's opposite and
 a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
-line using the <q><a href="#o_long-branch"><tt>--long-branch</tt></a></q> option.</p>
+line using the <q><a href="#o_long-branch"><code>--long-branch</code></a></q> option.</p>
 
 <pre>
 .0000    ea             nop                     <b>nop</b>
@@ -3047,12 +3050,12 @@ following command line:</p>
 most of the features of the original <q>Turbo Assembler Macro</q>.
 The remaining notable differences are listed here.</p>
 <h3>Labels<a name="tasm-labels" href="#tasm-labels"></a></h3>
-<p>The original turbo assembler uses case sensitive labels, use the <q><a href="#o_case-sensitive"><tt>--case-sensitive</tt></a></q>
+<p>The original turbo assembler uses case sensitive labels, use the <q><a href="#o_case-sensitive"><code>--case-sensitive</code></a></q>
 command line option to enable this behaviour.</p>
 
 <h3>Expression evaluation<a name="tasm-expression" href="#tasm-expression"></a></h3>
 
-<p>There are a few differences which can be worked around by the <q><a href="#o_tasm-compatible"><tt>--tasm-compatible</tt></a></q> command line option.
+<p>There are a few differences which can be worked around by the <q><a href="#o_tasm-compatible"><code>--tasm-compatible</code></a></q> command line option.
 These are:</p>
 
 <p>The original expression parser has no operator precedence, but 64tass has. That
@@ -3155,13 +3158,13 @@ zeros. Uninitialized memory after the last valid byte is not saved. Up to 4&nbsp
 <div><table border="0">
 <caption>Result of compilation</caption>
 <tbody>
-<tr><td><tt>$02, $00</tt><td>little endian length, 2 bytes
-<tr><td><tt>$00, $10</tt><td>little endian start $1000
-<tr><td><tt>$a9, $02</tt><td>code
-<tr><td><tt>$01, $00</tt><td>little endian length, 1 byte
-<tr><td><tt>$00, $20</tt><td>little endian start $2000
-<tr><td><tt>$ea</tt><td>code
-<tr><td><tt>$00, $00</tt><td>end marker (length=0)
+<tr><td><code>$02, $00</code><td>little endian length, 2 bytes
+<tr><td><code>$00, $10</code><td>little endian start $1000
+<tr><td><code>$a9, $02</code><td>code
+<tr><td><code>$01, $00</code><td>little endian length, 1 byte
+<tr><td><code>$00, $20</code><td>little endian start $2000
+<tr><td><code>$ea</code><td>code
+<tr><td><code>$00, $00</code><td>end marker (length=0)
 </tbody>
 </table></div>
 
@@ -3181,13 +3184,13 @@ start	<b>rts</b>
 <div><table border="0">
 <caption>Result of compilation</caption>
 <tbody>
-<tr><td><tt>$ff, $ff</tt><td>header, 2 bytes
-<tr><td><tt>$e0, $02</tt><td>little endian start $02e0
-<tr><td><tt>$e1, $02</tt><td>little endian last byte $02e1
-<tr><td><tt>$00, $20</tt><td>start address word
-<tr><td><tt>$00, $20</tt><td>little endian start $2000
-<tr><td><tt>$00, $20</tt><td>little endian last byte $2000
-<tr><td><tt>$60</tt><td>code
+<tr><td><code>$ff, $ff</code><td>header, 2 bytes
+<tr><td><code>$e0, $02</code><td>little endian start $02e0
+<tr><td><code>$e1, $02</code><td>little endian last byte $02e1
+<tr><td><code>$00, $20</code><td>start address word
+<tr><td><code>$00, $20</code><td>little endian start $2000
+<tr><td><code>$00, $20</code><td>little endian last byte $2000
+<tr><td><code>$60</code><td>code
 </tbody>
 </table></div>
 
@@ -3204,9 +3207,9 @@ before the first and after the last valid bytes are not saved. Up to 64&nbsp;KiB
 <div><table border="0">
 <caption>Result of compilation</caption>
 <tbody>
-<tr><td><tt>$00, $0c</tt><td>little endian start $0c00
-<tr><td><tt>$01, $00</tt><td>little endian length $0001
-<tr><td><tt>$60</tt><td>code
+<tr><td><code>$00, $0c</code><td>little endian start $0c00
+<tr><td><code>$01, $00</code><td>little endian length $0001
+<tr><td><code>$60</code><td>code
 </tbody>
 </table></div>
 
@@ -3864,7 +3867,6 @@ including comments and empty lines.
 
 <h3>Command line from file<a name="commandline-file" href="#commandline-file"></a></h3>
 
-<dl class="dir">
 <p>Command line arguments can be read from a file as well. This is useful to store
 common options for multiple files in one place or to overcome the argument list length
 limitations of some systems.</p>
@@ -3881,14 +3883,13 @@ be used to escape itself. Single and double quotes need to be escaped if
 needed for string quoting.</p>
 
 <p>Forward slashes can be used as a portable path separation on all systems.</p>
-</dl>
 
 <hr>
 <h2>Messages<a name="messages" href="#messages"></a></h2>
 
 <p>Faults and warnings encountered are sent to standard error for logging. To
 redirect them into a file append <q>2&gt;filename.log</q> after the
-command, or use the <q><a href="#o_error"><tt>-E</tt></a></q> command
+command, or use the <q><a href="#o_error"><code>-E</code></a></q> command
 line option. The message format is the following:</p>
 <p>&lt;filename&gt;:&lt;line&gt;:&lt;character&gt;: &lt;severity&gt;: &lt;message&gt;</p>
 <ul>
@@ -4090,7 +4091,7 @@ This mode is for compiling sources which are already PETSCII.</p>
 </table></div>
 
 <h3>Unicode and ASCII source<a name="translate-unicode" href="#translate-unicode"></a></h3>
-<p>Unicode encoding is used when the <q><a href="#o_ascii"><tt>-a</tt></a></q> option is given on the command line.</p>
+<p>Unicode encoding is used when the <q><a href="#o_ascii"><code>-a</code></a></q> option is given on the command line.</p>
 <h4>The <q>none</q> encoding for Unicode<a name="translate-unicode-none" href="#translate-unicode-none"></a></h4>
 This is a Unicode to PETSCII mapping, including escape sequences for control codes.
 <div><table width="100%" class="trans">

@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 1690 2018-12-09 21:07:14Z soci $
+    $Id: boolobj.c 1859 2019-01-31 20:03:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -129,8 +129,8 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD: return (Obj *)bytes_from_u16(v1 ? 1 : 0);
     case O_BSWORD: return (Obj *)bytes_from_u16(v1 ? 0x100 : 0);
     case O_INV: return (Obj *)ibits_from_bool(v1);
-    case O_NEG: return (Obj *)ref_int(v1 ? minus1_value : int_value[0]);
-    case O_POS: return int_from_bool2(v1);
+    case O_NEG: return v1 ? (Obj *)ibits_from_bool(false) : (Obj *)ref_bits(bits_value[0]);
+    case O_POS: return (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
     case O_STRING:
         v = new_str2(1);
         if (v == NULL) return NULL;

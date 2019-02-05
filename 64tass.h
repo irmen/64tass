@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1803 2019-01-13 07:29:19Z soci $
+    $Id: 64tass.h 1864 2019-02-03 21:21:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION
-#define REVISION "1515?"
+#define REVISION "1864?"
 #endif
 #undef VERSION
-#define VERSION "1.53." REVISION
+#define VERSION "1.54." REVISION
 #define MAX_PASS 20
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
@@ -54,5 +54,5 @@ extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
 extern bool close_waitfor(Wait_types);
 extern struct Obj *compile(void);
-extern FAST_CALL void pokeb(unsigned int);
+extern FAST_CALL uint8_t *pokealloc(address_t);
 #endif

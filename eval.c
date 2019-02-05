@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1814 2019-01-13 17:26:41Z soci $
+    $Id: eval.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -187,56 +187,48 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
     size_t len, len2;
     Obj *v;
 
-    lpoint.pos++;
-    v = bits_from_hexstr(pline + lpoint.pos, &len, &len2, epoint);
-
-    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
+    v = bits_from_hexstr(pline + lpoint.pos + 1, &len, epoint);
+    lpoint.pos += len + 1;
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
         double real, real2;
-        real = toreal_destroy(v, &lpoint);
-        lpoint.pos += len + 1;
+        lpoint.pos++;
+        real = toreal_destroy(v, epoint);
 
-        v = bits_from_hexstr(pline + lpoint.pos, &len, &len2, epoint);
-        real2 = toreal_destroy(v, &lpoint);
-        lpoint.pos += len;
-
-        if (real2 != 0.0) real += ldexp(real2, -(int)(4*len2));
-        return get_exponent(real, epoint);
-    }
-    lpoint.pos += len;
-    switch (here() | 0x20) {
-    case 'e':
-    case 'p':
-        return get_exponent2(v, epoint);
-    default: 
-        return v;
-    }
-}
-
-static MUST_CHECK Obj *get_bin(linepos_t epoint) {
-    size_t len, len2;
-    Obj *v;
-
-    lpoint.pos++;
-    v = bits_from_binstr(pline + lpoint.pos, &len, &len2, epoint);
-
-    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
-        double real, real2;
-        real = toreal_destroy(v, &lpoint);
-        lpoint.pos += len + 1;
-
-        v = bits_from_binstr(pline + lpoint.pos, &len, &len2, epoint);
+        v = bits_from_hexstr(pline + lpoint.pos, &len, epoint);
+        len2 = v->obj == BITS_OBJ ? ((Bits *)v)->bits : 0;
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
         if (real2 != 0.0) real += ldexp(real2, -(int)len2);
         return get_exponent(real, epoint);
     }
-    lpoint.pos += len;
+    return (here() | 0x20) == 'p' ? get_exponent2(v, epoint) : v;
+}
+
+static MUST_CHECK Obj *get_bin(linepos_t epoint) {
+    size_t len, len2;
+    Obj *v;
+
+    v = bits_from_binstr(pline + lpoint.pos + 1, &len, epoint);
+    lpoint.pos += len + 1;
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
+        double real, real2;
+        lpoint.pos++;
+        real = toreal_destroy(v, epoint);
+
+        v = bits_from_binstr(pline + lpoint.pos, &len, epoint);
+        len2 = v->obj == BITS_OBJ ? ((Bits *)v)->bits : 0;
+        real2 = toreal_destroy(v, &lpoint);
+        lpoint.pos += len;
+
+        if (real2 != 0.0) real += ldexp(real2, -(int)len2);
+        return get_exponent(real, epoint);
+    }
     switch (here() | 0x20) {
     case 'e':
     case 'p':
         return get_exponent2(v, epoint);
-    default: 
+    default:
         return v;
     }
 }
@@ -246,10 +238,11 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
     Obj *v;
 
     v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
-    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
+    lpoint.pos += len;
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
         double real, real2;
-        real = toreal_destroy(v, &lpoint);
-        lpoint.pos += len + 1;
+        lpoint.pos++;
+        real = toreal_destroy(v, epoint);
 
         v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
         real2 = toreal_destroy(v, &lpoint);
@@ -258,12 +251,11 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
         if (real2 != 0.0) real += ldexp10(real2, (unsigned int)len2, true);
         return get_exponent(real, epoint);
     }
-    lpoint.pos += len;
     switch (here() | 0x20) {
     case 'e':
     case 'p':
         return get_exponent2(v, epoint);
-    default: 
+    default:
         return v;
     }
 }
@@ -401,7 +393,7 @@ static void extend_opr(struct opr_s *opr) {
         memcpy(data, opr->data, OPR_LEN * sizeof *opr->data);
         opr->data = data;
         return;
-    } 
+    }
     opr->data = (struct opr_data_s *)reallocx(opr->data, opr->l * sizeof *opr->data);
 }
 
@@ -430,7 +422,7 @@ rest:
     }
     switch (here()) {
     case 0:
-    case ';': 
+    case ';':
         if (opr.l != lenof(oprdata)) free(opr.data);
         return true;
     case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break;
@@ -492,11 +484,11 @@ rest:
             llen = get_label();
             if (llen == 1) {
                 switch (pline[epoint.pos + 1] | arguments.caseinsensitive) {
-                case 'x': 
+                case 'x':
                     opr.data[opr.p].epoint = epoint; opr.data[opr.p++].val = &o_COMMAX;
                     if (opr.p >= opr.l) extend_opr(&opr);
                     goto other;
-                case 'y': 
+                case 'y':
                     opr.data[opr.p].epoint = epoint; opr.data[opr.p++].val = &o_COMMAY;
                     if (opr.p >= opr.l) extend_opr(&opr);
                     goto other;
@@ -538,7 +530,7 @@ rest:
             if (conv != NULL) push_oper(conv, &cpoint);
             if (conv2 != NULL) push_oper(conv2, &cpoint);
             break;
-        default: 
+        default:
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         }
@@ -1398,12 +1390,12 @@ static bool get_exp2(int stop) {
                 if (o == &o_SPLAT || o == &o_POS || o == &o_NEG) goto tryanon;
             }
             lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
-        case '.': 
+        case '.':
             if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) {
                 if (pline[lpoint.pos + 1] == '.' && pline[lpoint.pos + 2] == '.') {
                     lpoint.pos += 3;push_oper((Obj *)ref_fold(), &epoint);goto other;
                 }
-                goto tryanon; 
+                goto tryanon;
             }
             /* fall through */
         case '0':

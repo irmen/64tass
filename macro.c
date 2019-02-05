@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1807 2019-01-13 09:51:12Z soci $
+    $Id: macro.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,13 +80,13 @@ bool mtranslate(void) {
     q = p = 0; last = 0; fault = false;
     for (; (ch = here()) != 0; lpoint.pos++) {
         switch (ch) {
-        case '"': 
+        case '"':
             if ((q & 2) == 0) q ^= 1;
             break;
-        case '\'': 
+        case '\'':
             if ((q & 1) == 0) q ^= 2;
             break;
-        case ';': 
+        case ';':
             if (q == 0) q = 4;
             break;
         case '\\':
@@ -112,7 +112,7 @@ bool mtranslate(void) {
                     if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
                     mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                 }
-                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
                 if (param.len != 0) {
                     memcpy(mline->data + p, param.data, param.len);
                     p += param.len;
@@ -129,7 +129,7 @@ bool mtranslate(void) {
                     if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
                     mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                 }
-                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
                 if (all->len != 0) {
                     memcpy(mline->data + p, all->data, all->len);
                     p += all->len;
@@ -178,7 +178,7 @@ bool mtranslate(void) {
                         if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
                         mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                     }
-                    if (p != last) memcpy(mline->data + last, pline + e.pos - p + last, p - last); 
+                    if (p != last) memcpy(mline->data + last, pline + e.pos - p + last, p - last);
                     if (param.len != 0) {
                         memcpy(mline->data + p, param.data, param.len);
                         p += param.len;
@@ -206,7 +206,7 @@ bool mtranslate(void) {
                         if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
                         mline->data = (uint8_t *)reallocx(mline->data, mline->len);
                     }
-                    if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+                    if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
                     if (param[j].len > 1 && param[j].data[0] == '"' && param[j].data[param[j].len-1]=='"') {
                         memcpy(mline->data + p, param[j].data + 1, param[j].len - 2);
                         p += param[j].len - 2;
@@ -231,10 +231,10 @@ bool mtranslate(void) {
             if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
             mline->data = (uint8_t *)reallocx(mline->data, mline->len);
         }
-        if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last); 
+        if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
         while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
         mline->data[p] = 0;
-        llist = pline = fault ? (const uint8_t *)"" : mline->data; 
+        llist = pline = fault ? (const uint8_t *)"" : mline->data;
     } else {
         line_t lnum;
         if (cfile->nomacro == NULL) {
@@ -718,7 +718,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         section_address.l_union.address = 0;
         section_address.l_union.bank = 0;
         section_address.end = 0;
-        section_address.mem = new_memblocks(0);
+        section_address.mem = new_memblocks(0, 0);
         section_address.mem->lastaddr = 0;
         section_address.l_address = current_address->l_address;
         section_address.l_address_val = val_reference(current_address->l_address_val);

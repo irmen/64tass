@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.h 1609 2018-08-26 12:01:33Z soci $
+    $Id: bitsobj.h 1838 2019-01-27 10:03:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,8 +50,8 @@ static inline Bits *ref_bits(Bits *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MUST_CHECK Obj *bits_from_hexstr(const uint8_t *, size_t *, size_t *, linepos_t);
-extern MUST_CHECK Obj *bits_from_binstr(const uint8_t *, size_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *bits_from_hexstr(const uint8_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *bits_from_binstr(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *bits_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Obj *bits_from_bytes(const struct Bytes *, linepos_t);
 extern MUST_CHECK Bits *bits_from_uval(uval_t, unsigned int);

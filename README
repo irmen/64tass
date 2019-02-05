@@ -1,4 +1,4 @@
-64tass v1.53 r1515 reference manual
+64tass v1.54 r1864 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1000,7 +1000,7 @@ any(<expression>)
     Only booleans in a list are accepted with the `-Wstrict-bool' command line
     option.
 
-binary(<string expression>[, <expression>, ...])
+binary(<string expression>[, <offset>[, <length>]])
     Returns the binary file content as bytes.
 
     This function reads the content of a binary file as a byte string. It also
@@ -2068,7 +2068,6 @@ Repetitions
 
 .next
     Closing directive of .for, .bfor, .rept and .brept loop.
-
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
@@ -2110,9 +2109,11 @@ directory separator and use lower/uppercase consistently in file names!
             jmp menu.start
 
 .binary <filename>[, <offset>[, <length>]]
-    Include raw binary data from file. By using offset and length it's possible
-    to break out chunks of data from a file separately, like bitmap and colors
-    for example.
+    Include raw binary data from file.
+
+    By using offset and length it's possible to break out chunks of data from a
+    file separately, like bitmap and colors for example. Negative offsets are
+    calculated from the end of file.
 
             .binary "stuffz.bin"        ;simple include, all bytes
             .binary "stuffz.bin", 2     ;skip start address
@@ -3442,21 +3443,21 @@ Other options
 Command line from file
 
 Command line arguments can be read from a file as well. This is useful to store
-    common options for multiple files in one place or to overcome the argument
-    list length limitations of some systems.
+common options for multiple files in one place or to overcome the argument list
+length limitations of some systems.
 
-    The filename needs to be prefixed with an at sign, so `@argsfile' reads
-    options from `argsfile'. It will only work if there's not another file
-    named `@argsfile'. The content is expanded in-place of `@argsfile'.
+The filename needs to be prefixed with an at sign, so `@argsfile' reads options
+from `argsfile'. It will only work if there's not another file named
+`@argsfile'. The content is expanded in-place of `@argsfile'.
 
-    Stored options must be separated by white space. Single or double quotes
-    can be used in case file names have white space in their names.
+Stored options must be separated by white space. Single or double quotes can be
+used in case file names have white space in their names.
 
-    Backslash can be used to escape the character following it and it must be
-    used to escape itself. Single and double quotes need to be escaped if
-    needed for string quoting.
+Backslash can be used to escape the character following it and it must be used
+to escape itself. Single and double quotes need to be escaped if needed for
+string quoting.
 
-    Forward slashes can be used as a portable path separation on all systems.
+Forward slashes can be used as a portable path separation on all systems.
 
 -------------------------------------------------------------------------------
 

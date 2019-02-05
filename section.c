@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1794 2019-01-12 15:36:49Z soci $
+    $Id: section.c 1851 2019-01-29 20:04:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->optimizer = NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
-        lastsc->address.mem = new_memblocks(0);
+        lastsc->address.mem = new_memblocks(0, 0);
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
         tmp = lastsc;
@@ -163,7 +163,7 @@ void init_section(void) {
     root_section.cfname.len = 0;
     root_section.next = NULL;
     root_section.optimizer = NULL;
-    root_section.address.mem = new_memblocks(0);
+    root_section.address.mem = new_memblocks(0, 0);
     root_section.address.l_address_val = (Obj *)ref_int(int_value[0]);
     avltree_init(&root_section.members);
     avltree_init(&root_section.longjump);

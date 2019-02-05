@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 1761 2018-12-31 21:12:43Z soci $
+    $Id: functionobj.c 1850 2019-01-29 13:42:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -371,7 +371,8 @@ failed:
 static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
     struct values_s *v = vals->val;
     Error *err;
-    uval_t offset = 0, length = 0;
+    ival_t offs = 0;
+    uval_t length = (uval_t)-1;
     char *path = NULL;
     str_t filename;
 
@@ -385,7 +386,7 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
         if (err != NULL) return &err->v;
         /* fall through */
     case 2:
-        err = v[1].val->obj->uval(v[1].val, &offset, 8 * sizeof offset, &v[1].epoint);
+        err = v[1].val->obj->ival(v[1].val, &offs, 8 * sizeof offs, &v[1].epoint);
         if (err != NULL) return &err->v;
         /* fall through */
     default:
@@ -395,10 +396,12 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
         struct file_s *cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, epoint);
         free(path);
         if (cfile2 != NULL) {
-            size_t ln = cfile2->len;
+            size_t offset, ln = cfile2->len;
             Bytes *b;
+            if (offs < 0) offset = ((uval_t)-offs < ln) ? (ln - (uval_t)-offs) : 0;
+            else offset = (uval_t)offs;
             if (offset < ln) ln -= offset; else ln = 0;
-            if (vals->len >= 3 && length < ln) ln = length;
+            if (length < ln) ln = length;
             if (ln == 0) return (Obj *)ref_bytes(null_bytes);
             if (ln > SSIZE_MAX) return (Obj *)new_error_mem(epoint);
             b = new_bytes(ln);

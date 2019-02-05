@@ -8,7 +8,7 @@ OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  errorobj.o macroobj.o mfuncobj.o identobj.o memblocksobj.o foldobj.o
 LDLIBS = -lm
 LANG = C
-REVISION := $(shell svnversion | grep --color=none "^[1-9]" || echo "1515?")
+REVISION := $(shell svnversion | grep --color=none "^[1-9]" || echo "1864?")
 CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)

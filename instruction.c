@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1828 2019-01-19 22:05:25Z soci $
+    $Id: instruction.c 1843 2019-01-28 05:47:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,22 +95,23 @@ MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
     return v;
 }
 
-static Error *dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
+static void dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
     if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
-        uint32_t temp = adr;
+        uint8_t *d;
+        uint32_t temp;
         poke_pos = epoint;
-        pokeb(cod);
+        d = pokealloc(ln + 1);
+        temp = adr ^ outputeor;
         switch (ln) {
-        case 4: pokeb(temp); temp >>= 8; /* fall through */
-        case 3: pokeb(temp); temp >>= 8; /* fall through */
-        case 2: pokeb(temp); temp >>= 8; /* fall through */
-        case 1: pokeb(temp); /* fall through */
-        default: break;
+        case 4: d[4] = temp >> 24; /* fall through */
+        case 3: d[3] = temp >> 16; /* fall through */
+        case 2: d[2] = temp >> 8; /* fall through */
+        case 1: d[1] = temp; /* fall through */
+        default: d[0] = cod ^ outputeor;
         }
     }
     listing_instr(listing, cod, adr, ln);
-    return NULL;
 }
 
 MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoint, struct linepos_s *epoints) {
@@ -955,6 +956,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
 
     cod = cnmemonic[opr];
     if (opr == ADR_REG) cod = regopcode_table[cod][reg];
-    return dump_instr(cod ^ longbranch, adr, (int)ln, epoint);
+    dump_instr(cod ^ longbranch, adr, (int)ln, epoint);
+    return NULL;
 }
 

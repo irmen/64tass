@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1817 2019-01-13 20:00:20Z soci $
+    $Id: listobj.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -392,7 +392,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                     for (i = 0; i < v1->len; i++) {
                         Obj *oo1 = op->v1 = v1->data[i];
                         Obj *oo2 = op->v2 = v2->data[i];
-                        Obj *val; 
+                        Obj *val;
                         op->inplace = (inplace == v1 && oo1->refcount == 1 && !minmax) ? oo1 : NULL;
                         val = op->v1->obj->calc2(op);
                         if (minmax) {
@@ -524,7 +524,6 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     if (o2->obj == LIST_OBJ) {
         iter_next_t iter_next;
         Iter *iter = o2->obj->getiter(o2);
-        bool error;
         size_t len = iter->len(iter);
 
         if (len == 0) {
@@ -537,14 +536,11 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             val_destroy(&iter->v);
             goto failed;
         }
-        error = true;
         iter_next = iter->next;
         for (i = 0; i < len && (o2 = iter_next(iter)) != NULL; i++) {
             err = indexoffs(o2, ln, &offs2, epoint2);
             if (err != NULL) {
-                if (error) {err_msg_output(err); error = false;}
-                val_destroy(&err->v);
-                vals[i] = (Obj *)ref_none();
+                vals[i] = &err->v;
                 continue;
             }
             if (more) {
@@ -604,6 +600,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj **vals;
 
     if (op->op == &o_X) {
+        if (o2 == &none_value->v || o2->obj == ERROR_OBJ) return val_reference(o2);
         return repeat(op);
     }
     if (op->op == &o_IN) {

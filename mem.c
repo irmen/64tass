@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 1595 2018-08-24 14:17:29Z soci $
+    $Id: mem.c 1863 2019-02-03 19:51:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -505,13 +505,25 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 #endif
 }
 
-FAST_CALL void write_mem(Memblocks *memblocks, unsigned int c) {
-    if (memblocks->mem.p >= memblocks->mem.len) {
-        memblocks->mem.len += 0x1000;
+FAST_CALL uint8_t *alloc_mem(Memblocks *memblocks, size_t len) {
+    size_t p = memblocks->mem.p + len;
+    uint8_t *d;
+    if (p < len) err_msg_out_of_memory(); /* overflow */
+    if (p > memblocks->mem.len) {
+        memblocks->mem.len = p + 0x1000;
         if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
         memblocks->mem.data = (uint8_t *)reallocx(memblocks->mem.data, memblocks->mem.len);
     }
-    memblocks->mem.data[memblocks->mem.p++] = (uint8_t)c;
+    d = memblocks->mem.data + memblocks->mem.p;
+    do {
+        size_t left = all_mem2 - (memblocks->lastaddr + memblocks->mem.p - memblocks->lastp);
+        if (len <= left) break;
+        memblocks->mem.p += left + 1;
+        len -= left + 1;
+        memjmp(memblocks, 0);
+    } while (true);
+    memblocks->mem.p = p;
+    return d;
 }
 
 static size_t omemp;
@@ -525,32 +537,39 @@ void mark_mem(const Memblocks *memblocks, address_t adr, address_t adr2) {
     oaddr2 = adr2;
 }
 
-void get_mem(const Memblocks *memblocks, size_t *memp, size_t *membp) {
-    *memp = memblocks->mem.p;
-    *membp = memblocks->p;
+size_t get_mem(const Memblocks *memblocks) {
+    return memblocks->p;
 }
 
-int read_mem(const Memblocks *memblocks, size_t memp, size_t membp, size_t offs) {
+int read_mem(const Memblocks *memblocks, address_t raddr, size_t membp, size_t offs) {
+    address_t addr, diff;
     size_t len;
-    if (memp >= memblocks->mem.p) return -1;
-    for (;;) {
-        if (membp < memblocks->p) {
-            len = memblocks->data[membp].len - (memp - memblocks->data[membp].p);
-        } else {
-            len = memblocks->mem.p - memp;
-        }
-        if (offs < len) return memblocks->mem.data[memp + offs];
-        offs -= len;
-        memp += len;
-        if (membp + 1 < memblocks->p) {
-            len = memblocks->data[membp + 1].addr - memblocks->data[membp].addr - memblocks->data[membp].len;
-        } else if (membp < memblocks->p) {
-            len = memblocks->lastaddr - memblocks->data[membp].addr - memblocks->data[membp].len;
-        } else return -1;
-        if (offs < len) return -1;
-        offs -= len;
-        membp++;
+    if (membp < memblocks->p) {
+        addr = memblocks->data[membp].addr;
+    } else {
+        addr = memblocks->lastaddr;
     }
+    if (raddr > addr) {
+        offs += raddr - addr;
+        raddr = addr;
+    }
+    for (; membp < memblocks->p; membp++) {
+        addr = memblocks->data[membp].addr;
+        diff = (addr - raddr) & all_mem2;
+        if (diff > offs) return -1;
+        offs -= diff;
+        len = memblocks->data[membp].len;
+        if (offs < len) return memblocks->mem.data[memblocks->data[membp].p + offs];
+        offs -= len;
+        raddr = (addr + len) & all_mem2;
+    }
+    addr = memblocks->lastaddr;
+    diff = (addr - raddr) & all_mem2;
+    if (diff > offs) return -1;
+    offs -= diff;
+    len = memblocks->mem.p - memblocks->lastp;
+    if (offs < len) return memblocks->mem.data[memblocks->lastp + offs];
+    return -1;
 }
 
 void write_mark_mem(Memblocks *memblocks, unsigned int c) {
@@ -558,33 +577,40 @@ void write_mark_mem(Memblocks *memblocks, unsigned int c) {
 }
 
 void list_mem(const Memblocks *memblocks) {
-    address_t myaddr;
-    size_t len;
-    bool first = true, print = true;
+    bool first = true;
+    size_t o = omemp;
+    address_t addr2 = oaddr;
 
-    for (;omemp <= memblocks->p;omemp++, first = false) {
-        if (omemp < memblocks->p) {
-            if (first && oaddr < memblocks->data[omemp].addr) {
-                len = 0; myaddr = oaddr; omemp--;
-            } else {
-                len = memblocks->data[omemp].len - (ptextaddr - memblocks->data[omemp].p);
-                myaddr = (memblocks->data[omemp].addr + memblocks->data[omemp].len - len) & all_mem;
-            }
+    for (; o <= memblocks->p; o++) {
+        size_t p;
+        address_t addr, len;
+
+        if (o < memblocks->p) {
+            addr = memblocks->data[o].addr;
+            p = memblocks->data[o].p;
+            len = memblocks->data[o].len;
         } else {
-            if (first && oaddr < memblocks->lastaddr) {
-                len = 0; myaddr = oaddr; omemp--;
-            } else {
-                myaddr = memblocks->lastaddr + (address_t)(ptextaddr - memblocks->lastp);
-                len = memblocks->mem.p - ptextaddr;
-                if (len == 0) {
-                    if (!print) continue;
-                    if (first) myaddr = oaddr;
-                    else myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;
-                }
-            }
+            addr = memblocks->lastaddr;
+            p = memblocks->lastp;
+            len = memblocks->mem.p - p;
         }
-        listing_mem(listing, memblocks->mem.data + ptextaddr, len, myaddr, ((oaddr2 + myaddr - oaddr) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
-        print = false;
-        ptextaddr += len;
+
+        if (first) {
+            if (addr2 < addr) {
+                addr = addr2;
+                len = 0;
+                o--;
+            } else {
+                address_t diff = addr2 - addr;
+                if (diff > len) continue;
+                addr = addr2;
+                p += diff;
+                len -= diff;
+            }
+            first = false;
+        } else {
+            if (len == 0) continue;
+        }
+        listing_mem(listing, memblocks->mem.data + p, len, addr, ((oaddr2 + addr - addr2) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
     }
 }

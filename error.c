@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1802 2019-01-13 00:15:58Z soci $
+    $Id: error.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -108,10 +108,10 @@ static void close_error(void) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
-        case SV_NOTE: 
+        case SV_NOTE:
             if (!duplicate) memset(&err->node, 0, sizeof err->node);
             break;
-        default: 
+        default:
             duplicate = avltree_insert(&err->node, &error_list.members, duplicate_compare) != NULL;
         }
         if (duplicate) {
@@ -809,7 +809,7 @@ void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
 void err_msg_cant_unpack(size_t expect, size_t got, linepos_t epoint) {
     char line[1024];
     new_error_msg(SV_ERROR, current_file_list, epoint);
-    sprintf(line, "expected %" PRIuSIZE " values but got %" PRIuSIZE " to unpack", expect, got); 
+    sprintf(line, "expected %" PRIuSIZE " values but got %" PRIuSIZE " to unpack", expect, got);
     adderror(line);
 }
 
@@ -1013,9 +1013,9 @@ void err_msg_type_mixing(linepos_t epoint) {
 void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     Error err;
     err.u.invoper.op = op;
-    err.u.invoper.v1 = v1; 
-    err.u.invoper.v2 = v2; 
-    err.file_list = current_file_list; 
+    err.u.invoper.v1 = v1;
+    err.u.invoper.v2 = v2;
+    err.file_list = current_file_list;
     err.epoint = *epoint;
     err.line = NULL;
     err_msg_invalid_oper3(&err);
@@ -1099,7 +1099,7 @@ void err_msg_branch_page(int by, linepos_t epoint) {
 void err_msg_page(address_t adr, address_t adr2, linepos_t epoint) {
     char line[256];
     new_error_msg2(diagnostic_errors.page, epoint);
-    sprintf(line,"different start and end page $%04" PRIaddress " and $%04" PRIaddress " [-Wpage]", adr, adr2); 
+    sprintf(line,"different start and end page $%04" PRIaddress " and $%04" PRIaddress " [-Wpage]", adr, adr2);
     adderror(line);
 }
 

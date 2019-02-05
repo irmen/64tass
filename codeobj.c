@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1761 2018-12-31 21:12:43Z soci $
+    $Id: codeobj.c 1845 2019-01-28 07:55:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -261,7 +261,7 @@ static MUST_CHECK Obj *code_item(const Code *v1, ssize_t offs2, size_t ln2) {
     offs = (size_t)offs2 * ln2;
     r = -1;
     for (val = i2 = 0; i2 < ln2; i2++, offs++) {
-        r = read_mem(v1->memblocks, v1->memp, v1->membp, offs);
+        r = read_mem(v1->memblocks, v1->memaddr, v1->membp, offs);
         if (r < 0) return (Obj *)ref_gap();
         val |= (uval_t)r << (i2 * 8);
     }
@@ -341,7 +341,6 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         Iter *iter = o2->obj->getiter(o2);
         size_t len1 = iter->len(iter);
         Tuple *v;
-        bool error;
 
         if (len1 == 0) {
             val_destroy(&iter->v);
@@ -349,14 +348,11 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         }
         v = new_tuple(len1);
         vals = v->data;
-        error = true;
         iter_next = iter->next;
         for (i = 0; i < len1 && (o2 = iter_next(iter)) != NULL; i++) {
             err = indexoffs(o2, ln, &offs1, epoint2);
             if (err != NULL) {
-                if (error) {err_msg_output(err); error = false;}
-                val_destroy(&err->v);
-                vals[i] = (Obj *)ref_none();
+                vals[i] = &err->v;
                 continue;
             }
             vals[i] = code_item(v1, (ssize_t)offs1 + offs0, ln2);
@@ -431,18 +427,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 str_t cf;
                 str_cfcpy(&cf, &v2->name);
                 if (str_cmp(&cf, &of) == 0) {
-                    size_t membp = v1->membp;
-                    const Memblocks *memblocks = v1->memblocks;
-                    address_t addr = v1->memp;
-
                     if (diagnostics.case_symbol && str_cmp(&v2->name, &cf) != 0) err_msg_symbol_case(&v2->name, NULL, &v2->epoint);
-
-                    if (membp < memblocks->p) {
-                        addr += memblocks->data[membp].addr;
-                    } else {
-                        addr += memblocks->lastaddr;
-                    }
-                    return (Obj *)int_from_uval(addr);
+                    return (Obj *)int_from_uval(v1->memaddr);
                 }
             }
         }

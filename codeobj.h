@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: codeobj.h 1845 2019-01-28 07:55:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ typedef struct Code {
     signed char dtype;
     Obj *addr;
     struct Memblocks *memblocks;
-    size_t memp;
+    address_t memaddr;
     size_t membp;
     struct Namespace *names;
     uval_t requires;

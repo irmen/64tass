@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1819 2019-01-13 20:38:22Z soci $
+    $Id: strobj.c 1858 2019-01-31 18:50:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -375,9 +375,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-    case O_INV: tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT); break;
     case O_NEG:
     case O_POS:
+    case O_INV: tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT); break;
     case O_STRING: tmp = int_from_str(v1, op->epoint); break;
     default: return obj_oper_error(op);
     }
@@ -785,6 +785,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp;
 
     if (op->op == &o_X) {
+        if (v2 == &none_value->v || v2->obj == ERROR_OBJ) return val_reference(v2);
         return repeat(op);
     }
     if (op->op == &o_LAND || op->op == &o_LOR) {

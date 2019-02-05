@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 1822 2019-01-13 20:49:04Z soci $
+    $Id: bitsobj.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -208,7 +208,12 @@ static MALLOC Bits *return_bits(bdigit_t c, size_t blen, bool neg) {
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Bits *v1 = (const Bits *)o1, *v2 = (const Bits *)o2;
     if (o2->obj != BITS_OBJ || v1->len != v2->len || v1->bits != v2->bits) return false;
-    return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;
+    switch (v1->len) {
+    case 0: return true;
+    case -1:
+    case 1: return v1->data[0] == v2->data[0];
+    default: return memcmp(v1->data, v2->data, bitslen(v1) * sizeof *v1->data) == 0;
+    }
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
@@ -426,7 +431,7 @@ MUST_CHECK Bits *bits_from_uval(uval_t i, unsigned int bits) {
     return return_bits(i, bits, false);
 }
 
-MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2, linepos_t epoint) {
+MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint) {
     size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
@@ -456,7 +461,7 @@ MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2, line
     }
     *ln = k;
     i = k - i;
-    *ln2 = i;
+
     if (i <= 2 * sizeof *d) {
         return (i == 0) ? val_reference(&null_bits->v) : (Obj *)return_bits(uv, i * 4, false);
     }
@@ -488,7 +493,7 @@ failed:
     return (Obj *)new_error_mem(epoint);
 }
 
-MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2, linepos_t epoint) {
+MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, size_t *ln, linepos_t epoint) {
     size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
@@ -513,7 +518,7 @@ MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2, line
     }
     *ln = k;
     i = k - i;
-    *ln2 = i;
+
     if (i <= 8 * sizeof *d) {
         return (i == 0) ? val_reference(&null_bits->v) : (Obj *)return_bits(uv, i, false);
     }
@@ -747,7 +752,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_BSWORD:
         uv = ldigit(v1);
         return (Obj *)bytes_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-    case O_INV: 
+    case O_INV:
         if (op->inplace != &v1->v) return invert(v1, op->epoint3);
         v1->len = ~v1->len;
         if (v1->data != v1->u.val) v1->u.hash = -1;
@@ -1012,8 +1017,9 @@ static MUST_CHECK Obj *lshift(const Bits *vv1, uval_t s, linepos_t epoint) {
             o[i + 1] |= v1[i] >> (SHIFT - bit);
             o[i] = v1[i] << bit;
         }
+        if (vv1->len < 0) o[0] |= ((bdigit_t)1 << bit) - 1;
     } else if (len1 != 0) memmove(o, v1, len1 * sizeof *o);
-    memset(v, 0, word * sizeof *v);
+    if (word != 0) memset(v, (vv1->len < 0) ? 0xff : 0x00, word * sizeof *v);
 
     vv->bits = bits;
     return normalize(vv, sz, (vv1->len < 0));
@@ -1119,7 +1125,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
                 uv = (v1[j] >> (SHIFT - bits));
             }
             if (j < l) uv |= v1[j] << bits;
-            if (j < rbits) { 
+            if (j < rbits) {
                 v[i++] = uv; uv = 0; j++;
                 for (; j < rbits; j++) v[i++] = 0;
             }
@@ -1308,6 +1314,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     ival_t shift;
 
     if (op->op == &o_X) {
+        if (o2 == &none_value->v || o2->obj == ERROR_OBJ) return val_reference(o2);
         return repeat(op);
     }
     if (op->op == &o_LAND) {

@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 1797 2019-01-12 16:48:47Z soci $
+    $Id: memblocksobj.c 1851 2019-01-29 20:04:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,16 +53,16 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return v1->mem.p == v2->mem.p && !memcmp(v1->mem.data, v2->mem.data, v1->mem.p);
 }
 
-MALLOC Memblocks *new_memblocks(size_t ln) {
+MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
     Memblocks *val = (Memblocks *)val_alloc(MEMBLOCKS_OBJ);
     val->mem.p = 0;
     val->mem.len = ln;
     val->mem.data = (ln == 0) ? NULL : (uint8_t*)mallocx(ln);
     val->p = 0;
-    val->len = 0;
+    val->len = ln2;
     val->lastp = 0;
     val->lastaddr = 0;
-    val->data = NULL;
+    val->data = (ln2 == 0) ? NULL : (struct memblock_s *)mallocx(ln2 * sizeof *val->data);
     val->compressed = false;
     return val;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1812 2019-01-13 15:53:53Z soci $
+    $Id: namespaceobj.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -173,7 +173,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 if (first) {
                     first = false;
                     continue;
-                } 
+                }
                 ln--;
                 chars--;
                 continue;

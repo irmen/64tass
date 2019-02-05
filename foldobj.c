@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 1796 2019-01-12 16:28:05Z soci $
+    $Id: foldobj.c 1861 2019-02-03 19:36:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,6 +112,6 @@ void foldobj_destroy(void) {
 #ifdef DEBUG
     if (fold_value->v.refcount != 1) fprintf(stderr, "fold %" PRIuSIZE "\n", fold_value->v.refcount - 1);
 #endif
- 
+
     val_destroy(&fold_value->v);
 }

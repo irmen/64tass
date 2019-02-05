@@ -1,5 +1,5 @@
 /*
-    $Id: mem.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: mem.h 1845 2019-01-28 07:55:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ extern void memjmp(struct Memblocks *, address_t);
 extern void memref(struct Memblocks *, struct Memblocks *);
 extern void memprint(struct Memblocks *);
 extern void output_mem(struct Memblocks *, const struct output_s *);
-extern FAST_CALL void write_mem(struct Memblocks *, unsigned int);
-extern int read_mem(const struct Memblocks *, size_t, size_t, size_t);
-extern void get_mem(const struct Memblocks *, size_t *, size_t *);
+extern FAST_CALL uint8_t *alloc_mem(struct Memblocks *, size_t);
+extern int read_mem(const struct Memblocks *, address_t, size_t, size_t);
+extern size_t get_mem(const struct Memblocks *);
 #endif
