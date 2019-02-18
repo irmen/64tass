@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1864 2019-02-03 21:21:46Z soci $
+    $Id: 64tass.h 1900 2019-02-17 21:46:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION
-#define REVISION "1864?"
+#define REVISION "1900?"
 #endif
 #undef VERSION
 #define VERSION "1.54." REVISION
@@ -47,7 +47,6 @@ extern struct avltree *star_tree;
 extern bool fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline;
-extern uint16_t curfile;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
 extern const struct cpu_s *current_cpu;
@@ -55,4 +54,5 @@ extern void new_waitfor(Wait_types, linepos_t);
 extern bool close_waitfor(Wait_types);
 extern struct Obj *compile(void);
 extern FAST_CALL uint8_t *pokealloc(address_t);
+extern int main2(int *, char **[]);
 #endif

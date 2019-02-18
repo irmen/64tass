@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.54 r1864 reference manual</title>
+<title>64tass v1.54 r1900 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -84,7 +84,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.54 r1864 reference manual</h1>
+<h1>64tass v1.54 r1900 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -427,7 +427,13 @@ Other types can be converted to integer using the integer type
 <code>int</code>.</p>
 
 <pre width=80>
-        <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
+        <b class="d">.byte</b> <span>23</span>        <i>; as unsigned</i>
+        <b class="d">.char</b> <span>-23</span>       <i>; as signed</i>
+
+<i>; using negative integers as immediate values</i>
+        <b>ldx</b> #-<span>3</span>         <i>; works as '#-' is signed immediate</i>
+num     <b>=</b> <span>-3</span>
+        <b>ldx</b> #+<u>num</u>       <i>; needs explicit '#+' for signed 8 bits</i>
 
         <b>lda</b> #((<u>bitmap</u> &gt;&gt; <span>10</span>) &amp; <span>$0f</span>) | ((<u>screen</u> &gt;&gt; <span>6</span>) &amp; <span>$f0</span>)
         <b>sta</b> <span>$d018</span>
@@ -468,12 +474,12 @@ in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 <p>Other types can be converted to bit string using the bit string type <code>bits</code>.</p>
 
 <pre width=80>
-        <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
-        <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
-        <b class="d">.text</b> <span>$1234</span>     <i>; $34, $12</i>
+        <b class="d">.byte</b> <span>$33</span>       <i>; 8 bits in hexadecimal</i>
+        <b class="d">.byte</b> <span>%00011111</span> <i>; 8 bits in binary</i>
+        <b class="d">.text</b> <span>$1234</span>     <i>; $34, $12 (little endian)</i>
 
         <b>lda</b> <span>$01</span>
-        <b>and</b> #~<span>$07</span>
+        <b>and</b> #~<span>$07</span>       <i>; 8 bits even after inversion</i>
         <b>ora</b> #<span>$05</span>
         <b>sta</b> <span>$01</span>
 
@@ -534,8 +540,9 @@ character.</p>
 
 <p>Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
-expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside string literals escapes them and results in a single quote.</p>
+expressions as numeric constants or in context of text data directives.</p>
+
+<p>Doubling the quotes inside string literals escapes them and results in a single quote.</p>
 
 <div><table border="0">
 <caption>Character string operators and functions</caption>
@@ -564,9 +571,9 @@ functions.</p>
 in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.</p>
 
 <pre width=80>
-mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
-        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
-        <b class="d">.word</b> <span class="s">"ab"</span>+<span>1</span>    <i>; character, results in "bb" usually</i>
+mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; character string constant</i>
+        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; it's</i>
+        <b class="d">.word</b> <span class="s">"ab"</span>+<span>1</span>    <i>; conversion result is "bb" usually</i>
 
         <b class="d">.text</b> <span class="s">"text"</span>[:<span>2</span>]     <i>; "te"</i>
         <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
@@ -612,7 +619,7 @@ mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes,
         <b class="d">.text</b> <span class="s">l"p2"</span>     <i>;convert to bytes like .shiftl</i>
         <b class="d">.text</b> <span class="s">n"p3"</span>     <i>;convert to bytes like .null</i>
         <b class="d">.text</b> <span class="s">p"p4"</span>     <i>;convert to bytes like .ptext</i>
-        <b class="d">.text</b> <span class="s">x"fce2"</span>   <i>;2 bytes: $fc and $e2</i>
+        <b class="d">.text</b> <span class="s">x"fce2"</span>   <i>;2 bytes: $fc and $e2 (big endian)</i>
 </pre>
 
 <h3>Lists and tuples<a name="list-tuples" href="#list-tuples"></a></h3>
@@ -899,7 +906,7 @@ it's really necessary for the output format, in that case it's replaced with
 zeros.</p>
 
 <p>It's not just data generation statements (e.g. <a href="#d_byte"><code>.byte</code></a>) that can
-create uninitialized memory, but <a href="#d_fill"><code>.fill</code></a>, <a href="#d_align"><code>.align</code></a>, <a href="#d_offs"><code>.offs</code></a> or address manipulation as
+create uninitialized memory, but <a href="#d_fill"><code>.fill</code></a>, <a href="#d_align"><code>.align</code></a> or address manipulation as
 well.</p>
 
 <pre width=80>
@@ -907,7 +914,6 @@ well.</p>
 	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
 	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
 	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
-	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
 </pre>
 
 <h3>Booleans<a name="booleans" href="#booleans"></a></h3>
@@ -1714,17 +1720,16 @@ will match the requested address in the expression.
 &gt;0a00							<b class="d">.byte</b>
 </pre>
 <dt><code><b class="k">.offs</b></code> &lt;expression&gt;<a name="d_offs" href="#d_offs"></a>
-<dd>Add an offset to the compile offset (create a gap). The program counter
-stays the same as before.
+<dd>Sets the compile offset relative to the program counter.
 <p>Popular in old TASM code where this was the only way to create
 relocated code, otherwise it's use is not recommended as there are easier
 to use alternatives below.</p>
 <pre width=80>
 <i>;Offset PC       Bytes          Disassembly     Source</i>
 						*	<b>=</b> <span>$1000</span>
-.1000		 		nop			<b class="d">.byte</b>
+.1000		ea		nop			<b>nop</b>
 							<b class="k">.offs</b> <span>100</span>
-.1064	1000	 		nop			<b class="d">.byte</b>
+.1065	1001	ea		nop			<b>nop</b>
 </pre>
 <dt><code><b class="k">.logical</b></code> &lt;expression&gt;<a name="d_logical" href="#d_logical"></a>
 <dt><code><b class="k">.here</b></code><a name="d_here" href="#d_here"></a>

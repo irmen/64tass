@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: error.c 1893 2019-02-11 22:35:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "noneobj.h"
+#include "identobj.h"
 
 #ifdef COLOR_OUTPUT
 bool print_use_color = false;
@@ -53,6 +54,7 @@ struct file_list_s *current_file_list;
 static unsigned int errors = 0, warnings = 0;
 
 static struct file_list_s file_list;
+static struct file_s file_list_file;
 static const struct file_list_s *included_from = &file_list;
 static const char *prgname;
 
@@ -164,7 +166,7 @@ static void new_error_msg(Severity_types severity, const struct file_list_s *fli
     size_t line_len;
     switch (severity) {
     case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && flist->file != NULL && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
     }
     new_error_msg_common(severity, flist, epoint, line_len);
     if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
@@ -215,12 +217,10 @@ void enterfile(struct file_s *file, linepos_t epoint) {
     } else {
         current_file_list = avltree_container_of(b, struct file_list_s, node);
     }
-    curfile = (current_file_list->file != NULL) ? current_file_list->file->uid : 1;
 }
 
 void exitfile(void) {
     if (current_file_list->parent != NULL) current_file_list = current_file_list->parent;
-    curfile = (current_file_list->file != NULL) ? current_file_list->file->uid : 1;
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
@@ -586,7 +586,6 @@ static void notdefines_free(struct avltree_node *aa) {
 static struct notdefines_s *lastnd = NULL;
 static void err_msg_not_defined3(const Error *err) {
     Namespace *l = err->u.notdef.names;
-    const str_t *name = &err->u.notdef.ident;
     struct notdefines_s *tmp2;
     struct avltree_node *b;
 
@@ -596,7 +595,8 @@ static void err_msg_not_defined3(const Error *err) {
         lastnd = (struct notdefines_s *)mallocx(sizeof *lastnd);
     }
 
-    if (name->data != NULL) {
+    if (err->u.notdef.ident->obj == IDENT_OBJ) {
+        const str_t *name = &((Ident *)err->u.notdef.ident)->name;
         str_cfcpy(&lastnd->cfname, name);
         lastnd->file_list = l->file_list;
         lastnd->epoint = l->epoint;
@@ -616,18 +616,8 @@ static void err_msg_not_defined3(const Error *err) {
     }
 
     new_error_msg_err(err);
-    adderror("not defined");
-    if (name->data != NULL) {
-        str_name(name->data, name->len);
-    } else {
-        ssize_t count = (ssize_t)name->len;
-        adderror(" '");
-        while (count != 0) {
-            adderror((count > 0) ? "+" : "-");
-            count += (count > 0) ? -1 : 1;
-        }
-        adderror("'");
-    }
+    adderror("not defined ");
+    err_msg_variable(err->u.notdef.ident, &err->epoint);
 
     if (l->file_list == NULL) {
         struct linepos_s nopoint = {0, 0};
@@ -647,7 +637,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     err.line = NULL;
     err.u.notdef.down = down;
     err.u.notdef.names = l;
-    err.u.notdef.ident = *name;
+    err.u.notdef.ident = (Obj *)new_ident(name);
     err_msg_not_defined3(&err);
 }
 
@@ -1309,6 +1299,9 @@ void err_init(const char *name) {
     file_lists->next = NULL;
     file_listsp = 0;
     lastfl = &file_lists->file_lists[file_listsp];
+    file_list_file.name = "";
+    file_list_file.realname = file_list_file.name;
+    file_list.file = &file_list_file;
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
     error_list.data = NULL;

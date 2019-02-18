@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: eval.c 1897 2019-02-17 20:50:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -464,7 +464,7 @@ rest:
             val = (Obj *)ref_none();
         } else {
             Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
-            err->u.notdef.ident = ident;
+            err->u.notdef.ident = (Obj *)new_ident(&ident);
             err->u.notdef.names = ref_namespace(current_context);
             err->u.notdef.down = true;
             val = &err->v;
@@ -857,7 +857,6 @@ static bool get_val2(struct eval_context_s *ev) {
     size_t vsp = 0;
     size_t i;
     Oper_types op;
-    Oper *op2;
     struct values_s *v1, *v2;
     bool stop = (ev->gstop == 3 || ev->gstop == 4);
     struct values_s *o_out;
@@ -881,8 +880,8 @@ static bool get_val2(struct eval_context_s *ev) {
         }
 
         if (val == &o_COMMA.v || val == &o_COLON2.v) continue;
-        op2 = (Oper *)val;
-        op = op2->op;
+        oper.op = (Oper *)val;
+        op = oper.op->op;
         if (vsp == 0) goto syntaxe;
         v1 = &values[vsp - 1];
         switch (op) {
@@ -904,7 +903,6 @@ static bool get_val2(struct eval_context_s *ev) {
                 tmp.v.obj = FUNCARGS_OBJ;
                 v1--;
 
-                oper.op = op2;
                 oper.v1 = v1[1].val = v1->val;
                 oper.v2 = &tmp.v;
                 oper.epoint = &v1->epoint;
@@ -1089,7 +1087,6 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
         case O_LNOT:    /* !  */
-            oper.op = op2;
             oper.v1 = v1->val;
             oper.v2 = NULL;
             oper.epoint = &v1->epoint;
@@ -1212,7 +1209,6 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_MAX: /* >? */
             v2 = v1; v1 = &values[--vsp - 1];
             if (vsp == 0) goto syntaxe;
-            oper.op = op2;
             oper.v1 = v1->val;
             oper.v2 = v2->val;
             oper.epoint = &v1->epoint;
@@ -1240,7 +1236,6 @@ static bool get_val2(struct eval_context_s *ev) {
             return false;
         }
 
-        oper.op = op2;
         oper.v1 = v1->val;
         oper.v2 = v2->val;
         oper.epoint = &v1->epoint;
@@ -1444,16 +1439,12 @@ static bool get_exp2(int stop) {
                         goto other;
                     }
                 }
-                if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
-                    Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
-                    idn->name.data = pline + epoint.pos;
-                    idn->name.len = lpoint.pos - epoint.pos;
-                    idn->epoint = epoint;
-                    push_oper(&idn->v, &epoint);
-                    goto other;
-                }
                 ident.data = pline + epoint.pos;
                 ident.len = lpoint.pos - epoint.pos;
+                if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
+                    push_oper((Obj *)new_ident(&ident), &epoint);
+                    goto other;
+                }
                 down = (ident.data[0] != '_');
                 l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l != NULL) {
@@ -1464,7 +1455,7 @@ static bool get_exp2(int stop) {
                     val = (Obj *)ref_none();
                 } else {
                     Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
-                    err->u.notdef.ident = ident;
+                    err->u.notdef.ident = (Obj *)new_ident(&ident);
                     err->u.notdef.names = ref_namespace(down ? current_context : cheap_context);
                     err->u.notdef.down = down;
                     val = &err->v;
@@ -1479,10 +1470,7 @@ static bool get_exp2(int stop) {
                 Label *l;
                 Obj *val;
                 if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
-                    Anonident *anonident = (Anonident *)val_alloc(ANONIDENT_OBJ);
-                    anonident->count = db - opr.p - 1;
-                    anonident->epoint = opr.data[opr.p].epoint;
-                    push_oper(&anonident->v, &opr.data[opr.p].epoint);
+                    push_oper((Obj *)new_anonident(db - opr.p - 1), &opr.data[opr.p].epoint);
                     goto other;
                 }
                 l = find_anonlabel(db - opr.p -1);
@@ -1493,8 +1481,7 @@ static bool get_exp2(int stop) {
                     val = (Obj *)ref_none();
                 } else {
                     Error *err = new_error(ERROR___NOT_DEFINED, &opr.data[opr.p].epoint);
-                    err->u.notdef.ident.len = (size_t)((ssize_t)db - (ssize_t)opr.p);
-                    err->u.notdef.ident.data = NULL;
+                    err->u.notdef.ident = (Obj *)new_anonident(db - opr.p - 1);
                     err->u.notdef.names = ref_namespace(current_context);
                     err->u.notdef.down = true;
                     val = &err->v;
@@ -1507,10 +1494,7 @@ static bool get_exp2(int stop) {
                 Label *l;
                 Obj *val;
                 if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
-                    Anonident *anonident = (Anonident *)val_alloc(ANONIDENT_OBJ);
-                    anonident->count = opr.p - db;
-                    anonident->epoint = opr.data[opr.p].epoint;
-                    push_oper(&anonident->v, &opr.data[opr.p].epoint);
+                    push_oper((Obj *)new_anonident(opr.p - db), &opr.data[opr.p].epoint);
                     goto other;
                 }
                 l = find_anonlabel(opr.p - db);
@@ -1521,8 +1505,7 @@ static bool get_exp2(int stop) {
                     val = (Obj *)ref_none();
                 } else {
                     Error *err = new_error(ERROR___NOT_DEFINED, &opr.data[opr.p].epoint);
-                    err->u.notdef.ident.len = (size_t)((ssize_t)opr.p - (ssize_t)db);
-                    err->u.notdef.ident.data = NULL;
+                    err->u.notdef.ident = (Obj *)new_anonident(opr.p - db);
                     err->u.notdef.names = ref_namespace(current_context);
                     err->u.notdef.down = true;
                     val = &err->v;
@@ -1538,11 +1521,10 @@ static bool get_exp2(int stop) {
                 if (opr.data[opr.p - 1].val == &o_SPLAT) {
                     opr.p--;
                     if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
-                        Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
-                        idn->name.data = pline + opr.data[opr.p].epoint.pos;
-                        idn->name.len = 1;
-                        idn->epoint = opr.data[opr.p].epoint;
-                        push_oper(&idn->v, &opr.data[opr.p].epoint);
+                        str_t ident;
+                        ident.data = pline + opr.data[opr.p].epoint.pos;
+                        ident.len = 1;
+                        push_oper((Obj *)new_ident(&ident), &opr.data[opr.p].epoint);
                         goto other;
                     }
                     push_oper(get_star(), &opr.data[opr.p].epoint);
@@ -1557,11 +1539,10 @@ static bool get_exp2(int stop) {
             opr.p--;
             lpoint.pos = epoint.pos;
             if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || identlist != 0) {
-                Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
-                idn->name.data = pline + opr.data[opr.p].epoint.pos;
-                idn->name.len = 1;
-                idn->epoint = opr.data[opr.p].epoint;
-                push_oper(&idn->v, &opr.data[opr.p].epoint);
+                str_t ident;
+                ident.data = pline + opr.data[opr.p].epoint.pos;
+                ident.len = 1;
+                push_oper((Obj *)new_ident(&ident), &opr.data[opr.p].epoint);
                 goto other;
             }
             push_oper(get_star(), &opr.data[opr.p].epoint);

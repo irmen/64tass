@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1843 2019-01-28 05:47:59Z soci $
+    $Id: instruction.c 1881 2019-02-09 19:41:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ MUST_CHECK Error *err_addressing(atype_t am, linepos_t epoint) {
     return v;
 }
 
-static void dump_instr(uint8_t cod, uint32_t adr, int ln, linepos_t epoint)  {
+static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)  {
     if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
     if (ln >= 0) {
         uint8_t *d;

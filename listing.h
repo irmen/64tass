@@ -1,5 +1,5 @@
 /*
-    $Id: listing.h 1529 2017-05-19 07:15:34Z soci $
+    $Id: listing.h 1880 2019-02-09 19:38:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ extern FAST_CALL void listing_line(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_line_cut(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_line_cut2(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_set_cpumode(struct Listing *, const struct cpu_s *);
-extern void listing_instr(struct Listing *, uint8_t, uint32_t, int);
+extern void listing_instr(struct Listing *, unsigned int, uint32_t, int);
 extern void listing_mem(struct Listing *, const uint8_t *, size_t, address_t, address_t);
 extern void listing_file(struct Listing *, const char *, const struct file_s *);
 #endif

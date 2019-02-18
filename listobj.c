@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: listobj.c 1898 2019-02-17 21:17:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -596,7 +596,7 @@ failed:
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o1 = op->v1, *o2 = op->v2;
     List *v1 = (List *)o1;
-    size_t i = 0;
+    size_t i;
     Obj **vals;
 
     if (op->op == &o_X) {
@@ -646,7 +646,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             vals = lnew(list, v1->len);
             if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
         }
-        for (;i < v1->len; i++) {
+        for (i = 0; i < v1->len; i++) {
             Obj *val;
             Obj *oo1 = v1->data[i];
             op->v1 = oo1;
@@ -668,12 +668,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *o1 = op->v1, *o2 = op->v2;
     List *v2 = (List *)o2;
-    size_t i = 0;
+    size_t i;
     Obj **vals;
 
     if (op->op == &o_IN) {
         op->op = &o_EQ;
-        for (;i < v2->len; i++) {
+        for (i = 0; i < v2->len; i++) {
             Obj *result;
             op->v1 = o1;
             op->v2 = v2->data[i];
@@ -728,7 +728,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             vals = lnew(v, v2->len);
             if (vals == NULL) return (Obj *)new_error_mem(op->epoint3);
         }
-        for (;i < v2->len; i++) {
+        for (i = 0; i < v2->len; i++) {
             Obj *val;
             Obj *oo2 = v2->data[i];
             op->v2 = oo2;

@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: intobj.c 1875 2019-02-09 17:09:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -178,14 +178,29 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
 
     if (len <= 1) {
-        char tmp2[sizeof(digit_t) * 3];
-        if (len != 0) len = (size_t)sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
-        else {tmp2[0] = '0';len = 1;}
+        static const digit_t d[9] = {1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10};
+        digit_t dec;
+        i = 9;
+        if (len != 0) {
+            len = (v1->len < 0) ? 1 : 0;
+            dec = v1->val[0];
+            for (; i > 0; i--) {
+                if (dec < d[i - 1]) break;
+            }
+        } else dec = 0;
+        len += 10 - i;
         if (len > maxsize) return NULL;
         v = new_str2(len);
         if (v == NULL) return NULL;
         v->chars = len;
-        memcpy(v->data, tmp2, len);
+        s = v->data;
+        if (v1->len < 0) *s++ = '-';
+        for (; i < 9; i++) {
+            digit_t a = dec / d[i];
+            dec = dec % d[i];
+            *s++ = '0' + a;
+        }
+        *s = '0' + dec;
         return &v->v;
     }
 

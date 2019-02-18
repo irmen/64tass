@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: macro.c 1891 2019-02-11 20:25:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,9 +63,8 @@ bool in_macro;
 bool mtranslate(void) {
     unsigned int q;
     size_t j;
-    size_t p;
-    size_t last;
-    uint8_t ch;
+    size_t p, p2;
+    size_t last, last2;
     struct macro_pline_s *mline;
     bool changed, fault;
     struct file_s *cfile = current_file_list->file;
@@ -77,162 +76,140 @@ bool mtranslate(void) {
     if (changed) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = 0; last = 0; fault = false;
-    for (; (ch = here()) != 0; lpoint.pos++) {
-        switch (ch) {
+    q = p = p2 = 0; last = last2 = 0; fault = false;
+    while (pline[p2] != 0) {
+        str_t param;
+        switch (pline[p2]) {
         case '"':
             if ((q & 2) == 0) q ^= 1;
-            break;
+            p2++;
+            continue;
         case '\'':
             if ((q & 1) == 0) q ^= 2;
-            break;
+            p2++;
+            continue;
         case ';':
             if (q == 0) q = 4;
-            break;
+            p2++;
+            continue;
+        default:
+            p2++;
+            continue;
         case '\\':
-            if (q != 0) break;
+            if (q != 0) {
+                p2++;
+                continue;
+            }
             /* normal parameter reference */
-            j = (uint8_t)(pline[lpoint.pos + 1] - '1');
-            if (j < 9) {
-                str_t param, *params = macro_parameters.current->param;
-                /* \1..\9 */
-                if (j >= macro_parameters.current->len || params[j].data == NULL) {
-                    const Type *obj = macro_parameters.current->macro->obj;
-                    if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                        err_msg_missing_argument(current_file_list, &lpoint, j);
-                        param.len = 0; fault = true;
-                    } else {
-                        param.data = (const uint8_t *)"?";
-                        param.len = 1;
-                    }
-                } else param = params[j];
-                if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
-                if (p + param.len > mline->len) {
-                    mline->len = p + param.len + 1024;
-                    if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-                    mline->data = (uint8_t *)reallocx(mline->data, mline->len);
-                }
-                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
-                if (param.len != 0) {
-                    memcpy(mline->data + p, param.data, param.len);
-                    p += param.len;
-                }
-                last = p; changed = true;
-                lpoint.pos++;continue;
+            j = (uint8_t)(pline[p2 + 1] - '1');
+            if (j < 9) {   /* \1..\9 */
+                p += p2 - last2;
+                p2 += 2;
+                break;
             }
-            if (j == ('@' - '1')) {
-                /* \@ gives complete parameter list */
-                str_t *all = &macro_parameters.current->all;
-                if (p + all->len < p) err_msg_out_of_memory(); /* overflow */
-                if (p + all->len > mline->len) {
-                    mline->len = p + all->len + 1024;
-                    if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-                    mline->data = (uint8_t *)reallocx(mline->data, mline->len);
-                }
-                if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
-                if (all->len != 0) {
-                    memcpy(mline->data + p, all->data, all->len);
-                    p += all->len;
-                }
-                last = p; changed = true;
-                lpoint.pos++;continue;
+            if (j == ('@' - '1')) { /* \@ gives complete parameter list */
+                j = SIZE_MAX;
+                p += p2 - last2;
+                p2 += 2;
+                break;
+            }
+            if (j == ('{' - '1')) {
+                lpoint.pos = p2 + 2;
+                param.data = pline + lpoint.pos;
+                param.len = get_label();
+                if (pline[lpoint.pos] == '}') lpoint.pos++;
+                else param.len = 0;
             } else {
-                struct linepos_s e = lpoint;
-                str_t label;
-                lpoint.pos++;
-                label.data = pline + lpoint.pos;
-                if (j == ('{' - '1')) {
-                    lpoint.pos++;
-                    label.data++;
-                    label.len = get_label();
-                    if (pline[lpoint.pos] == '}') lpoint.pos++;
-                    else label.len = 0;
-                } else label.len = get_label();
-                if (label.len != 0) {
-                    str_t param, *params = macro_parameters.current->param;
-                    Macro *macro = (Macro *)macro_parameters.current->macro;
-                    str_t cf;
-                    str_cfcpy(&cf, &label);
-                    for (j = 0; j < macro->argc; j++) {
-                        if (macro->param[j].cfname.data == NULL) continue;
-                        if (str_cmp(&macro->param[j].cfname, &cf) != 0) continue;
-                        if (params[j].data == NULL) {
-                            const Type *obj = macro->v.obj;
-                            if (obj != STRUCT_OBJ && obj != UNION_OBJ) {
-                                err_msg_missing_argument(current_file_list, &e, j);
-                                param.len = 0; fault = true;
-                            } else {
-                                param.data = (const uint8_t *)"?";
-                                param.len = 1;
-                            }
-                        } else param = params[j];
-                        break;
-                    }
-                    if (j >= macro->argc) {
-                        err_msg_unknown_argument(&label, &e);
-                        param.len = 0; fault = true;
-                    }
-                    if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
-                    if (p + param.len > mline->len) {
-                        mline->len = p + param.len + 1024;
-                        if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-                        mline->data = (uint8_t *)reallocx(mline->data, mline->len);
-                    }
-                    if (p != last) memcpy(mline->data + last, pline + e.pos - p + last, p - last);
-                    if (param.len != 0) {
-                        memcpy(mline->data + p, param.data, param.len);
-                        p += param.len;
-                    }
-                    last = p; changed = true;
-                    lpoint.pos--; continue;
-                }
-                lpoint = e;
+                lpoint.pos = p2 + 1;
+                param.data = pline + lpoint.pos;
+                param.len = get_label();
             }
-            break;
+            if (param.len != 0) {
+                Macro *macro = (Macro *)macro_parameters.current->macro;
+                str_t cf;
+                p += p2 - last2;
+                p2 = lpoint.pos;
+                str_cfcpy(&cf, &param);
+                for (j = 0; j < macro->argc; j++) {
+                    if (macro->param[j].cfname.data == NULL) continue;
+                    if (str_cmp(&macro->param[j].cfname, &cf) == 0) break;
+                }
+                if (j < macro->argc) break;
+                lpoint.pos -= param.len + 1;
+                if (pline[lpoint.pos] != '\\') lpoint.pos -= 2;
+                err_msg_unknown_argument(&param, &lpoint);
+                p = last; last2 = p2; fault = true;
+                continue;
+            }
+            p2++;
+            continue;
         case '@':
             if (arguments.tasmcomp) {
                 /* text parameter reference */
-                j = (uint8_t)(pline[lpoint.pos + 1] - '1');
-                if (j < 9) {
-                    /* @1..@9 */
-                    str_t *param = macro_parameters.current->param;
-                    if (j >= macro_parameters.current->len) {
-                        err_msg_missing_argument(current_file_list, &lpoint, j);
-                        lpoint.pos++; p += 2; changed = fault = true; continue;
-                    }
-                    if (p + param[j].len < p) err_msg_out_of_memory(); /* overflow */
-                    if (p + param[j].len > mline->len) {
-                        mline->len = p + param[j].len + 1024;
-                        if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-                        mline->data = (uint8_t *)reallocx(mline->data, mline->len);
-                    }
-                    if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
-                    if (param[j].len > 1 && param[j].data[0] == '"' && param[j].data[param[j].len-1]=='"') {
-                        memcpy(mline->data + p, param[j].data + 1, param[j].len - 2);
-                        p += param[j].len - 2;
-                    } else {
-                        memcpy(mline->data + p, param[j].data, param[j].len);
-                        p += param[j].len;
-                    }
-                    last = p; changed = true;
-                    lpoint.pos++;continue;
+                j = (uint8_t)(pline[p2 + 1] - '1');
+                if (j < 9) { /* @1..@9 */
+                    p += p2 - last2;
+                    p2 += 2;
+                    break;
                 }
             }
+            p2++;
+            continue;
+        }
+
+        if (j < macro_parameters.current->len) {
+            param = macro_parameters.current->param[j];
+        } else if (j == SIZE_MAX) {
+            param = macro_parameters.current->all;
+        } else {
+            switch (macro_parameters.current->macro->obj->type) {
+            case T_STRUCT:
+            case T_UNION:
+                param.data = (const uint8_t *)"?";
+                param.len = 1;
+                break;
+            default:
+                param.data = NULL;
+                param.len = 0;
+            }
+        } 
+        if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
+        if (p + param.len > mline->len) {
+            mline->len = p + param.len + 1024;
+            if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
+            mline->data = (uint8_t *)reallocx(mline->data, mline->len);
+        }
+        if (last != p) {
+            if (p < last) err_msg_out_of_memory(); /* overflow */
+            memcpy(mline->data + last, pline + last2, p - last);
+        }
+        switch (param.len) {
+        case 0: 
+            if (param.data == NULL) {
+                lpoint.pos = last2 + p - last;
+                err_msg_missing_argument(current_file_list, &lpoint, j);
+                fault = true;
+            }
+            break;
+        case 1: 
+            mline->data[p++] = *param.data; 
             break;
         default:
-            break;
+            memcpy(mline->data + p, param.data, param.len);
+            p += param.len;
         }
-        p++;
+        last = p; last2 = p2;
     }
-    if (changed) {
-        if (p + 1 < 1) err_msg_out_of_memory(); /* overflow */
+    if (last2 != 0) {
+        while (p2 != 0 && (pline[p2 - 1] == 0x20 || pline[p2 - 1] == 0x09)) p2--;
+        p += p2 - last2;
+        if (p + 1 < p) err_msg_out_of_memory(); /* overflow */
         if (p + 1 > mline->len) {
             mline->len = p + 1024;
             if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
             mline->data = (uint8_t *)reallocx(mline->data, mline->len);
         }
-        if (p != last) memcpy(mline->data + last, pline + lpoint.pos - p + last, p - last);
-        while (p != 0 && (mline->data[p-1] == 0x20 || mline->data[p-1] == 0x09)) p--;
+        if (p != last) memcpy(mline->data + last, pline + last2, p - last);
         mline->data[p] = 0;
         llist = pline = fault ? (const uint8_t *)"" : mline->data;
     } else {
@@ -310,10 +287,10 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     {
         struct linepos_s opoint, npoint;
         size_t p = 0;
-        str_t *param = macro_parameters.current->param;
 
         ignore(); opoint = lpoint;
         for (;;) {
+            str_t *param, *params = macro_parameters.current->param;
             if ((here() == 0 || here() == ';') && p >= macro->argc) break;
             if (p >= macro_parameters.current->size) {
                 if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
@@ -321,15 +298,23 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
                     macro_parameters.current->size += 4;
                     /*if (macro_parameters.current->size < 4) err_msg_out_of_memory();*/ /* overflow */
                 }
-                if (macro_parameters.current->size > SIZE_MAX / sizeof *param) err_msg_out_of_memory();
-                param = (str_t *)reallocx(param, macro_parameters.current->size * sizeof *param);
+                if (macro_parameters.current->size > SIZE_MAX / sizeof *params) err_msg_out_of_memory();
+                params = (str_t *)reallocx(params, macro_parameters.current->size * sizeof *params);
+                macro_parameters.current->param = params;
             }
-            param[p].data = pline + lpoint.pos;
-            param[p].len = macro_param_find();
-            if (param[p].len == 0) {
+            param = params + p;
+            param->data = pline + lpoint.pos;
+            param->len = macro_param_find();
+            if (param->len == 0) {
                 if (p < macro->argc) {
-                    param[p] = macro->param[p].init;
-                } else param[p].data = NULL;
+                    *param = macro->param[p].init;
+                } else param->data = NULL;
+                if (param->data == NULL) {
+                    if (macro->v.obj->type == T_STRUCT || macro->v.obj->type == T_UNION) {
+                        param->data = (const uint8_t *)"?";
+                        param->len = 1;
+                    }
+                }
             }
             p++;
             if (here() == 0 || here() == ';') {
@@ -339,7 +324,6 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
             lpoint.pos++;
             ignore();
         }
-        macro_parameters.current->param = param;
         macro_parameters.current->len = p;
         macro_parameters.current->all.data = pline + opoint.pos;
         npoint = lpoint;
@@ -508,14 +492,14 @@ void get_func_params(Mfunc *v) {
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len != 0) {
-            str_t cf;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_mfunc.param[i].epoint);break;}
-            str_cpy(&new_mfunc.param[i].name, &label);
-            str_cfcpy(&cf, &new_mfunc.param[i].name);
-            if (cf.data != new_mfunc.param[i].name.data) str_cfcpy(&cf, NULL);
-            new_mfunc.param[i].cfname = cf;
+            if ((size_t)(label.data - v->file_list->file->data) < v->file_list->file->len) new_mfunc.param[i].name = label;
+            else str_cpy(&new_mfunc.param[i].name, &label);
+            str_cfcpy(&new_mfunc.param[i].cfname, &label);
+            if (new_mfunc.param[i].cfname.data != label.data) str_cfcpy(&new_mfunc.param[i].cfname, NULL);
+            else new_mfunc.param[i].cfname = new_mfunc.param[i].name;
             for (j = 0; j < i; j++) if (new_mfunc.param[j].name.data != NULL) {
-                if (str_cmp(&new_mfunc.param[j].cfname, &cf) == 0) break;
+                if (str_cmp(&new_mfunc.param[j].cfname, &new_mfunc.param[i].cfname) == 0) break;
             }
             if (j != i) {
                 err_msg_double_definedo(v->file_list, &new_mfunc.param[j].epoint, &label, &new_mfunc.param[i].epoint);
@@ -751,9 +735,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     exitfile();
     if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(context);
     val_destroy(&context->v);
-
-    if (retval != NULL) return retval;
-    return (Obj *)ref_tuple(null_tuple);
+    return retval;
 }
 
 void init_macro(void) {

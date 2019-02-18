@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.h 1758 2018-12-31 19:07:53Z soci $
+    $Id: opt_bit.h 1867 2019-02-09 11:32:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ extern bool eq_bit(const struct Bit *, const struct Bit *);
 extern bool neq_bit(const struct Bit *, const struct Bit *);
 extern struct Bit *add_bit(struct Bit *, struct Bit *, struct Bit *, struct Bit **);
 extern struct Bit *v_bit(struct Bit *, struct Bit *, struct Bit *);
-extern struct Bit *ld_bit(struct Bit *, struct Bit *);
 extern struct Bit *and_bit(struct Bit *, struct Bit *);
 extern struct Bit *or_bit(struct Bit *, struct Bit *);
 extern struct Bit *xor_bit(struct Bit *, struct Bit *);

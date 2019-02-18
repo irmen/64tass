@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 1795 2019-01-12 15:47:44Z soci $
+    $Id: unicode.c 1867 2019-02-09 11:32:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <string.h>
 #include "error.h"
 #include "unicodedata.h"
+#include "str.h"
 
 #define U_CASEFOLD 1
 #define U_COMPAT 2
@@ -45,30 +46,6 @@ FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for inte
         ch ^= 0xfc;i = 6;
     }
 
-    for (j = 1;j < i; j++) {
-        ch = (ch << 6) ^ c[j] ^ 0x80;
-    }
-    *out = ch;
-    return i;
-}
-
-FAST_CALL unsigned int utf8rin(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
-    uchar_t ch;
-    unsigned int i, j;
-
-    if (c[-2] < 0xe0) {
-        ch = c[-2] ^ 0xc0;i = 2;
-    } else if (c[-3] < 0xf0) {
-        ch = c[-3] ^ 0xe0;i = 3;
-    } else if (c[-4] < 0xf8) {
-        ch = c[-4] ^ 0xf0;i = 4;
-    } else if (c[-5] < 0xfc) {
-        ch = c[-5] ^ 0xf8;i = 5;
-    } else {
-        ch = c[-6] ^ 0xfc;i = 6;
-    }
-
-    c -= i;
     for (j = 1;j < i; j++) {
         ch = (ch << 6) ^ c[j] ^ 0x80;
     }

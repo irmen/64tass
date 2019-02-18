@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: identobj.h 1887 2019-02-10 16:05:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,17 +24,30 @@
 extern struct Type *const IDENT_OBJ;
 extern struct Type *const ANONIDENT_OBJ;
 
+struct file_list_s;
+
 typedef struct Ident {
     Obj v;
     str_t name;
-    struct linepos_s epoint;
+    uint8_t val[16];
+    struct file_list_s *file_list;
 } Ident;
 
 typedef struct Anonident {
     Obj v;
     int32_t count;
-    struct linepos_s epoint;
 } Anonident;
 
 extern void identobj_init(void);
+
+extern Ident *new_ident(const str_t *name);
+extern Anonident *new_anonident(int32_t);
+
+static inline Ident *ref_ident(Ident *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline Anonident *ref_anonident(Anonident *v1) {
+    v1->v.refcount++; return v1;
+}
 #endif

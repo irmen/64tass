@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: namespaceobj.c 1887 2019-02-10 16:05:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -230,23 +230,22 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             Ident *v2 = (Ident *)o2;
             l = find_label2(&v2->name, v1);
             if (l != NULL) {
-                if (diagnostics.case_symbol && str_cmp(&v2->name, &l->name) != 0) err_msg_symbol_case(&v2->name, l, &v2->epoint);
+                if (diagnostics.case_symbol && str_cmp(&v2->name, &l->name) != 0) err_msg_symbol_case(&v2->name, l, op->epoint2);
                 touch_label(l);
                 return val_reference(l->value);
             }
             if (!referenceit || (constcreated && pass < max_pass)) {
                 return (Obj *)ref_none();
             }
-            err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+            err = new_error(ERROR___NOT_DEFINED, op->epoint2);
             err->u.notdef.names = ref_namespace(v1);
-            err->u.notdef.ident = v2->name;
+            err->u.notdef.ident = (Obj *)ref_ident(v2);
             err->u.notdef.down = false;
             return &err->v;
         }
     case T_ANONIDENT:
         {
             Anonident *v2 = (Anonident *)o2;
-            ssize_t count;
             l = find_anonlabel2(v2->count, v1);
             if (l != NULL) {
                 touch_label(l);
@@ -255,12 +254,9 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             if (!referenceit || (constcreated && pass < max_pass)) {
                 return (Obj *)ref_none();
             }
-            count = v2->count;
-            if (count >= 0) count++;
-            err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+            err = new_error(ERROR___NOT_DEFINED, op->epoint2);
             err->u.notdef.names = ref_namespace(v1);
-            err->u.notdef.ident.len = (size_t)count;
-            err->u.notdef.ident.data = NULL;
+            err->u.notdef.ident = (Obj *)ref_anonident(v2);
             err->u.notdef.down = false;
             return &err->v;
         }

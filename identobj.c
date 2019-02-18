@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.c 1796 2019-01-12 16:28:05Z soci $
+    $Id: identobj.c 1887 2019-02-10 16:05:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <string.h>
 #include "eval.h"
 #include "unicode.h"
+#include "error.h"
+#include "file.h"
+#include "values.h"
 
 #include "typeobj.h"
 #include "operobj.h"
@@ -31,6 +34,29 @@ static Type anonident_obj;
 Type *const IDENT_OBJ = &ident_obj;
 Type *const ANONIDENT_OBJ = &anonident_obj;
 
+Ident *new_ident(const str_t *name) {
+    Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
+    if ((size_t)(name->data - current_file_list->file->data) < current_file_list->file->len) idn->name = *name;
+    else if (name->len <= sizeof idn->val) {
+        idn->name.data = idn->val;
+        idn->name.len = name->len;
+        memcpy(idn->val, name->data, name->len);
+    } else str_cpy(&idn->name, name);
+    idn->file_list = current_file_list;
+    return idn;
+}
+
+Anonident *new_anonident(int32_t count) {
+    Anonident *anonident = (Anonident *)val_alloc(ANONIDENT_OBJ);
+    anonident->count = count;
+    return anonident;
+}
+
+static FAST_CALL void destroy(Obj *o1) {
+    Ident *v1 = (Ident *)o1;
+    const struct file_s *cfile = v1->file_list->file;
+    if ((size_t)(v1->name.data - cfile->data) >= cfile->len && v1->name.data != v1->val) free((char *)v1->name.data);
+}
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Ident *v1 = (Ident *)o1;
@@ -121,6 +147,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void identobj_init(void) {
     new_type(&ident_obj, T_IDENT, "ident", sizeof(Ident));
+    ident_obj.destroy = destroy;
     ident_obj.repr = repr;
     ident_obj.str = str;
     ident_obj.calc2 = calc2;

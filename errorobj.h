@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: errorobj.h 1885 2019-02-10 15:05:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ typedef struct Error {
             Obj *v2;
         } invoper;
         struct {
-            str_t ident;
+            Obj *ident;
             struct Namespace *names;
             bool down;
         } notdef;

@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1673 2018-12-08 09:55:54Z soci $
+    $Id: error.h 1872 2019-02-09 14:29:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +22,7 @@
 #include "stdbool.h"
 #include "errors_e.h"
 #include "avl.h"
-#include "obj.h"
-#include "str.h"
+#include "inttypes.h"
 
 struct file_s;
 
@@ -46,41 +45,46 @@ extern bool print_use_bold;
 #define print_use_bold false
 #endif
 
+struct Obj;
+struct Type;
 struct Label;
 struct Oper;
 struct Error;
+struct Namespace;
+struct oper_s;
+struct str_t;
 
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
-extern void err_msg_wrong_type(const Obj *, struct Type *, linepos_t);
-extern void err_msg_wrong_type2(const Obj *, struct Type *, linepos_t);
+extern void err_msg_wrong_type(const struct Obj *, struct Type *, linepos_t);
+extern void err_msg_wrong_type2(const struct Obj *, struct Type *, linepos_t);
 extern void err_msg_cant_unpack(size_t, size_t, linepos_t);
-extern void err_msg_cant_calculate(const str_t *, linepos_t);
-extern void err_msg_cant_calculate2(const str_t *, const struct file_list_s *, linepos_t);
-extern void err_msg_still_none(const str_t *, linepos_t);
-extern void err_msg_invalid_oper(const struct Oper *, Obj *, Obj *, linepos_t);
-extern void err_msg_double_definedo(struct file_list_s *, linepos_t, const str_t *, linepos_t);
-extern void err_msg_not_variable(struct Label *, const str_t *, linepos_t);
-extern void err_msg_double_defined(struct Label *, const str_t *, linepos_t);
+extern void err_msg_cant_calculate(const struct str_t *, linepos_t);
+extern void err_msg_cant_calculate2(const struct str_t *, const struct file_list_s *, linepos_t);
+extern void err_msg_still_none(const struct str_t *, linepos_t);
+extern void err_msg_invalid_oper(const struct Oper *, struct Obj *, struct Obj *, linepos_t);
+extern void err_msg_double_definedo(struct file_list_s *, linepos_t, const struct str_t *, linepos_t);
+extern void err_msg_not_variable(struct Label *, const struct str_t *, linepos_t);
+extern void err_msg_double_defined(struct Label *, const struct str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
 extern void err_msg_missing_argument(struct file_list_s *, linepos_t, size_t);
-extern void err_msg_unknown_argument(const str_t *, linepos_t);
+extern void err_msg_unknown_argument(const struct str_t *, linepos_t);
 extern void err_msg_unused_macro(struct Label *);
 extern void err_msg_unused_label(struct Label *);
 extern void err_msg_unused_const(struct Label *);
 extern void err_msg_unused_variable(struct Label *);
-extern void err_msg_not_defined(const str_t *, linepos_t);
-extern void err_msg_not_defined2(const str_t *, struct Namespace *, bool, linepos_t);
-extern void err_msg_symbol_case(const str_t *, struct Label *, linepos_t);
+extern void err_msg_not_defined(const struct str_t *, linepos_t);
+extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
+extern void err_msg_symbol_case(const struct str_t *, struct Label *, linepos_t);
 extern void err_msg_address_mismatch(int, int, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
 extern void err_msg_argnum(size_t, size_t, size_t, linepos_t);
-extern void err_msg_bool(Error_types, Obj *, linepos_t);
+extern void err_msg_bool(Error_types, struct Obj *, linepos_t);
 extern void err_msg_bool_oper(struct oper_s *);
-extern void err_msg_bool_val(Error_types, unsigned int, Obj *, linepos_t);
+extern void err_msg_bool_val(Error_types, unsigned int, struct Obj *, linepos_t);
 extern void err_msg_implied_reg(linepos_t);
 extern void err_msg_jmp_bug(linepos_t);
 extern void err_msg_pc_wrap(linepos_t);
@@ -90,7 +94,7 @@ extern void err_msg_branch_page(int, linepos_t);
 extern void err_msg_page(address_t, address_t, linepos_t);
 extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
-extern void err_msg_unknown_char(uchar_t, const str_t *, linepos_t);
+extern void err_msg_unknown_char(uchar_t, const struct str_t *, linepos_t);
 extern void err_msg_star_assign(linepos_t);
 extern void err_msg_compound_note(linepos_t);
 extern void err_msg_byte_note(linepos_t);

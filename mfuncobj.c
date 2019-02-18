@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 1797 2019-01-12 16:48:47Z soci $
+    $Id: mfuncobj.c 1888 2019-02-10 16:58:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "eval.h"
 #include "error.h"
 #include "macro.h"
+#include "file.h"
 
 #include "typeobj.h"
 #include "namespaceobj.h"
@@ -33,11 +34,13 @@ Type *const MFUNC_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;
+    const struct file_s *cfile = v1->file_list->file;
     size_t i = v1->argc;
     while ((i--) != 0) {
-        free((char *)v1->param[i].name.data);
-        if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
-        if (v1->param[i].init != NULL) val_destroy(v1->param[i].init);
+        struct mfunc_param_s *param = &v1->param[i];
+        if ((size_t)(param->name.data - cfile->data) >= cfile->len) free((char *)param->name.data);
+        if (param->name.data != param->cfname.data) free((char *)param->cfname.data);
+        if (param->init != NULL) val_destroy(param->init);
     }
     i = v1->nslen;
     while ((i--) != 0) {
@@ -51,6 +54,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
     Mfunc *v1 = (Mfunc *)o1;
     size_t i = v1->argc;
     Obj *v ;
+    const struct file_s *cfile;
     switch (j) {
     case -1:
         while ((i--) != 0) {
@@ -64,9 +68,11 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         }
         return;
     case 0:
+        cfile = v1->file_list->file;
         while ((i--) != 0) {
-            free((char *)v1->param[i].name.data);
-            if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
+            struct mfunc_param_s *param = &v1->param[i];
+            if ((size_t)(param->name.data - cfile->data) >= cfile->len) free((char *)param->name.data);
+            if (param->name.data != param->cfname.data) free((char *)param->cfname.data);
         }
         free(v1->param);
         free(v1->namespaces);

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.h 1803 2019-01-13 07:29:19Z soci $
+    $Id: macro.h 1866 2019-02-09 09:26:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 */
 #ifndef MACRO_H
 #define MACRO_H
-#include "obj.h"
+#include "inttypes.h"
 #include "wait_e.h"
 #include "stdbool.h"
 
@@ -26,15 +26,16 @@ struct values_s;
 
 struct Namespace;
 struct Mfunc;
+struct Obj;
 
 extern bool in_macro;
 
 extern bool mtranslate(void);
-extern Obj *macro_recurse(Wait_types, Obj *, struct Namespace *, linepos_t);
-extern Obj *mfunc_recurse(struct Mfunc *, struct Namespace *, uint8_t, linepos_t);
-extern Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, size_t, linepos_t);
+extern struct Obj *macro_recurse(Wait_types, struct Obj *, struct Namespace *, linepos_t);
+extern struct Obj *mfunc_recurse(struct Mfunc *, struct Namespace *, uint8_t, linepos_t);
+extern struct Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, size_t, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);
-extern void get_macro_params(Obj *);
+extern void get_macro_params(struct Obj *);
 extern void get_func_params(struct Mfunc *);
 #endif

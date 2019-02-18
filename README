@@ -1,4 +1,4 @@
-64tass v1.54 r1864 reference manual
+64tass v1.54 r1900 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -283,7 +283,13 @@ x >> y   arithmetic shift right           -8 >> 3 is -1
 Integers are automatically promoted to float as necessary in expressions. Other
 types can be converted to integer using the integer type int.
 
-        .byte 23        ; decimal
+        .byte 23        ; as unsigned
+        .char -23       ; as signed
+
+; using negative integers as immediate values
+        ldx #-3         ; works as '#-' is signed immediate
+num     = -3
+        ldx #+num       ; needs explicit '#+' for signed 8 bits
 
         lda #((bitmap >> 10) & $0f) | ((screen >> 6) & $f0)
         sta $d018
@@ -319,12 +325,12 @@ section `Slicing and indexing'.
 
 Other types can be converted to bit string using the bit string type bits.
 
-        .byte $33       ; hex
-        .byte %00011111 ; binary
-        .text $1234     ; $34, $12
+        .byte $33       ; 8 bits in hexadecimal
+        .byte %00011111 ; 8 bits in binary
+        .text $1234     ; $34, $12 (little endian)
 
         lda $01
-        and #~$07
+        and #~$07       ; 8 bits even after inversion
         ora #$05
         sta $01
 
@@ -380,6 +386,7 @@ Unicode character.
 Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
+
 Doubling the quotes inside string literals escapes them and results in a single
 quote.
 
@@ -404,9 +411,9 @@ using the repr and format functions.
 Character strings support indexing and slicing. This is explained in detail in
 section `Slicing and indexing'.
 
-mystr   = "oeU"         ; text
-        .text 'it''s'   ; text: it's
-        .word "ab"+1    ; character, results in "bb" usually
+mystr   = "oeU"         ; character string constant
+        .text 'it''s'   ; it's
+        .word "ab"+1    ; conversion result is "bb" usually
 
         .text "text"[:2]     ; "te"
         .text "text"[2:]     ; "xt"
@@ -447,7 +454,7 @@ mystr   = b"oeU"        ;convert text to bytes, like .text
         .text l"p2"     ;convert to bytes like .shiftl
         .text n"p3"     ;convert to bytes like .null
         .text p"p4"     ;convert to bytes like .ptext
-        .text x"fce2"   ;2 bytes: $fc and $e2
+        .text x"fce2"   ;2 bytes: $fc and $e2 (big endian)
 
 Lists and tuples
 
@@ -697,13 +704,12 @@ Uninitialized memory holes without previous content are not saved unless it's
 really necessary for the output format, in that case it's replaced with zeros.
 
 It's not just data generation statements (e.g. .byte) that can create
-uninitialized memory, but .fill, .align, .offs or address manipulation as well.
+uninitialized memory, but .fill, .align or address manipulation as well.
 
 *       = $200          ;bytes as necessary
         .word ?         ;2 bytes
         .fill 10        ;10 bytes
         .align 64       ;bytes as necessary
-        .offs 16        ;16 bytes
 
 Booleans
 
@@ -1340,8 +1346,7 @@ it does not need to be.
     >0a00                                                   .byte
 
 .offs <expression>
-    Add an offset to the compile offset (create a gap). The program counter
-    stays the same as before.
+    Sets the compile offset relative to the program counter.
 
     Popular in old TASM code where this was the only way to create relocated
     code, otherwise it's use is not recommended as there are easier to use
@@ -1349,9 +1354,9 @@ it does not need to be.
 
     ;Offset PC       Bytes          Disassembly     Source
                                                     *       = $1000
-    .1000                           nop                     .byte
+    .1000           ea              nop                     nop
                                                             .offs 100
-    .1064   1000                    nop                     .byte
+    .1065   1001    ea              nop                     nop
 
 .logical <expression>
 .here

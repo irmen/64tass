@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1824 2019-01-18 06:01:59Z soci $
+    $Id: file.c 1873 2019-02-09 14:34:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -329,7 +329,7 @@ static inline uchar_t fromiso(uchar_t c) {
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static struct ubuff_s last_ubuff;
-static uint16_t curfnum = 1;
+static uint16_t curfnum;
 struct file_s *openfile(const char *name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
     struct avltree_node *b;
     struct file_s *tmp;
@@ -365,7 +365,6 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
         lastfi->read_error = false;
         lastfi->portable = false;
         lastfi->pass = 0;
-        avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi = NULL;
         if (name != NULL) {
@@ -779,6 +778,7 @@ void destroy_file(void) {
 }
 
 void init_file(void) {
+    curfnum = 1;
     avltree_init(&file_tree);
     stars = (struct stars_s *)mallocx(sizeof *stars);
     stars->next = NULL;

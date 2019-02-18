@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.c 1825 2019-01-19 14:21:12Z soci $
+    $Id: opt_bit.c 1867 2019-02-09 11:32:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -178,10 +178,6 @@ bool eq_bit(const Bit *a, const Bit *b) {
 
 bool neq_bit(const Bit *a, const Bit *b) {
     return a->b != b->b && a->b != BU && b->b != BU;
-}
-
-Bit *ld_bit(Bit *a, Bit *UNUSED(b)) {
-    return ref_bit(a);
 }
 
 Bit *and_bit(Bit *a, Bit *b) {
