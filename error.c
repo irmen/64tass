@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1893 2019-02-11 22:35:07Z soci $
+    $Id: error.c 1902 2019-02-22 18:26:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -94,14 +94,43 @@ static int duplicate_compare(const struct avltree_node *aa, const struct avltree
 {
     const struct errorentry_s *a = cavltree_container_of(aa, struct errorentry_s, node);
     const struct errorentry_s *b = cavltree_container_of(bb, struct errorentry_s, node);
+    const uint8_t *aerr, *berr;
 
     if (a->severity != b->severity) return a->severity - b->severity;
     if (a->file_list != b->file_list) return a->file_list > b->file_list ? 1 : -1;
-    if (a->line_len != b->line_len) return a->line_len > b->line_len ? 1 : -1;
     if (a->error_len != b->error_len) return a->error_len > b->error_len ? 1 : -1;
     if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
     if (a->epoint.pos != b->epoint.pos) return a->epoint.pos > b->epoint.pos ? 1 : -1;
-    return memcmp(a + 1, b + 1, a->line_len + a->error_len);
+
+    aerr = (const uint8_t *)(a + 1);
+    berr = (const uint8_t *)(b + 1);
+
+    if ((a->line_len | b->line_len) != 0) {
+        int i;
+        const uint8_t *aline, *bline;
+
+        if (a->line_len != 0) {
+            aline = aerr;
+            aerr += a->line_len;
+        } else if (a->epoint.line == 0) {
+            aline = (const uint8_t *)"";
+        } else {
+            aline = &a->file_list->file->data[a->file_list->file->line[a->epoint.line - 1]];
+        }
+
+        if (b->line_len != 0) {
+            bline = berr;
+            berr += b->line_len;
+        } else if (a->epoint.line == 0) {
+            bline = (const uint8_t *)"";
+        } else {
+            bline = &a->file_list->file->data[a->file_list->file->line[a->epoint.line - 1]];
+        }
+
+        i = strcmp((const char *)aline, (const char *)bline);
+        if (i != 0) return i;
+    }
+    return memcmp(aerr, berr, a->error_len);
 }
 
 static void close_error(void) {

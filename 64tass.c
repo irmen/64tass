@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1896 2019-02-16 16:48:56Z soci $
+    $Id: 64tass.c 1901 2019-02-22 18:25:42Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1461,9 +1461,13 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         line_t xlin = lpoint.line;
         struct oper_s tmp;
         const uint8_t *oldpline = pline;
-        size_t lentmp = strlen((const char *)pline) + 1;
-        expr = (uint8_t *)mallocx(lentmp);
-        memcpy(expr, pline, lentmp); label = NULL;
+        if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+            size_t lentmp = strlen((const char *)pline) + 1;
+            expr = (uint8_t *)mallocx(lentmp);
+            memcpy(expr, pline, lentmp);
+            pline = expr;
+        } else expr = (uint8_t *)oldpline;
+        label = NULL;
         new_waitfor(W_NEXT2, epoint);
         waitfor->u.cmd_rept.breakout = false;
         tmp.op = NULL;
@@ -1589,6 +1593,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
             }
         }
         pline = oldpline;
+        if (expr == oldpline) expr = NULL;
         lpoint.line = xlin;
     }
     if (nf != NULL) {

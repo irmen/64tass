@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1900 2019-02-17 21:46:21Z soci $
+    $Id: 64tass.h 1904 2019-03-27 22:56:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ extern struct Listing *listing;
 extern linepos_t poke_pos;
 extern address_t all_mem, all_mem2;
 extern unsigned int all_mem_bits;
-extern unsigned int outputeor;
+extern uint32_t outputeor;
 extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint;
