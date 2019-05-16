@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1872 2019-02-09 14:29:01Z soci $
+    $Id: error.h 1906 2019-04-19 09:14:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@ extern void err_msg_unused_variable(struct Label *);
 extern void err_msg_not_defined(const struct str_t *, linepos_t);
 extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
 extern void err_msg_symbol_case(const struct str_t *, struct Label *, linepos_t);
+extern void err_msg_macro_prefix(linepos_t);
 extern void err_msg_address_mismatch(int, int, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);

@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1875 2019-02-09 17:09:58Z soci $
+    $Id: intobj.c 1912 2019-04-26 06:34:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -359,7 +359,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         }
         return &v->v;
     case O_NEG:
-        if (op->inplace != &v1->v) return (Obj *)negate(v1, op->epoint3);
+        if (op->inplace != &v1->v) return negate(v1, op->epoint3);
         v1->len = -v1->len;
         return val_reference(&v1->v);
     case O_POS: return (Obj *)ref_int(v1);

@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1881 2019-02-09 19:41:34Z soci $
+    $Id: instruction.c 1905 2019-04-16 06:08:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -439,11 +439,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 } else {
                     adr = (uint16_t)(uval - current_address->l_address.address - 1 - ln);
                 }
-                if ((adr<0xFF80 && adr>0x007F) || crossbank) {
-                    if (cnmemonic[ADR_REL_L] != ____ && !crossbank) { /* 65CE02 long branches */
+                if ((adr<0xFF80 && adr>0x007F) || crossbank || w == 1 || w == 2) {
+                    if (cnmemonic[ADR_REL_L] != ____ && !crossbank && (w == 3 || w == 1)) { /* 65CE02 long branches */
                         opr = ADR_REL_L;
                         ln = 2;
-                    } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
+                    } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____) && w == 3) { /* fake long branches */
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
                             bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
@@ -523,7 +523,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         if (current_cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
                         goto asjmp; /* gcc -> jmp */
                     } else { /* too long */
-                        if (crossbank) {
+                        if (w != 3 && w != 0) {
+                            err_msg2((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, NULL, epoint);
+                        } else if (crossbank) {
                             err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
                         } else {
                             int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
@@ -537,7 +539,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, &diff, epoint);
                         else if (diagnostics.branch_page) err_msg_branch_page(diff, epoint);
                     }
-                    if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
+                    if (cnmemonic[ADR_ADDR] != ____ && w == 3) { /* gcc */
                         if (adr == 0) {
                             dump_instr(cnmemonic[ADR_REL], 0, -1, epoint);
                             err = NULL;

@@ -175,6 +175,13 @@ Warns when a long branch is used.
 This option gives a warning for instructions which were modified by the long branch function.
 Less intrusive than disabling long branches and see where it fails.
 .TP 0.5i
+\fB\-Wmacro\-prefix\fR
+Warn about macro call without prefix.
+Such macro calls can easily be mistaken to be labels if invoked without parameters.
+Also it's hard to notice that an unchanged call turned into label after the
+definition got renamed. This warning helps to find such calls so that prefixes
+can be added.
+.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't

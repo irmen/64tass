@@ -3027,6 +3027,14 @@ default, the others are disabled.
     long branch function. Less intrusive than disabling long branches and see
     where it fails.
 
+-Wmacro-prefix
+    Warn about macro call without prefix.
+
+    Such macro calls can easily be mistaken to be labels if invoked without
+    parameters. Also it's hard to notice that an unchanged call turned into
+    label after the definition got renamed. This warning helps to find such
+    calls so that prefixes can be added.
+
 -Wno-deprecated
     Don't warn about deprecated features.
 
@@ -3666,6 +3674,8 @@ last byte must not be gap
     .shift or .shiftl needs a normal byte at the end
 logarithm of non-positive number
     only positive numbers have a logarithm
+macro call without prefix
+    macro call was found without a prefix and without parameters
 more than a single character
     no more than a single character is allowed
 more than two characters

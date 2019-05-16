@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1873 2019-02-09 14:34:38Z soci $
+    $Id: file.c 1911 2019-04-22 07:41:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ struct include_list_s {
 };
 
 static struct include_list_s include_list;
-struct include_list_s *include_list_last = &include_list;
+static struct include_list_s *include_list_last = &include_list;
 
 static struct avltree file_tree;
 

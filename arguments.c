@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 1687 2018-12-09 17:44:10Z soci $
+    $Id: arguments.c 1906 2019-04-19 09:14:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,7 +86,8 @@ struct diagnostics_s diagnostics = {
     false,       /* long_branch */
     false,       /* altmode */
     true,        /* page */
-    true         /* type_mixing */
+    true,        /* type_mixing */
+    false        /* macro_prefix */
 };
 
 struct diagnostics_s diagnostic_errors = {
@@ -120,7 +121,8 @@ struct diagnostics_s diagnostic_errors = {
     false,       /* long_branch */
     false,       /* altmode */
     true,        /* page */
-    true         /* type_mixing */
+    true,        /* type_mixing */
+    false        /* macro_prefix */
 };
 
 static struct diagnostics_s diagnostic_no_all;
@@ -155,7 +157,8 @@ static struct diagnostics_s diagnostic_all = {
     false,       /* long_branch */
     false,       /* altmode */
     true,        /* page */
-    true         /* type_mixing */
+    true,        /* type_mixing */
+    false        /* macro_prefix */
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
@@ -190,7 +193,8 @@ static struct diagnostics_s diagnostic_error_all = {
     true,        /* long_branch */
     true,        /* altmode */
     true,        /* page */
-    true         /* type_mixing */
+    true,        /* type_mixing */
+    true         /* macro_prefix */
 };
 
 struct w_options_s {
@@ -228,6 +232,7 @@ static const struct w_options_s w_options[] = {
     {"altmode",         &diagnostics.altmode},
     {"page",            &diagnostics.page},
     {"type-mixing",     &diagnostics.type_mixing},
+    {"macro-prefix",    &diagnostics.macro_prefix},
     {NULL,              NULL}
 };
 
@@ -545,6 +550,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wimplied-reg         No implied register aliases\n"
                "  -Wleading-zeros       Warn for ignored leading zeros\n"
                "  -Wlong-branch         Warn when a long branch is used\n"
+               "  -Wmacro-prefix        Warn about unprefixed macro calls\n"
                "  -Wno-deprecated       No deprecated feature warnings\n"
                "  -Wno-float-compare    No approximate compare warnings\n"
                "  -Wno-ignored          No directive ignored warnings\n"

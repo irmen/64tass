@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 1826 2019-01-19 14:40:58Z soci $
+   $Id: ternary.c 1911 2019-04-22 07:41:49Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -43,7 +43,7 @@ static void tern_free(union tern_u *tern) {
     terns_free = tern;
 }
 
-static union tern_u *terns_alloc() {
+static union tern_u *terns_alloc(void) {
     size_t i;
     struct terns_s *old = terns;
     terns = (struct terns_s *)mallocx(sizeof *terns);

@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1861 2019-02-03 19:36:52Z soci $
+    $Id: bytesobj.c 1911 2019-04-22 07:41:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -243,7 +243,7 @@ static uint8_t *z85_encode(uint8_t *dest, const uint8_t *src, size_t len) {
     return dest;
 }
 
-const uint8_t z85_dec[93] = {
+static const uint8_t z85_dec[93] = {
         68, 85, 84, 83, 82, 72, 85, 75, 76, 70, 65, 85, 63, 62, 69,
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  64, 85, 73, 66, 74, 71,
     81, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,

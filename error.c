@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1902 2019-02-22 18:26:53Z soci $
+    $Id: error.c 1911 2019-04-22 07:41:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -903,6 +903,11 @@ void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
     if (l != NULL) err_msg_double_note(l->file_list, &l->epoint, &l->name);
 }
 
+void err_msg_macro_prefix(linepos_t epoint) {
+    new_error_msg2(diagnostic_errors.macro_prefix, epoint);
+    adderror("macro call without prefix [-Wmacro-prefix]");
+}
+
 static const char * const opr_names[ADR_LEN] = {
     "", /* ADR_REG */
     "", /* ADR_IMPLIED */
@@ -1230,7 +1235,7 @@ static bool different_line(const struct errorentry_s *err, const struct errorent
     return memcmp(err + 1, err2 + 1, err->line_len) != 0;
 }
 
-bool error_print() {
+bool error_print(void) {
     const struct errorentry_s *err, *err2, *err3;
     size_t pos;
     bool noneerr = false, anyerr = false, usenote;
@@ -1365,14 +1370,14 @@ void fatal_error(const char *txt) {
     putc('\n', stderr);
 }
 
-void err_msg_out_of_memory2(void)
+NO_RETURN void err_msg_out_of_memory2(void)
 {
     fatal_error("out of memory");
     fatal_error(NULL);
     exit(EXIT_FAILURE);
 }
 
-void err_msg_out_of_memory(void)
+NO_RETURN void err_msg_out_of_memory(void)
 {
     error_print();
     err_msg_out_of_memory2();
