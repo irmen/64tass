@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1898 2019-02-17 21:17:18Z soci $
+    $Id: listobj.c 1913 2019-08-05 13:02:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -180,22 +180,36 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     List *v1 = (List *)o1;
     size_t i;
-    Obj *val;
+    Obj *val, *val2;
     switch (type) {
     case TRUTH_ALL:
+        val2 = NULL;
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
-            if ((Bool *)val != true_value) return val;
-            val_destroy(val);
+            if ((Bool *)val == true_value) {
+                val_destroy(val);
+                continue;
+            }
+            if (val2 != NULL) val_destroy(val2);
+            if ((Bool *)val == false_value) {
+                return val;
+            }
+            val2 = val;
         }
-        return (Obj *)ref_bool(true_value);
+        return (val2 != NULL) ? val2 : (Obj *)ref_bool(true_value);
     case TRUTH_ANY:
+        val2 = NULL;
         for (i = 0; i < v1->len; i++) {
             val = v1->data[i]->obj->truth(v1->data[i], type, epoint);
-            if ((Bool *)val != false_value) return val;
-            val_destroy(val);
+            if ((Bool *)val == false_value) {
+                val_destroy(val);
+                continue;
+            }
+            if (val2 != NULL) val_destroy(val2);
+            if ((Bool *)val == true_value) return val;
+            val2 = val;
         }
-        return (Obj *)ref_bool(false_value);
+        return (val2 != NULL) ? val2 : (Obj *)ref_bool(false_value);
     default:
         return DEFAULT_OBJ->truth(o1, type, epoint);
     }

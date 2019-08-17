@@ -3323,6 +3323,12 @@ Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 <p>Same syntax is allowed as in source files. Be careful with strings, the
 shell might eat the quotes unless escaped.</p>
 
+<p>Using hexadecimal numbers might be tricky as the shell might try to expand
+them as variables. Either quoting or backslash escaping might help.</p>
+
+<p>In Makefiles all $ signs need to be escaped by doubling them. This needs to
+be done over the normal shell escaping. For example <q>$1000</q> becomes <q>\$$1000</q>.</p>
+
 <pre width=80>
 64tass -D ii=2 -D var=\"string\" -D FAST:=true a.asm
         <b>lda</b> #<u>ii</u> <i>;result: $a9, $02</i>

@@ -269,7 +269,7 @@ static const char * const terr_warning[] = {
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
-    "please use format(\"%d\", ...) as '^' will change it's meaning",
+    "please use format(\"%d\", ...) as '^' will change its meaning",
     "please use quotes now to allow expressions in future",
     "constant result, possibly changeable to 'lda'",
     "independent result, possibly changeable to 'lda'",
@@ -654,7 +654,7 @@ static void err_msg_not_defined3(const Error *err) {
         adderror("searched in the global scope");
     } else {
         new_error_msg(SV_NOTE, l->file_list, &l->epoint);
-        if (err->u.notdef.down) adderror("searched in this scope and in all it's parents");
+        if (err->u.notdef.down) adderror("searched in this scope and in all its parents");
         else adderror("searched in this object only");
     }
 }
