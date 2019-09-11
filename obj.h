@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: obj.h 1925 2019-08-25 11:09:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,19 +37,6 @@ typedef struct Lbl_s {
     struct Namespace *parent;
 } Lbl;
 
-struct Iter;
-typedef FAST_CALL MUST_CHECK Obj *(*iter_next_t)(struct Iter *);
-typedef size_t (*iter_len_t)(struct Iter *);
-
-typedef struct Iter {
-    Obj v;
-    Obj *iter;
-    size_t val;
-    Obj *data;
-    iter_next_t next;
-    iter_len_t len;
-} Iter;
-
 typedef struct Funcargs {
     Obj v;
     size_t len;
@@ -72,7 +59,6 @@ extern void objects_destroy(void);
 
 extern struct Type *const LBL_OBJ;
 extern struct Type *const DEFAULT_OBJ;
-extern struct Type *const ITER_OBJ;
 extern struct Type *const FUNCARGS_OBJ;
 extern Default *default_value;
 

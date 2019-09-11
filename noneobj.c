@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 1621 2018-08-30 20:34:53Z soci $
+    $Id: noneobj.c 1944 2019-08-31 09:46:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,10 @@
 static Type obj;
 
 Type *const NONE_OBJ = &obj;
-None *none_value;
+
+static None noneval = { { &obj, 1}, NULL };
+
+None *none_value = &noneval;
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
@@ -76,7 +79,7 @@ static MUST_CHECK Obj *sign(Obj *v1, linepos_t UNUSED(epoint)) {
     return val_reference(v1);
 }
 
-static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), bool UNUSED(inplace), linepos_t UNUSED(epoint)) {
     return val_reference(v1);
 }
 
@@ -105,14 +108,10 @@ void noneobj_init(void) {
     obj.function = function;
     obj.len = len;
     obj.size = size;
-
-    none_value = (None *)val_alloc(NONE_OBJ);
 }
 
 void noneobj_destroy(void) {
 #ifdef DEBUG
     if (none_value->v.refcount != 1) fprintf(stderr, "none %" PRIuSIZE "\n", none_value->v.refcount - 1);
 #endif
-
-    val_destroy(&none_value->v);
 }

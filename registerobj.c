@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 1797 2019-01-12 16:48:47Z soci $
+    $Id: registerobj.c 1968 2019-09-08 08:18:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,9 +33,13 @@ static Type obj;
 
 Type *const REGISTER_OBJ = &obj;
 
+static FAST_CALL NO_INLINE void register_destroy(Register *v1) {
+    free(v1->data);
+}
+
 static FAST_CALL void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
-    if (v1->val != v1->data) free(v1->data);
+    if (v1->val != v1->data) register_destroy(v1);
 }
 
 static inline MALLOC Register *new_register(void) {
@@ -138,7 +142,8 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return &v->v;
 }
 
-static inline int icmp(const Register *v1, const Register *v2) {
+static inline int icmp(oper_t op) {
+    const Register *v1 = (Register *)op->v1, *v2 = (Register *)op->v2;
     int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h != 0) return h;
     if (v1->len < v2->len) return -1;
@@ -146,8 +151,7 @@ static inline int icmp(const Register *v1, const Register *v2) {
 }
 
 static MUST_CHECK Obj *calc2_register(oper_t op) {
-    Register *v1 = (Register *)op->v1, *v2 = (Register *)op->v2;
-    int val = icmp(v1, v2);
+    int val = icmp(op);
     switch (op->op->op) {
     case O_CMP:
         if (val < 0) return (Obj *)ref_int(minus1_value);

@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 1830 2019-01-20 21:41:22Z soci $
+" $Id: 64tass.vim 1919 2019-08-24 14:54:20Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -125,11 +125,11 @@ syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|cdef|cpu)>/ contain
 syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endp)>/ contained
 syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|hidemac)>/ contained
 syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|virtual|endv)>/ contained
-syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|proff|pron|rept|brept|section)>/ contained
+syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|proff|pron|rept|brept|while|bwhile|section)>/ contained
 syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endn)>/ contained
 syn match tass64Define  /\v\.%(segment|macro|endm|function|endf)>/ contained
 syn match tass64Include /\v\.%(include|binclude)>/ contained
-syn match tass64PreCondit /\v\.%(elsif|ifmi|ifne|ifpl|else|fi|if|ifeq|endif|switch|endswitch|case|default|comment|endc|break|continue)>/ contained
+syn match tass64PreCondit /\v\.%(elsif|ifmi|ifne|ifpl|else|fi|if|ifeq|endif|switch|endswitch|case|default|comment|endc|breakif|continueif|break|continue)>/ contained
 syn match tass64Structure /\v\.%(union|endu|struct|ends|dstruct|dunion)>/ contained
 syn match tass64Debug /\v\.%(error|cwarn|warn|cerror|check|assert)>/ contained
 

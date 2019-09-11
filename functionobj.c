@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 1850 2019-01-29 13:42:17Z soci $
+    $Id: functionobj.c 1954 2019-08-31 18:50:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "bytesobj.h"
+#include "iterobj.h"
 
 static Type obj;
 
@@ -58,7 +59,9 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 
 static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     Function *v1 = (Function *)o1;
-    *hs = v1->name_hash;
+    int h = v1->name_hash;
+    if (h < 0) v1->name_hash = h = str_hash(&v1->name);
+    *hs = h;
     return NULL;
 }
 
@@ -102,48 +105,68 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
     size_t args = vals->len;
     size_t j;
     for (j = 0; j < args; j++) {
-        const Type *objt = v[j].val->obj;
-        if (objt == TUPLE_OBJ || objt == LIST_OBJ) {
-            List *v1 = (List *)v[j].val, *vv;
+        const Type *objt2, *objt = v[j].val->obj;
+        if (objt->iterable) {
+            Iter *iter = objt->getiter(v[j].val);
+            size_t ln = iter->len;
             Obj *oval[3];
+            Iter *iters[3];
             size_t k;
+            oval[j] = v[j].val;
+            if (ln == 1) {
+                v[j].val = iter->next(iter);
+                val_destroy(&iter->v);
+                iters[j] = NULL;
+            } else iters[j] = iter;
             for (k = j + 1; k < args; k++) {
                 oval[k] = v[k].val;
-                if (oval[k]->obj == LIST_OBJ || oval[k]->obj == TUPLE_OBJ) {
-                    List *v2 = (List *)v[k].val;
-                    if (v2->len != 1 && v2->len != v1->len) {
-                        Error *err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
-                        err->u.broadcast.v1 = v1->len;
-                        err->u.broadcast.v2 = v2->len;
+                objt2 = oval[k]->obj;
+                if (objt2->iterable) {
+                    Error *err;
+                    Iter *iter2 = objt2->getiter(oval[k]);
+                    size_t ln2 = iter2->len;
+                    if (ln2 != 1) {
+                        iters[k] = iter2;
+                        if (ln2 == ln) continue;
+                        if (ln == 1) {
+                            ln = ln2;
+                            continue;
+                        }
+                        for (; k > j; k--) {
+                            if (iters[k] != NULL) val_destroy(&iters[k]->v);
+                            v[k].val = oval[k];
+                        }
+                        if (iters[j] != NULL) val_destroy(&iters[j]->v);
+                        v[j].val = oval[j];
+                        err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
+                        err->u.broadcast.v1 = ln;
+                        err->u.broadcast.v2 = ln2;
                         return &err->v;
                     }
-                    if (diagnostics.type_mixing && v[k].val->obj != objt) err_msg_type_mixing(&v[j].epoint);
+                    v[k].val = iter2->next(iter2);
+                    val_destroy(&iter2->v);
                 }
+                iters[k] = NULL;
             }
-            if (v1->len != 0) {
+            if (ln != 0) {
                 size_t i;
-                Obj **vals2, *o1 = v[j].val;
-                vv = (List *)val_alloc(objt);
-                vals2 = list_create_elements(vv, v1->len);
-                for (i = 0; i < v1->len; i++) {
-                    v[j].val = v1->data[i];
-                    for (k = j + 1; k < args; k++) {
-                        if (oval[k]->obj == LIST_OBJ || oval[k]->obj == TUPLE_OBJ) {
-                            List *v2 = (List *)oval[k];
-                            v[k].val = v2->data[(v2->len == 1) ? 0 : i];
-                        }
+                List *vv = (List *)val_alloc(objt == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+                Obj **vals2 = vv->data = list_create_elements(vv, ln);
+                for (i = 0; i < ln; i++) {
+                    for (k = j; k < args; k++) {
+                        if (iters[k] != NULL) v[k].val = iters[k]->next(iters[k]);
                     }
                     vals2[i] = gen_broadcast(vals, epoint, f);
                 }
                 vv->len = i;
-                vv->data = vals2;
-                v[j].val = o1;
-                for (i = j + 1; i < args; i++) {
-                    v[i].val = oval[i];
+                for (k = j; k < args; k++) {
+                    if (iters[k] != NULL) val_destroy(&iters[k]->v);
+                    v[k].val = oval[k];
                 }
                 return &vv->v;
             }
-            return val_reference(&v1->v);
+            val_destroy(&iter->v);
+            return val_reference(objt == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
         }
     }
     return f(vals, epoint);
@@ -413,57 +436,8 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
-static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint) {
-    const Type *typ = o1->obj;
-    Obj *err;
-    double real;
-
-    if (typ == TUPLE_OBJ || typ == LIST_OBJ) {
-        iter_next_t iter_next;
-        Iter *iter = typ->getiter(o1);
-        size_t len = iter->len(iter);
-        List *v;
-        size_t i;
-        Obj **vals;
-
-        if (len == 0) {
-            val_destroy(&iter->v);
-            return val_reference(typ == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
-        }
-
-        v = (List *)val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
-        v->data = vals = list_create_elements(v, len);
-        iter_next = iter->next;
-        for (i = 0; i < len && (o1 = iter_next(iter)) != NULL; i++) {
-            vals[i] = apply_func(o1, func, epoint);
-        }
-        val_destroy(&iter->v);
-        v->len = i;
-        return &v->v;
-    }
-    switch (func) {
-    case F_SIZE: return typ->size(o1, epoint);
-    case F_SIGN: return typ->sign(o1, epoint);
-    case F_CEIL: return typ->function(o1, TF_CEIL, epoint);
-    case F_FLOOR: return typ->function(o1, TF_FLOOR, epoint);
-    case F_ROUND: return typ->function(o1, TF_ROUND, epoint);
-    case F_TRUNC: return typ->function(o1, TF_TRUNC, epoint);
-    case F_ABS: return typ->function(o1, TF_ABS, epoint);
-    case F_REPR:
-        {
-            Obj *v = typ->repr(o1, epoint, SIZE_MAX);
-            return v != NULL ? v : (Obj *)new_error_mem(epoint);
-        }
-    default: break;
-    }
-    if (typ == FLOAT_OBJ) {
-        real = ((Float *)o1)->real;
-    } else {
-        err = FLOAT_OBJ->create(o1, epoint);
-        if (err->obj != FLOAT_OBJ) return err;
-        real = ((Float *)err)->real;
-        val_destroy(err);
-    }
+static MUST_CHECK Obj *apply_func2(Obj *o1, Function_types func, bool inplace, linepos_t epoint) {
+    double real = ((Float *)o1)->real;
     switch (func) {
     case F_SQRT:
         if (real < 0.0) {
@@ -509,7 +483,72 @@ static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, linepos_t epoint
     case F_TANH: real = tanh(real);break;
     default: real = HUGE_VAL; break; /* can't happen */
     }
-    return float_from_double(real, epoint);
+    if (!inplace || real == HUGE_VAL || real == -HUGE_VAL) return float_from_double(real, epoint);
+    ((Float *)o1)->real = real;
+    return val_reference(o1);
+}
+
+static MUST_CHECK Obj *apply_func(Obj *o1, Function_types func, bool inplace, linepos_t epoint) {
+    const Type *typ = o1->obj;
+    Obj *err;
+
+    if (typ->iterable) {
+        List *v;
+        size_t i, len;
+        Obj **vals;
+
+        if (!inplace || (typ != TUPLE_OBJ && typ != LIST_OBJ)) {
+            iter_next_t iter_next;
+            Iter *iter = typ->getiter(o1);
+            len = iter->len;
+            if (len == 0) {
+                val_destroy(&iter->v);
+                return val_reference(typ == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+            }
+            v = (List *)val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+            v->data = vals = list_create_elements(v, len);
+            iter_next = iter->next;
+            for (i = 0; i < len && (o1 = iter_next(iter)) != NULL; i++) {
+                vals[i] = apply_func(o1, func, inplace && (o1->refcount == 1), epoint);
+            }
+            val_destroy(&iter->v);
+            v->len = i;
+            return &v->v;
+        } 
+        v = (List *)val_reference(o1);
+        len = v->len;
+        vals = v->data;
+        for (i = 0; i < len; i++) {
+            o1 = vals[i];
+            vals[i] = apply_func(o1, func, o1->refcount == 1, epoint);
+            val_destroy(o1);
+        }
+        return &v->v;
+    }
+    switch (func) {
+    case F_SIZE: return typ->size(o1, epoint);
+    case F_SIGN: return typ->sign(o1, epoint);
+    case F_CEIL: return typ->function(o1, TF_CEIL, inplace, epoint);
+    case F_FLOOR: return typ->function(o1, TF_FLOOR, inplace, epoint);
+    case F_ROUND: return typ->function(o1, TF_ROUND, inplace, epoint);
+    case F_TRUNC: return typ->function(o1, TF_TRUNC, inplace, epoint);
+    case F_ABS: return typ->function(o1, TF_ABS, inplace, epoint);
+    case F_REPR:
+        {
+            Obj *v = typ->repr(o1, epoint, SIZE_MAX);
+            return v != NULL ? v : (Obj *)new_error_mem(epoint);
+        }
+    default: break;
+    }
+    if (typ != FLOAT_OBJ) {
+        Obj *val;
+        err = FLOAT_OBJ->create(o1, epoint);
+        if (err->obj != FLOAT_OBJ) return err;
+        val = apply_func2(err, func, err->refcount == 1, epoint);
+        val_destroy(err);
+        return val;
+    }
+    return apply_func2(o1, func, inplace, epoint);
 }
 
 static MUST_CHECK Obj *to_real(struct values_s *v, double *r) {
@@ -657,7 +696,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     case F_ALL: return v[0].val->obj->truth(v[0].val, TRUTH_ALL, &v[0].epoint);
                     case F_LEN: return v[0].val->obj->len(v[0].val, &v[0].epoint);
                     case F_SORT: return function_sort(v[0].val, &v[0].epoint);
-                    default: return apply_func(v[0].val, func, &v[0].epoint);
+                    default: return apply_func(v[0].val, func, v[0].val->refcount == 1, &v[0].epoint);
                     }
                 }
             default: break;
@@ -742,7 +781,7 @@ void functionobj_names(void) {
         func->name.data = (const uint8_t *)builtin_functions[i].name;
         func->name.len = strlen(builtin_functions[i].name);
         func->func = builtin_functions[i].func;
-        func->name_hash = str_hash(&func->name);
+        func->name_hash = -1;
         new_builtin(builtin_functions[i].name, &func->v);
     }
 }

@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 1852 2019-01-30 07:42:47Z soci $
+	$Id: jedit-assembly-64tass.xml 1919 2019-08-24 14:54:20Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -48,13 +48,16 @@
                         <KEYWORD3>.bfor</KEYWORD3>
                         <KEYWORD3>.block</KEYWORD3>
                         <KEYWORD3>.break</KEYWORD3>
+                        <KEYWORD3>.breakif</KEYWORD3>
                         <KEYWORD3>.brept</KEYWORD3>
+                        <KEYWORD3>.bwhile</KEYWORD3>
                         <KEYWORD3>.case</KEYWORD3>
                         <KEYWORD3>.cdef</KEYWORD3>
                         <KEYWORD3>.cerror</KEYWORD3>
                         <KEYWORD3>.check</KEYWORD3>
                         <KEYWORD3>.comment</KEYWORD3>
                         <KEYWORD3>.continue</KEYWORD3>
+                        <KEYWORD3>.continueif</KEYWORD3>
                         <KEYWORD3>.cpu</KEYWORD3>
                         <KEYWORD3>.cwarn</KEYWORD3>
                         <KEYWORD3>.databank</KEYWORD3>
@@ -118,6 +121,7 @@
                         <KEYWORD3>.virtual</KEYWORD3>
                         <KEYWORD3>.warn</KEYWORD3>
                         <KEYWORD3>.weak</KEYWORD3>
+                        <KEYWORD3>.while</KEYWORD3>
                         <KEYWORD3>.xl</KEYWORD3>
                         <KEYWORD3>.xs</KEYWORD3>
 

@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1851 2019-01-29 20:04:20Z soci $
+    $Id: section.c 1962 2019-09-04 05:03:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ struct section_s *current_section = &root_section;
 struct section_address_s *current_address = &root_section.address;
 static struct section_s *prev_section = &root_section;
 
-static int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct section_s *a = cavltree_container_of(aa, struct section_s, node);
     const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
@@ -133,14 +133,15 @@ struct section_s *find_this_section(const char *here) {
     pline = (const uint8_t *)here;
     lpoint.pos = 0;
     do {
-        labelname.data = pline + lpoint.pos; labelname.len = get_label();
+        labelname.data = pline + lpoint.pos; labelname.len = get_label(labelname.data);
         if (labelname.len == 0) return NULL;
+        lpoint.pos += labelname.len;
         space = find_section(&labelname, space);
         if (space == NULL) return NULL;
         lpoint.pos++;
     } while (labelname.data[labelname.len] == '.');
 
-    return space;
+    return labelname.data[labelname.len] != 0 ? NULL : space;
 }
 
 void reset_section(struct section_s *section) {

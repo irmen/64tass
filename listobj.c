@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1913 2019-08-05 13:02:12Z soci $
+    $Id: listobj.c 1966 2019-09-04 21:29:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "foldobj.h"
+#include "iterobj.h"
 
 static Type list_obj;
 static Type tuple_obj;
@@ -46,13 +47,17 @@ Tuple *null_tuple;
 List *null_list;
 Addrlist *null_addrlist;
 
+static FAST_CALL NO_INLINE void list_destroy(List *v1) {
+    free(v1->data);
+}
+
 static FAST_CALL void destroy(Obj *o1) {
     List *v1 = (List *)o1;
     size_t i;
     for (i = 0; i < v1->len; i++) {
         val_destroy(v1->data[i]);
     }
-    if (v1->u.val != v1->data) free(v1->data);
+    if (v1->u.val != v1->data) list_destroy(v1);
 }
 
 static FAST_CALL void garbage(Obj *o1, int j) {
@@ -291,17 +296,13 @@ static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
     return vv1->data[v1->val++];
 }
 
-static size_t iter_len(Iter *v1) {
-    return ((List *)v1->data)->len - v1->val;
-}
-
 static MUST_CHECK Iter *getiter(Obj *v1) {
     Iter *v = (Iter *)val_alloc(ITER_OBJ);
     v->iter = NULL;
     v->val = 0;
     v->data = val_reference(v1);
     v->next = next;
-    v->len = iter_len;
+    v->len = ((List *)v1)->len;
     return v;
 }
 
@@ -393,7 +394,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         v = ref_list(v1);
                         vals = v1->data;
                         inplace = v1;
-                    } else if (op->inplace == &v2->v) {
+                    } else if (o1->obj == o2->obj && op->inplace == &v2->v) {
                         v = ref_list(v2);
                         vals = v2->data;
                         inplace = v2;
@@ -455,7 +456,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                 i = v1->len;
                 v1->len = ln;
                 v = (List *)val_reference(o1);
-            } else if (op->inplace == &v2->v) {
+            } else if (o1->obj == o2->obj && op->inplace == &v2->v) {
                 vals = lextend(v2, ln);
                 if (vals == NULL) goto failed;
                 memmove(vals + v1->len, v2->data, v2->len * sizeof *v2->data);
@@ -535,10 +536,10 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
 
     ln = v1->len;
 
-    if (o2->obj == LIST_OBJ) {
+    if (o2->obj->iterable) {
         iter_next_t iter_next;
         Iter *iter = o2->obj->getiter(o2);
-        size_t len = iter->len(iter);
+        size_t len = iter->len;
 
         if (len == 0) {
             val_destroy(&iter->v);
@@ -621,7 +622,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return o2->obj->rcalc2(op);
     }
     if (o2->obj == TUPLE_OBJ || o2->obj == LIST_OBJ) {
-        if (diagnostics.type_mixing && o1->obj != o2->obj) err_msg_type_mixing(op->epoint3);
         return calc2_list(op);
     }
     if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
@@ -703,7 +703,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         return (Obj *)ref_bool(false_value);
     }
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
-        if (diagnostics.type_mixing && o1->obj != o2->obj) err_msg_type_mixing(op->epoint3);
         return calc2_list(op);
     }
     if (o1 == &none_value->v || o1->obj == ERROR_OBJ) {
@@ -762,6 +761,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 static void init(Type *obj) {
+    obj->iterable = true;
     obj->destroy = destroy;
     obj->garbage = garbage;
     obj->same = same;

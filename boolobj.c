@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 1859 2019-01-31 20:03:11Z soci $
+    $Id: boolobj.c 1944 2019-08-31 09:46:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,10 +36,13 @@
 static Type obj;
 
 Type *const BOOL_OBJ = &obj;
-Bool *true_value;
-Bool *false_value;
-Bool *bool_value[2];
-static Str *bool_repr[2] = {NULL, NULL};
+
+static Bool trueval = { { &obj, 2 }, NULL };
+static Bool falseval = { { &obj, 2 }, NULL };
+
+Bool *true_value = &trueval;
+Bool *false_value = &falseval;
+Bool *bool_value[2] = { &falseval, &trueval };
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -69,16 +72,18 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
+    Bool *v1 = (Bool *)o1;
     Str *v;
-    size_t len = o1 == &true_value->v ? 4 : 5;
+    bool val = (o1 == &true_value->v);
+    size_t len = val ? 4 : 5;
     if (len > maxsize) return NULL;
-    v = bool_repr[len - 4];
+    v = v1->repr;
     if (v == NULL) {
         v = new_str2(len);
         if (v == NULL) return NULL;
         v->chars = len;
-        memcpy(v->data, ((Bool *)o1)->name, len);
-        bool_repr[len - 4] = v;
+        memcpy(v->data, val ? "true" : "false", len);
+        v1->repr = v;
     }
     return val_reference(&v->v);
 }
@@ -112,7 +117,7 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
     if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
     return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
 }
@@ -123,11 +128,12 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     if (diagnostics.strict_bool && op->op != &o_LNOT) err_msg_bool_oper(op);
     switch (op->op->op) {
     case O_BANK:
-    case O_HIGHER: return (Obj *)bytes_from_u8(0);
-    case O_LOWER: return (Obj *)bytes_from_u8(v1 ? 1 : 0);
-    case O_HWORD: return (Obj *)bytes_from_u16(0);
-    case O_WORD: return (Obj *)bytes_from_u16(v1 ? 1 : 0);
-    case O_BSWORD: return (Obj *)bytes_from_u16(v1 ? 0x100 : 0);
+    case O_HIGHER:
+    case O_LOWER:
+    case O_HWORD:
+    case O_WORD:
+    case O_BSWORD:
+        return bytes_calc1(op->op->op, v1 ? 1u : 0u);
     case O_INV: return (Obj *)ibits_from_bool(v1);
     case O_NEG: return v1 ? (Obj *)ibits_from_bool(false) : (Obj *)ref_bits(bits_value[0]);
     case O_POS: return (Obj *)ref_bits(bits_value[v1 ? 1 : 0]);
@@ -233,30 +239,23 @@ void boolobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-
-    bool_value[0] = false_value = (Bool *)val_alloc(BOOL_OBJ);
-    false_value->name = "false";
-    bool_value[1] = true_value = (Bool *)val_alloc(BOOL_OBJ);
-    true_value->name = "true";
 }
 
 void boolobj_names(void) {
     new_builtin("bool", val_reference(&BOOL_OBJ->v));
 
-    new_builtin("true", (Obj *)ref_bool(true_value));
-    new_builtin("false", (Obj *)ref_bool(false_value));
+    new_builtin("true", &true_value->v);
+    new_builtin("false", &false_value->v);
 }
 
 void boolobj_destroy(void) {
 #ifdef DEBUG
     if (false_value->v.refcount != 1) fprintf(stderr, "false %" PRIuSIZE "\n", false_value->v.refcount - 1);
     if (true_value->v.refcount != 1) fprintf(stderr, "true %" PRIuSIZE "\n", true_value->v.refcount - 1);
-    if (bool_repr[0] != NULL && bool_repr[0]->v.refcount != 1) fprintf(stderr, "boolrepr[0] %" PRIuSIZE "\n", bool_repr[0]->v.refcount - 1);
-    if (bool_repr[1] != NULL && bool_repr[1]->v.refcount != 1) fprintf(stderr, "boolrepr[1] %" PRIuSIZE "\n", bool_repr[1]->v.refcount - 1);
+    if (falseval.repr != NULL && falseval.repr->v.refcount != 1) fprintf(stderr, "boolrepr[0] %" PRIuSIZE "\n", falseval.repr->v.refcount - 1);
+    if (trueval.repr != NULL && trueval.repr->v.refcount != 1) fprintf(stderr, "boolrepr[1] %" PRIuSIZE "\n", trueval.repr->v.refcount - 1);
 #endif
 
-    val_destroy(&false_value->v);
-    val_destroy(&true_value->v);
-    if (bool_repr[0] != NULL) val_destroy(&bool_repr[0]->v);
-    if (bool_repr[1] != NULL) val_destroy(&bool_repr[1]->v);
+    if (falseval.repr != NULL) val_destroy(&falseval.repr->v);
+    if (trueval.repr != NULL) val_destroy(&trueval.repr->v);
 }

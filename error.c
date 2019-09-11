@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1911 2019-04-22 07:41:49Z soci $
+    $Id: error.c 1964 2019-09-04 18:36:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ struct notdefines_s {
     struct avltree_node node;
 };
 
-static int duplicate_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct errorentry_s *a = cavltree_container_of(aa, struct errorentry_s, node);
     const struct errorentry_s *b = cavltree_container_of(bb, struct errorentry_s, node);
@@ -168,7 +168,6 @@ static void error_extend(void) {
     }
     if (error_list.members.root != NULL) error_list.members.root = (struct avltree_node *)((uint8_t *)error_list.members.root + diff);
     if (error_list.members.first != NULL) error_list.members.first = (struct avltree_node *)((uint8_t *)error_list.members.first + diff);
-    if (error_list.members.last != NULL) error_list.members.last = (struct avltree_node *)((uint8_t *)error_list.members.last + diff);
 }
 
 static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len) {
@@ -211,7 +210,7 @@ static void new_error_msg2(bool type, linepos_t epoint) {
     new_error_msg(type ? SV_ERROR : SV_WARNING, current_file_list, epoint);
 }
 
-static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
     const struct file_list_s *b = cavltree_container_of(bb, struct file_list_s, node);
@@ -338,7 +337,7 @@ static const char * const terr_error[] = {
     "empty encoding, add something or correct name",
     "closing directive '",
     "opening directive '",
-    "must be within a '.for' or '.rept' loop"
+    "must be used within a loop"
 };
 
 static const char * const terr_fatal[] = {
@@ -435,7 +434,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror("immediate addressing mode suggested [-Wimmediate]");
             break;
         case ERROR_LEADING_ZEROS:
-            new_error_msg2(diagnostic_errors.immediate, epoint);
+            new_error_msg2(diagnostic_errors.leading_zeros, epoint);
             adderror("leading zeros ignored [-Wleading-zeros]");
             break;
         case ERROR_DIRECTIVE_IGN:
@@ -447,6 +446,10 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror("approximate floating point ");
             adderror((const char *)prm);
             adderror("' [-Wfloat-compare]");
+            break;
+        case ERROR___FLOAT_ROUND:
+            new_error_msg2(diagnostic_errors.float_round, epoint);
+            adderror("implicit floating point rounding [-Wfloat-round]");
             break;
         case ERROR___LONG_BRANCH:
             new_error_msg2(diagnostic_errors.long_branch, epoint);
@@ -596,7 +599,7 @@ static void err_msg_invalid_conv(const Error *err) {
     adderror(" is not possible");
 }
 
-static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
@@ -1027,11 +1030,6 @@ void err_msg_unused_const(Label *l) {
 void err_msg_unused_variable(Label *l) {
     err_msg_unused("unused variable", diagnostic_errors.unused.variable, l);
     adderror(" [-Wunused-variable]");
-}
-
-void err_msg_type_mixing(linepos_t epoint) {
-    new_error_msg(diagnostic_errors.type_mixing ? SV_ERROR : SV_WARNING, current_file_list, epoint);
-    adderror("mixed operation with lists and tuples was undefined and is different now [-Wtype-mixing]");
 }
 
 void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {

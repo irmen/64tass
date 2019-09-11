@@ -4,11 +4,11 @@
         <!ENTITY opcode    "\b(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?:\s+(a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY iopcode   "\b(ahx|alr|anc|ane|arr|asr|axs|dcm|dcp|ins|isb|isc|jam|lae|las|lax|lds|lxa|rla|rra|sax|sbx|sha|shs|shx|shy|slo|sre|tas|xaa)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY datadef   "\.(byte|char|[lsd]int|rta|long|d?word|fill|p?text|null|shiftl?|dstruct|dunion|binary|addr)\b">
-        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|break|continue)\b">
+        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|breakif|continueif|break|continue)\b">
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 1663 2018-10-06 09:24:50Z soci $
+ $Id: katepart-asm6502.xml 1919 2019-08-24 14:54:20Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -123,7 +123,7 @@
         <RegExpr endRegion="macro" String="\.endm\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="function" String="\.function\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="function" String="\.endf\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="for" String="\.(b?for|b?rept)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="for" String="\.(b?for|b?rept|b?while)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="for" String="\.next\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="logical" String="\.here\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>

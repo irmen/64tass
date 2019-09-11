@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1905 2019-04-16 06:08:52Z soci $
+    $Id: instruction.c 1916 2019-08-19 06:49:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -165,6 +165,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     break;
                 case 0xF4: /* pea/phw #$ffff */
                     adrgen = (am == A_IMMEDIATE) ? AG_SWORD : AG_SINT;
+                    break;
+                case 0x32:
+                case 0x42: /* sac sir/wdm */
+                    if (opcode == c65dtv02.opcode) {
+                        if (am != A_IMMEDIATE) return err_addressing(am, epoint);
+                        adrgen = AG_BYTE;
+                        break;
+                    }
+                    adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
                     break;
                 case 0xC2:
                 case 0xE2:

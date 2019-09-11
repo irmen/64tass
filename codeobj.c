@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 1887 2019-02-10 16:05:17Z soci $
+    $Id: codeobj.c 1980 2019-09-08 17:34:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "errorobj.h"
 #include "memblocksobj.h"
 #include "identobj.h"
+#include "iterobj.h"
 
 static Type obj;
 
@@ -198,13 +199,13 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
     Code *v1 = (Code *)o1;
     Obj *v;
     Error *err = access_check(v1, epoint);
     if (err != NULL) return &err->v;
     v = v1->addr;
-    return v->obj->function(v, f, epoint);
+    return v->obj->function(v, f, false, epoint);
 }
 
 MUST_CHECK Obj *int_from_code(Code *v1, linepos_t epoint) {
@@ -336,10 +337,10 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     } else {
         offs0 = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
     }
-    if (o2->obj == LIST_OBJ) {
+    if (o2->obj->iterable) {
         iter_next_t iter_next;
         Iter *iter = o2->obj->getiter(o2);
-        size_t len1 = iter->len(iter);
+        size_t len1 = iter->len;
         Tuple *v;
 
         if (len1 == 0) {
@@ -393,7 +394,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         op->v1 = v1->addr;
-        op->inplace = NULL;
+        op->inplace = (op->inplace == &v1->v && v1->addr->refcount == 1) ? v1->addr : NULL;
         return op->v1->obj->calc1(op);
     case O_BANK:
     case O_HIGHER:
@@ -408,7 +409,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         err = access_check(v1, op->epoint);
         if (err != NULL) return &err->v;
         op->v1 = v1->addr;
-        op->inplace = NULL;
+        op->inplace = (op->inplace == &v1->v && v1->addr->refcount == 1) ? v1->addr : NULL;
         return op->v1->obj->calc1(op);
     default: break;
     }
@@ -457,7 +458,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (err != NULL) return &err->v;
             op->v1 = v1->addr;
             op->v2 = v2->addr;
-            op->inplace = NULL;
+            op->inplace = (op->inplace == &v1->v && v1->addr->refcount == 1) ? v1->addr : NULL;
             return op->v1->obj->calc2(op);
         }
     case T_BOOL:
@@ -469,20 +470,29 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_STR:
     case T_BYTES:
     case T_ADDRESS:
-        op->v1 = v1->addr;
-        op->inplace = NULL;
         switch (op->op->op) {
         case O_ADD:
         case O_SUB:
             {
+                Obj *result;
+                bool inplace;
                 ival_t iv;
                 err = o2->obj->ival(o2, &iv, 31, op->epoint2);
                 if (err != NULL) return &err->v;
-                v = new_code();
-                memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v1) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
-                v->memblocks = ref_memblocks(v1->memblocks);
-                v->names = ref_namespace(v1->names);
-                v->addr = op->v1->obj->calc2(op);
+                inplace = (op->inplace == &v1->v);
+                if (inplace) {
+                    v = (Code *)val_reference(&v1->v);
+                } else {
+                    v = new_code();
+                    memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v1) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
+                    v->memblocks = ref_memblocks(v1->memblocks);
+                    v->names = ref_namespace(v1->names);
+                }
+                op->v1 = v1->addr;
+                op->inplace = (inplace && v1->addr->refcount == 1) ? v1->addr : NULL;
+                result = op->v1->obj->calc2(op);
+                if (inplace) val_destroy(v1->addr);
+                v->addr = result;
                 switch (op->op->op) {
                 case O_ADD: v->offs += iv; break;
                 case O_SUB: v->offs -= iv; break;
@@ -497,6 +507,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
         err = access_check(v1, op->epoint);
         if (err != NULL) return &err->v;
+        op->v1 = v1->addr;
+        op->inplace = (op->inplace == &v1->v && v1->addr->refcount == 1) ? v1->addr : NULL;
         return op->v1->obj->calc2(op);
     default:
         return o2->obj->rcalc2(op);

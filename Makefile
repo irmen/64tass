@@ -5,7 +5,8 @@ OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o \
  registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o \
  longjump.o wctype.o wchar.o math.o arguments.o optimizer.o opt_bit.o labelobj.o \
- errorobj.o macroobj.o mfuncobj.o identobj.o memblocksobj.o foldobj.o main.o
+ errorobj.o macroobj.o mfuncobj.o identobj.o memblocksobj.o foldobj.o main.o \
+ iterobj.o
 LDLIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep --color=none "^[1-9]" || echo "1900?")
@@ -40,13 +41,14 @@ README: README.html
  encoding.h file.h variables.h macro.h instruction.h unicode.h listing.h \
  optimizer.h arguments.h ternary.h opt_bit.h longjump.h mem.h \
  unicodedata.h listobj.h obj.h codeobj.h strobj.h addressobj.h boolobj.h \
- bytesobj.h intobj.h bitsobj.h functionobj.h namespaceobj.h operobj.h \
- gapobj.h typeobj.h noneobj.h registerobj.h labelobj.h errorobj.h \
- macroobj.h mfuncobj.h memblocksobj.h identobj.h dictobj.h
+ bytesobj.h oper_e.h intobj.h bitsobj.h functionobj.h namespaceobj.h \
+ operobj.h gapobj.h typeobj.h noneobj.h registerobj.h labelobj.h \
+ errorobj.h macroobj.h mfuncobj.h memblocksobj.h identobj.h dictobj.h \
+ iterobj.h
 addressobj.o: addressobj.c addressobj.h obj.h attributes.h inttypes.h \
  values.h stdbool.h error.h errors_e.h avl.h eval.h variables.h str.h \
- arguments.h boolobj.h strobj.h intobj.h operobj.h typeobj.h noneobj.h \
- errorobj.h floatobj.h bitsobj.h bytesobj.h
+ arguments.h boolobj.h strobj.h intobj.h operobj.h oper_e.h typeobj.h \
+ noneobj.h errorobj.h floatobj.h bitsobj.h bytesobj.h
 arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
  attributes.h wait_e.h opcodes.h my_getopt.h file.h avl.h str.h error.h \
  errors_e.h unicode.h wchar.h
@@ -54,33 +56,35 @@ avl.o: avl.c avl.h attributes.h stdbool.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h stdbool.h \
  math.h eval.h variables.h str.h unicode.h encoding.h avl.h errors_e.h \
  error.h arguments.h codeobj.h values.h boolobj.h floatobj.h strobj.h \
- bytesobj.h intobj.h listobj.h operobj.h typeobj.h noneobj.h errorobj.h \
- addressobj.h
+ bytesobj.h oper_e.h intobj.h listobj.h operobj.h typeobj.h noneobj.h \
+ errorobj.h addressobj.h iterobj.h
 boolobj.o: boolobj.c boolobj.h obj.h attributes.h inttypes.h stdbool.h \
  eval.h error.h errors_e.h avl.h variables.h str.h arguments.h floatobj.h \
- values.h strobj.h bytesobj.h bitsobj.h intobj.h operobj.h typeobj.h \
- errorobj.h noneobj.h
-bytesobj.o: bytesobj.c bytesobj.h obj.h attributes.h inttypes.h math.h \
- eval.h stdbool.h unicode.h encoding.h avl.h errors_e.h variables.h str.h \
- arguments.h error.h boolobj.h floatobj.h values.h codeobj.h intobj.h \
- strobj.h bitsobj.h listobj.h operobj.h typeobj.h noneobj.h errorobj.h \
- addressobj.h
+ values.h strobj.h bytesobj.h oper_e.h bitsobj.h intobj.h operobj.h \
+ typeobj.h errorobj.h noneobj.h
+bytesobj.o: bytesobj.c bytesobj.h obj.h attributes.h inttypes.h oper_e.h \
+ math.h eval.h stdbool.h unicode.h encoding.h avl.h errors_e.h \
+ variables.h str.h arguments.h error.h boolobj.h floatobj.h values.h \
+ codeobj.h intobj.h strobj.h bitsobj.h listobj.h operobj.h typeobj.h \
+ noneobj.h errorobj.h addressobj.h iterobj.h
 codeobj.o: codeobj.c codeobj.h obj.h attributes.h inttypes.h values.h \
  eval.h stdbool.h mem.h 64tass.h wait_e.h section.h avl.h str.h \
  variables.h error.h errors_e.h arguments.h boolobj.h floatobj.h \
- namespaceobj.h listobj.h intobj.h bitsobj.h bytesobj.h operobj.h \
- gapobj.h typeobj.h noneobj.h errorobj.h memblocksobj.h identobj.h
+ namespaceobj.h listobj.h intobj.h bitsobj.h bytesobj.h oper_e.h \
+ operobj.h gapobj.h typeobj.h noneobj.h errorobj.h memblocksobj.h \
+ identobj.h iterobj.h
 dictobj.o: dictobj.c dictobj.h obj.h attributes.h inttypes.h avl.h eval.h \
  stdbool.h error.h errors_e.h variables.h str.h intobj.h listobj.h \
- values.h strobj.h boolobj.h operobj.h typeobj.h noneobj.h errorobj.h
-encoding.o: encoding.c encoding.h avl.h stdbool.h inttypes.h errors_e.h \
- error.h attributes.h ternary.h unicode.h values.h 64tass.h wait_e.h \
- strobj.h obj.h bytesobj.h typeobj.h errorobj.h str.h
+ values.h strobj.h boolobj.h operobj.h oper_e.h typeobj.h noneobj.h \
+ errorobj.h iterobj.h
+encoding.o: encoding.c encoding.h avl.h attributes.h stdbool.h inttypes.h \
+ errors_e.h error.h ternary.h unicode.h values.h 64tass.h wait_e.h \
+ strobj.h obj.h bytesobj.h oper_e.h typeobj.h errorobj.h str.h iterobj.h
 error.o: error.c error.h attributes.h stdbool.h errors_e.h avl.h \
  inttypes.h wchar.h file.h str.h 64tass.h wait_e.h unicode.h eval.h \
  arguments.h opcodes.h section.h strobj.h obj.h addressobj.h values.h \
- registerobj.h namespaceobj.h operobj.h typeobj.h labelobj.h errorobj.h \
- noneobj.h identobj.h
+ registerobj.h namespaceobj.h operobj.h oper_e.h typeobj.h labelobj.h \
+ errorobj.h noneobj.h identobj.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
  errors_e.h str.h stdbool.h eval.h values.h error.h avl.h 64tass.h \
  wait_e.h file.h typeobj.h registerobj.h namespaceobj.h
@@ -88,29 +92,30 @@ eval.o: eval.c eval.h attributes.h inttypes.h stdbool.h math.h section.h \
  avl.h str.h macro.h wait_e.h variables.h 64tass.h unicode.h listing.h \
  error.h errors_e.h values.h arguments.h optimizer.h unicodedata.h \
  floatobj.h obj.h boolobj.h intobj.h bitsobj.h strobj.h codeobj.h \
- bytesobj.h addressobj.h listobj.h dictobj.h registerobj.h namespaceobj.h \
- operobj.h gapobj.h typeobj.h noneobj.h labelobj.h errorobj.h identobj.h \
- foldobj.h
+ bytesobj.h oper_e.h addressobj.h listobj.h dictobj.h registerobj.h \
+ namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h labelobj.h \
+ errorobj.h identobj.h foldobj.h iterobj.h
 file.o: file.c file.h attributes.h stdbool.h inttypes.h avl.h str.h \
  wchar.h 64tass.h wait_e.h unicode.h error.h errors_e.h arguments.h \
  unicodedata.h
 floatobj.o: floatobj.c floatobj.h obj.h attributes.h inttypes.h values.h \
  math.h error.h stdbool.h errors_e.h avl.h eval.h variables.h str.h \
- arguments.h boolobj.h codeobj.h strobj.h bytesobj.h intobj.h bitsobj.h \
- operobj.h typeobj.h noneobj.h errorobj.h addressobj.h
+ arguments.h boolobj.h codeobj.h strobj.h bytesobj.h oper_e.h intobj.h \
+ bitsobj.h operobj.h typeobj.h noneobj.h errorobj.h addressobj.h
 foldobj.o: foldobj.c foldobj.h obj.h attributes.h inttypes.h values.h \
- eval.h stdbool.h typeobj.h operobj.h strobj.h errorobj.h errors_e.h \
- str.h
+ eval.h stdbool.h typeobj.h operobj.h oper_e.h strobj.h errorobj.h \
+ errors_e.h str.h
 functionobj.o: functionobj.c functionobj.h obj.h attributes.h inttypes.h \
  str.h math.h isnprintf.h eval.h stdbool.h variables.h error.h errors_e.h \
  avl.h file.h arguments.h floatobj.h values.h strobj.h listobj.h intobj.h \
- boolobj.h operobj.h typeobj.h noneobj.h errorobj.h bytesobj.h
+ boolobj.h operobj.h oper_e.h typeobj.h noneobj.h errorobj.h bytesobj.h \
+ iterobj.h
 gapobj.o: gapobj.c gapobj.h obj.h attributes.h inttypes.h eval.h \
- stdbool.h variables.h str.h values.h strobj.h operobj.h intobj.h \
- boolobj.h typeobj.h errorobj.h errors_e.h
+ stdbool.h variables.h str.h values.h strobj.h operobj.h oper_e.h \
+ intobj.h boolobj.h typeobj.h errorobj.h errors_e.h
 identobj.o: identobj.c identobj.h obj.h attributes.h inttypes.h str.h \
  eval.h stdbool.h unicode.h error.h errors_e.h avl.h file.h values.h \
- typeobj.h operobj.h strobj.h
+ typeobj.h operobj.h oper_e.h strobj.h
 instruction.o: instruction.c instruction.h attributes.h stdbool.h \
  inttypes.h opcodes.h 64tass.h wait_e.h section.h avl.h str.h file.h \
  listing.h error.h errors_e.h longjump.h arguments.h optimizer.h \
@@ -119,11 +124,13 @@ instruction.o: instruction.c instruction.h attributes.h stdbool.h \
 intobj.o: intobj.c intobj.h obj.h attributes.h inttypes.h math.h \
  unicode.h stdbool.h encoding.h avl.h errors_e.h error.h eval.h \
  variables.h str.h arguments.h boolobj.h floatobj.h values.h codeobj.h \
- strobj.h bytesobj.h bitsobj.h operobj.h typeobj.h noneobj.h errorobj.h \
- addressobj.h
+ strobj.h bytesobj.h oper_e.h bitsobj.h operobj.h typeobj.h noneobj.h \
+ errorobj.h addressobj.h
 isnprintf.o: isnprintf.c isnprintf.h attributes.h inttypes.h unicode.h \
  stdbool.h eval.h error.h errors_e.h avl.h floatobj.h obj.h values.h \
  strobj.h intobj.h typeobj.h noneobj.h errorobj.h str.h addressobj.h
+iterobj.o: iterobj.c iterobj.h obj.h attributes.h inttypes.h values.h \
+ typeobj.h stdbool.h
 labelobj.o: labelobj.c labelobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h error.h errors_e.h avl.h unicode.h file.h strobj.h \
  typeobj.h errorobj.h
@@ -132,10 +139,10 @@ listing.o: listing.c listing.h attributes.h inttypes.h stdbool.h file.h \
  section.h instruction.h obj.h values.h arguments.h
 listobj.o: listobj.c listobj.h obj.h attributes.h inttypes.h values.h \
  eval.h stdbool.h variables.h str.h error.h errors_e.h avl.h arguments.h \
- boolobj.h codeobj.h strobj.h intobj.h operobj.h typeobj.h noneobj.h \
- errorobj.h foldobj.h
-longjump.o: longjump.c longjump.h avl.h stdbool.h inttypes.h section.h \
- str.h error.h attributes.h errors_e.h
+ boolobj.h codeobj.h strobj.h intobj.h operobj.h oper_e.h typeobj.h \
+ noneobj.h errorobj.h foldobj.h iterobj.h
+longjump.o: longjump.c longjump.h avl.h attributes.h stdbool.h inttypes.h \
+ section.h str.h error.h errors_e.h
 macro.o: macro.c macro.h inttypes.h wait_e.h stdbool.h file.h \
  attributes.h avl.h str.h eval.h values.h section.h variables.h 64tass.h \
  listing.h error.h errors_e.h arguments.h optimizer.h listobj.h obj.h \
@@ -143,7 +150,7 @@ macro.o: macro.c macro.h inttypes.h wait_e.h stdbool.h file.h \
  memblocksobj.h
 macroobj.o: macroobj.c macroobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h eval.h error.h errors_e.h avl.h file.h operobj.h \
- typeobj.h namespaceobj.h intobj.h noneobj.h errorobj.h
+ oper_e.h typeobj.h namespaceobj.h intobj.h noneobj.h errorobj.h
 main.o: main.c 64tass.h attributes.h stdbool.h inttypes.h wait_e.h \
  wchar.h error.h errors_e.h avl.h unicode.h
 math.o: math.c math.h
@@ -154,25 +161,25 @@ mem.o: mem.c mem.h attributes.h stdbool.h inttypes.h error.h errors_e.h \
  memblocksobj.h obj.h
 mfuncobj.o: mfuncobj.c mfuncobj.h obj.h attributes.h inttypes.h str.h \
  values.h eval.h stdbool.h error.h errors_e.h avl.h macro.h wait_e.h \
- file.h typeobj.h namespaceobj.h operobj.h listobj.h
+ file.h typeobj.h namespaceobj.h operobj.h oper_e.h listobj.h
 my_getopt.o: my_getopt.c my_getopt.h stdbool.h unicode.h attributes.h \
  inttypes.h error.h errors_e.h avl.h
 namespaceobj.o: namespaceobj.c namespaceobj.h obj.h attributes.h \
  inttypes.h avl.h variables.h stdbool.h str.h eval.h error.h errors_e.h \
  arguments.h 64tass.h wait_e.h listobj.h values.h strobj.h operobj.h \
- typeobj.h noneobj.h labelobj.h errorobj.h identobj.h codeobj.h \
+ oper_e.h typeobj.h noneobj.h labelobj.h errorobj.h identobj.h codeobj.h \
  macroobj.h
 noneobj.o: noneobj.c noneobj.h obj.h attributes.h inttypes.h eval.h \
  stdbool.h values.h typeobj.h errorobj.h errors_e.h str.h
 obj.o: obj.c obj.h attributes.h inttypes.h eval.h stdbool.h error.h \
  errors_e.h avl.h values.h boolobj.h floatobj.h strobj.h macroobj.h str.h \
  intobj.h listobj.h namespaceobj.h addressobj.h codeobj.h registerobj.h \
- bytesobj.h bitsobj.h functionobj.h dictobj.h operobj.h gapobj.h \
+ bytesobj.h oper_e.h bitsobj.h functionobj.h dictobj.h operobj.h gapobj.h \
  typeobj.h noneobj.h labelobj.h errorobj.h mfuncobj.h identobj.h \
- memblocksobj.h foldobj.h
+ memblocksobj.h foldobj.h iterobj.h
 opcodes.o: opcodes.c opcodes.h inttypes.h
-operobj.o: operobj.c operobj.h obj.h attributes.h inttypes.h strobj.h \
- stdbool.h typeobj.h
+operobj.o: operobj.c operobj.h obj.h attributes.h inttypes.h oper_e.h \
+ strobj.h stdbool.h typeobj.h
 opt_bit.o: opt_bit.c opt_bit.h stdbool.h attributes.h error.h errors_e.h \
  avl.h inttypes.h
 optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
@@ -180,21 +187,22 @@ optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
  macro.h wait_e.h 64tass.h
 registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
  stdbool.h eval.h variables.h str.h values.h boolobj.h strobj.h intobj.h \
- operobj.h typeobj.h errorobj.h errors_e.h
-section.o: section.c section.h avl.h stdbool.h str.h inttypes.h unicode.h \
- attributes.h error.h errors_e.h 64tass.h wait_e.h values.h intobj.h \
- obj.h longjump.h optimizer.h eval.h mem.h memblocksobj.h
+ operobj.h oper_e.h typeobj.h errorobj.h errors_e.h
+section.o: section.c section.h avl.h attributes.h stdbool.h str.h \
+ inttypes.h unicode.h error.h errors_e.h 64tass.h wait_e.h values.h \
+ intobj.h obj.h longjump.h optimizer.h eval.h mem.h memblocksobj.h
 str.o: str.c str.h inttypes.h unicode.h attributes.h stdbool.h error.h \
  errors_e.h avl.h arguments.h
 strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
  eval.h unicode.h error.h errors_e.h avl.h variables.h str.h arguments.h \
- boolobj.h bytesobj.h intobj.h bitsobj.h listobj.h values.h operobj.h \
- typeobj.h noneobj.h errorobj.h
+ boolobj.h bytesobj.h oper_e.h intobj.h bitsobj.h listobj.h values.h \
+ operobj.h typeobj.h noneobj.h errorobj.h iterobj.h
 ternary.o: ternary.c ternary.h stdbool.h inttypes.h unicode.h \
  attributes.h error.h errors_e.h avl.h
 typeobj.o: typeobj.c typeobj.h obj.h attributes.h inttypes.h stdbool.h \
  variables.h str.h eval.h error.h errors_e.h avl.h strobj.h operobj.h \
- intobj.h boolobj.h listobj.h values.h noneobj.h errorobj.h
+ oper_e.h intobj.h boolobj.h listobj.h values.h noneobj.h errorobj.h \
+ iterobj.h
 unicodedata.o: unicodedata.c unicodedata.h attributes.h inttypes.h
 unicode.o: unicode.c unicode.h attributes.h inttypes.h stdbool.h wchar.h \
  wctype.h error.h errors_e.h avl.h unicodedata.h str.h
@@ -204,8 +212,8 @@ variables.o: variables.c variables.h stdbool.h str.h inttypes.h unicode.h \
  attributes.h 64tass.h wait_e.h file.h avl.h obj.h error.h errors_e.h \
  values.h arguments.h eval.h boolobj.h floatobj.h namespaceobj.h strobj.h \
  codeobj.h registerobj.h functionobj.h listobj.h intobj.h bytesobj.h \
- bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h noneobj.h labelobj.h \
- errorobj.h mfuncobj.h
+ oper_e.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h noneobj.h \
+ labelobj.h errorobj.h mfuncobj.h
 wchar.o: wchar.c wchar.h inttypes.h
 wctype.o: wctype.c wctype.h
 

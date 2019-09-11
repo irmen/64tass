@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.c 1887 2019-02-10 16:05:17Z soci $
+    $Id: identobj.c 1960 2019-09-04 03:14:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,10 +52,14 @@ Anonident *new_anonident(int32_t count) {
     return anonident;
 }
 
+static FAST_CALL NO_INLINE void ident_destroy(Ident *v1) {
+    free((char *)v1->name.data);
+}
+
 static FAST_CALL void destroy(Obj *o1) {
     Ident *v1 = (Ident *)o1;
     const struct file_s *cfile = v1->file_list->file;
-    if ((size_t)(v1->name.data - cfile->data) >= cfile->len && v1->name.data != v1->val) free((char *)v1->name.data);
+    if ((size_t)(v1->name.data - cfile->data) >= cfile->len && v1->name.data != v1->val) ident_destroy(v1);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {

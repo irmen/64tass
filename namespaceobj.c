@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 1887 2019-02-10 16:05:17Z soci $
+    $Id: namespaceobj.c 1947 2019-08-31 10:06:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -315,26 +315,29 @@ Namespace *get_namespace(const Obj *o) {
     }
 }
 
-#define SLOTS 128
-
-static void *namespacekeys;
-#ifndef DEBUG
-static void *namespacekey_next;
-#endif
-
-void namespacekey_free(struct namespacekey_s *val) {
 #ifdef DEBUG
+void namespacekey_free(struct namespacekey_s *val) {
     free(val);
-#else
-    *((void **)val) = namespacekey_next;
-    namespacekey_next = (void *)val;
-#endif
 }
 
 struct namespacekey_s *namespacekey_alloc(void) {
-#ifdef DEBUG
-    struct namespacekey_s *val = (struct namespacekey_s *)mallocx(sizeof *val);
+    return (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
+}
+
+void destroy_namespacekeys(void) {
+}
 #else
+#define SLOTS 128
+
+static void *namespacekeys;
+static void *namespacekey_next;
+
+void namespacekey_free(struct namespacekey_s *val) {
+    *((void **)val) = namespacekey_next;
+    namespacekey_next = (void *)val;
+}
+
+struct namespacekey_s *namespacekey_alloc(void) {
     struct namespacekey_s *val = (struct namespacekey_s *)namespacekey_next;
     if (val == NULL) {
         size_t i;
@@ -349,7 +352,6 @@ struct namespacekey_s *namespacekey_alloc(void) {
         *((void **)n) = NULL;
     }
     namespacekey_next = *(void **)val;
-#endif
     return val;
 }
 
@@ -361,4 +363,5 @@ void destroy_namespacekeys(void) {
         n = n2;
     }
 }
+#endif
 

@@ -1989,28 +1989,23 @@ Comment
 
 Repetitions
 
+The following directives are used to repeat code or data.
+
+The regular non-scoped variants cover most cases except when normal labels are
+required as those will be double defined.
+
+Scoped variants (those starting with the letter b) create a new scope for each
+iteration. This allows normal labels without collision but it's a bit more
+resource intensive.
+
+If the scoped variant is prefixed with a label then the list of individual
+scopes for each iteration will be assigned to it. This allows accessing labels
+within.
+
 .for [<assignment>], [<condition>], [<assignment>]
 .bfor [<assignment>], [<condition>], [<assignment>]
 .next
     Assign initial value, loop while the condition is true and modify value.
-
-    The .for directive is more useful calculate data as normal labels will be
-    double defined when used.
-
-    The .bfor directive creates a new scope for each iteration therefore it
-    also works with normal labels but is a bit more resource intensive.
-
-    If the .bfor directive was prefixed with a label then individual scopes are
-    accessible through that label using indexing, otherwise these are not
-    accessible. Variable access needs dot notation in addition of course.
-
-            ldx #0
-            lda #32
-    lp      .for ue := $400, ue < $800, ue += $100
-            sta ue,x         ;do $400, $500, $600 and $700
-            .next
-            dex
-            bne lp
 
     First a variable is set, usually this is used for counting. This is
     optional, the variable may be set already before the loop.
@@ -2021,6 +2016,14 @@ Repetitions
 
     After an iteration the second assignment is calculated, usually it's
     updating the loop counter variable. This is optional as well.
+
+            ldx #0
+            lda #32
+    lp      .for ue := $400, ue < $800, ue += $100
+            sta ue,x         ;do $400, $500, $600 and $700
+            .next
+            dex
+            bne lp
 
 .for <variable>[, <variable>, ...] in <expression>
 .bfor <variable>[, <variable>, ...] in <expression>
@@ -2039,16 +2042,6 @@ Repetitions
 .next
     Repeat enclosed lines the specified number of times.
 
-    The .rept directive is useful to repeat data definitions as normal labels
-    will be double defined when used.
-
-    The .brept directive creates a new scope for each repetition therefore it
-    also works with normal labels but is a bit more resource intensive.
-
-    If the .brept directive was prefixed with a label the scopes are accessible
-    through that label using indexing, otherwise not at all. Variable access
-    needs dot notation in addition of course.
-
             .rept 100
     -       inx
             bne -
@@ -2059,20 +2052,30 @@ Repetitions
             .next
             jmp lst[5].label ;use label of 6th iteration
 
-.break
-    Exit current loop immediately.
+.while <condition>
+.bwhile <condition>
+.next
+    Repeat enclosed lines until the condition holds.
 
-    Can be used inside .for, .bfor, .rept and .brept to terminate the loop
-    immediately.
+    Works as expected however the scoped variant might be tricky to use as
+    variables in the condition might not be in the same scope as the loop body.
+
+.break
+    Exit current repetition loop immediately.
+.breakif <condition>
+    Exit current repetition loop immediately if the condition holds.
+
+    It's a shorthand for a .if .break .fi sequence.
 
 .continue
-    Continue current loop's next iteration.
+    Continue current repetition loop's next iteration.
+.continueif <condition>
+    Continue current repetition loop's next iteration if the condition holds.
 
-    Can be used inside .for, .bfor, .rept and .brept to start the next
-    iteration immediately.
+    It's a shorthand for a .if .continue .fi sequence.
 
 .next
-    Closing directive of .for, .bfor, .rept and .brept loop.
+    Closing directive of .for, .bfor, .rept, .brept, .while and .bwhile loop.
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
@@ -3059,6 +3062,28 @@ default, the others are disabled.
 
     Normally this is solved by rounding or changing the comparison values.
 
+-Wfloat-round
+    Warn when floating point numbers are implicitly rounded.
+
+    A lot of parameters and the data dumping directives need integers but
+    floating point numbers are accepted as well. The style of rounding used may
+    or may not be what you wanted.
+
+    By default floor rounding (to lower) is used and not truncate (towards
+    zero). The reason for this is to enable calculation of fixed point integers
+    by using floating point.
+
+    The difference is subtle and only noticable for negative numbers. The
+    division of -300/256 is -2 which matches floor(-300/256.0) but not trunc
+    (-300/256.0).
+
+    To get symmetric sine waves around zero trunc() needs to be used. Some
+    other calculation might result in 126.9999997 due to inaccuracies in
+    logarithm which would need round().
+
+    To avoid unexpected rounding this option helps to find those places where
+    no explicit rounding was done.
+
 -Wno-ignored
     Don't warn about ignored directives.
 -Wno-jmp-bug
@@ -3545,6 +3570,9 @@ expected ? values but got ? to unpack
 immediate addressing mode suggested
     numeric constant was used as an address which was likely meant as an
     immediate value
+implicit floating point rounding
+    a floating point number with fractional part was used for an integer
+    parameter
 independent result, possibly changeable to 'lda'
     the result does not seem to depend on the input so it could be just loaded
     instead
@@ -3689,7 +3717,7 @@ more than two characters
     no more than two characters are allowed
 most significant bit must be clear in byte
     for .shift and .shiftl only 7 bit "bytes" are valid
-must be within a '.for' or '.rept' loop
+must be used within a loop
     .break or .continue must be used within a loop
 negative number raised on fractional power
     can't calculate this
@@ -4220,7 +4248,8 @@ STP DB                                  TCD 5B
 TCS 1B                                  TDC 7B
 TSC 3B                                  TXY 9B
 TYX BB                                  WAI CB
-XBA EB                                  XCE FB
+WDM 42                                  XBA EB
+XCE FB
 
                               Additional aliases
 CSP 02                                  CLP C2
@@ -4318,14 +4347,15 @@ Appendix
 Assembler directives
 
 .addr .al .align .as .assert .autsiz .bend .binary .binclude .bfor .block
-.break .brept .byte .case .cdef .cerror .char .check .comment .continue .cpu
-.cwarn .databank .default .dint .dpage .dsection .dstruct .dunion .dword .edef
-.else .elsif .enc .end .endc .endf .endif .endm .endn .endp .ends .endswitch
-.endu .endv .endweak .eor .error .fi .fill .for .function .goto .here .hidemac
-.if .ifeq .ifmi .ifne .ifpl .include .lbl .lint .logical .long .macro .mansiz
-.namespace .next .null .offs .option .page .pend .proc .proff .pron .ptext
-.rept .rta .section .seed .segment .send .shift .shiftl .showmac .sint .struct
-.switch .text .union .var .virtual .warn .weak .word .xl .xs
+.break .breakif .brept .bwhile .byte .case .cdef .cerror .char .check .comment
+.continue .continueif .cpu .cwarn .databank .default .dint .dpage .dsection
+.dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endf .endif .endm
+.endn .endp .ends .endswitch .endu .endv .endweak .eor .error .fi .fill .for
+.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .lbl .lint
+.logical .long .macro .mansiz .namespace .next .null .offs .option .page .pend
+.proc .proff .pron .ptext .rept .rta .section .seed .segment .send .shift
+.shiftl .showmac .sint .struct .switch .text .union .var .virtual .warn .weak
+.while .word .xl .xs
 
 -------------------------------------------------------------------------------
 

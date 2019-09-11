@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1911 2019-04-22 07:41:49Z soci $
+    $Id: file.c 1961 2019-09-04 03:35:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -177,17 +177,17 @@ static bool portability(const str_t *name, linepos_t epoint) {
         return false;
     }
 #else
-    size_t i;
-    const uint8_t *c = name->data;
-    for (i = 0; i < name->len; i++) {
-        if (strchr("\\:*?\"<>|", c[i]) != NULL) {
+    const char *c;
+    if (name->len > 0) {
+        for (c = "\\:*?\"<>|"; *c != '\0'; c++) {
+            if (memchr(name->data, *c, name->len) == NULL) continue;
             err_msg2(ERROR__RESERVED_CHR, name, epoint);
             return false;
         }
-    }
-    if (name->len > 0 && name->data[0] == '/') {
-        err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
-        return false;
+        if (name->data[0] == '/') {
+            err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+            return false;
+        }
     }
 #endif
     return true;
@@ -246,7 +246,7 @@ failed:
     return f;
 }
 
-static int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct star_s *a = cavltree_container_of(aa, struct star_s, node);
     const struct star_s *b = cavltree_container_of(bb, struct star_s, node);
@@ -255,7 +255,7 @@ static int star_compare(const struct avltree_node *aa, const struct avltree_node
     return 0;
 }
 
-static int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct file_s *a = cavltree_container_of(aa, struct file_s, node);
     const struct file_s *b = cavltree_container_of(bb, struct file_s, node);

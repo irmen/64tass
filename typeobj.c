@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 1689 2018-12-09 20:44:31Z soci $
+    $Id: typeobj.c 1928 2019-08-25 14:10:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "listobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "iterobj.h"
 
 static Type obj;
 
@@ -101,10 +102,10 @@ static inline int icmp(const Type *vv1, const Type *vv2) {
 static MUST_CHECK Obj *apply_convert(Obj *o2, const Type *v1, linepos_t epoint) {
     if (v1 != LIST_OBJ && v1 != TUPLE_OBJ && v1 != TYPE_OBJ) {
         const Type *v2 = o2->obj;
-        if (v2 == LIST_OBJ || v2 == TUPLE_OBJ) {
+        if (v2->iterable) {
             iter_next_t iter_next;
             Iter *iter = v2->getiter(o2);
-            size_t i, len = iter->len(iter);
+            size_t i, len = iter->len;
             Obj **vals;
             List *v;
 

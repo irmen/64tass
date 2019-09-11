@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 1857 2019-01-31 18:49:49Z soci $
+    $Id: addressobj.c 1941 2019-08-31 07:10:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -319,14 +319,14 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, linepos_t epoint) {
+static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
     Address *v1 = (Address *)o1;
     Obj *v;
     if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return DEFAULT_OBJ->function(o1, f, epoint);
+        return DEFAULT_OBJ->function(o1, f, false, epoint);
     }
     v = v1->val;
-    return v->obj->function(v, f, epoint);
+    return v->obj->function(v, f, false, epoint);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -529,27 +529,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_GAP:
         am = v2->type;
         switch (op->op->op) {
-        case O_CMP:
-        case O_EQ:
-        case O_NE:
-        case O_MIN:
-        case O_LT:
-        case O_LE:
-        case O_MAX:
-        case O_GT:
-        case O_GE:
-            if (am == A_NONE) {
-                op->v2 = v2->val;
-                op->inplace = NULL;
-                return t1->calc2(op);
-            }
-            break;
         default:
             if (am == A_NONE) {
                 op->v2 = v2->val;
                 op->inplace = NULL;
                 return t1->calc2(op);
             }
+            break;
+        case O_MUL:
+        case O_OR:
+        case O_XOR:
+        case O_AND:
             if (check_addr2(am)) break;
             goto ok;
         case O_ADD:

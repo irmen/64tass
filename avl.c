@@ -1,6 +1,6 @@
 /*
  * avltree - Implements an AVL tree with parent pointers.
- * $Id: avl.c 1724 2018-12-23 16:28:41Z soci $
+ * $Id: avl.c 1964 2019-09-04 18:36:34Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -24,7 +24,6 @@
 #include "attributes.h"
 #include "stdbool.h"
 
-static avltree_cmp_fn_t cmp_fn;
 /*
  * Iterators
  */
@@ -129,10 +128,10 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
                                              const struct avltree *tree,
                                              struct avltree_node **pparent,
                                              struct avltree_node **unbalanced,
-                                             bool *is_left)
+                                             bool *is_left, avltree_cmp_fn_t cmp)
 {
         struct avltree_node *node = tree->root;
-        int res = 0;
+        int res;
 
         *pparent = NULL;
         *unbalanced = node;
@@ -142,35 +141,29 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
                 if (node->balance != 0)
                         *unbalanced = node;
 
-                res = cmp_fn(node, key);
+                res = cmp(node, key);
                 if (res == 0)
-                        return node;
+                        break;
                 *pparent = node;
                 if ((*is_left = (res > 0)))
                         node = node->left;
                 else
                         node = node->right;
         }
-        return NULL;
+        return node;
 }
 
-struct avltree_node *avltree_lookup(const struct avltree_node *key,
+FAST_CALL struct avltree_node *avltree_lookup(const struct avltree_node *key,
                                     const struct avltree *tree, avltree_cmp_fn_t cmp)
 {
-        struct avltree_node *parent, *unbalanced;
-        bool is_left;
+        struct avltree_node *node = tree->root;
 
-        cmp_fn = cmp;
-        return do_lookup(key, tree, &parent, &unbalanced, &is_left);
-}
-
-static inline void set_child(struct avltree_node *child,
-                      struct avltree_node *node, bool left)
-{
-        if (left)
-                node->left = child;
-        else
-                node->right = child;
+        while (node != NULL) {
+            int res = cmp(node, key);
+            if (res == 0) break;
+            node = (res > 0) ? node->left : node->right;
+        }
+        return node;
 }
 
 /* Insertion never needs more than 2 rotations */
@@ -179,31 +172,27 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
         struct avltree_node *key, *parent, *unbalanced;
         bool is_left;
 
-        cmp_fn = cmp;
-
-        key = do_lookup(node, tree, &parent, &unbalanced, &is_left);
+        key = do_lookup(node, tree, &parent, &unbalanced, &is_left, cmp);
         if (key != NULL)
                 return key;
 
         node->left = NULL;
         node->right = NULL;
-        node->parent = NULL;
         node->balance = 0;
+        node->parent = parent;
 
         if (parent == NULL) {
                 tree->root = node;
-                tree->first = tree->last = node;
+                tree->first = node;
                 return NULL;
         }
         if (is_left) {
                 if (parent == tree->first)
                         tree->first = node;
+                parent->left = node;
         } else {
-                if (parent == tree->last)
-                        tree->last = node;
+                parent->right = node;
         }
-        node->parent = parent;
-        set_child(node, parent, is_left);
 
         for (;;) {
                 if (parent->left == node)
@@ -285,21 +274,19 @@ void avltree_init(struct avltree *tree)
 {
         tree->root = NULL;
         tree->first = NULL;
-        tree->last = NULL;
 }
 
-static void destroy(struct avltree *tree, struct avltree_node *node, avltree_free_fn_t free_fn)
+static void destroy(struct avltree_node *node, avltree_free_fn_t free_fn)
 {
-        struct avltree_node *tmp;
-        while (node != NULL) {
-                destroy(tree, node->left, free_fn);
-                tmp = node;
+        do {
+                struct avltree_node *tmp = node;
+                if (node->left != NULL) destroy(node->left, free_fn);
                 node = node->right;
                 free_fn(tmp);
-        }
+        } while (node != NULL);
 }
 
 void avltree_destroy(struct avltree *tree, avltree_free_fn_t free_fn)
 {
-        destroy(tree, tree->root, free_fn);
+        if (tree->root != NULL) destroy(tree->root, free_fn);
 }

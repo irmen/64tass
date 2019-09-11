@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1797 2019-01-12 16:48:47Z soci $
+    $Id: obj.c 1941 2019-08-31 07:10:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,15 +46,14 @@
 #include "identobj.h"
 #include "memblocksobj.h"
 #include "foldobj.h"
+#include "iterobj.h"
 
 static Type lbl_obj;
 static Type default_obj;
-static Type iter_obj;
 static Type funcargs_obj;
 
 Type *const LBL_OBJ = &lbl_obj;
 Type *const DEFAULT_OBJ = &default_obj;
-Type *const ITER_OBJ = &iter_obj;
 Type *const FUNCARGS_OBJ = &funcargs_obj;
 Default *default_value;
 
@@ -207,7 +206,7 @@ static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
-static MUST_CHECK Obj *invalid_function(Obj *v1, Func_types f, linepos_t epoint) {
+static MUST_CHECK Obj *invalid_function(Obj *v1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, (f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
 }
 
@@ -217,10 +216,6 @@ static MUST_CHECK Obj *invalid_len(Obj *v1, linepos_t epoint) {
 
 static MUST_CHECK Obj *invalid_size(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIZE);
-}
-
-static size_t invalid_iter_len(Iter *v1) {
-    return 1 - v1->val;
 }
 
 static FAST_CALL MUST_CHECK Obj *invalid_next(Iter *v1) {
@@ -235,45 +230,8 @@ static MUST_CHECK Iter *invalid_getiter(Obj *v1) {
     v->val = 0;
     v->data = val_reference(v1);
     v->next = invalid_next;
-    v->len = invalid_iter_len;
+    v->len = 1;
     return v;
-}
-
-static FAST_CALL void iter_destroy(Obj *o1) {
-    Iter *v1 = (Iter *)o1;
-    if (v1->iter != NULL) val_destroy(v1->iter);
-    val_destroy(v1->data);
-}
-
-static FAST_CALL void iter_garbage(Obj *o1, int i) {
-    Iter *v1 = (Iter *)o1;
-    Obj *v;
-    switch (i) {
-    case -1:
-        v1->data->refcount--;
-        if (v1->iter != NULL) v1->iter->refcount--;
-        return;
-    case 0:
-        return;
-    case 1:
-        v = v1->iter;
-        if (v != NULL) {
-            if ((v->refcount & SIZE_MSB) != 0) {
-                v->refcount -= SIZE_MSB - 1;
-                v->obj->garbage(v, 1);
-            } else v->refcount++;
-        }
-        v = v1->data;
-        if ((v->refcount & SIZE_MSB) != 0) {
-            v->refcount -= SIZE_MSB - 1;
-            v->obj->garbage(v, 1);
-        } else v->refcount++;
-        return;
-    }
-}
-
-static MUST_CHECK Iter *iter_getiter(Obj *o1) {
-    return (Iter *)val_reference(o1);
 }
 
 static FAST_CALL bool lbl_same(const Obj *o1, const Obj *o2) {
@@ -291,6 +249,7 @@ static FAST_CALL bool funcargs_same(const Obj *o1, const Obj *o2) {
 }
 
 void obj_init(Type *obj) {
+    obj->iterable = false;
     obj->create = invalid_create;
     obj->destroy = NULL;
     obj->garbage = NULL;
@@ -339,15 +298,12 @@ void objects_init(void) {
     mfuncobj_init();
     identobj_init();
     foldobj_init();
+    iterobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     lbl_obj.same = lbl_same;
     new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
     default_obj.same = default_same;
-    new_type(&iter_obj, T_ITER, "iter", sizeof(Iter));
-    iter_obj.destroy = iter_destroy;
-    iter_obj.garbage = iter_garbage;
-    iter_obj.getiter = iter_getiter;
     new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
     funcargs_obj.same = funcargs_same;
 

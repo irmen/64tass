@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 1829 2019-01-20 00:07:33Z soci $
+    $Id: encoding.c 1961 2019-09-04 03:35:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,8 +28,11 @@
 #include "bytesobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
+#include "iterobj.h"
 
 struct encoding_s *actual_encoding;
+
+#define identmap (const uint8_t *)petscii_esc
 
 struct encoding_s {
     str_t name;
@@ -51,7 +54,6 @@ struct trans2_s {
 };
 
 struct escape_s {
-    size_t strlen;
     size_t len;
     uint8_t val[4];
     uint8_t *data;
@@ -555,7 +557,7 @@ static const struct trans2_s no_screen_trans[] = {
     {0x00FF,   0, 0x5E},
 };
 
-static int trans_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int trans_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct trans_s *a = cavltree_container_of(aa, struct trans_s, node);
     const struct trans_s *b = cavltree_container_of(bb, struct trans_s, node);
@@ -569,7 +571,7 @@ static int trans_compare(const struct avltree_node *aa, const struct avltree_nod
     return 0;
 }
 
-static int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
     const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
@@ -578,7 +580,10 @@ static int encoding_compare(const struct avltree_node *aa, const struct avltree_
 }
 
 static void escape_free(void *e) {
-    struct escape_s *esc = (struct escape_s *)e;
+    struct escape_s *esc;
+    size_t i = (const uint8_t *)e - identmap;
+    if (i < 256) return;
+    esc = (struct escape_s *)e;
     if (esc->data != esc->val) free(esc->data);
     free(esc);
 }
@@ -589,7 +594,7 @@ static void encoding_free(struct avltree_node *aa)
 
     free((char *)a->name.data);
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
-    ternary_cleanup(a->escape, escape_free);
+    if (a->escape != NULL) ternary_cleanup(a->escape, escape_free);
     free(a);
 }
 
@@ -660,32 +665,23 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc, linepos
     return avltree_container_of(b, struct trans_s, node);            /* already exists */
 }
 
-static struct escape_s *lastes = NULL;
 bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
 {
-    struct escape_s *b, tmp;
+    struct escape_s **b2, *b, tmp;
     Obj *val2;
     Iter *iter;
     iter_next_t iter_next;
     uval_t uval;
     size_t i, len;
-    uint8_t *odata = NULL, *d;
-    bool foundold;
+    uint8_t *d;
     bool ret;
 
-    if (lastes == NULL) {
-        lastes = (struct escape_s *)mallocx(sizeof *lastes);
-    }
-    b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, false);
-    if (b == NULL) err_msg_out_of_memory();
-    foundold = (b != lastes);
-    if (foundold) {
-        odata = b->data;
-        b->data = NULL; /* lock old one */
-    }
+    b2 = (struct escape_s **)ternary_insert(&enc->escape, v->data, v->data + v->len);
+    if (b2 == NULL) err_msg_out_of_memory();
+    b = *b2;
+    *b2 = NULL;
 
     i = 0;
-    lastes->data = NULL; /* lock new one */
     len = sizeof tmp.val;
     d = tmp.val;
 
@@ -717,43 +713,46 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
     }
     val_destroy(&iter->v);
 
-    if (!foundold) { /* new escape */
-        if (d == tmp.val) {
-            memcpy(lastes->val, tmp.val, i);
-            d = lastes->val;
-        } else if (i < len) {
-            d = (uint8_t *)reallocx(d, i);
+    if (b == NULL) { /* new escape */
+        if (i == 1) {
+            b = (struct escape_s *)(identmap + tmp.val[0]);
+        } else {
+            b = (struct escape_s *)mallocx(sizeof *b);
+            if (d == tmp.val) {
+                memcpy(b->val, tmp.val, i);
+                d = b->val;
+            } else if (i < len) {
+                d = (uint8_t *)reallocx(d, i);
+            }
+            b->len = i;
+            b->data = d;
         }
-        lastes->strlen = v->len;
-        lastes->len = i;
-        lastes->data = d; /* unlock new */
+        *b2 = b;
         if (v->len < enc->escape_length) enc->escape_length = v->len;
-        lastes = NULL;
+        
         enc->empty = false;
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
         return false;
     }
-    b->data = odata; /* unlock old */
+    *b2 = b;
+    if (i == 1) return b != (struct escape_s *)(identmap + tmp.val[0]);
     ret = (i != b->len || memcmp(d, b->data, i) != 0);
     if (tmp.val != d) free(d);
     return ret;            /* already exists */
 }
 
 static void add_esc(const char *s, struct encoding_s *enc) {
-    str_t tmp;
-    Bytes *tmp2;
-    struct linepos_s nopoint = {0, 0};
-    tmp2 = new_bytes(1);
-    tmp2->len = 1;
+    const uint8_t **b;
+    enc->empty = s[1] != 0;
     while (s[1] != 0) {
-        tmp.data = (uint8_t *)s + 1;
-        tmp.len = strlen(s + 1);
-        tmp2->data[0] = (uint8_t)s[0];
-        new_escape(&tmp, (Obj *)tmp2, enc, &nopoint);
-        s += tmp.len + 2;
+        size_t len = strlen(s + 1);
+        b = (const uint8_t **)ternary_insert(&enc->escape, (const uint8_t*)s + 1, (const uint8_t*)s + 1 + len);
+        if (b == NULL) err_msg_out_of_memory();
+        *b = identmap + (uint8_t)s[0];
+        if (enc->escape_length > len) enc->escape_length = len;
+        s += len + 2;
     }
-    val_destroy(&tmp2->v);
 }
 
 static void add_trans(const struct trans2_s *t, size_t ln, struct encoding_s *tmp) {
@@ -811,9 +810,17 @@ next:
     if (encode_state.i >= encode_state.len) return EOF;
     encode_state.i2 = encode_state.i;
     if (encode_state.len - encode_state.i >= actual_encoding->escape_length) {
-        const struct escape_s *e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
-        if (e != NULL && e->data != NULL) {
-            encode_state.i += e->strlen;
+        size_t len = encode_state.len - encode_state.i;
+        const struct escape_s *e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, &len);
+        if (e != NULL) {
+            size_t i;
+            encode_state.i += len;
+            i = (const uint8_t *)e - identmap;
+            if (i < 256) {
+                encode_state.len2 = 1;
+                encode_state.j = 1;
+                return i;
+            }
             encode_state.data2 = e->data;
             encode_state.len2 = e->len;
             if (encode_state.len2 < 1) goto next;
@@ -896,7 +903,6 @@ void destroy_encoding(void)
 {
     avltree_destroy(&encoding_tree, encoding_free);
     free(lasten);
-    free(lastes);
 
     while (transs != NULL) {
         struct transs_s *old = transs;

@@ -192,6 +192,11 @@ Don't warn if floating point comparisons are only approximate.
 Floating point numbers have a finite precision and comparing them might
 give unexpected results.
 .TP 0.5i
+\fB\-Wno\-float\-round\fR
+Don't warn when floating point numbers are implicitly rounded.
+A lot of parameters are expecting integers but floating point numbers are
+accepted as well. The style of rounding used may or may not be what you wanted.
+.TP 0.5i
 \fB\-Wno\-ignored\fR
 Don't warn about ignored directives.
 .TP 0.5i

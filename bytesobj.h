@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 1819 2019-01-13 20:38:22Z soci $
+    $Id: bytesobj.h 1943 2019-08-31 09:05:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #ifndef BYTESOBJ_H
 #define BYTESOBJ_H
 #include "obj.h"
+#include "oper_e.h"
 
 extern struct Type *const BYTES_OBJ;
 
@@ -59,11 +60,12 @@ static inline Bytes *ref_bytes(Bytes *v1) {
 extern MALLOC Bytes *new_bytes(size_t);
 
 struct Str;
+struct Bits;
 
-extern MUST_CHECK Bytes *bytes_from_u8(unsigned int);
-extern MUST_CHECK Bytes *bytes_from_u16(unsigned int);
+extern MUST_CHECK Obj *bytes_calc1(enum Oper_types, unsigned int);
 extern MUST_CHECK Bytes *bytes_from_uval(uval_t, unsigned int);
 extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, Textconv_types);
+extern MUST_CHECK Obj *bytes_from_bits(const struct Bits *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_z85str(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);

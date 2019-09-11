@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 1899 2019-02-17 21:42:52Z soci $
+    $Id: listing.c 1917 2019-08-19 20:45:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -366,7 +366,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
         out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_address->l_address.address));
         return;
     case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_address->l_address.address); else ls->i--; return;
-    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; out_byte(ls, adr); return;
+    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; ls->s[ls->i++] = '#'; out_byte(ls, adr); return;
     case ADR_LEN: return;/* not an addressing mode */
     }
     while (*mode != 0) ls->s[ls->i++] = *mode++;

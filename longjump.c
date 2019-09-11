@@ -1,5 +1,5 @@
 /*
-    $Id: longjump.c 1389 2017-03-27 01:13:30Z soci $
+    $Id: longjump.c 1961 2019-09-04 03:35:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "section.h"
 #include "error.h"
 
-static int longjump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int longjump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct longjump_s *a = cavltree_container_of(aa, struct longjump_s, node);
     const struct longjump_s *b = cavltree_container_of(bb, struct longjump_s, node);

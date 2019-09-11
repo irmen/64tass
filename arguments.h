@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 1906 2019-04-19 09:14:42Z soci $
+    $Id: arguments.h 1940 2019-08-31 02:01:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -98,8 +98,8 @@ struct diagnostics_s {
     bool long_branch;
     bool altmode;
     bool page;
-    bool type_mixing;
     bool macro_prefix;
+    bool float_round;
 };
 
 extern int testarg(int *, char ***, struct file_s *);

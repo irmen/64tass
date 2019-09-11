@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: typeobj.h 1941 2019-08-31 07:10:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ typedef enum Func_types {
 typedef struct Type {
     Obj v;
     Type_types type;
+    bool iterable;
     const char *name;
     struct Slot **slot;
     size_t length;
@@ -62,10 +63,10 @@ typedef struct Type {
     struct Error *(*uval2)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     Obj *(*address)(Obj *, uint32_t *) FAST_CALL;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*function)(Obj *, Func_types, linepos_t) MUST_CHECK;
+    Obj *(*function)(Obj *, Func_types, bool, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
-    Iter *(*getiter)(Obj *) MUST_CHECK;
+    struct Iter *(*getiter)(Obj *) MUST_CHECK;
 } Type;
 
 extern void typeobj_init(void);

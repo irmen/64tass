@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: boolobj.h 1944 2019-08-31 09:46:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@
 
 extern struct Type *const BOOL_OBJ;
 
+struct Str;
+
 typedef struct Bool {
     Obj v;
-    const char *name;
+    struct Str *repr;
 } Bool;
 
 extern Bool *true_value;

@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 1911 2019-04-22 07:41:49Z soci $
+   $Id: ternary.c 1953 2019-08-31 14:49:15Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -67,16 +67,14 @@ static MALLOC ternary_node *tern_alloc(void) {
 /* Non-recursive so we don't waste stack space/time on large
    insertions. */
 
-void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, void *data, bool replace)
+ternary_tree *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_t *end)
 {
     uchar_t spchar;
-    ternary_tree curr, *pcurr;
-    if (s == end) return NULL;
+    ternary_tree curr;
+  
     spchar = *s;
     if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
 
-    /* Start at the root. */
-    pcurr = root;
     /* Loop until we find the right position */
     while ((curr = *pcurr) != NULL)
     {
@@ -85,9 +83,7 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
             /* Handle the case of a string we already have */
             if ((~spchar) == 0)
             {
-                if (replace)
-                    curr->eqkid = (ternary_tree) data;
-                return (void *) curr->eqkid;
+                return &curr->eqkid;
             }
             if (s == end) spchar = ~(uchar_t)0;
             else {
@@ -101,52 +97,49 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
        the string, into the tree rooted at curr */
     for (;;) {
         /* Allocate the memory for the node, and fill it in */
-        *pcurr = tern_alloc();
-        if (pcurr == NULL) return NULL;
-        curr = *pcurr;
+        curr = tern_alloc();
         curr->splitchar = spchar;
         curr->lokid = curr->hikid = curr->eqkid = NULL;
+        *pcurr = curr;
+        pcurr = &curr->eqkid;
 
         /* Place nodes until we hit the end of the string.
            When we hit it, place the data in the right place, and
            return.
            */
         if ((~spchar) == 0) {
-            curr->eqkid = (ternary_tree) data;
-            return data;
+            return pcurr;
         }
         if (s == end) spchar = ~(uchar_t)0;
         else {
             spchar = *s;
             if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
         }
-        pcurr = &(curr->eqkid);
     }
 }
 
 /* Free the ternary search tree rooted at p. */
 void ternary_cleanup(ternary_tree p, ternary_free_fn_t f)
 {
-    if (p != NULL) {
-        ternary_cleanup(p->lokid, f);
-        if ((~p->splitchar) != 0) {
-            ternary_cleanup(p->eqkid, f);
-        } else f(p->eqkid);
-        ternary_cleanup(p->hikid, f);
-        tern_free((union tern_u *)p);
-    }
+    if (p->lokid != NULL) ternary_cleanup(p->lokid, f);
+    if ((~p->splitchar) != 0) {
+        ternary_cleanup(p->eqkid, f);
+    } else f(p->eqkid);
+    if (p->hikid != NULL) ternary_cleanup(p->hikid, f);
+    tern_free((union tern_u *)p);
 }
 
 /* Non-recursive find of a string in the ternary tree */
-void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *end)
+void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
 {
-    const ternary_node *curr;
     uchar_t spchar;
     const ternary_node *last = NULL;
-    if (s == end) return NULL;
+    size_t len2 = *len;
+    const uint8_t *end = s + len2;
+
     spchar = *s;
     if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
-    curr = p;
+
     while (curr != NULL) {
         if (spchar == curr->splitchar) {
             if ((~spchar) == 0) return (void *)curr->eqkid;
@@ -162,6 +155,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     while (last != NULL && (~last->splitchar) != 0) {
         last = last->hikid;
     }
+    *len = len2 - (end - s) - 1;
     return (last != NULL) ? (void *)last->eqkid : NULL;
 }
 

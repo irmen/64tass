@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1826 2019-01-19 14:40:58Z soci $
+    $Id: dictobj.c 1961 2019-09-04 03:35:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "iterobj.h"
 
 static Type obj;
 
@@ -164,7 +165,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 
 static struct oper_s pair_oper;
 
-static int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static FAST_CALL int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
@@ -349,10 +350,10 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     epoint2 = &args->val[indx].epoint;
 
     if (o2 == &none_value->v) return val_reference(o2);
-    if (o2->obj == LIST_OBJ) {
+    if (o2->obj->iterable) {
         iter_next_t iter_next;
         Iter *iter = o2->obj->getiter(o2);
-        size_t i, len2 = iter->len(iter);
+        size_t i, len2 = iter->len;
         List *v;
         Obj **vals;
 
@@ -360,7 +361,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             val_destroy(&iter->v);
             return val_reference(&null_list->v);
         }
-        v = (List *)val_alloc(LIST_OBJ);
+        v = new_list();
         v->data = vals = list_create_elements(v, len2);
         pair_oper.epoint3 = epoint2;
         iter_next = iter->next;
