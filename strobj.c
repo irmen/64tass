@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 1979 2019-09-08 16:44:33Z soci $
+    $Id: strobj.c 1986 2019-09-22 06:30:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -715,6 +715,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     v->data = v->u.val;
                 } else {
                     if (offs != 0) memmove(v->data, v1->data + offs, len2);
+                    v->u.s.hash = -1;
                 }
             } else {
                 v = new_str2(len2);
@@ -732,6 +733,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     p2 = v->u.val;
                 } else {
                     p2 = v->data;
+                    v->u.s.hash = -1;
                 }
                 v->len = length;
             } else {
@@ -791,6 +793,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     uint8_t *oo = (uint8_t *)realloc(o, len2);
                     v->data = (oo != NULL) ? oo : o;
                     v->u.s.max = len2;
+                    v->u.s.hash = -1;
                 }
             }
             v->len = len2;

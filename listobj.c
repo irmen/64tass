@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 1966 2019-09-04 21:29:51Z soci $
+    $Id: listobj.c 1987 2019-09-22 06:52:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,7 +95,8 @@ static Obj **lnew(List *v, size_t len) {
         Obj **n = (Obj **)malloc(len * sizeof *v->data);
         if (n != NULL) {
             v->data = n;
-            v->u.max = len;
+            v->u.s.max = len;
+            v->u.s.hash = -1;
             return n;
         }
     }
@@ -113,13 +114,14 @@ static Obj **lextend(List *v, size_t len) {
     if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
     if (v->u.val != v->data) {
         size_t len2;
-        if (len <= v->u.max) return v->data;
+        if (len <= v->u.s.max) return v->data;
         len2 = len + (len < 1024 ? len : 1024);
         if (len2 > len) len = len2;
         tmp = (Obj **)realloc(v->data, len * sizeof *v->data);
         if (tmp != NULL) {
             v->data = tmp;
-            v->u.max = len;
+            v->u.s.max = len;
+            v->u.s.hash = -1;
         }
         return tmp;
     }
@@ -127,7 +129,8 @@ static Obj **lextend(List *v, size_t len) {
     if (tmp != NULL) {
         memcpy(tmp, v->u.val, v->len * sizeof *v->data);
         v->data = tmp;
-        v->u.max = len;
+        v->u.s.max = len;
+        v->u.s.hash = -1;
     }
     return tmp;
 }
@@ -220,6 +223,30 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
     }
 }
 
+static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
+    List *v1 = (List *)o1;
+    size_t i, l = v1->len;
+    Obj **vals = v1->data;
+    unsigned int h;
+    if (vals != v1->u.val && v1->u.s.hash >= 0) {
+        *hs = v1->u.s.hash;
+        return NULL;
+    }
+    h = 0;
+    for (i = 0; i < l; i++) {
+        int h2;
+        Obj *o2 = vals[i];
+        Error *err = o2->obj->hash(o2, &h2, epoint);
+        if (err != NULL) return err;
+        h += h2;
+    }
+    h ^= i;
+    h &= ((~0U) >> 1);
+    if (vals != v1->u.val) v1->u.s.hash = h;
+    *hs = h;
+    return NULL;
+}
+
 static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize) {
     Tuple *v1 = (List *)o1;
     bool tupleorlist = (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ);
@@ -309,7 +336,8 @@ static MUST_CHECK Iter *getiter(Obj *v1) {
 Obj **list_create_elements(List *v, size_t n) {
     if (n <= lenof(v->u.val)) return v->u.val;
     if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
-    v->u.max = n;
+    v->u.s.max = n;
+    v->u.s.hash = -1;
     return (Obj **)mallocx(n * sizeof *v->data);
 }
 
@@ -321,7 +349,8 @@ MUST_CHECK Tuple *new_tuple(size_t n) {
          return v;
      }
      if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
-     v->u.max = n;
+     v->u.s.max = n;
+     v->u.s.hash = -1;
      v->data = (Obj **)mallocx(n * sizeof *v->data);
      return v;
 }
@@ -336,6 +365,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (inplace) {
             v = ref_list(v1);
             vals = v1->data;
+            if (vals != v->u.val) v->u.s.hash = -1;
         } else {
             v = (List *)val_alloc(o1->obj);
             vals = lnew(v, v1->len);
@@ -394,10 +424,12 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
                         v = ref_list(v1);
                         vals = v1->data;
                         inplace = v1;
+                        if (vals != v->u.val) v->u.s.hash = -1;
                     } else if (o1->obj == o2->obj && op->inplace == &v2->v) {
                         v = ref_list(v2);
                         vals = v2->data;
                         inplace = v2;
+                        if (vals != v->u.val) v->u.s.hash = -1;
                     } else {
                         v = (List *)val_alloc(o1->obj);
                         vals = lnew(v, v1->len);
@@ -655,6 +687,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (inplace) {
             list = (List *)val_reference(o1);
             vals = list->data;
+            if (vals != list->u.val) list->u.s.hash = -1;
         } else {
             list = (List *)val_alloc(o1->obj);
             vals = lnew(list, v1->len);
@@ -736,6 +769,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (inplace) {
             v = (List *)val_reference(o2);
             vals = v->data;
+            if (vals != v->u.val) v->u.s.hash = -1;
         } else {
             v = (List *)val_alloc(o2->obj);
             vals = lnew(v, v2->len);
@@ -766,6 +800,7 @@ static void init(Type *obj) {
     obj->garbage = garbage;
     obj->same = same;
     obj->truth = truth;
+    obj->hash = hash;
     obj->len = len;
     obj->getiter = getiter;
     obj->calc1 = calc1;

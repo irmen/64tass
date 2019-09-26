@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1962 2019-09-04 05:03:52Z soci $
+    $Id: macro.c 1983 2019-09-20 15:03:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -386,8 +386,9 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         return NULL;
     }
     for (i = 0; i < mfunc->argc; i++) {
+        const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
-        if (mfunc->param[i].init == &default_value->v) {
+        if (param->init == &default_value->v) {
             size_t j, len = get_val_remaining();
             tuple = new_tuple(len);
             for (j = 0; j < len; j++) {
@@ -398,15 +399,15 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
             struct values_s *vs;
             vs = get_val();
             if (vs == NULL) {
-                val = mfunc->param[i].init;
+                val = param->init;
                 if (val == NULL) { max = i + 1; val = (Obj *)none_value; }
             } else {
                 val = vs->val;
             }
         }
-        label = new_label(&mfunc->param[i].name, context, strength, &labelexists, mfunc->file_list);
+        label = new_label(&param->name, context, strength, &labelexists, mfunc->file_list);
         if (labelexists) {
-            if (label->constant) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
+            if (label->constant) err_msg_double_defined(label, &param->name, &param->epoint); /* not possible in theory */
             else {
                 if (label->defpass != pass) {
                     label->ref = false;
@@ -416,9 +417,9 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
                 }
                 label->owner = false;
                 if (label->file_list != mfunc->file_list) {
-                    label_move(label, &mfunc->param[i].name, mfunc->file_list);
+                    label_move(label, &param->name, mfunc->file_list);
                 }
-                label->epoint = mfunc->param[i].epoint;
+                label->epoint = param->epoint;
                 val_replace(&label->value, val);
                 label->usepass = 0;
             }
@@ -426,7 +427,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
             label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
-            label->epoint = mfunc->param[i].epoint;
+            label->epoint = param->epoint;
         }
     }
     if (tuple != NULL) val_destroy(&tuple->v);
@@ -642,8 +643,9 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     enterfile(mfunc->file_list->file, epoint);
     tuple = NULL;
     for (i = 0; i < mfunc->argc; i++) {
+        const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
-        if (mfunc->param[i].init == &default_value->v) {
+        if (param->init == &default_value->v) {
             if (i < args) {
                 size_t j = i;
                 tuple = new_tuple(args - i);
@@ -658,15 +660,14 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             }
             val = &tuple->v;
         } else {
-            val = (i < args) ? vals[i].val : (mfunc->param[i].init != NULL) ? mfunc->param[i].init : (Obj *)none_value;
+            val = (i < args) ? vals[i].val : (param->init != NULL) ? param->init : (Obj *)none_value;
         }
-        label = new_label(&mfunc->param[i].name, context, 0, &labelexists, current_file_list);
+        label = new_label(&param->name, context, 0, &labelexists, mfunc->file_list);
         if (!labelexists) {
             label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
-            label->file_list = current_file_list;
-            label->epoint = mfunc->param[i].epoint;
+            label->epoint = param->epoint;
         }
     }
     if (tuple != NULL) val_destroy(&tuple->v);

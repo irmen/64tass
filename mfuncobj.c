@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 1888 2019-02-10 16:58:11Z soci $
+    $Id: mfuncobj.c 1983 2019-09-20 15:03:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ static FAST_CALL void destroy(Obj *o1) {
         val_destroy(&v1->namespaces[i]->v);
     }
     free(v1->namespaces);
+    val_destroy(&v1->names->v);
     free(v1->param);
 }
 
@@ -66,6 +67,8 @@ static FAST_CALL void garbage(Obj *o1, int j) {
             v = &v1->namespaces[i]->v;
             v->refcount--;
         }
+        v = &v1->names->v;
+        v->refcount--;
         return;
     case 0:
         cfile = v1->file_list->file;
@@ -95,6 +98,11 @@ static FAST_CALL void garbage(Obj *o1, int j) {
                 v->obj->garbage(v, 1);
             } else v->refcount++;
         }
+        v = &v1->names->v;
+        if ((v->refcount & SIZE_MSB) != 0) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
         return;
     }
 }
@@ -112,6 +120,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     for (i = 0; i < v1->nslen; i++) {
         if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(&v1->namespaces[i]->v, &v2->namespaces[i]->v)) return false;
     }
+    if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return false;
     return true;
 }
 
@@ -142,7 +151,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_NONE:
     case T_ERROR:
         return val_reference(op->v2);
-    default: break;
+    default: 
+        if (op->op == &o_MEMBER) {
+            return namespace_member(op, ((Mfunc *)op->v1)->names);
+        }
+        break;
     }
     return obj_oper_error(op);
 }

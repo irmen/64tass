@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1979 2019-09-08 16:44:33Z soci $
+    $Id: bytesobj.c 1986 2019-09-22 06:30:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -855,8 +855,10 @@ static inline MUST_CHECK Obj *and_(oper_t op) {
     if (sz == 0) return val_reference((neg1 && neg2) ? &inv_bytes->v : &null_bytes->v);
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bytes(vv2);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
         vv = new_bytes2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -903,8 +905,10 @@ static inline MUST_CHECK Obj *or_(oper_t op) {
     if (sz == 0) return val_reference((neg1 || neg2) ? &inv_bytes->v : &null_bytes->v);
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bytes(vv2);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
         vv = new_bytes2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -952,8 +956,10 @@ static inline MUST_CHECK Obj *xor_(oper_t op) {
     if (sz == 0) return val_reference((neg1 != neg2) ? &inv_bytes->v : &null_bytes->v);
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bytes(vv2);
+        if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
         vv = new_bytes2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -990,6 +996,7 @@ static MUST_CHECK Obj *concat(oper_t op) {
         s = extend_bytes(v1, ln);
         if (s == NULL) goto failed;
         v = ref_bytes(v1);
+        if (v->data != v->u.val) v->u.s.hash = -1;
     } else {
         v = new_bytes2(ln);
         if (v == NULL) goto failed;
@@ -1260,6 +1267,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 } else {
                     p2 = v->data;
                     if (offs != 0) memmove(p2, v1->data + offs, length);
+                    v->u.s.hash = -1;
                 }
             } else {
                 v = new_bytes2(length);
@@ -1274,6 +1282,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                     p2 = v->u.val;
                 } else {
                     p2 = v->data;
+                    v->u.s.hash = -1;
                 }
             } else {
                 v = new_bytes2(length);

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1962 2019-09-04 05:03:52Z soci $
+    $Id: 64tass.c 1987 2019-09-22 06:52:52Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1278,7 +1278,8 @@ static MUST_CHECK bool list_extend(List *lst) {
     while (o < n) vals[o++] = (Obj *)ref_none();
     lst->data = vals;
     lst->len = n;
-    lst->u.max = n;
+    lst->u.s.max = n;
+    lst->u.s.hash = -1;
     return false;
 }
 
@@ -1295,7 +1296,8 @@ static void list_shrink(List *lst, size_t i) {
             Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
             if (v != NULL) {
                 lst->data = v;
-                lst->u.max = lst->len;
+                lst->u.s.max = lst->len;
+                lst->u.s.hash = -1;
             }
         }
     }
@@ -2303,6 +2305,7 @@ MUST_CHECK Obj *compile(void)
                             mfunc->namespaces = NULL;
                             if (labelexists) {
                                 if (label->defpass == pass) {
+                                    mfunc->names = new_namespace(current_file_list, &epoint);
                                     val_destroy(&mfunc->v);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
@@ -2314,6 +2317,13 @@ MUST_CHECK Obj *compile(void)
                                     label->owner = true;
                                     if (label->file_list != current_file_list) {
                                         label_move(label, &labelname, current_file_list);
+                                    }
+                                    if (label->value->obj == MFUNC_OBJ) {
+                                        Mfunc *prev = (Mfunc *)label->value;
+                                        mfunc->names = ref_namespace(prev->names);
+                                        mfunc->names->backr = mfunc->names->forwr = 0;
+                                    } else {
+                                        mfunc->names = new_namespace(current_file_list, &epoint);
                                     }
                                     label->epoint = epoint;
                                     get_func_params(mfunc);
@@ -2331,6 +2341,7 @@ MUST_CHECK Obj *compile(void)
                                 label->epoint = epoint;
                                 get_func_params(mfunc);
                                 get_namespaces(mfunc);
+                                mfunc->names = new_namespace(current_file_list, &epoint);
                             }
                             label->ref = false;
                             goto finish;

@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 1942 2019-08-31 08:59:16Z soci $
+    $Id: floatobj.c 1984 2019-09-20 19:51:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -227,8 +227,8 @@ static bool almost_equal(oper_t op, double a, double b) {
     return false;
 }
 
-MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
-    double r;
+static MUST_CHECK Obj *calc2_double(oper_t op) {
+    double r, v1 = ((Float *)op->v1)->real, v2 = ((Float *)op->v2)->real;
     switch (op->op->op) {
     case O_CMP:
         if (v1 == v2 || almost_equal(op, v1, v2)) return (Obj *)ref_int(int_value[0]);
@@ -298,7 +298,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return val_reference((((Float *)(op->v1))->real != 0.0) ? op->v1 : op->v2);
     }
     switch (op->v2->obj->type) {
-    case T_FLOAT: return calc2_double(op, ((Float *)op->v1)->real, ((Float *)op->v2)->real);
+    case T_FLOAT: return calc2_double(op);
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         /* fall through */
@@ -318,7 +318,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (err->obj != FLOAT_OBJ) return err;
         op->v2 = err;
         op->inplace = (err->refcount == 1) ? err : NULL;
-        val = calc2_double(op, ((Float *)op->v1)->real, ((Float *)err)->real);
+        val = calc2_double(op);
         val_destroy(err);
         return val;
     default:
@@ -342,7 +342,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (err->obj != FLOAT_OBJ) return err;
         op->v1 = err;
         op->inplace = (err->refcount == 1) ? err : NULL;
-        val = calc2_double(op, ((Float *)err)->real, ((Float *)op->v2)->real);
+        val = calc2_double(op);
         val_destroy(err);
         return val;
     default: break;

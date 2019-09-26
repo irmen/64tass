@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1964 2019-09-04 18:36:34Z soci $
+    $Id: error.c 1983 2019-09-20 15:03:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -856,7 +856,7 @@ void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
 }
 
-static void err_msg_double_note(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
+static void err_msg_double_note(const struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
     new_error_msg(SV_NOTE, cflist, epoint);
     adderror("original definition of");
     str_name(labelname2->data, labelname2->len);
@@ -952,7 +952,7 @@ void err_msg_address_mismatch(int a, int b, linepos_t epoint) {
     adderror(" [-Waltmode]");
 }
 
-static void err_msg_double_defined2(const char *msg, Severity_types severity, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, Severity_types severity, const struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error_msg(severity, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);

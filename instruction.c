@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 1916 2019-08-19 06:49:43Z soci $
+    $Id: instruction.c 1988 2019-09-23 07:35:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -418,17 +418,19 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 bool labelexists;
                 uint16_t xadr;
                 uval_t oadr;
-                bool crossbank;
+                bool crossbank, invalid;
                 ln = 1; opr = ADR_REL;
                 longbranch = 0;
                 if (false) {
             justrel2:
-                    if (touval(val, &uval, 16, epoint2)) uval = current_address->l_address.address + 1 + ln;
-                    else uval &= 0xffff;
+                    invalid = touval(val, &uval, 16, epoint2);
+                    if (invalid) uval = current_address->l_address.address + 1 + ln;
+                    uval &= 0xffff;
                     crossbank = false;
                 } else {
             justrel:
-                    if (touval(val, &uval, all_mem_bits, epoint2)) {
+                    invalid = touval(val, &uval, all_mem_bits, epoint2);
+                    if (invalid) {
                         uval = current_address->l_address.address + 1 + ln;
                         crossbank = false;
                     } else {
@@ -541,7 +543,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);
                         }
                     }
-                } else { /* short */
+                } else if (!invalid) { /* short */
                     if (((uint16_t)(current_address->l_address.address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                         int diff = (int8_t)oadr;
                         if (diff >= 0) diff++;

@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1981 2019-09-08 18:01:30Z soci $
+    $Id: eval.c 1985 2019-09-22 03:26:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -105,100 +105,111 @@ static double ldexp10(double d, unsigned int expo, bool neg) {
     return neg ? d / scal : d * scal;
 }
 
-static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
+static MUST_CHECK Obj *get_exponent(Obj *v1, Obj *v2, size_t len, linepos_t epoint) {
+    Obj *v;
+    double real;
+    uval_t expo = 0;
+    bool neg = false;
     uint8_t base = here() | 0x20;
 
     if (base == 'p' || base == 'e') {
-        bool neg = false;
         neg = (pline[lpoint.pos + 1] == '-');
         if (neg || pline[lpoint.pos + 1] == '+') {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
         }
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            uval_t expo;
             Error *err;
-            size_t len, len2;
-            Obj *v;
+            size_t len1, len2;
             lpoint.pos++;
 
-            v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
+            v = int_from_decstr(pline + lpoint.pos, &len1, &len2, epoint);
             err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
             val_destroy(v);
-            lpoint.pos += len;
-            if (err != NULL) return &err->v;
-
-            if (expo != 0) real = (base == 'e') ? ldexp10(real, expo, neg) : ldexp(real, neg ? -(ival_t)expo : (ival_t)expo);
+            lpoint.pos += len1;
+            if (err != NULL) {
+                if (v2 != NULL) val_destroy(v2);
+                val_destroy(v1);
+                return &err->v;
+            }
         }
     }
-    return float_from_double(real, epoint);
-}
-
-static double toreal_destroy(Obj *v, linepos_t epoint) {
-    Obj *err = FLOAT_OBJ->create(v, epoint);
-    double real;
-    if (err->obj != FLOAT_OBJ) {
-        if (err == &none_value->v) err_msg_still_none(NULL, epoint);
-        else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
-        real = 0;
+    if (v2 == NULL) {
+        real = 0.0;
     } else {
-        real = ((Float *)err)->real;
+        bool bits = v2->obj == BITS_OBJ;
+        if (bits) {
+            len = (size_t)((Bits *)v2)->bits;
+        }
+        v = FLOAT_OBJ->create(v2, epoint);
+        val_destroy(v2);
+        if (v->obj != FLOAT_OBJ) {
+            val_destroy(v1);
+            return v;
+        }
+        real = ((Float *)v)->real;
+        if (len != 0 && real != 0.0) real = bits ? ldexp(real, -(int)len) : ldexp10(real, (unsigned int)len, true);
+        val_destroy(v);
     }
-    val_destroy(err);
+    v = FLOAT_OBJ->create(v1, epoint);
+    val_destroy(v1);
+    if (v->obj != FLOAT_OBJ) {
+        return v;
+    }
+    real += ((Float *)v)->real;
+    if (expo != 0) {
+        real = (base == 'p') ? ldexp(real, neg ? -(ival_t)expo : (ival_t)expo) : ldexp10(real, expo, neg);
+    }
+    if (real == HUGE_VAL || real == -HUGE_VAL) {
+        val_destroy(v);
+        return (Obj *)new_error(ERROR_NUMERIC_OVERF, epoint);
+    }
+    if (v->refcount == 1) {
+        ((Float *)v)->real = real;
+        return v;
+    }
     val_destroy(v);
-    return real;
+    return (Obj *)new_float(real);
 }
 
 static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
     if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
         if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
-            return get_exponent(toreal_destroy(v, &lpoint), epoint);
+            return get_exponent(v, NULL, 0, epoint);
         }
     } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-        return get_exponent(toreal_destroy(v, &lpoint), epoint);
+        return get_exponent(v, NULL, 0, epoint);
     }
     return v;
 }
 
 static MUST_CHECK Obj *get_hex(linepos_t epoint) {
-    size_t len, len2;
-    Obj *v;
+    size_t len;
+    Obj *v, *v2;
 
     v = bits_from_hexstr(pline + lpoint.pos + 1, &len, epoint);
     lpoint.pos += len + 1;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        double real, real2;
         lpoint.pos++;
-        real = toreal_destroy(v, epoint);
 
-        v = bits_from_hexstr(pline + lpoint.pos, &len, epoint);
-        len2 = v->obj == BITS_OBJ ? ((Bits *)v)->bits : 0;
-        real2 = toreal_destroy(v, &lpoint);
+        v2 = bits_from_hexstr(pline + lpoint.pos, &len, epoint);
         lpoint.pos += len;
-
-        if (real2 != 0.0) real += ldexp(real2, -(int)len2);
-        return get_exponent(real, epoint);
+        return get_exponent(v, v2, 0, epoint);
     }
     return (here() | 0x20) == 'p' ? get_exponent2(v, epoint) : v;
 }
 
 static MUST_CHECK Obj *get_bin(linepos_t epoint) {
-    size_t len, len2;
-    Obj *v;
+    size_t len;
+    Obj *v, *v2;
 
     v = bits_from_binstr(pline + lpoint.pos + 1, &len, epoint);
     lpoint.pos += len + 1;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        double real, real2;
         lpoint.pos++;
-        real = toreal_destroy(v, epoint);
 
-        v = bits_from_binstr(pline + lpoint.pos, &len, epoint);
-        len2 = v->obj == BITS_OBJ ? ((Bits *)v)->bits : 0;
-        real2 = toreal_destroy(v, &lpoint);
+        v2 = bits_from_binstr(pline + lpoint.pos, &len, epoint);
         lpoint.pos += len;
-
-        if (real2 != 0.0) real += ldexp(real2, -(int)len2);
-        return get_exponent(real, epoint);
+        return get_exponent(v, v2, 0, epoint);
     }
     switch (here() | 0x20) {
     case 'e':
@@ -211,21 +222,17 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
 
 static MUST_CHECK Obj *get_float(linepos_t epoint) {
     size_t len, len2;
-    Obj *v;
+    Obj *v, *v2;
 
     v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
     lpoint.pos += len;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        double real, real2;
         lpoint.pos++;
-        real = toreal_destroy(v, epoint);
 
-        v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
-        real2 = toreal_destroy(v, &lpoint);
+        v2 = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
         lpoint.pos += len;
 
-        if (real2 != 0.0) real += ldexp10(real2, (unsigned int)len2, true);
-        return get_exponent(real, epoint);
+        return get_exponent(v, v2, len2, epoint);
     }
     switch (here() | 0x20) {
     case 'e':

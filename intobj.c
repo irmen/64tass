@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1982 2019-09-08 19:01:20Z soci $
+    $Id: intobj.c 1984 2019-09-20 19:51:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1648,18 +1648,12 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         return (Obj *)v;
     case O_EXP:
         if (v2->len < 0) {
-            Obj *vv1, *vv2;
-            vv1 = float_from_int(v1, op->epoint);
-            if (vv1->obj != FLOAT_OBJ) return vv1;
-            vv2 = float_from_int(v2, op->epoint2);
-            if (vv2->obj != FLOAT_OBJ) {
-                val_destroy(vv1);
-                return vv2;
-            }
+            Obj *vv1 = float_from_int(v1, op->epoint);
+            Obj *vv2 = float_from_int(v2, op->epoint2);
             op->v1 = vv1;
             op->v2 = vv2;
             op->inplace = (vv1->refcount == 1) ? vv1 : NULL;
-            val = calc2_double(op, ((Float *)vv1)->real, ((Float *)vv2)->real);
+            val = vv1->obj->calc2(op);
             val_destroy(vv1);
             val_destroy(vv2);
             return val;

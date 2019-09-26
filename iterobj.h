@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 1983 2019-09-20 15:03:08Z soci $
+    $Id: iterobj.h 1928 2019-08-25 14:10:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,30 +16,25 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef MFUNCOBJ_H
-#define MFUNCOBJ_H
+#ifndef ITEROBJ_H
+#define ITEROBJ_H
 #include "obj.h"
-#include "str.h"
 
-extern struct Type *const MFUNC_OBJ;
+extern struct Type *const ITER_OBJ;
 
-struct mfunc_param_s {
-    str_t name;
-    str_t cfname;
-    Obj *init;
-    struct linepos_s epoint;
-};
+struct Iter;
+typedef FAST_CALL MUST_CHECK Obj *(*iter_next_t)(struct Iter *);
+typedef size_t (*iter_len_t)(struct Iter *);
 
-typedef struct Mfunc {
+typedef struct Iter {
     Obj v;
-    size_t argc;
-    struct mfunc_param_s *param;
-    struct file_list_s *file_list;
-    line_t line;
-    uint8_t recursion_pass;
-    size_t nslen;
-    struct Namespace **namespaces, *names;
-} Mfunc;
+    Obj *iter;
+    size_t val;
+    Obj *data;
+    iter_next_t next;
+    size_t len;
+} Iter;
 
-extern void mfuncobj_init(void);
+extern void iterobj_init(void);
+
 #endif

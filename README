@@ -1877,9 +1877,9 @@ ones for frequently used calculations.
 <name> [<param>][[,][<param>] ...]
     Invoke a function like a macro, directive or pseudo instruction.
 
-Parameters are assigned to constant symbols in the function scope on
-invocation. The default values are calculated at function definition time only,
-and these values are used at invocation time when a parameter is missing.
+Parameters are assigned to variables in the function scope on invocation. The
+default values are calculated at function definition time only, and these
+values are used at invocation time when a parameter is missing.
 
 Extra parameters are not accepted, unless the last parameter symbol is preceded
 with a star, in this case these parameters are collected into a tuple. Multiple

@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1961 2019-09-04 03:35:09Z soci $
+    $Id: dictobj.c 1987 2019-09-22 06:52:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -165,6 +165,45 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 
 static struct oper_s pair_oper;
 
+static int rpair_compare(Obj *o1, Obj *o2) {
+    int h;
+    Obj *result;
+    Iter *iter1 = o1->obj->getiter(o1);
+    Iter *iter2 = o2->obj->getiter(o2);
+    iter_next_t iter1_next = iter1->next;
+    iter_next_t iter2_next = iter2->next;
+    do {
+        o1 = iter1_next(iter1);
+        o2 = iter2_next(iter2);
+        if (o1 == NULL) {
+            h = (o2 == NULL) ? 0 : -1;
+            break;
+        }
+        if (o2 == NULL) {
+            h = 1;
+            break;
+        }
+        if (o1->obj->iterable || o2->obj->iterable) {
+            if (o1->obj->iterable && o2->obj->iterable) {
+                h = rpair_compare(o1, o2);
+            } else {
+                h = o1->obj->type - o2->obj->type;
+            }
+        } else {
+            pair_oper.v1 = o1;
+            pair_oper.v2 = o2;
+            pair_oper.inplace = NULL;
+            result = o1->obj->calc2(&pair_oper);
+            if (result->obj == INT_OBJ) h = (int)((Int *)result)->len;
+            else h = o1->obj->type - o2->obj->type;
+            val_destroy(result);
+        }
+    } while (h == 0);
+    val_destroy(&iter2->v);
+    val_destroy(&iter1->v);
+    return h;
+}
+
 static FAST_CALL int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
@@ -174,6 +213,12 @@ static FAST_CALL int pair_compare(const struct avltree_node *aa, const struct av
     if (a->key->obj == b->key->obj) {
         h = a->hash - b->hash;
         if (h != 0) return h;
+    }
+    if (a->key->obj->iterable || b->key->obj->iterable) {
+        if (a->key->obj->iterable && b->key->obj->iterable) {
+            return rpair_compare(a->key, b->key);
+        }
+        return a->key->obj->type - b->key->obj->type;
     }
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
@@ -313,13 +358,13 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     return &str->v;
 }
 
-static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint2) {
+static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint) {
     struct pair_s pair;
     const struct avltree_node *b;
     Error *err;
 
     pair.key = o2;
-    err = pair.key->obj->hash(pair.key, &pair.hash, epoint2);
+    err = o2->obj->hash(o2, &pair.hash, epoint);
     if (err != NULL) return &err->v;
     b = avltree_lookup(&pair.node, &v1->members, pair_compare);
     if (b != NULL) {
@@ -331,7 +376,7 @@ static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint2) {
     if (v1->def != NULL) {
         return val_reference(v1->def);
     }
-    return (Obj *)new_error_obj(ERROR_____KEY_ERROR, o2, epoint2);
+    return (Obj *)new_error_obj(ERROR_____KEY_ERROR, o2, epoint);
 }
 
 static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
@@ -408,7 +453,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         Error *err;
 
         p.key = o1;
-        err = p.key->obj->hash(p.key, &p.hash, op->epoint);
+        err = o1->obj->hash(o1, &p.hash, op->epoint);
         if (err != NULL) return &err->v;
         b = avltree_lookup(&p.node, &v2->members, pair_compare);
         return truth_reference(b != NULL);

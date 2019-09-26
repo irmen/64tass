@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 1980 2019-09-08 17:34:14Z soci $
+    $Id: bitsobj.c 1986 2019-09-22 06:30:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -830,8 +830,10 @@ static inline MUST_CHECK Obj *and_(oper_t op) {
     sz = neg2 ? len1 : len2;
     if (op->inplace == &vv1->v) {
         vv = ref_bits(vv1);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bits(vv2);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else {
         vv = new_bits2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -906,8 +908,10 @@ static inline MUST_CHECK Obj *or_(oper_t op) {
     sz = neg2 ? len2 : len1;
     if (op->inplace == &vv1->v) {
         vv = ref_bits(vv1);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bits(vv2);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else {
         vv = new_bits2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -970,8 +974,10 @@ static inline MUST_CHECK Obj *xor_(oper_t op) {
     sz = len1;
     if (op->inplace == &vv1->v) {
         vv = ref_bits(vv1);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else if (op->inplace == &vv2->v && len1 == len2) {
         vv = ref_bits(vv2);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else {
         vv = new_bits2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
@@ -1098,6 +1104,7 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
     sz = (len1 > word) ? (len1 - word) : 0;
     if (op->inplace == &vv1->v) {
         vv = ref_bits(vv1);
+        if (vv->data != vv->u.val) vv->u.hash = -1;
     } else {
         vv = new_bits2(sz);
         if (vv == NULL) return (Obj *)new_error_mem(op->epoint3);
