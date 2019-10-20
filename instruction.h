@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.h 1794 2019-01-12 15:36:49Z soci $
+    $Id: instruction.h 2000 2019-10-12 13:18:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const uint8_t *);
 extern MUST_CHECK bool touval(struct Obj *, uval_t *, unsigned int, linepos_t);
 extern MUST_CHECK bool toival(struct Obj *, ival_t *, unsigned int, linepos_t);
+extern MUST_CHECK bool touaddress(struct Obj *, uval_t *, unsigned int, linepos_t);
+extern MUST_CHECK bool toiaddress(struct Obj *, ival_t *, unsigned int, linepos_t);
 extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
 
 extern bool longaccu, longindex, autosize;

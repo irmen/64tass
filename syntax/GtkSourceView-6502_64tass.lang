@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- ex:set ts=2 et:
 
- $Id: GtkSourceView-6502_64tass.lang 1919 2019-08-24 14:54:20Z soci $
+ $Id: GtkSourceView-6502_64tass.lang 1996 2019-10-11 08:52:28Z soci $
 
  GtkSourceView language definition file for 64tass
  Usable with gedit
@@ -158,7 +158,7 @@
     </context>
 
     <context id="opcode" end-at-line-end="true">
-      <start>(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)(?:\s+(a(\s|(?=;)|$))?|(?=;)|$)</start>
+      <start>(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpa|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)(?:\s+(a(\s|(?=;)|$))?|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="opcode"/>
         <context sub-pattern="1" where="start" style-ref="opcode"/>

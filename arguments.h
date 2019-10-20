@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 1940 2019-08-31 02:01:51Z soci $
+    $Id: arguments.h 2004 2019-10-14 04:05:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -73,8 +73,14 @@ struct diagnostics_s {
     bool optimize;
     bool implied_reg;
     bool jmp_bug;
-    bool pc_wrap;
-    bool mem_wrap;
+    struct {
+        bool pc;
+        bool mem;
+        bool addr;
+        bool dpage;
+        bool bank0;
+        bool pbank;
+    } wrap;
     bool label_left;
     bool branch_page;
     bool deprecated;

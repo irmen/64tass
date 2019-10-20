@@ -67,7 +67,7 @@
 			</dict>
 			<dict>
 				<key>match</key>
-				<string>(?i)\b(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)\b(?-i)</string>
+				<string>(?i)\b(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpa|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)\b(?-i)</string>
 				<key>name</key>
 				<string>keyword</string>
 			</dict>

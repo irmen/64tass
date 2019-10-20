@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 1985 2019-09-22 03:26:18Z soci $
+    $Id: eval.c 2002 2019-10-12 19:55:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -286,41 +286,41 @@ void touch_label(Label *tmp) {
     tmp->usepass = pass;
 }
 
-static uval_t bitscalc(Bits *val) {
+static uval_t bitscalc(address_t addr, Bits *val) {
     size_t b = val->bits;
-    if (b >= 8 * sizeof(star)) return (uval_t)b;
-    if ((star >> b) == 0) return (uval_t)b;
-    if (star <= 0xff) return 8;
-    if (star <= 0xffff) return 16;
+    if (b >= 8 * sizeof(addr)) return (uval_t)b;
+    if ((addr >> b) == 0) return (uval_t)b;
+    if (addr <= 0xff) return 8;
+    if (addr <= 0xffff) return 16;
     return all_mem_bits;
 }
 
-static uval_t bytescalc(Bytes *val) {
+static uval_t bytescalc(address_t addr, Bytes *val) {
     size_t b = val->len < 0 ? (size_t)~val->len : (size_t)val->len;
-    if (b >= 8 * sizeof(star)) return (uval_t)b;
-    if ((star >> (b << 3)) == 0) return (uval_t)b;
-    if (star <= 0xff) return 1;
-    if (star <= 0xffff) return 2;
+    if (b >= 8 * sizeof(addr)) return (uval_t)b;
+    if ((addr >> (b << 3)) == 0) return (uval_t)b;
+    if (addr <= 0xff) return 1;
+    if (addr <= 0xffff) return 2;
     return all_mem_bits >> 3;
 }
 
-MUST_CHECK Obj *get_star_value(Obj *val) {
+MUST_CHECK Obj *get_star_value(address_t addr, Obj *val) {
     switch (val->obj->type) {
-    case T_BITS: return (Obj *)bits_from_uval(star, bitscalc((Bits *)val));
-    case T_CODE: return get_star_value(((Code *)val)->addr);
+    case T_BITS: return (Obj *)bits_from_uval(addr, bitscalc(addr, (Bits *)val));
+    case T_CODE: return get_star_value(addr, ((Code *)val)->typ);
     default:
     case T_BOOL:
-    case T_INT: return (Obj *)int_from_uval(star);
-    case T_FLOAT: return (Obj *)new_float(star + (((Float *)val)->real - trunc(((Float *)val)->real)));
-    case T_STR: return (Obj *)bytes_from_uval(star, all_mem_bits >> 3);
-    case T_BYTES: return (Obj *)bytes_from_uval(star, bytescalc((Bytes *)val));
-    case T_ADDRESS: return (Obj *)new_address(get_star_value(((Address *)val)->val), ((Address *)val)->type);
+    case T_INT: return (Obj *)int_from_uval(addr);
+    case T_FLOAT: return (Obj *)new_float(addr + (((Float *)val)->real - trunc(((Float *)val)->real)));
+    case T_STR: return (Obj *)bytes_from_uval(addr, all_mem_bits >> 3);
+    case T_BYTES: return (Obj *)bytes_from_uval(addr, bytescalc(addr, (Bytes *)val));
+    case T_ADDRESS: return (Obj *)new_address(get_star_value(addr, ((Address *)val)->val), ((Address *)val)->type);
     }
 }
 
 static MUST_CHECK Obj *get_star(void) {
     if (diagnostics.optimize) cpu_opt_invalidate();
-    return get_star_value(current_address->l_address_val);
+    return get_star_value(star, current_address->l_address_val);
 }
 
 static size_t evxnum, evx_p;
@@ -833,7 +833,7 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am, bool inplace)
     }
     if (o1->obj == ADDRESS_OBJ) {
         Address *v1 = (Address *)o1;
-        if (inplace && o1->refcount) {
+        if (inplace && o1->refcount == 1) {
             v1->type = am | (v1->type << 4);
             return val_reference(o1);
         }
@@ -1103,8 +1103,12 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_HASH_SIGNED: am = A_IMMEDIATE_SIGNED; goto addr; /* #+ */
         case O_HASH: am = A_IMMEDIATE;                          /* #  */
         addr:
-            val = apply_addressing(v1->val, am, true);
-            val_destroy(v1->val); v1->val = val;
+            if (v1->val->obj != ADDRESS_OBJ && !v1->val->obj->iterable) {
+                v1->val = (Obj *)new_address(v1->val, am);
+            } else {
+                val = apply_addressing(v1->val, am, true);
+                val_destroy(v1->val); v1->val = val;
+            }
             if (op == O_HASH || op == O_HASH_SIGNED) v1->epoint = o_out->epoint;
             continue;
         case O_SPLAT:   /* *  */
@@ -1388,9 +1392,10 @@ static bool get_exp2(int stop) {
                 }
                 goto tryanon;
             }
-            /* fall through */
+            push_oper(get_float(&epoint), &epoint);
+            goto other;
         case '0':
-            if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
+            if (diagnostics.leading_zeros && (pline[lpoint.pos + 1] ^ 0x30) < 10) err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
             /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_float(&epoint), &epoint);

@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.h 1887 2019-02-10 16:05:17Z soci $
+    $Id: identobj.h 2016 2019-10-20 06:41:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ typedef struct Ident {
     Obj v;
     str_t name;
     uint8_t val[16];
-    struct file_list_s *file_list;
+    const struct file_list_s *file_list;
 } Ident;
 
 typedef struct Anonident {

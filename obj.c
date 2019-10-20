@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 1941 2019-08-31 07:10:28Z soci $
+    $Id: obj.c 2000 2019-10-12 13:18:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -197,9 +197,16 @@ static MUST_CHECK Error *invalid_uval2(Obj *v1, uval_t *uv, unsigned int bits, l
     return v1->obj->uval(v1, uv, bits, epoint);
 }
 
-static FAST_CALL Obj *invalid_address(Obj *v1, uint32_t *am) {
-    *am = A_NONE;
-    return v1;
+static FAST_CALL uint32_t invalid_address(const Obj *UNUSED(v1)) {
+    return A_NONE;
+}
+
+static MUST_CHECK Error *invalid_iaddress(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    return v1->obj->ival(v1, iv, bits, epoint);
+}
+
+static MUST_CHECK Error *invalid_uaddress(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    return v1->obj->uval(v1, uv, bits, epoint);
 }
 
 static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
@@ -266,6 +273,8 @@ void obj_init(Type *obj) {
     obj->uval = invalid_uval;
     obj->uval2 = invalid_uval2;
     obj->address = invalid_address;
+    obj->iaddress = invalid_iaddress;
+    obj->uaddress = invalid_uaddress;
     obj->sign = invalid_sign;
     obj->function = invalid_function;
     obj->len = invalid_len;

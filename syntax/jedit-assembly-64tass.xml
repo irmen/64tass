@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 1919 2019-08-24 14:54:20Z soci $
+	$Id: jedit-assembly-64tass.xml 1996 2019-10-11 08:52:28Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -163,6 +163,7 @@
                         <KEYWORD1>cli</KEYWORD1>
                         <KEYWORD1>clv</KEYWORD1>
                         <KEYWORD1>cmp</KEYWORD1>
+                        <KEYWORD1>cpa</KEYWORD1>
                         <KEYWORD1>cpx</KEYWORD1>
                         <KEYWORD1>cpy</KEYWORD1>
                         <KEYWORD1>dec</KEYWORD1>

@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 1986 2019-09-22 06:30:59Z soci $
+    $Id: bytesobj.c 2001 2019-10-12 13:21:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1429,6 +1429,8 @@ void bytesobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.uval2 = uval2;
+    obj.iaddress = ival;
+    obj.uaddress = uval;
     obj.sign = sign;
     obj.function = function;
     obj.len = len;

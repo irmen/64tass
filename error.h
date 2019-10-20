@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 1931 2019-08-25 16:47:04Z soci $
+    $Id: error.h 2016 2019-10-20 06:41:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ extern void err_msg_cant_calculate(const struct str_t *, linepos_t);
 extern void err_msg_cant_calculate2(const struct str_t *, const struct file_list_s *, linepos_t);
 extern void err_msg_still_none(const struct str_t *, linepos_t);
 extern void err_msg_invalid_oper(const struct Oper *, struct Obj *, struct Obj *, linepos_t);
-extern void err_msg_double_definedo(struct file_list_s *, linepos_t, const struct str_t *, linepos_t);
+extern void err_msg_double_definedo(const struct file_list_s *, linepos_t, const struct str_t *, linepos_t);
 extern void err_msg_not_variable(struct Label *, const struct str_t *, linepos_t);
 extern void err_msg_double_defined(struct Label *, const struct str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
@@ -90,6 +90,10 @@ extern void err_msg_implied_reg(linepos_t);
 extern void err_msg_jmp_bug(linepos_t);
 extern void err_msg_pc_wrap(linepos_t);
 extern void err_msg_mem_wrap(linepos_t);
+extern void err_msg_addr_wrap(linepos_t);
+extern void err_msg_dpage_wrap(linepos_t);
+extern void err_msg_bank0_wrap(linepos_t);
+extern void err_msg_pbank_wrap(linepos_t);
 extern void err_msg_label_left(linepos_t);
 extern void err_msg_branch_page(int, linepos_t);
 extern void err_msg_page(address_t, address_t, linepos_t);

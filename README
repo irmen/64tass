@@ -3102,16 +3102,6 @@ default, the others are disabled.
     This check is there to catch typos, unsupported implied instructions, or
     unknown aliases and not for enforcing label placement.
 
--Wno-mem-wrap
-    Don't warn for compile offset wrap around.
-
-    Continue from the beginning of image file once it's end was reached.
-
--Wno-pc-wrap
-    Don't warn for program counter wrap around.
-
-    Continue from the beginning of program bank once it's end was reached.
-
 -Wno-pitfalls
     Don't note about common pitfalls.
 
@@ -3244,6 +3234,70 @@ default, the others are disabled.
 
     Symbols which appear in a default 64tass symbol list file and their root
     symbols are treated as used for exporting purposes.
+
+-Wno-wrap-addr
+    Don't warn about memory location address space wrap around.
+
+    Applying offsets to memory locations may result in addresses which end up
+    outside of the processors address space.
+
+    For example "tmp" is at $1000 and then it's addressed as lda tmp-$2000 then
+    the result will be lda $f000 or lda $fff000 depending on the CPU. If this
+    is fine then this warning can be disabled otherwise it can be made into an
+    error by using -Werror=wrap-addr.
+
+-Wno-wrap-bank0
+    Don't warn for bank 0 wrap around.
+
+    Adding an offset to a bank 0 address may end up outside of bank 0. If this
+    happens a warning is issued and the address wraps around.
+
+    The warning may be ignored using this command line parameter. Alternatively
+    it could be turned into an error by using -Werror=wrap-bank0.
+
+-Wno-wrap-dpage
+    Don't warn for direct page wrap around.
+
+    Adding an offset to a direct page address may end up outside of the direct
+    page. For a 65816 or 65EL02 an alternative addressing mode is used but on
+    other processors if this happens a warning is issued and the address wraps
+    around.
+
+    The warning may be ignored using this command line parameter. Alternatively
+    it could be turned into an error by using -Werror=wrap-dpage.
+
+-Wno-wrap-mem
+    Don't warn for compile offset wrap around.
+
+    While assembling the compile offset may reach the end of memory image. If
+    this happens a warning is issued and the compile offset is set to the start
+    of image.
+
+    The warning may be ignored using this command line parameter. Alternatively
+    it could be turned into an error by using -Werror=wrap-mem.
+
+    The image size depends on the output format. See the Output options section
+    above.
+
+-Wno-wrap-pc
+    Don't warn for program counter wrap around.
+
+    While assembling the program counter may reach the end of the current
+    program bank. If this happens a warning is issued and the address wraps
+    around.
+
+    The warning may be ignored using this command line parameter. Alternatively
+    it could be turned into an error by using -Werror=wrap-pc.
+
+-Wno-wrap-pbank
+    Don't warn for program bank address calculation wrap around.
+
+    Adding an offset to a program bank address may end up outside of the
+    current program bank. If this happens a warning is issued and the address
+    wraps around.
+
+    The warning may be ignored using this command line parameter. Alternatively
+    it could be turned into an error by using -Werror=wrap-pbank.
 
 Target selection on command line
 
@@ -3541,6 +3595,9 @@ Warnings
 approximate floating point
     floating point comparisons are not exact and the numbers were close but
     maybe not quite
+bank 0 address overflow
+    the calculated memory location address ended up outside of bank 0 and is
+    now wrapped.
 case ignored, value already handled
     this value was already used in an earlier case so here it's ignored
 compile offset overflow
@@ -3563,6 +3620,9 @@ deprecated modulo operator, use '%' instead
 deprecated not equal operator, use '!=' instead
     non-standard not equal operators which will stop working in the future,
     update source
+direct page address overflow
+    the calculated memory location address ended up outside of direct page and
+    is now wrapped.
 directive ignored
     an assembler directive was ignored for compatibility reasons
 expected ? values but got ? to unpack
@@ -3589,6 +3649,9 @@ leading zeros ignored
     number
 long branch used
     branch distance was too long so long branch was used (bxx *+5 jmp)
+memory location address overflow
+    the calculated memory location address ended up outside of the processors
+    address space
 please use format("%d", ...) as '^' will change it's meaning
     this operator will be changed to mean the bank byte later, please update
     your sources
@@ -3608,6 +3671,9 @@ possibly redundant indexing with a constant value
 processor program counter overflow
     pc address was set back to the start of actual 64 KiB program bank as end
     of bank was reached
+program bank address overflow
+    the calculated memory location address ended up outside of the current
+    program bank and is now wrapped.
 symbol case mismatch '?'
     the symbol is matching case insensitively but it's not all letters are
     exactly the same
@@ -3761,8 +3827,6 @@ some operation '?' of type '?' and type '?' not possible
     can't do this calculation with these values
 square root of negative number
     can't calculate the square root of a negative number
-too early to reference
-    processing still ongoing, can't access this yet
 too large for a ? bit signed/unsigned integer
     value out of range
 unknown processor '?'
@@ -4114,14 +4178,15 @@ TXS 9A                                  TYA 98
 
                          Aliases, pseudo instructions
 ASL 0A                                  BGE B0
-BLT 90                                  GCC 4C 90
-GCS 4C B0                               GEQ 4C F0
-GGE 4C B0                               GLT 4C 90
-GMI 30 4C                               GNE 4C D0
-GPL 10 4C                               GVC 4C 50
-GVS 4C 70                               LSR 4A
-ROL 2A                                  ROR 6A
-SHL 06 0A 0E 16 1E                      SHR 46 4A 4E 56 5E
+BLT 90                                  CPA C1 C5 C9 CD D1 D5 D9 DD
+GCC 4C 90                               GCS 4C B0
+GEQ 4C F0                               GGE 4C B0
+GLT 4C 90                               GMI 30 4C
+GNE 4C D0                               GPL 10 4C
+GVC 4C 50                               GVS 4C 70
+LSR 4A                                  ROL 2A
+ROR 6A                                  SHL 06 0A 0E 16 1E
+SHR 46 4A 4E 56 5E
 
 -------------------------------------------------------------------------------
 
@@ -4194,8 +4259,9 @@ STA 92                                  STZ 64 74 9C 9E
 TRB 14 1C                               TSB 04 0C
 
                   Additional aliases and pseudo instructions
-CLR 64 74 9C 9E                         DEA 3A
-GRA 4C 80                               INA 1A
+CLR 64 74 9C 9E                         CPA D2
+DEA 3A                                  GRA 4C 80
+INA 1A
 
 -------------------------------------------------------------------------------
 
@@ -4252,11 +4318,11 @@ WDM 42                                  XBA EB
 XCE FB
 
                               Additional aliases
-CSP 02                                  CLP C2
-HLT DB                                  JML 5C DC
-SWA EB                                  TAD 5B
-TAS 1B                                  TDA 7B
-TSA 3B
+CLP C2                                  CPA C3 C7 CF D3 D7 DF
+CSP 02                                  HLT DB
+JML 5C DC                               SWA EB
+TAD 5B                                  TAS 1B
+TDA 7B                                  TSA 3B
 
 -------------------------------------------------------------------------------
 
@@ -4291,7 +4357,8 @@ WAI CB                                  XBA EB
 XCE FB                                  ZEA 8F
 
                               Additional aliases
-CLP C2                                  HLT DB
+CLP C2                                  CPA C3 C7 D3 D7
+HLT DB
 
 -------------------------------------------------------------------------------
 

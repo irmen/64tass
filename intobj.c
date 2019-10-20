@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 1984 2019-09-20 19:51:05Z soci $
+    $Id: intobj.c 2001 2019-10-12 13:21:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1743,6 +1743,9 @@ void intobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
+    obj.uval2 = uval;
+    obj.iaddress = ival;
+    obj.uaddress = uval;
     obj.sign = sign;
     obj.function = function;
     obj.calc1 = calc1;

@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 1845 2019-01-28 07:55:58Z soci $
+    $Id: codeobj.h 2013 2019-10-20 04:31:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,11 +38,12 @@ typedef enum Code_types {
 typedef struct Code {
     Obj v;
     address_t size;
+    address_t addr;
     ival_t offs;
     uint8_t pass;
     uint8_t apass;
     signed char dtype;
-    Obj *addr;
+    Obj *typ;
     struct Memblocks *memblocks;
     address_t memaddr;
     size_t membp;
@@ -58,9 +59,13 @@ static inline MUST_CHECK Code *new_code(void) {
     return (Code *)val_alloc(CODE_OBJ);
 }
 
-extern MUST_CHECK Obj *int_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *float_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *bits_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *bytes_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *tuple_from_code(const Code *, struct Type *, linepos_t);
+struct Error;
+
+extern MUST_CHECK Obj *get_code_value(const Code *, linepos_t);
+extern MUST_CHECK struct Error *code_uaddress(Obj *, uval_t *, uval_t *, linepos_t);
+extern MUST_CHECK Obj *int_from_code(const Code *, linepos_t);
+extern MUST_CHECK Obj *float_from_code(const Code *, linepos_t);
+extern MUST_CHECK Obj *bits_from_code(const Code *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_code(const Code *, linepos_t);
+extern MUST_CHECK Obj *tuple_from_code(const Code *, const struct Type *);
 #endif

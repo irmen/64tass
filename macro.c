@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 1983 2019-09-20 15:03:08Z soci $
+    $Id: macro.c 2011 2019-10-16 04:57:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -341,13 +341,13 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         if (context != NULL) pop_context();
     } else {
         line_t lin = lpoint.line;
-        bool labelexists;
-        struct star_s *s = new_star(vline, &labelexists);
+        bool starexists;
+        struct star_s *s = new_star(vline, &starexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
-        if (labelexists && s->addr != star) {
+        if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }
@@ -435,8 +435,8 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     if (max != 0) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
         line_t lin = lpoint.line;
-        bool labelexists;
-        struct star_s *s = new_star(vline, &labelexists);
+        bool starexists;
+        struct star_s *s = new_star(vline, &starexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         size_t oldbottom;
@@ -444,7 +444,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
-        if (labelexists && s->addr != star) {
+        if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }
@@ -674,8 +674,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
         line_t lin = lpoint.line;
-        bool labelexists;
-        struct star_s *s = new_star(vline, &labelexists);
+        bool starexists;
+        struct star_s *s = new_star(vline, &starexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         struct linepos_s opoint = lpoint;
@@ -687,7 +687,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
-        if (labelexists && s->addr != star) {
+        if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }

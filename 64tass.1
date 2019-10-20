@@ -182,6 +182,10 @@ Also it's hard to notice that an unchanged call turned into label after the
 definition got renamed. This warning helps to find such calls so that prefixes
 can be added.
 .TP 0.5i
+\fB\-Wno\-addr\-wrap\fR
+Don't warn about memory location address space wrap around.
+If a memory location ends up outside of the processors address space then just wrap it around.
+.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't

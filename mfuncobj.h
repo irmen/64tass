@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 1983 2019-09-20 15:03:08Z soci $
+    $Id: mfuncobj.h 2016 2019-10-20 06:41:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define MFUNCOBJ_H
 #include "obj.h"
 #include "str.h"
+#include "stdbool.h"
 
 extern struct Type *const MFUNC_OBJ;
 
@@ -34,8 +35,9 @@ typedef struct Mfunc {
     Obj v;
     size_t argc;
     struct mfunc_param_s *param;
-    struct file_list_s *file_list;
+    const struct file_list_s *file_list;
     line_t line;
+    bool retval;
     uint8_t recursion_pass;
     size_t nslen;
     struct Namespace **namespaces, *names;

@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 1983 2019-09-20 15:03:08Z soci $
+    $Id: error.c 2016 2019-10-20 06:41:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -307,7 +307,6 @@ static const char * const terr_error[] = {
     "empty string not allowed",
     "empty list not allowed",
     "more than a single character",
-    "too early to reference",
     "requirements not met",
     "conflict",
     "index out of range ",
@@ -355,10 +354,10 @@ static const char * const terr_fatal[] = {
     "too many passes"
 };
 
-static void err_msg_variable(Obj *val, linepos_t epoint) {
+static void err_msg_variable(Obj *val) {
     Obj *err;
     adderror(val->obj->name);
-    err = val->obj->str(val, epoint, 40);
+    err = val->obj->str(val, NULL, 40);
     if (err != NULL) {
         if (err->obj == STR_OBJ) {
             Str *str = (Str *)err;
@@ -521,7 +520,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR__NOT_DATABANK:
         case ERROR_CANT_CROSS_BA:
             adderror(terr_error[no - 0x40]);
-            if (prm != NULL) err_msg_variable((Obj *)prm, epoint);
+            if (prm != NULL) err_msg_variable((Obj *)prm);
             break;
         case ERROR___UNKNOWN_CPU:
             adderror("unknown processor '");
@@ -567,22 +566,19 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
 }
 
 void err_msg_big_address(linepos_t epoint) {
-    address_t oldstar = star;
-    Obj *val;
-    star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
-    val = get_star_value(current_address->l_address_val);
-    star = oldstar;
+    address_t addr = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+    Obj *val = get_star_value(addr, current_address->l_address_val);
     new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("address not in processor address space ");
-    err_msg_variable(val, epoint);
+    err_msg_variable(val);
     val_destroy(val);
 }
 
-static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val, linepos_t epoint) {
+static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val) {
     char msg2[256];
     sprintf(msg2, msg, bits);
     adderror(msg2);
-    err_msg_variable(val, epoint);
+    err_msg_variable(val);
 }
 
 static void err_msg_invalid_conv(const Error *err) {
@@ -593,7 +589,7 @@ static void err_msg_invalid_conv(const Error *err) {
     }
     new_error_msg_err(err);
     adderror("conversion of ");
-    err_msg_variable(v1, &err->epoint);
+    err_msg_variable(v1);
     adderror(" to ");
     adderror(err->u.conv.t->name);
     adderror(" is not possible");
@@ -649,7 +645,7 @@ static void err_msg_not_defined3(const Error *err) {
 
     new_error_msg_err(err);
     adderror("not defined ");
-    err_msg_variable(err->u.notdef.ident, &err->epoint);
+    err_msg_variable(err->u.notdef.ident);
 
     if (l->file_list == NULL) {
         struct linepos_s nopoint = {0, 0};
@@ -716,13 +712,13 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2) {
     adderror(msg2);
 }
 
-static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
+static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2) {
     adderror(op->name);
     adderror("' of ");
-    err_msg_variable(v1, epoint);
+    err_msg_variable(v1);
     if (v2 != NULL) {
         adderror(" and ");
-        err_msg_variable(v2, epoint);
+        err_msg_variable(v2);
     }
     adderror(" not possible");
 }
@@ -740,7 +736,7 @@ static void err_msg_invalid_oper3(const Error *err) {
     }
 
     new_error_msg_err(err);
-    err_msg_invalid_oper2(err->u.invoper.op, v1, v2, &err->epoint);
+    err_msg_invalid_oper2(err->u.invoper.op, v1, v2);
 }
 
 static void err_msg_still_none2(const Error *err) {
@@ -760,8 +756,7 @@ void err_msg_output(const Error *val) {
     case ERROR____STILL_NONE: err_msg_still_none2(val); break;
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL:
-    case ERROR______NOT_UVAL: new_error_msg_err(val); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val, &val->epoint);break;
-    case ERROR____NO_FORWARD:
+    case ERROR______NOT_UVAL: new_error_msg_err(val); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val);break;
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
     case ERROR_NOT_TWO_CHARS:
@@ -797,7 +792,7 @@ void err_msg_output(const Error *val) {
     case ERROR_LOG_NON_POSIT:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
-    case ERROR_____KEY_ERROR: new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj, &val->epoint);break;
+    case ERROR_____KEY_ERROR: new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj);break;
     default: break;
     }
 }
@@ -968,7 +963,7 @@ void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2
     err_msg_double_note(l->file_list, &l->epoint, labelname2);
 }
 
-void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
+void err_msg_double_definedo(const struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
     err_msg_double_defined2("duplicate definition", SV_ERROR, current_file_list, labelname2, epoint2);
     err_msg_double_note(cflist, epoint, labelname2);
 }
@@ -1067,19 +1062,19 @@ void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
 void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
     adderror(terr_error[no - 0x40]);
-    err_msg_variable(o, epoint);
+    err_msg_variable(o);
     adderror(" [-Wstrict-bool]");
 }
 
 void err_msg_bool_val(Error_types no, unsigned int bits, Obj *o, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
-    err_msg_big_integer(terr_error[no - 0x40], bits, o, epoint);
+    err_msg_big_integer(terr_error[no - 0x40], bits, o);
     adderror(" [-Wstrict-bool]");
 }
 
 void err_msg_bool_oper(oper_t op) {
     new_error_msg2(diagnostic_errors.strict_bool, op->epoint3);
-    err_msg_invalid_oper2(op->op, op->v1, op->v2, op->epoint3);
+    err_msg_invalid_oper2(op->op, op->v1, op->v2);
     adderror(" [-Wstrict-bool]");
 }
 
@@ -1095,15 +1090,39 @@ void err_msg_jmp_bug(linepos_t epoint) {
 }
 
 void err_msg_pc_wrap(linepos_t epoint) {
-    if (!diagnostics.pc_wrap) return;
-    new_error_msg2(diagnostic_errors.pc_wrap, epoint);
-    adderror("processor program counter overflow [-Wpc-wrap]");
+    if (!diagnostics.wrap.pc) return;
+    new_error_msg2(diagnostic_errors.wrap.pc, epoint);
+    adderror("processor program counter overflow [-Wwrap-pc]");
 }
 
 void err_msg_mem_wrap(linepos_t epoint) {
-    if (!diagnostics.mem_wrap) return;
-    new_error_msg2(diagnostic_errors.mem_wrap, epoint);
-    adderror("compile offset overflow [-Wmem-wrap]");
+    if (!diagnostics.wrap.mem) return;
+    new_error_msg2(diagnostic_errors.wrap.mem, epoint);
+    adderror("compile offset overflow [-Wwrap-mem]");
+}
+
+void err_msg_addr_wrap(linepos_t epoint) {
+    if (!diagnostics.wrap.addr) return;
+    new_error_msg2(diagnostic_errors.wrap.addr, epoint);
+    adderror("memory location address overflow [-Wwrap-addr]");
+}
+
+void err_msg_dpage_wrap(linepos_t epoint) {
+    if (!diagnostics.wrap.dpage) return;
+    new_error_msg2(diagnostic_errors.wrap.dpage, epoint);
+    adderror("direct page address overflow [-Wwrap-dpage]");
+}
+
+void err_msg_bank0_wrap(linepos_t epoint) {
+    if (!diagnostics.wrap.bank0) return;
+    new_error_msg2(diagnostic_errors.wrap.bank0, epoint);
+    adderror("bank 0 address overflow [-Wwrap-bank0]");
+}
+
+void err_msg_pbank_wrap(linepos_t epoint) {
+    if (!diagnostics.wrap.pbank) return;
+    new_error_msg2(diagnostic_errors.wrap.pbank, epoint);
+    adderror("program bank address overflow [-Wwrap-pbank]");
 }
 
 void err_msg_label_left(linepos_t epoint) {

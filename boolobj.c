@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 1944 2019-08-31 09:46:14Z soci $
+    $Id: boolobj.c 2001 2019-10-12 13:21:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -234,6 +234,9 @@ void boolobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
+    obj.uval2 = uval;
+    obj.iaddress = ival;
+    obj.uaddress = uval;
     obj.sign = sign;
     obj.function = function;
     obj.calc1 = calc1;

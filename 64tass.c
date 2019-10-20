@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 1987 2019-09-22 06:52:52Z soci $
+    $Id: 64tass.c 2015 2019-10-20 05:39:11Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -150,6 +150,9 @@ static struct waitfor_s {
         struct {
             Obj *val;
         } cmd_macro;
+        struct {
+            Obj *val;
+        } cmd_function;
         struct {
             Obj *val;
         } cmd_switch;
@@ -579,6 +582,7 @@ static void textrecursion(struct textrecursion_s *trec, Obj *val) {
     uval_t uval;
 
     if (trec->sum >= trec->max) return;
+
 retry:
     switch (val->obj->type) {
     case T_STR:
@@ -604,7 +608,19 @@ retry:
         val2 = val;
         goto doit;
     case T_CODE:
-        val = ((Code *)val)->addr;
+        {
+            Obj *tmp = get_code_value((Code *)val, poke_pos);
+            textrecursion(trec, tmp);
+            val_destroy(tmp);
+            return;
+        }
+    case T_ADDRESS:
+        if (((Address *)val)->type != A_NONE) {
+            iter = NULL;
+            val2 = val;
+            goto doit;
+        }
+        val = ((Address *)val)->val;
         goto retry;
     case T_GAP:
         iter = NULL;
@@ -647,6 +663,8 @@ retry:
             }
             /* fall through */
         case T_STR:
+        case T_CODE:
+        case T_ADDRESS:
         rec:
             textrecursion(trec, val2);
             break;
@@ -749,16 +767,15 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
         default:
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
-                atype_t am;
-                Obj *tmp = val2->obj->address(val2, &am);
-                if (touval(tmp, &uv, (am == A_KR) ? 16 : all_mem_bits, poke_pos)) {
+                atype_t am = val2->obj->address(val2);
+                if (touaddress(val2, &uv, (am == A_KR) ? 16 : all_mem_bits, poke_pos)) {
                     ch2 = 0;
                     break;
                 }
                 uv &= all_mem;
                 switch (am) {
                 case A_NONE:
-                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, tmp, poke_pos);
+                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, poke_pos);
                     break;
                 case A_KR:
                     break;
@@ -927,7 +944,9 @@ static const char *check_waitfor(void) {
     case W_ENDM:
         if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
         return ".endm";
-    case W_ENDF: return ".endf";
+    case W_ENDF: 
+        if (waitfor->u.cmd_function.val != NULL) val_destroy(waitfor->u.cmd_function.val);
+        return ".endf";
     case W_NEXT3:
         pop_context();
         /* fall through */
@@ -1046,7 +1065,8 @@ static bool virtual_start(linepos_t epoint) {
         if (!get_exp(0, 0, 1, epoint)) {retval = true;break;}
         vs = get_val();
         if (vs == NULL) break;
-        if (touval(vs->val->obj->address(vs->val, &am), &uval, all_mem_bits, &vs->epoint)) {retval = true; break;}
+        if (touaddress(vs->val, &uval, all_mem_bits, &vs->epoint)) {retval = true; break;}
+        am = vs->val->obj->address(vs->val);
         if (am != A_NONE && check_addr(am)) {
             err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
             retval = true;
@@ -1056,7 +1076,7 @@ static bool virtual_start(linepos_t epoint) {
         section_address->address = uval;
         section_address->l_address.address = uval & 0xffff;
         section_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
-        section_address->l_address_val = val_reference(tmp == NULL ? &int_value[0]->v : (tmp->obj == CODE_OBJ) ? ((Code *)tmp)->addr : tmp);
+        section_address->l_address_val = get_star_value(0, tmp);
     } while (false);
 
     if (tmp == NULL) {
@@ -1088,10 +1108,11 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     do {
         {
             address_t max = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
-            if (touval(val->obj->address(val, &am), &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, epoint2)) {
+            if (touaddress(val, &uval, (max == 0xffff) ? 16 : (max == 0xffffff) ? 24 : 32, epoint2)) {
                 break;
             }
         }
+        am = val->obj->address(val);
         if (am != A_NONE && check_addr(am)) {
             err_msg_output_and_destroy(err_addressing(am, epoint2));
             break;
@@ -1100,10 +1121,8 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             current_address->l_address.address = uval & 0xffff;
             current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
             val_destroy(current_address->l_address_val);
-            if (val->obj == CODE_OBJ) {
-                current_address->l_address_val = val_reference(((Code *)val)->addr);
-                val_destroy(val);
-            } else current_address->l_address_val = val;
+            current_address->l_address_val = get_star_value(0, val);
+            val_destroy(val);
             addr = (address_t)uval & all_mem2;
             if (current_address->address != addr) {
                 current_address->address = addr;
@@ -1126,10 +1145,8 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
         current_address->l_address.address = uval & 0xffff;
         current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
         val_destroy(current_address->l_address_val);
-        if (val->obj == CODE_OBJ) {
-            current_address->l_address_val = val_reference(((Code *)val)->addr);
-            val_destroy(val);
-        } else current_address->l_address_val = val;
+        current_address->l_address_val = get_star_value(0, val);
+        val_destroy(val);
         return;
     } while (false);
     val_destroy(val);
@@ -1202,16 +1219,17 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
     if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
     oaddr = current_address->address;
     if (val->obj == CODE_OBJ) {
-        Obj *tmp = get_star_value(current_address->l_address_val);
+        Obj *tmp = current_address->l_address_val;
         code = (Code *)val;
-        if (!tmp->obj->same(tmp, code->addr)) {
-            val_destroy(code->addr); code->addr = tmp;
+        if (!tmp->obj->same(tmp, code->typ)) {
+            val_destroy(code->typ); code->typ = val_reference(tmp);
             if (newlabel->usepass >= pass) {
                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                 fixeddig = false;
             }
-        } else val_destroy(tmp);
-        if (code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+        }
+        if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+            code->addr = star;
             code->requires = current_section->requires;
             code->conflicts = current_section->conflicts;
             code->offs = 0;
@@ -1223,7 +1241,8 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
         code->names->backr = code->names->forwr = 0;
     } else {
         code = new_code();
-        code->addr = get_star_value(current_address->l_address_val);
+        code->addr = star;
+        code->typ = val_reference(current_address->l_address_val);
         code->size = 0;
         code->offs = 0;
         code->dtype = D_NONE;
@@ -1910,7 +1929,7 @@ MUST_CHECK Obj *compile(void)
                     if (labelname.data[0] == '*') {
                         label = NULL;
                         if (diagnostics.optimize) cpu_opt_invalidate();
-                        val = get_star_value(current_address->l_address_val);
+                        val = get_star_value(star, current_address->l_address_val);
                     } else if (tmp.op == &o_COND) {
                         label = NULL; val = NULL;
                     } else {
@@ -2051,7 +2070,6 @@ MUST_CHECK Obj *compile(void)
                         } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         oaddr = current_address->address;
                         listing_equal(listing, val);
-                        label->ref = false;
                         if (labelexists) {
                             if (label->defpass == pass) {
                                 val_destroy(val);
@@ -2067,6 +2085,7 @@ MUST_CHECK Obj *compile(void)
                                     label_move(label, &labelname, current_file_list);
                                 }
                                 label->epoint = epoint;
+                                label->ref = false;
                                 const_assign(label, val);
                             }
                         } else {
@@ -2078,6 +2097,7 @@ MUST_CHECK Obj *compile(void)
                             label->owner = false;
                             label->value = val;
                             label->epoint = epoint;
+                            label->ref = false;
                         }
                         goto finish;
                     }
@@ -2166,6 +2186,7 @@ MUST_CHECK Obj *compile(void)
                                         label_move(label, &labelname, current_file_list);
                                     }
                                     label->epoint = epoint;
+                                    label->ref = false;
                                     const_assign(label, &lbl->v);
                                 }
                             } else {
@@ -2177,48 +2198,51 @@ MUST_CHECK Obj *compile(void)
                                 label->owner = true;
                                 label->value = &lbl->v;
                                 label->epoint = epoint;
+                                label->ref = false;
                             }
                             if (!arguments.tasmcomp && diagnostics.deprecated) err_msg2(ERROR______OLD_GOTO, NULL, &cmdpoint);
-                            label->ref = false;
                             goto finish;
                         }
                     case CMD_NAMESPACE:
                         { /* namespace */
-                            Label *label;
-                            struct values_s *vs;
                             bool labelexists;
+                            Label *label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
+                            if (labelexists) {
+                                if (label->defpass == pass) {
+                                    err_msg_double_defined(label, &labelname, &epoint);
+                                    epoint = cmdpoint;
+                                    goto as_command;
+                                }
+                            }
                             listing_line(listing, 0);
                             new_waitfor(W_ENDN, &cmdpoint);
                             if (get_exp(0, 0, 1, &cmdpoint)) {
-                                vs = get_val();
+                                struct values_s *vs = get_val();
                                 if (vs != NULL) {
                                     val = vs->val;
                                     val = (Obj *)get_namespace(val);
                                     if (val == NULL) err_msg_wrong_type2(vs->val, NULL, &vs->epoint);
                                 } else val = NULL;
                             } else val = NULL;
-                            label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                             if (labelexists) {
-                                if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                                if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = true;
+                                }
+                                label->constant = true;
+                                label->owner = (val == NULL);
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
+                                label->epoint = epoint;
+                                label->ref = false;
+                                if (val != NULL) const_assign(label, val_reference(val));
                                 else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
-                                        if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
-                                        constcreated = true;
-                                    }
-                                    label->constant = true;
-                                    label->owner = (val == NULL);
-                                    if (label->file_list != current_file_list) {
-                                        label_move(label, &labelname, current_file_list);
-                                    }
-                                    label->epoint = epoint;
-                                    if (val != NULL) const_assign(label, val_reference(val));
-                                    else {
-                                        label->defpass = pass;
-                                        if (label->value->obj != NAMESPACE_OBJ) {
-                                            val_destroy(label->value);
-                                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                                        } else ((Namespace *)label->value)->backr = ((Namespace *)label->value)->forwr = 0;
-                                    }
+                                    label->defpass = pass;
+                                    if (label->value->obj != NAMESPACE_OBJ) {
+                                        val_destroy(label->value);
+                                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
+                                    } else ((Namespace *)label->value)->backr = ((Namespace *)label->value)->forwr = 0;
                                 }
                             } else {
                                 if (!constcreated && temporary_label_branch == 0) {
@@ -2229,12 +2253,12 @@ MUST_CHECK Obj *compile(void)
                                 label->owner = (val == NULL);
                                 label->value = (val != NULL) ? val_reference(val) : (Obj *)new_namespace(current_file_list, &epoint);
                                 label->epoint = epoint;
+                                label->ref = false;
                             }
                             if (label->value->obj == NAMESPACE_OBJ) {
                                 push_context((Namespace *)label->value);
                                 waitfor->what = W_ENDN2;
                             } else push_context(current_context);
-                            label->ref = false;
                             goto finish;
                         }
                     case CMD_MACRO:/* .macro */
@@ -2268,6 +2292,7 @@ MUST_CHECK Obj *compile(void)
                                         label_move(label, &labelname, current_file_list);
                                     }
                                     label->epoint = epoint;
+                                    label->ref = false;
                                     const_assign(label, &macro->v);
                                     waitfor->u.cmd_macro.val = val_reference(label->value);
                                 }
@@ -2281,9 +2306,9 @@ MUST_CHECK Obj *compile(void)
                                 label->owner = true;
                                 label->value = &macro->v;
                                 label->epoint = epoint;
+                                label->ref = false;
                                 waitfor->u.cmd_macro.val = val_reference(&macro->v);
                             }
-                            label->ref = false;
                             goto finish;
                         }
                     case CMD_FUNCTION:
@@ -2304,9 +2329,10 @@ MUST_CHECK Obj *compile(void)
                             mfunc->nslen = 0;
                             mfunc->namespaces = NULL;
                             if (labelexists) {
+                                mfunc->retval = (label->value->obj == MFUNC_OBJ) && ((Mfunc *)label->value)->retval;
                                 if (label->defpass == pass) {
+                                    waitfor->u.cmd_function.val = &mfunc->v;
                                     mfunc->names = new_namespace(current_file_list, &epoint);
-                                    val_destroy(&mfunc->v);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
                                     if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
@@ -2326,11 +2352,14 @@ MUST_CHECK Obj *compile(void)
                                         mfunc->names = new_namespace(current_file_list, &epoint);
                                     }
                                     label->epoint = epoint;
+                                    label->ref = false;
                                     get_func_params(mfunc);
                                     get_namespaces(mfunc);
                                     const_assign(label, &mfunc->v);
+                                    waitfor->u.cmd_function.val = val_reference(label->value);
                                 }
                             } else {
+                                mfunc->retval = false;
                                 if (!constcreated && temporary_label_branch == 0) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
@@ -2339,11 +2368,12 @@ MUST_CHECK Obj *compile(void)
                                 label->owner = true;
                                 label->value = &mfunc->v;
                                 label->epoint = epoint;
+                                label->ref = false;
                                 get_func_params(mfunc);
                                 get_namespaces(mfunc);
                                 mfunc->names = new_namespace(current_file_list, &epoint);
+                                waitfor->u.cmd_function.val = val_reference(&mfunc->v);
                             }
-                            label->ref = false;
                             goto finish;
                         }
                     case CMD_STRUCT:
@@ -2395,6 +2425,7 @@ MUST_CHECK Obj *compile(void)
                                         label_move(label, &labelname, current_file_list);
                                     }
                                     label->epoint = epoint;
+                                    label->ref = false;
                                     if (label->value->obj == obj) {
                                         Struct *prev = (Struct *)label->value;
                                         structure->size = prev->size;
@@ -2417,10 +2448,10 @@ MUST_CHECK Obj *compile(void)
                                 label->owner = true;
                                 label->value = &structure->v;
                                 label->epoint = epoint;
+                                label->ref = false;
                                 structure->size = 0;
                                 structure->names = new_namespace(current_file_list, &epoint);
                             }
-                            label->ref = false;
                             listing_line(listing, cmdpoint.pos);
                             current_section->structrecursion++;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
@@ -2516,23 +2547,26 @@ MUST_CHECK Obj *compile(void)
                             address_t oldstart, oldend;
                             address2_t oldl_start, oldl_union;
                             bool oldunionmode;
-                            bool labelexists, ret;
+                            bool labelexists, ret, doubledef = false;
                             Type *obj;
                             Namespace *context;
                             Label *label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                             if (labelexists) {
                                 if (label->defpass == pass) {
+                                    doubledef = true;
                                     err_msg_double_defined(label, &labelname, &epoint);
-                                    epoint = cmdpoint;
-                                    goto as_command;
                                 } else {
                                     if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
+                                    label->constant = true;
+                                    label->owner = true;
                                     if (label->file_list != current_file_list) {
                                         label_move(label, &labelname, current_file_list);
                                     }
+                                    label->epoint = epoint;
+                                    label->ref = false;
                                 }
                             } else {
                                 if (!constcreated && temporary_label_branch == 0) {
@@ -2540,11 +2574,11 @@ MUST_CHECK Obj *compile(void)
                                     constcreated = true;
                                 }
                                 label->value = (Obj *)ref_none();
+                                label->constant = true;
+                                label->owner = true;
+                                label->epoint = epoint;
+                                label->ref = false;
                             }
-                            label->constant = true;
-                            label->owner = true;
-                            label->epoint = epoint;
-                            label->ref = false;
 
                             if (diagnostics.optimize) cpu_opt_invalidate();
                             listing_line(listing, cmdpoint.pos);
@@ -2573,18 +2607,19 @@ MUST_CHECK Obj *compile(void)
                             current_address->l_union = current_address->l_address;
                             current_address->unionmode = (prm == CMD_DUNION);
 
-                            if (!ret) {
+                            if (!ret && !doubledef) {
                                 Code *code = (Code *)label->value;
                                 if (labelexists && code->v.obj == CODE_OBJ) {
-                                    Obj *tmp = get_star_value(current_address->l_address_val);
-                                    if (!tmp->obj->same(tmp, code->addr)) {
-                                        val_destroy(code->addr); code->addr = tmp;
+                                    Obj *tmp = current_address->l_address_val;
+                                    if (!tmp->obj->same(tmp, code->typ)) {
+                                        val_destroy(code->typ); code->typ = val_reference(tmp);
                                         if (label->usepass >= pass) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                             fixeddig = false;
                                         }
-                                    } else val_destroy(tmp);
-                                    if (code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+                                    }
+                                    if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+                                        code->addr = star;
                                         code->requires = current_section->requires;
                                         code->conflicts = current_section->conflicts;
                                         code->offs = 0;
@@ -2600,7 +2635,8 @@ MUST_CHECK Obj *compile(void)
                                     val_destroy(&code->v);
                                     code = new_code();
                                     label->value = (Obj *)code;
-                                    code->addr = get_star_value(current_address->l_address_val);
+                                    code->addr = star;
+                                    code->typ = val_reference(current_address->l_address_val);
                                     code->size = 0;
                                     code->offs = 0;
                                     code->dtype = D_NONE;
@@ -2644,13 +2680,13 @@ MUST_CHECK Obj *compile(void)
                             if (val != NULL) {
                                 val = macro_recurse((prm == CMD_DSTRUCT) ? W_ENDS3 : W_ENDU3, val, context, &cmdpoint);
                                 if (val != NULL) {
-                                    if (ret) const_assign(label, val);
+                                    if (ret && !doubledef) const_assign(label, val);
                                     else val_destroy(val);
                                 }
                             }
                             current_section->structrecursion--;
 
-                            if (!ret) set_size(label, ((current_address->end < current_address->address) ? current_address->address : current_address->end) - oaddr, current_address->mem, oaddr, newmembp);
+                            if (!ret && !doubledef) set_size(label, ((current_address->end < current_address->address) ? current_address->address : current_address->end) - oaddr, current_address->mem, oaddr, newmembp);
                             current_address->start = oldstart;
                             oldstart = current_address->unionmode ? current_address->end : current_address->address;
                             if (oldend > current_address->end) current_address->end = oldend;
@@ -2713,6 +2749,9 @@ MUST_CHECK Obj *compile(void)
                             epoint = lpoint;
                             goto jn;
                         }
+                        if (newlabel->file_list != current_file_list) {
+                            label_move(newlabel, &labelname, current_file_list);
+                        }
                         if (!newlabel->update_after && newlabel->value->obj != CODE_OBJ) {
                             val_destroy(newlabel->value);
                             labelexists = false;
@@ -2726,23 +2765,23 @@ MUST_CHECK Obj *compile(void)
                         }
                         newlabel->constant = true;
                         newlabel->owner = true;
-                        if (newlabel->file_list != current_file_list) {
-                            label_move(newlabel, &labelname, current_file_list);
-                        }
                         newlabel->epoint = epoint;
-                        if (!newlabel->update_after) {
+                        if (newlabel->update_after) {
+                            newlabel->update_after = false;
+                        } else {
                             Obj *tmp;
                             if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
-                            tmp = get_star_value(current_address->l_address_val);
+                            tmp = current_address->l_address_val;
                             code = (Code *)newlabel->value;
-                            if (!tmp->obj->same(tmp, code->addr)) {
-                                val_destroy(code->addr); code->addr = tmp;
+                            if (!tmp->obj->same(tmp, code->typ)) {
+                                val_destroy(code->typ); code->typ = val_reference(tmp);
                                 if (newlabel->usepass >= pass) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                                     fixeddig = false;
                                 }
-                            } else val_destroy(tmp);
-                            if (code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+                            }
+                            if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+                                code->addr = star;
                                 code->requires = current_section->requires;
                                 code->conflicts = current_section->conflicts;
                                 code->offs = 0;
@@ -2767,7 +2806,8 @@ MUST_CHECK Obj *compile(void)
                         newlabel->owner = true;
                         newlabel->value = (Obj *)code;
                         newlabel->epoint = epoint;
-                        code->addr = get_star_value(current_address->l_address_val);
+                        code->addr = star;
+                        code->typ = val_reference(current_address->l_address_val);
                         code->size = 0;
                         code->offs = 0;
                         code->dtype = D_NONE;
@@ -2786,7 +2826,10 @@ MUST_CHECK Obj *compile(void)
                     case CMD_PROC:
                         listing_line(listing, epoint.pos);
                         new_waitfor(W_PEND, &epoint);
-                        if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {
+                        if (newlabel->value->obj != CODE_OBJ) {
+                            waitfor->skip = 0; push_dummy_context();
+                            waitfor->u.cmd_proc.label = NULL;
+                        } else if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {
                             waitfor->skip = 0; set_size(newlabel, 0, current_address->mem, oaddr, newmembp);
                             push_dummy_context();
                             waitfor->u.cmd_proc.label = NULL;
@@ -3102,7 +3145,12 @@ MUST_CHECK Obj *compile(void)
                 } else err_msg2(ERROR__MISSING_OPEN, ".macro' or '.segment", &epoint);
                 goto breakerr;
             case CMD_ENDF: /* .endf */
-                if (close_waitfor(W_ENDF)) {
+                if (waitfor->what==W_ENDF) {
+                    if (waitfor->u.cmd_function.val != NULL) {
+                        ((Mfunc *)waitfor->u.cmd_function.val)->retval = (here() != 0 && here() != ';');
+                        val_destroy(waitfor->u.cmd_function.val);
+                    }
+                    close_waitfor(W_ENDF);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 } else if (waitfor->what==W_ENDF3) { /* not closed here */
                     nobreak = false;
@@ -3464,7 +3512,8 @@ MUST_CHECK Obj *compile(void)
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     tmp = vs->val;
-                    if (touval(tmp->obj->address(tmp, &am), &uval, all_mem_bits, &vs->epoint)) break;
+                    if (touaddress(tmp, &uval, all_mem_bits, &vs->epoint)) break;
+                    am = tmp->obj->address(tmp);
                     if (am != A_NONE && check_addr(am)) {
                         err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
                         break;
@@ -3478,7 +3527,7 @@ MUST_CHECK Obj *compile(void)
                     }
                     val_destroy(current_address->l_address_val);
                     tmp = vs->val;
-                    current_address->l_address_val = val_reference(tmp->obj == CODE_OBJ ? ((Code *)tmp)->addr : tmp);
+                    current_address->l_address_val = get_star_value(0, tmp);
                 } else new_waitfor(W_HERE, &epoint);
                 break;
             case CMD_VIRTUAL: if ((waitfor->skip & 1) != 0)
@@ -4275,6 +4324,7 @@ MUST_CHECK Obj *compile(void)
                     if (labelname.len == 0) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                 }
                 new_waitfor(W_ENDF, &epoint);
+                waitfor->u.cmd_function.val = NULL;
                 waitfor->skip = 0;
                 break;
             case CMD_VAR: /* .var */
@@ -4490,7 +4540,6 @@ MUST_CHECK Obj *compile(void)
                 default : err_msg_wrong_type2(val, NULL, &vs->epoint); goto breakerr;
                 }
             as_macro:
-                listing_line_cut(listing, epoint.pos);
                 if (val->obj == MACRO_OBJ || val->obj == STRUCT_OBJ || val->obj == UNION_OBJ) {
                     Namespace *context;
                     if (newlabel != NULL && !((Macro *)val)->retval && newlabel->value->obj == CODE_OBJ) {
@@ -4522,6 +4571,11 @@ MUST_CHECK Obj *compile(void)
                             label->epoint = epoint;
                         }
                         context = (Namespace *)label->value;
+                    }
+                    if (newlabel != NULL && ((Macro *)val)->retval) {
+                        listing_equal(listing, newlabel->value);
+                    } else {
+                        listing_line_cut(listing, epoint.pos);
                     }
                     val = macro_recurse(val->obj == MACRO_OBJ ? W_ENDM3 : val->obj == STRUCT_OBJ ? W_ENDS3 : W_ENDU3, val, context, &epoint);
                 } else if (val->obj == MFUNC_OBJ) {
@@ -4557,9 +4611,21 @@ MUST_CHECK Obj *compile(void)
                         val_destroy(&mfunc->v);
                         goto breakerr;
                     }
+                    if (newlabel != NULL && ((Mfunc *)val)->retval) {
+                        listing_equal(listing, newlabel->value);
+                    } else {
+                        listing_line_cut(listing, epoint.pos);
+                    }
                     val = mfunc_recurse(mfunc, (Namespace *)label->value, strength, &epoint);
                     val_destroy(&mfunc->v);
-                } else val = macro_recurse(W_ENDM3, val, NULL, &epoint);
+                } else { /* segment */
+                    if (newlabel != NULL && ((Macro *)val)->retval) {
+                        listing_equal(listing, newlabel->value);
+                    } else {
+                        listing_line_cut(listing, epoint.pos);
+                    }
+                    val = macro_recurse(W_ENDM3, val, NULL, &epoint);
+                }
                 if (val != NULL) {
                     if (newlabel != NULL) {
                         newlabel->update_after = true;

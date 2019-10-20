@@ -3516,14 +3516,6 @@ column.</p>
 <p>This check is there to catch typos, unsupported implied instructions, or
 unknown aliases and not for enforcing label placement.</p>
 
-<dt><b>-Wno-mem-wrap</b><a name="o_Wmem-wrap" href="#o_Wmem-wrap"></a>
-<dd>Don't warn for compile offset wrap around.
-<p>Continue from the beginning of image file once it's end was reached.</p>
-
-<dt><b>-Wno-pc-wrap</b><a name="o_Wpc-wrap" href="#o_Wpc-wrap"></a>
-<dd>Don't warn for program counter wrap around.
-<p>Continue from the beginning of program bank once it's end was reached.</p>
-
 <dt><b>-Wno-pitfalls</b><a name="o_Wpitfalls" href="#o_Wpitfalls"></a>
 <dd>Don't note about common pitfalls.
 <p>There are some common mistakes, but experts and those who read this don't
@@ -3648,6 +3640,63 @@ still need them.</p>
 
 <p>Symbols which appear in a default 64tass symbol list file and their root
 symbols are treated as used for exporting purposes.</p>
+
+<dt><b>-Wno-wrap-addr</b><a name="o_Wwrap-addr" href="#o_Wwrap-addr"></a>
+<dd>Don't warn about memory location address space wrap around.
+<p>Applying offsets to memory locations may result in addresses which end up
+outside of the processors address space.</p>
+
+<p>For example <code>"tmp"</code> is at <code>$1000</code> and then it's
+addressed as <code>lda tmp-$2000</code> then the result will be <code>lda $f000</code>
+or <code>lda $fff000</code> depending on the CPU. If this is fine then this
+warning can be disabled otherwise it can be made into an error by using
+<code>-Werror=wrap-addr</code>.</p>
+
+<dt><b>-Wno-wrap-bank0</b><a name="o_Wwrap-bank0" href="#o_Wwrap-bank0"></a>
+<dd>Don't warn for bank 0 wrap around.
+<p>Adding an offset to a bank 0 address may end up outside of bank 0. If this
+happens a warning is issued and the address wraps around.</p>
+
+<p>The warning may be ignored using this command line parameter. Alternatively
+it could be turned into an error by using <code>-Werror=wrap-bank0</code>.</p>
+
+<dt><b>-Wno-wrap-dpage</b><a name="o_Wwrap-dpage" href="#o_Wwrap-dpage"></a>
+<dd>Don't warn for direct page wrap around.
+<p>Adding an offset to a direct page address may end up outside of the direct
+page. For a 65816 or 65EL02 an alternative addressing mode is used but on other
+processors if this happens a warning is issued and the address wraps
+around.</p>
+
+<p>The warning may be ignored using this command line parameter. Alternatively
+it could be turned into an error by using <code>-Werror=wrap-dpage</code>.</p>
+
+<dt><b>-Wno-wrap-mem</b><a name="o_Wwrap-mem" href="#o_Wwrap-mem"></a>
+<dd>Don't warn for compile offset wrap around.
+<p>While assembling the compile offset may reach the end of memory image. If
+this happens a warning is issued and the compile offset is set to the start of
+image.</p>
+
+<p>The warning may be ignored using this command line parameter. Alternatively
+it could be turned into an error by using <code>-Werror=wrap-mem</code>.</p>
+
+<p>The image size depends on the output format. See the <a href="#commandline-output">Output options</a> section above.</p>
+
+<dt><b>-Wno-wrap-pc</b><a name="o_Wwrap-pc" href="#o_Wwrap-pc"></a>
+<dd>Don't warn for program counter wrap around.
+<p>While assembling the program counter may reach the end of the current
+program bank.  If this happens a warning is issued and the address wraps
+around.</p>
+
+<p>The warning may be ignored using this command line parameter. Alternatively
+it could be turned into an error by using <code>-Werror=wrap-pc</code>.</p>
+
+<dt><b>-Wno-wrap-pbank</b><a name="o_Wwrap-pbank" href="#o_Wwrap-pbank"></a>
+<dd>Don't warn for program bank address calculation wrap around.
+<p>Adding an offset to a program bank address may end up outside of the current
+program bank. If this happens a warning is issued and the address wraps around.</p>
+
+<p>The warning may be ignored using this command line parameter. Alternatively
+it could be turned into an error by using <code>-Werror=wrap-pbank</code>.</p>
 
 </dl>
 
@@ -3963,6 +4012,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
 <dt>approximate floating point<dd>floating point comparisons are not exact and the numbers were close but maybe not quite
+<dt>bank 0 address overflow<dd>the calculated memory location address ended up outside of bank 0 and is now wrapped.
 <dt>case ignored, value already handled<dd>this value was already used in an earlier case so here it's ignored
 <dt>compile offset overflow<dd>compile continues at the bottom ($0000) as end of compile area was reached
 <dt>constant result, possibly changeable to 'lda'<dd>a pre-calculated value could be loaded instead as the result seems to be always the same
@@ -3972,6 +4022,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>deprecated equal operator, use '==' instead<dd>single equal sign for comparisons is going away soon, update source
 <dt>deprecated modulo operator, use '%' instead<dd>double slash for modulo is going away soon, update source
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators which will stop working in the future, update source
+<dt>direct page address overflow<dd>the calculated memory location address ended up outside of direct page and is now wrapped.
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons
 <dt>expected ? values but got ? to unpack<dd>the number of variables must match the number of values when unpacking
 <dt>immediate addressing mode suggested<dd>numeric constant was used as an address which was likely meant as an immediate value
@@ -3982,6 +4033,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the current CPU has it, or remove white space before label
 <dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant and don't denote an octal number
 <dt>long branch used<dd>branch distance was too long so long branch was used (bxx &lowast;+5 jmp)
+<dt>memory location address overflow<dd>the calculated memory location address ended up outside of the processors address space
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources
 <dt>please use quotes now to allow expressions in future<dd>the directive will allow expressions later and the parameter will be a string
 <dt>possible jmp ($xxff) bug<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected
@@ -3989,6 +4041,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility was detected
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing by a constant offset
 <dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank as end of bank was reached
+<dt>program bank address overflow<dd>the calculated memory location address ended up outside of the current program bank and is now wrapped.
 <dt>symbol case mismatch '?'<dd>the symbol is matching case insensitively but it's not all letters are exactly the same
 <dt>the file's real name is not '?'<dd>check if all characters match including their case as this is not the real name of the file
 <dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt; &gt; | in file names as some operating systems don't like these
@@ -4064,7 +4117,6 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>shadow definition<dd>symbol is defined in an upper scope as well and is used ambiguously
 <dt>some operation '?' of type '?' and type '?' not possible<dd>can't do this calculation with these values
 <dt>square root of negative number<dd>can't calculate the square root of a negative number
-<dt>too early to reference<dd>processing still ongoing, can't access this yet
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
 <dt>unknown processor '?'<dd>unknown cpu name
 <dt>unknown argument name '?'<dd>no parameter argument known like this
@@ -4726,21 +4778,23 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <tr><th width="4%">ASL<td width="46%">0A
 <th width="4%">BGE<td width="46%">B0
 <tr><th>BLT<td>90
-<th>GCC<td>4C 90
-<tr><th>GCS<td>4C B0
-<th>GEQ<td>4C F0
-<tr><th>GGE<td>4C B0
-<th>GLT<td>4C 90
-<tr><th>GMI<td>30 4C
-<th>GNE<td>4C D0
-<tr><th>GPL<td>10 4C
-<th>GVC<td>4C 50
-<tr><th>GVS<td>4C 70
-<th>LSR<td>4A
-<tr><th>ROL<td>2A
-<th>ROR<td>6A
-<tr><th>SHL<td>06 0A 0E 16 1E
-<th>SHR<td>46 4A 4E 56 5E
+<th>CPA<td>C1 C5 C9 CD D1 D5 D9 DD
+<tr><th>GCC<td>4C 90
+<th>GCS<td>4C B0
+<tr><th>GEQ<td>4C F0
+<th>GGE<td>4C B0
+<tr><th>GLT<td>4C 90
+<th>GMI<td>30 4C
+<tr><th>GNE<td>4C D0
+<th>GPL<td>10 4C
+<tr><th>GVC<td>4C 50
+<th>GVS<td>4C 70
+<tr><th>LSR<td>4A
+<th>ROL<td>2A
+<tr><th>ROR<td>6A
+<th>SHL<td>06 0A 0E 16 1E
+<tr><th>SHR<td>46 4A 4E 56 5E
+<th><td>
 </tbody>
 </table></div>
 
@@ -4873,9 +4927,11 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <caption>Additional aliases and pseudo instructions</caption>
 <tbody>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
-<th width="4%">DEA<td width="46%">3A
-<tr><th>GRA<td>4C 80
-<th>INA<td>1A
+<th width="4%">CPA<td>D2
+<tr><th>DEA<td width="46%">3A
+<th>GRA<td>4C 80
+<tr><th>INA<td>1A
+<th><td>
 </tbody>
 </table></div>
 
@@ -4967,16 +5023,16 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
 <tbody>
-<tr><th width="4%">CSP<td width="46%">02
-<th width="4%">CLP<td width="46%">C2
-<tr><th>HLT<td width="46%">DB
-<th>JML<td>5C DC
-<tr><th>SWA<td>EB
-<th>TAD<td>5B
-<tr><th>TAS<td>1B
-<th>TDA<td>7B
-<tr><th>TSA<td>3B
-<th><td>
+<tr><th width="4%">CLP<td width="46%">C2
+<th width="4%">CPA<td>C3 C7 CF D3 D7 DF
+<tr><th>CSP<td width="46%">02
+<th>HLT<td width="46%">DB
+<tr><th>JML<td>5C DC
+<th>SWA<td>EB
+<tr><th>TAD<td>5B
+<th>TAS<td>1B
+<tr><th>TDA<td>7B
+<th>TSA<td>3B
 </tbody>
 </table></div>
 
@@ -5041,7 +5097,9 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <caption>Additional aliases</caption>
 <tbody>
 <tr><th width="4%">CLP<td width="46%">C2
-<th width="4%">HLT<td width="46%">DB
+<th width="4%">CPA<td>C3 C7 D3 D7
+<tr><th>HLT<td width="46%">DB
+<th><td>
 </tbody>
 </table></div>
 

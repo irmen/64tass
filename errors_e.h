@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 1940 2019-08-31 02:01:51Z soci $
+    $Id: errors_e.h 2012 2019-10-20 04:28:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +78,6 @@ typedef enum Error_types {
     ERROR__EMPTY_STRING,
     ERROR____EMPTY_LIST,
     ERROR__NOT_ONE_CHAR,
-    ERROR____NO_FORWARD,
     ERROR_REQUIREMENTS_,
     ERROR______CONFLICT,
     ERROR___INDEX_RANGE,

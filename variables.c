@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 1983 2019-09-20 15:03:08Z soci $
+    $Id: variables.c 2017 2019-10-20 09:24:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -420,6 +420,9 @@ void unused_check(Namespace *members) {
         case T_NAMESPACE:
             ns = (Namespace *)o;
             break;
+        case T_MFUNC:
+            ns = ((Mfunc *)o)->names;
+            break;
         default:
             ns = NULL;
             break;
@@ -638,7 +641,6 @@ static Namespace *find_space(const char *here, bool use) {
 }
 
 bool labelprint(const struct symbol_output_s *output, bool append) {
-    bool oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
@@ -650,7 +652,6 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
         return true;
     }
     clearerr(flab); errno = 0;
-    referenceit = false;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
     space = find_space(output->space, false);
@@ -665,7 +666,6 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
         labelprint2(&space->members, flab, output->mode);
     }
     free(label_stack.stack);
-    referenceit = oldreferenceit;
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
     if (err != 0 && errno != 0) {

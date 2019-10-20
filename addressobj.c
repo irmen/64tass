@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 1941 2019-08-31 07:10:28Z soci $
+    $Id: addressobj.c 2000 2019-10-12 13:18:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -237,18 +237,16 @@ static inline bool check_addr2(atype_t type) {
     return false;
 }
 
-static FAST_CALL Obj *address(Obj *o1, uint32_t *am) {
+static FAST_CALL uint32_t address(const Obj *o1) {
     const Address *v1 = (Address *)o1;
-    atype_t type;
     Obj *v = v1->val;
-    v = v->obj->address(v, am);
-    type = v1->type;
+    uint32_t am = v->obj->address(v);
+    atype_t type = v1->type;
     while (type != A_NONE) {
-        *am <<= 4;
+        am <<= 4;
         type >>= 4;
     }
-    *am |= v1->type;
-    return v;
+    return am | v1->type;
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
@@ -279,6 +277,18 @@ static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t
     }
     v = v1->val;
     return v->obj->uval2(v, uv, bits, epoint);
+}
+
+static MUST_CHECK Error *iaddress(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v = v1->val;
+    return v->obj->iaddress(v, iv, bits, epoint);
+}
+
+static MUST_CHECK Error *uaddress(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
+    Address *v1 = (Address *)o1;
+    Obj *v = v1->val;
+    return v->obj->uaddress(v, uv, bits, epoint);
 }
 
 MUST_CHECK Obj *float_from_address(Address *v1, linepos_t epoint) {
@@ -575,6 +585,8 @@ void addressobj_init(void) {
     obj.ival = ival;
     obj.uval = uval;
     obj.uval2 = uval2;
+    obj.iaddress = iaddress;
+    obj.uaddress = uaddress;
     obj.sign = sign;
     obj.function = function;
     obj.calc1 = calc1;

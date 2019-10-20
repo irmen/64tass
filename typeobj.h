@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 1941 2019-08-31 07:10:28Z soci $
+    $Id: typeobj.h 2000 2019-10-12 13:18:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -61,7 +61,9 @@ typedef struct Type {
     struct Error *(*ival)(Obj *, ival_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uval)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uval2)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
-    Obj *(*address)(Obj *, uint32_t *) FAST_CALL;
+    uint32_t (*address)(const Obj *) FAST_CALL;
+    struct Error *(*iaddress)(Obj *, ival_t *, unsigned int, linepos_t) MUST_CHECK;
+    struct Error *(*uaddress)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*function)(Obj *, Func_types, bool, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
