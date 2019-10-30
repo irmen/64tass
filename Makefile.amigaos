@@ -68,12 +68,12 @@ encoding.o: encoding.c encoding.h avl.h attributes.h stdbool.h inttypes.h \
  strobj.h obj.h bytesobj.h oper_e.h typeobj.h errorobj.h str.h iterobj.h
 error.o: error.c error.h attributes.h stdbool.h errors_e.h avl.h \
  inttypes.h wchar.h file.h str.h 64tass.h wait_e.h unicode.h eval.h \
- arguments.h opcodes.h section.h strobj.h obj.h addressobj.h values.h \
- registerobj.h namespaceobj.h operobj.h oper_e.h typeobj.h labelobj.h \
- errorobj.h noneobj.h identobj.h
+ arguments.h opcodes.h section.h macro.h strobj.h obj.h addressobj.h \
+ values.h registerobj.h namespaceobj.h operobj.h oper_e.h typeobj.h \
+ labelobj.h errorobj.h noneobj.h identobj.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
  errors_e.h str.h stdbool.h eval.h values.h error.h avl.h 64tass.h \
- wait_e.h file.h typeobj.h registerobj.h namespaceobj.h
+ wait_e.h file.h macro.h typeobj.h registerobj.h namespaceobj.h
 eval.o: eval.c eval.h attributes.h inttypes.h stdbool.h math.h section.h \
  avl.h str.h macro.h wait_e.h variables.h 64tass.h unicode.h listing.h \
  error.h errors_e.h values.h arguments.h optimizer.h unicodedata.h \

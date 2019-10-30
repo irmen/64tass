@@ -1,5 +1,5 @@
 /*
-    $Id: listing.h 1880 2019-02-09 19:38:18Z soci $
+    $Id: listing.h 2022 2019-10-23 17:58:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ extern const uint8_t *llist;
 extern MUST_CHECK struct Listing *listing_open(const char *, int, char *[]);
 extern void listing_close(struct Listing *);
 extern FAST_CALL void listing_equal(struct Listing *, struct Obj *);
+extern FAST_CALL void listing_equal2(struct Listing *, struct Obj *, linecpos_t);
 extern FAST_CALL void listing_line(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_line_cut(struct Listing *, linecpos_t);
 extern FAST_CALL void listing_line_cut2(struct Listing *, linecpos_t);

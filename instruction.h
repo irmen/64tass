@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.h 2000 2019-10-12 13:18:04Z soci $
+    $Id: instruction.h 2035 2019-10-26 15:15:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ extern MUST_CHECK bool touval(struct Obj *, uval_t *, unsigned int, linepos_t);
 extern MUST_CHECK bool toival(struct Obj *, ival_t *, unsigned int, linepos_t);
 extern MUST_CHECK bool touaddress(struct Obj *, uval_t *, unsigned int, linepos_t);
 extern MUST_CHECK bool toiaddress(struct Obj *, ival_t *, unsigned int, linepos_t);
-extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
+extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t, int);
 
 extern bool longaccu, longindex, autosize;
 extern uint32_t dpage;

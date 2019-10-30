@@ -3355,8 +3355,20 @@ FAST    <b>:?=</b> <span>false</span> <i>;define if undefined</i>
 <dt><b>--no-caret-diag</b><a name="o_no-caret-diag" href="#o_no-caret-diag"></a>
 <dd>Suppress displaying of faulty source line and fault position after
 fault messages.
+<p>This is for cases where the fault log is automatically processed and no one
+ever looks at it and therefore there's no point to display the source lines.</p>
 <pre width=80>
 64tass --no-caret-diag a.asm
+</pre>
+
+<dt><b>--macro-caret-diag</b><a name="o_macro-caret-diag" href="#o_macro-caret-diag"></a>
+<dd>Restrict source line and fault position display to macro expansions only.
+<p>This is for cases where the fault log is processed by an editor which also
+displays the compilation output somewhere. Only lines which are the result of
+macro processing will be output to aid debugging. Those which would just
+duplicate what's in the source editor window will be not.</p>
+<pre width=80>
+64tass --macro-caret-diag a.asm
 </pre>
 
 <dt><b>-q</b><a name="o_q"></a>, <b>--quiet</b><a name="o_quiet" href="#o_quiet"></a>
@@ -3797,10 +3809,18 @@ label           = $1000
 <p>This option may be used multiple times. In this case the format and root scope
 options must be placed before using this option.</p>
 <pre width=80>
-64tass --vice-labels -l all.l --labels-root=export -l myexport.inc source.asm
+64tass --vice-labels -l all.l --export-labels --labels-root=export -l myexport.inc source.asm
 </pre>
 <p>This writes symbols for VICE into <q>all.l</q> and symbols from scope
 <q>export</q> into <q>myexport.inc</q>.</p>
+
+<dt><b>--export-labels</b><a name="o_export-labels" href="#o_export-labels"></a>
+<dd>List labels in a 64tass readable format.
+<p>The difference to normal symbol listing is that 64tass assumes these
+symbols will be used in another source. In practice this means that any
+<a href="#d_proc"><code>.proc</code></a>/<a
+href="#d_pend"><code>.pend</code></a> blocks appearing in the symbol file will
+always be compiled even if unused otherwise.</p>
 
 <dt><b>--vice-labels</b><a name="o_vice-labels" href="#o_vice-labels"></a>
 <dd>List labels in a VICE readable format.
@@ -3984,30 +4004,43 @@ needed for string quoting.</p>
 <hr>
 <h2>Messages<a name="messages" href="#messages"></a></h2>
 
-<p>Faults and warnings encountered are sent to standard error for logging. To
-redirect them into a file append <q>2&gt;filename.log</q> after the
-command, or use the <q><a href="#o_error"><code>-E</code></a></q> command
+<p>Faults and warnings encountered are sent to the standard error for logging. To
+redirect them to a file append <q>2&gt;filename.log</q> after the
+command or use the <q><a href="#o_error"><code>-E</code></a></q> command
 line option. The message format is the following:</p>
 <p>&lt;filename&gt;:&lt;line&gt;:&lt;character&gt;: &lt;severity&gt;: &lt;message&gt;</p>
 <ul>
 <li>filename: The name and path of source file where the error happened.
-<li>line: Line number of file, starts from 1.
+<li>line: Line number in file, starts from 1.
 <li>character: Character in line, starts from 1. Tabs are not expanded.
 <li>severity: Note, warning, error or fatal.
 <li>message: The fault message itself.
 </ul>
-<p>The faulty line may be displayed after the message with a caret pointing to the error location.</p>
+<p>The faulty line will be displayed after the message with a caret pointing to
+the error location unless this is disabled by using <q><a
+href="#o_no-caret-diag"><code>--no-caret-diag</code></a></q> option.</p>
 
-<pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined 'label'</strong>
+<pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined ident 'label'</strong>
                  lda label
                      <strong><span style="color:green">^</span></strong>
 <strong>a.asm:3:21: <span style="color:gray">note:</span></strong> searched in the global scope</pre>
-<p>Lines containing macros are expanded whenever possible, but due to
-internal limitations referenced lines in relation to the actual fault
-will display without them.</p>
-<p>Messages ending with <q>[-Wxxx]</q> are user controllable. This means
-that using <q>-Wno-xxx</q> on the command line will silence them and
-<q>-Werror=xxx</q> will turn them it into a fault. See <a
+<p>This is helpful for macro expansions as it displays the processed line which usually
+looks different to the one in the original source file.</p>
+Error buried deep in included files or macros display a backtrace of files after an <q>In
+file included from</q> text where all the files and positions involved are listed down to the main file.
+<pre width=80>In file included from <strong>main.asm:3:3</strong>:
+<strong>included.asm:2:11: <span style="color:red">error:</span> not defined ident 'test'</strong>
+ 		#macro1 test
+ 		        <strong><span style="color:green">^</span></strong>
+In file included from <strong>included.asm:2:3</strong>,
+                      <strong>main.asm:3:3</strong>:
+<strong>macros.asm:3:7: <span style="color:gray">note:</span></strong> original location in an expanded macro was here
+ 		lda test
+ 		    <strong><span style="color:green">^</span></strong>
+</pre>
+<p>Messages ending with <q><code>[-Wxxx]</code></q> are user controllable. This means
+that using <q><code>-Wno-xxx</code></q> on the command line will silence them and
+<q><code>-Werror=xxx</code></q> will turn them it into a fault. See <a
 href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
@@ -4097,7 +4130,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>must be used within a loop<dd>.break or .continue must be used within a loop
 <dt>negative number raised on fractional power<dd>can't calculate this
-<dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this instruction
+<dt>no ? addressing mode for opcode 'xxx'<dd>this addressing mode is not valid for this instruction
 <dt>not a bank 0 address<dd>value must be a bank zero address
 <dt>not a data bank address<dd>value must be a data bank address
 <dt>not a direct page address<dd>value must be a direct page address

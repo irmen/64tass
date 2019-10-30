@@ -1,5 +1,5 @@
 /*
-    $Id: macro.h 1866 2019-02-09 09:26:10Z soci $
+    $Id: macro.h 2046 2019-10-30 04:18:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,4 +38,6 @@ extern void init_macro(void);
 extern void free_macro(void);
 extern void get_macro_params(struct Obj *);
 extern void get_func_params(struct Mfunc *);
+extern const struct file_list_s *macro_error_translate(struct linepos_s *, size_t);
+extern size_t macro_error_translate2(size_t);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2004 2019-10-14 04:05:53Z soci $
+    $Id: arguments.c 2045 2019-10-29 19:05:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 
 struct arguments_s arguments = {
     true,        /* warning */
-    true,        /* caret */
+    CARET_ALWAYS,/* caret */
     true,        /* quiet */
     false,       /* to_ascii */
     true,        /* monitor */
@@ -324,19 +324,26 @@ static const char *short_options = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:W:";
 
 static const struct my_option long_options[] = {
     {"no-warn"          , my_no_argument      , NULL, 'w'},
+    {"warn"             , my_no_argument      , NULL,  0x11f},
+    {"no-quiet"         , my_no_argument      , NULL,  0x120},
     {"quiet"            , my_no_argument      , NULL, 'q'},
     {"nonlinear"        , my_no_argument      , NULL, 'n'},
     {"nostart"          , my_no_argument      , NULL, 'b'},
     {"flat"             , my_no_argument      , NULL, 'f'},
+    {"no-long-address"  , my_no_argument      , NULL,  0x121},
     {"long-address"     , my_no_argument      , NULL, 'X'},
     {"atari-xex"        , my_no_argument      , NULL,  0x107},
     {"apple-ii"         , my_no_argument      , NULL,  0x108},
     {"intel-hex"        , my_no_argument      , NULL,  0x10e},
     {"s-record"         , my_no_argument      , NULL,  0x10f},
     {"cbm-prg"          , my_no_argument      , NULL,  0x10c},
+    {"no-ascii"         , my_no_argument      , NULL,  0x11e},
     {"ascii"            , my_no_argument      , NULL, 'a'},
+    {"no-tasm-compatible",my_no_argument      , NULL,  0x11d},
     {"tasm-compatible"  , my_no_argument      , NULL, 'T'},
+    {"no-case-sensitive", my_no_argument      , NULL,  0x11c},
     {"case-sensitive"   , my_no_argument      , NULL, 'C'},
+    {"no-long-branch"   , my_no_argument      , NULL,  0x11b},
     {"long-branch"      , my_no_argument      , NULL, 'B'},
     {"m65xx"            , my_no_argument      , NULL,  0x101},
     {"m6502"            , my_no_argument      , NULL, 'i'},
@@ -352,15 +359,22 @@ static const struct my_option long_options[] = {
     {"output"           , my_required_argument, NULL, 'o'},
     {"output-section"   , my_required_argument, NULL,  0x114},
     {"error"            , my_required_argument, NULL, 'E'},
+    {"export-labels"    , my_no_argument      , NULL,  0x115},
     {"vice-labels"      , my_no_argument      , NULL,  0x10b},
     {"dump-labels"      , my_no_argument      , NULL,  0x10d},
     {"labels-root"      , my_required_argument, NULL,  0x113},
     {"list"             , my_required_argument, NULL, 'L'},
+    {"no-verbose-list"  , my_no_argument      , NULL,  0x11a},
     {"verbose-list"     , my_no_argument      , NULL,  0x110},
     {"no-monitor"       , my_no_argument      , NULL, 'm'},
+    {"monitor"          , my_no_argument      , NULL,  0x119},
     {"no-source"        , my_no_argument      , NULL, 's'},
+    {"source"           , my_no_argument      , NULL,  0x118},
+    {"no-line-numbers"  , my_no_argument      , NULL,  0x117},
     {"line-numbers"     , my_no_argument      , NULL,  0x112},
     {"no-caret-diag"    , my_no_argument      , NULL,  0x10a},
+    {"macro-caret-diag" , my_no_argument      , NULL,  0x122},
+    {"caret-diag"       , my_no_argument      , NULL,  0x116},
     {"tab-size"         , my_required_argument, NULL,  0x109},
     {"version"          , my_no_argument      , NULL, 'V'},
     {"usage"            , my_no_argument      , NULL,  0x102},
@@ -460,8 +474,11 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 if (woption(my_optarg)) goto exit;
                 break;
             case 'w':arguments.warning = false;break;
+            case 0x11f:arguments.warning = true;break;
             case 'q':arguments.quiet = false;break;
+            case 0x120:arguments.quiet = true;break;
             case 'X':arguments.output.longaddr = true;break;
+            case 0x121:arguments.output.longaddr = false;break;
             case 'n':arguments.output.mode = OUTPUT_NONLINEAR;break;
             case 0x107:arguments.output.mode = OUTPUT_XEX;break;
             case 0x108:arguments.output.mode = OUTPUT_APPLE;break;
@@ -471,10 +488,14 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 'b':arguments.output.mode = OUTPUT_RAW;break;
             case 'f':arguments.output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
+            case 0x11e:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
+            case 0x11d:arguments.tasmcomp = false;break;
             case 'o':arguments.output.name = my_optarg;break;
             case 0x114: arguments.output.section = my_optarg; break;
-            case 0x10a:arguments.caret = false;break;
+            case 0x116:arguments.caret = CARET_ALWAYS;break;
+            case 0x122:arguments.caret = CARET_MACRO;break;
+            case 0x10a:arguments.caret = CARET_NEVER;break;
             case 'D':
                 {
                     size_t len = strlen(my_optarg) + 1;
@@ -497,6 +518,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 }
                 break;
             case 'B': arguments.longbranch = true;break;
+            case 0x11b: arguments.longbranch = false;break;
             case 0x101: arguments.cpumode = &c6502;break;
             case 'i': arguments.cpumode = &c6502i;break;
             case 'c': arguments.cpumode = &c65c02;break;
@@ -514,6 +536,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                       symbol_output.mode = LABEL_64TASS;
                       symbol_output.space = NULL;
                       break;
+            case 0x115: symbol_output.mode = LABEL_EXPORT; break;
             case 0x10b: symbol_output.mode = LABEL_VICE; break;
             case 0x10d: symbol_output.mode = LABEL_DUMP; break;
             case 0x113: symbol_output.space = my_optarg; break;
@@ -522,10 +545,15 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 'M': arguments.make = my_optarg;break;
             case 'I': include_list_add(my_optarg);break;
             case 'm': arguments.monitor = false;break;
+            case 0x119: arguments.monitor = true;break;
             case 's': arguments.source = false;break;
+            case 0x118: arguments.source = true;break;
             case 0x112: arguments.linenum = true;break;
+            case 0x117: arguments.linenum = false;break;
             case 'C': arguments.caseinsensitive = 0;break;
+            case 0x11c: arguments.caseinsensitive = 0x20;break;
             case 0x110: arguments.verbose = true;break;
+            case 0x11a: arguments.verbose = false;break;
             case 0x109:
                 {
                     char *s;
@@ -541,10 +569,10 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--vice-labels]\n"
-               "        [--dump-labels] [--list=<file>] [--no-monitor] [--no-source]\n"
-               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
-               "        [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
+               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--export-labels]\n"
+               "        [--vice-labels] [--dump-labels] [--list=<file>] [--no-monitor]\n"
+               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
+               "        [-W<option>] [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
                "        [--version] SOURCES");
                    return 0;
 
@@ -566,6 +594,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"
                "      --no-caret-diag   Suppress source line display\n"
+               "      --macro-caret-diag Source lines in macros only\n"
                "\n"
                " Diagnostic options:\n"
                "  -Wall                 Enable most diagnostic warnings\n"
@@ -635,6 +664,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "\n"
                " Source listing and labels:\n"
                "  -l, --labels=<file>   List labels into <file>\n"
+               "      --export-labels   Export for other source\n"
                "      --vice-labels     Labels in VICE format\n"
                "      --dump-labels     Dump for debugging\n"
                "      --labels-root=<l> List from scope <l> only\n"

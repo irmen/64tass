@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2014 2019-10-20 04:33:31Z soci $
+    $Id: codeobj.c 2026 2019-10-26 06:10:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -504,7 +504,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (o2->obj == IDENT_OBJ) {
             Ident *v2 = (Ident *)o2;
             if (v2->name.len == 10 && v2->name.data[0] == '_' && v2->name.data[1] == '_') {
-                static const str_t of = {10, (const uint8_t *)"__offset__"};
+                static const str_t of = {(const uint8_t *)"__offset__", 10};
                 str_t cf;
                 str_cfcpy(&cf, &v2->name);
                 if (str_cmp(&cf, &of) == 0) {

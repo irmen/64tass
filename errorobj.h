@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 1885 2019-02-10 15:05:45Z soci $
+    $Id: errorobj.h 2038 2019-10-27 02:48:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ typedef struct Error {
     Error_types num;
     const struct file_list_s *file_list;
     struct linepos_s epoint;
+    linecpos_t caret;
     const uint8_t *line;
     union {
         struct {
@@ -51,9 +52,19 @@ typedef struct Error {
             Obj *val;
         } conv;
         Obj *obj;
-        uint32_t addressing;
-        struct Register *reg;
-        size_t opers;
+        struct {
+            uint32_t am, cod;
+        } addressing;
+        struct {
+            struct Register *reg;
+            uint32_t cod;
+        } reg;
+        struct {
+            size_t num, cod;
+        } opers;
+        struct {
+            size_t cod;
+        } addresssize;
         struct {
             size_t v1;
             size_t v2;

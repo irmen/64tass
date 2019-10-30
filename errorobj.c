@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 1912 2019-04-26 06:34:15Z soci $
+    $Id: errorobj.c 2038 2019-10-27 02:48:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "error.h"
 #include "64tass.h"
 #include "file.h"
+#include "macro.h"
 
 #include "typeobj.h"
 #include "registerobj.h"
@@ -41,7 +42,7 @@ static FAST_CALL void destroy(Obj *o1) {
         if (v1->u.invoper.v2 != NULL) val_destroy(v1->u.invoper.v2);
         return;
     case ERROR___NO_REGISTER:
-        val_destroy(&v1->u.reg->v);
+        val_destroy(&v1->u.reg.reg->v);
         return;
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
@@ -99,7 +100,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         }
         break;
     case ERROR___NO_REGISTER:
-        v = &v1->u.reg->v;
+        v = &v1->u.reg.reg->v;
         break;
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
@@ -166,7 +167,9 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     Error *v = (Error *)val_alloc(ERROR_OBJ);
     v->num = num;
     v->file_list = current_file_list;
-    v->epoint = *epoint;
+    v->epoint.line = epoint->line;
+    v->caret = epoint->pos;
+    v->epoint.pos = macro_error_translate2(epoint->pos);
     if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
         size_t ln = strlen((const char *)pline) + 1;
         uint8_t *l = (uint8_t *)malloc(ln);

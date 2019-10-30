@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 1961 2019-09-04 03:35:09Z soci $
+    $Id: file.c 2043 2019-10-27 19:43:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -365,6 +365,7 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
         lastfi->read_error = false;
         lastfi->portable = false;
         lastfi->pass = 0;
+        lastfi->entercount = 0;
         tmp = lastfi;
         lastfi = NULL;
         if (name != NULL) {

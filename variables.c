@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2017 2019-10-20 09:24:07Z soci $
+    $Id: variables.c 2019 2019-10-23 06:32:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -507,6 +507,9 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         case T_SEGMENT:
         case T_UNION:
         case T_STRUCT: continue;
+        case T_CODE:
+            if (((Code *)l->value)->pass != ((Code *)l->value)->apass) continue;
+            break;
         default:break;
         }
         if (labelmode == LABEL_VICE) {
@@ -682,7 +685,7 @@ void ref_labels(void) {
         Namespace *space;
         struct avltree_node *n;
 
-        if (output->mode != LABEL_64TASS) continue;
+        if (output->mode != LABEL_EXPORT) continue;
         space = find_space(output->space, true);
         if (space == NULL) continue;
 

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2004 2019-10-14 04:05:53Z soci $
+    $Id: arguments.h 2045 2019-10-29 19:05:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,8 +27,12 @@ typedef enum Output_types {
 } Output_types;
 
 typedef enum Symbollist_types {
-    LABEL_64TASS, LABEL_VICE, LABEL_DUMP
+    LABEL_64TASS, LABEL_VICE, LABEL_DUMP, LABEL_EXPORT
 } Symbollist_types;
+
+typedef enum Caret_types {
+    CARET_ALWAYS, CARET_MACRO, CARET_NEVER
+} Caret_types;
 
 struct file_s;
 
@@ -47,7 +51,7 @@ struct symbol_output_s {
 
 struct arguments_s {
     bool warning;
-    bool caret;
+    Caret_types caret;
     bool quiet;
     bool to_ascii;
     bool monitor;

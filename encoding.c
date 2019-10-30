@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 1961 2019-09-04 03:35:09Z soci $
+    $Id: encoding.c 2026 2019-10-26 06:10:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -864,8 +864,8 @@ next:
 void init_encoding(bool toascii)
 {
     struct encoding_s *tmp;
-    static const str_t none_enc = {4, (const uint8_t *)"none"};
-    static const str_t screen_enc = {6, (const uint8_t *)"screen"};
+    static const str_t none_enc = {(const uint8_t *)"none", 4};
+    static const str_t screen_enc = {(const uint8_t *)"screen", 6};
     struct linepos_s nopoint = {0, 0};
 
     avltree_init(&encoding_tree);

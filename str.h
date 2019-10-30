@@ -1,5 +1,5 @@
 /*
-    $Id: str.h 1442 2017-04-02 22:43:30Z soci $
+    $Id: str.h 2026 2019-10-26 06:10:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #include "inttypes.h"
 
 typedef struct str_t {
-    size_t len;
     const uint8_t *data;
+    size_t len;
 } str_t;
 
 extern int str_hash(const str_t *);

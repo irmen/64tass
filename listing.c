@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 1917 2019-08-19 20:45:06Z soci $
+    $Id: listing.c 2022 2019-10-23 17:58:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -380,7 +380,26 @@ static void printsource(Listing *ls, linecpos_t pos) {
     newline(ls);
 }
 
-void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_equal2(Listing *ls, Obj *val, linecpos_t pos) {
+    if (ls == NULL) return;
+    if (nolisting != 0 || !ls->source || temporary_label_branch != 0) return;
+    if (ls->linenum) {
+        printline(ls);
+        padding2(ls, ls->columns.addr);
+    }
+    putc('=', ls->flist);
+    ls->c += val_print(val, ls->flist) + 1;
+    if (ls->verbose) {
+        printllist(ls);
+        newline(ls);
+    } else {
+        printsource(ls, pos);
+    }
+    llist = NULL;
+}
+
+
+FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
     size_t i;
     if (nolisting != 0  || temporary_label_branch != 0 || llist == NULL) return;
     if (ls == NULL) {
@@ -418,7 +437,7 @@ void FAST_CALL listing_line(Listing *ls, linecpos_t pos) {
     llist = NULL;
 }
 
-void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_line_cut(Listing *ls, linecpos_t pos) {
     size_t i;
     if (nolisting != 0 || temporary_label_branch != 0 || llist == NULL) return;
     if (ls == NULL) {
@@ -444,7 +463,7 @@ void FAST_CALL listing_line_cut(Listing *ls, linecpos_t pos) {
     llist = NULL;
 }
 
-void FAST_CALL listing_line_cut2(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_line_cut2(Listing *ls, linecpos_t pos) {
     if (ls == NULL || !ls->verbose || llist == NULL) return;
     if (nolisting == 0 && ls->source && temporary_label_branch == 0) {
         if (ls->linenum) printline(ls);

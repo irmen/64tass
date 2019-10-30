@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2011 2019-10-16 04:57:07Z soci $
+    $Id: macro.c 2037 2019-10-26 19:10:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,15 +40,29 @@
 
 static int functionrecursion;
 
+struct macro_rpos_s {
+    size_t opos, olen, pos, len, param;
+};
+
 struct macro_pline_s {
-    size_t len;
     uint8_t *data;
+    size_t len;
+    struct macro_rpos_s *rpositions;
+    size_t rp, rlen;
+};
+
+struct macro_value_s {
+    const uint8_t *data;
+    size_t len;
+    size_t pos;
+    bool init;
 };
 
 struct macro_params_s {
     size_t len, size;
-    str_t *param, all;
+    struct macro_value_s *param, all;
     struct macro_pline_s pline;
+    bool used;
     Obj *macro;
 };
 
@@ -59,10 +73,60 @@ static struct {
 
 bool in_macro;
 
+const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t pos) {
+    const struct file_list_s *ret = NULL;
+    if (pline == macro_parameters.current->pline.data) {
+        const struct file_list_s *flist = current_file_list;
+        size_t p = macro_parameters.p;
+        while (p != 0) {
+            p--;
+            const struct macro_pline_s *mline = &macro_parameters.params[p].pline;
+            size_t i;
+            for (i = 0; i < mline->rp; i++) {
+                size_t c = pos - mline->rpositions[i].pos;
+                if (c < mline->rpositions[i].len) {
+                    size_t param = mline->rpositions[i].param;
+                    if (param != SIZE_MAX) {
+                        if (macro_parameters.params[p].param[param].init) return ret;
+                        pos = macro_parameters.params[p].param[param].pos + c;
+                    } else {
+                        pos = macro_parameters.params[p].all.pos + c;
+                    }
+                    opoint->pos = pos;
+                    opoint->line = flist->epoint.line;
+                    ret = flist->parent;
+                    flist = ret;
+                    break;
+                }
+            }
+            if (i == mline->rp) break;
+            if (p > 0 && !macro_parameters.params[p - 1].used) break;
+        }
+    }
+    return ret;
+}
+
+size_t macro_error_translate2(size_t pos) {
+    const struct macro_pline_s *mline = &macro_parameters.current->pline;
+    if (macro_parameters.p != 0 && pline == mline->data) {
+        size_t i, pos2 = pos;
+        for (i = 0; i < mline->rp; i++) {
+            const struct macro_rpos_s *rpositions = &mline->rpositions[i];
+            if (rpositions->pos > pos2) break;
+            if (rpositions->pos + rpositions->len > pos2) {
+                pos = rpositions->opos;
+                break;
+            }
+            pos = pos + rpositions->olen - rpositions->len;
+        }
+    }
+    return pos;
+}
+
 /* ------------------------------------------------------------------------------ */
 bool mtranslate(void) {
     unsigned int q;
-    size_t j;
+    size_t j, n, op;
     size_t p, p2;
     size_t last, last2;
     struct macro_pline_s *mline;
@@ -76,7 +140,7 @@ bool mtranslate(void) {
     if (changed) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = p2 = 0; last = last2 = 0; fault = false;
+    q = p = p2 = n = 0; last = last2 = 0; fault = false;
     while (pline[p2] != 0) {
         str_t param;
         switch (pline[p2]) {
@@ -104,12 +168,14 @@ bool mtranslate(void) {
             j = (uint8_t)(pline[p2 + 1] - '1');
             if (j < 9) {   /* \1..\9 */
                 p += p2 - last2;
+                op = p2;
                 p2 += 2;
                 break;
             }
             if (j == ('@' - '1')) { /* \@ gives complete parameter list */
                 j = SIZE_MAX;
                 p += p2 - last2;
+                op = p2;
                 p2 += 2;
                 break;
             }
@@ -130,6 +196,7 @@ bool mtranslate(void) {
                 Macro *macro = (Macro *)macro_parameters.current->macro;
                 str_t cf;
                 p += p2 - last2;
+                op = p2;
                 p2 = lpoint.pos;
                 str_cfcpy(&cf, &param);
                 for (j = 0; j < macro->argc; j++) {
@@ -154,6 +221,7 @@ bool mtranslate(void) {
                 j = (uint8_t)(pline[p2 + 1] - '1');
                 if (j < 9) { /* @1..@9 */
                     p += p2 - last2;
+                    op = p2;
                     p2 += 2;
                     break;
                 }
@@ -163,9 +231,11 @@ bool mtranslate(void) {
         }
 
         if (j < macro_parameters.current->len) {
-            param = macro_parameters.current->param[j];
+            param.data = macro_parameters.current->param[j].data;
+            param.len = macro_parameters.current->param[j].len;
         } else if (j == SIZE_MAX) {
-            param = macro_parameters.current->all;
+            param.data = macro_parameters.current->all.data;
+            param.len = macro_parameters.current->all.len;
         } else {
             switch (macro_parameters.current->macro->obj->type) {
             case T_STRUCT:
@@ -188,11 +258,21 @@ bool mtranslate(void) {
             if (p < last) err_msg_out_of_memory(); /* overflow */
             memcpy(mline->data + last, pline + last2, p - last);
         }
+        if (n >= mline->rlen) {
+            mline->rlen += 8;
+            if (mline->rlen < 8) err_msg_out_of_memory(); /* overflow */
+            mline->rpositions = (struct macro_rpos_s *)reallocx(mline->rpositions, mline->rlen * sizeof *mline->rpositions);
+        }
+        mline->rpositions[n].opos = op;
+        mline->rpositions[n].olen = p2 - op;
+        mline->rpositions[n].pos = p;
+        mline->rpositions[n].param = j;
+        mline->rpositions[n++].len = param.len;
         switch (param.len) {
         case 0: 
             if (param.data == NULL) {
                 lpoint.pos = last2 + p - last;
-                err_msg_missing_argument(current_file_list, &lpoint, j);
+                err_msg_missing_argument(&lpoint, j);
                 fault = true;
             }
             break;
@@ -205,6 +285,7 @@ bool mtranslate(void) {
         }
         last = p; last2 = p2;
     }
+    mline->rp = n;
     if (last2 != 0) {
         while (p2 != 0 && (pline[p2 - 1] == 0x20 || pline[p2 - 1] == 0x09)) p2--;
         p += p2 - last2;
@@ -283,6 +364,12 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         macro_parameters.current->size = 0;
         macro_parameters.current->pline.len = 0;
         macro_parameters.current->pline.data = NULL;
+        macro_parameters.current->pline.rpositions = NULL;
+        macro_parameters.current->pline.rp = 0;
+        macro_parameters.current->pline.rlen = 0;
+    }
+    if (macro_parameters.p > 0) {
+        macro_parameters.params[macro_parameters.p - 1].used = (pline == macro_parameters.params[macro_parameters.p - 1].pline.data);
     }
     macro_parameters.current = &macro_parameters.params[macro_parameters.p];
     macro_parameters.current->macro = val_reference(&macro->v);
@@ -295,7 +382,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
 
         ignore(); opoint = lpoint;
         for (;;) {
-            str_t *param, *params = macro_parameters.current->param;
+            struct macro_value_s *param, *params = macro_parameters.current->param;
             if ((here() == 0 || here() == ';') && p >= macro->argc) break;
             if (p >= macro_parameters.current->size) {
                 if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
@@ -304,15 +391,18 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
                     /*if (macro_parameters.current->size < 4) err_msg_out_of_memory();*/ /* overflow */
                 }
                 if (macro_parameters.current->size > SIZE_MAX / sizeof *params) err_msg_out_of_memory();
-                params = (str_t *)reallocx(params, macro_parameters.current->size * sizeof *params);
+                params = (struct macro_value_s *)reallocx(params, macro_parameters.current->size * sizeof *params);
                 macro_parameters.current->param = params;
             }
             param = params + p;
+            param->pos = lpoint.pos;
             param->data = pline + lpoint.pos;
             param->len = macro_param_find();
-            if (param->len == 0) {
+            param->init = (param->len == 0);
+            if (param->init) {
                 if (p < macro->argc) {
-                    *param = macro->param[p].init;
+                    param->data = macro->param[p].init.data;
+                    param->len = macro->param[p].init.len;
                 } else param->data = NULL;
                 if (param->data == NULL) {
                     if (macro->v.obj->type == T_STRUCT || macro->v.obj->type == T_UNION) {
@@ -330,6 +420,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
             ignore();
         }
         macro_parameters.current->len = p;
+        macro_parameters.current->all.pos = opoint.pos;
         macro_parameters.current->all.data = pline + opoint.pos;
         npoint = lpoint;
         while (npoint.pos > opoint.pos && (pline[npoint.pos-1] == 0x20 || pline[npoint.pos-1] == 0x09)) npoint.pos--;
@@ -755,6 +846,7 @@ void init_macro(void) {
 void free_macro(void) {
     size_t i;
     for (i = 0; i < macro_parameters.len; i++) {
+        free(macro_parameters.params[i].pline.rpositions);
         free(macro_parameters.params[i].pline.data);
         free(macro_parameters.params[i].param);
     }
