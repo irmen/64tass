@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.h 1752 2018-12-31 08:48:49Z soci $
+    $Id: dictobj.h 2078 2019-11-09 21:29:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,28 +19,33 @@
 #ifndef DICTOBJ_H
 #define DICTOBJ_H
 #include "obj.h"
-#include "avl.h"
 
 extern struct Type *const DICT_OBJ;
-
-typedef struct Dict {
-    Obj v;
-    size_t len;
-    struct avltree members;
-    Obj *def;
-} Dict;
-
-extern void dictobj_init(void);
-extern void dictobj_names(void);
-extern void destroy_pairs(void);
 
 struct pair_s {
     int hash;
     Obj *key;
     Obj *data;
-    struct avltree_node node;
 };
 
-extern Obj *dictobj_parse(struct values_s *, unsigned int);
+typedef struct Dict {
+    Obj v;
+    size_t len;
+    struct pair_s *data;
+    union {
+        struct pair_s val[1];
+        struct {
+            size_t max;
+            size_t mask;
+        } s;
+    } u;
+    Obj *def;
+} Dict;
+
+extern void dictobj_init(void);
+extern void dictobj_names(void);
+
+extern Obj *dictobj_parse(struct values_s *, size_t);
+extern MUST_CHECK Obj *dict_sort(Dict *, const size_t *);
 
 #endif

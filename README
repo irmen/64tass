@@ -651,15 +651,15 @@ special cases.
 
 The immediate direct page indexed `#0,d' addressing mode is usable for direct
 page access. The 8 bit constant is a direct offset from the start of actual
-direct page.
+direct page. Alternatively it may be written as `0,d'.
 
 The immediate data bank indexed `#0,b' addressing mode is usable for data bank
 access. The 16 bit constant is a direct offset from the start of actual data
-bank.
+bank. Alternatively it may be written as `0,b'.
 
 The immediate program bank indexed `#0,k' addressing mode is usable for program
-bank jumps, braches and calls. The 16 bit constant is a direct offset from the
-start of actual program bank.
+bank jumps, branches and calls. The 16 bit constant is a direct offset from the
+start of actual program bank. Alternatively it may be written as `0,k'.
 
 The immediate stack indexed `#0,s' and data stack indexed `#0,r' accept 8 bit
 constants as an offset from the start of (data) stack. These are sometimes
@@ -2686,6 +2686,15 @@ Output options
 
     64tass a.asm -o a.prg
 
+    This option may be used multiple times to output different sections in
+    different formats of a single compilation.
+
+    For multiple outputs the format options and output section selection must
+    be placed before this option. The format selection will be unchanged if no
+    new selection was made but the output section selection must be repeated
+    for each output. The maximum image size will be the smallest of all
+    selected formats. Using the same name multiple times is not a good idea.
+
 --output-section <sectionname>
     By default all sections go into the output file. Using this option limits
     the output to specific section and it's children. This is useful to split a
@@ -3398,15 +3407,28 @@ Symbol listing
     label           = $1000
 
     This option may be used multiple times. In this case the format and root
-    scope options must be placed before using this option.
+    scope options must be placed before this option. Using the same name
+    multiple times is not a good idea.
 
     64tass --vice-labels -l all.l --export-labels --labels-root=export -l myexport.inc source.asm
 
     This writes symbols for VICE into `all.l' and symbols from scope `export'
     into `myexport.inc'.
 
+--labels-root=<path>
+    Specify the scope to list labels from
+
+    This option can be used to limit the output to only a subset of labels. The
+    parameter is a dot separated path to a scope started from the global scope.
+
+--normal-labels
+    Lists labels in a 64tass readable format. (default)
+
+    List labels without any side effects. Usually for display purposes or for
+    later include.
+
 --export-labels
-    List labels in a 64tass readable format.
+    List labels for include in a 64tass readable format.
 
     The difference to normal symbol listing is that 64tass assumes these
     symbols will be used in another source. In practice this means that any
@@ -3423,6 +3445,9 @@ Symbol listing
     VICE symbols may only contain ASCII letters, numbers and underscore.
     Symbols not meeting this requirement will be omitted.
 
+    If a memory location has several symbols only one will be included in the
+    label list.
+
     64tass --vice-labels -l labels.l a.asm
     *       = $1000
     label   jmp label
@@ -3433,16 +3458,33 @@ Symbol listing
     For now colons are used as scope delimiter due to a VICE limitation, but
     this will be changed to dots in the future.
 
+--vice-labels-numeric
+    List address like symbols in a VICE readable format including numeric
+    constants.
+
+    The normal VICE label list does not include symbols like chrout = $ffd2 or
+    keybuff = 631 as these are numeric constants and not memory addresses.
+
+    Of course there are ways around that. For example:
+
+    chrout  = address($ffd2)
+    keybuff = address(631)
+    *       = $ffd2
+    chrout  .fill 3
+    *       = 631
+    keybuff .fill 10
+
+    For those who don't want to waste time on explicitly marking addresses as
+    such there's an easy way out by using this command line option.
+
+    The tradeoff is that depending on the coding style the label list will
+    become polluted by non-address constants to various degrees. However if one
+    mostly uses numeric constants for addresses only this may be acceptable.
+
 --dump-labels
     List labels for debugging.
 
     The output will contain symbol locations and paths.
-
---labels-root=<path>
-    Specify the scope to list labels from
-
-    This option can be used to limit the output to only a subset of labels. The
-    parameter is a dot separated path to a scope started from the global scope.
 
 Assembly listing
 

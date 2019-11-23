@@ -10,10 +10,11 @@
 only describing the command line options. The many features are described in the HTML manual.
 .SH OPTIONS
 .sp 1
+.SS Output options
 .TP 0.5i
 \fB\-o\fR \fIfilename\fR, \fB\--output\fR \fIfilename\fR
 Place output into \fIfilename\fR. The default output filename is "a.out",
-this option changes it.
+this option changes it. May be used multiple times. The format is remembered but section reverts to global after each file.
 .TP 0.5i
 \fB\--output\-section\fR \fIsectionname\fR
 Output this section instead of everything
@@ -70,6 +71,7 @@ Use Motorola S-record output file format.
 Overlapping blocks are kept, data is stored in the definition order, and
 uninitialized memory areas are skipped. S19 up to 64 KiB, S28 up to 16
 MiB and S37 up to 4 GiB.
+.SS Operation options
 .TP 0.5i
 \fB\-a\fR, \fB\-\-ascii\fR
 Use ASCII/Unicode text encoding instead of raw 8-bit.
@@ -127,6 +129,7 @@ one is used.
 Specify make rule output \fIfile\fR.
 Writes a dependency rule suitable for 'make' from the list of files
 used during compilation.
+.SS Diagnostic options
 .TP 0.5i
 \fB\-E\fR \fIfile\fR, \fB\-\-error\fR \fIfile\fR
 Specify error output \fIfile\fR.
@@ -275,6 +278,7 @@ Warn about unused labels.
 .TP 0.5i
 \fB\-Wunused-variable\fR
 Warn about unused variables.
+.SS Target selection options
 .TP 0.5i
 \fB\-\-m65xx\fR
 Standard 65xx (default). For writing compatible code, no extra codes.
@@ -306,21 +310,29 @@ W65C02. Enables extra opcodes and addressing modes specific to this CPU.
 .TP 0.5i
 \fB\-\-m4510\fR
 CSG 4510. Enables extra opcodes and addressing modes specific to this CPU. Useful for C65 projects.
+.SS Symbol listing options
 .TP 0.5i
 \fB\-l\fR \fIfile\fR, \fR\-\-labels\fR=\fIfile\fR
-List labels into \fIfile\fR. May be used multiple times.
+List labels into \fIfile\fR. May be used multiple times. The format is remembered but root reverts to global after each file.
+.TP 0.5i
+\fB\-\-labels\-root\fR=\fI<path>\fR
+Specify the scope to list labels from.
+.TP 0.5i
+\fB\-\-normal\-labels\fR
+Lists labels in a 64tass readable format. (default)
 .TP 0.5i
 \fB\-\-export\-labels\fR
-List labels in a 64tass readable format. This will always compile exported .proc/.pend blocks assuming they're needed externally.
+List labels for include in a 64tass readable format. This will always compile exported .proc/.pend blocks assuming they're needed externally.
 .TP 0.5i
 \fB\-\-vice\-labels\fR
 List labels in a VICE readable format.
 .TP 0.5i
+\fB\-\-vice\-labels\-numeric\fR
+List labels in a VICE readable format, including numeric constants.
+.TP 0.5i
 \fB\-\-dump\-labels\fR
 List labels for debugging.
-.TP 0.5i
-\fB\-\-labels\-root\fR=\fI<path>\fR
-Specify the scope to list labels from
+.SS Assembly listing options
 .TP 0.5i
 \fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR
 List into \fIfile\fR. Dumps source code and compiled code into file. Useful for
@@ -349,6 +361,7 @@ effect on the source code on the right hand side.
 Normally the assembler tries to minimize listing output by omitting
 "unimportant" lines. But sometimes it's better to just list everything
 including comments and empty lines.
+.SS Other options
 .TP 0.5i
 \fB\-?\fR, \fB\-\-help\fR
 Give this help list. Prints help about command line options.

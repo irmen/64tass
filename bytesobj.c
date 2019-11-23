@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2025 2019-10-24 04:17:08Z soci $
+    $Id: bytesobj.c 2082 2019-11-12 19:56:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -247,9 +247,9 @@ static uint8_t *z85_encode(uint8_t *dest, const uint8_t *src, size_t len) {
         tmp = src2[3] | (src2[2] << 8) | (src2[1] << 16) | (src2[0] << 24);
 
         for (j = 4; j > 0; j--) {
-            uint32_t div = tmp / 85;
-            dest[j] = z85[tmp - div * 85];
-            tmp = div;
+            uint32_t divided = tmp / 85;
+            dest[j] = z85[tmp - divided * 85];
+            tmp = divided;
         }
         dest[j] = z85[tmp];
         dest += 5;
@@ -856,7 +856,7 @@ static inline MUST_CHECK Obj *and_(oper_t op) {
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
-    } else if (op->inplace == &vv2->v && len1 == len2) {
+    } else if (op->inplace == &vv2->v && sz <= len2) {
         vv = ref_bytes(vv2);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
@@ -906,7 +906,7 @@ static inline MUST_CHECK Obj *or_(oper_t op) {
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
-    } else if (op->inplace == &vv2->v && len1 == len2) {
+    } else if (op->inplace == &vv2->v && sz <= len2) {
         vv = ref_bytes(vv2);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
@@ -957,7 +957,7 @@ static inline MUST_CHECK Obj *xor_(oper_t op) {
     if (op->inplace == &vv1->v) {
         vv = ref_bytes(vv1);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
-    } else if (op->inplace == &vv2->v && len1 == len2) {
+    } else if (op->inplace == &vv2->v && sz <= len2) {
         vv = ref_bytes(vv2);
         if (vv->data != vv->u.val) vv->u.s.hash = -1;
     } else {
@@ -1204,8 +1204,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     linepos_t epoint2;
 
     if (args->len < 1 || args->len > indx + 1) {
-        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
     o2 = args->val[indx].val;
     epoint2 = &args->val[indx].epoint;

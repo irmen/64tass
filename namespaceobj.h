@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.h 1729 2018-12-24 08:25:16Z soci $
+    $Id: namespaceobj.h 2084 2019-11-16 06:44:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,14 +19,15 @@
 #ifndef NAMESPACEOBJ_H
 #define NAMESPACEOBJ_H
 #include "obj.h"
-#include "avl.h"
 
 extern struct Type *const NAMESPACE_OBJ;
 
+struct Label;
+
 typedef struct Namespace {
     Obj v;
-    size_t len;
-    struct avltree members;
+    size_t len, mask;
+    struct Label **data;
     const struct file_list_s *file_list;
     struct linepos_s epoint;
     uint32_t backr, forwr;
@@ -34,14 +35,6 @@ typedef struct Namespace {
 
 extern void namespaceobj_init(void);
 extern void namespaceobj_names(void);
-
-struct Label;
-
-struct namespacekey_s {
-    int hash;
-    struct Label *key;
-    struct avltree_node node;
-};
 
 static inline Namespace *ref_namespace(Namespace *v1) {
     v1->v.refcount++; return v1;
@@ -51,7 +44,4 @@ extern MALLOC Namespace *new_namespace(const struct file_list_s *, linepos_t);
 extern MUST_CHECK Obj *namespace_member(struct oper_s *, Namespace *);
 extern Namespace *get_namespace(const Obj *);
 
-extern void namespacekey_free(struct namespacekey_s *);
-extern struct namespacekey_s *namespacekey_alloc(void);
-extern void destroy_namespacekeys(void);
 #endif

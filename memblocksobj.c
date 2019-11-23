@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 1851 2019-01-29 20:04:20Z soci $
+    $Id: memblocksobj.c 2085 2019-11-16 19:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ static FAST_CALL void destroy(Obj *o1) {
     Memblocks *v1 = (Memblocks *)o1;
     free(v1->mem.data);
     for (i = 0; i < v1->p; i++) {
-        struct memblock_s *b = &v1->data[i];
+        const struct memblock_s *b = &v1->data[i];
         if (b->ref != NULL) val_destroy(&b->ref->v);
     }
     free(v1->data);
@@ -63,7 +63,30 @@ MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
     val->lastp = 0;
     val->lastaddr = 0;
     val->data = (ln2 == 0) ? NULL : (struct memblock_s *)mallocx(ln2 * sizeof *val->data);
-    val->compressed = false;
+    val->flattened = false;
+    val->merged = false;
+    return val;
+}
+
+MALLOC Memblocks *copy_memblocks(Memblocks *m) {
+    Memblocks *val = (Memblocks *)val_alloc(MEMBLOCKS_OBJ);
+    size_t i;
+    val->mem.p = m->mem.p;
+    val->mem.len = m->mem.len;
+    val->mem.data = (m->mem.len == 0) ? NULL : (uint8_t*)mallocx(m->mem.len);
+    if (m->mem.len != 0) memcpy(val->mem.data, m->mem.data, m->mem.len);
+    val->p = m->p;
+    val->len = m->len;
+    val->lastp = m->lastp;
+    val->lastaddr = m->lastaddr;
+    val->data = (m->len == 0) ? NULL : (struct memblock_s *)mallocx(m->len * sizeof *val->data);
+    val->flattened = m->flattened;
+    val->merged = m->merged;
+    for (i = 0; i < m->len; i++) {
+        const struct memblock_s *b = &m->data[i];
+        val->data[i] = m->data[i];
+        if (b->ref != NULL) val->data[i].ref = copy_memblocks(b->ref);
+    }
     return val;
 }
 

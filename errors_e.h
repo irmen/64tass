@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2012 2019-10-20 04:28:08Z soci $
+    $Id: errors_e.h 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -123,6 +123,7 @@ typedef enum Error_types {
     ERROR___NOT_DEFINED,
     ERROR__INVALID_OPER,
     ERROR__INVALID_CONV,
+    ERROR__WRONG_ARGNUM,
     ERROR____STILL_NONE,
 
     ERROR_CANT_FINDFILE = 0xc0,

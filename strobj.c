@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2025 2019-10-24 04:17:08Z soci $
+    $Id: strobj.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -273,11 +273,11 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
 
 static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
     Str *iter;
-    const Str *str = (Str *)v1->data;
+    const Str *string = (Str *)v1->data;
     unsigned int ln;
     const uint8_t *s;
-    if (v1->val >= str->len) return NULL;
-    s = str->data + v1->val;
+    if (v1->val >= string->len) return NULL;
+    s = string->data + v1->val;
     ln = utf8len(*s);
     v1->val += ln;
     iter = (Str *)v1->iter;
@@ -559,8 +559,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     linepos_t epoint2;
 
     if (args->len < 1 || args->len > indx + 1) {
-        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
 
     o2 = args->val[indx].val;

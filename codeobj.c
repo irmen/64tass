@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2026 2019-10-26 06:10:15Z soci $
+    $Id: codeobj.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -395,8 +395,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     linepos_t epoint2;
 
     if (args->len < 1 || args->len > indx + 1) {
-        err_msg_argnum(args->len, 1, indx + 1, op->epoint2);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
     o2 = args->val[indx].val;
     epoint2 = &args->val[indx].epoint;
@@ -460,6 +459,12 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     return code_item(v1, (ssize_t)offs1 + offs0, ln2);
 }
 
+static inline address_t ldigit(Code *v1, linepos_t epoint) {
+    address_t addr = code_address(v1);
+    if (v1->addr + v1->offs != addr) err_msg_addr_wrap(epoint);
+    return addr;
+}
+
 static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *v, *result;
     Error *err;
@@ -474,11 +479,14 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         val_destroy(v);
         return result;
     case O_BANK:
+        if (all_mem < 0xffffff) return bytes_calc1(op->op->op, ldigit(v1, op->epoint));
+        /* fall through */
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
+        return bytes_calc1(op->op->op, code_address(v1));
     case O_STRING:
     case O_INV:
     case O_NEG:
@@ -537,6 +545,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (err != NULL) return &err->v;
             err = access_check(v2, op->epoint2);
             if (err != NULL) return &err->v;
+            if (op->op->op == O_SUB) {
+                address_t addr1 = code_address(v1);
+                address_t addr2 = code_address(v2);
+                if (v1->addr + v1->offs != addr1) err_msg_addr_wrap(op->epoint);
+                if (v2->addr + v2->offs != addr2) err_msg_addr_wrap(op->epoint2);
+                return (Obj *)int_from_ival(addr1 - addr2);
+            }
             tmp1 = get_code_address(v1, op->epoint);
             tmp2 = get_code_address(v2, op->epoint2);
             op->v1 = tmp1;

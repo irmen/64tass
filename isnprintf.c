@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 1834 2019-01-26 22:15:13Z soci $
+   $Id: isnprintf.c 2079 2019-11-11 20:40:59Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -416,8 +416,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     int state;
 
     if (args < 1) {
-        err_msg_argnum(args, 1, 0, epoint);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(args, 1, 0, epoint);
     }
     val = v[0].val;
     switch (val->obj->type) {

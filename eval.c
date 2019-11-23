@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2002 2019-10-12 19:55:13Z soci $
+    $Id: eval.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@
 #include "identobj.h"
 #include "foldobj.h"
 #include "iterobj.h"
+#include "memblocksobj.h"
 
 static FAST_CALL NO_INLINE unsigned int get_label_start(const uint8_t *s) {
     unsigned int l;
@@ -318,9 +319,24 @@ MUST_CHECK Obj *get_star_value(address_t addr, Obj *val) {
     }
 }
 
-static MUST_CHECK Obj *get_star(void) {
+MUST_CHECK Obj *get_star(void) {
+    Code *code;
     if (diagnostics.optimize) cpu_opt_invalidate();
-    return get_star_value(star, current_address->l_address_val);
+    code = new_code();
+    code->addr = star;
+    code->typ = val_reference(current_address->l_address_val);
+    code->size = 0;
+    code->offs = 0;
+    code->dtype = D_NONE;
+    code->pass = pass;
+    code->apass = pass;
+    code->memblocks = ref_memblocks(current_address->mem);
+    code->names = ref_namespace(current_context);
+    code->requires = current_section->requires;
+    code->conflicts = current_section->conflicts;
+    code->memaddr = current_address->address;
+    code->membp = 0;
+    return &code->v;
 }
 
 static size_t evxnum, evx_p;
@@ -749,8 +765,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len2, uval_t *olen, iv
     if (len2 >= (1u << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error_mem(epoint); /* overflow */
     len = (ival_t)len2;
     if (v2->len > 3 || v2->len < 1) {
-        err_msg_argnum(v2->len, 1, 3, epoint);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(v2->len, 1, 3, epoint);
     }
     end = len;
     if (v2->len > 2) {
@@ -877,7 +892,7 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_FUNC:
         case O_INDEX:
             {
-                unsigned int args = 0;
+                size_t args = 0;
                 Funcargs tmp;
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != op) {
@@ -973,7 +988,7 @@ static bool get_val2(struct eval_context_s *ev) {
         case O_RBRACE:
         case O_DICT:
             {
-                unsigned int args = 0;
+                size_t args = 0;
                 while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != O_BRACE) {
                     args++;
                     if (vsp <= args) goto syntaxe;
@@ -1124,9 +1139,21 @@ static bool get_val2(struct eval_context_s *ev) {
                 iter_next_t iter_next;
                 Iter *iter = v1->val->obj->getiter(v1->val);
                 size_t k, len = iter->len;
-                size_t len2 = vsp + len;
-                Obj *tmp;
+                size_t len2;
+                Obj *tmp, *def;
 
+                if (v1->val->obj == DICT_OBJ && ((Dict *)v1->val)->def != NULL) {
+                    Colonlist *list = new_colonlist();
+                    list->len = 2;
+                    list->data = list->u.val;
+                    list->data[0] = (Obj *)ref_default();
+                    list->data[1] = val_reference(((Dict *)v1->val)->def);
+                    def = &list->v;
+                    len++;
+                    if (len < 1) err_msg_out_of_memory(); /* overflow */
+                } else def = NULL;
+
+                len2 = vsp + len;
                 if (len2 < len) err_msg_out_of_memory(); /* overflow */
                 vsp--;
                 if (len2 >= ev->values_size) values = extend_values(ev, len);
@@ -1137,44 +1164,11 @@ static bool get_val2(struct eval_context_s *ev) {
                     values[vsp++].epoint = o_out->epoint;
                 }
                 val_destroy(&iter->v);
-                continue;
-            }
-            if (v1->val->obj == DICT_OBJ) {
-                Dict *tmp = (Dict *)v1->val;
-                const struct avltree_node *n;
-                size_t len = (tmp->def == NULL) ? tmp->len : tmp->len + 1;
-                size_t len2 = vsp + len;
-                if (len < tmp->len || len2 < len) err_msg_out_of_memory(); /* overflow */
-                v1->val = NULL;
-                vsp--;
-                if (len2 >= ev->values_size) values = extend_values(ev, len);
-                for (n = avltree_first(&tmp->members); n != NULL; n = avltree_next(n)) {
-                    const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
-                    if (p->data == NULL) values[vsp].val = val_reference(p->key);
-                    else {
-                        Colonlist *list = new_colonlist();
-                        list->len = 2;
-                        list->data = list_create_elements(list, 2);
-                        list->data[0] = val_reference(p->key);
-                        list->data[1] = val_reference(p->data);
-
-                        if (values[vsp].val != NULL) val_destroy(values[vsp].val);
-                        values[vsp].val = (Obj *)list;
-                    }
-                    values[vsp++].epoint = o_out->epoint;
-                }
-                if (tmp->def != NULL) {
-                    Colonlist *list = new_colonlist();
-                    list->len = 2;
-                    list->data = list_create_elements(list, 2);
-                    list->data[0] = (Obj *)ref_default();
-                    list->data[1] = val_reference(tmp->def);
-
+                if (def != NULL) {
                     if (values[vsp].val != NULL) val_destroy(values[vsp].val);
-                    values[vsp].val = (Obj *)list;
+                    values[vsp].val = def;
                     values[vsp++].epoint = o_out->epoint;
                 }
-                val_destroy(&tmp->v);
                 continue;
             }
             v1->epoint = o_out->epoint;

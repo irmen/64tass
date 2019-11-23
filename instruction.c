@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2035 2019-10-26 15:15:31Z soci $
+    $Id: instruction.c 2095 2019-11-17 21:57:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -135,8 +135,7 @@ static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)
     if (ln >= 0) {
         uint8_t *d;
         uint32_t temp;
-        poke_pos = epoint;
-        d = pokealloc(ln + 1);
+        d = pokealloc(ln + 1, epoint);
         temp = adr ^ outputeor;
         switch (ln) {
         case 4: d[4] = temp >> 24; /* fall through */
@@ -464,7 +463,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 err = new_error(ERROR___NO_REGISTER, epoint2);
                 err->u.reg.reg = ref_register(cpureg);
                 err->u.reg.cod = mnemonic[prm];
-                return err;
+                err_msg_output_and_destroy(err);
+                val = &none_value->v;
             }
             if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;

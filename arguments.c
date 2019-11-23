@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2045 2019-10-29 19:05:00Z soci $
+    $Id: arguments.c 2085 2019-11-16 19:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,12 +40,8 @@ struct arguments_s arguments = {
     false,       /* tasmcomp */
     false,       /* verbose */
     0x20,        /* caseinsensitive */
-    {            /* output */
-        "a.out",     /* name */
-        NULL,        /* section */
-        OUTPUT_CBM,  /* mode */
-        false        /* longaddr */
-    },
+    NULL,        /* output */
+    0,           /* output_len */
     &c6502,      /* cpumode */
     NULL,        /* symbol_output */
     0,           /* symbol_output_len */
@@ -359,8 +355,10 @@ static const struct my_option long_options[] = {
     {"output"           , my_required_argument, NULL, 'o'},
     {"output-section"   , my_required_argument, NULL,  0x114},
     {"error"            , my_required_argument, NULL, 'E'},
+    {"normal-labels"    , my_no_argument      , NULL,  0x124},
     {"export-labels"    , my_no_argument      , NULL,  0x115},
     {"vice-labels"      , my_no_argument      , NULL,  0x10b},
+    {"vice-labels-numeric",my_no_argument     , NULL,  0x123},
     {"dump-labels"      , my_no_argument      , NULL,  0x10d},
     {"labels-root"      , my_required_argument, NULL,  0x113},
     {"list"             , my_required_argument, NULL, 'L'},
@@ -454,6 +452,26 @@ static MUST_CHECK char *read_one(FILE *f) {
     return (char *)data;
 }
 
+static address_t get_all_mem2(void) {
+    size_t i;
+    address_t min = 0xffffffff;
+    for (i = 0; i < arguments.output_len; i++) {
+        const struct output_s *output = &arguments.output[i];
+        switch (output->mode) {
+        case OUTPUT_RAW:
+        case OUTPUT_NONLINEAR:
+        case OUTPUT_CBM: min &= output->longaddr ? 0xffffff : 0xffff; break;
+        case OUTPUT_IHEX:
+        case OUTPUT_SREC:
+        case OUTPUT_FLAT: min &= 0xffffffff; break;
+        case OUTPUT_APPLE:
+        case OUTPUT_XEX: min &= 0xffff; break;
+        }
+        if (dash_name(output->name)) arguments.quiet = false;
+    }
+    return min;
+}
+
 int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     int argc = *argc2;
     char **argv = *argv2;
@@ -462,6 +480,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     int max = 10;
     bool again;
     struct symbol_output_s symbol_output = { NULL, LABEL_64TASS, NULL };
+    struct output_s output = { "a.out", NULL, OUTPUT_CBM, false };
 
     do {
         int i;
@@ -477,22 +496,27 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 0x11f:arguments.warning = true;break;
             case 'q':arguments.quiet = false;break;
             case 0x120:arguments.quiet = true;break;
-            case 'X':arguments.output.longaddr = true;break;
-            case 0x121:arguments.output.longaddr = false;break;
-            case 'n':arguments.output.mode = OUTPUT_NONLINEAR;break;
-            case 0x107:arguments.output.mode = OUTPUT_XEX;break;
-            case 0x108:arguments.output.mode = OUTPUT_APPLE;break;
-            case 0x10e:arguments.output.mode = OUTPUT_IHEX;break;
-            case 0x10f:arguments.output.mode = OUTPUT_SREC;break;
-            case 0x10c:arguments.output.mode = OUTPUT_CBM;break;
-            case 'b':arguments.output.mode = OUTPUT_RAW;break;
-            case 'f':arguments.output.mode = OUTPUT_FLAT;break;
+            case 'X':output.longaddr = true;break;
+            case 0x121:output.longaddr = false;break;
+            case 'n':output.mode = OUTPUT_NONLINEAR;break;
+            case 0x107:output.mode = OUTPUT_XEX;break;
+            case 0x108:output.mode = OUTPUT_APPLE;break;
+            case 0x10e:output.mode = OUTPUT_IHEX;break;
+            case 0x10f:output.mode = OUTPUT_SREC;break;
+            case 0x10c:output.mode = OUTPUT_CBM;break;
+            case 'b':output.mode = OUTPUT_RAW;break;
+            case 'f':output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
             case 0x11e:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
             case 0x11d:arguments.tasmcomp = false;break;
-            case 'o':arguments.output.name = my_optarg;break;
-            case 0x114: arguments.output.section = my_optarg; break;
+            case 'o': output.name = my_optarg;
+                      arguments.output_len++;
+                      arguments.output = (struct output_s *)reallocx(arguments.output, arguments.output_len * sizeof *arguments.output);
+                      arguments.output[arguments.output_len - 1] = output;
+                      output.section = NULL;
+                      break;
+            case 0x114:output.section = my_optarg; break;
             case 0x116:arguments.caret = CARET_ALWAYS;break;
             case 0x122:arguments.caret = CARET_MACRO;break;
             case 0x10a:arguments.caret = CARET_NEVER;break;
@@ -533,11 +557,12 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                       arguments.symbol_output_len++;
                       arguments.symbol_output = (struct symbol_output_s *)reallocx(arguments.symbol_output, arguments.symbol_output_len * sizeof *arguments.symbol_output);
                       arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
-                      symbol_output.mode = LABEL_64TASS;
                       symbol_output.space = NULL;
                       break;
+            case 0x124: symbol_output.mode = LABEL_64TASS; break;
             case 0x115: symbol_output.mode = LABEL_EXPORT; break;
             case 0x10b: symbol_output.mode = LABEL_VICE; break;
+            case 0x123: symbol_output.mode = LABEL_VICE_NUMERIC; break;
             case 0x10d: symbol_output.mode = LABEL_DUMP; break;
             case 0x113: symbol_output.space = my_optarg; break;
             case 'E': arguments.error = my_optarg;break;
@@ -569,11 +594,12 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--export-labels]\n"
-               "        [--vice-labels] [--dump-labels] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
-               "        [-W<option>] [--errors=<file>] [--output=<file>] [--help] [--usage]\n"
-               "        [--version] SOURCES");
+               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--normal-labels]\n"
+               "        [--export-labels] [--vice-labels] [--vice-labels-numeric]\n"
+               "        [--dump-labels] [--list=<file>] [--no-monitor] [--no-source]\n"
+               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
+               "        [--errors=<file>] [--output=<file>] [--help] [--usage] [--version]\n"
+               "        SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -584,7 +610,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "64tass Turbo Assembler Macro V" VERSION "\n"
                "\n"
                "  -a, --ascii           Source is not in PETASCII\n"
-               "  -B, --long-branch     Automatic bxx *+3 jmp $xxxx\n"
+               "  -B, --long-branch     Automatic bxx *+5 jmp $xxxx\n"
                "  -C, --case-sensitive  Case sensitive labels\n"
                "  -D <label>=<value>    Define <label> to <value>\n"
                "  -E, --error=<file>    Place errors into <file>\n"
@@ -664,8 +690,10 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "\n"
                " Source listing and labels:\n"
                "  -l, --labels=<file>   List labels into <file>\n"
+               "      --normal-labels   Labels in native format\n"
                "      --export-labels   Export for other source\n"
                "      --vice-labels     Labels in VICE format\n"
+               "      --vice-labels-numeric Labels for VICE with numeric constants\n"
                "      --dump-labels     Dump for debugging\n"
                "      --labels-root=<l> List from scope <l> only\n"
                "  -L, --list=<file>     List into <file>\n"
@@ -731,25 +759,25 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         return -1;
     }
 
-    if (arguments.symbol_output_len > 0) {
-        if (symbol_output.mode != LABEL_64TASS) arguments.symbol_output[arguments.symbol_output_len - 1].mode = symbol_output.mode;
+    if (arguments.symbol_output_len != 0) {
+        arguments.symbol_output[arguments.symbol_output_len - 1].mode = symbol_output.mode;
         if (symbol_output.space != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].space = symbol_output.space;
     }
 
-    switch (arguments.output.mode) {
-    case OUTPUT_RAW:
-    case OUTPUT_NONLINEAR:
-    case OUTPUT_CBM: all_mem2 = arguments.output.longaddr ? 0xffffff : 0xffff; break;
-    case OUTPUT_IHEX:
-    case OUTPUT_SREC:
-    case OUTPUT_FLAT: all_mem2 = 0xffffffff; break;
-    case OUTPUT_APPLE:
-    case OUTPUT_XEX: all_mem2 = 0xffff; break;
+    if (arguments.output == NULL) {
+        arguments.output = (struct output_s *)mallocx(sizeof *arguments.output);
+        arguments.output[0] = output;
+        arguments.output_len = 1;
+    } else {
+        arguments.output[arguments.output_len - 1].mode = output.mode;
+        if (output.section != NULL) arguments.output[arguments.output_len - 1].section = NULL;
+        arguments.output[arguments.output_len - 1].longaddr = output.longaddr;
     }
+
+    all_mem2 = get_all_mem2();
     if (arguments.caseinsensitive == 0) {
         diagnostics.case_symbol = false;
     }
-    if (dash_name(arguments.output.name)) arguments.quiet = false;
     if (fin->lines != max_lines) {
         size_t *d = (size_t *)realloc(fin->line, fin->lines * sizeof *fin->line);
         if (fin->lines == 0 || d != NULL) fin->line = d;

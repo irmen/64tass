@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 1928 2019-08-25 14:10:00Z soci $
+    $Id: typeobj.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -158,8 +158,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (op->op == &o_FUNC) {
             args = ((Funcargs *)o2)->len;
             if (args != 1) {
-                err_msg_argnum(args, 1, 1, op->epoint2);
-                return (Obj *)ref_none();
+                return (Obj *)new_error_argnum(args, 1, 1, op->epoint2);
             }
             return apply_convert(((Funcargs *)o2)->val[0].val, v1, op->epoint2);
         }

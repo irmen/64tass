@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2043 2019-10-27 19:43:15Z soci $
+    $Id: file.c 2094 2019-11-17 11:53:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +46,51 @@ struct include_list_s {
 static struct include_list_s include_list;
 static struct include_list_s *include_list_last = &include_list;
 
-static struct avltree file_tree;
+static struct {
+    size_t len, mask;
+    struct file_s **data;
+} file_table;
+
+static struct file_s *file_table_update(struct file_s *p) {
+    size_t mask, hash, offs;
+    if (file_table.len * 3 / 2 >= file_table.mask) {
+        size_t i, max = (file_table.data == NULL) ? 8 : (file_table.mask + 1) << 1;
+        struct file_s **n = (struct file_s **)calloc(max, sizeof *n);
+        if (n == NULL) err_msg_out_of_memory();
+        mask = max - 1;
+        if (file_table.data != NULL) {
+            for (i = 0; i <= file_table.mask; i++) if (file_table.data[i] != NULL) {
+                hash = (size_t)file_table.data[i]->hash;
+                offs = hash & mask;
+                while (n[offs] != NULL) {
+                    hash >>= 5;
+                    offs = (5 * offs + hash + 1) & mask;
+                }
+                n[offs] = file_table.data[i];
+            }
+            free(file_table.data);
+        }
+        file_table.mask = mask;
+        file_table.data = n;
+    }
+    mask = file_table.mask;
+    hash = (size_t)p->hash;
+    offs = hash & mask;
+    while (file_table.data[offs] != NULL) {
+        struct file_s *d = file_table.data[offs];
+        if (p->hash == d->hash && p->type == d->type && strcmp(p->name, d->name) == 0) {
+            if (p->base.data == d->base.data) return d;
+            if (p->base.len == d->base.len && memcmp(p->base.data, d->base.data, p->base.len) == 0) {
+                return d;
+            }
+        }
+        hash >>= 5;
+        offs = (5 * offs + hash + 1) & mask;
+    } 
+    file_table.data[offs] = p;
+    file_table.len++;
+    return NULL;
+}
 
 void include_list_add(const char *path)
 {
@@ -59,7 +103,7 @@ void include_list_add(const char *path)
     if (path[i - 1] != '/') j++;
 #endif
     len = j + 1 + sizeof(struct include_list_s);
-    if (len < sizeof(struct include_list_s)) err_msg_out_of_memory();
+    if (len <= sizeof(struct include_list_s)) err_msg_out_of_memory();
     include_list_last->next = (struct include_list_s *)mallocx(len);
     include_list_last = include_list_last->next;
     include_list_last->next = NULL;
@@ -96,10 +140,8 @@ char *get_path(const str_t *v, const char *base) {
 #else
     i = (v->len != 0 && v->data[0] == '/') ? 0 : get_base(base);
 #endif
-    len = i + v->len;
-    if (len < i) err_msg_out_of_memory(); /* overflow */
-    len += 1;
-    if (len < 1) err_msg_out_of_memory(); /* overflow */
+    len = i + 1 + v->len;
+    if (len <= i) err_msg_out_of_memory(); /* overflow */
     path = (char *)mallocx(len);
     memcpy(path, base, i);
     memcpy(path + i, v->data, v->len);
@@ -255,21 +297,8 @@ static FAST_CALL int star_compare(const struct avltree_node *aa, const struct av
     return 0;
 }
 
-static FAST_CALL int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static void file_free(struct file_s *a)
 {
-    const struct file_s *a = cavltree_container_of(aa, struct file_s, node);
-    const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
-    int c = strcmp(a->name, b->name);
-    if (c != 0) return c;
-    c = str_cmp(&a->base, &b->base);
-    if (c != 0) return c;
-    return a->type - b->type;
-}
-
-static void file_free(struct avltree_node *aa)
-{
-    struct file_s *a = avltree_container_of(aa, struct file_s, node);
-
     free(a->data);
     free(a->line);
     free(a->nomacro);
@@ -331,7 +360,6 @@ static struct file_s *lastfi = NULL;
 static struct ubuff_s last_ubuff;
 static uint16_t curfnum;
 struct file_s *openfile(const char *name, const char *base, int ftype, const str_t *val, linepos_t epoint) {
-    struct avltree_node *b;
     struct file_s *tmp;
     char *s;
     if (lastfi == NULL) {
@@ -341,15 +369,17 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
     lastfi->base.len = get_base(base);
     lastfi->type = ftype;
     if (name != NULL) {
+        str_t n;
         lastfi->name = name;
-        b = avltree_insert(&lastfi->node, &file_tree, file_compare);
+        n.data = (const uint8_t *)name;
+        n.len = strlen(name);
+        lastfi->hash = (str_hash(&n) + str_hash(&lastfi->base) + lastfi->type) & ((~0U) >> 1);
+        tmp = file_table_update(lastfi);
     } else {
-        b = (command_line != NULL) ? &command_line->node : NULL;
+        tmp = (command_line != NULL) ? command_line : NULL;
         if (command_line == NULL) command_line = lastfi;
     }
-    if (b != NULL) {
-        tmp = avltree_container_of(b, struct file_s, node);
-    } else { /* new file */
+    if (tmp == NULL) { /* new file */
         Encoding_types encoding = E_UNKNOWN;
         FILE *f;
         uchar_t c = 0;
@@ -759,10 +789,17 @@ struct star_s *new_star(line_t line, bool *exists) {
 void destroy_file(void) {
     struct stars_s *old;
 
-    avltree_destroy(&file_tree, file_free);
+    if (file_table.data != NULL) {
+        size_t i;
+        for (i = 0; i <= file_table.mask; i++) {
+            struct file_s *p = file_table.data[i];
+            if (p != NULL) file_free(p);
+        }
+        free(file_table.data);
+    }
     free(lastfi);
     free(last_ubuff.data);
-    if (command_line != NULL) file_free(&command_line->node);
+    if (command_line != NULL) file_free(command_line);
 
     include_list_last = include_list.next;
     while (include_list_last != NULL) {
@@ -780,7 +817,9 @@ void destroy_file(void) {
 
 void init_file(void) {
     curfnum = 1;
-    avltree_init(&file_tree);
+    file_table.len = 0;
+    file_table.mask = 0;
+    file_table.data = NULL;
     stars = (struct stars_s *)mallocx(sizeof *stars);
     stars->next = NULL;
     starsp = 0;
@@ -792,8 +831,7 @@ void init_file(void) {
 void makefile(int argc, char *argv[]) {
     FILE *f;
     struct linepos_s nopoint = {0, 0};
-    struct avltree_node *n;
-    size_t len = 0;
+    size_t len = 0, j;
     int i, err;
 
     f = dash_name(arguments.make) ? stdout : file_open(arguments.make, "wt");
@@ -802,8 +840,15 @@ void makefile(int argc, char *argv[]) {
         return;
     }
     clearerr(f); errno = 0;
-    if (!dash_name(arguments.output.name)) {
-        len += argv_print(arguments.output.name + get_base(arguments.output.name), f);
+    for (j = 0; j < arguments.output_len; j++) {
+        const struct output_s *output = &arguments.output[j];
+        if (!dash_name(output->name)) {
+            if (j != 0) {
+                len++;
+                putc(' ', f);
+            }
+            len += argv_print(output->name + get_base(output->name), f);
+        }
     }
     if (len > 0) {
         len++;
@@ -819,15 +864,19 @@ void makefile(int argc, char *argv[]) {
             len += argv_print(argv[i], f) + 1;
         }
 
-        for (n = avltree_first(&file_tree); n != NULL; n = avltree_next(n)) {
-            const struct file_s *a = cavltree_container_of(n, struct file_s, node);
-            if (a->type != 0) {
-                if (len > 64) {
-                    fputs(" \\\n", f);
-                    len = 0;
+        if (file_table.data != NULL) {
+            size_t n;
+            for (n = 0; n <= file_table.mask; n++) {
+                const struct file_s *a = file_table.data[n];
+                if (a == NULL) continue;
+                if (a->type != 0) {
+                    if (len > 64) {
+                        fputs(" \\\n", f);
+                        len = 0;
+                    }
+                    putc(' ', f);
+                    len += argv_print(a->realname, f) + 1;
                 }
-                putc(' ', f);
-                len += argv_print(a->realname, f) + 1;
             }
         }
         putc('\n', f);

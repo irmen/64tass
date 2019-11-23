@@ -848,15 +848,20 @@ the address ranges set up by <a href="#d_dpage"><code>.dpage</code></a>, <a href
 and the current program counter address. Therefore the <q>,d</q>,
 <q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
 
-<p>The immediate direct page indexed <q><code>#0,d</code></q> addressing mode
-is usable for direct page access. The 8&nbsp;bit constant is a direct offset from the start of actual direct page.</p>
+<p>The immediate direct page indexed <q><code>#0,d</code></q> addressing
+mode is usable for direct page access. The 8&nbsp;bit constant is a
+direct offset from the start of actual direct page. Alternatively it may
+be written as <q><code>0,d</code></q>.</p>
 
-<p>The immediate data bank indexed <q><code>#0,b</code></q> addressing mode
-is usable for data bank access. The 16&nbsp;bit constant is a direct offset from the start of actual data bank.</p>
+<p>The immediate data bank indexed <q><code>#0,b</code></q> addressing
+mode is usable for data bank access. The 16&nbsp;bit constant is a direct
+offset from the start of actual data bank. Alternatively it may be
+written as <q><code>0,b</code></q>.</p>
 
 <p>The immediate program bank indexed <q><code>#0,k</code></q> addressing mode
-is usable for program bank jumps, braches and calls. The 16&nbsp;bit constant
-is a direct offset from the start of actual program bank.</p>
+is usable for program bank jumps, branches and calls. The 16&nbsp;bit constant
+is a direct offset from the start of actual program bank. Alternatively it may
+be written as <q><code>0,k</code></q>.</p>
 
 <p>The immediate stack indexed <q><code>#0,s</code></q> and data stack indexed
 <q><code>#0,r</code></q> accept 8&nbsp;bit constants as an offset from the
@@ -3123,6 +3128,14 @@ system specific.</p>
 64tass a.asm -o a.prg
 </pre>
 
+<p>This option may be used multiple times to output different sections in
+different formats of a single compilation.</p>
+<p>For multiple outputs the format options and output section selection must be
+placed before this option. The format selection will be unchanged if no new
+selection was made but the output section selection must be repeated for each
+output. The maximum image size will be the smallest of all selected
+formats. Using the same name multiple times is not a good idea.</p>
+
 <dt><b>--output-section</b> &lt;sectionname&gt;<a name="o_output-section" href="#o_output-section"></a>
 <dd>By default all sections go into the output file. Using this option
 limits the output to specific section and it's children. This is useful
@@ -3807,15 +3820,25 @@ result (labels.txt):
 label           = $1000
 </pre>
 <p>This option may be used multiple times. In this case the format and root scope
-options must be placed before using this option.</p>
+options must be placed before this option. Using the same name multiple times is not a good idea.</p>
 <pre width=80>
 64tass --vice-labels -l all.l --export-labels --labels-root=export -l myexport.inc source.asm
 </pre>
 <p>This writes symbols for VICE into <q>all.l</q> and symbols from scope
 <q>export</q> into <q>myexport.inc</q>.</p>
 
+<dt><b>--labels-root</b>=&lt;path&gt;<a name="o_labels-root" href="#o_labels-root"></a>
+<dd>Specify the scope to list labels from
+<p>This option can be used to limit the output to only a subset of labels. The
+parameter is a dot separated path to a scope started from the global scope.</p>
+
+<dt><b>--normal-labels</b><a name="o_normal-labels" href="#o_normal-labels"></a>
+<dd>Lists labels in a 64tass readable format. (default)
+<p>List labels without any side effects. Usually for display purposes or for later
+include.</p>
+
 <dt><b>--export-labels</b><a name="o_export-labels" href="#o_export-labels"></a>
-<dd>List labels in a 64tass readable format.
+<dd>List labels for include in a 64tass readable format.
 <p>The difference to normal symbol listing is that 64tass assumes these
 symbols will be used in another source. In practice this means that any
 <a href="#d_proc"><code>.proc</code></a>/<a
@@ -3829,6 +3852,8 @@ VICE monitor. Therefore simple numeric constants will not show up unless
 converted to an address first.</p>
 <p>VICE symbols may only contain ASCII letters, numbers and underscore. Symbols
 not meeting this requirement will be omitted.</p>
+<p>If a memory location has several symbols only one will be included in the
+label list.</p>
 <pre width=80>
 64tass --vice-labels -l labels.l a.asm
 *       <b>=</b> <span>$1000</span>
@@ -3840,14 +3865,31 @@ al 1000 .label
 <p><b>For now colons are used as scope delimiter due to a VICE limitation, but
 this will be changed to dots in the future.</b></p>
 
+<dt><b>--vice-labels-numeric</b><a name="o_vice-labels-numeric" href="#o_vice-labels-numeric"></a>
+<dd>List address like symbols in a VICE readable format including numeric constants.
+<p>The normal VICE label list does not include symbols like <code>chrout =
+$ffd2</code> or <code>keybuff = 631</code> as these are numeric constants and
+not memory addresses.</p>
+<p>Of course there are ways around that. For example:</p>
+<pre width=80>
+chrout  <b>=</b> <span class="k">address</span>(<span>$ffd2</span>)
+keybuff <b>=</b> <span class="k">address</span>(<span>631</span>)
+*       <b>=</b> <span>$ffd2</span>
+chrout  <b class="d">.fill</b> <span>3</span>
+*       <b>=</b> <span>631</span>
+keybuff <b class="d">.fill</b> <span>10</span>
+</pre>
+<p>For those who don't want to waste time on explicitly marking addresses as
+such there's an easy way out by using this command line option.</p>
+
+<p>The tradeoff is that depending on the coding style the label list will become
+polluted by non-address constants to various degrees. However if one mostly
+uses numeric constants for addresses only this may be acceptable.</p>
+
 <dt><b>--dump-labels</b><a name="o_dump-labels" href="#o_dump-labels"></a>
 <dd>List labels for debugging.
 <p>The output will contain symbol locations and paths.</p>
 
-<dt><b>--labels-root</b>=&lt;path&gt;<a name="o_labels-root" href="#o_labels-root"></a>
-<dd>Specify the scope to list labels from
-<p>This option can be used to limit the output to only a subset of labels. The
-parameter is a dot separated path to a scope started from the global scope.</p>
 </dl>
 
 <h3>Assembly listing<a name="commandline-assembly" href="#commandline-assembly"></a></h3>

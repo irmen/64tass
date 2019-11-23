@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2022 2019-10-23 17:58:40Z soci $
+    $Id: listing.c 2088 2019-11-17 06:44:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,7 +136,6 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     Listing *ls;
     struct linepos_s nopoint = {0, 0};
     time_t t;
-    const char *prgname;
     int i;
     FILE *flist;
 
@@ -167,18 +166,9 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     ls->i = 0;
 
     fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
-    prgname = *argv;
-    if (prgname != NULL) {
-        const char *newp = strrchr(prgname, '/');
-        if (newp != NULL) prgname = newp + 1;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-        newp = strrchr(prgname, '\\');
-        if (newp != NULL) prgname = newp + 1;
-#endif
-    }
     for (i = 0; i < argc; i++) {
         putc(' ', flist);
-        argv_print((i != 0) ? argv[i] : prgname, flist);
+        argv_print(argv[i], flist);
     }
     fputs("\n; ", flist);
     time(&t); fputs(ctime(&t), flist);

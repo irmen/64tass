@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 1866 2019-02-09 09:26:10Z soci $
+    $Id: main.c 2088 2019-11-17 06:44:48Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -48,6 +48,16 @@ static void myexit(void) {
     SetConsoleOutputCP(oldcodepage);
 }
 
+static const wchar_t *prgname(const wchar_t *name) {
+    const wchar_t *p = name;
+    while (*p != 0) p++;
+    while (p != name) {
+        p--;
+        if (*p == '/' || *p == '\\' || *p == ':') return p + 1;
+    }
+    return p;
+}
+
 static int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
     char **argv;
@@ -64,13 +74,14 @@ static int wmain(int argc, wchar_t *argv2[]) {
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         uchar_t c = 0, lastchar;
-        wchar_t *p = argv2[i];
+        const wchar_t *s = (i == 0) ? prgname(*argv2) : argv2[i];
+        const wchar_t *p = s;
         uint8_t *c2;
 
         while (*p != 0) p++;
-        c2 = (uint8_t *)malloc((p - argv2[i]) * 4 / (sizeof *p) + 1);
+        c2 = (uint8_t *)malloc((p - s) * 4 / (sizeof *p) + 1);
         if (c2 == 0) err_msg_out_of_memory2();
-        p = argv2[i];
+        p = s;
         argv[i] = (char *)c2;
 
         while (*p != 0) {
@@ -107,6 +118,18 @@ static int wmain(int argc, wchar_t *argv2[]) {
     return r;
 }
 #else
+static const char *prgname(const char *name) {
+    const char *newp = strrchr(name, '/');
+    if (newp != NULL) return newp + 1;
+#if defined _win32 || defined __win32__ || defined __emx__ || defined __msdos__ || defined __dos__
+    newp = strrchr(prgname, '\\');
+    if (newp != NULL) return newp + 1;
+    newp = strrchr(prgname, ':');
+    if (newp != NULL) return newp + 1;
+#endif
+    return name;
+}
+
 int main(int argc, char *argv[]) {
     int i, r;
     char **uargv;
@@ -117,7 +140,7 @@ int main(int argc, char *argv[]) {
     uargv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *uargv);
     if (uargv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
-        const char *s = argv[i];
+        const char *s = (i == 0) ? prgname(*argv) : argv[i];
         mbstate_t ps;
         uint8_t *p;
         size_t n = strlen(s), j = 0;

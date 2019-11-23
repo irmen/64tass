@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 1987 2019-09-22 06:52:52Z soci $
+    $Id: dictobj.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,83 +36,32 @@ static Type obj;
 
 Type *const DICT_OBJ = &obj;
 
-#ifdef DEBUG
-#define pair_free(pair) free(pair)
-#define pair_alloc() (struct pair_s *)mallocx(sizeof(struct pair_s))
-#else
-static union pair_u {
-    struct pair_s pair;
-    union pair_u *next;
-} *pairs_free = NULL;
-
-static struct pairs_s {
-    union pair_u pairs[127];
-    struct pairs_s *next;
-} *pairs = NULL;
-
-static void pair_free(struct pair_s *pair) {
-    ((union pair_u *)pair)->next = pairs_free;
-    pairs_free = (union pair_u *)pair;
-}
-
-static union pair_u *pairs_alloc(void) {
-    size_t i;
-    struct pairs_s *old = pairs;
-    pairs = (struct pairs_s *)mallocx(sizeof *pairs);
-    for (i = 0; i < 126; i++) {
-        pairs->pairs[i].next = &pairs->pairs[i + 1];
+static Dict *new_dict(size_t ln) {
+    size_t ln1, ln2, ln3;
+    Dict *v;
+    struct pair_s *p;
+    if (ln > lenof(v->u.val)) {
+        if (ln > SIZE_MAX / (sizeof(struct pair_s) + sizeof(size_t) * 2)) return NULL; /* overflow */
+        ln1 = ln * 3 / 2;
+        ln2 = 8; while (ln1 > ln2) ln2 <<= 1;
+        ln3 = ln2 * ((ln2 <= (1 << (sizeof(uint8_t)*8))) ? sizeof(uint8_t) : sizeof(size_t));
+        p = (struct pair_s *)malloc(ln * sizeof(struct pair_s) + ln3);
+        if (p == NULL) return NULL; /* out of memory */
+        memset(&p[ln], 255, ln3);
+    } else {
+        p = NULL;
+        ln2 = 1;
     }
-    pairs->pairs[i].next = NULL;
-    pairs->next = old;
-    return &pairs->pairs[0];
-}
-
-static MALLOC struct pair_s *pair_alloc(void) {
-    struct pair_s *pair;
-    if (pairs_free == NULL) pairs_free = pairs_alloc();
-    pair = (struct pair_s *)pairs_free;
-    pairs_free = pairs_free->next;
-    return pair;
-}
-#endif
-
-static void dict_free(struct avltree_node *aa)
-{
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    val_destroy(a->key);
-    if (a->data != NULL) val_destroy(a->data);
-    pair_free(a);
-}
-
-static void dict_free2(struct avltree_node *aa)
-{
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    pair_free(a);
-}
-
-static void dict_garbage1(struct avltree_node *aa)
-{
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    a->key->refcount--;
-    if (a->data != NULL) a->data->refcount--;
-}
-
-static void dict_garbage2(struct avltree_node *aa)
-{
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    Obj *v;
-    v = a->data;
-    if (v != NULL) {
-        if ((v->refcount & SIZE_MSB) != 0) {
-            v->refcount -= SIZE_MSB - 1;
-            v->obj->garbage(v, 1);
-        } else v->refcount++;
+    v = (Dict *)val_alloc(DICT_OBJ);
+    if (p == NULL) {
+        v->data = v->u.val;
+    } else {
+        v->data = p;
+        v->u.s.max = ln;
+        v->u.s.mask = ln2 - 1;
     }
-    v = a->key;
-    if ((v->refcount & SIZE_MSB) != 0) {
-        v->refcount -= SIZE_MSB - 1;
-        v->obj->garbage(v, 1);
-    } else v->refcount++;
+    v->len = 0;
+    return v;
 }
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -127,32 +76,49 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Dict *v1 = (Dict *)o1;
-    avltree_destroy(&v1->members, dict_free);
+    size_t i;
+    for (i = 0; i < v1->len; i++) {
+        struct pair_s *a = &v1->data[i];
+        val_destroy(a->key);
+        if (a->data != NULL) val_destroy(a->data);
+    }
+    if (v1->u.val != v1->data) free(v1->data);
     if (v1->def != NULL) val_destroy(v1->def);
 }
 
-static MALLOC Dict *new_dict(void) {
-    Dict *v = (Dict *)val_alloc(DICT_OBJ);
-    avltree_init(&v->members);
-    v->len = 0;
-    v->def = NULL;
-    return v;
-}
-
-static FAST_CALL void garbage(Obj *o1, int i) {
+static FAST_CALL void garbage(Obj *o1, int j) {
     Dict *v1 = (Dict *)o1;
     Obj *v;
-    switch (i) {
+    size_t i;
+    switch (j) {
     case -1:
-        avltree_destroy(&v1->members, dict_garbage1);
+        for (i = 0; i < v1->len; i++) {
+            struct pair_s *a = &v1->data[i];
+            a->key->refcount--;
+            if (a->data != NULL) a->data->refcount--;
+        }
         v = v1->def;
         if (v != NULL) v->refcount--;
         return;
     case 0:
-        avltree_destroy(&v1->members, dict_free2);
+        if (v1->u.val != v1->data) free(v1->data);
         return;
     case 1:
-        avltree_destroy(&v1->members, dict_garbage2);
+        for (i = 0; i < v1->len; i++) {
+            struct pair_s *a = &v1->data[i];
+            v = a->data;
+            if (v != NULL) {
+                if ((v->refcount & SIZE_MSB) != 0) {
+                    v->refcount -= SIZE_MSB - 1;
+                    v->obj->garbage(v, 1);
+                } else v->refcount++;
+            }
+            v = a->key;
+            if ((v->refcount & SIZE_MSB) != 0) {
+                v->refcount -= SIZE_MSB - 1;
+                v->obj->garbage(v, 1);
+            } else v->refcount++;
+        }
         v = v1->def;
         if (v == NULL) return;
         if ((v->refcount & SIZE_MSB) != 0) {
@@ -165,8 +131,8 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 
 static struct oper_s pair_oper;
 
-static int rpair_compare(Obj *o1, Obj *o2) {
-    int h;
+static bool rpair_equal(Obj *o1, Obj *o2) {
+    bool h;
     Obj *result;
     Iter *iter1 = o1->obj->getiter(o1);
     Iter *iter2 = o2->obj->getiter(o2);
@@ -176,85 +142,254 @@ static int rpair_compare(Obj *o1, Obj *o2) {
         o1 = iter1_next(iter1);
         o2 = iter2_next(iter2);
         if (o1 == NULL) {
-            h = (o2 == NULL) ? 0 : -1;
+            h = (o2 == NULL);
             break;
         }
         if (o2 == NULL) {
-            h = 1;
+            h = false;
             break;
         }
         if (o1->obj->iterable || o2->obj->iterable) {
-            if (o1->obj->iterable && o2->obj->iterable) {
-                h = rpair_compare(o1, o2);
-            } else {
-                h = o1->obj->type - o2->obj->type;
-            }
+            h = o1->obj->iterable && o2->obj->iterable && rpair_equal(o1, o2);
         } else {
             pair_oper.v1 = o1;
             pair_oper.v2 = o2;
             pair_oper.inplace = NULL;
             result = o1->obj->calc2(&pair_oper);
-            if (result->obj == INT_OBJ) h = (int)((Int *)result)->len;
-            else h = o1->obj->type - o2->obj->type;
+            h = (result == &true_value->v);
             val_destroy(result);
         }
-    } while (h == 0);
+    } while (h);
     val_destroy(&iter2->v);
     val_destroy(&iter1->v);
     return h;
 }
 
-static FAST_CALL int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static bool pair_equal(const struct pair_s *a, const struct pair_s *b)
 {
-    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
-    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
     Obj *result;
-    int h;
-    if (a->key->obj == b->key->obj) {
-        h = a->hash - b->hash;
-        if (h != 0) return h;
-    }
+    bool h;
+    if (a->hash != b->hash) return false;
     if (a->key->obj->iterable || b->key->obj->iterable) {
-        if (a->key->obj->iterable && b->key->obj->iterable) {
-            return rpair_compare(a->key, b->key);
-        }
-        return a->key->obj->type - b->key->obj->type;
+        return a->key->obj->iterable && b->key->obj->iterable && rpair_equal(a->key, b->key);
     }
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
     pair_oper.inplace = NULL;
     result = pair_oper.v1->obj->calc2(&pair_oper);
-    if (result->obj == INT_OBJ) h = (int)((Int *)result)->len;
-    else h = a->key->obj->type - b->key->obj->type;
+    h = (result == &true_value->v);
     val_destroy(result);
     return h;
 }
 
+static void dict_update(Dict *dict, const struct pair_s *p) {
+    struct pair_s *d;
+    if (dict->u.val == dict->data) {
+        d = dict->u.val;
+    } else if (dict->u.s.mask < (1 << (sizeof(uint8_t)*8))) {
+        size_t mask = dict->u.s.mask;
+        size_t hash = (size_t)p->hash;
+        size_t offs = hash & mask;
+        uint8_t *indexes = (uint8_t *)&dict->data[dict->u.s.max];
+        while (indexes[offs] != (uint8_t)~0) {
+            d = &dict->data[indexes[offs]];
+            if (p->key == d->key || pair_equal(p, d)) {
+                if (d->data != NULL) val_destroy(d->data);
+                d->data = (p->data == NULL) ? NULL : val_reference(p->data);
+                return;
+            }
+            hash >>= 5;
+            offs = (5 * offs + hash + 1) & mask;
+        } 
+        indexes[offs] = dict->len;
+    } else {
+        size_t mask = dict->u.s.mask;
+        size_t hash = (size_t)p->hash;
+        size_t offs = hash & mask;
+        size_t *indexes = (size_t *)&dict->data[dict->u.s.max];
+        while (indexes[offs] != SIZE_MAX) {
+            d = &dict->data[indexes[offs]];
+            if (p->key == d->key || pair_equal(p, d)) {
+                if (d->data != NULL) val_destroy(d->data);
+                d->data = (p->data == NULL) ? NULL : val_reference(p->data);
+                return;
+            }
+            hash >>= 5;
+            offs = (5 * offs + hash + 1) & mask;
+        } 
+        indexes[offs] = dict->len;
+    }
+    d = &dict->data[dict->len];
+    d->hash = p->hash;
+    d->key = val_reference(p->key);
+    d->data = (p->data == NULL) ? NULL : val_reference(p->data);
+    dict->len++;
+}
+
+static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p) {
+    struct pair_s *d;
+    if (dict->u.val == dict->data) {
+        d = &dict->data[0];
+        if (p->key == d->key || pair_equal(p, d)) return d;
+    } else if (dict->u.s.mask < (1 << (sizeof(uint8_t)*8))) {
+        size_t mask = dict->u.s.mask;
+        size_t hash = (size_t)p->hash;
+        size_t offs = hash & mask;
+        uint8_t *indexes = (uint8_t *)&dict->data[dict->u.s.max];
+        while (indexes[offs] != (uint8_t)~0) {
+            d = &dict->data[indexes[offs]];
+            if (p->key == d->key || pair_equal(p, d)) return d;
+            hash >>= 5;
+            offs = (5 * offs + hash + 1) & mask;
+        } 
+    } else {
+        size_t mask = dict->u.s.mask;
+        size_t hash = (size_t)p->hash;
+        size_t offs = hash & mask;
+        size_t *indexes = (size_t *)&dict->data[dict->u.s.max];
+        while (indexes[offs] != SIZE_MAX) {
+            d = &dict->data[indexes[offs]];
+            if (p->key == d->key || pair_equal(p, d)) return d;
+            hash >>= 5;
+            offs = (5 * offs + hash + 1) & mask;
+        } 
+    }
+    return NULL;
+}
+
+static void reindex(Dict *dict) {
+    if (dict->u.val == dict->data) {
+        return;
+    } else if (dict->u.s.mask < (1 << (sizeof(uint8_t)*8))) {
+        unsigned int i;
+        size_t mask = dict->u.s.mask;
+        uint8_t *indexes = (uint8_t *)&dict->data[dict->u.s.max];
+        for (i = 0; i < dict->len; i++) {
+            size_t hash = (size_t)dict->data[i].hash;
+            size_t offs = hash & mask;
+            while (indexes[offs] != (uint8_t)~0) {
+                hash >>= 5;
+                offs = (5 * offs + hash + 1) & mask;
+            }
+            indexes[offs] = i;
+        }
+    } else {
+        size_t i;
+        size_t mask = dict->u.s.mask;
+        size_t *indexes = (size_t *)&dict->data[dict->u.s.max];
+        for (i = 0; i < dict->len; i++) {
+            size_t hash = (size_t)dict->data[i].hash;
+            size_t offs = hash & mask;
+            while (indexes[offs] != SIZE_MAX) {
+                hash >>= 5;
+                offs = (5 * offs + hash + 1) & mask;
+            }
+            indexes[offs] = i;
+        }
+    }
+}
+
+static bool resize(Dict *dict, size_t ln) {
+    struct pair_s *p;
+    size_t ln2 = 8, ln3;
+    size_t ln1 = ln * 3 / 2;
+    while (ln1 > ln2) ln2 <<= 1;
+    ln3 = ln2 * ((ln2 <= (1 << (sizeof(uint8_t)*8))) ? sizeof(uint8_t) : sizeof(size_t));
+    if (dict->u.val == dict->data) {
+        p = (struct pair_s *)malloc(ln * sizeof *dict->data + ln3);
+        if (p == NULL) return true;
+        if (dict->len != 0) p[0] = dict->u.val[0];
+        dict->u.s.mask = 0;
+    } else {
+        bool same = dict->u.s.mask == ln2 - 1;
+        if (same && dict->u.s.max > ln) {
+            memmove(&dict->data[ln], &dict->data[dict->u.s.max], ln3);
+            dict->u.s.max = ln;
+        }
+        p = (struct pair_s *)realloc(dict->data, ln * sizeof *dict->data + ln3);
+        if (p == NULL) return true;
+        if (same) {
+            if (dict->u.s.max < ln) {
+                memmove(&p[ln], &p[dict->u.s.max], ln3);
+                dict->u.s.max = ln;
+            }
+            dict->data = p;
+            return false;
+        }
+    }
+    dict->data = p;
+    dict->u.s.max = ln;
+    dict->u.s.mask = ln2 - 1;
+    memset(&p[ln], 255, ln3);
+    reindex(dict);
+    return false;
+}
+
+static MUST_CHECK Obj *normalize(Dict *dict) {
+    if (dict->u.val == dict->data || dict->u.s.max - dict->len < 2) return &dict->v;
+    resize(dict, dict->len);
+    return &dict->v;
+}
+
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Dict *v1 = (const Dict *)o1, *v2 = (const Dict *)o2;
-    const struct avltree_node *n;
-    const struct avltree_node *n2;
+    size_t n;
     if (o2->obj != DICT_OBJ || v1->len != v2->len) return false;
-    if ((v1->def == NULL) != (v2->def == NULL)) return false;
-    if (v1->def != NULL && v2->def != NULL && !v1->def->obj->same(v1->def, v2->def)) return false;
-    n = avltree_first(&v1->members);
-    n2 = avltree_first(&v2->members);
-    while (n != NULL && n2 != NULL) {
-        const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
-        const struct pair_s *p2 = cavltree_container_of(n2, struct pair_s, node);
-        if ((p->key == NULL) != (p2->key == NULL)) return false;
-        if (p->key != NULL && p2->key != NULL && !p->key->obj->same(p->key, p2->key)) return false;
-        if ((p->data == NULL) != (p2->data == NULL)) return false;
-        if (p->data != NULL && p2->data != NULL && !p->data->obj->same(p->data, p2->data)) return false;
-        n = avltree_next(n);
-        n2 = avltree_next(n2);
+    if (v1->def != v2->def) {
+        if (v1->def == NULL || v2->def == NULL) return false;
+        if (!v1->def->obj->same(v1->def, v2->def)) return false;
     }
-    return n == n2;
+    for (n = 0; n < v1->len; n++) {
+        const struct pair_s *p = &v1->data[n];
+        const struct pair_s *p2 = dict_lookup(v2, p);
+        if (p2 == NULL) return false;
+        if (p->key != p2->key && !p->key->obj->same(p->key, p2->key)) return false;
+        if (p->data == p2->data) continue;
+        if (p->data == NULL || p2->data == NULL) return false;
+        if (!p->data->obj->same(p->data, p2->data)) return false;
+    }
+    return true;
 }
 
 static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     Dict *v1 = (Dict *)o1;
     return (Obj *)int_from_size(v1->len);
+}
+
+static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
+    Colonlist *iter;
+    const Dict *vv1 = (Dict *)v1->data;
+    if (v1->val >= vv1->len) return NULL;
+    if (vv1->data[v1->val].data == NULL) {
+        return vv1->data[v1->val++].key;
+    }
+    iter = (Colonlist *)v1->iter;
+    if (iter == NULL) {
+    renew:
+        iter = new_colonlist();
+        v1->iter = &iter->v;
+    } else if (iter->v.refcount != 1) {
+        iter->v.refcount--;
+        goto renew;
+    } else {
+        val_destroy(iter->data[0]);
+        val_destroy(iter->data[1]);
+    }
+    iter->len = 2;
+    iter->data = iter->u.val;
+    iter->data[0] = val_reference(vv1->data[v1->val].key);
+    iter->data[1] = val_reference(vv1->data[v1->val++].data);
+    return &iter->v;
+}
+
+static MUST_CHECK Iter *getiter(Obj *v1) {
+    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+    v->iter = NULL;
+    v->val = 0;
+    v->data = val_reference(v1);
+    v->next = next;
+    v->len = ((Dict *)v1)->len;
+    return v;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
@@ -279,9 +414,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         vals = list->data;
         ln = chars;
         if (v1->len != 0) {
-            const struct avltree_node *n = avltree_first(&v1->members);
-            while (n != NULL) {
-                p = cavltree_container_of(n, struct pair_s, node);
+            size_t n;
+            for (n = 0; n < v1->len; n++) {
+                p = &v1->data[n];
                 v = p->key->obj->repr(p->key, epoint, maxsize - chars);
                 if (v == NULL || v->obj != STR_OBJ) goto error;
                 str = (Str *)v;
@@ -304,7 +439,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                     chars--;
                 }
                 vals[i++] = v;
-                n = avltree_next(n);
             }
         }
         if (def != 0) {
@@ -359,19 +493,15 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 }
 
 static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint) {
-    struct pair_s pair;
-    const struct avltree_node *b;
-    Error *err;
-
-    pair.key = o2;
-    err = o2->obj->hash(o2, &pair.hash, epoint);
-    if (err != NULL) return &err->v;
-    b = avltree_lookup(&pair.node, &v1->members, pair_compare);
-    if (b != NULL) {
-        const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
-        if (p->data != NULL) {
-            return val_reference(p->data);
-        }
+    if (v1->len != 0) {
+        Error *err;
+        const struct pair_s *p;
+        struct pair_s pair;
+        pair.key = o2;
+        err = o2->obj->hash(o2, &pair.hash, epoint);
+        if (err != NULL) return &err->v;
+        p = dict_lookup(v1, &pair);
+        if (p != NULL && p->data != NULL) return val_reference(p->data);
     }
     if (v1->def != NULL) {
         return val_reference(v1->def);
@@ -387,8 +517,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     linepos_t epoint2;
 
     if (args->len < 1) {
-        err_msg_argnum(args->len, 1, 0, op->epoint2);
-        return (Obj *)ref_none();
+        return (Obj *)new_error_argnum(args->len, 1, 0, op->epoint2);
     }
 
     o2 = args->val[indx].val;
@@ -426,10 +555,76 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     return vv;
 }
 
+MUST_CHECK Obj *dict_sort(Dict *v1, const size_t *sort_index) {
+    size_t i;
+    Dict *v = new_dict(v1->len);
+    if (v == NULL) err_msg_out_of_memory(); /* overflow */
+    for (i = 0; i < v1->len; i++) {
+        struct pair_s *d = &v->data[i];
+        const struct pair_s *s = &v1->data[sort_index[i]];
+        d->hash = s->hash;
+        d->key = val_reference(s->key);
+        d->data = s->data == NULL ? NULL : val_reference(s->data);
+    }
+    v->len = i;
+    reindex(v);
+    v->def = (v1->def == NULL) ? NULL : val_reference(v1->def);
+    return &v->v;
+}
+
+static MUST_CHECK Obj *concat(oper_t op) {
+    Dict *v1 = (Dict *)op->v1;
+    Dict *v2 = (Dict *)op->v2;
+    size_t j;
+    size_t ln;
+    Dict *dict;
+
+    if (v2->len == 0 && v2->def == NULL) return val_reference(&v1->v);
+    if (v1->len == 0 && (v1->def == NULL || v2->def != NULL)) return val_reference(&v2->v);
+
+    ln = v1->len + v2->len;
+    if (ln < v1->len) goto failed; /* overflow */
+    if (op->inplace == &v1->v) {
+        if (ln > ((v1->u.val == v1->data) ? lenof(v1->u.val) : v1->u.s.max)) {
+            size_t ln2 = ln + (ln < 1024 ? ln : 1024);
+            if (ln2 > ln) ln = ln2;
+            if (ln > SIZE_MAX / (sizeof(struct pair_s) + sizeof(size_t) * 2)) goto failed; /* overflow */
+            if (resize(v1, ln)) goto failed; /* overflow */
+        }
+        dict = (Dict *)val_reference(&v1->v);
+    } else {
+        dict = new_dict(ln);
+        if (dict == NULL) goto failed; /* overflow */
+
+        for (j = 0; j < v1->len; j++) {
+            struct pair_s *d = &dict->data[j];
+            const struct pair_s *s = &v1->data[j];
+            d->hash = s->hash;
+            d->key = val_reference(s->key);
+            d->data = s->data == NULL ? NULL : val_reference(s->data);
+        }
+        dict->len = j;
+        reindex(dict);
+    }
+    for (j = 0; j < v2->len; j++) {
+        dict_update(dict, &v2->data[j]);
+    }
+    dict->def = v2->def != NULL ? val_reference(v2->def) : v1->def != NULL ? val_reference(v1->def) : NULL;
+    if (dict == v1) return &dict->v;
+    return normalize(dict);
+failed:
+    return (Obj *)new_error_mem(op->epoint3); /* overflow */
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
 
     switch (o2->obj->type) {
+    case T_DICT:
+        if (op->op->op == O_CONCAT) {
+            return concat(op);
+        }
+        break;
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_MEMBER && op->op != &o_X) {
@@ -449,14 +644,13 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *o1 = op->v1;
     if (op->op == &o_IN) {
         struct pair_s p;
-        struct avltree_node *b;
         Error *err;
 
+        if (v2->len == 0) return val_reference(&false_value->v);
         p.key = o1;
         err = o1->obj->hash(o1, &p.hash, op->epoint);
         if (err != NULL) return &err->v;
-        b = avltree_lookup(&p.node, &v2->members, pair_compare);
-        return truth_reference(b != NULL);
+        return truth_reference(dict_lookup(v2, &p) != NULL);
     }
     switch (o1->obj->type) {
     case T_NONE:
@@ -469,76 +663,66 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-Obj *dictobj_parse(struct values_s *values, unsigned int args) {
-    unsigned int j;
-    Dict *dict = new_dict();
+Obj *dictobj_parse(struct values_s *values, size_t args) {
+    size_t j;
+    Dict *dict = new_dict(args);
+    if (dict == NULL) return (Obj *)new_error_mem(&values->epoint);
+    dict->def = NULL;
 
     for (j = 0; j < args; j++) {
-        Obj *data;
         Error *err;
-        struct pair_s *p;
-        struct avltree_node *b;
+        struct pair_s p;
         struct values_s *v2 = &values[j];
-        Obj *key = v2->val;
 
-        if (key == &none_value->v || key->obj == ERROR_OBJ) {
+        p.key = v2->val;
+        if (p.key == &none_value->v || p.key->obj == ERROR_OBJ) {
             val_destroy(&dict->v);
-            return val_reference(key);
+            return val_reference(p.key);
         }
-        if (key->obj != COLONLIST_OBJ) data = NULL;
+        if (p.key->obj != COLONLIST_OBJ) p.data = NULL;
         else {
-            Colonlist *list = (Colonlist *)key;
+            Colonlist *list = (Colonlist *)p.key;
             if (list->len != 2 || list->data[1] == &default_value->v) {
                 err = new_error(ERROR__NOT_KEYVALUE, &v2->epoint);
-                err->u.obj = val_reference(key);
+                err->u.obj = val_reference(p.key);
                 val_destroy(&dict->v);
                 return &err->v;
             }
-            key = list->data[0];
-            data = list->data[1];
+            p.key = list->data[0];
+            p.data = list->data[1];
         }
-        if (key == &default_value->v) {
+        if (p.key == &default_value->v) {
             if (dict->def != NULL) val_destroy(dict->def);
-            dict->def = (data == NULL) ? NULL : val_reference(data);
+            dict->def = (p.data == NULL) ? NULL : val_reference(p.data);
             continue;
         }
-        p = pair_alloc();
-        err = key->obj->hash(key, &p->hash, &v2->epoint);
+        err = p.key->obj->hash(p.key, &p.hash, &v2->epoint);
         if (err != NULL) {
-            pair_free(p);
             val_destroy(&dict->v);
             return &err->v;
         }
-        p->key = key;
-        b = avltree_insert(&p->node, &dict->members, pair_compare);
-        if (b != NULL) {
-            pair_free(p);
-            p = avltree_container_of(b, struct pair_s, node);
-            if (p->data != NULL) val_destroy(p->data);
-        } else {
-            p->key = val_reference(p->key);
-            dict->len++;
-        }
-        p->data = (data == NULL) ? NULL : val_reference(data);
+        dict_update(dict, &p);
     }
-    return &dict->v;
+    return normalize(dict);
 }
 
 void dictobj_init(void) {
     static struct linepos_s nopoint;
 
     new_type(&obj, T_DICT, "dict", sizeof(Dict));
+    obj.iterable = true;
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
     obj.len = len;
+    obj.getiter = getiter;
     obj.repr = repr;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
     obj.slice = slice;
 
-    pair_oper.op = &o_CMP;
+    pair_oper.op = &o_EQ;
     pair_oper.epoint = &nopoint;
     pair_oper.epoint2 = &nopoint;
     pair_oper.epoint3 = &nopoint;
@@ -548,12 +732,3 @@ void dictobj_names(void) {
     new_builtin("dict", val_reference(&DICT_OBJ->v));
 }
 
-void destroy_pairs(void) {
-#ifndef DEBUG
-    while (pairs != NULL) {
-        struct pairs_s *old = pairs;
-        pairs = pairs->next;
-        free(old);
-    }
-#endif
-}

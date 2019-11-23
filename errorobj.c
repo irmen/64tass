@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2038 2019-10-27 02:48:10Z soci $
+    $Id: errorobj.c 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -193,6 +193,14 @@ MALLOC Error *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
     Error *v = new_error(ERROR__INVALID_CONV, epoint);
     v->u.conv.t = t;
     v->u.conv.val = val_reference(v1);
+    return v;
+}
+
+MALLOC Error *new_error_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
+    Error *v = new_error(ERROR__WRONG_ARGNUM, epoint);
+    v->u.argnum.num = num;
+    v->u.argnum.min = min;
+    v->u.argnum.max = max;
     return v;
 }
 

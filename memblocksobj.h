@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 1851 2019-01-29 20:04:20Z soci $
+    $Id: memblocksobj.h 2085 2019-11-16 19:56:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ typedef struct Memblocks {
     size_t p, len;
     size_t lastp;
     address_t lastaddr;
-    bool compressed;
+    bool flattened, merged;
     struct memblock_s *data;
 } Memblocks;
 
@@ -50,4 +50,5 @@ static inline Memblocks *ref_memblocks(Memblocks *v1) {
 }
 
 extern MALLOC Memblocks *new_memblocks(size_t, size_t);
+extern MALLOC Memblocks *copy_memblocks(Memblocks *);
 #endif

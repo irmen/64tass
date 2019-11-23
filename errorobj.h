@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 2038 2019-10-27 02:48:10Z soci $
+    $Id: errorobj.h 2079 2019-11-11 20:40:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -69,6 +69,9 @@ typedef struct Error {
             size_t v1;
             size_t v2;
         } broadcast;
+        struct {
+            size_t num, min, max;
+        } argnum;
     } u;
 } Error;
 
@@ -78,5 +81,6 @@ extern MALLOC Error *new_error(Error_types, linepos_t);
 extern MALLOC Error *new_error_mem(linepos_t);
 extern MALLOC Error *new_error_obj(Error_types, Obj *, linepos_t);
 extern MALLOC Error *new_error_conv(Obj *, struct Type *, linepos_t);
+extern MALLOC Error *new_error_argnum(size_t, size_t, size_t, linepos_t);
 
 #endif

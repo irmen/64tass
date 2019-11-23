@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 1904 2019-03-27 22:56:46Z soci $
+    $Id: 64tass.h 2050 2019-11-01 08:37:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ struct Obj;
 struct Listing;
 
 extern struct Listing *listing;
-extern linepos_t poke_pos;
 extern address_t all_mem, all_mem2;
 extern unsigned int all_mem_bits;
 extern uint32_t outputeor;
@@ -53,6 +52,6 @@ extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
 extern bool close_waitfor(Wait_types);
 extern struct Obj *compile(void);
-extern FAST_CALL uint8_t *pokealloc(address_t);
+extern FAST_CALL uint8_t *pokealloc(address_t, linepos_t);
 extern int main2(int *, char **[]);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.h 1983 2019-09-20 15:03:08Z soci $
+    $Id: labelobj.h 2084 2019-11-16 06:44:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ typedef struct Label {
     Obj v;
     str_t name;
     str_t cfname;
+    int hash;
 
     Obj *value;
     const struct file_list_s *file_list;

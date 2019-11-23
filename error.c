@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2048 2019-10-30 05:23:52Z soci $
+    $Id: error.c 2096 2019-11-18 19:59:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -846,6 +846,25 @@ static bool err_msg_still_none2(const Error *err) {
     return more;
 }
 
+static void err_msg_argnum2(size_t num, size_t min, size_t max) {
+    size_t n;
+    char line[1024];
+    adderror("expected ");
+    n = min;
+    if (min == max) adderror("exactly ");
+    else if (num < min) adderror("at least ");
+    else {n = max; adderror("at most "); }
+    switch (n) {
+    case 0: adderror("no arguments"); break;
+    case 1: adderror("one argument"); break;
+    default: sprintf(line, "%" PRIuSIZE " arguments", n); adderror(line); break;
+    }
+    if (num != 0) {
+        sprintf(line, ", got %" PRIuSIZE, num);
+        adderror(line);
+    }
+}
+
 void err_msg_output(const Error *val) {
     bool more = false;
     switch (val->num) {
@@ -892,6 +911,7 @@ void err_msg_output(const Error *val) {
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj);break;
+    case ERROR__WRONG_ARGNUM: more = new_error_msg_err(val); err_msg_argnum2(val->u.argnum.num, val->u.argnum.min, val->u.argnum.max); break;
     default: break;
     }
     if (more) new_error_msg_err_more(val);
@@ -1145,23 +1165,8 @@ void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
 }
 
 void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
-    size_t n;
-    char line[1024];
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror("expected ");
-    n = min;
-    if (min == max) adderror("exactly ");
-    else if (num < min) adderror("at least ");
-    else {n = max; adderror("at most "); }
-    switch (n) {
-    case 0: adderror("no arguments"); break;
-    case 1: adderror("one argument"); break;
-    default: sprintf(line, "%" PRIuSIZE " arguments", n); adderror(line); break;
-    }
-    if (num != 0) {
-        sprintf(line, ", got %" PRIuSIZE, num);
-        adderror(line);
-    }
+    err_msg_argnum2(num, min, max);
     if (more) new_error_msg_more();
 }
 
@@ -1341,7 +1346,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
     print_use_bold = false;
 #endif
     putc('\n', f);
-    if (arguments.caret != CARET_NEVER && caret && line != NULL) {
+    if (caret && line != NULL) {
         putc(' ', f);
         printable_print(line, f);
         fputs("\n ", f);
@@ -1359,7 +1364,12 @@ static void color_detect(FILE *f) {
 #define color_detect(f) {}
 #endif
 
+static inline bool caret_needed(const struct errorentry_s *err) {
+    return (arguments.caret == CARET_ALWAYS || (arguments.caret != CARET_NEVER && (err->line_len != 0 || err->file_list->file->name[0] == 0)));
+}
+
 static bool different_line(const struct errorentry_s *err, const struct errorentry_s *err2) {
+    if (!caret_needed(err2)) return false;
     if (err->file_list->file != err2->file_list->file || err->line_len != err2->line_len ||
             err->epoint.line != err2->epoint.line || err->epoint.pos != err2->epoint.pos) return true;
     if (err->line_len == 0) return false;
@@ -1429,7 +1439,7 @@ bool error_print(void) {
                         err->line_len != err3->line_len || err->error_len != err3->error_len ||
                         err->epoint.line != err3->epoint.line || err->epoint.pos != err3->epoint.pos ||
                         memcmp(err + 1, err3 + 1, err->line_len + err->error_len) != 0) {
-                    print_error(ferr, err3, (arguments.caret == CARET_ALWAYS || err3->line_len != 0) && different_line(err, err3));
+                    print_error(ferr, err3, different_line(err, err3));
                 }
             }
             err3 = err2;
@@ -1456,13 +1466,13 @@ bool error_print(void) {
             errors++;
             break;
         }
-        if (err3 != NULL) print_error(ferr, err3, (arguments.caret == CARET_ALWAYS || err3->line_len != 0) && different_line(err2, err3));
+        if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
         err3 = err2;
         err2 = err;
         usenote = true;
     }
-    if (err3 != NULL) print_error(ferr, err3, (arguments.caret == CARET_ALWAYS || err3->line_len != 0) && different_line(err2, err3));
-    if (err2 != NULL) print_error(ferr, err2, (arguments.caret == CARET_ALWAYS || err2->line_len != 0));
+    if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
+    if (err2 != NULL) print_error(ferr, err2, caret_needed(err2));
     color_detect(stderr);
     if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors != 0;

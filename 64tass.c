@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2042 2019-10-27 15:36:36Z soci $
+    $Id: 64tass.c 2091 2019-11-17 09:59:43Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -76,7 +76,6 @@
 
 struct Listing *listing = NULL;
 int temporary_label_branch; /* function declaration in function context, not good */
-linepos_t poke_pos;
 line_t vline;      /* current line */
 address_t all_mem, all_mem2;
 unsigned int all_mem_bits;
@@ -297,12 +296,11 @@ static void tfree(void) {
     destroy_longjump();
     destroy_encoding();
     destroy_values();
-    destroy_namespacekeys();
     err_destroy();
     destroy_file();
     destroy_ternary();
-    destroy_pairs();
     destroy_opt_bit();
+    free(arguments.output);
     free(arguments.symbol_output);
     if (unfc(NULL)) {}
     if (unfkc(NULL, NULL, 0)) {}
@@ -406,15 +404,15 @@ static MUST_CHECK bool touval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t
 /*
  * Skip memory
  */
-static void memskip(address_t db) { /* poke_pos! */
+static void memskip(address_t db, linepos_t epoint) {
     if (current_address->moved) {
-        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
-        if (current_address->wrapwarn) {err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;}
+        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
+        if (current_address->wrapwarn) {err_msg_mem_wrap(epoint);current_address->wrapwarn = false;}
         current_address->moved = false;
     }
     if (current_address->l_address.address > 0xffff || db > 0x10000 - current_address->l_address.address) {
         current_address->l_address.address = ((current_address->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg_pc_wrap(poke_pos);
+        err_msg_pc_wrap(epoint);
     } else current_address->l_address.address += db;
     if (db > (~current_address->address & all_mem2)) {
         if (db - 1 + current_address->address == all_mem2) {
@@ -422,11 +420,11 @@ static void memskip(address_t db) { /* poke_pos! */
             if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
             current_address->address = 0;
         } else {
-            if (current_address->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+            if (current_address->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
             if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
             current_address->moved = false;
             current_address->address = (current_address->address + db) & all_mem2;
-            err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;
+            err_msg_mem_wrap(epoint);current_address->wrapwarn = false;
         }
     } else current_address->address += db;
     memjmp(current_address->mem, current_address->address);
@@ -436,15 +434,15 @@ static void memskip(address_t db) { /* poke_pos! */
 /*
  * output one byte
  */
-FAST_CALL uint8_t *pokealloc(address_t db) { /* poke_pos! */
+FAST_CALL uint8_t *pokealloc(address_t db, linepos_t epoint) {
     if (current_address->moved) {
-        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
-        if (current_address->wrapwarn) {err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;}
+        if (current_address->address < current_address->start) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
+        if (current_address->wrapwarn) {err_msg_mem_wrap(epoint);current_address->wrapwarn = false;}
         current_address->moved = false;
     }
     if (current_address->l_address.address > 0xffff || db > 0x10000 - current_address->l_address.address) {
         current_address->l_address.address = ((current_address->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg_pc_wrap(poke_pos);
+        err_msg_pc_wrap(epoint);
     } else current_address->l_address.address += db;
     if (db > (~current_address->address & all_mem2)) {
         if (db - 1 + current_address->address == all_mem2) {
@@ -452,11 +450,11 @@ FAST_CALL uint8_t *pokealloc(address_t db) { /* poke_pos! */
             if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
             current_address->address = 0;
         } else {
-            if (current_address->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, poke_pos);
+            if (current_address->start != 0) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
             if (current_address->end <= all_mem2) current_address->end = all_mem2 + 1;
             current_address->moved = false;
             current_address->address = (current_address->address + db) & all_mem2;
-            err_msg_mem_wrap(poke_pos);current_address->wrapwarn = false;
+            err_msg_mem_wrap(epoint);current_address->wrapwarn = false;
         }
     } else current_address->address += db;
     return alloc_mem(current_address->mem, db);
@@ -550,6 +548,7 @@ struct textrecursion_s {
     bool warn;
     Error_types error;
     uint8_t buff[16];
+    linepos_t epoint;
 };
 
 static void textdump(struct textrecursion_s *trec, uval_t uval) {
@@ -569,7 +568,7 @@ static void textdump(struct textrecursion_s *trec, uval_t uval) {
         break;
     }
     if (trec->len >= (ssize_t)sizeof trec->buff) {
-        memcpy(pokealloc(trec->len), trec->buff, trec->len);
+        memcpy(pokealloc(trec->len, trec->epoint), trec->buff, trec->len);
         trec->len = 0;
     }
     trec->buff[trec->len++] = uval ^ outputeor;
@@ -595,7 +594,7 @@ retry:
             case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
             default: m = BYTES_MODE_TEXT; break;
             }
-            tmp = bytes_from_str((Str *)val, poke_pos, m);
+            tmp = bytes_from_str((Str *)val, trec->epoint, m);
             textrecursion(trec, tmp);
             val_destroy(tmp);
             return;
@@ -609,7 +608,7 @@ retry:
         goto doit;
     case T_CODE:
         {
-            Obj *tmp = get_code_value((Code *)val, poke_pos);
+            Obj *tmp = get_code_value((Code *)val, trec->epoint);
             textrecursion(trec, tmp);
             val_destroy(tmp);
             return;
@@ -635,7 +634,7 @@ retry:
                 val2 = val;
                 goto doit;
             }
-            tmp = bytes_from_bits((Bits *)val, poke_pos);
+            tmp = bytes_from_bits((Bits *)val, trec->epoint);
             textrecursion(trec, tmp);
             val_destroy(tmp);
             return;
@@ -671,7 +670,7 @@ retry:
         case T_GAP:
         dogap:
             if (trec->len > 0) {
-                memcpy(pokealloc(trec->len), trec->buff, trec->len);
+                memcpy(pokealloc(trec->len, trec->epoint), trec->buff, trec->len);
                 trec->len = 0;
             }
             trec->len--;
@@ -696,7 +695,7 @@ retry:
                     len3 = trec->max - trec->sum;
                     if (len2 > len3) len2 = len3;
                     trec->sum += len2;
-                    if (trec->len < 0) { memskip(-trec->len); trec->len = 0; }
+                    if (trec->len < 0) { memskip(-trec->len, trec->epoint); trec->len = 0; }
                     for (i = 0; i < len2; i++) {
                         textdump(trec, bytes->data[i] ^ inv);
                     }
@@ -706,9 +705,9 @@ retry:
             break;
         default:
         doit:
-            if (touval(val2, &uval, 8, poke_pos)) uval = 256 + '?';
+            if (touval(val2, &uval, 8, trec->epoint)) uval = 256 + '?';
             trec->sum++;
-            if (trec->len < 0) { memskip(-trec->len); trec->len = 0; }
+            if (trec->len < 0) { memskip(-trec->len, trec->epoint); trec->len = 0; }
             textdump(trec, uval);
             if (iter == NULL) return;
             break;
@@ -724,6 +723,7 @@ struct byterecursion_s {
     ssize_t len;
     uint8_t buff[16];
     bool warn;
+    linepos_t epoint;
 };
 
 static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int bits) {
@@ -738,7 +738,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
     if (!type->iterable) {
         if (type == GAP_OBJ) {
             if (brec->len > 0) {
-                memcpy(pokealloc(brec->len), brec->buff, brec->len);
+                memcpy(pokealloc(brec->len, brec->epoint), brec->buff, brec->len);
                 brec->len = 0;
             }
             brec->len -= (unsigned int)abs(bits) / 8;
@@ -759,7 +759,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
         switch (val2->obj->type) {
         case T_GAP:
             if (brec->len > 0) {
-                memcpy(pokealloc(brec->len), brec->buff, brec->len);
+                memcpy(pokealloc(brec->len, brec->epoint), brec->buff, brec->len);
                 brec->len = 0;
             }
             brec->len -= (unsigned int)abs(bits) / 8;
@@ -768,30 +768,30 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
         doit:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 atype_t am = val2->obj->address(val2);
-                if (touaddress(val2, &uv, (am == A_KR) ? 16 : all_mem_bits, poke_pos)) {
+                if (touaddress(val2, &uv, (am == A_KR) ? 16 : all_mem_bits, brec->epoint)) {
                     ch2 = 0;
                     break;
                 }
                 uv &= all_mem;
                 switch (am) {
                 case A_NONE:
-                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, poke_pos);
+                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, brec->epoint);
                     break;
                 case A_KR:
                     break;
                 default:
-                    err_msg_output_and_destroy(err_addressing(am, poke_pos, -1));
+                    err_msg_output_and_destroy(err_addressing(am, brec->epoint, -1));
                 }
                 ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
                 break;
             }
             if (bits >= 0) {
-                if (touval(val2, &uv, (unsigned int)bits, poke_pos)) {
+                if (touval(val2, &uv, (unsigned int)bits, brec->epoint)) {
                     if (diagnostics.pitfalls) {
                         static unsigned int once;
-                        if (prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(poke_pos);
+                        if (prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(brec->epoint);
                         else if (prm != CMD_RTA && prm != CMD_ADDR && once != pass) {
-                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)bits, poke_pos);
+                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)bits, brec->epoint);
                             if (err != NULL) val_destroy(&err->v);
                             else {
                                 const char *txt;
@@ -802,7 +802,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
                                 default:
                                 case CMD_WORD:  txt = ".sint"; break;
                                 }
-                                err_msg_char_note(txt, poke_pos);
+                                err_msg_char_note(txt, brec->epoint);
                                 once = pass;
                             }
                         }
@@ -811,7 +811,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
                 }
                 ch2 = uv;
             } else {
-                if (toival(val2, &iv, (unsigned int)-bits, poke_pos)) iv = 0;
+                if (toival(val2, &iv, (unsigned int)-bits, brec->epoint)) iv = 0;
                 ch2 = (uint32_t)iv;
             }
             break;
@@ -820,8 +820,8 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
             brec->warn = true;
             ch2 = 0;
         }
-        if (brec->len < 0) {memskip(-brec->len);brec->len = 0;}
-        else if (brec->len >= (ssize_t)(sizeof brec->buff) - 4) {memcpy(pokealloc(brec->len), brec->buff, brec->len); brec->len = 0;}
+        if (brec->len < 0) {memskip(-brec->len, brec->epoint);brec->len = 0;}
+        else if (brec->len >= (ssize_t)(sizeof brec->buff) - 4) {memcpy(pokealloc(brec->len, brec->epoint), brec->buff, brec->len); brec->len = 0;}
         ch2 ^= outputeor;
         brec->buff[brec->len++] = ch2;
         if (prm >= CMD_RTA) {
@@ -919,8 +919,7 @@ static void union_close(linepos_t epoint) {
     end = (current_address->address < current_address->end) ? current_address->end : current_address->address;
     current_address->end = (waitfor->u.cmd_union.addr2 > end) ? waitfor->u.cmd_union.addr2 : end;
     if (end > current_address->address) {
-        poke_pos = epoint;
-        memskip(end - current_address->address);
+        memskip(end - current_address->address, epoint);
     }
 }
 
@@ -1809,9 +1808,8 @@ MUST_CHECK Obj *compile(void)
     bool nobreak = true;
     str_t labelname;
     struct anonident_s {
-        uint8_t dir;
-        uint8_t padding[3];
-        int32_t count;
+        uint8_t dir, pad;
+        uint8_t count[sizeof(uint32_t)];
     } anonident;
     struct {
         uint8_t type;
@@ -1932,14 +1930,22 @@ MUST_CHECK Obj *compile(void)
                         lpoint.pos += 3;
                     } else break;
 
-                    if (labelname.data[0] == '-') {current_context->backr--;((struct anonident_s *)labelname.data)->count--;}
-                    else if (labelname.data[0] == '+') {current_context->forwr--;((struct anonident_s *)labelname.data)->count--;}
+                    if (labelname.data == (const uint8_t *)&anonident) {
+                        uint32_t count = (uint32_t)((anonident.dir == '-') ? --current_context->backr :  --current_context->forwr);
+                        count--;
+                        labelname.len = 2;
+                        while (count != 0) {
+                            anonident.count[labelname.len - 2] = count;
+                            labelname.len++;
+                            count >>= 8;
+                        }
+                    }
                     ignore();
                     epoint2 = lpoint;
                     if (labelname.data[0] == '*') {
                         label = NULL;
                         if (diagnostics.optimize) cpu_opt_invalidate();
-                        val = get_star_value(star, current_address->l_address_val);
+                        val = get_star();
                     } else if (tmp.op == &o_COND) {
                         label = NULL; val = NULL;
                     } else {
@@ -2719,8 +2725,7 @@ MUST_CHECK Obj *compile(void)
                             current_address->l_union = oldl_union;
                             current_address->unionmode = oldunionmode;
                             if (oldstart > current_address->address) {
-                                poke_pos = &epoint;
-                                memskip(oldstart - current_address->address);
+                                memskip(oldstart - current_address->address, &epoint);
                             }
                             val_destroy(&label->v);
                             goto breakerr;
@@ -2922,11 +2927,18 @@ MUST_CHECK Obj *compile(void)
                 case '\t':
                 case ';':
                 case '\0':
-                    if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.count)) memset(&anonident, 0, sizeof anonident);
-                    else memset(anonident.padding, 0, sizeof anonident.padding);
-                    anonident.dir = (uint8_t)wht;
-                    anonident.count = (int32_t)((wht == '-') ? current_context->backr++ : current_context->forwr++);
-                    labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof anonident;
+                    {
+                        uint32_t count = (uint32_t)((wht == '-') ? current_context->backr++ : current_context->forwr++);
+                        anonident.dir = (uint8_t)wht;
+                        anonident.pad = 0;
+                        labelname.len = 2;
+                        while (count != 0) {
+                            anonident.count[labelname.len - 2] = count;
+                            labelname.len++;
+                            count >>= 8;
+                        }
+                        labelname.data = (const uint8_t *)&anonident;
+                    }
                     goto hh;
                 default:
                     lpoint.pos--;
@@ -3352,7 +3364,6 @@ MUST_CHECK Obj *compile(void)
                 { /* .binary */
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     mark_mem(current_address->mem, current_address->address, star);
-                    poke_pos = &epoint;
 
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         size_t ln;
@@ -3372,34 +3383,35 @@ MUST_CHECK Obj *compile(void)
                         trec.prm = prm;
                         trec.warn = false;
                         trec.error = ERROR__USER_DEFINED;
+                        trec.epoint = &epoint;
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
                             if (trec.len != 0) {
-                                if (trec.len > 0) memcpy(pokealloc(trec.len), trec.buff, trec.len);
-                                else if (trec.len < 0) memskip(-trec.len);
+                                if (trec.len > 0) memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
+                                else if (trec.len < 0) memskip(-trec.len, trec.epoint);
                                 trec.len = 0;
                             }
-                            poke_pos = &vs->epoint;
+                            trec.epoint = &vs->epoint;
                             textrecursion(&trec, vs->val);
-                            if (trec.warn) { err_msg_still_none(NULL, poke_pos); trec.warn = false; }
-                            if (trec.error != ERROR__USER_DEFINED) { err_msg2(trec.error, NULL, poke_pos); trec.error = ERROR__USER_DEFINED;}
+                            if (trec.warn) { err_msg_still_none(NULL, trec.epoint); trec.warn = false; }
+                            if (trec.error != ERROR__USER_DEFINED) { err_msg2(trec.error, NULL, trec.epoint); trec.error = ERROR__USER_DEFINED;}
                         }
-                        if (trec.len < 0) { memskip(-trec.len); trec.len = 0; }
+                        if (trec.len < 0) { memskip(-trec.len, trec.epoint); trec.len = 0; }
                         switch (prm) {
                         case CMD_SHIFTL:
                         case CMD_SHIFT:
                             if (trec.len > 0) trec.buff[trec.len - 1] ^= (prm == CMD_SHIFT) ? 0x80 : 0x01;
-                            else if (trec.sum != 0) err_msg2(ERROR___NO_LAST_GAP, NULL, poke_pos);
+                            else if (trec.sum != 0) err_msg2(ERROR___NO_LAST_GAP, NULL, trec.epoint);
                             else err_msg2(ERROR__BYTES_NEEDED, NULL, &epoint);
                             break;
                         case CMD_NULL:
                             if (trec.len >= (ssize_t)sizeof trec.buff) {
-                                memcpy(pokealloc(trec.len), trec.buff, trec.len);
+                                memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                                 trec.len = 0;
                             }
                             trec.buff[trec.len++] = outputeor; break;
                         default: break;
                         }
-                        if (trec.len > 0) memcpy(pokealloc(trec.len), trec.buff, trec.len);
+                        if (trec.len > 0) memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                         if (prm == CMD_PTEXT) {
                             if (trec.sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &trec.sum, &epoint);
                             write_mark_mem(current_address->mem, (trec.sum-1) ^ outputeor);
@@ -3441,16 +3453,16 @@ MUST_CHECK Obj *compile(void)
                         brec.len = 0;
                         brec.warn = false;
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
-                            poke_pos = &vs->epoint;
+                            brec.epoint = &vs->epoint;
                             byterecursion(vs->val, prm, &brec, bits);
-                            if (brec.warn) { err_msg_still_none(NULL, poke_pos); brec.warn = false; }
+                            if (brec.warn) { err_msg_still_none(NULL, brec.epoint); brec.warn = false; }
                             if (brec.len == 0) continue;
-                            if (brec.len > 0) memcpy(pokealloc(brec.len), brec.buff, brec.len);
-                            else memskip(-brec.len);
+                            if (brec.len > 0) memcpy(pokealloc(brec.len, brec.epoint), brec.buff, brec.len);
+                            else memskip(-brec.len, brec.epoint);
                             brec.len = 0;
                         }
                     } else if (prm==CMD_BINARY) { /* .binary */
-                        char *path = NULL;
+                        struct file_s *cfile2 = NULL;
                         ival_t foffs = 0;
                         size_t fsize = SIZE_MAX;
                         struct values_s *vs;
@@ -3462,7 +3474,9 @@ MUST_CHECK Obj *compile(void)
                         if (!get_exp(0, 1, 3, &epoint)) goto breakerr;
                         vs = get_val();
                         if (!tostr(vs, &filename)) {
-                            path = get_path(&filename, current_file_list->file->realname);
+                            char *path = get_path(&filename, current_file_list->file->realname);
+                            cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, &vs->epoint);
+                            free(path);
                         }
                         if ((vs = get_val()) != NULL) {
                             ival_t ival;
@@ -3475,25 +3489,21 @@ MUST_CHECK Obj *compile(void)
                             }
                         }
 
-                        if (path != NULL) {
-                            struct file_s *cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, &epoint);
-                            if (cfile2 != NULL) {
-                                size_t foffset;
-                                if (foffs < 0) foffset = (uval_t)-foffs < cfile2->len ? (cfile2->len - (uval_t)-foffs) : 0;
-                                else foffset = (uval_t)foffs;
-                                for (; fsize != 0 && foffset < cfile2->len;) {
-                                    size_t i, ln = cfile2->len - foffset;
-                                    uint8_t *d, *s = cfile2->data + foffset;
-                                    if (ln > fsize) ln = fsize;
-                                    d = pokealloc((address_t)ln);
-                                    if (outputeor != 0) {
-                                        for (i = 0; i < ln; i++) d[i] = s[i] ^ outputeor;
-                                    } else memcpy(d, s, ln);
-                                    foffset += ln;
-                                    fsize -= ln;
-                                }
+                        if (cfile2 != NULL) {
+                            size_t foffset;
+                            if (foffs < 0) foffset = (uval_t)-foffs < cfile2->len ? (cfile2->len - (uval_t)-foffs) : 0;
+                            else foffset = (uval_t)foffs;
+                            for (; fsize != 0 && foffset < cfile2->len;) {
+                                size_t i, ln = cfile2->len - foffset;
+                                uint8_t *d, *s = cfile2->data + foffset;
+                                if (ln > fsize) ln = fsize;
+                                d = pokealloc((address_t)ln, &epoint);
+                                if (outputeor != 0) {
+                                    for (i = 0; i < ln; i++) d[i] = s[i] ^ outputeor;
+                                } else memcpy(d, s, ln);
+                                foffset += ln;
+                                fsize -= ln;
                             }
-                            free(path);
                         }
                     }
 
@@ -3764,29 +3774,29 @@ MUST_CHECK Obj *compile(void)
                         struct textrecursion_s trec;
                         size_t membp = get_mem(current_address->mem);
 
-                        poke_pos = &vs->epoint;
                         trec.len = 0;
                         trec.sum = 0;
                         trec.max = db;
                         trec.prm = CMD_TEXT;
                         trec.warn = false;
                         trec.error = ERROR__USER_DEFINED;
+                        trec.epoint = &vs->epoint;
                         textrecursion(&trec, vs->val);
-                        if (trec.warn) err_msg_still_none(NULL, poke_pos);
-                        if (trec.error != ERROR__USER_DEFINED) err_msg2(trec.error, NULL, poke_pos);
+                        if (trec.warn) err_msg_still_none(NULL, trec.epoint);
+                        if (trec.error != ERROR__USER_DEFINED) err_msg2(trec.error, NULL, trec.epoint);
 
                         db -= trec.sum;
                         if (db != 0) {
                             if (trec.sum == 1 && trec.len == 1) {
-                                memset(pokealloc(db + 1), trec.buff[0], db + 1); /* single byte shortcut */
+                                memset(pokealloc(db + 1, trec.epoint), trec.buff[0], db + 1); /* single byte shortcut */
                                 trec.len = 0;
                             } else if (trec.sum == (size_t)-trec.len) {
-                                if (trec.sum == 0) err_msg2(ERROR__BYTES_NEEDED, NULL, poke_pos);
+                                if (trec.sum == 0) err_msg2(ERROR__BYTES_NEEDED, NULL, trec.epoint);
                                 trec.len -= db; /* gap shortcut */
                             } else {
                                 size_t offs = 0;
                                 if (trec.len > 0) {
-                                    memcpy(pokealloc(trec.len), trec.buff, trec.len);
+                                    memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                                     trec.len = 0;
                                 }
                                 while (db != 0) { /* pattern repeat */
@@ -3795,14 +3805,14 @@ MUST_CHECK Obj *compile(void)
                                     ch = read_mem(current_address->mem, oaddr, membp, offs);
                                     if (ch < 0) {
                                         if (trec.len > 0) {
-                                            memcpy(pokealloc(trec.len), trec.buff, trec.len);
+                                            memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                                             trec.len = 0;
                                         }
                                         trec.len--;
                                     } else {
-                                        if (trec.len < 0) {memskip(-trec.len); trec.len = 0;}
+                                        if (trec.len < 0) {memskip(-trec.len, trec.epoint); trec.len = 0;}
                                         else if (trec.len >= (ssize_t)sizeof trec.buff) {
-                                            memcpy(pokealloc(trec.len), trec.buff, trec.len);
+                                            memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                                             trec.len = 0;
                                         }
                                         trec.buff[trec.len++] = ch;
@@ -3812,11 +3822,10 @@ MUST_CHECK Obj *compile(void)
                                 }
                             }
                         }
-                        if (trec.len > 0) memcpy(pokealloc(trec.len), trec.buff, trec.len);
-                        else if (trec.len < 0) memskip(-trec.len);
+                        if (trec.len > 0) memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
+                        else if (trec.len < 0) memskip(-trec.len, trec.epoint);
                     } else if (db != 0) {
-                        poke_pos = &epoint;
-                        memskip(db);
+                        memskip(db, &epoint);
                     }
                     if (nolisting == 0) {
                         list_mem(current_address->mem);
@@ -4112,15 +4121,14 @@ MUST_CHECK Obj *compile(void)
                 { /* .include, .binclude */
                     struct file_s *f = NULL;
                     struct values_s *vs;
-                    char *path;
                     str_t filename;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (!tostr(vs, &filename)) {
-                        path = get_path(&filename, current_file_list->file->realname);
-                        f = openfile(path, current_file_list->file->realname, 2, &filename, &epoint);
+                        char *path = get_path(&filename, current_file_list->file->realname);
+                        f = openfile(path, current_file_list->file->realname, 2, &filename, &vs->epoint);
                         free(path);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
@@ -4453,8 +4461,7 @@ MUST_CHECK Obj *compile(void)
                     current_address->l_union = oldl_union;
                     current_address->unionmode = oldunionmode;
                     if (oldstart > current_address->address) {
-                        poke_pos = &epoint;
-                        memskip(oldstart - current_address->address);
+                        memskip(oldstart - current_address->address, &epoint);
                     }
                 }
                 goto breakerr;
@@ -4545,8 +4552,7 @@ MUST_CHECK Obj *compile(void)
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
                         if (t != 0) {
-                            poke_pos = &epoint;
-                            memskip(t);
+                            memskip(t, &epoint);
                         }
                         memref(current_address->mem, tmp3->address.mem);
                     }
@@ -4915,15 +4921,20 @@ int main2(int *argc2, char **argv2[]) {
 
     if (error_serious()) {status();return EXIT_FAILURE;}
 
-    {
-        struct section_s *section = find_this_section(arguments.output.section);
+    for (j = 0; j < arguments.output_len; j++) {
+        const struct output_s *output = &arguments.output[j];
+        struct section_s *section = find_this_section(output->section);
         if (section == NULL) {
             str_t sectionname;
             sectionname.data = pline;
             sectionname.len = lpoint.pos;
             err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
+        } else if (j == arguments.output_len - 1) { 
+            output_mem(section->address.mem, output);
         } else {
-            output_mem(section->address.mem, &arguments.output);
+            Memblocks *tmp = copy_memblocks(section->address.mem);
+            output_mem(tmp, output);
+            val_destroy(&tmp->v);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 1797 2019-01-12 16:48:47Z soci $
+    $Id: labelobj.c 2083 2019-11-16 05:49:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,6 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
         && v1->file_list == v2->file_list
         && v1->strength == v2->strength
         && str_cmp(&v1->name, &v2->name) == 0
-        && str_cmp(&v1->cfname, &v2->cfname) == 0
         && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value));
 }
 
