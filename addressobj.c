@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2000 2019-10-12 13:18:04Z soci $
+    $Id: addressobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -329,14 +329,15 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return v->obj->sign(v, epoint);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+static MUST_CHECK Obj *function(oper_t op) {
+    Address *v1 = (Address *)op->v2;
     Obj *v;
     if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return DEFAULT_OBJ->function(o1, f, false, epoint);
+        return DEFAULT_OBJ->function(op);
     }
-    v = v1->val;
-    return v->obj->function(v, f, false, epoint);
+    op->v2 = v = v1->val;
+    op->inplace = op->inplace == &v1->v && v->refcount == 1 ? v : NULL;
+    return v->obj->function(op);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -371,12 +372,12 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
-    Obj *val = ((Address *)o1)->val;
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
+    Obj *val = ((Address *)op->v1)->val;
     if (val == &none_value->v || val->obj == ERROR_OBJ) {
         return val_reference(val);
     }
-    return DEFAULT_OBJ->slice(o1, op, indx);
+    return DEFAULT_OBJ->slice(op, indx);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {

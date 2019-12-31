@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 1968 2019-09-08 08:18:17Z soci $
+    $Id: registerobj.c 2115 2019-12-11 20:27:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -172,18 +172,16 @@ static MUST_CHECK Obj *calc2_register(oper_t op) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     const Type *t2 = op->v2->obj;
     switch (t2->type) {
-    case T_REGISTER: return calc2_register(op);
-    case T_TUPLE:
-    case T_LIST:
-    case T_DICT:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return t2->rcalc2(op);
-        }
-        break;
+    case T_REGISTER: 
+        return calc2_register(op);
     case T_NONE:
     case T_ERROR:
         return val_reference(op->v2);
-    default: break;
+    default:
+        if (t2->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+            return t2->rcalc2(op);
+        }
+        break;
     }
     return obj_oper_error(op);
 }

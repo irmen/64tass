@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2001 2019-10-12 13:21:26Z soci $
+    $Id: intobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
+#include "functionobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
 #define MASK (~(digit_t)0)
@@ -351,14 +352,14 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[(v1->len > 0) ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool inplace, linepos_t epoint) {
-    Int *v1 = (Int *)o1;
-    if (v1->len >= 0 || f != TF_ABS) return (Obj *)ref_int(v1);
-    if (inplace) {
+static MUST_CHECK Obj *function(oper_t op) {
+    Int *v1 = (Int *)op->v2;
+    if (v1->len >= 0 || ((Function *)op->v1)->func != F_ABS) return (Obj *)ref_int(v1);
+    if (op->inplace == &v1->v) {
         v1->len = -v1->len;
         return val_reference(&v1->v);
     }
-    return negate(v1, epoint);
+    return negate(v1, op->epoint2);
 }
 
 static void iadd(const Int *, const Int *, Int *);

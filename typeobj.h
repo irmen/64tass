@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2000 2019-10-12 13:18:04Z soci $
+    $Id: typeobj.h 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include "obj.h"
 #include "stdbool.h"
 
+struct iter_s;
+
 extern struct Type *const TYPE_OBJ;
 
 typedef enum Truth_types {
@@ -31,13 +33,9 @@ typedef enum Type_types {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
-    T_LABEL, T_NAMESPACE, T_MEMBLOCKS, T_FOLD
+    T_DEFAULT, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE, T_LABEL,
+    T_NAMESPACE, T_MEMBLOCKS, T_FOLD
 } Type_types;
-
-typedef enum Func_types {
-    TF_ABS, TF_TRUNC, TF_CEIL, TF_FLOOR, TF_ROUND
-} Func_types;
 
 typedef struct Type {
     Obj v;
@@ -57,7 +55,7 @@ typedef struct Type {
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
     Obj *(*calc2)(struct oper_s *) MUST_CHECK;
     Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
-    Obj *(*slice)(Obj *, struct oper_s *, size_t) MUST_CHECK;
+    Obj *(*slice)(struct oper_s *, size_t) MUST_CHECK;
     struct Error *(*ival)(Obj *, ival_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uval)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uval2)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
@@ -65,10 +63,10 @@ typedef struct Type {
     struct Error *(*iaddress)(Obj *, ival_t *, unsigned int, linepos_t) MUST_CHECK;
     struct Error *(*uaddress)(Obj *, uval_t *, unsigned int, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*function)(Obj *, Func_types, bool, linepos_t) MUST_CHECK;
-    Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
-    struct Iter *(*getiter)(Obj *) MUST_CHECK;
+    Obj *(*function)(struct oper_s *) MUST_CHECK;
+    Obj *(*len)(struct oper_s *) MUST_CHECK;
+    Obj *(*size)(struct oper_s *) MUST_CHECK;
+    void (*getiter)(struct iter_s *);
 } Type;
 
 extern void typeobj_init(void);

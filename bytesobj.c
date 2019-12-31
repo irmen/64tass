@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2082 2019-11-12 19:56:09Z soci $
+    $Id: bytesobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
-#include "iterobj.h"
 
 static Type obj;
 
@@ -796,45 +795,42 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    Bytes *v1 = (Bytes *)o1;
-    Obj *tmp = int_from_bytes(v1, epoint);
-    Obj *ret = tmp->obj->function(tmp, f, tmp->refcount == 1, epoint);
+static MUST_CHECK Obj *function(oper_t op) {
+    Bytes *v1 = (Bytes *)op->v2;
+    Obj *tmp, *ret;
+    op->v2 = tmp = int_from_bytes(v1, op->epoint2);
+    op->inplace = tmp->refcount == 1 ? tmp : NULL;
+    ret = tmp->obj->function(op);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
-    Bytes *v1 = (Bytes *)o1;
+static MUST_CHECK Obj *len(oper_t op) {
+    Bytes *v1 = (Bytes *)op->v2;
     return (Obj *)int_from_size(byteslen(v1));
 }
 
-static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *next(struct iter_s *v1) {
     Bytes *iter;
     const Bytes *vv1 = (Bytes *)v1->data;
-    if (v1->val >= byteslen(vv1)) return NULL;
+    if (v1->val >= v1->len) return NULL;
     iter = (Bytes *)v1->iter;
-    if (iter == NULL) {
-    renew:
+    if (iter->v.refcount != 1) {
+        iter->v.refcount--;
         iter = new_bytes(1);
         v1->iter = &iter->v;
         iter->len = (vv1->len < 0) ? ~1 : 1;
-    } else if (iter->v.refcount != 1) {
-        iter->v.refcount--;
-        goto renew;
     }
     iter->data[0] = vv1->data[v1->val++];
     return &iter->v;
 }
 
-static MUST_CHECK Iter *getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
-    v->iter = NULL;
+static void getiter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
     v->val = 0;
-    v->data = val_reference(v1);
+    v->data = val_reference(v->data);
     v->next = next;
-    v->len = byteslen((Bytes *)v1);
-    return v;
+    v->len = byteslen((Bytes *)v->data);
 }
 
 static inline MUST_CHECK Obj *and_(oper_t op) {
@@ -1192,11 +1188,11 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return (Obj *)new_error_mem(op->epoint3);
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     uint8_t *p2;
     size_t offs2, len1;
     size_t i;
-    Bytes *v, *v1 = (Bytes *)o1;
+    Bytes *v, *v1 = (Bytes *)op->v1;
     Obj *o2 = op->v2;
     Error *err;
     uint8_t inv = (v1->len < 0) ? (uint8_t)~0 : 0;
@@ -1212,31 +1208,29 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     len1 = byteslen(v1);
 
     if (o2->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter = o2->obj->getiter(o2);
-        size_t len2 = iter->len;
+        struct iter_s iter;
+        iter.data = o2; o2->obj->getiter(&iter);
 
-        if (len2 == 0) {
-            val_destroy(&iter->v);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
             return (Obj *)ref_bytes(null_bytes);
         }
-        v = new_bytes2(len2);
+        v = new_bytes2(iter.len);
         if (v == NULL) {
-            val_destroy(&iter->v);
+            iter_destroy(&iter);
             goto failed;
         }
         p2 = v->data;
-        iter_next = iter->next;
-        for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             err = indexoffs(o2, len1, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&v->v);
-                val_destroy(&iter->v);
+                iter_destroy(&iter);
                 return &err->v;
             }
             p2[i] = v1->data[offs2] ^ inv;
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         if (i > SSIZE_MAX) goto failed2; /* overflow */
         v->len = (ssize_t)i;
         return &v->v;
@@ -1258,7 +1252,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             if (length == byteslen(v1)) {
                 return (Obj *)ref_bytes(v1); /* original bytes */
             }
-            if (op->inplace == o1) {
+            if (op->inplace == &v1->v) {
                 v = ref_bytes(v1);
                 if (v->data != v->u.val && length <= sizeof v->u.val) {
                     p2 = v->u.val;
@@ -1275,7 +1269,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 memcpy(p2, v1->data + offs, length);
             }
         } else {
-            if (step > 0 && op->inplace == o1) {
+            if (step > 0 && op->inplace == &v1->v) {
                 v = ref_bytes(v1);
                 if (v->data != v->u.val && length <= sizeof v->u.val) {
                     p2 = v->u.val;

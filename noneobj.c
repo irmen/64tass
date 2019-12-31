@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 2001 2019-10-12 13:21:26Z soci $
+    $Id: noneobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,8 +63,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(op->v1->obj->type == T_ERROR ? op->v1 : op->v2);
 }
 
-static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *slice(oper_t op, size_t UNUSED(indx)) {
+    return val_reference(op->v1);
 }
 
 static MUST_CHECK Error *ival(Obj *UNUSED(v1), ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
@@ -79,16 +79,16 @@ static MUST_CHECK Obj *sign(Obj *v1, linepos_t UNUSED(epoint)) {
     return val_reference(v1);
 }
 
-static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), bool UNUSED(inplace), linepos_t UNUSED(epoint)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *function(oper_t op) {
+    return val_reference(op->v2);
 }
 
-static MUST_CHECK Obj *len(Obj *v1, linepos_t UNUSED(epoint)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *len(oper_t op) {
+    return val_reference(op->v2);
 }
 
-static MUST_CHECK Obj *size(Obj *v1, linepos_t UNUSED(epoint)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *size(oper_t op) {
+    return val_reference(op->v2);
 }
 
 void noneobj_init(void) {

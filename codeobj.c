@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: codeobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,7 +41,6 @@
 #include "errorobj.h"
 #include "memblocksobj.h"
 #include "identobj.h"
-#include "iterobj.h"
 #include "addressobj.h"
 
 static Type obj;
@@ -138,7 +137,7 @@ MUST_CHECK Error *code_uaddress(Obj *o1, uval_t *uv, uval_t *uv2, linepos_t epoi
     if (v != NULL) return v;
     *uv = v1->addr + v1->offs;
     *uv2 = v1->addr;
-    if ((*uv2 >> bits) == 0) {
+    if (bits >= sizeof(*uv2)*8 || (*uv2 >> bits) == 0) {
         return NULL;
     }
     v = new_error(ERROR_____CANT_UVAL, epoint);
@@ -192,7 +191,7 @@ static MUST_CHECK Error *iaddress(Obj *o1, ival_t *iv, unsigned int bits, linepo
     if (v != NULL) return v;
     addr = code_address(v1);
     *iv = (ival_t)addr;
-    if ((addr >> (bits - 1)) != 0) {
+    if ((addr >> (bits - 1)) == 0) {
         if (v1->addr + v1->offs != addr) err_msg_addr_wrap(epoint);
         return NULL;
     }
@@ -209,7 +208,7 @@ static MUST_CHECK Error *uaddress(Obj *o1, uval_t *uv, unsigned int bits, linepo
     if (v != NULL) return v;
     addr = code_address(v1);
     *uv = addr;
-    if ((addr >> bits) == 0) {
+    if (bits >= sizeof(addr)*8 || (addr >> bits) == 0) {
         if (v1->addr + v1->offs != addr) err_msg_addr_wrap(epoint);
         return NULL;
     }
@@ -266,13 +265,14 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return result;
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    Code *v1 = (Code *)o1;
+static MUST_CHECK Obj *function(oper_t op) {
+    Code *v1 = (Code *)op->v2;
     Obj *v, *result;
-    Error *err = access_check(v1, epoint);
+    Error *err = access_check(v1, op->epoint2);
     if (err != NULL) return &err->v;
-    v = get_code_address(v1, epoint);
-    result = v->obj->function(v, f, false, epoint);
+    op->v2 = v = get_code_address(v1, op->epoint2);
+    op->inplace = v->refcount == 1 ? v : NULL;
+    result = v->obj->function(op);
     val_destroy(v);
     return result;
 }
@@ -296,9 +296,9 @@ static address_t calc_size(const Code *v1) {
     return v1->size + (uval_t)-v1->offs;
 }
 
-static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *len(oper_t op) {
     address_t ln, s;
-    Code *v1 = (Code *)o1;
+    Code *v1 = (Code *)op->v2;
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
@@ -307,8 +307,8 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)int_from_size((ln != 0) ? (s / ln) : s);
 }
 
-static MUST_CHECK Obj *size(Obj *o1, linepos_t UNUSED(epoint)) {
-    Code *v1 = (Code *)o1;
+static MUST_CHECK Obj *size(oper_t op) {
+    Code *v1 = (Code *)op->v2;
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
@@ -382,13 +382,13 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, const Type *typ) {
     return &v->v;
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     Obj **vals;
     size_t i;
     address_t ln, ln2;
     size_t offs1;
     ssize_t offs0;
-    Code *v1 = (Code *)o1;
+    Code *v1 = (Code *)op->v1;
     Obj *o2 = op->v2;
     Error *err;
     Funcargs *args = (Funcargs *)o2;
@@ -410,19 +410,17 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         offs0 = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
     }
     if (o2->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter = o2->obj->getiter(o2);
-        size_t len1 = iter->len;
+        struct iter_s iter;
         Tuple *v;
+        iter.data = o2; o2->obj->getiter(&iter);
 
-        if (len1 == 0) {
-            val_destroy(&iter->v);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
             return (Obj *)ref_tuple(null_tuple);
         }
-        v = new_tuple(len1);
+        v = new_tuple(iter.len);
         vals = v->data;
-        iter_next = iter->next;
-        for (i = 0; i < len1 && (o2 = iter_next(iter)) != NULL; i++) {
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             err = indexoffs(o2, ln, &offs1, epoint2);
             if (err != NULL) {
                 vals[i] = &err->v;
@@ -430,7 +428,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
             }
             vals[i] = code_item(v1, (ssize_t)offs1 + offs0, ln2);
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         v->len = i;
         return &v->v;
     }

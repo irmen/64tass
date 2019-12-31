@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2087 2019-11-17 06:42:57Z soci $
+    $Id: mem.c 2124 2019-12-23 16:00:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -484,11 +484,12 @@ FAST_CALL uint8_t *alloc_mem(Memblocks *memblocks, size_t len) {
 
 static size_t omemp;
 static size_t ptextaddr;
-static address_t oaddr, oaddr2;
+static address_t oaddr, oaddr2, olastaddr;
 
 void mark_mem(const Memblocks *memblocks, address_t adr, address_t adr2) {
     ptextaddr = memblocks->mem.p;
     omemp = memblocks->p;
+    olastaddr = memblocks->lastaddr;
     oaddr = adr;
     oaddr2 = adr2;
 }
@@ -552,18 +553,17 @@ void list_mem(const Memblocks *memblocks) {
         }
 
         if (first) {
-            if (addr2 < addr) {
-                addr = addr2;
+            first = false;
+            if (addr != olastaddr) {
                 len = 0;
                 o--;
             } else {
-                address_t diff = addr2 - addr;
+                address_t diff = (addr2 - addr) & all_mem2;
                 if (diff > len) continue;
-                addr = addr2;
                 p += diff;
                 len -= diff;
             }
-            first = false;
+            addr = addr2;
         } else {
             if (len == 0) continue;
         }

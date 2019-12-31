@@ -1,5 +1,5 @@
 /*
-    $Id: identobj.c 1960 2019-09-04 03:14:57Z soci $
+    $Id: identobj.c 2116 2019-12-11 20:34:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -127,17 +127,15 @@ static MUST_CHECK Obj *anon_repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
+    if (o2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        return o2->obj->rcalc2(op);
+    }
     switch (o2->obj->type) {
-    case T_TUPLE:
-    case T_LIST:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return o2->obj->rcalc2(op);
-        }
-        break;
     case T_NONE:
     case T_ERROR:
         return val_reference(o2);
-    default: break;
+    default:
+        break;
     }
     return obj_oper_error(op);
 }

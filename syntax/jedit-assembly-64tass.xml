@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 1996 2019-10-11 08:52:28Z soci $
+	$Id: jedit-assembly-64tass.xml 2131 2019-12-30 19:02:20Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -80,6 +80,7 @@
                         <KEYWORD3>.endu</KEYWORD3>
                         <KEYWORD3>.endv</KEYWORD3>
                         <KEYWORD3>.endweak</KEYWORD3>
+                        <KEYWORD3>.endwith</KEYWORD3>
                         <KEYWORD3>.eor</KEYWORD3>
                         <KEYWORD3>.error</KEYWORD3>
                         <KEYWORD3>.fi</KEYWORD3>
@@ -122,6 +123,7 @@
                         <KEYWORD3>.warn</KEYWORD3>
                         <KEYWORD3>.weak</KEYWORD3>
                         <KEYWORD3>.while</KEYWORD3>
+                        <KEYWORD3>.with</KEYWORD3>
                         <KEYWORD3>.xl</KEYWORD3>
                         <KEYWORD3>.xs</KEYWORD3>
 

@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2001 2019-10-12 13:21:26Z soci $
+    $Id: boolobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "typeobj.h"
 #include "errorobj.h"
 #include "noneobj.h"
+#include "functionobj.h"
 
 static Type obj;
 
@@ -117,9 +118,9 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
     return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    if (diagnostics.strict_bool) err_msg_bool((f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, o1, epoint);
-    return (Obj *)ref_int(int_value[o1 == &true_value->v ? 1 : 0]);
+static MUST_CHECK Obj *function(oper_t op) {
+    if (diagnostics.strict_bool) err_msg_bool((((Function *)op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, op->v2, op->epoint2);
+    return (Obj *)ref_int(int_value[op->v2 == &true_value->v ? 1 : 0]);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {

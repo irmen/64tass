@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.c 1755 2018-12-31 15:40:59Z soci $
+    $Id: macroobj.c 2120 2019-12-21 05:59:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,8 +112,8 @@ static FAST_CALL bool struct_same(const Obj *o1, const Obj *o2) {
     return true;
 }
 
-static MUST_CHECK Obj *struct_size(Obj *o1, linepos_t UNUSED(epoint)) {
-    Struct *v1 = (Struct *)o1;
+static MUST_CHECK Obj *struct_size(oper_t op) {
+    Struct *v1 = (Struct *)op->v2;
     return (Obj *)int_from_size(v1->size);
 }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 1946 2019-08-31 09:56:53Z soci $
+    $Id: foldobj.c 2116 2019-12-11 20:34:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -64,10 +64,8 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
-    if (v2->obj->iterable) {
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return v2->obj->rcalc2(op);
-        }
+    if (v2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        return v2->obj->rcalc2(op);
     }
     switch (v2->obj->type) {
     case T_NONE:

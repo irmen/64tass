@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2094 2019-11-17 11:53:16Z soci $
+    $Id: file.h 2125 2019-12-23 19:50:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,6 +70,6 @@ extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
 extern size_t get_base(const char *);
 extern char *get_path(const struct str_t *, const char *);
-extern void makefile(int, char *[]);
+extern void makefile(int, char *[], bool);
 
 #endif

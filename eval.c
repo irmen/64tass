@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: eval.c 2112 2019-12-11 17:56:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,7 +52,6 @@
 #include "errorobj.h"
 #include "identobj.h"
 #include "foldobj.h"
-#include "iterobj.h"
 #include "memblocksobj.h"
 
 static FAST_CALL NO_INLINE unsigned int get_label_start(const uint8_t *s) {
@@ -820,28 +819,25 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len2, uval_t *olen, iv
 
 static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am, bool inplace) {
     if (o1->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter;
-        size_t i, len;
+        struct iter_s iter;
+        size_t i;
         List *v;
         Obj **vals;
 
         if (o1->refcount != 1) inplace = false;
 
-        iter = o1->obj->getiter(o1);
-        len = iter->len;
-        if (len == 0) {
-            val_destroy(&iter->v);
+        iter.data = o1; o1->obj->getiter(&iter);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
             return val_reference(o1->obj == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
         }
 
         v = (List *)val_alloc(o1->obj == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
-        vals = list_create_elements(v, len);
-        iter_next = iter->next;
-        for (i = 0; i < len && (o1 = iter_next(iter)) != NULL; i++) {
+        vals = list_create_elements(v, iter.len);
+        for (i = 0; i < iter.len && (o1 = iter.next(&iter)) != NULL; i++) {
             vals[i] = apply_addressing(o1, am, inplace);
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         v->len = i;
         v->data = vals;
         return &v->v;
@@ -914,7 +910,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 oper.epoint3 = &o_out->epoint;
                 if (op == O_BRACKET) {
                     oper.inplace = (oper.v1->refcount == 1) ? oper.v1 : NULL;
-                    v1->val = oper.v1->obj->slice(oper.v1, &oper, 0);
+                    v1->val = oper.v1->obj->slice(&oper, 0);
                 } else {
                     oper.inplace = NULL;
                     v1->val = oper.v1->obj->calc2(&oper);
@@ -1136,11 +1132,12 @@ static bool get_val2(struct eval_context_s *ev) {
                 }
             }
             if (v1->val->obj->iterable || v1->val->obj == ADDRLIST_OBJ) {
-                iter_next_t iter_next;
-                Iter *iter = v1->val->obj->getiter(v1->val);
-                size_t k, len = iter->len;
+                struct iter_s iter;
+                size_t k, len;
                 size_t len2;
                 Obj *tmp, *def;
+                iter.data = v1->val; v1->val->obj->getiter(&iter);
+                len = iter.len;
 
                 if (v1->val->obj == DICT_OBJ && ((Dict *)v1->val)->def != NULL) {
                     Colonlist *list = new_colonlist();
@@ -1157,13 +1154,12 @@ static bool get_val2(struct eval_context_s *ev) {
                 if (len2 < len) err_msg_out_of_memory(); /* overflow */
                 vsp--;
                 if (len2 >= ev->values_size) values = extend_values(ev, len);
-                iter_next = iter->next;
-                for (k = 0; k < len && (tmp = iter_next(iter)) != NULL; k++) {
+                for (k = 0; k < len && (tmp = iter.next(&iter)) != NULL; k++) {
                     if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = val_reference(tmp);
                     values[vsp++].epoint = o_out->epoint;
                 }
-                val_destroy(&iter->v);
+                iter_destroy(&iter);
                 if (def != NULL) {
                     if (values[vsp].val != NULL) val_destroy(values[vsp].val);
                     values[vsp].val = def;

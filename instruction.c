@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2095 2019-11-17 21:57:59Z soci $
+    $Id: instruction.c 2129 2019-12-30 16:41:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "memblocksobj.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
@@ -296,14 +297,14 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_ZR:/* lda (#$ff,d),z */
     case (A_DR << 8) | (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I_Z] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_I_Z; /* lda ($ff,d),z */
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode == c65ce02.opcode) {
+            adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d),z */
             break;
         }
         return AG_NONE;
     case (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I_Z] != ____) {
-            adrgen = AG_ZP; *opr = ADR_ZP_I_Z; /* lda ($ff),z */
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode == c65ce02.opcode) {
+            adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff),z */
             break;
         }
         return AG_NONE;
@@ -364,14 +365,14 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
             adrgen = AG_B0; *opr = ADR_ADDR_I; /* jmp ($ffff) */
             break;
         }
-        if (cnmemonic[ADR_ZP_I] != ____) {
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode) {
             adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff) */
             break;
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_I: /* lda (#$ff,d) */
     case (A_DR << 4) | A_I:
-        if (cnmemonic[ADR_ZP_I] != ____) {
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode) {
             adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d) */
             break;
         }
@@ -438,9 +439,29 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (am != A_NONE) {
                 adrgen = adrmatch(cnmemonic, prm, am, w, &opr);
                 if (adrgen != AG_NONE) {
-                    if (opr == ADR_REL) {
+                    switch (opr) {
+                    case ADR_REL:
                         ln = 1; longbranch = 0;
                         goto justrel2;
+                    case ADR_IMMEDIATE: 
+                        if (pline[epoints[0].pos] == '#') epoints[0].pos++; 
+                        break;
+                    case ADR_ZP_I_Y:
+                    case ADR_ZP_S_I_Y:
+                    case ADR_ZP_R_I_Y:
+                    case ADR_ADDR_X_I:
+                    case ADR_ZP_X_I:
+                    case ADR_ADDR_I:
+                    case ADR_ZP_I:
+                        if (pline[epoints[0].pos] == '(') epoints[0].pos++; 
+                        break;
+                    case ADR_ZP_LI_Y:
+                    case ADR_ADDR_LI:
+                    case ADR_ZP_LI:
+                        if (pline[epoints[0].pos] == '[') epoints[0].pos++; 
+                        break;
+                    default:
+                        break;
                     }
                     break;
                 }
@@ -917,7 +938,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     }
 
                     if (cnmemonic[opr] != ____ && uval3 <= 0xffff && dpage <= 0xffff && (uint16_t)(uval3 - dpage) <= 0xff) {
-                        if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && val->obj != CODE_OBJ && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                        if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && (val->obj != CODE_OBJ || ((Code *)val)->memblocks->enumeration) && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
                         else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2);
                         adr = uval - dpage; w = 0;
                         if (opcode == c65el02.opcode || opcode == w65816.opcode) {

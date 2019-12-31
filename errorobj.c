@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: errorobj.c 2112 2019-12-11 17:56:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -216,8 +216,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(op->v2);
 }
 
-static MUST_CHECK Obj *slice(Obj *v1, oper_t UNUSED(op), size_t UNUSED(indx)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *slice(oper_t op, size_t UNUSED(indx)) {
+    return val_reference(op->v1);
 }
 
 void errorobj_init(void) {

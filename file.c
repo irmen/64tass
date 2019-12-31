@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2094 2019-11-17 11:53:16Z soci $
+    $Id: file.c 2125 2019-12-23 19:50:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -828,7 +828,7 @@ void init_file(void) {
     last_ubuff.len = 16;
 }
 
-void makefile(int argc, char *argv[]) {
+void makefile(int argc, char *argv[], bool make_phony) {
     FILE *f;
     struct linepos_s nopoint = {0, 0};
     size_t len = 0, j;
@@ -842,13 +842,16 @@ void makefile(int argc, char *argv[]) {
     clearerr(f); errno = 0;
     for (j = 0; j < arguments.output_len; j++) {
         const struct output_s *output = &arguments.output[j];
-        if (!dash_name(output->name)) {
-            if (j != 0) {
-                len++;
-                putc(' ', f);
+        if (dash_name(output->name)) continue;
+        if (j != 0) {
+            if (len > 64) {
+                fputs(" \\\n", f);
+                len = 0;
             }
-            len += argv_print(output->name + get_base(output->name), f);
+            len++;
+            putc(' ', f);
         }
+        len += argv_print(output->name + get_base(output->name), f);
     }
     if (len > 0) {
         len++;
@@ -869,14 +872,32 @@ void makefile(int argc, char *argv[]) {
             for (n = 0; n <= file_table.mask; n++) {
                 const struct file_s *a = file_table.data[n];
                 if (a == NULL) continue;
-                if (a->type != 0) {
-                    if (len > 64) {
-                        fputs(" \\\n", f);
-                        len = 0;
-                    }
-                    putc(' ', f);
-                    len += argv_print(a->realname, f) + 1;
+                if (a->type == 0) continue;
+                if (len > 64) {
+                    fputs(" \\\n", f);
+                    len = 0;
                 }
+                putc(' ', f);
+                len += argv_print(a->realname, f) + 1;
+            }
+
+            if (make_phony) {
+                putc('\n', f); len = 0;
+                for (n = 0; n <= file_table.mask; n++) {
+                    const struct file_s *a = file_table.data[n];
+                    if (a == NULL) continue;
+                    if (a->type == 0) continue;
+                    if (len != 0) {
+                        if (len > 64) {
+                            fputs(" \\\n", f);
+                            len = 0;
+                        }
+                        len++;
+                        putc(' ', f);
+                    }
+                    len += argv_print(a->realname, f);
+                }
+                putc(':', f);
             }
         }
         putc('\n', f);

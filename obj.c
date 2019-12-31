@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: obj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@
 #include "identobj.h"
 #include "memblocksobj.h"
 #include "foldobj.h"
-#include "iterobj.h"
 
 static Type lbl_obj;
 static Type default_obj;
@@ -166,7 +165,7 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *invalid_slice(Obj *UNUSED(v1), oper_t op, size_t indx) {
+static MUST_CHECK Obj *invalid_slice(oper_t op, size_t indx) {
     Funcargs *args = (Funcargs *)op->v2;
     if (indx == 0) {
         if (args->len > 0) {
@@ -213,32 +212,30 @@ static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
     return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
-static MUST_CHECK Obj *invalid_function(Obj *v1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, (f == TF_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
+static MUST_CHECK Obj *invalid_function(oper_t op) {
+    return (Obj *)generic_invalid(op->v2, op->epoint2, (((Function *)op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
 }
 
-static MUST_CHECK Obj *invalid_len(Obj *v1, linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, ERROR______CANT_LEN);
+static MUST_CHECK Obj *invalid_len(oper_t op) {
+    return (Obj *)generic_invalid(op->v2, op->epoint2, ERROR______CANT_LEN);
 }
 
-static MUST_CHECK Obj *invalid_size(Obj *v1, linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIZE);
+static MUST_CHECK Obj *invalid_size(oper_t op) {
+    return (Obj *)generic_invalid(op->v2, op->epoint2, ERROR_____CANT_SIZE);
 }
 
-static FAST_CALL MUST_CHECK Obj *invalid_next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *invalid_next(struct iter_s *v1) {
     if (v1->val != 0) return NULL;
     v1->val = 1;
     return v1->data;
 }
 
-static MUST_CHECK Iter *invalid_getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+static void invalid_getiter(struct iter_s *v) {
     v->iter = NULL;
     v->val = 0;
-    v->data = val_reference(v1);
+    v->data = val_reference(v->data);
     v->next = invalid_next;
     v->len = 1;
-    return v;
 }
 
 static FAST_CALL bool lbl_same(const Obj *o1, const Obj *o2) {
@@ -307,7 +304,6 @@ void objects_init(void) {
     mfuncobj_init();
     identobj_init();
     foldobj_init();
-    iterobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     lbl_obj.same = lbl_same;

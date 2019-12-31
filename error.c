@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2096 2019-11-18 19:59:33Z soci $
+    $Id: error.c 2098 2019-11-24 05:07:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1047,7 +1047,6 @@ static const char * const opr_names[ADR_LEN] = {
     "direct page y indexed", /* ADR_ZP_Y */
     "", /* ADR_ZP_LI_Y */
     "", /* ADR_ZP_I_Y */
-    "", /* ADR_ZP_I_Z */
     "", /* ADR_ADDR_LI */
     "", /* ADR_ZP_LI */
     "", /* ADR_ADDR_I */

@@ -18,9 +18,9 @@
             <Keywords name="Folders in code1, open"></Keywords>
             <Keywords name="Folders in code1, middle"></Keywords>
             <Keywords name="Folders in code1, close"></Keywords>
-            <Keywords name="Folders in code2, open">.proc .if .ifeq .ifne .ifpl .ifmi .switch .segment .macro .namespace .section .function .struct .union .weak .rept .brept .for .bfor .while .bwhile</Keywords>
+            <Keywords name="Folders in code2, open">.proc .if .ifeq .ifne .ifpl .ifmi .switch .segment .macro .namespace .section .function .struct .union .weak .rept .brept .for .bfor .while .bwhile .with</Keywords>
             <Keywords name="Folders in code2, middle">.else .elsif .case .default .break .continue .breakif .continueif</Keywords>
-            <Keywords name="Folders in code2, close">.pend .fi .endif .endswitch .endm .endn .send .endf .ends .endu .endweak .next</Keywords>
+            <Keywords name="Folders in code2, close">.pend .fi .endif .endswitch .endm .endn .send .endf .ends .endu .endweak .next .endwith</Keywords>
             <Keywords name="Folders in comment, open"></Keywords>
             <Keywords name="Folders in comment, middle"></Keywords>
             <Keywords name="Folders in comment, close"></Keywords>

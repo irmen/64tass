@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 1944 2019-08-31 09:46:14Z soci $
+    $Id: gapobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,8 +70,8 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
     return val_reference(&v->v);
 }
 
-static MUST_CHECK Obj *function(Obj *v1, Func_types UNUSED(f), bool UNUSED(inplace), linepos_t UNUSED(epoint)) {
-    return val_reference(v1);
+static MUST_CHECK Obj *function(oper_t op) {
+    return val_reference(op->v2);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -145,17 +145,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         default: break;
         }
         break;
-    case T_TUPLE:
-    case T_LIST:
-    case T_DICT:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return v2->obj->rcalc2(op);
-        }
-        break;
     case T_NONE:
     case T_ERROR:
         return val_reference(v2);
-    default: break;
+    default:
+        if (v2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+            return v2->obj->rcalc2(op);
+        }
+        break;
     }
     return obj_oper_error(op);
 }

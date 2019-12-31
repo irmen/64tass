@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2085 2019-11-16 19:56:17Z soci $
+    $Id: arguments.h 2125 2019-12-23 19:50:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ struct arguments_s {
     bool longbranch;
     bool tasmcomp;
     bool verbose;
+    bool make_phony;
     uint8_t caseinsensitive;
     struct output_s *output;
     size_t output_len;

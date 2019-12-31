@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: typeobj.c 2118 2019-12-21 05:43:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "listobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
-#include "iterobj.h"
+#include "functionobj.h"
 
 static Type obj;
 
@@ -99,39 +99,9 @@ static inline int icmp(const Type *vv1, const Type *vv2) {
     return (v1 > v2) ? 1 : 0;
 }
 
-static MUST_CHECK Obj *apply_convert(Obj *o2, const Type *v1, linepos_t epoint) {
-    if (v1 != LIST_OBJ && v1 != TUPLE_OBJ && v1 != TYPE_OBJ) {
-        const Type *v2 = o2->obj;
-        if (v2->iterable) {
-            iter_next_t iter_next;
-            Iter *iter = v2->getiter(o2);
-            size_t i, len = iter->len;
-            Obj **vals;
-            List *v;
-
-            if (len == 0) {
-                val_destroy(&iter->v);
-                return val_reference(v2 == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
-            }
-
-            v = (List *)val_alloc(v2 == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
-            v->data = vals = list_create_elements(v, len);
-            iter_next = iter->next;
-            for (i = 0;i < len && (o2 = iter_next(iter)) != NULL; i++) {
-                vals[i] = apply_convert(o2, v1, epoint);
-            }
-            val_destroy(&iter->v);
-            v->len = i;
-            return (Obj *)v;
-        }
-    }
-    return v1->create(o2, epoint);
-}
-
 static MUST_CHECK Obj *calc2(oper_t op) {
     Type *v1 = (Type *)op->v1;
     Obj *o2 = op->v2;
-    size_t args;
 
     switch (o2->obj->type) {
     case T_TYPE:
@@ -156,24 +126,23 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         break;
     case T_FUNCARGS:
         if (op->op == &o_FUNC) {
-            args = ((Funcargs *)o2)->len;
+            Funcargs *v2 = (Funcargs *)o2;
+            size_t args = v2->len;
             if (args != 1) {
                 return (Obj *)new_error_argnum(args, 1, 1, op->epoint2);
             }
-            return apply_convert(((Funcargs *)o2)->val[0].val, v1, op->epoint2);
-        }
-        break;
-    case T_TUPLE:
-    case T_LIST:
-    case T_DICT:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
-            return o2->obj->rcalc2(op);
+            if (v1 == LIST_OBJ || v1 == TUPLE_OBJ || v1 == TYPE_OBJ) return v1->create(v2->val[0].val, op->epoint);
+            return apply_convert(op);
         }
         break;
     case T_NONE:
     case T_ERROR:
         return val_reference(o2);
-    default: break;
+    default:
+        if (o2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+            return o2->obj->rcalc2(op);
+        }
+        break;
     }
     return obj_oper_error(op);
 }

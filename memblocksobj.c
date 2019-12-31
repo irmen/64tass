@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2085 2019-11-16 19:56:17Z soci $
+    $Id: memblocksobj.c 2129 2019-12-30 16:41:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
     val->data = (ln2 == 0) ? NULL : (struct memblock_s *)mallocx(ln2 * sizeof *val->data);
     val->flattened = false;
     val->merged = false;
+    val->enumeration = false;
     return val;
 }
 

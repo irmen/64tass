@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2093 2019-11-17 11:31:34Z soci $
+    $Id: namespaceobj.c 2126 2019-12-24 07:50:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,12 +60,11 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 static FAST_CALL void destroy(Obj *o1) {
     Namespace *v1 = (Namespace *)o1;
     size_t i;
-    if (v1->data != NULL) {
-        for (i = 0; i <= v1->mask; i++) {
-            if (v1->data[i] != NULL) val_destroy(&v1->data[i]->v);
-        }
-        free(v1->data);
+    if (v1->data == NULL) return;
+    for (i = 0; i <= v1->mask; i++) {
+        if (v1->data[i] != NULL) val_destroy(&v1->data[i]->v);
     }
+    free(v1->data);
 }
 
 static FAST_CALL void garbage(Obj *o1, int j) {
@@ -117,9 +116,9 @@ static Label *namespace_lookup(const Namespace *ns, const Label *p) {
 }
 
 static bool namespace_issubset(Namespace *v1, const Namespace *v2) {
-    size_t n, ln = v1->len;
-    if (ln == 0) return true;
-    v1->len = 0;
+    size_t n, ln;
+    if (v1->len == 0) return true;
+    ln = v1->len; v1->len = 0;
     for (n = 0; n <= v1->mask; n++) {
         const Label *p2, *p = v1->data[n];
         if (p == NULL) continue;

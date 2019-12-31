@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2017 2019-10-20 09:24:07Z soci $
+    $Id: values.c 2108 2019-12-10 19:16:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -152,6 +152,11 @@ size_t val_print(Obj *v1, FILE *f) {
     else len = printable_print2((const uint8_t *)err->obj->name, f, strlen(err->obj->name));
     val_destroy(err);
     return len;
+}
+
+FAST_CALL void iter_destroy(struct iter_s *v1) {
+    if (v1->iter != NULL) val_destroy(v1->iter);
+    val_destroy(v1->data);
 }
 
 void destroy_values(void)

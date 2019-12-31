@@ -125,10 +125,13 @@ the source file then this path is tried. More than one directories can be
 specified by repeating this option. If multiple matches exist the first
 one is used.
 .TP 0.5i
-\fB\-M\fR \fIfile\fR
+\fB\-M\fR \fIfile\fR, \fB\-\-dependencies\fR \fIfile\fR
 Specify make rule output \fIfile\fR.
 Writes a dependency rule suitable for 'make' from the list of files
 used during compilation.
+.TP 0.5i
+\fB\-\-make\-phony\fR
+Enable phony target generation for dependencies.
 .SS Diagnostic options
 .TP 0.5i
 \fB\-E\fR \fIfile\fR, \fB\-\-error\fR \fIfile\fR

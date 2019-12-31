@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2093 2019-11-17 11:31:34Z soci $
+    $Id: variables.c 2131 2019-12-30 19:02:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -94,6 +94,29 @@ bool pop_context(void) {
         cheap_context = c->cheap;
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
+        return false;
+    }
+    return true;
+}
+
+void push_context2(Namespace *name) {
+    if (context_stack.p >= context_stack.len) {
+        context_stack.len += 8;
+        if (/*context_stack.len < 8 ||*/ context_stack.len > SIZE_MAX / sizeof *context_stack.stack) err_msg_out_of_memory(); /* overflow */
+        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof *context_stack.stack);
+    }
+    context_stack.stack[context_stack.p].normal = context_stack.stack[context_stack.p - 1].normal;
+    context_stack.stack[context_stack.p - 1].normal = ref_namespace(name);
+    context_stack.stack[context_stack.p].cheap = ref_namespace(name);
+    context_stack.p++;
+}
+
+bool pop_context2(void) {
+    if (context_stack.p > 1 + context_stack.bottom) {
+        struct cstack_s *c = &context_stack.stack[--context_stack.p];
+        val_destroy(&context_stack.stack[context_stack.p - 1].normal->v);
+        context_stack.stack[context_stack.p - 1].normal = c->normal;
+        val_destroy(&c->cheap->v);
         return false;
     }
     return true;
@@ -262,9 +285,8 @@ static Label *namespace_lookup3(const Namespace *ns, const Label *p) {
 }
 
 Label *find_label(const str_t *name, Namespace **here) {
-    Label *c;
     size_t p = context_stack.p;
-    Label label;
+    Label label, *c;
 
     str_cfcpy(&label.cfname, name);
     label.hash = str_hash(&label.cfname);
@@ -332,7 +354,7 @@ Label *find_label3(const str_t *name, Namespace *context, uint8_t strength) {
 Label *find_anonlabel(int32_t count) {
     size_t p = context_stack.p;
     Namespace *context;
-    Label label;
+    Label label, *c;
     struct anonident_s anonident;
 
     anonident.dir = (count >= 0) ? '+' : '-';
@@ -351,7 +373,8 @@ Label *find_anonlabel(int32_t count) {
         } 
 
         label.hash = str_hash(&label.cfname);
-        return namespace_lookup(context, &label);
+        c = namespace_lookup(context, &label);
+        if (c != NULL) return c;
     }
     return NULL;
 }
@@ -379,7 +402,6 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 /* --------------------------------------------------------------------------- */
 Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, const struct file_list_s *cflist) {
     Label *b;
-    Label *tmp;
     if (lastlb == NULL) lastlb = (Label *)val_alloc(LABEL_OBJ);
 
     if (name->len > 1 && name->data[1] == 0) lastlb->cfname = *name;
@@ -400,9 +422,9 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
         lastlb->usepass = 0;
         lastlb->defpass = pass;
         *exists = false;
-        tmp = lastlb;
+        b = lastlb;
         lastlb = NULL;
-        return tmp;
+        return b;
     }
     *exists = true;
     return b;
@@ -421,9 +443,10 @@ void label_move(Label *label, const str_t *name, const struct file_list_s *cflis
 }
 
 void unused_check(Namespace *names) {
-    size_t n, ln = names->len;
-    names->len = 0;
+    size_t n, ln;
 
+    if (names->len == 0) return;
+    ln = names->len; names->len = 0;
     for (n = 0; n <= names->mask; n++) {
         Label *key2 = names->data[n];
         Obj *o;
@@ -512,9 +535,10 @@ static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const stru
 }
 
 static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
-    size_t n, ln = names->len;
-    names->len = 0;
+    size_t n, ln;
 
+    if (names->len == 0) return;
+    ln = names->len; names->len = 0;
     for (n = 0; n <= names->mask; n++) {
         Label *l = names->data[n];
         if (l == NULL || l->name.data == NULL) continue;
@@ -600,9 +624,10 @@ static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
 }
 
 static void labeldump(Namespace *names, FILE *flab) {
-    size_t n, ln = names->len;
-    names->len = 0;
+    size_t n, ln;
 
+    if (names->len == 0) return;
+    ln = names->len; names->len = 0;
     for (n = 0; n <= names->mask; n++) {
         Label *l2 = names->data[n];
         Namespace *ns;
@@ -725,7 +750,7 @@ void ref_labels(void) {
 
         if (output->mode != LABEL_EXPORT) continue;
         space = find_space(output->space, true);
-        if (space == NULL) continue;
+        if (space == NULL || space->len == 0) continue;
 
         for (n = 0; n <= space->mask; n++) {
             Label *l = space->data[n];
@@ -740,6 +765,7 @@ void ref_labels(void) {
             default:break;
             }
             if (l != namespace_lookup(space, l)) continue;
+            if (l->value->obj == ERROR_OBJ) err_msg_output((Error *)l->value);
             l->ref = true;
             l->usepass = pass;
         }

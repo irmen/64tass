@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2026 2019-10-26 06:10:15Z soci $
+    $Id: encoding.c 2108 2019-12-10 19:16:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include "bytesobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
-#include "iterobj.h"
 
 struct encoding_s *actual_encoding;
 
@@ -669,8 +668,7 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
 {
     struct escape_s **b2, *b, tmp;
     Obj *val2;
-    Iter *iter;
-    iter_next_t iter_next;
+    struct iter_s iter;
     uval_t uval;
     size_t i, len;
     uint8_t *d;
@@ -687,12 +685,11 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
 
     if (val->obj == STR_OBJ) {
         Obj *tmp2 = bytes_from_str((Str *)val, epoint, BYTES_MODE_TEXT);
-        iter = tmp2->obj->getiter(tmp2);
+        iter.data = tmp2; tmp2->obj->getiter(&iter);
         val_destroy(tmp2);
-    } else iter = val->obj->getiter(val);
+    } else { iter.data = val; val->obj->getiter(&iter); }
 
-    iter_next = iter->next;
-    while ((val2 = iter_next(iter)) != NULL) {
+    while ((val2 = iter.next(&iter)) != NULL) {
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
         if (err != NULL) {
             err_msg_output_and_destroy(err);
@@ -711,7 +708,7 @@ bool new_escape(const str_t *v, Obj *val, struct encoding_s *enc, linepos_t epoi
         }
         d[i++] = (uint8_t)uval;
     }
-    val_destroy(&iter->v);
+    iter_destroy(&iter);
 
     if (b == NULL) { /* new escape */
         if (i == 1) {

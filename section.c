@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 1962 2019-09-04 05:03:52Z soci $
+    $Id: section.c 2103 2019-12-01 08:25:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,8 +90,7 @@ struct section_s *new_section(const str_t *name) {
     if (lastsc == NULL) {
         lastsc = (struct section_s *)mallocx(sizeof *lastsc);
     }
-    if (name->len > 1 && name->data[1] == 0) lastsc->cfname = *name;
-    else str_cfcpy(&lastsc->cfname, name);
+    str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);
     b = avltree_insert(&lastsc->node, &current_section->members, section_compare);
     if (b == NULL) { /* new section */

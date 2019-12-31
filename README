@@ -2211,6 +2211,17 @@ global one with the same name.
     Please note that .ifdef/.ifndef directives are left out from 64tass for of
     technical reasons, so don't wait for them to appear anytime soon.
 
+.with <symbol>
+.endwith
+    Namespace access
+
+    This directive is similar to .namespace but it gives access to another
+    scope's variables without leaving the current scope. May be useful to allow
+    a short hand access in some situations.
+
+    It's advised to use the -Wshadow command line option to warn about any
+    unexpected symbol ambiguity.
+
 Sections
 
 Sections can be used to collect data or code into separate memory areas without
@@ -2967,11 +2978,17 @@ Operation options
     specified by repeating this option. If multiple matches exist the first one
     is used.
 
--M <file>
+-M <file>, --dependencies <file>
     Specify make rule output file
 
-    Writes a dependency rule suitable for `make' from the list of files used
+    Writes a dependency rules suitable for `make' from the list of files used
     during compilation.
+
+--make-phony
+    Enable phony targets for dependencies
+
+    This is useful for automatic dependency generation to avoid missing target
+    errors on file rename.
 
 -E <file>, --error <file>
     Specify error output file
@@ -4494,12 +4511,12 @@ Assembler directives
 .break .breakif .brept .bwhile .byte .case .cdef .cerror .char .check .comment
 .continue .continueif .cpu .cwarn .databank .default .dint .dpage .dsection
 .dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endf .endif .endm
-.endn .endp .ends .endswitch .endu .endv .endweak .eor .error .fi .fill .for
-.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .lbl .lint
-.logical .long .macro .mansiz .namespace .next .null .offs .option .page .pend
-.proc .proff .pron .ptext .rept .rta .section .seed .segment .send .shift
-.shiftl .showmac .sint .struct .switch .text .union .var .virtual .warn .weak
-.while .word .xl .xs
+.endn .endp .ends .endswitch .endu .endv .endweak .endwith .eor .error .fi
+.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
+.lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs .option
+.page .pend .proc .proff .pron .ptext .rept .rta .section .seed .segment .send
+.shift .shiftl .showmac .sint .struct .switch .text .union .var .virtual .warn
+.weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 

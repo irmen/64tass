@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: listobj.c 2121 2019-12-21 06:05:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "foldobj.h"
-#include "iterobj.h"
 
 static Type list_obj;
 static Type tuple_obj;
@@ -312,25 +311,22 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     return &v->v;
 }
 
-static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
-    List *v1 = (List *)o1;
+static MUST_CHECK Obj *len(oper_t op) {
+    List *v1 = (List *)op->v2;
     return (Obj *)int_from_size(v1->len);
 }
 
-static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
-    const List *vv1 = (List *)v1->data;
-    if (v1->val >= vv1->len) return NULL;
-    return vv1->data[v1->val++];
+static FAST_CALL MUST_CHECK Obj *next(struct iter_s *v1) {
+    if (v1->val >= v1->len) return NULL;
+    return ((List *)v1->data)->data[v1->val++];
 }
 
-static MUST_CHECK Iter *getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+static void getiter(struct iter_s *v) {
     v->iter = NULL;
     v->val = 0;
-    v->data = val_reference(v1);
+    v->data = val_reference(v->data);
     v->next = next;
-    v->len = ((List *)v1)->len;
-    return v;
+    v->len = ((List *)v->data)->len;
 }
 
 Obj **list_create_elements(List *v, size_t n) {
@@ -547,11 +543,11 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return (Obj *)new_error_mem(op->epoint3);
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     Obj **vals;
     Obj *o2 = op->v2;
     size_t offs2;
-    List *v, *v1 = (List *)o1;
+    List *v, *v1 = (List *)op->v1;
     Funcargs *args = (Funcargs *)o2;
     size_t i, ln;
     Error *err;
@@ -568,35 +564,33 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     ln = v1->len;
 
     if (o2->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter = o2->obj->getiter(o2);
-        size_t ln2 = iter->len;
+        struct iter_s iter;
+        iter.data = o2; o2->obj->getiter(&iter);
 
-        if (ln2 == 0) {
-            val_destroy(&iter->v);
-            return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
+            return val_reference((v1->v.obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
         }
-        v = (List *)val_alloc(o1->obj);
-        vals = lnew(v, ln2);
+        v = (List *)val_alloc(v1->v.obj);
+        vals = lnew(v, iter.len);
         if (vals == NULL) {
-            val_destroy(&iter->v);
+            iter_destroy(&iter);
             goto failed;
         }
-        iter_next = iter->next;
-        for (i = 0; i < ln2 && (o2 = iter_next(iter)) != NULL; i++) {
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             err = indexoffs(o2, ln, &offs2, epoint2);
             if (err != NULL) {
                 vals[i] = &err->v;
                 continue;
             }
             if (more) {
-                Obj *vv = v1->data[offs2];
-                vals[i] = vv->obj->slice(vv, op, indx + 1);
+                op->v1 = v1->data[offs2];
+                vals[i] = op->v1->obj->slice(op, indx + 1);
             } else {
                 vals[i] = val_reference(v1->data[offs2]);
             }
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         v->len = i;
         return &v->v;
     }
@@ -608,19 +602,19 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
         if (err != NULL) return &err->v;
 
         if (length == 0) {
-            return val_reference((o1->obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
+            return val_reference((v1->v.obj == TUPLE_OBJ) ? &null_tuple->v : &null_list->v);
         }
 
         if (step == 1 && length == v1->len && !more) {
-            return val_reference(o1); /* original tuple */
+            return val_reference(&v1->v); /* original tuple */
         }
-        v = (List *)val_alloc(o1->obj);
+        v = (List *)val_alloc(v1->v.obj);
         vals = lnew(v, length);
         if (vals == NULL) goto failed;
         for (i = 0; i < length; i++) {
             if (more) {
-                Obj *vv = v1->data[offs];
-                vals[i] = vv->obj->slice(vv, op, indx + 1);
+                op->v1 = v1->data[offs];
+                vals[i] = op->v1->obj->slice(op, indx + 1);
             } else {
                 vals[i] = val_reference(v1->data[offs]);
             }
@@ -631,8 +625,8 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     err = indexoffs(o2, ln, &offs2, epoint2);
     if (err != NULL) return &err->v;
     if (more) {
-        Obj *vv = v1->data[offs2];
-        return vv->obj->slice(vv, op, indx + 1);
+        op->v1 = v1->data[offs2];
+        return op->v1->obj->slice(op, indx + 1);
     }
     return val_reference(v1->data[offs2]);
 failed:

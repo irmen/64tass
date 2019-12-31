@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2082 2019-11-12 19:56:09Z soci $
+    $Id: bitsobj.c 2122 2019-12-21 06:27:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
-#include "iterobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
@@ -399,16 +398,18 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
     return (Obj *)ref_int(int_value[(len > 0) ? 1 : 0]);
 }
 
-static MUST_CHECK Obj *function(Obj *o1, Func_types f, bool UNUSED(inplace), linepos_t epoint) {
-    Bits *v1 = (Bits *)o1;
-    Obj *tmp = int_from_bits(v1, epoint);
-    Obj *ret = tmp->obj->function(tmp, f, tmp->refcount == 1, epoint);
+static MUST_CHECK Obj *function(oper_t op) {
+    Bits *v1 = (Bits *)op->v2;
+    Obj *tmp, *ret;
+    op->v2 = tmp = int_from_bits(v1, op->epoint2);
+    op->inplace = tmp->refcount == 1 ? tmp : NULL;
+    ret = tmp->obj->function(op);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
-    Bits *v1 = (Bits *)o1;
+static MUST_CHECK Obj *len(oper_t op) {
+    Bits *v1 = (Bits *)op->v2;
     return (Obj *)int_from_size(v1->bits);
 }
 
@@ -1220,10 +1221,10 @@ failed:
     return (Obj *)new_error_mem(op->epoint3);
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     size_t offs2, ln, sz;
     size_t i, o;
-    Bits *vv, *vv1 = (Bits *)o1;
+    Bits *vv, *vv1 = (Bits *)op->v1;
     Obj *o2 = op->v2;
     bdigit_t *v;
     bdigit_t uv;
@@ -1243,31 +1244,29 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
     ln = vv1->bits;
 
     if (o2->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter = o2->obj->getiter(o2);
-        size_t len1 = iter->len;
+        struct iter_s iter;
+        iter.data = o2; o2->obj->getiter(&iter);
 
-        if (len1 == 0) {
-            val_destroy(&iter->v);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
             return (Obj *)ref_bits(null_bits);
         }
-        sz = (len1 + SHIFT - 1) / SHIFT;
+        sz = (iter.len + SHIFT - 1) / SHIFT;
 
         vv = new_bits2(sz);
         if (vv == NULL) {
-            val_destroy(&iter->v);
+            iter_destroy(&iter);
             goto failed;
         }
         v = vv->data;
 
         uv = inv;
         bits = sz = 0;
-        iter_next = iter->next;
-        for (i = 0; i < len1 && (o2 = iter_next(iter)) != NULL; i++) {
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             err = indexoffs(o2, ln, &offs2, epoint2);
             if (err != NULL) {
                 val_destroy(&vv->v);
-                val_destroy(&iter->v);
+                iter_destroy(&iter);
                 return &err->v;
             }
             o = offs2 / SHIFT;
@@ -1281,7 +1280,7 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
                 bits = 0;
             }
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         if (bits != 0) v[sz++] = uv & ((1 << bits) - 1);
 
         vv->bits = i;

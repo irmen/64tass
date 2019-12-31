@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 1983 2019-09-20 15:03:08Z soci $
+    $Id: variables.h 2131 2019-12-30 19:02:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ extern void push_dummy_context(void);
 extern void push_context(struct Namespace *);
 extern bool pop_context(void);
 extern void reset_context(void);
+extern void push_context2(struct Namespace *);
+extern bool pop_context2(void);
 extern void get_namespaces(struct Mfunc *);
 extern size_t context_get_bottom(void);
 extern void context_set_bottom(size_t);

@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2079 2019-11-11 20:40:59Z soci $
+    $Id: dictobj.c 2121 2019-12-21 06:05:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
-#include "iterobj.h"
 
 static Type obj;
 
@@ -134,13 +133,13 @@ static struct oper_s pair_oper;
 static bool rpair_equal(Obj *o1, Obj *o2) {
     bool h;
     Obj *result;
-    Iter *iter1 = o1->obj->getiter(o1);
-    Iter *iter2 = o2->obj->getiter(o2);
-    iter_next_t iter1_next = iter1->next;
-    iter_next_t iter2_next = iter2->next;
+    struct iter_s iter1;
+    struct iter_s iter2;
+    iter1.data = o1; o1->obj->getiter(&iter1);
+    iter2.data = o2; o2->obj->getiter(&iter2);
     do {
-        o1 = iter1_next(iter1);
-        o2 = iter2_next(iter2);
+        o1 = iter1.next(&iter1);
+        o2 = iter2.next(&iter2);
         if (o1 == NULL) {
             h = (o2 == NULL);
             break;
@@ -160,8 +159,8 @@ static bool rpair_equal(Obj *o1, Obj *o2) {
             val_destroy(result);
         }
     } while (h);
-    val_destroy(&iter2->v);
-    val_destroy(&iter1->v);
+    iter_destroy(&iter2);
+    iter_destroy(&iter1);
     return h;
 }
 
@@ -351,45 +350,41 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return true;
 }
 
-static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
-    Dict *v1 = (Dict *)o1;
+static MUST_CHECK Obj *len(oper_t op) {
+    Dict *v1 = (Dict *)op->v2;
     return (Obj *)int_from_size(v1->len);
 }
 
-static FAST_CALL MUST_CHECK Obj *next(Iter *v1) {
+static FAST_CALL MUST_CHECK Obj *next(struct iter_s *v1) {
     Colonlist *iter;
-    const Dict *vv1 = (Dict *)v1->data;
-    if (v1->val >= vv1->len) return NULL;
-    if (vv1->data[v1->val].data == NULL) {
-        return vv1->data[v1->val++].key;
+    const struct pair_s *p;
+    if (v1->val >= v1->len) return NULL;
+    p = &((Dict *)v1->data)->data[v1->val++];
+    if (p->data == NULL) {
+        return p->key;
     }
     iter = (Colonlist *)v1->iter;
-    if (iter == NULL) {
-    renew:
+    if (iter->v.refcount != 1) {
+        iter->v.refcount--;
         iter = new_colonlist();
         v1->iter = &iter->v;
-    } else if (iter->v.refcount != 1) {
-        iter->v.refcount--;
-        goto renew;
+        iter->data = iter->u.val;
+        iter->len = 2;
     } else {
         val_destroy(iter->data[0]);
         val_destroy(iter->data[1]);
     }
-    iter->len = 2;
-    iter->data = iter->u.val;
-    iter->data[0] = val_reference(vv1->data[v1->val].key);
-    iter->data[1] = val_reference(vv1->data[v1->val++].data);
+    iter->data[0] = val_reference(p->key);
+    iter->data[1] = val_reference(p->data);
     return &iter->v;
 }
 
-static MUST_CHECK Iter *getiter(Obj *v1) {
-    Iter *v = (Iter *)val_alloc(ITER_OBJ);
-    v->iter = NULL;
+static void getiter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
     v->val = 0;
-    v->data = val_reference(v1);
+    v->data = val_reference(v->data);
     v->next = next;
-    v->len = ((Dict *)v1)->len;
-    return v;
+    v->len = ((Dict *)v->data)->len;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
@@ -509,9 +504,9 @@ static MUST_CHECK Obj *findit(Dict *v1, Obj *o2, linepos_t epoint) {
     return (Obj *)new_error_obj(ERROR_____KEY_ERROR, o2, epoint);
 }
 
-static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     Obj *o2 = op->v2, *vv;
-    Dict *v1 = (Dict *)o1;
+    Dict *v1 = (Dict *)op->v1;
     Funcargs *args = (Funcargs *)o2;
     bool more = args->len > indx + 1;
     linepos_t epoint2;
@@ -525,33 +520,38 @@ static MUST_CHECK Obj *slice(Obj *o1, oper_t op, size_t indx) {
 
     if (o2 == &none_value->v) return val_reference(o2);
     if (o2->obj->iterable) {
-        iter_next_t iter_next;
-        Iter *iter = o2->obj->getiter(o2);
-        size_t i, len2 = iter->len;
+        struct iter_s iter;
+        size_t i;
         List *v;
         Obj **vals;
+        iter.data = o2; o2->obj->getiter(&iter);
 
-        if (len2 == 0) {
-            val_destroy(&iter->v);
+        if (iter.len == 0) {
+            iter_destroy(&iter);
             return val_reference(&null_list->v);
         }
         v = new_list();
-        v->data = vals = list_create_elements(v, len2);
+        v->data = vals = list_create_elements(v, iter.len);
         pair_oper.epoint3 = epoint2;
-        iter_next = iter->next;
-        for (i = 0; i < len2 && (o2 = iter_next(iter)) != NULL; i++) {
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             vv = findit(v1, o2, epoint2);
-            if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
+            if (vv->obj != ERROR_OBJ && more) {
+                op->v1 = vv;
+                vv = vv->obj->slice(op, indx + 1);
+            }
             vals[i] = vv;
         }
-        val_destroy(&iter->v);
+        iter_destroy(&iter);
         v->len = i;
         return &v->v;
     }
 
     pair_oper.epoint3 = epoint2;
     vv = findit(v1, o2, epoint2);
-    if (vv->obj != ERROR_OBJ && more) vv = vv->obj->slice(vv, op, indx + 1);
+    if (vv->obj != ERROR_OBJ && more) {
+        op->v1 = vv;
+        vv = vv->obj->slice(op, indx + 1);
+    }
     return vv;
 }
 
