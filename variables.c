@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2131 2019-12-30 19:02:20Z soci $
+    $Id: variables.c 2137 2020-01-02 00:52:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ Namespace *root_namespace;
 static Namespace *builtin_namespace;
 Namespace *current_context;
 Namespace *cheap_context;
+size_t fwcount;
 
 struct cstack_s {
     Namespace *normal;
@@ -233,13 +234,17 @@ static Label *namespace_lookup(const Namespace *ns, const Label *p) {
                 const str_t *s1 = &p->cfname;
                 const str_t *s2 = &d->cfname;
                 if (s1->len == s2->len && (s1->data == s2->data || memcmp(s1->data, s2->data, s1->len) == 0)) {
-                    if (d->strength == 0) return d;
+                    if (d->strength == 0) { ret = d; break; }
                     if (ret == NULL || d->strength < ret->strength) ret = d;
                 }
             }
         }
         hash >>= 5;
         offs = (5 * offs + hash + 1) & mask;
+    }
+    if (ret != NULL && ret->constant && ret->defpass == pass - 1 && ret->fwpass != pass) {
+        ret->fwpass = pass;
+        fwcount++;
     }
     return ret;
 }
@@ -420,6 +425,7 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
         lastlb->ref = false;
         lastlb->update_after = false;
         lastlb->usepass = 0;
+        lastlb->fwpass = 0;
         lastlb->defpass = pass;
         *exists = false;
         b = lastlb;
@@ -455,20 +461,6 @@ void unused_check(Namespace *names) {
         if (key2 == NULL || key2->defpass != pass) continue;
 
         o  = key2->value;
-        switch (o->obj->type) {
-        case T_CODE:
-            ns = ((Code *)o)->names;
-            break;
-        case T_NAMESPACE:
-            ns = (Namespace *)o;
-            break;
-        case T_MFUNC:
-            ns = ((Mfunc *)o)->names;
-            break;
-        default:
-            ns = NULL;
-            break;
-        }
         if (key2->usepass != pass && (key2->name.data[0] != '.' && key2->name.data[0] != '#')) {
             if (!key2->constant) {
                 if (diagnostics.unused.variable) err_msg_unused_variable(key2);
@@ -487,7 +479,31 @@ void unused_check(Namespace *names) {
                 continue;
             }
         }
-        if (ns != NULL && ns->len != 0 && key2->owner) {
+        if (!key2->owner) continue;
+        switch (o->obj->type) {
+        case T_CODE:
+            ns = ((Code *)o)->names;
+            break;
+        case T_NAMESPACE:
+            ns = (Namespace *)o;
+            break;
+        case T_MFUNC:
+            {
+                Mfunc *mfunc = (Mfunc *)o;
+                List *lst = mfunc->inamespaces;
+                size_t i;
+                for (i = 0; i < lst->len; i++) {
+                    ns = (Namespace *)lst->data[i];
+                    if (ns->len != 0) unused_check(ns);
+                }
+                ns = mfunc->names;
+            }
+            break;
+        default:
+            ns = NULL;
+            break;
+        }
+        if (ns != NULL && ns->len != 0) {
             push_context(ns);
             unused_check(ns);
             pop_context();

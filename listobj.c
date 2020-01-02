@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2121 2019-12-21 06:05:20Z soci $
+    $Id: listobj.c 2137 2020-01-02 00:52:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -335,6 +335,49 @@ Obj **list_create_elements(List *v, size_t n) {
     v->u.s.max = n;
     v->u.s.hash = -1;
     return (Obj **)mallocx(n * sizeof *v->data);
+}
+
+MUST_CHECK bool list_extend(List *lst) {
+    Obj **vals;
+    size_t o = lst->len, n;
+    if (lst->data == lst->u.val) {
+        n = 16;
+        vals = (Obj **)malloc(n * sizeof *lst->data);
+        if (vals == NULL) return true;
+        memcpy(vals, lst->u.val, o * sizeof *lst->data);
+    } else {
+        if (o < 256) n = o * 2;
+        else {
+            n = o + 256;
+            if (/*n < 256 ||*/ n > SIZE_MAX / sizeof *lst->data) return true; /* overflow */
+        }
+        vals = (Obj **)realloc(lst->data, n * sizeof *lst->data);
+        if (vals == NULL) return true;
+    }
+    lst->data = vals;
+    lst->u.s.max = n;
+    lst->u.s.hash = -1;
+    return false;
+}
+
+void list_shrink(List *lst, size_t i) {
+    size_t j = i;
+    while (j < lst->len) val_destroy(lst->data[j++]);
+    lst->len = i;
+    if (lst->data != lst->u.val) {
+        if (lst->len <= lenof(lst->u.val)) {
+            memcpy(lst->u.val, lst->data, lst->len * sizeof *lst->data);
+            free(lst->data);
+            lst->data = lst->u.val;
+        } else {
+            Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
+            if (v != NULL) {
+                lst->data = v;
+                lst->u.s.max = lst->len;
+                lst->u.s.hash = -1;
+            }
+        }
+    }
 }
 
 MUST_CHECK Tuple *new_tuple(size_t n) {

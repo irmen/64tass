@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 1987 2019-09-22 06:52:52Z soci $
+    $Id: listobj.h 2137 2020-01-02 00:52:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define LISTOBJ_H
 #include "obj.h"
 #include "values.h"
+#include "stdbool.h"
 
 extern struct Type *const LIST_OBJ;
 extern struct Type *const TUPLE_OBJ;
@@ -78,4 +79,6 @@ static inline MUST_CHECK Colonlist *new_colonlist(void) {
 
 extern MUST_CHECK Tuple *new_tuple(size_t);
 extern Obj **list_create_elements(List *, size_t);
+extern MUST_CHECK bool list_extend(List *);
+extern void list_shrink(List *, size_t);
 #endif

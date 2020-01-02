@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 2016 2019-10-20 06:41:22Z soci $
+    $Id: mfuncobj.h 2137 2020-01-02 00:52:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@ typedef struct Mfunc {
     uint8_t recursion_pass;
     size_t nslen;
     struct Namespace **namespaces, *names;
+    size_t ipoint;
+    struct List *inamespaces;
 } Mfunc;
 
 extern void mfuncobj_init(void);

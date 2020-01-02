@@ -119,7 +119,7 @@ listing.o: listing.c listing.h attributes.h inttypes.h stdbool.h file.h \
  avl.h str.h error.h errors_e.h 64tass.h wait_e.h opcodes.h unicode.h \
  section.h instruction.h obj.h values.h arguments.h
 listobj.o: listobj.c listobj.h obj.h attributes.h inttypes.h values.h \
- eval.h stdbool.h variables.h str.h error.h errors_e.h avl.h arguments.h \
+ stdbool.h eval.h variables.h str.h error.h errors_e.h avl.h arguments.h \
  boolobj.h codeobj.h strobj.h intobj.h operobj.h oper_e.h typeobj.h \
  noneobj.h errorobj.h foldobj.h
 longjump.o: longjump.c longjump.h avl.h attributes.h stdbool.h inttypes.h \

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2037 2019-10-26 19:10:59Z soci $
+    $Id: macro.c 2138 2020-01-02 01:15:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -711,6 +711,27 @@ void get_macro_params(Obj *v) {
     free(epoints);
 }
 
+static bool clean_namespace(Namespace *v1) {
+    size_t n, n2;
+    if (v1->len == 0) return true;
+    for (n = n2 = 0; n <= v1->mask && n2 < v1->len; n++) {
+        const Label *p = v1->data[n];
+        if (p == NULL) continue;
+        if (p->constant) {
+            return false;
+        }
+        n2++;
+    }
+    for (n2 = 0; n2 < n; n2++) {
+        Label *p = v1->data[n2];
+        if (p == NULL) continue;
+        val_destroy(&p->v);
+        v1->data[n2] = NULL;
+    }
+    v1->len = 0;
+    return true;
+}
+
 Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t epoint) {
     size_t i;
     Label *label;
@@ -718,7 +739,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     Tuple *tuple;
     Obj *retval = NULL;
     Namespace *context;
-    struct linepos_s xpoint;
 
     if (mfunc->recursion_pass == pass) return NULL;
     if (functionrecursion>100) {
@@ -727,9 +747,33 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         return NULL;
     }
 
-    xpoint.line = mfunc->line;
-    xpoint.pos = 0;
-    context = new_namespace(mfunc->file_list, &xpoint);
+    if (mfunc->inamespaces == null_tuple) {
+        val_destroy(&mfunc->inamespaces->v);
+        mfunc->inamespaces = new_tuple(1);
+        context = NULL;
+    } else {
+        List *lst = mfunc->inamespaces;
+        if (mfunc->ipoint >= lst->len) {
+            if ((lst->data == lst->u.val ? mfunc->ipoint >= lenof(lst->u.val) : mfunc->ipoint >= lst->u.s.max)) {
+                if (list_extend(lst)) {
+                    err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint);
+                    return (Obj *)ref_none();
+                }
+            }
+            lst->len++;
+            context = NULL;
+        } else context = (Namespace *)lst->data[mfunc->ipoint];
+    }
+    if (context == NULL) {
+        struct linepos_s xpoint;
+        xpoint.line = mfunc->line;
+        xpoint.pos = 0;
+        context = new_namespace(mfunc->file_list, &xpoint);
+        mfunc->inamespaces->data[mfunc->ipoint] = &context->v;
+    } else {
+        context->backr = context->forwr = 0;
+    }
+    mfunc->ipoint++;
 
     enterfile(mfunc->file_list->file, epoint);
     tuple = NULL;
@@ -754,7 +798,26 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             val = (i < args) ? vals[i].val : (param->init != NULL) ? param->init : (Obj *)none_value;
         }
         label = new_label(&param->name, context, 0, &labelexists, mfunc->file_list);
-        if (!labelexists) {
+        if (labelexists) {
+            if (label->constant) {
+                err_msg_double_defined(label, &param->name, &param->epoint);
+            } else {
+                if (label->defpass != pass) {
+                    label->ref = false;
+                    label->defpass = pass;
+                } else {
+                    if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
+                }
+                label->owner = false;
+                if (label->file_list != mfunc->file_list) {
+                    label_move(label, &param->name, mfunc->file_list);
+                }
+                label->epoint = param->epoint;
+                val_destroy(label->value);
+                label->value = val_reference(val);
+                label->usepass = 0;
+            }
+        } else {
             label->constant = false;
             label->owner = false;
             label->value = val_reference(val);
@@ -832,8 +895,9 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         in_macro = in_macro_old;
     }
     exitfile();
-    if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(context);
-    val_destroy(&context->v);
+    if (context->v.refcount == 1 && clean_namespace(context)) {
+        mfunc->ipoint--;
+    }
     return retval;
 }
 

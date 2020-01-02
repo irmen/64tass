@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.h 2084 2019-11-16 06:44:13Z soci $
+    $Id: labelobj.h 2134 2020-01-01 19:10:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ typedef struct Label {
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;
+    uint8_t fwpass;
 } Label;
 
 extern void labelobj_init(void);

@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 2131 2019-12-30 19:02:20Z soci $
+    $Id: variables.h 2134 2020-01-01 19:10:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ extern size_t context_get_bottom(void);
 extern void context_set_bottom(size_t);
 
 extern struct Namespace *current_context, *cheap_context, *root_namespace;
+extern size_t fwcount;
 extern struct Label *find_label(const str_t *, struct Namespace **);
 extern struct Label *find_label2(const str_t *, struct Namespace *);
 extern struct Label *find_label3(const str_t *, struct Namespace *, uint8_t);

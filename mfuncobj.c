@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 1983 2019-09-20 15:03:08Z soci $
+    $Id: mfuncobj.c 2137 2020-01-02 00:52:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ static FAST_CALL void destroy(Obj *o1) {
     }
     free(v1->namespaces);
     val_destroy(&v1->names->v);
+    val_destroy(&v1->inamespaces->v);
     free(v1->param);
 }
 
@@ -68,6 +69,8 @@ static FAST_CALL void garbage(Obj *o1, int j) {
             v->refcount--;
         }
         v = &v1->names->v;
+        v->refcount--;
+        v = &v1->inamespaces->v;
         v->refcount--;
         return;
     case 0:
@@ -99,6 +102,11 @@ static FAST_CALL void garbage(Obj *o1, int j) {
             } else v->refcount++;
         }
         v = &v1->names->v;
+        if ((v->refcount & SIZE_MSB) != 0) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        v = &v1->inamespaces->v;
         if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);

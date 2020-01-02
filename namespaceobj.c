@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2126 2019-12-24 07:50:12Z soci $
+    $Id: namespaceobj.c 2136 2020-01-01 23:01:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,21 +117,26 @@ static Label *namespace_lookup(const Namespace *ns, const Label *p) {
 
 static bool namespace_issubset(Namespace *v1, const Namespace *v2) {
     size_t n, ln;
-    if (v1->len == 0) return true;
+    bool ret = true;
+    if (v1->len == 0) return ret;
     ln = v1->len; v1->len = 0;
     for (n = 0; n <= v1->mask; n++) {
         const Label *p2, *p = v1->data[n];
         if (p == NULL) continue;
         if (p->defpass == pass || (p->constant && (!fixeddig || p->defpass == pass - 1))) {
             p2 = namespace_lookup(v2, p);
-            if (p2 == NULL) return false;
+            if (p2 == NULL) {
+                ret = false;
+                break;
+            }
             if (!p->v.obj->same(&p->v, &p2->v)) {
-                return false;
+                ret = false;
+                break;
             }
         }
     }
     v1->len = ln;
-    return true;
+    return ret;
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -151,10 +156,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     if (epoint == NULL) return NULL;
     if (v1->len != 0) {
         size_t n;
-        bool first = true;
         ln = v1->len;
         chars = ln + 12;
-        if (chars < 1) return NULL; /* overflow */
+        if (chars < 12) return NULL; /* overflow */
         if (chars > maxsize) return NULL;
         tuple = new_tuple(ln);
         vals = tuple->data;
@@ -164,10 +168,6 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
             Obj *v;
             if (p == NULL) continue;
             if (p->defpass != pass && !(p->constant && (!fixeddig || p->defpass == pass - 1))) {
-                if (first) {
-                    first = false;
-                    continue;
-                }
                 ln--;
                 chars--;
                 continue;
@@ -190,6 +190,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
             vals[i++] = v;
         }
         tuple->len = i;
+        if (i == 0) { ln++; chars++; }
     }
     str = new_str2(ln);
     if (str == NULL) {

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2132 2019-12-30 20:59:19Z soci $
+    $Id: 64tass.c 2141 2020-01-02 15:35:40Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1017,8 +1017,8 @@ static bool section_start(linepos_t epoint) {
     tmp = find_new_section(&sectionname);
     if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
         size_t ln = tmp->address.mem->mem.p, ln2 = tmp->address.mem->p;
-        tmp->address.end = tmp->address.start = tmp->restart = tmp->address.address = 0;
-        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->address.l_address.address = tmp->address.l_address.bank = 0;
+        tmp->address.end = tmp->address.start = tmp->restart = tmp->address.address = current_address->address;
+        tmp->size = 0; tmp->l_restart = tmp->address.l_address = current_address->l_address;
         if (tmp->usepass != 0 && tmp->usepass >= pass - 1) err_msg_not_defined(&sectionname, &opoint);
         else {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, epoint);
@@ -1291,49 +1291,13 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
     return nf;
 }
 
-static MUST_CHECK bool list_extend(List *lst) {
-    Obj **vals;
-    size_t o = lst->len, n;
-    if (lst->data == lst->u.val) {
-        n = 16;
-        vals = (Obj **)malloc(n * sizeof *lst->data);
-        if (vals == NULL) return true;
-        memcpy(vals, lst->u.val, o * sizeof *lst->data);
-    } else {
-        if (o < 256) n = o * 2;
-        else {
-            n = o + 256;
-            if (/*n < 256 ||*/ n > SIZE_MAX / sizeof *lst->data) return true; /* overflow */
-        }
-        vals = (Obj **)realloc(lst->data, n * sizeof *lst->data);
-        if (vals == NULL) return true;
-    }
-    while (o < n) vals[o++] = (Obj *)ref_none();
-    lst->data = vals;
-    lst->len = n;
-    lst->u.s.max = n;
-    lst->u.s.hash = -1;
+static MUST_CHECK bool list_extend2(List *lst) {
+    if (list_extend(lst)) return true;
+    size_t o = lst->len;
+    Obj **vals = lst->data;
+    while (o < lst->u.s.max) vals[o++] = (Obj *)ref_none();
+    lst->len = o;
     return false;
-}
-
-static void list_shrink(List *lst, size_t i) {
-    size_t j = i;
-    while (j < lst->len) val_destroy(lst->data[j++]);
-    lst->len = i;
-    if (lst->data != lst->u.val) {
-        if (lst->len <= lenof(lst->u.val)) {
-            memcpy(lst->u.val, lst->data, lst->len * sizeof *lst->data);
-            free(lst->data);
-            lst->data = lst->u.val;
-        } else {
-            Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
-            if (v != NULL) {
-                lst->data = v;
-                lst->u.s.max = lst->len;
-                lst->u.s.hash = -1;
-            }
-        }
-    }
 }
 
 static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
@@ -1499,7 +1463,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 lpoint.line = lin;
                 waitfor->skip = 1; lvline = vline;
                 if (lst != NULL) {
-                    if (i >= lst->len && list_extend(lst)) {i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL;}
+                    if (i >= lst->len && list_extend2(lst)) {i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL;}
                     else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
                     else nf = tuple_scope(newlabel, &lst->data[i]);
                     i++;
@@ -1554,7 +1518,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
             }
             waitfor->skip = 1;lvline = vline;
             if (lst != NULL) {
-                if (i >= lst->len && list_extend(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
+                if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
                 else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
                 else nf = tuple_scope(newlabel, &lst->data[i]);
                 i++;
@@ -1707,7 +1671,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
             lpoint.line = lin;
             waitfor->skip = 1; lvline = vline;
             if (lst != NULL) {
-                if (i >= lst->len && list_extend(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
+                if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
                 else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
                 else nf = tuple_scope(newlabel, &lst->data[i]);
                 i++;
@@ -1774,7 +1738,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
         if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
         waitfor->skip = 1;lvline = vline;
         if (lst != NULL) {
-            if (i >= lst->len && list_extend(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
+            if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
             else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
             else nf = tuple_scope(newlabel, &lst->data[i]);
             i++;
@@ -2099,7 +2063,8 @@ MUST_CHECK Obj *compile(void)
                                 val_destroy(val);
                                 err_msg_double_defined(label, &labelname, &epoint);
                             } else {
-                                if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                if (label->fwpass == pass) fwcount--;
+                                if (!constcreated && label->defpass != pass - 1) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2113,7 +2078,7 @@ MUST_CHECK Obj *compile(void)
                                 const_assign(label, val);
                             }
                         } else {
-                            if (!constcreated && temporary_label_branch == 0) {
+                            if (!constcreated) {
                                 if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                 constcreated = true;
                             }
@@ -2200,7 +2165,8 @@ MUST_CHECK Obj *compile(void)
                                     val_destroy(&lbl->v);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2214,7 +2180,7 @@ MUST_CHECK Obj *compile(void)
                                     const_assign(label, &lbl->v);
                                 }
                             } else {
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2237,7 +2203,8 @@ MUST_CHECK Obj *compile(void)
                                     epoint = cmdpoint;
                                     goto as_command;
                                 }
-                                if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                if (label->fwpass == pass) fwcount--;
+                                if (!constcreated && label->defpass != pass - 1) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2245,7 +2212,7 @@ MUST_CHECK Obj *compile(void)
                                     label_move(label, &labelname, current_file_list);
                                 }
                             } else {
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2310,7 +2277,8 @@ MUST_CHECK Obj *compile(void)
                                     waitfor->u.cmd_macro.val = &macro->v;
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2326,7 +2294,7 @@ MUST_CHECK Obj *compile(void)
                                 }
                             } else {
                                 macro->retval = false;
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated == 0) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2355,14 +2323,17 @@ MUST_CHECK Obj *compile(void)
                             mfunc->param = NULL; /* might be recursive through init */
                             mfunc->nslen = 0;
                             mfunc->namespaces = NULL;
+                            mfunc->ipoint = 0;
                             if (labelexists) {
                                 mfunc->retval = (label->value->obj == MFUNC_OBJ) && ((Mfunc *)label->value)->retval;
                                 if (label->defpass == pass) {
                                     waitfor->u.cmd_function.val = &mfunc->v;
                                     mfunc->names = new_namespace(current_file_list, &epoint);
+                                    mfunc->inamespaces = ref_tuple(null_tuple);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2377,19 +2348,22 @@ MUST_CHECK Obj *compile(void)
                                         mfunc->names->backr = mfunc->names->forwr = 0;
                                         mfunc->names->file_list = current_file_list;
                                         mfunc->names->epoint = epoint;
+                                        mfunc->inamespaces = ref_tuple(prev->inamespaces);
                                     } else {
                                         mfunc->names = new_namespace(current_file_list, &epoint);
+                                        mfunc->inamespaces = ref_tuple(null_tuple);
                                     }
                                     label->epoint = epoint;
                                     label->ref = false;
                                     get_func_params(mfunc);
                                     get_namespaces(mfunc);
                                     const_assign(label, &mfunc->v);
+                                    if (label->value != &mfunc->v) ((Mfunc *)label->value)->ipoint = 0;
                                     waitfor->u.cmd_function.val = val_reference(label->value);
                                 }
                             } else {
                                 mfunc->retval = false;
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2401,6 +2375,7 @@ MUST_CHECK Obj *compile(void)
                                 get_func_params(mfunc);
                                 get_namespaces(mfunc);
                                 mfunc->names = new_namespace(current_file_list, &epoint);
+                                mfunc->inamespaces = ref_tuple(null_tuple);
                                 waitfor->u.cmd_function.val = val_reference(&mfunc->v);
                             }
                             goto finish;
@@ -2445,7 +2420,8 @@ MUST_CHECK Obj *compile(void)
                                     structure->names = new_namespace(current_file_list, &epoint);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2472,7 +2448,7 @@ MUST_CHECK Obj *compile(void)
                                 }
                             } else {
                                 structure->retval = false;
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated == 0) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2540,7 +2516,8 @@ MUST_CHECK Obj *compile(void)
                                     epoint = cmdpoint;
                                     goto as_command;
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2550,7 +2527,7 @@ MUST_CHECK Obj *compile(void)
                                     label->defpass = pass;
                                 }
                             } else {
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2590,7 +2567,8 @@ MUST_CHECK Obj *compile(void)
                                     doubledef = true;
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
-                                    if (!constcreated && temporary_label_branch == 0 && label->defpass != pass - 1) {
+                                    if (label->fwpass == pass) fwcount--;
+                                    if (!constcreated && label->defpass != pass - 1) {
                                         if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                         constcreated = true;
                                     }
@@ -2603,7 +2581,7 @@ MUST_CHECK Obj *compile(void)
                                     label->ref = false;
                                 }
                             } else {
-                                if (!constcreated && temporary_label_branch == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2697,6 +2675,7 @@ MUST_CHECK Obj *compile(void)
                                 label2 = new_label(&tmpname, mycontext, strength, &labelexists2, current_file_list);
                                 if (labelexists2) {
                                     if (label2->defpass == pass) err_msg_double_defined(label2, &tmpname, &epoint);
+                                    else if (label2->fwpass == pass) fwcount--;
                                     label2->constant = true;
                                     label2->owner = true;
                                     label2->defpass = pass;
@@ -2789,6 +2768,7 @@ MUST_CHECK Obj *compile(void)
                             epoint = lpoint;
                             goto jn;
                         }
+                        if (newlabel->fwpass == pass) fwcount--;
                         if (newlabel->file_list != current_file_list) {
                             label_move(newlabel, &labelname, current_file_list);
                         }
@@ -2799,7 +2779,7 @@ MUST_CHECK Obj *compile(void)
                         }
                     }
                     if (labelexists) {
-                        if (!constcreated && temporary_label_branch == 0 && newlabel->defpass != pass - 1) {
+                        if (!constcreated && newlabel->defpass != pass - 1) {
                             if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                             constcreated = true;
                         }
@@ -2840,7 +2820,7 @@ MUST_CHECK Obj *compile(void)
                     } else {
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         code = new_code();
-                        if (!constcreated && temporary_label_branch == 0) {
+                        if (!constcreated) {
                             if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
                             constcreated = true;
                         }
@@ -3639,6 +3619,7 @@ MUST_CHECK Obj *compile(void)
                         label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                            else if (label->fwpass == pass) fwcount--;
                             label->constant = true;
                             label->owner = true;
                             label->defpass = pass;
@@ -3686,6 +3667,7 @@ MUST_CHECK Obj *compile(void)
                     label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                        else if (label->fwpass == pass) fwcount--;
                         label->constant = true;
                         label->owner = (val == NULL);
                         if (val != NULL) const_assign(label, val_reference(val));
@@ -4209,6 +4191,7 @@ MUST_CHECK Obj *compile(void)
                                 label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                                    else if (label->fwpass == pass) fwcount--;
                                     label->constant = true;
                                     label->owner = true;
                                     label->defpass = pass;
@@ -4265,6 +4248,7 @@ MUST_CHECK Obj *compile(void)
                     label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                        else if (label->fwpass == pass) fwcount--;
                         label->defpass = pass;
                     } else {
                         label->value = (Obj *)ref_none();
@@ -4652,6 +4636,7 @@ MUST_CHECK Obj *compile(void)
                         label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                            else if (label->fwpass == pass) fwcount--;
                             label->constant = true;
                             label->owner = true;
                             label->defpass = pass;
@@ -4692,6 +4677,7 @@ MUST_CHECK Obj *compile(void)
                     label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
+                        else if (label->fwpass == pass) fwcount--;
                         label->constant = true;
                         label->owner = true;
                         label->defpass = pass;
@@ -4848,7 +4834,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
     bool starexists;
     struct star_s *s;
 
-    fixeddig = true;constcreated = false;error_reset();random_reseed(&int_value[0]->v, NULL);
+    fixeddig = true;constcreated = false; fwcount = 0;error_reset();random_reseed(&int_value[0]->v, NULL);
     val_destroy(&root_section.address.mem->v);
     root_section.address.mem = new_memblocks(0, 0);
     if (diagnostics.optimize) cpu_opt_invalidate();
@@ -4892,6 +4878,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         }
     }
     ref_labels();
+    if (fwcount != 0) fixeddig = false;
     if (fixeddig) section_sizecheck();
     /*garbage_collect();*/
 }
