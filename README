@@ -1017,12 +1017,13 @@ binary(<string expression>[, <offset>[, <length>]])
     Skip starting bytes    binary(name, offset)
     Some bytes from offset binary(name, offset, length)
 
-    sid     = "music.sid"        ; file name
-    init    = binary(sid, $0a, 2); init address
-    play    = binary(sid, $0c, 2); play address
+    sidfile = "music.sid"        ; file name
+    header  = binary(sidfile, $00, $7e)
+    init    = header[$b:$9:-1]   ; init address (big endian)
+    play    = header[$d:$b:-1]   ; play address (big endian)
 
-    *       = binary(sid, $7c, 2); use loading address
-            .binary sid, $7e     ; load music data
+    *       = header[$7c:$7e]    ; use loading address (little endian)
+            .binary sidfile, $7e ; load music data
 
 format(<string expression>[, <expression>, ...])
     Create string from values according to a format string.

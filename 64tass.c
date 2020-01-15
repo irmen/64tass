@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2141 2020-01-02 15:35:40Z soci $
+    $Id: 64tass.c 2146 2020-01-15 20:37:52Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -552,7 +552,6 @@ struct textrecursion_s {
     ssize_t len;
     size_t sum, max;
     int prm;
-    bool warn;
     Error_types error;
     uint8_t buff[16];
     linepos_t epoint;
@@ -609,6 +608,7 @@ retry:
     case T_FLOAT:
     case T_INT:
     case T_BOOL:
+    case T_NONE:
         iter.data = NULL;
         val2 = val;
         goto doit;
@@ -645,9 +645,6 @@ retry:
             val_destroy(tmp);
             return;
         }
-    case T_NONE:
-        trec->warn = true;
-        return;
     case T_BYTES:
         iter.data = NULL;
         val2 = val;
@@ -716,8 +713,6 @@ retry:
             textdump(trec, uval);
             if (iter.data == NULL) return;
             break;
-        case T_NONE:
-            trec->warn = true;
         }
         if (trec->sum >= trec->max) break;
     }
@@ -1852,10 +1847,14 @@ MUST_CHECK Obj *compile(void)
                     if (!error) {
                         Namespace *context = get_namespace(tmp2->value);
                         if (context == NULL) {
-                            Ident *idn = new_ident(&labelname);
                             epoint.pos--;
-                            err_msg_invalid_oper(&o_MEMBER, tmp2->value, &idn->v, &epoint);
-                            val_destroy(&idn->v);
+                            if (tmp2->value == &none_value->v) err_msg_still_none(NULL, &epoint);
+                            else if (tmp2->value->obj == ERROR_OBJ) err_msg_output((Error *)tmp2->value);
+                            else {
+                                Ident *idn = new_ident(&labelname);
+                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, &idn->v, &epoint);
+                                val_destroy(&idn->v);
+                            }
                             error = true;
                         } else mycontext = context;
                     }
@@ -2768,6 +2767,10 @@ MUST_CHECK Obj *compile(void)
                             epoint = lpoint;
                             goto jn;
                         }
+                        if (!constcreated && newlabel->defpass != pass - 1) {
+                            if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
+                            constcreated = true;
+                        }
                         if (newlabel->fwpass == pass) fwcount--;
                         if (newlabel->file_list != current_file_list) {
                             label_move(newlabel, &labelname, current_file_list);
@@ -2777,12 +2780,11 @@ MUST_CHECK Obj *compile(void)
                             labelexists = false;
                             newlabel->defpass = pass;
                         }
+                    } else if (!constcreated) {
+                        if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
+                        constcreated = true;
                     }
                     if (labelexists) {
-                        if (!constcreated && newlabel->defpass != pass - 1) {
-                            if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
-                            constcreated = true;
-                        }
                         newlabel->constant = true;
                         newlabel->owner = true;
                         newlabel->epoint = epoint;
@@ -2820,10 +2822,6 @@ MUST_CHECK Obj *compile(void)
                     } else {
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         code = new_code();
-                        if (!constcreated) {
-                            if (pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
-                            constcreated = true;
-                        }
                         newlabel->constant = true;
                         newlabel->owner = true;
                         newlabel->value = (Obj *)code;
@@ -3380,7 +3378,6 @@ MUST_CHECK Obj *compile(void)
                         trec.sum = trec.len;
                         trec.max = SIZE_MAX;
                         trec.prm = prm;
-                        trec.warn = false;
                         trec.error = ERROR__USER_DEFINED;
                         trec.epoint = &epoint;
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
@@ -3391,7 +3388,6 @@ MUST_CHECK Obj *compile(void)
                             }
                             trec.epoint = &vs->epoint;
                             textrecursion(&trec, vs->val);
-                            if (trec.warn) { err_msg_still_none(NULL, trec.epoint); trec.warn = false; }
                             if (trec.error != ERROR__USER_DEFINED) { err_msg2(trec.error, NULL, trec.epoint); trec.error = ERROR__USER_DEFINED;}
                         }
                         if (trec.len < 0) { memskip(-trec.len, trec.epoint); trec.len = 0; }
@@ -3799,11 +3795,9 @@ MUST_CHECK Obj *compile(void)
                         trec.sum = 0;
                         trec.max = db;
                         trec.prm = CMD_TEXT;
-                        trec.warn = false;
                         trec.error = ERROR__USER_DEFINED;
                         trec.epoint = &vs->epoint;
                         textrecursion(&trec, vs->val);
-                        if (trec.warn) err_msg_still_none(NULL, trec.epoint);
                         if (trec.error != ERROR__USER_DEFINED) err_msg2(trec.error, NULL, trec.epoint);
 
                         db -= trec.sum;

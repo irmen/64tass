@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: bytesobj.c 2142 2020-01-03 16:26:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ static uint8_t *extend_bytes(Bytes *v, size_t ln) {
     }
     tmp = (uint8_t *)malloc(ln);
     if (tmp != NULL) {
-        memcpy(tmp, v->u.val, v->len);
+        memcpy(tmp, v->u.val, byteslen(v));
         v->data = tmp;
         v->u.s.max = ln;
         v->u.s.hash = -1;
@@ -403,8 +403,8 @@ MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint
     j /= 2;
     v = new_bytes2(j);
     if (v == NULL) return (Obj *)new_error_mem(epoint);
-    v->len = j;
-    for (i = 0; i < (size_t)v->len; i++) {
+    v->len = (ssize_t)j;
+    for (i = 0; i < j; i++) {
         uint8_t c1, c2;
         s++;
         c1 = s[i] ^ 0x30;
@@ -987,7 +987,6 @@ static MUST_CHECK Obj *concat(oper_t op) {
     len2 = byteslen(v2);
     ln = len1 + len2;
     if (ln < len2 || ln > SSIZE_MAX) goto failed; /* overflow */
-
     if (op->inplace == &v1->v) {
         s = extend_bytes(v1, ln);
         if (s == NULL) goto failed;

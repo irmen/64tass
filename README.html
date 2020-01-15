@@ -1308,12 +1308,13 @@ parameters to functions.</p>
 </tbody>
 </table></div>
 <pre width=80>
-sid     <b>=</b> <span class="s">"music.sid"</span>        <i>; file name</i>
-init    <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$0a</span>, <span>2</span>)<i>; init address</i>
-play    <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$0c</span>, <span>2</span>)<i>; play address</i>
+sidfile <b>=</b> <span class="s">"music.sid"</span>        <i>; file name</i>
+header  <b>=</b> <span class="k">binary</span>(<u>sidfile</u>, <span>$00</span>, <span>$7e</span>)
+init    <b>=</b> <u>header</u>[<span>$b</span>:<span>$9</span>:<span>-1</span>]   <i>; init address (big endian)</i>
+play    <b>=</b> <u>header</u>[<span>$d</span>:<span>$b</span>:<span>-1</span>]   <i>; play address (big endian)</i>
 
-*       <b>=</b> <span class="k">binary</span>(<u>sid</u>, <span>$7c</span>, <span>2</span>)<i>; use loading address</i>
-        <b class="d">.binary</b> <u>sid</u>, <span>$7e</span><i>     ; load music data</i>
+*       <b>=</b> <u>header</u>[<span>$7c</span>:<span>$7e</span>]    <i>; use loading address (little endian)</i>
+        <b class="d">.binary</b> <u>sidfile</u>, <span>$7e</span> <i>; load music data</i>
 </pre>
 
 <dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
