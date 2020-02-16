@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2137 2020-01-02 00:52:17Z soci $
+    $Id: variables.c 2148 2020-01-23 05:50:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
