@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2153 2020-02-01 14:21:10Z soci $
+    $Id: 64tass.c 2156 2020-03-08 12:44:05Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -4073,17 +4073,11 @@ MUST_CHECK Obj *compile(void)
             case CMD_CPU: if ((waitfor->skip & 1) != 0)
                 { /* .cpu */
                     struct values_s *vs;
-                    const struct cpu_list_s {
-                        const char *name;
-                        const struct cpu_s *def;
-                    } *cpui;
-                    static const struct cpu_list_s cpus[] = {
-                        {"6502", &c6502}, {"65c02", &c65c02},
-                        {"65ce02", &c65ce02}, {"6502i", &c6502i},
-                        {"65816", &w65816}, {"65dtv02", &c65dtv02},
-                        {"65el02", &c65el02}, {"r65c02", &r65c02},
-                        {"w65c02", &w65c02}, {"4510", &c4510},
-                        {"default", NULL}, {NULL, NULL},
+                    const struct cpu_s **cpui;
+                    static const struct cpu_s default_cpu = {"default", NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0};
+                    static const struct cpu_s *cpus[] = {
+                        &c6502, &c65c02, &c65ce02, &c6502i, &w65816, &c65dtv02,
+                        &c65el02, &r65c02, &w65c02, &c4510, &default_cpu, NULL
                     };
                     str_t cpuname;
 
@@ -4092,9 +4086,9 @@ MUST_CHECK Obj *compile(void)
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (tostr(vs, &cpuname)) break;
-                    for (cpui = cpus; cpui->name != NULL; cpui++) {
-                        if (cpuname.len == strlen(cpui->name) && memcmp(cpui->name, cpuname.data, cpuname.len) == 0) {
-                            const struct cpu_s *cpumode = (cpui->def != NULL) ? cpui->def : arguments.cpumode;
+                    for (cpui = cpus; *cpui != NULL; cpui++) {
+                        if (cpuname.len == strlen((*cpui)->name) && memcmp((*cpui)->name, cpuname.data, cpuname.len) == 0) {
+                            const struct cpu_s *cpumode = (*cpui != &default_cpu) ? *cpui : arguments.cpumode;
                             if (current_address->l_address.bank > cpumode->max_address) {
                                 err_msg_big_address(&epoint);
                                 current_address->l_address.bank &= cpumode->max_address;
@@ -4103,7 +4097,7 @@ MUST_CHECK Obj *compile(void)
                             break;
                         }
                     }
-                    if (cpui->name == NULL) err_msg2(ERROR___UNKNOWN_CPU, &cpuname, &vs->epoint);
+                    if (*cpui == NULL) err_msg2(ERROR___UNKNOWN_CPU, &cpuname, &vs->epoint);
                 }
                 break;
             case CMD_PRON: /* .pron */

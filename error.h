@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2043 2019-10-27 19:43:15Z soci $
+    $Id: error.h 2155 2020-03-08 09:33:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,7 +86,6 @@ extern void err_msg_output_and_destroy(struct Error *);
 extern void err_msg_argnum(size_t, size_t, size_t, linepos_t);
 extern void err_msg_bool(Error_types, struct Obj *, linepos_t);
 extern void err_msg_bool_oper(struct oper_s *);
-extern void err_msg_bool_val(Error_types, unsigned int, struct Obj *, linepos_t);
 extern void err_msg_implied_reg(linepos_t, uint32_t);
 extern void err_msg_jmp_bug(linepos_t);
 extern void err_msg_pc_wrap(linepos_t);

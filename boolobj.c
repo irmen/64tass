@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: boolobj.c 2155 2020-03-08 09:33:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -89,14 +89,14 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return val_reference(&v->v);
 }
 
-static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_IVAL, bits, o1, epoint);
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int UNUSED(bits), linepos_t epoint) {
+    if (diagnostics.strict_bool) err_msg_bool(ERROR______CANT_INT, o1, epoint);
     *iv = (Bool *)o1 == true_value ? 1 : 0;
     return NULL;
 }
 
-static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    if (diagnostics.strict_bool) err_msg_bool_val(ERROR_____CANT_UVAL, bits, o1, epoint);
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int UNUSED(bits), linepos_t epoint) {
+    if (diagnostics.strict_bool) err_msg_bool(ERROR______CANT_INT, o1, epoint);
     *uv = (Bool *)o1 == true_value ? 1 : 0;
     return NULL;
 }

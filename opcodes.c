@@ -1,5 +1,5 @@
 /*
-    $Id: opcodes.c 2098 2019-11-24 05:07:52Z soci $
+    $Id: opcodes.c 2156 2020-03-08 12:44:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ static const uint8_t alias_w65816[] = {
 };
 
 const struct cpu_s w65816 = {
+    "65816",
     mnemonic_w65816,
     opcode_w65816,
     disasm_w65816,
@@ -169,6 +170,7 @@ static const uint8_t alias_c6502[] = {
 };
 
 const struct cpu_s c6502 = {
+    "6502",
     mnemonic_c6502,
     opcode_c6502,
     disasm_c6502,
@@ -248,6 +250,7 @@ static const uint8_t alias_c65c02[] = {
 };
 
 const struct cpu_s c65c02 = {
+    "65c02",
     mnemonic_c65c02,
     opcode_c65c02,
     disasm_c65c02,
@@ -331,6 +334,7 @@ static const uint8_t alias_c6502i[] = {
 };
 
 const struct cpu_s c6502i = {
+    "6502i",
     mnemonic_c6502i,
     opcode_c6502i,
     disasm_c6502i,
@@ -411,6 +415,7 @@ static const uint8_t alias_c65dtv02[] = {
 };
 
 const struct cpu_s c65dtv02 = {
+    "65dtv02",
     mnemonic_c65dtv02,
     opcode_c65dtv02,
     disasm_c65dtv02,
@@ -499,6 +504,7 @@ static const uint8_t alias_c65el02[] = {
 };
 
 const struct cpu_s c65el02 = {
+    "65el02",
     mnemonic_c65el02,
     opcode_c65el02,
     disasm_c65el02,
@@ -578,6 +584,7 @@ static const uint8_t alias_r65c02[] = {
 };
 
 const struct cpu_s r65c02 = {
+    "r65c02",
     mnemonic_r65c02,
     opcode_r65c02,
     disasm_r65c02,
@@ -658,6 +665,7 @@ static const uint8_t alias_w65c02[] = {
 };
 
 const struct cpu_s w65c02 = {
+    "w65c02",
     mnemonic_w65c02,
     opcode_w65c02,
     disasm_w65c02,
@@ -742,6 +750,7 @@ static const uint8_t alias_c65ce02[] = {
 };
 
 const struct cpu_s c65ce02 = {
+    "65ce02",
     mnemonic_c65ce02,
     opcode_c65ce02,
     disasm_c65ce02,
@@ -826,6 +835,7 @@ static const uint8_t alias_c4510[] = {
 };
 
 const struct cpu_s c4510 = {
+    "4510",
     mnemonic_c4510,
     opcode_c4510,
     disasm_c4510,

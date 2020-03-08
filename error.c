@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2098 2019-11-24 05:07:52Z soci $
+    $Id: error.c 2155 2020-03-08 09:33:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1173,12 +1173,6 @@ void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.strict_bool, epoint);
     adderror(terr_error[no - 0x40]);
     err_msg_variable(o);
-    adderror(" [-Wstrict-bool]");
-}
-
-void err_msg_bool_val(Error_types no, unsigned int bits, Obj *o, linepos_t epoint) {
-    new_error_msg2(diagnostic_errors.strict_bool, epoint);
-    err_msg_big_integer(terr_error[no - 0x40], bits, o);
     adderror(" [-Wstrict-bool]");
 }
 
