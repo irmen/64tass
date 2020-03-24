@@ -1,4 +1,4 @@
-64tass v1.54 r1900 reference manual
+64tass v1.55 r2176 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -27,7 +27,7 @@ This is a development version. Features or syntax may change as a result of
 corrections in non-backwards compatible ways in some rare cases. It's difficult
 to get everything `right' first time.
 
-Project page: http://sourceforge.net/projects/tass64/
+Project page: https://sourceforge.net/projects/tass64/
 
 The page hosts the latest and older versions with sources and a bug and a
 feature request tracker.

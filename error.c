@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2155 2020-03-08 09:33:08Z soci $
+    $Id: error.c 2175 2020-03-23 19:18:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1350,11 +1350,15 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
 
 #ifdef COLOR_OUTPUT
 static void color_detect(FILE *f) {
-    char const *term = getenv ("TERM");
-    print_use_color = term != NULL && strcmp(term, "dumb") != 0 && isatty(fileno(f)) == 1;
+    static int terminal;
+    if (terminal == 0) {
+        char const *term = getenv("TERM");
+        terminal = (term != NULL && strcmp(term, "dumb") != 0) ? 1 : 2;
+    }
+    print_use_color = terminal == 1 && isatty(fileno(f)) == 1;
 }
 #else
-#define color_detect(f) {}
+#define color_detect(f) do {} while (false)
 #endif
 
 static inline bool caret_needed(const struct errorentry_s *err) {
@@ -1404,7 +1408,7 @@ bool error_print(void) {
         }
     } else ferr = stderr;
 
-    color_detect(ferr);
+    if (ferr != stderr) color_detect(ferr); else if (arguments.quiet) fflush(stdout);
 
     warnings = errors = 0;
     close_error();
@@ -1466,7 +1470,7 @@ bool error_print(void) {
     }
     if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
     if (err2 != NULL) print_error(ferr, err2, caret_needed(err2));
-    color_detect(stderr);
+    if (ferr != stderr) color_detect(stderr);
     if (ferr != stderr && ferr != stdout) fclose(ferr); else fflush(ferr);
     return errors != 0;
 }
@@ -1546,9 +1550,6 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
     int err = errno;
     bool more;
 
-#ifdef _WIN32
-    setlocale(LC_ALL, "");
-#endif
     s = strerror(err);
     n = strlen(s);
 
@@ -1574,17 +1575,17 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
         adderror((char *)s2);
         i += (size_t)l;
     }
-#ifdef _WIN32
-    setlocale(LC_ALL, "C");
-#endif
     if (more) new_error_msg_more();
 }
 
+static void error_status_val(const char *head, unsigned int val) {
+    fputs(head, stdout);
+    if (val != 0) printf("%u\n", val); else puts("None");
+}
+
 void error_status(void) {
-    printf("Error messages:    ");
-    if (errors != 0) printf("%u\n", errors); else puts("None");
-    printf("Warning messages:  ");
-    if (warnings != 0) printf("%u\n", warnings); else puts("None");
+    error_status_val("Error messages:    ", errors);
+    error_status_val("Warning messages:  ", warnings);
 }
 
 linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i) {

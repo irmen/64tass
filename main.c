@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2088 2019-11-17 06:44:48Z soci $
+    $Id: main.c 2167 2020-03-22 14:25:29Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -134,8 +134,7 @@ int main(int argc, char *argv[]) {
     int i, r;
     char **uargv;
 
-    setlocale(LC_ALL, "");
-    setlocale(LC_NUMERIC, "C");
+    setlocale(LC_CTYPE, "");
 
     uargv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *uargv);
     if (uargv == NULL) err_msg_out_of_memory2();

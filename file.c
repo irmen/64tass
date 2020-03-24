@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2125 2019-12-23 19:50:58Z soci $
+    $Id: file.c 2163 2020-03-22 12:45:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #ifdef _WIN32
 #include <locale.h>
 #include <windows.h>
+#endif
+#if defined _POSIX_C_SOURCE || defined __MINGW32__
+#include <sys/stat.h>
 #endif
 #include "64tass.h"
 #include "unicode.h"
@@ -355,6 +358,26 @@ static inline uchar_t fromiso(uchar_t c) {
     return conv[c];
 }
 
+static size_t fsize(FILE *f) {
+#if defined _POSIX_C_SOURCE || defined __MINGW32__
+    struct stat st;
+    if (fstat(fileno(f), &st) == 0) {
+        if (S_ISREG(st.st_mode) && st.st_size > 0) {
+            return (size_t)st.st_size;
+        }
+    }
+#else
+    if (fseek(f, 0, SEEK_END) == 0) {
+        long len = ftell(f);
+        rewind(f);
+        if (len > 0) {
+            return (size_t)len;
+        }
+    }
+#endif
+    return 0;
+}
+
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static struct ubuff_s last_ubuff;
@@ -419,23 +442,23 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
             if (path == NULL) path = s;
             tmp->realname = path;
             if (arguments.quiet) {
-                printf((ftype == 1) ? "Reading file:      " : "Assembling file:   ");
+                fputs((ftype == 1) ? "Reading file:      " : "Assembling file:   ", stdout);
                 argv_print(path, stdout);
                 putchar('\n');
             }
             if (f == NULL) goto openerr;
+#ifndef __DJGPP__
+            setvbuf(f, NULL, _IONBF, 0);
+#endif
             tmp->read_error = true;
             if (ftype == 1) {
-                bool check = true;
-                if (fseek(f, 0, SEEK_END) == 0) {
-                    long len = ftell(f);
-                    if (len > 0) {
-                        size_t len2 = (size_t)len;
-                        tmp->data = (uint8_t *)malloc(len2);
-                        if (tmp->data != NULL) tmp->len = len2;
-                    }
-                    rewind(f);
+                bool check;
+                size_t fs = fsize(f);
+                if (fs > 0) {
+                    tmp->data = (uint8_t *)malloc(fs);
+                    if (tmp->data != NULL) tmp->len = fs;
                 }
+                check = (tmp->data != NULL);
                 clearerr(f); errno = 0;
                 if (tmp->len != 0 || !extendfile(tmp)) {
                     for (;;) {
@@ -464,19 +487,16 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                 line_t lines = 0;
                 uint8_t buffer[BUFSIZ * 2];
                 size_t bp = 0, bl, qr = 1;
-                if (fseek(f, 0, SEEK_END) == 0) {
-                    long len = ftell(f);
-                    if (len > 0) {
-                        size_t len2 = (size_t)len + 4096;
-                        if (len2 < 4096) len2 = SIZE_MAX; /* overflow */
-                        tmp->data = (uint8_t *)malloc(len2);
-                        if (tmp->data != NULL) tmp->len = len2;
-                        max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
-                        if (max_lines > SIZE_MAX / sizeof *tmp->line) max_lines = SIZE_MAX / sizeof *tmp->line; /* overflow */
-                        tmp->line = (size_t *)malloc(max_lines * sizeof *tmp->line);
-                        if (tmp->line == NULL) max_lines = 0;
-                    }
-                    rewind(f);
+                size_t fs = fsize(f);
+                if (fs > 0) {
+                    size_t len2 = fs + 4096;
+                    if (len2 < 4096) len2 = SIZE_MAX; /* overflow */
+                    tmp->data = (uint8_t *)malloc(len2);
+                    if (tmp->data != NULL) tmp->len = len2;
+                    max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
+                    if (max_lines > SIZE_MAX / sizeof *tmp->line) max_lines = SIZE_MAX / sizeof *tmp->line; /* overflow */
+                    tmp->line = (size_t *)malloc(max_lines * sizeof *tmp->line);
+                    if (tmp->line == NULL) max_lines = 0;
                 }
                 clearerr(f); errno = 0;
                 bl = fread(buffer, 1, BUFSIZ, f);

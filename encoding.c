@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2108 2019-12-10 19:16:03Z soci $
+    $Id: encoding.c 2175 2020-03-23 19:18:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 
 struct encoding_s *actual_encoding;
 
-#define identmap (const uint8_t *)petscii_esc
+#define identmap (const uint8_t *)petscii_trans
 
 struct encoding_s {
     str_t name;
@@ -840,7 +840,7 @@ next:
         t = cavltree_container_of(c, struct trans_s, node);
         if (tmp.start >= t->start && tmp.end <= t->end) {
             encode_state.i += ln;
-            if ((ch & 0x80) == 0) {
+            if (ch < 0x80) {
                 actual_encoding->table_use[ch / 32] |= 1 << (ch % 32);
                 actual_encoding->table[ch] = (uint8_t)(ch - t->start + t->offset);
             }

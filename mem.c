@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2124 2019-12-23 16:00:22Z soci $
+    $Id: mem.c 2170 2020-03-22 15:18:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -169,12 +169,8 @@ void memprint(Memblocks *memblocks) {
     }
 }
 
-static void putlw(unsigned int w, FILE *f) {
-    putc(w, f);
-    putc(w >> 8, f);
-}
-
 static void padding(size_t size, FILE *f) {
+    unsigned char nuls[256];
     while (size >= 0x80000000) {
         if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
         size -= 0x40000000;
@@ -182,25 +178,55 @@ static void padding(size_t size, FILE *f) {
     if ((long)size > 256 && fseek(f, (long)size, SEEK_CUR) == 0) {
         return;
     }
-err:while ((size--) != 0) if (putc(0, f) == EOF) break;
+err:
+    nuls[0] = 1;
+    while (size != 0) {
+        size_t db = size < sizeof nuls ? size : sizeof nuls;
+        size -= db;
+        if (nuls[0] != 0) memset(nuls, 0, db);
+        if (fwrite(nuls, db, 1, f) == 0) return;
+    }
 }
+
+#ifdef __DJGPP__
+#define set_unbuffered(f) do {} while (false)
+#else
+static void set_unbuffered(FILE *fout) {
+    setvbuf(fout, NULL, _IONBF, 0);
+}
+#endif
 
 static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     address_t pos, end;
     unsigned int i;
+    unsigned char header[4];
 
     if (memblocks->p == 0) return;
     pos = memblocks->data[0].addr;
-    if (output->mode == OUTPUT_CBM || output->mode == OUTPUT_APPLE) {
-        putlw(pos, fout);
-    }
-    if (output->mode == OUTPUT_APPLE) {
+    switch (output->mode) {
+    case OUTPUT_CBM:
+        header[0] = pos;
+        header[1] = pos >> 8;
+        if (output->longaddr) {
+            header[2] = pos >> 16;
+            i = 3;
+        } else i = 2;
+        break;
+    case OUTPUT_APPLE:
+        header[0] = pos;
+        header[1] = pos >> 8;
         end = memblocks->data[memblocks->p - 1].addr + memblocks->data[memblocks->p - 1].len;
         end -= pos;
-        putlw(end, fout);
-    } else if (output->mode == OUTPUT_CBM) {
-        if (output->longaddr) putc(pos >> 16, fout);
+        header[2] = end;
+        header[3] = end >> 8;
+        i = 4;
+        break;
+    default:
+        i = 0;
+        break;
     }
+    if (memblocks->p == 1) set_unbuffered(fout);
+    if (i != 0 && fwrite(header, i, 1, fout) == 0) return;
     for (i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
         padding(block->addr - pos, fout);
@@ -211,6 +237,7 @@ static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct 
 
 static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool longaddr) {
     size_t i, j;
+    unsigned char header[6];
     for (i = 0; i < memblocks->p;) {
         const struct memblock_s *block = &memblocks->data[i];
         address_t start = block->addr;
@@ -221,23 +248,32 @@ static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool lo
             if (b->addr != addr || addr < start) break;
             size += b->len;
         }
-        putlw(size, fout);
-        if (longaddr) putc(size >> 16, fout);
-        putlw(start, fout);
-        if (longaddr) putc(start >> 16, fout);
+        header[0] = size;
+        header[1] = size >> 8;
+        if (longaddr) {
+            header[2] = size >> 16;
+            header[3] = start;
+            header[4] = start >> 8;
+            header[5] = start >> 16;
+        } else {
+            header[2] = start;
+            header[3] = start >> 8;
+        }
+        if (fwrite(header, longaddr ? 6 : 4, 1, fout) == 0) return;
         for (;i < j; i++) {
             const struct memblock_s *b = &memblocks->data[i];
             if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
         }
     }
-    putlw(0, fout);
-    if (longaddr) putc(0, fout);
+    memset(header, 0, 4);
+    fwrite(header, longaddr ? 3 : 2, 1, fout);
 }
 
 static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
     address_t pos;
     size_t i;
 
+    if (memblocks->p == 1 && memblocks->data[0].addr == 0) set_unbuffered(fout);
     for (pos = i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
         padding(block->addr - pos, fout);
@@ -248,9 +284,14 @@ static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
 
 static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
     size_t i, j;
+    unsigned char header[6];
+    header[0] = 0xff;
+    header[1] = 0xff;
+    if (memblocks->p == 1) set_unbuffered(fout);
     for (i = 0; i < memblocks->p;) {
         const struct memblock_s *block = &memblocks->data[i];
-        address_t start = block->addr;
+        bool special;
+        address_t end, start = block->addr;
         address_t size = block->len;
         for (j = i + 1; j < memblocks->p; j++) {
             const struct memblock_s *b = &memblocks->data[j];
@@ -258,9 +299,13 @@ static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
             if (b->addr != addr || addr < start) break;
             size += b->len;
         }
-        if (i == 0 || start == 0xffff) putlw(0xffff, fout);
-        putlw(start, fout);
-        putlw(start + size - 1, fout);
+        special = (i == 0 || start == 0xffff);
+        header[2] = start;
+        header[3] = start >> 8;
+        end = start + size - 1;
+        header[4] = end;
+        header[5] = end >> 8;
+        if (fwrite(special ? header : &header[2], special ? 6 : 4, 1, fout) == 0) return;
         for (;i < j; i++) {
             const struct memblock_s *b = &memblocks->data[i];
             if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
@@ -268,11 +313,16 @@ static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
     }
 }
 
-static unsigned int hexput(FILE *fout, unsigned int b) {
+struct hexput_s {
+    char *line;
+    unsigned int sum;
+};
+
+static void hexput(struct hexput_s *h, unsigned int b) {
     const char *hex = "0123456789ABCDEF";
-    putc(hex[(b >> 4) & 0xf], fout);
-    putc(hex[b & 0xf], fout);
-    return b;
+    *h->line++ = hex[b >> 4];
+    *h->line++ = hex[b & 0xf];
+    h->sum += b;
 }
 
 struct ihex_s {
@@ -282,22 +332,25 @@ struct ihex_s {
     unsigned int length;
 };
 
-static void output_mem_ihex_line(FILE *fout, unsigned int length, address_t address, unsigned int type, const uint8_t *data) {
-    unsigned int i, sum;
-    putc(':', fout);
-    sum = hexput(fout, length);
-    sum += hexput(fout, address >> 8);
-    sum += hexput(fout, address);
-    sum += hexput(fout, type);
+static void output_mem_ihex_line(struct ihex_s *ihex, unsigned int length, address_t address, unsigned int type, const uint8_t *data) {
+    unsigned int i;
+    char line[1+(1+2+1+32+1)*2+1];
+    struct hexput_s h = { line + 1, 0 };
+    line[0] = ':';
+    hexput(&h, length);
+    hexput(&h, (address >> 8) & 0xff);
+    hexput(&h, address & 0xff);
+    hexput(&h, type);
     for (i = 0; i < length; i++) {
-        sum += hexput(fout, data[i]);
+        hexput(&h, data[i]);
     }
-    hexput(fout, -sum);
-    putc('\n', fout);
+    hexput(&h, (-h.sum) & 0xff);
+    *h.line++ = '\n';
+    fwrite(line, h.line - line, 1, ihex->file);
 }
 
 static void output_mem_ihex_data(struct ihex_s *ihex) {
-    uint8_t *data = ihex->data;
+    const uint8_t *data = ihex->data;
     if ((ihex->address & 0xffff) + ihex->length > 0x10000) {
         uint16_t length = (uint16_t)-ihex->address;
         unsigned int remains = ihex->length - length;
@@ -310,10 +363,10 @@ static void output_mem_ihex_data(struct ihex_s *ihex) {
         uint8_t ez[2];
         ez[0] = (uint8_t)(ihex->address >> 24);
         ez[1] = (uint8_t)(ihex->address >> 16);
-        output_mem_ihex_line(ihex->file, sizeof ez, 0, 4, ez);
+        output_mem_ihex_line(ihex, sizeof ez, 0, 4, ez);
         ihex->segment = ihex->address;
     }
-    output_mem_ihex_line(ihex->file, ihex->length, ihex->address, 0, data);
+    output_mem_ihex_line(ihex, ihex->length, ihex->address, 0, data);
     ihex->address += ihex->length;
     ihex->length = 0;
 }
@@ -348,7 +401,7 @@ static void output_mem_ihex(FILE *fout, const Memblocks *memblocks) {
         }
     }
     if (ihex.length != 0) output_mem_ihex_data(&ihex);
-    output_mem_ihex_line(fout, 0, 0, 1, NULL);
+    output_mem_ihex_line(&ihex, 0, 0, 1, NULL);
 }
 
 struct srecord_s {
@@ -360,21 +413,24 @@ struct srecord_s {
 };
 
 static void output_mem_srec_line(struct srecord_s *srec) {
-    unsigned int i, sum;
-    putc('S', srec->file);
-    putc(srec->length ? ('1' + srec->type) : ('9' - srec->type), srec->file);
-    sum = hexput(srec->file, srec->length + srec->type + 3);
-    if (srec->type > 1) sum += hexput(srec->file, srec->address >> 24);
-    if (srec->type > 0) sum += hexput(srec->file, srec->address >> 16);
-    sum += hexput(srec->file, srec->address >> 8);
-    sum += hexput(srec->file, srec->address);
+    unsigned int i;
+    char line[1+1+(1+4+32+1)*2+1];
+    struct hexput_s h = { line + 2, 0 };
+    line[0] = 'S';
+    line[1] = srec->length != 0 ? ('1' + srec->type) : ('9' - srec->type);
+    hexput(&h, srec->length + srec->type + 3);
+    if (srec->type > 1) hexput(&h, (srec->address >> 24) & 0xff);
+    if (srec->type > 0) hexput(&h, (srec->address >> 16) & 0xff);
+    hexput(&h, (srec->address >> 8) & 0xff);
+    hexput(&h, srec->address & 0xff);
     for (i = 0; i < srec->length; i++) {
-        sum += hexput(srec->file, srec->data[i]);
+        hexput(&h, srec->data[i]);
     }
-    hexput(srec->file, ~sum);
-    putc('\n', srec->file);
+    hexput(&h, (~h.sum) & 0xff);
+    *h.line++ = '\n';
     srec->address += srec->length;
     srec->length = 0;
+    fwrite(line, h.line - line, 1, srec->file);
 }
 
 static void output_mem_srec(FILE *fout, const Memblocks *memblocks) {

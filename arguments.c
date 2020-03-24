@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2125 2019-12-23 19:50:58Z soci $
+    $Id: arguments.c 2172 2020-03-22 19:46:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -458,6 +458,7 @@ static MUST_CHECK char *read_one(FILE *f) {
 
 static address_t get_all_mem2(void) {
     size_t i;
+    bool tostdout = false;
     address_t min = 0xffffffff;
     for (i = 0; i < arguments.output_len; i++) {
         const struct output_s *output = &arguments.output[i];
@@ -471,7 +472,11 @@ static address_t get_all_mem2(void) {
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
         }
-        if (dash_name(output->name)) arguments.quiet = false;
+        if (dash_name(output->name)) tostdout = true;
+    }
+    if (tostdout) {
+        arguments.quiet = false;
+        setvbuf(stdout, NULL, _IOFBF, BUFSIZ);
     }
     return min;
 }
