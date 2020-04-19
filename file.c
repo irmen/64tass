@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2163 2020-03-22 12:45:33Z soci $
+    $Id: file.c 2200 2020-04-07 19:18:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <locale.h>
 #include <windows.h>
 #endif
-#if defined _POSIX_C_SOURCE || defined __MINGW32__
+#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
 #include <sys/stat.h>
 #endif
 #include "64tass.h"
@@ -284,7 +284,9 @@ FILE *file_open(const char *name, const char *mode) {
         }
         memcpy(newname + len - l, temp, (size_t)l);
     } while (ch != 0);
+    errno = 0;
     f = fopen(newname, mode);
+    if (f == NULL && errno == 0) errno = (mode[0] == 'r') ? ENOENT : EINVAL;
 failed:
     free(newname);
 #endif
@@ -359,7 +361,7 @@ static inline uchar_t fromiso(uchar_t c) {
 }
 
 static size_t fsize(FILE *f) {
-#if defined _POSIX_C_SOURCE || defined __MINGW32__
+#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
     struct stat st;
     if (fstat(fileno(f), &st) == 0) {
         if (S_ISREG(st.st_mode) && st.st_size > 0) {
@@ -447,9 +449,6 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
                 putchar('\n');
             }
             if (f == NULL) goto openerr;
-#ifndef __DJGPP__
-            setvbuf(f, NULL, _IONBF, 0);
-#endif
             tmp->read_error = true;
             if (ftype == 1) {
                 bool check;
@@ -848,6 +847,18 @@ void init_file(void) {
     last_ubuff.len = 16;
 }
 
+static size_t wrap_print(const char *txt, FILE *f, size_t len) {
+    if (len != 0) {
+        if (len > 64) {
+            fputs(" \\\n", f);
+            len = 0;
+        }
+        len++;
+        putc(' ', f);
+    }
+    return len + makefile_print(txt, f);
+}
+
 void makefile(int argc, char *argv[], bool make_phony) {
     FILE *f;
     struct linepos_s nopoint = {0, 0};
@@ -863,64 +874,47 @@ void makefile(int argc, char *argv[], bool make_phony) {
     for (j = 0; j < arguments.output_len; j++) {
         const struct output_s *output = &arguments.output[j];
         if (dash_name(output->name)) continue;
-        if (j != 0) {
-            if (len > 64) {
-                fputs(" \\\n", f);
-                len = 0;
-            }
-            len++;
-            putc(' ', f);
-        }
-        len += argv_print(output->name + get_base(output->name), f);
+        len = wrap_print(output->name, f, len);
     }
-    if (len > 0) {
+    if (arguments.list != NULL) {
+        if (!dash_name(arguments.list)) {
+            len = wrap_print(arguments.list, f, len);
+        }
+    }
+    for (j = 0; j < arguments.symbol_output_len; j++) {
+        const struct symbol_output_s *output = &arguments.symbol_output[j];
+        if (dash_name(output->name)) continue;
+        len = wrap_print(output->name, f, len);
+    }
+    if (len != 0) {
         len++;
         putc(':', f);
 
         for (i = 0; i < argc; i++) {
             if (dash_name(argv[i])) continue;
-            if (len > 64) {
-                fputs(" \\\n", f);
-                len = 0;
-            }
-            putc(' ', f);
-            len += argv_print(argv[i], f) + 1;
+            len = wrap_print(argv[i], f, len);
         }
 
         if (file_table.data != NULL) {
-            size_t n;
-            for (n = 0; n <= file_table.mask; n++) {
-                const struct file_s *a = file_table.data[n];
+            for (j = 0; j <= file_table.mask; j++) {
+                const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
                 if (a->type == 0) continue;
-                if (len > 64) {
-                    fputs(" \\\n", f);
-                    len = 0;
-                }
-                putc(' ', f);
-                len += argv_print(a->realname, f) + 1;
-            }
-
-            if (make_phony) {
-                putc('\n', f); len = 0;
-                for (n = 0; n <= file_table.mask; n++) {
-                    const struct file_s *a = file_table.data[n];
-                    if (a == NULL) continue;
-                    if (a->type == 0) continue;
-                    if (len != 0) {
-                        if (len > 64) {
-                            fputs(" \\\n", f);
-                            len = 0;
-                        }
-                        len++;
-                        putc(' ', f);
-                    }
-                    len += argv_print(a->realname, f);
-                }
-                putc(':', f);
+                len = wrap_print(a->realname, f, len);
             }
         }
         putc('\n', f);
+
+        if (file_table.data != NULL && make_phony) {
+            len = 0;
+            for (j = 0; j <= file_table.mask; j++) {
+                const struct file_s *a = file_table.data[j];
+                if (a == NULL) continue;
+                if (a->type == 0) continue;
+                len = wrap_print(a->realname, f, len);
+            }
+            if (len != 0) fputs(":\n", f);
+        }
     }
 
     err = ferror(f);

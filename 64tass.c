@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2158 2020-03-22 07:58:51Z soci $
+    $Id: 64tass.c 2199 2020-04-06 21:07:14Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -4879,7 +4879,6 @@ int main2(int *argc2, char **argv2[]) {
     int argc;
 
     err_init(*argv2[0]);
-    setvbuf(stdout, NULL, _IOLBF, 1024);
     avltree_init(&star_root);
     objects_init();
     init_section();

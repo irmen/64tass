@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2167 2020-03-22 14:25:29Z soci $
+    $Id: main.c 2189 2020-04-01 05:23:52Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -28,26 +28,15 @@
 */
 
 #include "64tass.h"
-#ifdef _WIN32
-#include <windows.h>
-#include <wincon.h>
-#endif
 #include <locale.h>
 #include "wchar.h"
 #include <string.h>
 
 #include "error.h"
 #include "unicode.h"
+#include "console.h"
 
 #ifdef _WIN32
-static UINT oldcodepage;
-static UINT oldcodepage2;
-
-static void myexit(void) {
-    SetConsoleCP(oldcodepage2);
-    SetConsoleOutputCP(oldcodepage);
-}
-
 static const wchar_t *prgname(const wchar_t *name) {
     const wchar_t *p = name;
     while (*p != 0) p++;
@@ -58,17 +47,15 @@ static const wchar_t *prgname(const wchar_t *name) {
     return p;
 }
 
-static int wmain(int argc, wchar_t *argv2[]) {
+#ifdef __MINGW32__
+static 
+#endif
+int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
     char **argv;
 
-    if (IsValidCodePage(CP_UTF8)) {
-        oldcodepage = GetConsoleOutputCP();
-        oldcodepage2 = GetConsoleCP();
-        SetConsoleCP(CP_UTF8);
-        SetConsoleOutputCP(CP_UTF8);
-        atexit(myexit);
-    }
+    console_init();
+    atexit(console_destroy);
 
     argv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
@@ -121,10 +108,10 @@ static int wmain(int argc, wchar_t *argv2[]) {
 static const char *prgname(const char *name) {
     const char *newp = strrchr(name, '/');
     if (newp != NULL) return newp + 1;
-#if defined _win32 || defined __win32__ || defined __emx__ || defined __msdos__ || defined __dos__
-    newp = strrchr(prgname, '\\');
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+    newp = strrchr(name, '\\');
     if (newp != NULL) return newp + 1;
-    newp = strrchr(prgname, ':');
+    newp = strrchr(name, ':');
     if (newp != NULL) return newp + 1;
 #endif
     return name;
@@ -189,7 +176,7 @@ int main(int argc, char *argv[]) {
 
 
 #ifdef __MINGW32__
-
+#include <windows.h>
 #include <shellapi.h>
 
 int main(void)

@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2121 2019-12-21 06:05:20Z soci $
+    $Id: dictobj.c 2179 2020-03-28 21:58:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,7 +184,7 @@ static bool pair_equal(const struct pair_s *a, const struct pair_s *b)
 static void dict_update(Dict *dict, const struct pair_s *p) {
     struct pair_s *d;
     if (dict->u.val == dict->data) {
-        d = dict->u.val;
+        /* nothing */
     } else if (dict->u.s.mask < (1 << (sizeof(uint8_t)*8))) {
         size_t mask = dict->u.s.mask;
         size_t hash = (size_t)p->hash;

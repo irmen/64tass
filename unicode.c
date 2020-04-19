@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 1867 2019-02-09 11:32:35Z soci $
+    $Id: unicode.c 2200 2020-04-07 19:18:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "error.h"
 #include "unicodedata.h"
 #include "str.h"
+#include "console.h"
 
 #define U_CASEFOLD 1
 #define U_COMPAT 2
@@ -378,10 +379,7 @@ size_t argv_print(const char *line, FILE *f) {
         back = 0;
 
         i++;
-        if (isprint(ch) == 0) {
-            len++;putc('?', f);
-            continue;
-        }
+        if (isprint(ch) == 0) ch = '?';
         len++;putc(ch, f);
     }
     if (space) {
@@ -449,15 +447,86 @@ size_t argv_print(const char *line, FILE *f) {
     return len;
 }
 
+size_t makefile_print(const char *line, FILE *f) {
+    size_t len = 0, i = 0, bl = 0;
+
+    for (;;) {
+        uchar_t ch = (uint8_t)line[i];
+        if ((ch & 0x80) != 0) {
+#ifdef _WIN32
+            unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
+            if (iswprint(ch) != 0) {
+                int ln2;
+                char tmp[64];
+                memcpy(tmp, line + i, ln);
+                tmp[ln] = 0;
+                ln2 = fwprintf(f, L"%S", tmp);
+                if (ln2 > 0) {
+                    i += ln;
+                    len += ln2;
+                    bl = 0;
+                    continue;
+                }
+            }
+            i += ln;
+#else
+            i += utf8in((const uint8_t *)line + i, &ch);
+            if (iswprint(ch) != 0) {
+                mbstate_t ps;
+                char temp[64];
+                size_t ln;
+                memset(&ps, 0, sizeof ps);
+                ln = wcrtomb(temp, (wchar_t)ch, &ps);
+                if (ln != (size_t)-1) {
+                    len += fwrite(temp, ln, 1, f);
+                    bl = 0;
+                    continue;
+                }
+            }
+#endif
+            len++;putc('?', f);
+            bl = 0;
+            continue;
+        }
+        if (ch == 0) break;
+
+        switch (ch) {
+        case '\\':
+            bl++;
+            break;
+        case ' ':
+        case '#':
+            while (bl > 0) {
+                len++; putc('\\', f);
+                bl--;
+            }
+            putc('\\', f);
+            break;
+        case '$':
+            len++; putc('$', f);
+            /* fall through */
+        default:
+            bl = 0;
+            break;
+        }
+
+        i++;
+        if (isprint(ch) == 0) ch = '?';
+        len++; putc(ch, f);
+    }
+    return len;
+}
+
 static int unknown_print(FILE *f, uchar_t ch) {
     char temp[64];
     const char *format = (ch >= 256) ? "<U+%" PRIX32 ">" : "<%02" PRIX32 ">";
     if (f != NULL) {
         int ln;
-        if (print_use_color) fputs("\33[7m", f);
+        if (console_use_color) console_reverse(f);
         ln = fprintf(f, format, ch);
-        if (print_use_color) fputs("\33[m", f);
-        if (print_use_bold) fputs("\33[1m", f);
+        if (console_use_color) {
+            if (console_use_bold) console_defaultbold(f); else console_default(f);
+        }
         return ln;
     }
     return sprintf(temp, format, ch);

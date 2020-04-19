@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.55 r2176 reference manual</title>
+<title>64tass v1.55 r2200 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -84,7 +84,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.55 r2176 reference manual</h1>
+<h1>64tass v1.55 r2200 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -1533,12 +1533,13 @@ opcodes.</p>
 </tbody>
 </table></div>
 
-<h4>Bit string extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>
+<h4>Byte extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>
 
-<p>These unary operators extract 8 or 16&nbsp;bits as a bit string from various types of operands.</p>
+<p>These unary operators extract 8 or 16&nbsp;bits. Usually they are used to get
+parts of a memory address.</p>
 
 <div><table border="0">
-<caption>Bit string extraction operators</caption>
+<caption>Byte/word extraction operators</caption>
 <tbody>
 <tr><td><code>&lt;</code><td>lower byte
 <td><code>&gt;</code><td>higher byte
@@ -1550,14 +1551,26 @@ opcodes.</p>
 </table></div>
 
 <pre width=80>
-        <b>lda</b> #&lt;<u>label</u>
-        <b>ldy</b> #&gt;<u>label</u>
+        <b>lda</b> #&lt;<u>label</u>     <i>; low byte of address</i>
+        <b>ldy</b> #&gt;<u>label</u>     <i>; high byte of address</i>
         <b>jsr</b> <span>$ab1e</span>
 
         <b>ldx</b> #&lt;&gt;<u>source</u>   <i>; word extraction</i>
         <b>ldy</b> #&lt;&gt;<u>dest</u>
         <b>lda</b> #<span class="k">size</span>(<u>source</u>)-<span>1</span>
         <b>mvn</b> #`<u>source</u>, #`<u>dest</u><i>; bank extraction</i>
+</pre>
+
+<p>Please note that these prefix operators are not strongly binding like
+negation or inversion. Instead they apply to the whole expression to the right.
+This may be unexpected but is required for compatibility with old sources which
+expect this behaviour.</p>
+
+<pre width=80>
+        <b>lda</b> #&lt;<u>label</u>+<span>10</span>  <i>;This is &lt;(label+10) and not (&lt;label)+10</i>
+
+<i>;The check below is wrong and should be written as (&lt;start) != (&lt;*)</i>
+        <b class="k">.cerror</b> &gt;<u>start</u> != &gt;<u>end</u><i>;Effectively this is &gt;(start != (&gt;end))</i>
 </pre>
 
 <h4>Conditional operators<a name="conditionals" href="#conditionals"></a></h4>
@@ -3438,6 +3451,8 @@ by repeating this option. If multiple matches exist the first one is used.</p>
 <dt><b>-M</b> &lt;file&gt;, <b>--dependencies</b> &lt;file&gt;<a name="o_dependencies" href="#o_dependencies"></a>
 <dd>Specify make rule output file
 <p>Writes a dependency rules suitable for <q>make</q> from the list of files used during compilation.</p>
+<p>Please choose source file names which are compatible with Makefiles as there
+are very little escaping possibilities.</p>
 
 <dt><b>--make-phony</b><a name="o_make-phony" href="#o_make-phony"></a>
 <dd>Enable phony targets for dependencies
@@ -4113,7 +4128,7 @@ href="#o_no-caret-diag"><code>--no-caret-diag</code></a></q> option.</p>
 <pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined ident 'label'</strong>
                  lda label
                      <strong><span style="color:green">^</span></strong>
-<strong>a.asm:3:21: <span style="color:gray">note:</span></strong> searched in the global scope</pre>
+<strong>a.asm:3:21: <span style="color:darkcyan">note:</span></strong> searched in the global scope</pre>
 <p>This is helpful for macro expansions as it displays the processed line which usually
 looks different to the one in the original source file.</p>
 Error buried deep in included files or macros display a backtrace of files after an <q>In
@@ -4124,7 +4139,7 @@ file included from</q> text where all the files and positions involved are liste
  		        <strong><span style="color:green">^</span></strong>
 In file included from <strong>included.asm:2:3</strong>,
                       <strong>main.asm:3:3</strong>:
-<strong>macros.asm:3:7: <span style="color:gray">note:</span></strong> original location in an expanded macro was here
+<strong>macros.asm:3:7: <span style="color:darkcyan">note:</span></strong> original location in an expanded macro was here
  		lda test
  		    <strong><span style="color:green">^</span></strong>
 </pre>

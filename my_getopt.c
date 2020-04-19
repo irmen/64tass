@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 1539 2017-06-06 18:27:36Z soci $
+ *  $Id: my_getopt.c 2194 2020-04-01 08:38:40Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -49,11 +49,11 @@ static int my_getopt(int argc, char *argv[], const char *opts)
 
   if (getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
-    if ((colon_mode = *opts) == ':') off ++;
+    if ((colon_mode = *opts) == ':') off++;
     if (((mode = opts[off]) == '+') || (mode == '-')) {
       off++;
       if ((colon_mode != ':') && ((colon_mode = opts[off]) == ':'))
-        off ++;
+        off++;
     }
   }
   my_optarg = NULL;
@@ -145,11 +145,11 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
 
   if (getenv("POSIXLY_CORRECT") != NULL) colon_mode = mode = '+';
   else {
-    if ((colon_mode = *shortopts) == ':') shortoff ++;
+    if ((colon_mode = *shortopts) == ':') shortoff++;
     if (((mode = shortopts[shortoff]) == '+') || (mode == '-')) {
       shortoff++;
       if ((colon_mode != ':') && ((colon_mode = shortopts[shortoff]) == ':'))
-        shortoff ++;
+        shortoff++;
     }
   }
   my_optarg = NULL;
@@ -198,7 +198,7 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
         if (((shortopts[ind] == ':') ||
             ((c == 'W') && (shortopts[ind] == ';'))) &&
            (shortopts[++ind] == ':'))
-          ind ++;
+          ind++;
         if (my_optopt == c) return my_getopt(argc, argv, shortopts);
       }
     }

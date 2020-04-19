@@ -1,0 +1,1083 @@
+r2200 (2020-04-07)
+==================
+
+This is a bug fix release to fix the unintended performance degradation on some
+systems like BSDs.
+
+**Fixes**
+
+* Revert buffering changes
+  These caused really slow performance on some systems which I forgot to test.
+* Makefile name escaping
+  It's not the same as for shells and is more limited. So names with spaces
+  should work now but otherwise it's advised to avoid incompatible file naming.
+* Bold black is not be visible on black background
+  Changed to cyan.
+* Unicode parameter file names didn't work on some platforms
+  Forgot a conversion so only UTF-8 worked
+
+**New**
+
+* Coloured output on windows console and DOS.
+  This was available for a while but not for these platforms. Real DOS needs
+  ANSI loaded and TERM set.
+
+r2176 (2020-03-23)
+==================
+
+There were quite many changes in trunk so it's time to release another version.
+
+**Changes**
+
+* Removed -Wtype-mixing 
+  It was a transitional warning just in case someone relied on an undocumented
+  tuple/list mixing which changed earlier.
+* Floor rounding is used by default now, added -Wfloat-round
+  The old method was to truncate but it was not consistent with the integer
+  division and was problematic when using floating point to represent
+  fixed point numbers. The difference only shows for negative numbers.
+  Just to be on the safe side there's a new warning now for cases where
+  the programmer could use one of the rounding functions explicitly to avoid
+  a rounding ambiguity.
+* Handling of address space wraps in calculations
+  There are various address space wraps depending on the CPU. As an example the
+  zero page may wrap or may not with indexed addressing. 64tass now tries to
+  wrap when an offset is applied to an address to keep it in the same address
+  space. E.g. a label at $10 in the expression lda label-$20,x results in
+  lda $f0,x for a 6502 but lda $fffff0,x for a 65816. In all cases there are
+  warnings issued for such an ambiguity. If it's intentional it may be
+  suppressed but usually it's not.
+* -Wmem-wrap and -Wpc-wrap renamed now to -Wwrap-mem and -Wwrap-pc
+  To make them in line with the other bunch of new -Wwrap-something switches.
+  Please update your build scripts. They won't fail just yet but may in future.
+* Only --export-labels references labels
+  Listing labels incorrectly referenced .proc blocks and so just by doing a
+  label list unused .proc blocks got suddenly compiled in. This is unexpected
+  and should not happen for a simple label list therefore it won't any more. If
+  otherwise unused .proc blocks are needed in the label listing please add the
+  new --export-labels option to get them listed and compiled.
+* Star is finally a label now
+  Before it was only a number but as the theory goes it should be the
+  memory location at the beginning of the line. This means label = \* + 1
+  constructs are now correctly referring to memory locations.
+* Variables are not listed in VICE label list any more
+  They are ambiguous as may be assigned multiple times and usually don't refer
+  to memory locations
+* Dictionaries are order preserving and iterable now
+  Earlier order was undefined.
+* I/O error messages or in C locale now
+  As the rest of the messages aren't localized either.
+
+**New**
+
+* Add -Wmacro-prefix
+  Warns about macro calls without any prefix in front
+* Add WDM opcode
+  It was requested for 65816
+* Added .while and .bwhile
+  Could be done with .for before but it's cleaner this way
+* Add .breakif and .continueif
+  Simplifies .if .break .fi and .if .continue .fi sequences
+* Functions got a namespace
+  The function itself can hold symbols now so there's no need for an
+  additional label just to store data across invocations. That is
+  "functionname.stuff := 4" works now.
+* Lists can be used as keys in dictionaries
+  On query they need to be put into a list of course
+* CPA alias was added for CMP
+  For consistency with CPX and CPY.
+* Added --macro-caret-diag
+  Normally the diagnostic message is displayed along with the line causing it.
+  There was an option to suppress the line display for those who don't want
+  this but that makes debugging of macro expansions hard as the source file only
+  contains the unexpanded macro. This option is a middle ground to display
+  faulty lines only for macros.
+* Added --vice-labels-numeric
+  Normally only memory locations are included to avoid numeric constant
+  definitions in the listing but if you have a lot of label = $3000 style
+  definitions this is for you.
+* Dictionaries are concatenable now
+  There was hack to add entries by using the splat feature but the simpler
+  {1:2}..{2:3} works now too.
+* Dictionaries are sortable
+  Now that the order is preserved and they are iterable this makes sense
+* Multiple output files can be generated now
+  By using multiple "--output" parameters. The output format and the section used
+  may be varied of course.
+* Broadcast works with format() as well
+  It's now possible to format values in a list and the result is a list of
+  formatted values
+* Added --make-phony command line option
+  This is useful for automatic dependency generation purposes for Makefiles.
+* Added .with/.endwith
+  This allows to access symbols of another namespace without changing the
+  current one. Unlike .namespace/.endn which does that.
+
+**Fixes**
+
+* Now @b and @w works for branches
+  It can be used to prevent automatic long branches where it'd be bad
+* Fix AHX/SHA mode
+  Wrong addressing mode was used
+* Leading zeros warning message suppression was corrected
+  Due to a copy mistake it was -Wimmediate instead of -Wleading-zeros
+* Improve double definition error handling
+  It worked before as well but caused so additional errors
+* The "Too early to reference" error is gone now
+  Now nothing is to early to reference
+* Listing now contains returned values
+  The results of function return values are in the listing now
+* Unused .proc labels not in listing any more
+  If unused technically the don't exists and should not be there
+* Improved macro diagnostic message position for macros
+  In many cases now the diagnostic messages are issued at the macro invocation
+  instead in the macro body. At least when it seems like the problem is due to
+  wrong parametrization.
+* Addressing mode and size messages improved
+  They display the opcode now which can't have that addressing mode or size
+* Diagnostic backtrace now omitted for trivial cases
+  This cuts back on the useless clutter for diagnostic messages in a multi file
+  project
+* Inverse command line options added for consistency
+  For example there was a --quiet but no --no-quiet.
+* VICE label lists omit duplicate entries now
+  The monitor can only display one of them
+* Various diagnostic message location improvements
+  Some diagnostic messages pointed to the directive instead of it's parameter
+* Functions may be created anywhere
+  There were limitations on where functions may be defined but it's sorted now.
+* Struct offsets are numbers now
+  Of course they are but they were addresses earlier which caused -Wimmediate
+  to not trigger on them.
+* In some cases a missing .ends was not reported
+  Now it is
+
+r1900 (2019-02-17)
+==================
+
+Quick bug fix release to sort important regressions for file numbering, label files and \*=/.offs.
+
+**Fixes**
+
+* File number in line numbered list file was wrong
+  The parent was shown instead (which is not very useful)
+* Empty data or code lines vs. --no-source
+  Empty data lines are omitted now from the listing file
+* Undefined symbol messages could be wrong in macros
+  In some special cases it ended up as garbage
+* Open/close directives shouldn't work across files
+  Still worked with .include and the result was confusing
+* VICE label file generation crash on unconvertable address
+  In the unlikely case like 0,x and similar
+* .offs now does what C64 TASM does
+  This fixes a regression for old-school \*=/.offs relocations
+
+
+r1864 (2019-02-03)
+==================
+
+This release took a while as I wanted to test some of the features in practice
+first and those projects took a lot of time. Also some parts had to be
+rewritten as the implementation wasn't quite right. Then in the testing phase
+I've found a lot of problems and I wanted to solve them before doing a release.
+
+Anyway it's finally out now and I think it's a good improvement over r1515. If
+not then please let me know. 
+
+**New**
+
+* Add -Waltmode to show unavailable addressing mode fallback
+   Data bank addressing may be bad sometimes instead of direct page
+* Add ".for var in sequence" style iteration loops
+  Looping over lists elements got easier now
+* Add .namespace/.endn directives
+  Now it's possible to switch to namespaces temporarily
+* Add -Wno-page
+  Now the .page/.endp error can be turned into a warning or off
+* Add --output-section
+  Output can be limited to a specific section instead of dumping everything
+* Add binary() function
+  This enables reading file content as a byte string for easier processing
+* Add .virtual/.endv
+  For compiling to an address but without producing any output
+* .align works in structures now
+  It aligns from the start of structure
+* Folding operator "..." added
+  Summing, minimum, maximum, etc. of list elements is easier now.
+* @w and @b size override now works with immediate addressing
+  For consistency, this is more useful for 65816
+* Hexadecimal representation of byte strings x"1234"
+  More straight forward to type than bytes($3412) and with "proper" ordering
+* z85 style byte strings representation z"0S\*"
+  More compact than x"1234". For label files and to embed binary data in source as text.
+* Add .bfor and .brept
+  Scoped variant of .for/.rept which handles non-anonymous labels better
+* Conditional assignment ":?=" added
+  Creates a new variable when symbol undefined otherwise keeps old value
+* Lazy fault handling
+  A failed calculation is not a problem if the result is not used
+* Negative .binary offsets
+  To allow offsets based from end of file
+
+**Fixes**
+
+* Data directives (.byte) must have at least one argument
+  Confusing behaviour, no argument is likely a mistake
+* Missing closing directives didn't auto close
+  This resulted in confusing error messages or worse
+* Improved directive missing messages
+  It's not just "something is expected" but a bit more verbose
+* Undefined sections could cause too many passes
+  Implementation bug
+* Optimizer suggestions are not shown for macros
+  How to apply multiple suggestions for a single line?
+* Exported symbols (-l) were reported as unused
+  They are used for exporting after all...
+* Compilation failed due to wcwidth
+  Some platform had interesting defines preventing compilation
+* Improve unused checks
+  Was not reporting correctly in some cases (like macro invocation)
+* Compilation warning reported by Compyx
+  A static keyword was missing.
+* Sometimes compilation ended too early
+  In some sections related cases not enough passes were made
+* Describe the "command line from file" feature better
+  A single paragraph was not enough
+* Improved missing macro argument message
+  The old one was not verbose enough
+* Redundant compilation warning (#33)
+  Didn't delete enough ;)
+* Section end with union
+  Section end was not right in union
+* Anonymous labels vs. conditional compilation
+  Make clear in documentation how this works
+* 65CE02 stack relative addressing fix
+  Unlike a 65816 it's signed.
+* VICE label generation was not generic enough
+  Some members where not listed.
+* Improved -Wshadow
+  Due to the .namespace directive it was not good enough any more
+* WIN64 compile fixes
+  Some format strings are unavailable on mingw64
+* Incorrect warning about labels not on left
+  Colon suffix was not enough
+* str()/repr() improvement
+  Some types have better string representations now
+* Wrong type messages replaced with better conversion messages
+  The old message was not too helpful
+* 65CE02 long branch fix second try
+  There were still cases where the wrong distance was calculated
+* Structs and unions didn't instantiate using a dot
+  It was documented but didn't work
+* Update to Unicode 11
+  Upgraded tables to the latest version
+* Suppress repeated caret lines in messages
+  One is enough if all the others are the same
+* .dstruct/.dunion double message on not defined
+  No additional syntax error message any more
+* Improve error positions
+  Still some errors were not on the right character in line
+* Only report file errors once
+  It's enough to know once if a file is missing
+* Improve syntax error messages
+  Mostly replaced by 'expected' messages now
+* Some messages lacked spacing at the end
+  Now it's there
+* Indexing precedence fixed
+  Broke in r1315, oops.
+* Faster in-place operations
+  Most noticeable for list appending or concatenate
+* Anonymous labels vs. scopes
+  Now they're truly bound to scope like normal labels
+* Runaway macro/function recursions are stopped faster now
+  Certain recursion faults were difficult to debug
+* Wrong negated bit string shifting
+  ~%10 << 1 was ~%100 instead of ~%101
+* Wrong negated byte string
+  -x'00' was ~x'ff' instead of x'00' (integer value different)
+
+r1515 (2017-05-01)
+==================
+
+It's about time to release another version as many changes were done and people were waiting for fixes already sitting in trunk for a while now. Some ideas didn't made it into this version as the implementation would have delayed the release even further, maybe next time.
+
+Changes since the last version:
+
+**Compatibility**
+
+I'm not happy about these "annoying" changes and hope it's easy to update the affected code.
+
+- Deprecation of '^' operator
+Code needs to be updated to use the format("%d", value) function for converting
+values to decimal strings. The reason is that the "standard" use of this
+operator is to return the bank byte in almost all other 65816 assemblers. This
+function is available with the grave accent operator currently, as '^' was
+already taken at the time. Plan is to migrate to the standard variant.  Old
+code with '^' for decimal strings conversion will of course still compile now.
+
+- Deprecation of non-string encoding names
+The original ".enc" directive used symbols for identifying encodings. The
+problem with this is that it's not parametrizable so the encoding can't be an
+expression or variable. There was no other way back then as strings were not
+supported at the time but it would be nice to allow such use. In this version
+the encoding names may be quoted for future compatibility but no expressions
+are available yet otherwise not yet updated code wouldn't compile.
+
+**New**
+
+Please check the manual for further details.
+
+- Keys without values in dict (sets)
+For quicker "in" than in list
+
+- Compound assignment also in .for
+Now "+=" and friends work in ".for"
+
+- Add &&= and ||= compound operators
+For consistency.
+
+- Check for file name portability issues (-Wno-portable)
+On multi platform development file names can cause compilation problems
+
+- Find unused labels with -Wunused
+Some unused labels may remain in code which can be pointed out
+
+- Check inconsistent symbol references with -Wcase-symbol
+For case insensitive but case matching symbols
+
+- Add <? and ?> operators (smaller/min, greater/max)
+New operator for range limiting
+
+- Check for double .case values with -Wswitch-case
+Multiple use of case value does not compile multiple times and may be a problem
+
+- Check for missing # with -Wimmediate
+For checking numeric constant opcodes without a '#' which may be a typos.
+
+- Turn on a check with -Werror=xxx too
+Less options needed as -Werror=xxx assumes -Wxxx.
+
+- Command line arguments from file with @file
+Frequently used options may be stored in a file
+
+- Scopes and addresses included in VICE label listing now
+Now more symbols are available in VICE
+
+- Listing of labels of specific scopes only into files (--root-labels=)
+Exporting of symbols only in a particular scope is possible now.
+
+- Dict indexable with lists now
+For translation uses
+
+- Improve some error messages by displaying the invalid values
+So that there's less guessing what the wrong value was
+
+- Keep integers when rounding
+floor() and friends converted to float unnecessarily
+
+- Add sort() to sort lists
+For sorting
+
+- '-' can be a variable as well
+For consistency.
+
+- Optimizer warns about ror/rol which could be lsr/asl
+C is clear, so there's no point shifting it in.
+
+- Warn for float comparison problems -Wfloat-compare
+Float comparisons may be wrong, especially for equality due to limited precision
+
+- format() improvements (integer precision, etc.)
+Some format() features were missing or wrong.
+
+- Predefine pi constant
+In case rad(180) needs too much typing...
+
+- Assign function parameters as variables instead of constants
+So that they may be modified.
+
+- Check for leading zeros -Wleading-zeros
+There's no octal number support, so this may be an error
+
+- Check for aliases with -Walias
+For consistent use of opcodes.
+
+- Improve message of const as variable
+It was a bit confusing
+
+- Improved non-negative message on range errors
+Make clear that the problem is with negative numbers not with number of bits
+
+- Notes for common pitfalls -Wpitfall
+Tips for some commonly encountered "problems".
+
+- Long branch warnings are possible again -Wlong-branch
+Long time ago this was there but was temporarily removed due to internal changes
+
+- Optimizer warns about constant results, duplicate sir/sac
+Calculations with constant values are pointless
+
+- Optimizer proposes use of stz on 65c02
+Storing zero, so why may use the specific instruction for that as well
+
+- Update to Unicode 9.0
+Including width tables this time
+
+- Optimizer proposes use of bra
+For always taken conditional branches
+
+- Better out of memory error handling
+For common cases it shows now where it happened.
+
+**Fixes**
+
+- Fix a few error positions which were missing
+Some error messages still didn't point to the cause...
+
+- Reduce fault messages for .endu/.ends
+Too many messages
+
+- Fix a possible null pointer crash for unknown address (fuzzed by Pierre)
+Implementation bug
+
+- Fix possible crash root namespace copying (fuzzed by Pierre)
+Implementation bug
+
+- Fix no argument indexing crash (fuzzed by Pierre)
+Implementation bug
+
+- Crash while handling struct values (fuzzed by Pierre)
+Implementation bug
+
+- Some special section nesting is not allowed (fuzzed by Pierre)
+Implementation bug. The fix caused some regression but it should be fixed as well.
+
+- Wrong memory use on long division (fuzzed by Pierre)
+Implementation bug
+
+- Missing type checks at a few places (fuzzed by Pierre)
+Implementation bug
+
+- Fix some return leaks
+Return where not freed
+
+- Compile fixes with VS
+Compiles now with newer VS without messing with code
+
+- Display address without mode correctly
+Did not display that an address is an address
+
+- Some notes were still displayed without warning/errors
+Some suppressed messages still had their notes displayed
+
+- Stdin/stdout not to be listed in makefiles
+Pointless to do so, they are not files.
+
+- Improve operations on addresses
+Especially needed without mode
+
+- Implement code offsets
+To preserve code reference
+
+- More operations on gap
+For .struct defaults with calculations
+
+- Fix integer limit checks
+It was done wrong.
+
+- Correct function call from macro line
+Didn't work well.
+
+- Fixed scoped macro highlighting in vim syntax
+Was not handled in the syntax file
+
+- Fix error messages on undefined section
+Messages were wrong.
+
+- Fix display of colon list with defaults
+It was wrong.
+
+- Unnecessary bytes needed message after another error
+Duplicate message for something which is not there
+
+- .eor was not applied to all fields in listing
+Listing showed the wrong hex values except for the opcode
+
+- label \*=\*+1 works again with warning -Wstar-equal
+Broke when compound operators were added, now works again.
+
+- Unpack code in .text
+Inconsistent behaviour
+
+- Fix some negative truncations/non-negative only values
+Some negative values didn't supposed to be truncated.
+
+- Restore bold output after invalid char inverted output
+Bold was missing after inversion.
+
+- Colours for all messages
+Command line parameter errors didn't had it yet.
+
+r1237 (2016-09-07)
+==================
+
+Just a quick bug fix release this time.
+
+Due to a mistake in the previous version file errors were not reported at all most of the time, which was of course not the intention. This is the main reason for this release.
+
+Otherwise only the encoding related error messages were improved to be less confusing.
+
+r1229 (2016-07-09)
+==================
+
+Lot's of changes lately and not just code tidying ;) So it's about time to release another version.
+
+** Changed **
+
+There's a new deprecation warning for the old single '=' equal operator which might hit many as a surprise. If possible please update all instances to '==' as this is how it's written for many years now. If that's not an option then the warning can be disabled with the "-Wno-old-equal" command line option.
+
+The recently added "--shadow-check" option was renamed to "-Wshadow" be consistent with the other new warning control options. This needs to be manually updated in build scripts. As it's a warning now by default a "-Werror=shadow" might be needed to make it an error again.
+
+** Fixes **
+
+* Fix highlighting of .sint in syntax files
+* Memory leak in -M generation
+* Bool \*\* was wrong due to a typo
+* Negative integer modulo/division fixes
+* Possible leak at label file generation
+* Wrong function compare due to a typo
+* pow() was wrong due to copy-pasting
+* Reject overlong UTF-8 sequences
+* Reduced the identifier set to used scripts
+* 65CE02 relative long branch calculation corrected now
+* Error out if the address mode is to complex
+* .dsection didn't took over PC type
+* Some calculations didn't work with addresses
+* Weak variables were included in shadow check
+* Data bank addressing was accepted incorrectly for some opcodes
+* Text width of wide characters is correct now
+* Exit code was wrong if output failed
+* Disassembly of bit addressing instructions was wrong
+
+** Improved **
+
+* Improved key error message
+Now displays what key was not found, not just says it's wrong
+* Improved source portability and documentation
+Hopefully it's easier to compile it now for some environments.
+* Some out of memory errors are non-fatal now
+Now for these few memory errors the diagnostic is a bit better.
+* Improved floating point highlighting in some syntax files
+It's including the dot and exponent as well if possible.
+* Indexing can be subtracted now
+It was not possible before unless it matched.
+* Bits and bytes negation preserves size unless on overflow
+These are not converted to integer any more just because of negation.
+* Better error message for small address space "bank crossing" and bank 0.
+Some of those 65816 style messages were not appropriate for small systems.
+* Improved fault handling strategy (no early exit and false messages)
+Due to early exit some invalid fault messages were displayed, and sometimes important messages were hidden. This should be better now.
+* Repeated data lines are shortened now in listing file
+The listing file will be not overly long now just because there was a .fill 8192,0
+
+** New **
+
+* "Column indexing" of nested lists
+This is quite cool but hard to explain here ;) But there's a section called "Slicing and indexing" now in the manual where this is shown as well.
+* New CPU type for 4510
+For the MAP and EOM opcodes, otherwise the same as 65CE02.
+* Line numbers in listing, column headers (--line-numbers)
+It's possible to enable an additional column for line numbers and source origin. So that it's easier to find what's coming from where (especially macros).
+* Strict boolean operations (-Wstrict-bool)
+New warning for finding implicit boolean calculation
+* Warning for deprecated operators (-Wdeprecated)
+It warns about things like using '=' instead of '==' before it's too late...
+* Colored error messages on some systems
+Colored diagnostic messages are displayed on some terminals now
+* Optimizer warnings (-Woptimize)
+There's an experimental optimizer now, which can generate useful warnings sometimes.
+* Some additional addressing modes for NOPs for R65C02/W65C02
+To be consistent with the NMOS 6502. After all these NOPs are at least defined in the data sheets ;)
+* Scoped variables are now output in VICE labels
+Now scoped variables are included in VICE listing, which can help debugging a lot.
+* Add --cbm-prg command line option just for completeness
+It's the default, but now it has an option anyway.
+* Use NOP immediate and relative long for skipping if available
+New possibilities to skip bytes and words using the "gxx" pseudo opcodes on some CPUs.
+* Syntax highlighting for VIM
+It was about time. Not the same what I use normally, for a good reason ;)
+* Signed immediate addressing mode (lda #-1)
+After long last it's possible to enter negative numbers for immediate addressing as a proper signed version was introduced. See manual for notes (#- and #+)
+* Warning for implied addressing instead of accu (-Wimplied-reg)
+To find code where the "a" was left off "asl".
+* Diagnostics switchable now and can be made to an error (-Wxxx).
+There's more control now over what gets warned about and how. See the "Diagnostic options" section in manual for details.
+* Display command line option at the end of warnings/errors for switchable ones
+Many warnings are switchable now so it's good to know what switch can be used to manipulate them. These are displayed in brackets after the messages.
+* Option for jump bug warning (-Wjump-bug)
+The jmp ($xxff) warning has an option now
+* Option for address wrap warnings (-Wpc-wrap, -Wmem-wrap)
+Address wrap warnings have an option now
+* Option for label not on left warning (-Wlabel-left)
+The check was improved to have less false positives and has an option now.
+* Option for branch page crossing (-Wbranch-page)
+These are quite common and hard to do much against, so it's not enabled by default.
+* Option for old '=' operator warning (-Wold-equal)
+This checks for the old single equal operator, which should be changed to '=='.
+
+r1050 (2016-04-30)
+==================
+
+Some time passed again, so here's another release:
+
+** Changed **
+
+* Image file limits depend on format not CPU type
+  So using a 65816 does not imply 16 MiB output image file size any more. See
+  output options if this makes a problem. The earlier behaviour was rather
+  confusing when using several CPU types.
+* .int renamed to .sint
+  It was a wrong choice to name this directive so as now it conflicts with the
+  int type. Therefore it was renamed. Please update affected sources.
+
+** Fixes **
+
+* Fix invalid addressing mode parsing
+  For example (0),x was degraded to 0,x instead of giving an error.
+* Improve on duplicate fault messages
+  There were some cases where a single fault resulted in more than one error message.
+* CPU register symbols only for used CPUs
+  This is important in case --shadow-check is used.
+* Fix a .logical/.here nesting problem
+  Don't have the test case any more but it caused some weird behaviour
+* Error buffering fix
+  Could crash due to not updated pointers on realloc
+* Improve messages for some to many passes cases
+  Now gives can't calculate messages instead of too many passes
+* Wrong bank0 message instead of dp when dp undefined
+  Wrong error message was displayed
+* Wrong inverted byte conversion due to missing break
+  Typo resulting in miscalculation
+* Local label context nesting fixed
+  Underscore labels were not scoped as it was originally planned
+* Fix zero shifting of bits
+  Wrong result
+* Avoid non 0 message for .null when encoding is invalid
+  An extra invalid message appeared for unencodable .null texts
+* Improve error detection when writing to output
+  Redirected output didn't detect errors like disk full
+
+** New **
+
+* Makefile rule generation option (-M)
+Now it's possible to output all referenced files as a Makefile rule, which helps to write makefiles
+* Symbol shadowing checking (--shadow-check)
+Check if symbols are reused in upper scopes and create error if so. 
+* Code page support for DJGPP
+Code pages are converted to Unicode correctly now under real DOS (if anyone still uses it)
+* Apply logical not, and, or to lists
+Instead of error these operations are applied on lists now
+* Debug label dumping (--dump-labels)
+Dump all labels with position information for debugging purposes.
+* Use holes in output files when possible
+Large but sparse image files take less space now.
+* Intel hex output (--intel-hex)
+* Motorola s-record output (--s-record)
+These two output formats were added for people with EPROM programmers or special download methods
+* Verbose listing (--verbose-list)
+Include everything in listing files, even if it does not generate anything
+* Error file (-E)
+Errors can be redirected to standard output or file. For better integration with some WIN32 editors.
+
+That's all for now.
+
+r992 (2015-09-03)
+=================
+
+No release for a long time, so time for an update. As I'm running out of version numbers this will be probably the last 1.51.
+
+** Fixes **
+
+**Fix missing backslash when displaying filenames**
+  Windows paths displayed incorrectly
+**Fix float exponential 0.0\*\*0.0 **
+  Was not 1.0
+**Fix local label scoping vs. anonymous labels**
+  +/- should not break the scope of underscore labels
+**Fix wrong label required message for duplicate .proc**
+  Wrong message
+**Fix missing comma for zp bit relative in listing**
+  Bad output in listing file
+**Fix some .for/.rept bugs**
+  Could crash in special cases
+**Fix long negative bits crash**
+  Could crash in special cases  
+**Fix splat handling in unusual places**
+  Could crash in special cases, now has proper error message
+**Fix text recursion of string types**
+  Didn't work as expected
+**Compiles with a recent DJGPP again**
+  For a very important platform ;)
+
+** New **
+
+**Add --no-caret-diag**
+  For editors which can parse and jump to the error messages.
+**Update to Unicode 8.0**
+  Just because it came out meanwhile.
+**Add --vice-labels**
+  Because there was a demand for this ;)
+**Add underscore digit separator (int, bin, hex, float)**
+  Long literal constant digits can be separated as %1010_0111
+**Add := as .var**
+  Just a shorthand, like 'v .var 2' as 'v := 2'
+**Compound .var assignments (+=, -=, etc.)**
+  Another shorthand, like 'v .var v+1' as 'v += 1'
+**Reuse jumps of nearby long branches**
+  Spare some bytes off if long branches are close and to same place
+**New column for displaying PC in listing**
+  Easier to debug relocated code when .logical/.here is used
+**Simple manual page for command line options**
+  For distributions.
+**Debian packaging directory**
+  To compile .deb packages
+**For .for condition or assignment can be omitted too**
+  So that '.for ,,' is possible now
+**Syntax highlight updates**
+  Unicode labels where not always highlighted
+**Documentation updates**
+  More detailed now ;)
+**Don't display long values in error messages**
+  It clutters up the error log and probably was not intended
+**Improved .fill/.align pattern filling**
+  Can do the same as now as .text for a list
+  
+** Notes **
+  
+If for some reason you had a label in front of a '\*=' assignment in your
+sources this will clash now with the compound assignment '\*='.
+  
+To avoid this move the label a line above. The 'v \*= $2' construct is now
+multiplying the variable 'v' with $2, instead of defining a label 'v' and
+setting the PC to $2.
+
+Sorry for the inconvenience.
+
+r943 (2015-04-17)
+=================
+
+There was a major code restructuring meanwhile, and it seems to work now, so
+let's release it ;) The plan was to gain more flexibility and to reduce the
+chances of creating bugs. 
+
+I found some bugs when I've re-read and rewrote the code and also Pierre Zero
+uncovered some crashes by fuzzing. So it should be more stable than 1.51.883
+was in some edge cases.
+
+**Fixes:**
+
+* Wrong address on empty .fill/.align in listing
+* Limit function recursion
+* Another to early compilation stop case fixed
+* Proper 65816 PC wrapping
+* Better position reporting of invalid characters in .shift/.shiftl/.null
+* Include instructions without result lines in listing
+* And all those crash bug fixes I better don't list here ;)
+
+**New:**
+
+* 65816 rep/sep tracking, added .autsiz/.mansiz
+* Add random() and .seed
+* mcedit syntax highlight added
+* .dpage and .databank can be "unset" now
+* String constant prefixes 'n', 's', 'p', 'l' added
+* PEI with direct page addressing
+* PC has type now
+* .rta and .addr accepts ,k now
+* Add empty string error message for clarity
+
+The manual was improved as well of course.
+
+r883 (2014-12-14)
+=================
+
+Time for another release. Most of the changes were re-factoring as things
+started to get more complicated than necessary.
+
+**Fixed:**
+
+* Signed bit concat was wrong
+* Set binary mode on stdout when needed (win32)
+* Fix some label listing problems
+* Fix error position for star
+* Fix some bit slicing problems
+* Wrong string length on repeat and multi index
+* Fix bool to decimal string
+* Nested structs are not special anymore
+* Bits and/or length fixes
+
+**Improved:**
+
+* Improved floating point error messages
+* Point on invalid format string character
+* Change Unicode output on win32
+* Address of .rta now in current program bank
+* Improve addressing mode error messages
+* Give expected type in wrong type message
+* TBA was missed from documentation
+* Bits shift was not in documentation
+* Some operator fixes
+* Add some missing operations
+* Avoid duplicate error messages (e.g. in .rept)
+* Add TOC to documentation
+
+**New:**
+
+* Add .addr for current program bank address
+* Apple II DOS 3.3 output format
+* Option for listing tab-size
+* Broadcasting for two argument functions
+* Bit string in .text
+* Types, more complete conversions
+
+r774 (2014-10-13)
+=================
+
+It's time for a release, I've sit on fixes for too long.
+
+**Fixes:**
+
+* the manual still had non-ASCII characters at places expected to be copy-pasted
+* file names where not encoded properly (were always UTF-8) if they were non-ASCII
+* there was an invalid out of memory error with strings
+* invalid extra character at end of line message fixed in a special case
+* labels were deleted when still needed (crash in special cases)
+* caret was at wrong position of anonymous labels
+* .ptext was not working properly (wrong length)
+* compilation finished in some special cases too early
+* some error objects leaked to unexpected places causing crash
+* .var was not referencing in some complicated cases
+* value reuse crash (bug #21 and #22)
+* numbers should be non-locale dependent (wrong floating point printing)
+
+**Improved:**
+
+* use locale encoding for 8-bit files instead of fixed ISO-8859-1
+* the caret points to the non-encodable character now in the simple literal case, instead showing the beginning of the string.
+* use "not a one character string" message instead of "string too long"
+* some general syntax messages were converted to comma expected instead
+* allow non-ASCII printable character printing
+* use shell quoting when printing file names with special characters
+* do real disassembling in list files as some opcode names where still aliases
+* some special addressing modes were not there as expected
+* some duplicated error messages are suppressed now
+* the html manual is better scalable now
+
+**New:**
+
+* support of Unicode 7.0.0
+* registers other than "a" can be used as well. E.g. "inc x" is "inx"
+* registers can be used for indexing now. E.g. "reg = x" and "lda val, reg" is "lda val,x"
+
+r727 (2014-06-08)
+=================
+
+The r716 version didn't last long ;( There was a regression which caused to
+miscompile the "pea #" opcode, so here's the fix.
+
+The bug was noticed after the .cpu change removed the warning, so I'd like to
+note again that the .cpu directive now has a string argument and therefore old
+sources may need to add quotes because of this.
+
+The good news is that this version includes the Unicode identifier support,
+which was planned for a long time. It's based a version 6.3.0 and features:
+
+* identifiers composed of XID_Start and XID_Continue only, plus underscore
+* proper case folding in case insensitive mode (e.g. Straße = strasse)
+* NFKC normalized, the "same" identifiers represented differently are still
+  equivalent (ligatures ﬁeld = field, combining marks á = á, similar symbols 𝔸 =
+  A = 𝕬,  etc.)
+
+It didn't bloat up the binary at all, as the required stuff was included for
+the NFC source normalization already. Performance is not affected when plain
+ASCII labels are used, and the difference is not noticeable otherwise.
+
+Other changes include further error message and message position improvements
+and that .binary can load more than the processor address space (in flat mode).
+
+r716 (2014-06-07)
+=================
+
+Lot's of internal changes. The most notable addition was the caret diagnostic
+error messages. The displayed source line is macro expanded of course, to ease
+debugging.
+
+**Changes:**
+
+* fixed unaligned accesses (ARM crash)
+* nested parentheses bug in compatible mode
+* .pron/.proff nestable now
+* some special cases are solved in less passes
+* use locale for non-ascii character messages
+* caret diagnostic error messages (macro expanded)
+* fix some error message positions
+* improve instruction address mode error messages
+* jmp is non-data bank also on non-65816
+* long branch versions of bbr/bbs (R65C02)
+* cross bank long automatic jumps on 65816
+* improved listing file handling of long jumps
+* .cpu warning if name is not a quoted string
+
+Please note that the ".cpu" directive will require a string argument in the
+next version, to make it more flexible. This change will allow CPU selection by
+using a variable as an argument.
+
+On r716 and earlier versions CPU name quoting was optional, but now there's a
+warning for a non-quoted name. Variable arguments will be available in the next
+version only, as otherwise they conflict with CPU names like "r65c02", which
+looks like a variable. Please update your sources for future compatibility.
+
+r675 (2014-03-06)
+=================
+
+**Bug fixes:**
+
+* PEA # / REA # was missing for 65EL02
+
+* MVP/MVN #,# valid now (MVP/MVN $,$ still there for compatibility)
+
+* float() was broken
+
+* Some characters were broken in README and were shown as "?"
+
+* A few error messages lacked the severity marking
+
+* .include/binary used the wrong position for file errors
+
+* .if with forward references failed in some special cases
+
+* power operator (**) associativity was wrong
+
+* list/tuple compare crashed
+
+* Some other fixes (hard to decide if they applied to the previous versions or not)
+
+**Features:**
+
+* Create multiple instructions when using a list of addresses
+
+* pair is gone (a:b), instead there's a general colon list
+(a:b:c...) which is used for dictionaries/slices.
+
+* improve argument number error messages and other fault reporting improvements
+
+* nested lists are now flattened for .byte/.text and friends
+
+* .break and .continue flow control for .rept and .for loops
+
+* NFC normalization of source files. This added ~150k to the
+executable. It'll be used for some not yet implemented Unicode functions
+sometime later too.
+
+* added the splat operator to "inline" lists in place of arguments. (*list)
+
+* .weak/.endweak for defining weak symbols
+
+**Changed operation:**
+
+* the multiple destinations hack for branches is gone now.
+It was never official, and the same effect can be achieved by using an
+easy to write function. I better don't tell what it was ;)
+
+* addressing modes are applied to list elements and not to the list itself
+
+* str()/repr() applies to list elements instead of list
+
+* list/tuple mixed membership testing gives per element results in a list/tuple
+
+* space between $ or % and numbers is not allowed anymore.
+This allowed confusion with the modulo operator for "%".
+
+* only comma separated elements are processed in .case and not single
+list/tuple's members. Use the splat operator if lists/tuples are containing
+the possibilities.
+
+* the "format string" % (values) formatting operation is gone now as
+it was too confusable with modulo, especially when variables
+were involved. Instead use the new format() function as format("string",
+some variables). If list elements are the format arguments, use the splat
+operator to inline them. (e.g. format("%d: %s", *list))
+
+r584 (2014-01-19)
+=================
+
+**Bug fixes**:
+
+- various bug fixes for crashes, leaks, etc.
+- notes are not incorrectly counted as errors any more
+- no 32 bit issues with code address calculation anymore, especially when going negative
+
+**Features**:
+
+- Atari XEX output file format
+- .fill and .align can use iterable objects as fill byte, this can be used for simple patterns using lists/tuples
+- it's possible to specify the default value returned for non-existing elements in dictionaries to avoid errors
+- dictionaries can use externally defined key/value pairs. I'm not sure if this is interesting
+- object type is displayed in conversion error messages for better understanding of the problem
+- function context is more similar to it's invocation context now (e.g. address is matching now)
+- documentation improvements, section for addressing modes some indexes at the end
+- escape sequences in encodings can generate more than a single byte now
+- cheap local labels supported now between normal symbols (read the docs)
+- "starred" function parameter to collect extra parameters into tuple to have functions with unlimited parameters
+
+**Changed operation**:
+
+- All symbols starting with an underscore are cheap local labels now. This might cause problems in existing sources which ignored the "symbol names start with a letter" rule. Please rename your global symbols which used an underscore.
+
+- -W and --word-start option gone, there's -X and --long-address instead, which affects the start address of C64 binaries. It was confusing that the start address depended on the CPU type and it caused internal conflicts. Now the start address size is independent from CPU. When compiling for e.g. 65816 usually the start address is forced to 16 bit start with "-W" option. This options needs to be removed, it's 16 bit by default now, but can be changed to 24 bit with the --long-address option.
+
+- built in symbols for true/false, "a" register, and for built in functions. Built in functions were special before and different to user functions. Now they are the same, which means they can be passed around, aliased or can be shadowed. This makes sure that new built in functions can be introduced without breaking existing sources in the future and gives greater flexibility.
+Unfortunately there might be cases where a normal symbol was shadowing a built-in function and this now results in an error (like size() function vs. size symbol). Please rename the problematic symbol to something else. This also applies to the "a" register symbol.
+
+- I've seen that a bug in .if was abused for getting something similar to .ifdef. This was corrected by "mistake", therefore that trick does not work any more. There are no plans for .ifdef/.ifndef at this point, however symbol strengths are planned instead to get "default" values. But that needs further development. There's a possibility to get something similar with shadowing right now as well.
+
+r521 (2013-11-30)
+=================
+
+__Bug fixes:__
+- listing could reference unused symbols, this caused a compile failure on code that otherwise compiles
+- bit string right shifting had a sign problem
+- bit string zero inversion didn't work
+- .xl and .al didn't work on 65el02
+- Long accu was applied for BRK, COP and MMU instructions incorrectly
+- some object conversions resulted in an infinite recursion and crash
+
+__Features:__
+- code objects give access to symbols in situations where it was not possible before, e.g. when member of a list
+- undefined identifiers are only reported once per scope
+- address calculations are not limited to 32 bits any more. The code address space is still of course.
+- Accu and index register lengths (.al, .xl) are independent from current CPU, so 16 bit immediate values are available always
+- relative jumps are better guessed now (fewer passes in some special cases)
+- any(), all(), bool() functions
+- long lists and dictionaries can be split into several line, these lines are implicitly joined
+
+__Changed operation:__
+- comparison operators compare list by elements and give a list of booleans instead of a single boolean.
+- lists consisting of more than one element don't have a truth value anymore, any() or all() should be used. An empty list is false and a single element is the truth value of that element.
+
+(2013-08-27)
+============
+
+The old 32 bit unsigned/signed integers and bit strings are gone now. Instead there are just arbitrary long integers and a bit strings. Therefore calculations won't silently overflow or go floating point any more.
+
+Unfortunately in 1.51.493 the branch range check was non-functional by a mistake ;( Next try for the release is 1.51.496 ;) 
+
+Some things to watch out for:
+
+"%c" in format strings now always outputs the Unicode character for the integer value of variable, even if it's a string. Use "%s" with one character strings too.
+
+The "^" operator always gives a decimal string for the integer value of variable, even for strings. Before it give back the original string without conversion.
+
+The "repr()" function adds quotation marks to strings now, use "str()" if this is not what's needed.
+
+

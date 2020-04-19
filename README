@@ -1,4 +1,4 @@
-64tass v1.55 r2176 reference manual
+64tass v1.55 r2200 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1185,24 +1185,34 @@ The compare operator (<=>) gives -1 for less, 0 for equal and 1 for more.
 <   less than >= more than or equals
 >   more than <= less than or equals
 
-Bit string extraction operators
+Byte extraction operators
 
-These unary operators extract 8 or 16 bits as a bit string from various types
-of operands.
+These unary operators extract 8 or 16 bits. Usually they are used to get parts
+of a memory address.
 
-     Bit string extraction operators
+     Byte/word extraction operators
 <  lower byte              >  higher byte
 <> lower word              >` higher word
 >< lower byte swapped word `  bank byte
 
-        lda #<label
-        ldy #>label
+        lda #<label     ; low byte of address
+        ldy #>label     ; high byte of address
         jsr $ab1e
 
         ldx #<>source   ; word extraction
         ldy #<>dest
         lda #size(source)-1
         mvn #`source, #`dest; bank extraction
+
+Please note that these prefix operators are not strongly binding like negation
+or inversion. Instead they apply to the whole expression to the right. This may
+be unexpected but is required for compatibility with old sources which expect
+this behaviour.
+
+        lda #<label+10  ;This is <(label+10) and not (<label)+10
+
+;The check below is wrong and should be written as (<start) != (<*)
+        .cerror >start != >end;Effectively this is >(start != (>end))
 
 Conditional operators
 
@@ -3002,6 +3012,9 @@ Operation options
 
     Writes a dependency rules suitable for `make' from the list of files used
     during compilation.
+
+    Please choose source file names which are compatible with Makefiles as
+    there are very little escaping possibilities.
 
 --make-phony
     Enable phony targets for dependencies

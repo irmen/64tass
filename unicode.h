@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.h 1867 2019-02-09 11:32:35Z soci $
+    $Id: unicode.h 2200 2020-04-07 19:18:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ extern MUST_CHECK bool extend_ubuff(struct ubuff_s *);
 extern MUST_CHECK bool unfc(struct ubuff_s *);
 extern MUST_CHECK bool unfkc(struct str_t *, const struct str_t *, int);
 extern size_t argv_print(const char *, FILE *);
+extern size_t makefile_print(const char *, FILE *);
 extern void printable_print(const uint8_t *, FILE *);
 extern size_t printable_print2(const uint8_t *, FILE *, size_t);
 extern void caret_print(const uint8_t *, FILE *, size_t);

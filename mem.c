@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2170 2020-03-22 15:18:53Z soci $
+    $Id: mem.c 2197 2020-04-06 19:00:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 #include "mem.h"
 #include <string.h>
 #ifdef _WIN32
+#include <fcntl.h>
+#endif
+#ifdef __DJGPP__
+#include <io.h>
 #include <fcntl.h>
 #endif
 #include <errno.h>
@@ -188,14 +192,6 @@ err:
     }
 }
 
-#ifdef __DJGPP__
-#define set_unbuffered(f) do {} while (false)
-#else
-static void set_unbuffered(FILE *fout) {
-    setvbuf(fout, NULL, _IONBF, 0);
-}
-#endif
-
 static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     address_t pos, end;
     unsigned int i;
@@ -225,7 +221,6 @@ static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct 
         i = 0;
         break;
     }
-    if (memblocks->p == 1) set_unbuffered(fout);
     if (i != 0 && fwrite(header, i, 1, fout) == 0) return;
     for (i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
@@ -273,7 +268,6 @@ static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
     address_t pos;
     size_t i;
 
-    if (memblocks->p == 1 && memblocks->data[0].addr == 0) set_unbuffered(fout);
     for (pos = i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
         padding(block->addr - pos, fout);
@@ -287,7 +281,6 @@ static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
     unsigned char header[6];
     header[0] = 0xff;
     header[1] = 0xff;
-    if (memblocks->p == 1) set_unbuffered(fout);
     for (i = 0; i < memblocks->p;) {
         const struct memblock_s *block = &memblocks->data[i];
         bool special;
@@ -481,14 +474,17 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     struct linepos_s nopoint = {0, 0};
     bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
     int err;
+#if defined _WIN32 || defined __DJGPP__
+    int oldmode = -1;
+#endif
 
     memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC);
 
     if (memblocks->mem.p == 0) return;
 
     if (dash_name(output->name)) {
-#ifdef _WIN32
-        if (binary) setmode(fileno(stdout), O_BINARY);
+#if defined _WIN32 || defined __DJGPP__
+        if (binary) oldmode = setmode(STDOUT_FILENO, O_BINARY);
 #endif
         fout = stdout;
     } else {
@@ -512,8 +508,8 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     err = ferror(fout);
     err |= (fout != stdout) ? fclose(fout) : fflush(fout);
     if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
-#ifdef _WIN32
-    setmode(fileno(stdout), O_TEXT);
+#if defined _WIN32 || defined __DJGPP__
+    if (oldmode >= 0) setmode(STDOUT_FILENO, oldmode);
 #endif
 }
 
