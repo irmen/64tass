@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2112 2019-12-11 17:56:46Z soci $
+    $Id: eval.c 2214 2020-05-21 20:31:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -259,9 +259,8 @@ static MUST_CHECK Obj *get_bytes(linepos_t epoint, bool z85) {
     txt[1] = (char)here();
     txt[2] = txt[0] = txt[1] ^ ('\'' ^ '"');
     txt[3] = 0;
-    lpoint.pos += len - 1;
-    if (here() != txt[1]) err_msg2(ERROR______EXPECTED, txt, &lpoint);
-    lpoint.pos++;
+    lpoint.pos += len;
+    if (pline[lpoint.pos - 1] != txt[1] || len == 1) err_msg2(ERROR______EXPECTED, txt, &lpoint);
     return v;
 }
 
@@ -761,7 +760,7 @@ MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len2, uval_t *olen, iv
     Error *err;
     ival_t len, offs, end, step = 1;
 
-    if (len2 >= (1u << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error_mem(epoint); /* overflow */
+    if (len2 >= (1U << (8 * sizeof(ival_t) - 1))) return (Obj *)new_error_mem(epoint); /* overflow */
     len = (ival_t)len2;
     if (v2->len > 3 || v2->len < 1) {
         return (Obj *)new_error_argnum(v2->len, 1, 3, epoint);

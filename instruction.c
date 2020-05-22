@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2129 2019-12-30 16:41:47Z soci $
+    $Id: instruction.c 2209 2020-05-19 05:03:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
         case 0xC0:
         case 0xA2:
         case 0xA0:  /* cpx cpy ldx ldy */
-            adrgen = ((w == 1 || longindex) && w != 0) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
+            adrgen = ((longindex && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
             break;
         case 0xF4: /* pea/phw #$ffff */
             adrgen = (am == A_IMMEDIATE) ? AG_SWORD : AG_SINT;
@@ -196,7 +196,11 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
             adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
             break;
         default:
-            adrgen = ((w == 1 || longaccu) && w != 0) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
+            if (cnmemonic[ADR_REL] != ____ || cnmemonic[ADR_REL_L] != ____) {
+                adrgen = (am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR;
+                break;
+            }
+            adrgen = ((longaccu && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
         }
         break;
     case (A_IMMEDIATE << 4) | A_BR: /* lda #$ffff,b */
@@ -444,6 +448,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         ln = 1; longbranch = 0;
                         goto justrel2;
                     case ADR_IMMEDIATE: 
+                        if (cnmemonic[ADR_REL] != ____) {
+                            ln = 1; longbranch = 0; opr = ADR_REL;
+                            goto immediaterel;
+                        }
+                        if (cnmemonic[ADR_REL_L] != ____) {
+                            if (w == 0) err_msg2(ERROR__NO_BYTE_ADDR, &mnemonic[prm], epoint2);
+                            ln = 2; longbranch = 0; opr = ADR_REL_L;
+                            goto immediaterel;
+                        }
                         if (pline[epoints[0].pos] == '#') epoints[0].pos++; 
                         break;
                     case ADR_ZP_I_Y:
@@ -501,6 +514,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     invalid = touaddress(val, &uval, 16, epoint2);
                     if (invalid) uval = current_address->l_address.address + 1 + ln;
                     uval &= 0xffff;
+                    uval |= (uval_t)current_address->l_address.bank;
                     crossbank = false;
                 } else {
             justrel:
@@ -523,6 +537,25 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address.address - 1 - ln);
                 } else {
                     adr = (uint16_t)(uval - current_address->l_address.address - 1 - ln);
+                }
+                if (false) {
+                    bool longpossible;
+            immediaterel:
+                    longpossible = (cnmemonic[ADR_REL_L] != ____) && w != 0;
+                    if (adrgen == AG_SBYTE) {
+                        invalid = touaddress(val, &uval, longpossible ? 16 : 8, epoint2);
+                    } else {
+                        invalid = toiaddress(val, (ival_t *)&uval, longpossible ? 16 : 8, epoint2);
+                    }
+                    if (invalid) uval = 0;
+                    if (!longpossible && (uval & 0x80) != 0) uval |= ~(uval_t)0xff;
+                    uval &= 0xffff;
+                    uval |= (uval_t)current_address->l_address.bank;
+                    crossbank = false;
+                    xadr = (uint16_t)adr;
+                    starexists = false; s = NULL;
+                    oadr = uval;
+                    adr = (uint16_t)uval;
                 }
                 if ((adr<0xFF80 && adr>0x007F) || crossbank || w == 1 || w == 2) {
                     if (cnmemonic[ADR_REL_L] != ____ && !crossbank && (w == 3 || w == 1)) { /* 65CE02 long branches */
@@ -613,7 +646,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         goto asjmp; /* gcc -> jmp */
                     } else { /* too long */
                         if (w != 3 && w != 0) {
-                            err_msg2((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, NULL, epoint2);
+                            err_msg2((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, &mnemonic[prm], epoint2);
                         } else if (crossbank) {
                             err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
                         } else {
@@ -778,6 +811,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 am = val->obj->address(val);
                 if (am == A_KR) {
                     goto justrel2;
+                }
+                if (am == A_IMMEDIATE) {
+                    adrgen = AG_SBYTE;
+                    goto immediaterel;
+                }
+                if (am == A_IMMEDIATE_SIGNED) {
+                    adrgen = AG_CHAR;
+                    goto immediaterel;
                 }
                 goto justrel;
             }

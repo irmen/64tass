@@ -587,7 +587,9 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; character string cons
 or <q>z</q> characters can be used to create byte strings. The resulting byte
 string contains what <a href="#d_text"><code>.text</code></a>, <a href="#d_shiftl"><code>.shiftl</code></a>,
 <a href="#d_null"><code>.null</code></a>, <a href="#d_ptext"><code>.ptext</code></a> and <a href="#d_shift"><code>.shift</code></a> would
-create. Direct hexadecimal entry can be done using the <q>x</q> prefix and <q>z</q> denotes a z85 encoded byte string.</p>
+create. Direct hexadecimal entry can be done using the <q>x</q> prefix and
+<q>z</q> denotes a z85 encoded byte string. Spaces can be used between pairs of
+hexadecimal digits as a separator for better readability.</p>
 
 <div><table border="0">
 <caption>Byte string operators and functions</caption>
@@ -1569,7 +1571,7 @@ expect this behaviour.</p>
 <pre width=80>
         <b>lda</b> #&lt;<u>label</u>+<span>10</span>  <i>;This is &lt;(label+10) and not (&lt;label)+10</i>
 
-<i>;The check below is wrong and should be written as (&lt;start) != (&lt;*)</i>
+<i>;The check below is wrong and should be written as (&gt;start) != (&gt;end)</i>
         <b class="k">.cerror</b> &gt;<u>start</u> != &gt;<u>end</u><i>;Effectively this is &gt;(start != (&gt;end))</i>
 </pre>
 
@@ -3031,7 +3033,7 @@ longer.</p>
 .0000    a9 03          lda #$03        in1     <b>lda</b> #<span>3</span>
 .0002    d0 02          bne $0006               <b>gne</b> <u>at</u>          <i>;branch always</i>
 .0004    a9 02          lda #$02        in2     <b>lda</b> #<span>2</span>
-.0006    4c 00 10       jmp $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch further</i>
+.0006    4c 00 10       jmp $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch farther</i>
 </pre>
 
 <p>If the branch would skip only one byte then the opposite condition is

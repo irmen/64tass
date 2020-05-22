@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2200 2020-04-07 19:18:23Z soci $
+    $Id: error.c 2209 2020-05-19 05:03:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -422,6 +422,8 @@ static void str_name(const uint8_t *data, size_t len) {
     adderror("'");
 }
 
+static void err_opcode(uint32_t);
+
 void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
     bool more;
     if (no < 0x40) {
@@ -568,6 +570,12 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
             adderror("'");
             break;
+        case ERROR__NO_BYTE_ADDR:
+        case ERROR__NO_WORD_ADDR:
+        case ERROR__NO_LONG_ADDR: 
+            adderror(terr_error[no - 0x40]); 
+            err_opcode(*(uint32_t *)prm); 
+            break;
         default:
             adderror(terr_error[no - 0x40]);
         }
@@ -642,7 +650,7 @@ static void new_error_msg_err_more(const Error *err) {
     adderror("original location in an expanded macro was here");
 }
 
-static void new_error_msg_more() {
+static void new_error_msg_more(void) {
     const struct file_list_s *flist = new_error_msg_more_param.flist;
     linepos_t epoint = new_error_msg_more_param.epoint;
     size_t line_len;

@@ -428,7 +428,8 @@ Quoted character strings prefixing by `b', `l', `n', `p', `s', `x' or `z'
 characters can be used to create byte strings. The resulting byte string
 contains what .text, .shiftl, .null, .ptext and .shift would create. Direct
 hexadecimal entry can be done using the `x' prefix and `z' denotes a z85
-encoded byte string.
+encoded byte string. Spaces can be used between pairs of hexadecimal digits as
+a separator for better readability.
 
           Byte string operators and functions
 y .. x concatenate strings x"12" .. x"34" is x"1234"
@@ -1211,7 +1212,7 @@ this behaviour.
 
         lda #<label+10  ;This is <(label+10) and not (<label)+10
 
-;The check below is wrong and should be written as (<start) != (<*)
+;The check below is wrong and should be written as (>start) != (>end)
         .cerror >start != >end;Effectively this is >(start != (>end))
 
 Conditional operators
@@ -2584,7 +2585,7 @@ GPL, GMI, GVC, GVS, GLT and GGE.
 .0000    a9 03          lda #$03        in1     lda #3
 .0002    d0 02          bne $0006               gne at          ;branch always
 .0004    a9 02          lda #$02        in2     lda #2
-.0006    4c 00 10       jmp $1000       at      gne $1000       ;branch further
+.0006    4c 00 10       jmp $1000       at      gne $1000       ;branch farther
 
 If the branch would skip only one byte then the opposite condition is compiled
 and only the first byte is emitted. This is now a never executed jump, and the

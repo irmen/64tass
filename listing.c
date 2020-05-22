@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2151 2020-01-23 21:26:23Z soci $
+    $Id: listing.c 2215 2020-05-21 20:52:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ static void printdec(Listing *ls, uint32_t dec) {
 
 static void printfile(Listing *ls) {
     ls->s[ls->i++] = ':';
-    printdec(ls, ls->lastfile - 1);
+    printdec(ls, ls->lastfile - 1U);
 }
 
 static void printline(Listing *ls) {
@@ -355,7 +355,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
         ls->s[ls->i++] = ',';
         out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_address->l_address.address));
         return;
-    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1u : 0) + current_address->l_address.address); else ls->i--; return;
+    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1U : 0) + current_address->l_address.address); else ls->i--; return;
     case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; ls->s[ls->i++] = '#'; out_byte(ls, adr); return;
     }
     while (*mode != 0) ls->s[ls->i++] = *mode++;

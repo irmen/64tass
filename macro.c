@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2138 2020-01-02 01:15:03Z soci $
+    $Id: macro.c 2206 2020-05-05 20:00:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,9 +79,10 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
         const struct file_list_s *flist = current_file_list;
         size_t p = macro_parameters.p;
         while (p != 0) {
-            p--;
-            const struct macro_pline_s *mline = &macro_parameters.params[p].pline;
+            const struct macro_pline_s *mline;
             size_t i;
+            p--;
+            mline = &macro_parameters.params[p].pline;
             for (i = 0; i < mline->rp; i++) {
                 size_t c = pos - mline->rpositions[i].pos;
                 if (c < mline->rpositions[i].len) {

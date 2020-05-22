@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2199 2020-04-06 21:07:14Z soci $
+    $Id: 64tass.c 2206 2020-05-05 20:00:40Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1287,9 +1287,11 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
 }
 
 static MUST_CHECK bool list_extend2(List *lst) {
+    size_t o;
+    Obj **vals;
     if (list_extend(lst)) return true;
-    size_t o = lst->len;
-    Obj **vals = lst->data;
+    o = lst->len;
+    vals = lst->data;
     while (o < lst->u.s.max) vals[o++] = (Obj *)ref_none();
     lst->len = o;
     return false;
@@ -1960,7 +1962,6 @@ MUST_CHECK Obj *compile(void)
                         val2 = get_vals_addrlist(epoints);
                         referenceit = oldreferenceit;
                     }
-                    oaddr = current_address->address;
                     if (val == NULL) {
                         bool labelexists;
                         label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
@@ -2055,7 +2056,6 @@ MUST_CHECK Obj *compile(void)
                         if (label != NULL) {
                             labelexists = true;
                         } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                        oaddr = current_address->address;
                         listing_equal(listing, val);
                         if (labelexists) {
                             if (label->defpass == pass) {
@@ -2117,7 +2117,6 @@ MUST_CHECK Obj *compile(void)
                                 labelexists = true;
                                 if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                             } else label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                            oaddr = current_address->address;
                             listing_equal(listing, val);
                             if (labelexists) {
                                 if (label->constant) {
@@ -2990,6 +2989,9 @@ MUST_CHECK Obj *compile(void)
         case '.':
             prm = get_command();
             ignore();
+            if ((waitfor->skip & 1) == 0 && waitfor->what == W_ENDC && prm != CMD_ENDC && prm != CMD_COMMENT) {
+                break;
+            }
         as_command:
             switch (prm) {
             case CMD_ENDC: /* .endc */
@@ -3789,6 +3791,7 @@ MUST_CHECK Obj *compile(void)
                     if ((vs = get_val()) != NULL) {
                         struct textrecursion_s trec;
                         size_t membp = get_mem(current_address->mem);
+                        oaddr = current_address->address;
 
                         trec.len = 0;
                         trec.sum = 0;

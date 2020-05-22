@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2200 2020-04-07 19:18:23Z soci $
+    $Id: arguments.c 2205 2020-04-23 10:53:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -319,68 +319,78 @@ static bool woption(const char *s) {
 
 static const char *short_options = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:W:";
 
+enum {
+    HELP = 256, USAGE, TAB_SIZE, CARET_DIAG, MACRO_CARET_DIAG, NO_CARET_DIAG,
+    LINE_NUMBERS, NO_LINE_NUMBERS, SOURCE, MONITOR, VERBOSE_LIST,
+    NO_VERBOSE_LIST, MAKE_PHONY, NO_MAKE_PHONY, LABELS_ROOT, DUMP_LABELS,
+    VICE_LABELS_NUMERIC, VICE_LABELS, EXPORT_LABELS, NORMAL_LABELS,
+    OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
+    NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
+    INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN
+};
+
 static const struct my_option long_options[] = {
     {"no-warn"          , my_no_argument      , NULL, 'w'},
-    {"warn"             , my_no_argument      , NULL,  0x11f},
-    {"no-quiet"         , my_no_argument      , NULL,  0x120},
+    {"warn"             , my_no_argument      , NULL,  WARN},
+    {"no-quiet"         , my_no_argument      , NULL,  NO_QUIET},
     {"quiet"            , my_no_argument      , NULL, 'q'},
     {"nonlinear"        , my_no_argument      , NULL, 'n'},
     {"nostart"          , my_no_argument      , NULL, 'b'},
     {"flat"             , my_no_argument      , NULL, 'f'},
-    {"no-long-address"  , my_no_argument      , NULL,  0x121},
+    {"no-long-address"  , my_no_argument      , NULL,  NO_LONG_ADDRESS},
     {"long-address"     , my_no_argument      , NULL, 'X'},
-    {"atari-xex"        , my_no_argument      , NULL,  0x107},
-    {"apple-ii"         , my_no_argument      , NULL,  0x108},
-    {"intel-hex"        , my_no_argument      , NULL,  0x10e},
-    {"s-record"         , my_no_argument      , NULL,  0x10f},
-    {"cbm-prg"          , my_no_argument      , NULL,  0x10c},
-    {"no-ascii"         , my_no_argument      , NULL,  0x11e},
+    {"atari-xex"        , my_no_argument      , NULL,  ATARI_XEX},
+    {"apple-ii"         , my_no_argument      , NULL,  APPLE_II},
+    {"intel-hex"        , my_no_argument      , NULL,  INTEL_HEX},
+    {"s-record"         , my_no_argument      , NULL,  S_RECORD},
+    {"cbm-prg"          , my_no_argument      , NULL,  CBM_PRG},
+    {"no-ascii"         , my_no_argument      , NULL,  NO_ASCII},
     {"ascii"            , my_no_argument      , NULL, 'a'},
-    {"no-tasm-compatible",my_no_argument      , NULL,  0x11d},
+    {"no-tasm-compatible",my_no_argument      , NULL,  NO_TASM_COMPATIBLE},
     {"tasm-compatible"  , my_no_argument      , NULL, 'T'},
-    {"no-case-sensitive", my_no_argument      , NULL,  0x11c},
+    {"no-case-sensitive", my_no_argument      , NULL,  NO_CASE_SENSITIVE},
     {"case-sensitive"   , my_no_argument      , NULL, 'C'},
-    {"no-long-branch"   , my_no_argument      , NULL,  0x11b},
+    {"no-long-branch"   , my_no_argument      , NULL,  NO_LONG_BRANCH},
     {"long-branch"      , my_no_argument      , NULL, 'B'},
-    {"m65xx"            , my_no_argument      , NULL,  0x101},
+    {"m65xx"            , my_no_argument      , NULL,  M65XX},
     {"m6502"            , my_no_argument      , NULL, 'i'},
     {"m65c02"           , my_no_argument      , NULL, 'c'},
-    {"m65ce02"          , my_no_argument      , NULL,  0x106},
+    {"m65ce02"          , my_no_argument      , NULL,  M65CE02},
     {"m65816"           , my_no_argument      , NULL, 'x'},
     {"m65dtv02"         , my_no_argument      , NULL, 't'},
     {"m65el02"          , my_no_argument      , NULL, 'e'},
-    {"mr65c02"          , my_no_argument      , NULL,  0x104},
-    {"mw65c02"          , my_no_argument      , NULL,  0x105},
-    {"m4510"            , my_no_argument      , NULL,  0x111},
+    {"mr65c02"          , my_no_argument      , NULL,  MR65C02},
+    {"mw65c02"          , my_no_argument      , NULL,  MW65C02},
+    {"m4510"            , my_no_argument      , NULL,  M4510},
     {"labels"           , my_required_argument, NULL, 'l'},
     {"output"           , my_required_argument, NULL, 'o'},
-    {"output-section"   , my_required_argument, NULL,  0x114},
+    {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
     {"error"            , my_required_argument, NULL, 'E'},
-    {"normal-labels"    , my_no_argument      , NULL,  0x124},
-    {"export-labels"    , my_no_argument      , NULL,  0x115},
-    {"vice-labels"      , my_no_argument      , NULL,  0x10b},
-    {"vice-labels-numeric",my_no_argument     , NULL,  0x123},
-    {"dump-labels"      , my_no_argument      , NULL,  0x10d},
-    {"labels-root"      , my_required_argument, NULL,  0x113},
+    {"normal-labels"    , my_no_argument      , NULL,  NORMAL_LABELS},
+    {"export-labels"    , my_no_argument      , NULL,  EXPORT_LABELS},
+    {"vice-labels"      , my_no_argument      , NULL,  VICE_LABELS},
+    {"vice-labels-numeric",my_no_argument     , NULL,  VICE_LABELS_NUMERIC},
+    {"dump-labels"      , my_no_argument      , NULL,  DUMP_LABELS},
+    {"labels-root"      , my_required_argument, NULL,  LABELS_ROOT},
     {"list"             , my_required_argument, NULL, 'L'},
     {"dependencies"     , my_required_argument, NULL, 'M'},
-    {"no-make-phony"    , my_no_argument      , NULL,  0x126},
-    {"make-phony"       , my_no_argument      , NULL,  0x125},
-    {"no-verbose-list"  , my_no_argument      , NULL,  0x11a},
-    {"verbose-list"     , my_no_argument      , NULL,  0x110},
+    {"no-make-phony"    , my_no_argument      , NULL,  NO_MAKE_PHONY},
+    {"make-phony"       , my_no_argument      , NULL,  MAKE_PHONY},
+    {"no-verbose-list"  , my_no_argument      , NULL,  NO_VERBOSE_LIST},
+    {"verbose-list"     , my_no_argument      , NULL,  VERBOSE_LIST},
     {"no-monitor"       , my_no_argument      , NULL, 'm'},
-    {"monitor"          , my_no_argument      , NULL,  0x119},
+    {"monitor"          , my_no_argument      , NULL,  MONITOR},
     {"no-source"        , my_no_argument      , NULL, 's'},
-    {"source"           , my_no_argument      , NULL,  0x118},
-    {"no-line-numbers"  , my_no_argument      , NULL,  0x117},
-    {"line-numbers"     , my_no_argument      , NULL,  0x112},
-    {"no-caret-diag"    , my_no_argument      , NULL,  0x10a},
-    {"macro-caret-diag" , my_no_argument      , NULL,  0x122},
-    {"caret-diag"       , my_no_argument      , NULL,  0x116},
-    {"tab-size"         , my_required_argument, NULL,  0x109},
+    {"source"           , my_no_argument      , NULL,  SOURCE},
+    {"no-line-numbers"  , my_no_argument      , NULL,  NO_LINE_NUMBERS},
+    {"line-numbers"     , my_no_argument      , NULL,  LINE_NUMBERS},
+    {"no-caret-diag"    , my_no_argument      , NULL,  NO_CARET_DIAG},
+    {"macro-caret-diag" , my_no_argument      , NULL,  MACRO_CARET_DIAG},
+    {"caret-diag"       , my_no_argument      , NULL,  CARET_DIAG},
+    {"tab-size"         , my_required_argument, NULL,  TAB_SIZE},
     {"version"          , my_no_argument      , NULL, 'V'},
-    {"usage"            , my_no_argument      , NULL,  0x102},
-    {"help"             , my_no_argument      , NULL,  0x103},
+    {"usage"            , my_no_argument      , NULL,  USAGE},
+    {"help"             , my_no_argument      , NULL,  HELP},
     {NULL               , my_no_argument      , NULL,  0}
 };
 
@@ -500,23 +510,23 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 if (woption(my_optarg)) goto exit;
                 break;
             case 'w':arguments.warning = false;break;
-            case 0x11f:arguments.warning = true;break;
+            case WARN:arguments.warning = true;break;
             case 'q':arguments.quiet = false;break;
-            case 0x120:arguments.quiet = true;break;
+            case NO_QUIET:arguments.quiet = true;break;
             case 'X':output.longaddr = true;break;
-            case 0x121:output.longaddr = false;break;
+            case NO_LONG_ADDRESS:output.longaddr = false;break;
             case 'n':output.mode = OUTPUT_NONLINEAR;break;
-            case 0x107:output.mode = OUTPUT_XEX;break;
-            case 0x108:output.mode = OUTPUT_APPLE;break;
-            case 0x10e:output.mode = OUTPUT_IHEX;break;
-            case 0x10f:output.mode = OUTPUT_SREC;break;
-            case 0x10c:output.mode = OUTPUT_CBM;break;
+            case ATARI_XEX:output.mode = OUTPUT_XEX;break;
+            case APPLE_II:output.mode = OUTPUT_APPLE;break;
+            case INTEL_HEX:output.mode = OUTPUT_IHEX;break;
+            case S_RECORD:output.mode = OUTPUT_SREC;break;
+            case CBM_PRG:output.mode = OUTPUT_CBM;break;
             case 'b':output.mode = OUTPUT_RAW;break;
             case 'f':output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
-            case 0x11e:arguments.to_ascii = false;break;
+            case NO_ASCII:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
-            case 0x11d:arguments.tasmcomp = false;break;
+            case NO_TASM_COMPATIBLE:arguments.tasmcomp = false;break;
             case 'o': output.name = my_optarg;
                       arguments.output_len++;
                       arguments.output = (struct output_s *)realloc(arguments.output, arguments.output_len * sizeof *arguments.output);
@@ -524,10 +534,10 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;
                       break;
-            case 0x114:output.section = my_optarg; break;
-            case 0x116:arguments.caret = CARET_ALWAYS;break;
-            case 0x122:arguments.caret = CARET_MACRO;break;
-            case 0x10a:arguments.caret = CARET_NEVER;break;
+            case OUTPUT_SECTION:output.section = my_optarg; break;
+            case CARET_DIAG:arguments.caret = CARET_ALWAYS;break;
+            case MACRO_CARET_DIAG:arguments.caret = CARET_MACRO;break;
+            case NO_CARET_DIAG:arguments.caret = CARET_NEVER;break;
             case 'D':
                 {
                     size_t len = strlen(my_optarg) + 1;
@@ -552,17 +562,17 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 }
                 break;
             case 'B': arguments.longbranch = true;break;
-            case 0x11b: arguments.longbranch = false;break;
-            case 0x101: arguments.cpumode = &c6502;break;
+            case NO_LONG_BRANCH: arguments.longbranch = false;break;
+            case M65XX: arguments.cpumode = &c6502;break;
             case 'i': arguments.cpumode = &c6502i;break;
             case 'c': arguments.cpumode = &c65c02;break;
-            case 0x106: arguments.cpumode = &c65ce02;break;
+            case M65CE02: arguments.cpumode = &c65ce02;break;
             case 'x': arguments.cpumode = &w65816;break;
             case 't': arguments.cpumode = &c65dtv02;break;
             case 'e': arguments.cpumode = &c65el02;break;
-            case 0x104: arguments.cpumode = &r65c02;break;
-            case 0x105: arguments.cpumode = &w65c02;break;
-            case 0x111: arguments.cpumode = &c4510;break;
+            case MR65C02: arguments.cpumode = &r65c02;break;
+            case MW65C02: arguments.cpumode = &w65c02;break;
+            case M4510: arguments.cpumode = &c4510;break;
             case 'l': symbol_output.name = my_optarg;
                       arguments.symbol_output_len++;
                       arguments.symbol_output = (struct symbol_output_s *)realloc(arguments.symbol_output, arguments.symbol_output_len * sizeof *arguments.symbol_output);
@@ -570,36 +580,36 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                       arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
                       symbol_output.space = NULL;
                       break;
-            case 0x124: symbol_output.mode = LABEL_64TASS; break;
-            case 0x115: symbol_output.mode = LABEL_EXPORT; break;
-            case 0x10b: symbol_output.mode = LABEL_VICE; break;
-            case 0x123: symbol_output.mode = LABEL_VICE_NUMERIC; break;
-            case 0x10d: symbol_output.mode = LABEL_DUMP; break;
-            case 0x113: symbol_output.space = my_optarg; break;
+            case NORMAL_LABELS: symbol_output.mode = LABEL_64TASS; break;
+            case EXPORT_LABELS: symbol_output.mode = LABEL_EXPORT; break;
+            case VICE_LABELS: symbol_output.mode = LABEL_VICE; break;
+            case VICE_LABELS_NUMERIC: symbol_output.mode = LABEL_VICE_NUMERIC; break;
+            case DUMP_LABELS: symbol_output.mode = LABEL_DUMP; break;
+            case LABELS_ROOT: symbol_output.space = my_optarg; break;
             case 'E': arguments.error = my_optarg;break;
             case 'L': arguments.list = my_optarg;break;
             case 'M': arguments.make = my_optarg;break;
             case 'I': include_list_add(my_optarg);break;
             case 'm': arguments.monitor = false;break;
-            case 0x119: arguments.monitor = true;break;
+            case MONITOR: arguments.monitor = true;break;
             case 's': arguments.source = false;break;
-            case 0x118: arguments.source = true;break;
-            case 0x112: arguments.linenum = true;break;
-            case 0x117: arguments.linenum = false;break;
+            case SOURCE: arguments.source = true;break;
+            case LINE_NUMBERS: arguments.linenum = true;break;
+            case NO_LINE_NUMBERS: arguments.linenum = false;break;
             case 'C': arguments.caseinsensitive = 0;break;
-            case 0x11c: arguments.caseinsensitive = 0x20;break;
-            case 0x110: arguments.verbose = true;break;
-            case 0x11a: arguments.verbose = false;break;
-            case 0x125: arguments.make_phony = true;break;
-            case 0x126: arguments.make_phony = false;break;
-            case 0x109:
+            case NO_CASE_SENSITIVE: arguments.caseinsensitive = 0x20;break;
+            case VERBOSE_LIST: arguments.verbose = true;break;
+            case NO_VERBOSE_LIST: arguments.verbose = false;break;
+            case MAKE_PHONY: arguments.make_phony = true;break;
+            case NO_MAKE_PHONY: arguments.make_phony = false;break;
+            case TAB_SIZE:
                 {
                     char *s;
                     long int tab = strtol(my_optarg, &s, 10);
                     if (tab > 0 && tab <= 64 && *s == 0) arguments.tab_size = (unsigned int)tab;
                     break;
                 }
-            case 0x102:puts(
+            case USAGE:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
@@ -617,8 +627,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
                      return 0;
-            case 0x103:
-            case '?':if (my_optopt == '?' || opt == 0x103) { puts(
+            case HELP:
+            case '?':if (my_optopt == '?' || opt == HELP) { puts(
                "Usage: 64tass [OPTIONS...] SOURCES\n"
                "64tass Turbo Assembler Macro V" VERSION "\n"
                "\n"

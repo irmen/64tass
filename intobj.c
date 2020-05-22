@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: intobj.c 2214 2020-05-21 20:31:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -757,7 +757,7 @@ static inline MUST_CHECK Int *power(oper_t op) {
         digit_t d = vv2->data[i];
         for (j = SHIFT - 1; j >= 0; j--) {
             imul(v, v, v);
-            if ((d & (1 << j)) != 0) {
+            if ((d & (1U << j)) != 0) {
                 imul(v, vv1, v);
                 neg = true;
             } else neg = false;
@@ -1343,7 +1343,7 @@ MUST_CHECK Obj *int_from_bytes(const Bytes *v1, linepos_t epoint) {
                 bits = uv = 0;
             } else bits += 8;
         }
-        if (c == 0xff) uv |= 1 << bits;
+        if (c == 0xff) uv |= 1U << bits;
         d[j] = uv;
     } else {
         for (;i < len1; i++) {

@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2142 2020-01-03 16:26:22Z soci $
+    $Id: bytesobj.c 2215 2020-05-21 20:52:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -335,10 +335,10 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     if (v1->len < 0) *s++ = '~';
     *s++ = 'z';
     *s++ = '\'';
-    s = z85_encode(s, v1->data, sz & ~3);
+    s = z85_encode(s, v1->data, sz & ~3U);
     if ((sz & 3) != 0) {
         uint8_t tmp2[5], tmp[4] = {0, 0, 0, 0};
-        memcpy(tmp + 4 - (sz & 3), v1->data + (sz & ~3), sz & 3);
+        memcpy(tmp + 4 - (sz & 3), v1->data + (sz & ~3U), sz & 3);
         sz &= 3;
         z85_encode(tmp2, tmp, sz);
         sz++;
@@ -373,10 +373,10 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 
 MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint) {
     Bytes *v;
-    size_t i, j;
+    size_t i, j, spc;
     uint8_t ch2, ch = s[0];
 
-    i = 1; j = 0;
+    i = 1; j = (s[1] == 0x20) ? 2 : 0; spc = 0;
     for (;;) {
         if ((ch2 = s[i]) == 0) {
             *ln = i;
@@ -389,8 +389,15 @@ MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint
         ch2 ^= 0x30;
         if (ch2 < 10) continue;
         ch2 = (ch2 | 0x20) - 0x71;
-        if (ch2 >= 6 && j == 0) j = i;
+        if (ch2 >= 6 && j == 0) {
+            if (ch2 == 0xbf && ((i - spc) & 1) == 0) {
+                spc++;
+                continue;
+            }
+            j = i;
+        }
     }
+    if (j == 0 && s[i - 2] == 0x20) j = i - 1;
     *ln = i;
     if (j != 0) {
         struct linepos_s epoint2;
@@ -399,8 +406,9 @@ MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint
         err_msg2(ERROR______EXPECTED, "hex digit", &epoint2);
         return (Obj *)ref_none();
     }
-    j = (i > 1) ? (i - 2) : 0;
-    j /= 2;
+    i -= spc;
+    if ((i & 1) != 0) err_msg2(ERROR______EXPECTED, "even number of hex digits", epoint);
+    j = (i - 2) / 2;
     v = new_bytes2(j);
     if (v == NULL) return (Obj *)new_error_mem(epoint);
     v->len = (ssize_t)j;
@@ -408,12 +416,14 @@ MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint
         uint8_t c1, c2;
         s++;
         c1 = s[i] ^ 0x30;
-        if (c1 >= 10) c1 = (c1 | 0x20) - 0x67;
+        if (c1 >= 10) {
+            if (c1 == 0x10) {i--; continue;}
+            c1 = (c1 | 0x20) - 0x67;
+        }
         c2 = s[i+1] ^ 0x30;
         if (c2 >= 10) c2 = (c2 | 0x20) - 0x67;
         v->data[i] = (c1 << 4) | c2;
     }
-    if ((*ln & 1) != 0) err_msg2(ERROR______EXPECTED, "even number of hex digits", epoint);
     return &v->v;
 }
 
