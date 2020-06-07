@@ -1125,9 +1125,12 @@ repr(<expression>)
 size(<expression>)
     Returns the size of code, structure or union in bytes.
 
-            ldx #size(var) ; size to x
+    var     .word 0, 0, 0
+            ldx #size(var)  ; 6 bytes
+    var2    = var + 2       ; start 2 bytes later
+            ldx #size(var2) ; what remains is 4 bytes
 
-sort(<list>)
+sort(<list expression>)
     Returns a sorted list or tuple.
 
     If the original list contains further lists then these must be all of the
@@ -1166,8 +1169,9 @@ in line with it's use in most other assemblers.
 .. concat      x  repeat
 in contains
 
-There's a ternary operator (? :) which gives the second value if the first is
-true or the third if the first is false.
+Spacing must be used for the `x' and `in' operators or else they won't be
+recognized as such. For example the expression `[1,2]x2' should be written as
+`[1,2]x 2' instead.
 
 Parenthesis (( )) can be used to override operator precedence. Don't forget
 that they also denote indirect addressing mode for certain opcodes.
@@ -1245,21 +1249,23 @@ Address length forcing
 
 Special addressing length forcing operators in front of an expression can be
 used to make sure the expected addressing mode is used. Only applicable when
-used directly with instructions.
+used directly at the mnemonic.
 
            Address size forcing
 @b          to force 8 bit address
 @w          to force 16 bit address
 @l          to force 24 bit address (65816)
 
-        lda @w$0000
+        lda @w $0000    ; force the use of 2 byte absolute addressing
+        bne @b label    ; prevent upgrade to beq+jmp with long branches in use
+        lda @w #$00     ; use 2 bytes independent of accumulator size
 
 Compound assignment
 
-These assignment operators are short hands for common .var directive use.
+These assignment operators are short hands for updating variables.
 
-With the exception of := the variables updated must be defined beforehand. As
-with .var they can't update constants, only variables.
+The variables on the left must be defined beforehand by `:=' or `.var'.
+Constants can't be changed of course.
 
        Compound assignments
 +=  add         -=  subtract
@@ -1365,15 +1371,15 @@ it does not need to be.
     The compile offset is adjusted so that the program counter will match the
     requested address in the expression.
 
-    ;Offset PC       Bytes          Disassembly     Source
+    ;Offset ;PC     ;Hex            ;Monitor        ;Source
                                                     *       = $0800
-    >0800                                                   .byte
+    .0800                                           label1
                                                             .logical $1000
-    >0800   1000                                            .byte
+    .0800   1000                                    label2
                                                     *       = $1200
-    >0a00   1200                                            .byte
+    .0a00   1200                                    label3
                                                             .here
-    >0a00                                                   .byte
+    .0a00                                           label4
 
 .offs <expression>
     Sets the compile offset relative to the program counter.
@@ -1382,7 +1388,7 @@ it does not need to be.
     code, otherwise it's use is not recommended as there are easier to use
     alternatives below.
 
-    ;Offset PC       Bytes          Disassembly     Source
+    ;Offset ;PC     ;Hex            ;Monitor        ;Source
                                                     *       = $1000
     .1000           ea              nop                     nop
                                                             .offs 100
@@ -1399,7 +1405,7 @@ it does not need to be.
     It's used for code copied to it's proper location at runtime. Can be nested
     of course.
 
-    ;Offset PC       Bytes          Disassembly     Source
+    ;Offset ;PC     ;Hex            ;Monitor        ;Source
                                                     *       = $1000
                                                             .logical $300
     .1000   0300     a9 80          lda #$80        drive   lda #$80
@@ -3274,6 +3280,20 @@ default, the others are disabled.
             .end
             asl bl.x        ; not ambiguous
 
+-Wno-size-larger
+    Don't warn if size is larger due to negative offset
+
+    size() and len() can be used to measure a memory area. Normally there's no
+    offset used but a positive offset may be used to reduce available space up
+    until nothing remains.
+
+    On the other hand if a negative offset is used then more space will be
+    available (ahead of the area) which may or may not be desired.
+
+    var     .byte ?, ?, ?
+    var2    = var - 2       ; start 2 bytes earlier
+            ldx #size(var2) ; size is 6 bytes due to 2 bytes ahead
+
 -Wstrict-bool
     Warn about implicit boolean conversions.
 
@@ -3907,6 +3927,9 @@ key error
     key not in the dictionary
 label required
     a label is mandatory for this directive
+larger than original due to negative offset
+    if a negative offset is used the size gets larger than the original as this
+    effectively adds bytes to the front.
 last byte must not be gap
     .shift or .shiftl needs a normal byte at the end
 logarithm of non-positive number
@@ -3945,6 +3968,10 @@ not in range -1.0 to 1.0
     the function is only valid in the -1.0 to 1.0 range
 not iterable
     value is not a list or other iterable object
+not measurable as start offset beyond size of original
+    the applied offset was larger than the original size. For example if size
+    (data) is 2 then size(data + 1) is 1. However size(data + 3) makes no sense
+    as there's no such thing as a negative size.
 offset out of range
     code offset too much
 operands could not be broadcast together with shapes ? and ?

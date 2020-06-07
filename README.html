@@ -1441,10 +1441,13 @@ mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <
 <dt><code><b>size(</b>&lt;expression&gt;<b>)</b></code><a name="f_size" href="#f_size"></a>
 <dd>Returns the size of code, structure or union in bytes.
 <pre width=80>
-        <b>ldx</b> #<span class="k">size</span>(<u>var</u>) <i>; size to x</i>
+var     <b class="d">.word</b> <span>0</span>, <span>0</span>, <span>0</span>
+        <b>ldx</b> #<span class="k">size</span>(<u>var</u>)  <i>; 6 bytes</i>
+var2    <b>=</b> <u>var</u> + <span>2</span>       <i>; start 2 bytes later</i>
+        <b>ldx</b> #<span class="k">size</span>(<u>var2</u>) <i>; what remains is 4 bytes</i>
 </pre>
 
-<dt><code><b>sort(</b>&lt;list&gt;<b>)</b></code><a name="f_sort" href="#f_sort"></a>
+<dt><code><b>sort(</b>&lt;list expression&gt;<b>)</b></code><a name="f_sort" href="#f_sort"></a>
 <dd>Returns a sorted list or tuple.
 
 <p>If the original list contains further lists then these must
@@ -1505,8 +1508,8 @@ This is done to be in line with it's use in most other assemblers.</p>
 </tbody>
 </table></div>
 
-<p>There's a ternary operator (<code>? :</code>) which gives the second value if the first is
-true or the third if the first is false.</p>
+<p>Spacing must be used for the <q>x</q> and <q>in</q> operators or else they won't
+be recognized as such. For example the expression <q>[1,2]x2</q> should be written as <q>[1,2]x 2</q> instead.</p>
 
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
 Don't forget that they also denote indirect addressing mode for certain
@@ -1610,7 +1613,7 @@ booleans are required as arguments and only the <q><code>?</code></q> operator m
 
 <p>Special addressing length forcing operators in front of an expression can be
 used to make sure the expected addressing mode is used. Only applicable when used
-directly with instructions.</p>
+directly at the mnemonic.</p>
 
 <div><table border="0">
 <caption>Address size forcing</caption>
@@ -1622,16 +1625,17 @@ directly with instructions.</p>
 </table></div>
 
 <pre width=80>
-        <b>lda</b> @w<span>$0000</span>
+        <b>lda</b> @w <span>$0000</span>    <i>; force the use of 2 byte absolute addressing</i>
+        <b>bne</b> @b <u>label</u>    <i>; prevent upgrade to beq+jmp with long branches in use</i>
+        <b>lda</b> @w #<span>$00</span>     <i>; use 2 bytes independent of accumulator size</i>
 </pre>
 
 <h4>Compound assignment<a name="compound" href="#compound"></a></h4>
 
-<p>These assignment operators are short hands for common <a href="#d_var"><code>.var</code></a> directive use.</p>
+<p>These assignment operators are short hands for updating variables.</p>
 
-<p>With the exception of <code>:=</code> the variables updated must be defined
-beforehand. As with <a href="#d_var"><code>.var</code></a> they can't update constants, only
-variables.</p>
+<p>The variables on the left must be defined beforehand by <q><code>:=</code></q>
+or <q><a href="#d_var"><code>.var</code></q></a>. Constants can't be changed of course.</p>
 
 <div><table border="0">
 <caption>Compound assignments</caption>
@@ -1751,15 +1755,15 @@ but it does not need to be.</p>
 <dd>The compile offset is adjusted so that the program counter
 will match the requested address in the expression.
 <pre width=80>
-<i>;Offset PC       Bytes          Disassembly     Source</i>
+<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
 						*	<b>=</b> <span>$0800</span>
-&gt;0800							<b class="d">.byte</b>
+.0800						label1
 							<b class="k">.logical</b> <span>$1000</span>
-&gt;0800	1000						<b class="d">.byte</b>
+.0800	1000					label2
 						*	= <span>$1200</span>
-&gt;0a00	1200						<b class="d">.byte</b>
+.0a00	1200					label3
 							<b class="k">.here</b>
-&gt;0a00							<b class="d">.byte</b>
+.0a00						label4
 </pre>
 <dt><code><b class="k">.offs</b></code> &lt;expression&gt;<a name="d_offs" href="#d_offs"></a>
 <dd>Sets the compile offset relative to the program counter.
@@ -1767,7 +1771,7 @@ will match the requested address in the expression.
 relocated code, otherwise it's use is not recommended as there are easier
 to use alternatives below.</p>
 <pre width=80>
-<i>;Offset PC       Bytes          Disassembly     Source</i>
+<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
 						*	<b>=</b> <span>$1000</span>
 .1000		ea		nop			<b>nop</b>
 							<b class="k">.offs</b> <span>100</span>
@@ -1779,7 +1783,7 @@ to use alternatives below.</p>
 <p>The naming is not logical at all for relocated code, but that's how it was named in old 6502tass.</p>
 <p>It's used for code copied to it's proper location at runtime. Can be nested of course.</p>
 <pre width=80>
-<i>;Offset PC       Bytes          Disassembly     Source</i>
+<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
 						*	<b>=</b> <span>$1000</span>
 							<b class="k">.logical</b> <span>$300</span>
 .1000	0300	 a9 80		lda #$80	drive	<b>lda</b> #<span>$80</span>
@@ -3686,6 +3690,20 @@ x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in regi
         <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
 </pre>
 
+<dt><b>-Wno-size-larger</b><a name="o_Wsize-larger" href="#o_Wsize-larger"></a>
+<dd>Don't warn if size is larger due to negative offset
+<p><a href="#f_size">size()</a> and <a href="#f_len">len()</a> can be used to measure a memory area.
+Normally there's no offset used but a positive offset may be used to reduce
+available space up until nothing remains.</p>
+<p>On the other hand if a negative offset is used then more space will be 
+available (ahead of the area) which may or may not be desired.</p>
+
+<pre width=80>
+var     <b class="d">.byte</b> <span>?</span>, <span>?</span>, <span>?</span>
+var2    <b>=</b> <u>var</u> - <span>2</span>       <i>; start 2 bytes earlier</i>
+        <b>ldx</b> #<span class="k">size</span>(<u>var2</u>) <i>; size is 6 bytes due to 2 bytes ahead</i>
+</pre>
+
 <dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
 <dd>Warn about implicit boolean conversions.
 <p>Boolean values can be interpreted as numeric 0/1 and other types as
@@ -4229,6 +4247,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>index out of range<dd>not enough elements in list
 <dt>key error<dd>key not in the dictionary
 <dt>label required<dd>a label is mandatory for this directive
+<dt>larger than original due to negative offset<dd>if a negative offset is used the size gets larger than the original as this effectively adds bytes to the front.
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
 <dt>logarithm of non-positive number<dd>only positive numbers have a logarithm
 <dt>macro call without prefix<dd>macro call was found without a prefix and without parameters
@@ -4248,6 +4267,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>not hashable<dd>the type can't be used as a key in a dictionary
 <dt>not in range -1.0 to 1.0<dd>the function is only valid in the -1.0 to 1.0 range
 <dt>not iterable<dd>value is not a list or other iterable object
+<dt>not measurable as start offset beyond size of original<dd>the applied offset was larger than the original size. For example if size(data) is 2 then size(data + 1) is 1. However size(data + 3) makes no sense as there's no such thing as a negative size.
 <dt>offset out of range<dd>code offset too much
 <dt>operands could not be broadcast together with shapes ? and ?<dd>list length must match or must have a single element only
 <dt>different start and end page $xxxx and $xxxx<dd>page crossing was detected

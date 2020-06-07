@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 1953 2019-08-31 14:49:15Z soci $
+   $Id: ternary.c 2217 2020-05-29 19:22:09Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -134,28 +134,28 @@ void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
 {
     uchar_t spchar;
     const ternary_node *last = NULL;
-    size_t len2 = *len;
-    const uint8_t *end = s + len2;
+    const uint8_t *start = s, *end = s + *len, *prev = s;
 
     spchar = *s;
     if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
 
-    while (curr != NULL) {
+    do {
         if (spchar == curr->splitchar) {
             if ((~spchar) == 0) return (void *)curr->eqkid;
             if (s == end) spchar = ~(uchar_t)0;
             else {
+                prev = s;
                 spchar = *s;
                 if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
             }
             curr = curr->eqkid;
             last = curr;
         } else curr = (spchar < curr->splitchar) ? curr->lokid : curr->hikid;
-    }
+    } while (curr != NULL);
     while (last != NULL && (~last->splitchar) != 0) {
         last = last->hikid;
     }
-    *len = len2 - (end - s) - 1;
+    *len = prev - start;
     return (last != NULL) ? (void *)last->eqkid : NULL;
 }
 

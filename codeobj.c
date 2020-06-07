@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: codeobj.c 2223 2020-06-07 10:01:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ MUST_CHECK Error *code_uaddress(Obj *o1, uval_t *uv, uval_t *uv2, linepos_t epoi
     }
     v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
-    v->u.intconv.val = get_code_address(v1, epoint);
+    v->u.intconv.val = get_star_value(*uv & all_mem, v1->typ);
     return v;
 }
 
@@ -197,7 +197,7 @@ static MUST_CHECK Error *iaddress(Obj *o1, ival_t *iv, unsigned int bits, linepo
     }
     v = new_error(ERROR_____CANT_IVAL, epoint);
     v->u.intconv.bits = bits;
-    v->u.intconv.val = get_code_address(v1, epoint);
+    v->u.intconv.val = get_star_value(addr, v1->typ);
     return v;
 }
 
@@ -214,7 +214,7 @@ static MUST_CHECK Error *uaddress(Obj *o1, uval_t *uv, unsigned int bits, linepo
     }
     v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
-    v->u.intconv.val = get_code_address(v1, epoint);
+    v->u.intconv.val = get_star_value(addr, v1->typ);
     return v;
 }
 
@@ -222,7 +222,7 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
     Code *v1 = (Code *)o1;
     if (v1->typ->obj->address(v1->typ) != A_NONE) {
         Error *v = new_error(ERROR______CANT_INT, epoint);
-        v->u.obj = get_code_address(v1, epoint);
+        v->u.obj = get_star_value(code_address(v1), v1->typ);
         return v;
     }
     return iaddress(o1, iv, bits, epoint);
@@ -232,7 +232,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     Code *v1 = (Code *)o1;
     if (v1->typ->obj->address(v1->typ) != A_NONE) {
         Error *v = new_error(ERROR______CANT_INT, epoint);
-        v->u.obj = get_code_address(v1, epoint);
+        v->u.obj = get_star_value(code_address(v1), v1->typ);
         return v;
     }
     return uaddress(o1, uv, bits, epoint);
@@ -302,17 +302,37 @@ static MUST_CHECK Obj *len(oper_t op) {
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
+    if (v1->offs == 0) {
+        s = v1->size;
+    } else if (v1->offs > 0) {
+        s = v1->size - (uval_t)v1->offs;
+        if (s > v1->size) return (Obj *)new_error(ERROR_NEGATIVE_SIZE, op->epoint2);
+    } else {
+        s = v1->size + (uval_t)-v1->offs;
+        if (s < v1->size) err_msg_out_of_memory(); /* overflow */
+        if (diagnostics.size_larger) err_msg_size_larger(op->epoint2);
+    }
     ln = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
-    s = calc_size(v1);
     return (Obj *)int_from_size((ln != 0) ? (s / ln) : s);
 }
 
 static MUST_CHECK Obj *size(oper_t op) {
+    address_t s;
     Code *v1 = (Code *)op->v2;
     if (v1->pass == 0) {
         return (Obj *)ref_none();
     }
-    return (Obj *)int_from_size(calc_size(v1));
+    if (v1->offs == 0) {
+        s = v1->size;
+    } else if (v1->offs > 0) {
+        s = v1->size - (uval_t)v1->offs;
+        if (s > v1->size) return (Obj *)new_error(ERROR_NEGATIVE_SIZE, op->epoint2);
+    } else {
+        s = v1->size + (uval_t)-v1->offs;
+        if (s < v1->size) err_msg_out_of_memory(); /* overflow */
+        if (diagnostics.size_larger) err_msg_size_larger(op->epoint2);
+    }
+    return (Obj *)int_from_size(s);
 }
 
 MUST_CHECK Obj *bits_from_code(const Code *v1, linepos_t epoint) {

@@ -260,6 +260,10 @@ Warn about symbol shadowing.
 Checks if local variables 'shadow' other variables of same name in upper
 scopes in ambiguous ways.
 .TP 0.5i
+\fB\-Wno\-size\-larger\fR
+Don't warn if size is larger due to negative offset
+Negative offsets add space in front of memory area that's out of bound. Sometimes this may be fine.
+.TP 0.5i
 \fB\-Wstrict\-bool\fR
 Warn about implicit boolean conversions.
 Boolean values can be interpreted as numeric 0/1 and other types as booleans. This is convenient but may cause mistakes.

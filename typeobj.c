@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2118 2019-12-21 05:43:46Z soci $
+    $Id: typeobj.c 2218 2020-06-06 11:14:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (args != 1) {
                 return (Obj *)new_error_argnum(args, 1, 1, op->epoint2);
             }
-            if (v1 == LIST_OBJ || v1 == TUPLE_OBJ || v1 == TYPE_OBJ) return v1->create(v2->val[0].val, op->epoint);
+            if (v1 == LIST_OBJ || v1 == TUPLE_OBJ || v1 == TYPE_OBJ) return v1->create(v2->val[0].val, &v2->val[0].epoint);
             return apply_convert(op);
         }
         break;

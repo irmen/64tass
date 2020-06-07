@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2209 2020-05-19 05:03:31Z soci $
+    $Id: error.c 2223 2020-06-07 10:01:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -375,7 +375,8 @@ static const char * const terr_error[] = {
     "empty encoding, add something or correct name",
     "closing directive '",
     "opening directive '",
-    "must be used within a loop"
+    "must be used within a loop",
+    "not measurable as start offset beyond size of original"
 };
 
 static const char * const terr_fatal[] = {
@@ -893,6 +894,7 @@ void err_msg_output(const Error *val) {
     case ERROR_NO_ZERO_VALUE:
     case ERROR_OUT_OF_MEMORY:
     case ERROR__ADDR_COMPLEX:
+    case ERROR_NEGATIVE_SIZE:
     case ERROR_DIVISION_BY_Z: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); break;
     case ERROR_NO_ADDRESSING: more = new_error_msg_err(val); err_msg_no_addressing(val->u.addressing.am, val->u.addressing.cod);break;
     case ERROR___NO_REGISTER: more = new_error_msg_err(val); err_msg_no_register(val->u.reg.reg, val->u.reg.cod);break;
@@ -1194,9 +1196,14 @@ void err_msg_implied_reg(linepos_t epoint, uint32_t cod) {
     if (more) new_error_msg_more();
 }
 
+void err_msg_size_larger(linepos_t epoint) {
+    new_error_msg2(diagnostic_errors.size_larger, epoint);
+    adderror("larger than original due to negative offset [-Wsize-larger]");
+}
+
 void err_msg_jmp_bug(linepos_t epoint) {
     new_error_msg2(diagnostic_errors.jmp_bug, epoint);
-    adderror( "possible jmp ($xxff) bug [-Wjmp-bug]");
+    adderror("possible jmp ($xxff) bug [-Wjmp-bug]");
 }
 
 void err_msg_pc_wrap(linepos_t epoint) {
