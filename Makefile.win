@@ -91,9 +91,10 @@ foldobj.o: foldobj.c foldobj.h obj.h attributes.h inttypes.h values.h \
  errors_e.h str.h
 functionobj.o: functionobj.c functionobj.h obj.h attributes.h inttypes.h \
  str.h math.h isnprintf.h eval.h stdbool.h variables.h error.h errors_e.h \
- avl.h file.h arguments.h floatobj.h values.h strobj.h listobj.h intobj.h \
- boolobj.h operobj.h oper_e.h typeobj.h noneobj.h errorobj.h bytesobj.h \
- dictobj.h
+ avl.h file.h arguments.h instruction.h 64tass.h wait_e.h section.h \
+ floatobj.h values.h strobj.h listobj.h intobj.h boolobj.h operobj.h \
+ oper_e.h typeobj.h noneobj.h errorobj.h bytesobj.h dictobj.h \
+ addressobj.h
 gapobj.o: gapobj.c gapobj.h obj.h attributes.h inttypes.h eval.h \
  stdbool.h variables.h str.h values.h strobj.h operobj.h oper_e.h \
  intobj.h boolobj.h typeobj.h errorobj.h errors_e.h

@@ -369,7 +369,7 @@ The only predefined constant is pi.
 Floating point numbers are automatically truncated to integer as necessary.
 Other types can be converted to floating point by using the type float.
 
-Fixed point conversion can be done by using the shift operators. For example a
+Fixed point conversion can be done by using the shift operators. For example an
 8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
 operators operate like if the floating point number would be a fixed point one.
 This is the reason for the strange definition of inversion.
@@ -998,6 +998,40 @@ sign(<expression>)
     Returns the sign of value as -1, 0 or 1 for negative, zero and positive.
     E.g. sign(-5) is -1
 
+Byte string functions
+
+These functions return byte strings of various lengths for signed numbers,
+unsigned numbers and addresses.
+
+The naming of functions is not a coincidence and they return the bytes what the
+data directives with the same names normally emit.
+
+byte(<expression>)
+char(<expression>)
+    Return a single byte string from a 8 bit unsigned (0-255) or signed number
+    (-128-127). E.g. byte(0) is x"00" and char(-1) is x"ff"
+word(<expression>)
+sint(<expression>)
+    Return a little endian byte string of 2 bytes from a 16 bit unsigned
+    (0-65535) or signed number (-32768-32767). E.g. word(1024) is x"0004" and
+    sint(-1) is x"ffff"
+long(<expression>)
+lint(<expression>)
+    Return a little endian byte string of 3 bytes from a 24 bit unsigned
+    (0-16777216) or signed number (-8388608-8388607). E.g. long(123456) is
+    x"40E201" and lint(-1) is x"ffffff"
+dword(<expression>)
+dint(<expression>)
+    Return a little endian byte string of 4 bytes from a 32 bit unsigned
+    (0-4294967296) or signed number (-2147483648-2147483647). E.g. dword(
+    123456789) is x"15CD5B07" and dint(-1) is x"ffffffff"
+addr(<expression>)
+    Return a little endian byte string of 2 bytes from an address in the
+    current program bank. E.g. rta(start) is x"0d08"
+rta(<expression>)
+    Return a little endian byte string of 2 bytes from a return address in the
+    current program bank. E.g. rta(4096) is x"ff0f"
+
 Other functions
 
 all(<expression>)
@@ -1102,8 +1136,8 @@ random([<expression>, ...])
     integer in range of s <= x < e, step t random(s, a, t)
 
             .seed 1234      ; default is boring, seed the generator
-            .byte random(256); a pseudo random byte (0..255)
-            .byte random([16] x 8); 8 pseudo random bytes (0..15)
+            .byte random(256); a pseudo random byte (0-255)
+            .byte random([16] x 8); 8 pseudo random bytes (0-15)
 
 range(<expression>[, <expression>, ...])
     Returns a list of integers in a range, with optional stepping.
@@ -2165,24 +2199,33 @@ directory separator and use lower/uppercase consistently in file names!
 
 Scopes
 
-Scopes may contain symbols or other scopes nested. They are useful to avoid
-symbol clashes as the same symbol name can repeated as long as it's in a
-different scope.
+Scopes may contain symbols or further nested scopes. The same symbol name can
+be reused as long as it's in a different scope.
 
-In nested scopes the symbol lookup starts from the local scope and goes in the
-direction of the global scope. This means that local variables will `shadow'
-global one with the same name.
+A symbol is looked up in the local scope first. If it's a non-local symbol then
+parent scopes and the global scope may be searched in addition. This means that
+a symbol in a parent or global scope may be `shadowed'.
+
+Symbols of a named scope can be looked up using the `.' operator. The searched
+symbol stands on the right and it's looked up in the scope on the left. More
+than one symbol may be looked up at the same time and the result will be a list
+or tuple.
+
+        lda #0
+        sta vic.sprite.enable
+; same as .byte colors.red, colors.green, colors.blue
+ctable  .byte colors.(red, green, blue)
 
 .proc
 .pend
-    Procedure start and end of procedure.
+    Start a procedure, close and start next procedure and finish procedure.
 
-    If it's label is not used then the code won't be compiled at all. This is
-    very useful to avoid a lot of .if blocks to exclude unused sections of
-    code.
+    If the symbol in front is not referenced anywhere then the enclosed source
+    won't be compiled.
 
-    All labels inside are local enclosed in a scope and are accessible through
-    the prefixed label. Useful for building libraries.
+    Symbols inside are enclosed in a scope and are accessible through the
+    symbol of the procedure using the dot notation. This forces compilation of
+    the whole procedure of course.
 
     ize     .proc
             nop
@@ -2192,13 +2235,33 @@ global one with the same name.
             jsr ize
             jmp ize.cucc
 
+    The `compilation only if used' behaviour of .proc eases the building of
+    `libraries' from a collection of subroutines and tables where not
+    everything is needed all the time.
+
+    Alternative dead-code reduction techniques I encountered:
+
+    Separate source files
+        This potentially results in a lot of small files and manually managed
+        include directives. This is popular on external linker based systems
+        where object files may be excluded if unused.
+    Conditional compilation
+        Few larger files with conditional compilation directives all over the
+        place to exclude or include various parts. The source which does the
+        include manually declares somewhere what's actually needed or not.
+        There may be a lot of options if it's fine grained enough.
+    Wrap parts with macros
+        If a part is needed then a single macro call is placed somewhere to
+        `include' that part. Much better than conditional compilation but these
+        macro calls still need to be manually managed.
+
 .block
 .bend
     Block start and block end.
 
-    All labels inside a block are local enclosed in a scope. If prefixed with a
-    label local variables are accessible through that label using the dot
-    notation, otherwise not at all.
+    All symbols inside a block are enclosed in a scope. If the block had a
+    symbol then local symbols are accessible through that using the dot
+    notation.
 
             .block
             inc count + 1
@@ -2512,7 +2575,7 @@ Misc
 .end
     Terminate assembly. Any content after this directive is ignored.
 .eor <expression>
-    XOR output with a 8 bit value. Useful for reverse screen code text for
+    XOR output with an 8 bit value. Useful for reverse screen code text for
     example, or for silly `encryption'.
 .seed <expression>
     Seed the pseudo random number generator with an unsigned integer of maximum
@@ -2809,7 +2872,7 @@ Output options
     $00, $00 end marker (length=0)
 
 --atari-xex
-    Generate a Atari XEX output file.
+    Generate an Atari XEX output file.
 
     Overlapping blocks are kept, continuing blocks are concatenated. Saving
     happens in the definition order without sorting, and uninitialized memory
@@ -2833,7 +2896,7 @@ Output options
     $60      code
 
 --apple2
-    Generate a Apple II output file (DOS 3.3).
+    Generate an Apple II output file (DOS 3.3).
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
@@ -4591,9 +4654,9 @@ Assembler directives
 
 Built-in functions
 
-abs acos all any asin atan atan2 binary cbrt ceil cos cosh deg exp floor format
-frac hypot len log log10 pow rad random range repr round sign sin sinh size
-sort sqrt tan tanh trunc
+abs acos addr all any asin atan atan2 binary byte cbrt ceil char cos cosh deg
+dint dword exp floor format frac hypot len lint log log10 long pow rad random
+range repr round rta sign sin sinh sint size sort sqrt tan tanh trunc word
 
 Built-in types
 

@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 2131 2019-12-30 19:02:20Z soci $
+	$Id: jedit-assembly-64tass.xml 2227 2020-06-28 04:03:37Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -253,6 +253,7 @@
 			<!-- Functions -->
                         <FUNCTION>abs</FUNCTION>
                         <FUNCTION>acos</FUNCTION>
+                        <FUNCTION>addr</FUNCTION>
                         <FUNCTION>address</FUNCTION>
                         <FUNCTION>all</FUNCTION>
                         <FUNCTION>any</FUNCTION>
@@ -261,11 +262,15 @@
                         <FUNCTION>atan</FUNCTION>
                         <FUNCTION>binary</FUNCTION>
                         <FUNCTION>bool</FUNCTION>
+                        <FUNCTION>byte</FUNCTION>
                         <FUNCTION>cbrt</FUNCTION>
                         <FUNCTION>ceil</FUNCTION>
+                        <FUNCTION>char</FUNCTION>
                         <FUNCTION>cos</FUNCTION>
                         <FUNCTION>cosh</FUNCTION>
                         <FUNCTION>deg</FUNCTION>
+                        <FUNCTION>dint</FUNCTION>
+                        <FUNCTION>dword</FUNCTION>
                         <FUNCTION>exp</FUNCTION>
                         <FUNCTION>float</FUNCTION>
                         <FUNCTION>floor</FUNCTION>
@@ -274,17 +279,21 @@
                         <FUNCTION>hypot</FUNCTION>
                         <FUNCTION>int</FUNCTION>
                         <FUNCTION>len</FUNCTION>
+                        <FUNCTION>lint</FUNCTION>
                         <FUNCTION>log10</FUNCTION>
                         <FUNCTION>log</FUNCTION>
+                        <FUNCTION>long</FUNCTION>
                         <FUNCTION>pow</FUNCTION>
                         <FUNCTION>rad</FUNCTION>
                         <FUNCTION>random</FUNCTION>
                         <FUNCTION>range</FUNCTION>
                         <FUNCTION>repr</FUNCTION>
                         <FUNCTION>round</FUNCTION>
+                        <FUNCTION>rta</FUNCTION>
                         <FUNCTION>sign</FUNCTION>
                         <FUNCTION>sin</FUNCTION>
                         <FUNCTION>sinh</FUNCTION>
+                        <FUNCTION>sint</FUNCTION>
                         <FUNCTION>size</FUNCTION>
                         <FUNCTION>sort</FUNCTION>
                         <FUNCTION>sqrt</FUNCTION>
@@ -292,6 +301,7 @@
                         <FUNCTION>tan</FUNCTION>
                         <FUNCTION>tanh</FUNCTION>
                         <FUNCTION>trunc</FUNCTION>
+                        <FUNCTION>word</FUNCTION>
 		</KEYWORDS>
 
                 <SEQ_REGEXP AT_LINE_START="TRUE" TYPE="LABEL">[\p{javaUnicodeIdentifierStart}][\p{javaUnicodeIdentifierPart}_.]*|_[\p{javaUnicodeIdentifierPart}][\p{javaUnicodeIdentifierPart}_.]*|[+-]</SEQ_REGEXP>

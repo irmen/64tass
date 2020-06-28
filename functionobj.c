@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2173 2020-03-22 23:37:40Z soci $
+    $Id: functionobj.c 2226 2020-06-27 20:10:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 #include "error.h"
 #include "file.h"
 #include "arguments.h"
+#include "instruction.h"
+#include "64tass.h"
+#include "section.h"
 
 #include "floatobj.h"
 #include "strobj.h"
@@ -37,6 +40,7 @@
 #include "errorobj.h"
 #include "bytesobj.h"
 #include "dictobj.h"
+#include "addressobj.h"
 
 static Type obj;
 
@@ -474,6 +478,40 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
     return (Obj *)ref_none();
 }
 
+static Obj *function_unsigned_bytes(oper_t op, unsigned int bits) {
+    uval_t uv;
+    if (touval(op->v2, &uv, bits, op->epoint2)) uv = 0;
+    return (Obj *)bytes_from_uval(uv, bits >> 3);
+}
+
+static Obj *function_signed_bytes(oper_t op, unsigned int bits) {
+    ival_t iv;
+    if (toival(op->v2, &iv, bits, op->epoint2)) iv = 0;
+    return (Obj *)bytes_from_uval((uval_t)iv, bits >> 3);
+}
+
+static Obj *function_rta_addr(oper_t op, bool rta) {
+    uval_t uv;
+    Obj *val = op->v2;
+    atype_t am = val->obj->address(val);
+    if (touaddress(val, &uv, (am == A_KR) ? 16 : all_mem_bits, op->epoint2)) {
+        uv = 0;
+    } else {
+        uv &= all_mem;
+        switch (am) {
+        case A_NONE:
+            if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val, op->epoint2);
+            break;
+        case A_KR:
+            break;
+        default:
+            err_msg_output_and_destroy(err_addressing(am, op->epoint2, -1));
+        }
+        if (rta) uv--;
+    }
+    return (Obj *)bytes_from_uval(uv, 2);
+}
+
 static MUST_CHECK Obj *apply_func(oper_t op) {
     Obj *o2 = op->v2;
     const Type *typ = o2->obj;
@@ -519,6 +557,16 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
     switch (((Function *)op->v1)->func) {
     case F_SIZE: return typ->size(op);
     case F_SIGN: return typ->sign(o2, op->epoint2);
+    case F_BYTE: return function_unsigned_bytes(op, 8);
+    case F_WORD: return function_unsigned_bytes(op, 16);
+    case F_LONG: return function_unsigned_bytes(op, 24);
+    case F_DWORD: return function_unsigned_bytes(op, 32);
+    case F_CHAR: return function_signed_bytes(op, 8);
+    case F_SINT: return function_signed_bytes(op, 16);
+    case F_LINT: return function_signed_bytes(op, 24);
+    case F_DINT: return function_signed_bytes(op, 32);
+    case F_ADDR: return function_rta_addr(op, false);
+    case F_RTA: return function_rta_addr(op, true);
     case F_CEIL:
     case F_FLOOR:
     case F_ROUND:
@@ -783,40 +831,50 @@ struct builtin_functions_s {
 static struct builtin_functions_s builtin_functions[] = {
     {"abs", F_ABS},
     {"acos", F_ACOS},
+    {"addr", F_ADDR},
     {"all", F_ALL},
     {"any", F_ANY},
     {"asin", F_ASIN},
     {"atan", F_ATAN},
     {"atan2", F_ATAN2},
     {"binary", F_BINARY},
+    {"byte", F_BYTE},
     {"cbrt", F_CBRT},
     {"ceil", F_CEIL},
+    {"char", F_CHAR},
     {"cos", F_COS},
     {"cosh", F_COSH},
     {"deg", F_DEG},
+    {"dint", F_DINT},
+    {"dword", F_DWORD},
     {"exp", F_EXP},
     {"floor", F_FLOOR},
     {"format", F_FORMAT},
     {"frac", F_FRAC},
     {"hypot", F_HYPOT},
     {"len", F_LEN},
+    {"lint", F_LINT},
     {"log", F_LOG},
     {"log10", F_LOG10},
+    {"long", F_LONG},
     {"pow", F_POW},
     {"rad", F_RAD},
     {"random", F_RANDOM},
     {"range", F_RANGE},
     {"repr", F_REPR},
     {"round", F_ROUND},
+    {"rta", F_RTA},
     {"sign", F_SIGN},
     {"sin", F_SIN},
     {"sinh", F_SINH},
+    {"sint", F_SINT},
     {"size", F_SIZE},
     {"sort", F_SORT},
     {"sqrt", F_SQRT},
     {"tan", F_TAN},
     {"tanh", F_TANH},
     {"trunc", F_TRUNC},
+    {"word", F_WORD},
     {NULL, F_NONE}
 };
 
