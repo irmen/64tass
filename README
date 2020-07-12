@@ -59,11 +59,12 @@ Table of Contents
           o The star label
       + Built-in functions
           o Mathematical functions
+          o Byte string functions
           o Other functions
       + Expressions
           o Operators
           o Comparison operators
-          o Bit string extraction operators
+          o Byte extraction operators
           o Conditional operators
           o Address length forcing
           o Compound assignment
@@ -539,7 +540,7 @@ a few examples:
 ;Bitmask table, 8 bits from left to right
         .byte %10000000 >> range(8)
 ;Classic 256 byte single period sinus table with values of 0-255.
-        .byte 128 + 127.5 * sin(range(256) * rad(360.0/256))
+        .byte 128 + 127.5 * sin(range(256) * pi / 128))
 ;Screen row address tables
 _       := $400 + range(0, 1000, 40)
 scrlo   .byte <_
@@ -1027,7 +1028,7 @@ dint(<expression>)
     123456789) is x"15CD5B07" and dint(-1) is x"ffffffff"
 addr(<expression>)
     Return a little endian byte string of 2 bytes from an address in the
-    current program bank. E.g. rta(start) is x"0d08"
+    current program bank. E.g. addr(start) is x"0d08"
 rta(<expression>)
     Return a little endian byte string of 2 bytes from a return address in the
     current program bank. E.g. rta(4096) is x"ff0f"
@@ -2804,6 +2805,12 @@ Output options
     new selection was made but the output section selection must be repeated
     for each output. The maximum image size will be the smallest of all
     selected formats. Using the same name multiple times is not a good idea.
+
+--output-append <filename>
+    Same as output but appends instead of overwrites.
+
+    Normally output files are overwritten but in some cases it's useful to
+    append them instead.
 
 --output-section <sectionname>
     By default all sections go into the output file. Using this option limits

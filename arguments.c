@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2223 2020-06-07 10:01:25Z soci $
+    $Id: arguments.c 2237 2020-07-11 22:47:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -331,7 +331,8 @@ enum {
     VICE_LABELS_NUMERIC, VICE_LABELS, EXPORT_LABELS, NORMAL_LABELS,
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
-    INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN
+    INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
+    OUTPUT_APPEND
 };
 
 static const struct my_option long_options[] = {
@@ -369,6 +370,7 @@ static const struct my_option long_options[] = {
     {"m4510"            , my_no_argument      , NULL,  M4510},
     {"labels"           , my_required_argument, NULL, 'l'},
     {"output"           , my_required_argument, NULL, 'o'},
+    {"output-append"    , my_required_argument, NULL,  OUTPUT_APPEND},
     {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
     {"error"            , my_required_argument, NULL, 'E'},
     {"normal-labels"    , my_no_argument      , NULL,  NORMAL_LABELS},
@@ -502,7 +504,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     int max = 10;
     bool again;
     struct symbol_output_s symbol_output = { NULL, LABEL_64TASS, NULL };
-    struct output_s output = { "a.out", NULL, OUTPUT_CBM, false };
+    struct output_s output = { "a.out", NULL, OUTPUT_CBM, false, false };
 
     do {
         int i;
@@ -532,7 +534,9 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case NO_ASCII:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
             case NO_TASM_COMPATIBLE:arguments.tasmcomp = false;break;
+            case OUTPUT_APPEND:
             case 'o': output.name = my_optarg;
+                      output.append = (opt == OUTPUT_APPEND);
                       arguments.output_len++;
                       arguments.output = (struct output_s *)realloc(arguments.output, arguments.output_len * sizeof *arguments.output);
                       if (arguments.output == NULL) err_msg_out_of_memory2();
@@ -620,14 +624,15 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
-               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
-               "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--m4510] [--labels=<file>] [--normal-labels]\n"
-               "        [--export-labels] [--vice-labels] [--vice-labels-numeric]\n"
-               "        [--dump-labels] [--list=<file>] [--no-monitor] [--no-source]\n"
-               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] \n"
+               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
+               "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
+               "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
+               "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
+               "        [--vice-labels-numeric] [--dump-labels] [--list=<file>] [--no-monitor]\n"
+               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
                "        [--dependencies=<file>] [--make-phony] [-W<option>] [--errors=<file>]\n"
-               "        [--output=<file>] [--help] [--usage] [--version] SOURCES");
+               "        [--output=<file>] [--output-append=<file>] [--help] [--usage]\n"
+               "        [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -694,7 +699,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wunused-variable      Warn about unused variables\n");
                puts(" Output selection:\n"
                "  -o, --output=<file>    Place output into <file>\n"
-               "   --output-section=<n>  Output this section only\n"
+               "  --output-append=<file> Append output to <file>\n"
+               "  --output-section=<n>   Output this section only\n"
                "  -b, --nostart          Strip starting address\n"
                "  -f, --flat             Generate flat output file\n"
                "  -n, --nonlinear        Generate nonlinear output file\n"

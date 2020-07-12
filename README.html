@@ -148,13 +148,14 @@ difficult to get everything <q>right</q> first time.</b></p>
   <li><a href="#builtin-functions">Built-in functions</a>
   <ul>
    <li><a href="#math-functions">Mathematical functions</a>
+   <li><a href="#byte-functions">Byte string functions</a>
    <li><a href="#other-functions">Other functions</a>
   </ul>
   <li><a href="#expressions">Expressions</a>
   <ul>
    <li><a href="#operators">Operators</a>
    <li><a href="#comparison">Comparison operators</a>
-   <li><a href="#bitstringextractor">Bit string extraction operators</a>
+   <li><a href="#bitstringextractor">Byte extraction operators</a>
    <li><a href="#conditionals">Conditional operators</a>
    <li><a href="#addresslength">Address length forcing</a>
    <li><a href="#compound">Compound assignment</a>
@@ -720,7 +721,7 @@ useful, so here are a few examples:</p>
 <i>;Bitmask table, 8 bits from left to right</i>
         <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; <span class="k">range</span>(<span>8</span>)
 <i>;Classic 256 byte single period sinus table with values of 0&ndash;255.</i>
-        <b class="d">.byte</b> <span>128</span> + <span>127.5</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
+        <b class="d">.byte</b> <span>128</span> + <span>127.5</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <u>pi</u> / <span>128</span>))
 <i>;Screen row address tables</i>
 _       <b>:=</b> <span>$400</span> + <span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
 scrlo   <b class="d">.byte</b> &lt;<u>_</u>
@@ -1322,7 +1323,7 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 
 <dt><code><b>addr(</b>&lt;expression&gt;<b>)</b></code><a name="f_addr" href="#f_addr"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from an address in the current program bank. E.g.
-<code><span class="k">rta</span>(start)</code> is <code><span>x"0d08"</span></code>
+<code><span class="k">addr</span>(start)</code> is <code><span>x"0d08"</span></code>
 
 <dt><code><b>rta(</b>&lt;expression&gt;<b>)</b></code><a name="f_rta" href="#f_rta"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from a return address in the current program bank. E.g.
@@ -3257,6 +3258,11 @@ placed before this option. The format selection will be unchanged if no new
 selection was made but the output section selection must be repeated for each
 output. The maximum image size will be the smallest of all selected
 formats. Using the same name multiple times is not a good idea.</p>
+
+<dt><b>--output-append</b> &lt;filename&gt;<a name="o_output-append" href="#o_output-append"></a>
+<dd>Same as output but appends instead of overwrites.
+
+<p>Normally output files are overwritten but in some cases it's useful to append them instead.</p>
 
 <dt><b>--output-section</b> &lt;sectionname&gt;<a name="o_output-section" href="#o_output-section"></a>
 <dd>By default all sections go into the output file. Using this option

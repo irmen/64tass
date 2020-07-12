@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2197 2020-04-06 19:00:55Z soci $
+    $Id: mem.c 2236 2020-07-11 22:36:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <string.h>
 #ifdef _WIN32
 #include <fcntl.h>
+#include <unistd.h>
 #endif
 #ifdef __DJGPP__
 #include <io.h>
@@ -488,7 +489,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 #endif
         fout = stdout;
     } else {
-        fout = file_open(output->name, binary ? "wb" : "wt");
+        fout = file_open(output->name, output->append ? (binary ? "ab" : "at") : (binary ? "wb" : "wt"));
     }
     if (fout == NULL) {
         err_msg_file(ERROR_CANT_WRTE_OBJ, output->name, &nopoint);
