@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2206 2020-05-05 20:00:40Z soci $
+    $Id: 64tass.c 2241 2020-07-30 06:12:02Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -314,16 +314,6 @@ static void tfree(void) {
     str_cfcpy(NULL, NULL);
     free_macro();
     free(waitfors);
-}
-
-static void status(void) {
-    bool errors = error_print();
-    if (arguments.quiet) {
-        error_status();
-        printf("Passes: %12u\n",pass);
-        if (!errors) sectionprint();
-    }
-    tfree();
 }
 
 void new_waitfor(Wait_types what, linepos_t epoint) {
@@ -2368,12 +2358,12 @@ MUST_CHECK Obj *compile(void)
                                 label->constant = true;
                                 label->owner = true;
                                 label->value = &mfunc->v;
+                                mfunc->inamespaces = ref_tuple(null_tuple);
                                 label->epoint = epoint;
                                 label->ref = false;
                                 get_func_params(mfunc);
                                 get_namespaces(mfunc);
                                 mfunc->names = new_namespace(current_file_list, &epoint);
-                                mfunc->inamespaces = ref_tuple(null_tuple);
                                 waitfor->u.cmd_function.val = val_reference(&mfunc->v);
                             }
                             goto finish;
@@ -4880,6 +4870,7 @@ int main2(int *argc2, char **argv2[]) {
     static struct linepos_s nopoint = {0, 0};
     char **argv;
     int argc;
+    bool failed;
 
     err_init(*argv2[0]);
     avltree_init(&star_root);
@@ -4913,54 +4904,60 @@ int main2(int *argc2, char **argv2[]) {
     if (arguments.list == NULL) {
         if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
     }
-    if (error_serious()) {status();return EXIT_FAILURE;}
+    failed = error_serious();
+    if (!failed) {
+        /* assemble again to create listing */
+        if (arguments.list != NULL) {
+            nolisting = 0;
 
-    /* assemble again to create listing */
-    if (arguments.list != NULL) {
-        nolisting = 0;
+            max_pass = pass; pass++;
+            listing = listing_open(arguments.list, argc, argv);
+            one_pass(argc, argv, opts, fin);
+            listing_close(listing);
+            listing = NULL;
 
-        max_pass = pass; pass++;
-        listing = listing_open(arguments.list, argc, argv);
-        one_pass(argc, argv, opts, fin);
-        listing_close(listing);
-        listing = NULL;
-
-        if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
-    }
-
-    for (j = 0; j < arguments.symbol_output_len; j++) {
-        const struct symbol_output_s *s = &arguments.symbol_output[j];
-        size_t k;
-        for (k = 0; k < j; k++) {
-            const struct symbol_output_s *s2 = &arguments.symbol_output[k];
-            if (strcmp(s->name, s2->name) == 0) break;
+            if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
         }
-        if (labelprint(s, k != j)) break;
-    }
-    if (arguments.make != NULL) makefile(argc - opts, argv + opts, arguments.make_phony);
 
-    if (error_serious()) {status();return EXIT_FAILURE;}
-
-    for (j = 0; j < arguments.output_len; j++) {
-        const struct output_s *output = &arguments.output[j];
-        struct section_s *section = find_this_section(output->section);
-        if (section == NULL) {
-            str_t sectionname;
-            sectionname.data = pline;
-            sectionname.len = lpoint.pos;
-            err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
-        } else if (j == arguments.output_len - 1) { 
-            output_mem(section->address.mem, output);
-        } else {
-            Memblocks *tmp = copy_memblocks(section->address.mem);
-            output_mem(tmp, output);
-            val_destroy(&tmp->v);
+        for (j = 0; j < arguments.symbol_output_len; j++) {
+            const struct symbol_output_s *s = &arguments.symbol_output[j];
+            size_t k;
+            for (k = 0; k < j; k++) {
+                const struct symbol_output_s *s2 = &arguments.symbol_output[k];
+                if (strcmp(s->name, s2->name) == 0) break;
+            }
+            if (labelprint(s, k != j)) break;
         }
+        if (arguments.make != NULL) makefile(argc - opts, argv + opts, arguments.make_phony);
+
+        failed = error_serious();
+    }
+    if (!failed) {
+        for (j = 0; j < arguments.output_len; j++) {
+            const struct output_s *output = &arguments.output[j];
+            struct section_s *section = find_this_section(output->section);
+            if (section == NULL) {
+                str_t sectionname;
+                sectionname.data = pline;
+                sectionname.len = lpoint.pos;
+                err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
+            } else if (j == arguments.output_len - 1) { 
+                output_mem(section->address.mem, output);
+            } else {
+                Memblocks *tmp = copy_memblocks(section->address.mem);
+                output_mem(tmp, output);
+                val_destroy(&tmp->v);
+            }
+        }
+        failed = error_serious();
     }
 
-    {
-        bool e = error_serious();
-        status();
-        return e ? EXIT_FAILURE : EXIT_SUCCESS;
+    error_print();
+    if (arguments.quiet) {
+        error_status();
+        printf("Passes: %12u\n",pass);
+        if (!failed) sectionprint();
     }
+    tfree();
+    return failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }

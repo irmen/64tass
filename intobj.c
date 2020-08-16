@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2214 2020-05-21 20:31:48Z soci $
+    $Id: intobj.c 2240 2020-07-18 22:37:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1226,10 +1226,10 @@ static ssize_t icmp(oper_t op) {
     i = vv1->len - vv2->len;
     if (i != 0) return i;
     j = intlen(vv1);
-    while ((j--) != 0) {
+    while (j != 0) {
+        j--;
         a = vv1->data[j]; b = vv2->data[j];
-        if (a > b) return (vv1->len < 0) ? -1 : 1;
-        if (a < b) return (vv1->len < 0) ? 1 : -1;
+        if (a != b) return (a > b) ? vv1->len : -vv1->len;
     }
     return 0;
 }

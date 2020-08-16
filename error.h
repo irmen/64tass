@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2223 2020-06-07 10:01:25Z soci $
+    $Id: error.h 2238 2020-07-18 15:15:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);
 extern void err_msg_big_address(linepos_t);
 extern void error_reset(void);
-extern bool error_print(void);
+extern void error_print(void);
 extern void enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);

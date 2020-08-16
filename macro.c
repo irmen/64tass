@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2206 2020-05-05 20:00:40Z soci $
+    $Id: macro.c 2243 2020-07-30 18:48:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -87,13 +87,14 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
                 size_t c = pos - mline->rpositions[i].pos;
                 if (c < mline->rpositions[i].len) {
                     size_t param = mline->rpositions[i].param;
-                    if (param != SIZE_MAX) {
+                    if (param < macro_parameters.params[p].len) {
                         if (macro_parameters.params[p].param[param].init) return ret;
-                        pos = macro_parameters.params[p].param[param].pos + c;
+                        pos = macro_parameters.params[p].param[param].pos;
                     } else {
-                        pos = macro_parameters.params[p].all.pos + c;
+                        if (param != SIZE_MAX) return ret;
+                        pos = macro_parameters.params[p].all.pos;
                     }
-                    opoint->pos = pos;
+                    opoint->pos = pos + c;
                     opoint->line = flist->epoint.line;
                     ret = flist->parent;
                     flist = ret;
