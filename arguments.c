@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2237 2020-07-11 22:47:14Z soci $
+    $Id: arguments.c 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -682,7 +682,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wno-wrap-dpage        No direct page overflow warning\n"
                "  -Wno-wrap-mem          No offset overflow warning\n"
                "  -Wno-wrap-pbank        No program bank overflow warning\n"
-               "  -Wno-wrap-pc           No PC overflow warning\n"
+               "  -Wno-wrap-pc           No PC bank cross warning\n"
                "  -Wno-pitfalls          No common pitfall notes\n"
                "  -Wno-portable          No portability warnings\n"
                "  -Wno-size-larger       No size larger than original warnings\n"

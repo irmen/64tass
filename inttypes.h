@@ -1,5 +1,5 @@
 /*
-    $Id: inttypes.h 1589 2018-07-08 19:29:16Z soci $
+    $Id: inttypes.h 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -85,7 +85,6 @@ typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
 typedef uint32_t address_t;
-typedef struct { address_t address, bank; } address2_t;
 #define PRIaddress PRIx32
 typedef uint32_t linecpos_t;
 struct linepos_s {line_t line;linecpos_t pos;};

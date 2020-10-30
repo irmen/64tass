@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2238 2020-07-18 15:15:24Z soci $
+    $Id: error.h 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ extern void err_msg_bool_oper(struct oper_s *);
 extern void err_msg_implied_reg(linepos_t, uint32_t);
 extern void err_msg_size_larger(linepos_t);
 extern void err_msg_jmp_bug(linepos_t);
-extern void err_msg_pc_wrap(linepos_t);
+extern void err_msg_pc_bank(linepos_t);
 extern void err_msg_mem_wrap(linepos_t);
 extern void err_msg_addr_wrap(linepos_t);
 extern void err_msg_dpage_wrap(linepos_t);

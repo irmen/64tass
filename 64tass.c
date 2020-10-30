@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2241 2020-07-30 06:12:02Z soci $
+    $Id: 64tass.c 2246 2020-10-17 09:51:34Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -95,7 +95,7 @@ static struct waitfor_s {
     struct linepos_s epoint;
     union {
         struct {
-            address2_t laddr;
+            address_t laddr;
             Obj *val;
             address_t addr;
             Label *label;
@@ -115,7 +115,7 @@ static struct waitfor_s {
         } cmd_section;
         struct {
             bool unionmode;
-            address2_t laddr;
+            address_t laddr;
             address_t addr, addr2;
         } cmd_union;
         struct {
@@ -129,7 +129,7 @@ static struct waitfor_s {
             size_t membp;
         } cmd_weak;
         struct {
-            address2_t laddr;
+            address_t laddr;
             address_t addr;
             Label *label;
             size_t membp;
@@ -407,10 +407,12 @@ static void memskip(address_t db, linepos_t epoint) {
         if (current_address->wrapwarn) {err_msg_mem_wrap(epoint);current_address->wrapwarn = false;}
         current_address->moved = false;
     }
-    if (current_address->l_address.address > 0xffff || db > 0x10000 - current_address->l_address.address) {
-        current_address->l_address.address = ((current_address->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg_pc_wrap(epoint);
-    } else current_address->l_address.address += db;
+    if (current_address->bankwarn) {err_msg_pc_bank(epoint);current_address->bankwarn = false;}
+    if (db > (~current_address->l_address & 0xffff)) {
+        current_address->bankwarn = ((-current_address->l_address & 0xffff) == db);
+        if (!current_address->bankwarn) err_msg_pc_bank(epoint);
+        current_address->l_address = (current_address->l_address + db) & all_mem;
+    } else current_address->l_address += db;
     if (db > (~current_address->address & all_mem2)) {
         if (db - 1 + current_address->address == all_mem2) {
             current_address->wrapwarn = current_address->moved = true;
@@ -437,10 +439,12 @@ FAST_CALL uint8_t *pokealloc(address_t db, linepos_t epoint) {
         if (current_address->wrapwarn) {err_msg_mem_wrap(epoint);current_address->wrapwarn = false;}
         current_address->moved = false;
     }
-    if (current_address->l_address.address > 0xffff || db > 0x10000 - current_address->l_address.address) {
-        current_address->l_address.address = ((current_address->l_address.address + db - 1) & 0xffff) + 1;
-        err_msg_pc_wrap(epoint);
-    } else current_address->l_address.address += db;
+    if (current_address->bankwarn) {err_msg_pc_bank(epoint);current_address->bankwarn = false;}
+    if (db > (~current_address->l_address & 0xffff)) {
+        current_address->bankwarn = ((-current_address->l_address & 0xffff) == db);
+        if (!current_address->bankwarn) err_msg_pc_bank(epoint);
+        current_address->l_address = (current_address->l_address + db) & all_mem;
+    } else current_address->l_address += db;
     if (db > (~current_address->address & all_mem2)) {
         if (db - 1 + current_address->address == all_mem2) {
             current_address->wrapwarn = current_address->moved = true;
@@ -763,7 +767,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
                 uv &= all_mem;
                 switch (am) {
                 case A_NONE:
-                    if ((current_address->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, brec->epoint);
+                    if ((current_address->l_address ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, brec->epoint);
                     break;
                 case A_KR:
                     break;
@@ -847,17 +851,19 @@ static void logical_close(linepos_t epoint) {
         current_address->l_union = waitfor->u.cmd_logical.laddr;
         diff = 0;
     } else {
+        bool overflowed = false;
         diff = (current_address->address - waitfor->u.cmd_logical.addr) & all_mem2;
         if (diff != 0) {
-            if (waitfor->u.cmd_logical.laddr.address > 0xffff || diff > 0x10000 - waitfor->u.cmd_logical.laddr.address) {
-                current_address->l_address.address = ((waitfor->u.cmd_logical.laddr.address + diff - 1) & 0xffff) + 1;
-                if (epoint != NULL) err_msg_pc_wrap(epoint);
-            } else current_address->l_address.address = waitfor->u.cmd_logical.laddr.address + diff;
-        } else current_address->l_address.address = waitfor->u.cmd_logical.laddr.address;
-        current_address->l_address.bank = waitfor->u.cmd_logical.laddr.bank;
-        if (current_address->l_address.bank > all_mem) {
+            current_address->bankwarn = ((-current_address->l_address & 0xffff) == diff);
+            if (diff > (~waitfor->u.cmd_logical.laddr & 0xffff)) {
+                current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
+                overflowed = current_address->l_address < diff;
+                if (epoint != NULL && !current_address->bankwarn) err_msg_pc_bank(epoint);
+            } else current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
+        } else current_address->l_address = waitfor->u.cmd_logical.laddr;
+        if (current_address->l_address > all_mem || overflowed) {
             if (epoint != NULL) err_msg_big_address(epoint);
-            current_address->l_address.bank &= all_mem;
+            current_address->l_address &= all_mem;
         }
     }
     val_destroy(current_address->l_address_val);
@@ -879,9 +885,9 @@ static void virtual_close(linepos_t epoint) {
     val_destroy(&current_address->mem->v);
     free(current_address);
     current_address = waitfor->u.cmd_virtual.section_address;
-    if (current_address->l_address.bank > all_mem) {
+    if (current_address->l_address > all_mem) {
         if (epoint != NULL) err_msg_big_address(epoint);
-        current_address->l_address.bank &= all_mem;
+        current_address->l_address &= all_mem;
     }
 }
 
@@ -892,9 +898,9 @@ static void section_close(linepos_t epoint) {
     }
     current_section = waitfor->u.cmd_section.section;
     current_address = waitfor->u.cmd_section.section_address;
-    if (current_address->l_address.bank > all_mem) {
+    if (current_address->l_address > all_mem) {
         if (epoint != NULL) err_msg_big_address(epoint);
-        current_address->l_address.bank &= all_mem;
+        current_address->l_address &= all_mem;
     }
 }
 
@@ -1023,6 +1029,7 @@ static bool section_start(linepos_t epoint) {
         tmp->size = tmp->address.end - tmp->address.start;
         tmp->address.end = tmp->address.start = tmp->restart;
         tmp->address.wrapwarn = false;
+        tmp->address.bankwarn = false;
         tmp->address.address = tmp->restart;
         tmp->address.l_address = tmp->l_restart;
         val_destroy(&tmp->address.mem->v);
@@ -1048,6 +1055,7 @@ static bool virtual_start(linepos_t epoint) {
     new_waitfor(W_ENDV2, epoint); waitfor->u.cmd_virtual.section_address = current_address; waitfor->u.cmd_virtual.label = NULL;
     section_address = (struct section_address_s *)mallocx(sizeof *section_address);
     section_address->wrapwarn = section_address->moved = false;
+    section_address->bankwarn = false;
 
     do {
         struct values_s *vs;
@@ -1066,8 +1074,7 @@ static bool virtual_start(linepos_t epoint) {
         }
         tmp = vs->val;
         section_address->address = uval;
-        section_address->l_address.address = uval & 0xffff;
-        section_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+        section_address->l_address = uval & all_mem;
         section_address->l_address_val = get_star_value(0, tmp);
     } while (false);
 
@@ -1092,6 +1099,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     address_t addr, laddr;
 
     current_address->wrapwarn = false;
+    current_address->bankwarn = false;
     if (!current_address->moved) {
         if (current_address->end < current_address->address) current_address->end = current_address->address;
         current_address->moved = true;
@@ -1110,8 +1118,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             break;
         }
         if (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) {
-            current_address->l_address.address = uval & 0xffff;
-            current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+            current_address->l_address = uval & all_mem;
             val_destroy(current_address->l_address_val);
             current_address->l_address_val = get_star_value(0, val);
             val_destroy(val);
@@ -1122,7 +1129,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             }
             return;
         }
-        laddr = current_address->l_address.address + (current_address->l_address.bank & all_mem); /* overflow included! */
+        laddr = current_address->l_address;
         addr = (address_t)uval & all_mem;
         if (arguments.tasmcomp) addr = (uint16_t)addr;
         else if (addr >= laddr) {
@@ -1134,8 +1141,7 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
             current_address->address = addr;
             memjmp(current_address->mem, current_address->address);
         }
-        current_address->l_address.address = uval & 0xffff;
-        current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+        current_address->l_address = uval & all_mem;
         val_destroy(current_address->l_address_val);
         current_address->l_address_val = get_star_value(0, val);
         val_destroy(val);
@@ -1225,6 +1231,7 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
                 fixeddig = false;
             }
         }
+        if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
         if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
             code->addr = star;
             code->requires = current_section->requires;
@@ -1240,6 +1247,7 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
         code->names->epoint = newlabel->epoint;
     } else {
         code = new_code();
+        if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
         code->addr = star;
         code->typ = val_reference(current_address->l_address_val);
         code->size = 0;
@@ -1783,12 +1791,13 @@ MUST_CHECK Obj *compile(void)
         newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_address->unionmode) {
-            if (current_address->l_address.address != current_address->l_union.address || current_address->l_address.bank != current_address->l_union.bank) {
+            if (current_address->l_address != current_address->l_union) {
                 current_address->l_address = current_address->l_union;
-                if (current_address->l_address.bank > all_mem) {
+                if (current_address->l_address > all_mem) {
                     err_msg_big_address(&epoint);
-                    current_address->l_address.bank &= all_mem;
+                    current_address->l_address &= all_mem;
                 }
+                current_address->bankwarn = false;
             }
             if (current_address->address != current_address->start) {
                 if (!current_address->moved) {
@@ -1800,7 +1809,7 @@ MUST_CHECK Obj *compile(void)
                 memjmp(current_address->mem, current_address->address);
             }
         }
-        star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+        star = current_address->l_address;
         wht = here();
         if (wht >= 'A') {
             labelname.data = pline + lpoint.pos; 
@@ -2384,11 +2393,12 @@ MUST_CHECK Obj *compile(void)
 
                             current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
                             section_address.wrapwarn = section_address.moved = false;
+                            section_address.bankwarn = false;
                             section_address.unionmode = (prm == CMD_UNION);
                             section_address.address = section_address.start = section_address.end = 0;
-                            section_address.l_start.address = section_address.l_start.bank = 0;
-                            section_address.l_union.address = section_address.l_union.bank = 0;
-                            section_address.l_address.address = section_address.l_address.bank = 0;
+                            section_address.l_start = 0;
+                            section_address.l_union = 0;
+                            section_address.l_address = 0;
                             section_address.l_address_val = (Obj *)ref_int(int_value[0]);
                             section_address.mem = new_memblocks(0, 0);
                             section_address.mem->lastaddr = 0;
@@ -2462,9 +2472,9 @@ MUST_CHECK Obj *compile(void)
 
                             current_section->provides = provides; current_section->requires = requires; current_section->conflicts = conflicts;
                             current_address = oldsection_address;
-                            if (current_address->l_address.bank > all_mem) {
+                            if (current_address->l_address > all_mem) {
                                 err_msg_big_address(&cmdpoint);
-                                current_address->l_address.bank &= all_mem;
+                                current_address->l_address &= all_mem;
                             }
 
                             if (doubledef) val_destroy(&structure->v);
@@ -2484,11 +2494,11 @@ MUST_CHECK Obj *compile(void)
                         }
                     case CMD_SECTION:
                         if (section_start(&cmdpoint)) goto breakerr;
-                        star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                        star = current_address->l_address;
                         break;
                     case CMD_VIRTUAL:
                         if (virtual_start(&cmdpoint)) goto breakerr;
-                        star = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                        star = current_address->l_address;
                         break;
                     case CMD_BREPT:
                     case CMD_BFOR:
@@ -2544,7 +2554,7 @@ MUST_CHECK Obj *compile(void)
                     case CMD_DUNION:
                         {
                             address_t oldstart, oldend;
-                            address2_t oldl_start, oldl_union;
+                            address_t oldl_start, oldl_union;
                             bool oldunionmode;
                             bool labelexists, ret, doubledef = false;
                             Type *obj;
@@ -2609,6 +2619,7 @@ MUST_CHECK Obj *compile(void)
 
                             if (!ret && !doubledef) {
                                 Code *code = (Code *)label->value;
+                                if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
                                 if (labelexists && code->v.obj == CODE_OBJ) {
                                     Obj *tmp = current_address->l_address_val;
                                     if (!tmp->obj->same(tmp, code->typ)) {
@@ -2791,6 +2802,7 @@ MUST_CHECK Obj *compile(void)
                                     fixeddig = false;
                                 }
                             }
+                            if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
                             if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
                                 code->addr = star;
                                 code->requires = current_section->requires;
@@ -2815,6 +2827,7 @@ MUST_CHECK Obj *compile(void)
                         newlabel->owner = true;
                         newlabel->value = (Obj *)code;
                         newlabel->epoint = epoint;
+                        if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
                         code->addr = star;
                         code->typ = val_reference(current_address->l_address_val);
                         code->size = 0;
@@ -3266,9 +3279,8 @@ MUST_CHECK Obj *compile(void)
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
                     if (diagnostics.page) {
-                        if (((current_address->l_address.address ^ waitfor->u.cmd_page.laddr.address) & 0xff00) != 0 ||
-                                current_address->l_address.bank != waitfor->u.cmd_page.laddr.bank) {
-                            err_msg_page((waitfor->u.cmd_page.laddr.address & 0xffff) | waitfor->u.cmd_page.laddr.bank, (current_address->l_address.address & 0xffff) | current_address->l_address.bank, &epoint);
+                        if ((current_address->l_address ^ waitfor->u.cmd_page.laddr) > 0xff) {
+                            err_msg_page(waitfor->u.cmd_page.laddr, current_address->l_address, &epoint);
                         }
                     }
                     if (waitfor->u.cmd_page.label != NULL) {set_size(waitfor->u.cmd_page.label, current_address->address - waitfor->u.cmd_page.addr, current_address->mem, waitfor->u.cmd_page.addr, waitfor->u.cmd_page.membp);val_destroy(&waitfor->u.cmd_page.label->v);}
@@ -3545,13 +3557,13 @@ MUST_CHECK Obj *compile(void)
                         err_msg_output_and_destroy(err_addressing(am, &vs->epoint, -1));
                         break;
                     }
+                    uval &= all_mem;
                     if (current_address->unionmode) {
-                        current_address->l_union.address = uval & 0xffff;
-                        current_address->l_union.bank = uval & all_mem & ~(address_t)0xffff;
+                        current_address->l_union = uval;
                     } else {
-                        current_address->l_address.address = uval & 0xffff;
-                        current_address->l_address.bank = uval & all_mem & ~(address_t)0xffff;
+                        current_address->l_address = uval;
                     }
+                    current_address->bankwarn = false;
                     val_destroy(current_address->l_address_val);
                     tmp = vs->val;
                     current_address->l_address_val = get_star_value(0, tmp);
@@ -3765,7 +3777,7 @@ MUST_CHECK Obj *compile(void)
                         if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                         else if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else if (uval > 1) {
-                            address_t itt = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? current_address->address : ((current_address->l_address.address + current_address->l_address.bank - current_address->l_start.address - current_address->l_start.bank) & all_mem);
+                            address_t itt = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? current_address->address : ((current_address->l_address - current_address->l_start) & all_mem);
                             if (uval > max) {
                                 if (itt != 0) db = max - itt + 1;
                             } else {
@@ -4082,9 +4094,9 @@ MUST_CHECK Obj *compile(void)
                     for (cpui = cpus; *cpui != NULL; cpui++) {
                         if (cpuname.len == strlen((*cpui)->name) && memcmp((*cpui)->name, cpuname.data, cpuname.len) == 0) {
                             const struct cpu_s *cpumode = (*cpui != &default_cpu) ? *cpui : arguments.cpumode;
-                            if (current_address->l_address.bank > cpumode->max_address) {
+                            if (current_address->l_address > cpumode->max_address) {
                                 err_msg_big_address(&epoint);
-                                current_address->l_address.bank &= cpumode->max_address;
+                                current_address->l_address &= cpumode->max_address;
                             }
                             set_cpumode(cpumode);
                             break;
@@ -4437,7 +4449,7 @@ MUST_CHECK Obj *compile(void)
             case CMD_DSTRUCT: if ((waitfor->skip & 1) != 0)
                 { /* .dstruct */
                     address_t oldstart, oldend;
-                    address2_t oldl_start, oldl_union;
+                    address_t oldl_start, oldl_union;
                     bool oldunionmode;
                     struct values_s *vs;
                     Type *obj;
@@ -4492,6 +4504,7 @@ MUST_CHECK Obj *compile(void)
                         if (tmp3->usepass == 0 || tmp3->defpass < pass - 1) {
                             size_t ln = tmp3->address.mem->mem.p, ln2 = tmp3->address.mem->p;
                             tmp3->address.wrapwarn = tmp3->address.moved = false;
+                            tmp3->address.bankwarn = false;
                             tmp3->address.end = tmp3->address.start = tmp3->restart = tmp3->address.address = current_address->address;
                             tmp3->l_restart = tmp3->address.l_address = current_address->l_address;
                             tmp3->usepass = pass;
@@ -4526,10 +4539,8 @@ MUST_CHECK Obj *compile(void)
                                 if (tmp3->address.end < tmp3->address.start) tmp3->address.end = all_mem2 + 1;
                                 memjmp(tmp3->address.mem, current_address->address);
                             }
-                            if (tmp3->l_restart.address != current_address->l_address.address ||
-                                    tmp3->l_restart.bank != current_address->l_address.bank) {
-                                tmp3->address.l_address.address = (tmp3->address.l_address.address + current_address->l_address.address - tmp3->l_restart.address) & 0xffff;
-                                tmp3->address.l_address.bank = (tmp3->address.l_address.bank + current_address->l_address.bank - tmp3->l_restart.bank) & all_mem;
+                            if (tmp3->l_restart != current_address->l_address) {
+                                tmp3->address.l_address = (tmp3->address.l_address + current_address->l_address - tmp3->l_restart) & all_mem;
                                 tmp3->l_restart = current_address->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = false;
@@ -4541,11 +4552,11 @@ MUST_CHECK Obj *compile(void)
                                 tmp3->address.moved = true;
                             }
                             tmp3->address.wrapwarn = false;
+                            tmp3->address.bankwarn = false;
                             t = tmp3->address.end - tmp3->address.start;
                             tmp3->address.end = tmp3->address.start = tmp3->restart = tmp3->address.address = current_address->address;
                             tmp3->address.l_address = current_address->l_address;
-                            if (tmp3->l_restart.address != current_address->l_address.address ||
-                                    tmp3->l_restart.bank != current_address->l_address.bank) {
+                            if (tmp3->l_restart != current_address->l_address) {
                                 tmp3->l_restart = current_address->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = false;

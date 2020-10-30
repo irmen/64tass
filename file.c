@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2231 2020-06-28 21:39:53Z soci $
+    $Id: file.c 2249 2020-10-25 21:13:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -190,53 +190,119 @@ failed:
 #endif
 
 static bool portability(const str_t *name, linepos_t epoint) {
-#ifdef _WIN32
-    DWORD ret;
-    wchar_t *wname = convert_name((const char *)name->data, name->len);
-    size_t len;
-    wchar_t *wname2;
-    bool different;
-    if (wname == NULL) return false;
-    len = wcslen(wname) + 1;
-    wname2 = (wchar_t *)malloc(len * sizeof *wname2);
-    if (wname2 == NULL) {
-        free(wname);
-        return false;
-    }
-    ret = GetLongPathNameW(wname, wname2, len);
-    different = ret != 0 && memcmp(wname, wname2, ret * sizeof *wname2) != 0;
-    free(wname2);
-    free(wname);
-    if (different) {
-        err_msg2(ERROR___INSENSITIVE, name, epoint);
-        return false;
-    }
-#endif
+    struct linepos_s epoint2;
+    const uint8_t *pos;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
-    if (memchr(name->data, '\\', name->len) != NULL) {
-        err_msg2(ERROR_____BACKSLASH, name, epoint);
+    if (name->len == 0) return true;
+    pos = (const uint8_t *)memchr(name->data, '\\', name->len);
+    if (pos != NULL) {
+        epoint2.line = epoint->line;
+        epoint2.pos = interstring_position(epoint, name->data, pos - name->data);
+        err_msg2(ERROR_____BACKSLASH, name, &epoint2);
         return false;
     }
-    if ((name->len > 0 && name->data[0] == '/') || (name->len > 1 && is_driveletter((const char *)name->data))) {
+    if (name->data[0] == '/' || is_driveletter((const char *)name->data)) {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
         return false;
     }
 #else
     const char *c;
-    if (name->len > 0) {
-        for (c = "\\:*?\"<>|"; *c != '\0'; c++) {
-            if (memchr(name->data, *c, name->len) == NULL) continue;
-            err_msg2(ERROR__RESERVED_CHR, name, epoint);
-            return false;
-        }
-        if (name->data[0] == '/') {
-            err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
-            return false;
-        }
+    if (name->len == 0) return true;
+    for (c = "\\:*?\"<>|"; *c != '\0'; c++) {
+        pos = (const uint8_t *)memchr(name->data, *c, name->len);
+        if (pos == NULL) continue;
+        epoint2.line = epoint->line;
+        epoint2.pos = interstring_position(epoint, name->data, pos - name->data);
+        err_msg2(ERROR__RESERVED_CHR, name, &epoint2);
+        return false;
+    }
+    if (name->data[0] == '/') {
+        err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
+        return false;
     }
 #endif
     return true;
 }
+
+#ifdef _WIN32
+static wchar_t *get_real_name(const wchar_t *name) {
+    typedef DWORD _stdcall (*Getfinalpathnamebyhandleptr)(HANDLE, LPWSTR, DWORD, DWORD);
+    static Getfinalpathnamebyhandleptr get_final_path_by_handle;
+    static HINSTANCE kernel_handle;
+    DWORD ret;
+    size_t len = wcslen(name) + 1;
+    wchar_t *real_name = (wchar_t *)malloc(len * sizeof *real_name);
+    if (real_name == NULL) return NULL;
+    if (get_final_path_by_handle == NULL && kernel_handle == NULL) {
+        kernel_handle = LoadLibrary("kernel32.dll");
+        if (kernel_handle != NULL) get_final_path_by_handle = (Getfinalpathnamebyhandleptr)GetProcAddress(kernel_handle, "GetFinalPathNameByHandleW");
+    } 
+    if (get_final_path_by_handle != NULL) {
+        HANDLE handle = CreateFileW(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
+        if (handle != INVALID_HANDLE_VALUE) {
+            ret = get_final_path_by_handle(handle, real_name, len, 12);
+            if (ret > len) {
+                wchar_t *tmp = (wchar_t *)realloc(real_name, ret * sizeof *real_name);
+                if (tmp != NULL) {
+                    real_name = tmp;
+                    len = ret;
+                    ret = get_final_path_by_handle(handle, real_name, len, 12);
+                }
+            }
+            CloseHandle(handle);
+            if (ret < len && ret != 0) {
+                return real_name;
+            }
+        }
+    }
+    ret = GetLongPathNameW(name, real_name, len);
+    if (ret > len) {
+        wchar_t *tmp = (wchar_t *)realloc(real_name, ret * sizeof *real_name);
+        if (tmp != NULL) {
+            real_name = tmp;
+            len = ret;
+            ret = GetLongPathNameW(name, real_name, len);
+        }
+    }
+    if (ret < len && ret != 0) {
+        return real_name;
+    }
+    free(real_name);
+    return NULL;
+}
+
+static bool portability2(const str_t *name, const char *realname, linepos_t epoint) {
+    wchar_t *wname = convert_name(realname, SIZE_MAX);
+    if (wname != NULL) {
+        bool different = false;
+        wchar_t *wname2 = get_real_name(wname);
+        if (wname2 != NULL) {
+            wchar_t *bname = convert_name((const char *)name->data, name->len);
+            if (bname != NULL) {
+                size_t len = wcslen(wname);
+                size_t len2 = wcslen(bname);
+                size_t ret = wcslen(wname2);
+                free(bname);
+                if (len2 > len) len2 = len;
+                if (len2 > ret) len2 = ret;
+                for (; len2 > 0; len2--) {
+                    if (wname[len - len2] != wname2[ret - len2] && wname2[ret - len2] != '\\') {
+                        different = true;
+                        break;
+                    }
+                }
+            }
+            free(wname2);
+        }
+        free(wname);
+        if (different) {
+            err_msg2(ERROR___INSENSITIVE, name, epoint);
+            return false;
+        }
+    }
+    return portability(name, epoint);
+}
+#endif
 
 FILE *file_open(const char *name, const char *mode) {
     FILE *f;
@@ -767,7 +833,11 @@ struct file_s *openfile(const char *name, const char *base, int ftype, const str
         return NULL;
     }
     if (!tmp->portable && val != NULL && diagnostics.portable) {
+#ifdef _WIN32
+        tmp->portable = portability2(val, tmp->realname, epoint);
+#else
         tmp->portable = portability(val, epoint);
+#endif
     }
     tmp->open++;
     return tmp;

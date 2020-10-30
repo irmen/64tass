@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2238 2020-07-18 15:15:24Z soci $
+    $Id: error.c 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -619,8 +619,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
 }
 
 void err_msg_big_address(linepos_t epoint) {
-    address_t addr = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
-    Obj *val = get_star_value(addr, current_address->l_address_val);
+    Obj *val = get_star_value(current_address->l_address, current_address->l_address_val);
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("address not in processor address space ");
     err_msg_variable(val);
@@ -1206,10 +1205,10 @@ void err_msg_jmp_bug(linepos_t epoint) {
     adderror("possible jmp ($xxff) bug [-Wjmp-bug]");
 }
 
-void err_msg_pc_wrap(linepos_t epoint) {
+void err_msg_pc_bank(linepos_t epoint) {
     if (!diagnostics.wrap.pc) return;
     new_error_msg2(diagnostic_errors.wrap.pc, epoint);
-    adderror("processor program counter overflow [-Wwrap-pc]");
+    adderror("processor program counter crossed bank [-Wwrap-pc]");
 }
 
 void err_msg_mem_wrap(linepos_t epoint) {

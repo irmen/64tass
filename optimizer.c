@@ -1,5 +1,5 @@
 /*
-    $Id: optimizer.c 1595 2018-08-24 14:17:29Z soci $
+    $Id: optimizer.c 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -607,9 +607,9 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
         cpu = current_section->optimizer;
     }
 
-    if (cpu->branched || cpu->pc != current_address->l_address.address) {
+    if (cpu->branched || cpu->pc != (current_address->l_address & 0xffff)) {
         cpu_opt_invalidate();
-        cpu->pc = current_address->l_address.address & 0xffff;
+        cpu->pc = current_address->l_address & 0xffff;
     }
     cpu->pc = ((int)cpu->pc + ln + 1) & 0xffff;
 

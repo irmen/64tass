@@ -1787,9 +1787,7 @@ constructs, where each nesting level is separated by a comma.</p>
 <p>The compile offset is where the data and code ends up in memory (or in image file).</p>
 
 <p>The program counter is what labels get set to and what the special star
-label refers to. It wraps when the border of a 64&nbsp;KiB program bank is
-crossed. The actual program bank is not incremented, just like on a real
-processor.</p>
+label refers to.</p>
 
 <p>Normally both are the same (code is compiled to the location it runs from)
 but it does not need to be.</p>
@@ -3686,6 +3684,12 @@ column.</p>
 <p>This check is there to catch typos, unsupported implied instructions, or
 unknown aliases and not for enforcing label placement.</p>
 
+<dt><b>-Wno-page</b><a name="o_Wpage" href="#o_Wpage"></a>
+<dd>Don't do an error for page crossing
+<p>Normally the <a href="#d_page"><code>.page</code></a> directive gives an
+error on page crossing, this directive can disable it. Using
+<q><code>-Wno-error=page</code></q> can turn it into a warning only.</p>
+
 <dt><b>-Wno-pitfalls</b><a name="o_Wpitfalls" href="#o_Wpitfalls"></a>
 <dd>Don't note about common pitfalls.
 <p>There are some common mistakes, but experts and those who read this don't
@@ -3702,43 +3706,6 @@ need extra notes about them. These are:</p>
 <dd>There's a signed variant for the immediate addressing so <q><code>lda #+xx</code></q> will make it work
 </dl>
 
-<dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
-<dd>Don't warn about ignored compound multiply.
-<p>Normally <q><code>symbol &lowast;= ...</code></q> means compound multiply of the variable in front.
-Unfortunately this looks the same a <q><code>label &lowast;=&lowast;+x</code></q> which is an old-school way to allocate space.</p>
-<p>If the symbol was a variable defined earlier then the multiply is performed without a warning.
-If it's a new label definition then this warning is used to note that maybe a variable definition was missed earlier.</p>
-<p>If the intention was really a label definition then the <q><code>&lowast;=</code></q>
-can be moved to a separate line, or in case of space allocation it could be
-improved to use <q><code>.byte&nbsp;?</code></q> or <q><code>.fill&nbsp;x</code></q>.</p>
-
-<dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>
-<dd>Warn about old equal operator.
-<p>The single <q>=</q> operator is only there for compatibility reasons and should be written as <q>==</q> normally.</p>
-
-<dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
-<dd>Warn about optimizable code.
-<p>Warns on things that could be optimized, at least according to the limited
-analysis done. Currently it's easy to fool with these constructs:</p>
-
-<ul>
-<li>Self modifying code, especially modifying immediate addressing mode instructions or branch targets
-<li>Using <code>.byte $2c</code> and similar tricks to skip instructions.
-<li>Using <code>&lowast;+5</code> and similar tricks to skip instructions, or to loop like <code>&lowast;-1</code>.
-<li>Any other method of flow control not involving referenced labels. E.g. calculated returns.
-<li>Register re-mappings on 65DTV02 with SIR and SAC.
-</ul>
-
-<p>It's also rather simple and conservative, so some opportunities will be
-missed. Most CPUs are supported with the notable exception of 65816 and 65EL02,
-but this could improve in later versions.</p>
-
-<dt><b>-Wno-page</b><a name="o_Wpage" href="#o_Wpage"></a>
-<dd>Don't do an error for page crossing
-<p>Normally the <a href="#d_page"><code>.page</code></a> directive gives an
-error on page crossing, this directive can disable it. Using
-<q><code>-Wno-error=page</code></q> can turn it into a warning only.</p>
-
 <dt><b>-Wno-portable</b><a name="o_Wportable" href="#o_Wportable"></a>
 <dd>Don't warn about source portability problems.
 <p>These cross platform development annoyances are checked for:</p>
@@ -3749,22 +3716,6 @@ error on page crossing, this directive can disable it. Using
 <li>Use of reserved characters in file names.
 <li>Absolute paths
 </ul>
-
-<dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
-<dd>Warn about symbol shadowing.
-<p>Checks if local variables <q>shadow</q> other variables of same name in upper scopes in
-ambiguous ways.</p>
-<p>This is useful to detect hard to notice bugs where a new local
-variable takes the place of a global one by mistake.</p>
-
-<pre width=80>
-bl      <b class="k">.block</b>
-a       <b class="d">.byte</b> <span>2</span>         <i>;'a' is a built-in register</i>
-x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in register</i>
-        <b>asl</b> <u>a</u>           <i>; accumulator or the byte above?</i>
-        <b class="k">.end</b>
-        <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
-</pre>
 
 <dt><b>-Wno-size-larger</b><a name="o_Wsize-larger" href="#o_Wsize-larger"></a>
 <dd>Don't warn if size is larger due to negative offset
@@ -3780,50 +3731,15 @@ var2    <b>=</b> <u>var</u> - <span>2</span>       <i>; start 2 bytes earlier</i
         <b>ldx</b> #<span class="k">size</span>(<u>var2</u>) <i>; size is 6 bytes due to 2 bytes ahead</i>
 </pre>
 
-<dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
-<dd>Warn about implicit boolean conversions.
-<p>Boolean values can be interpreted as numeric 0/1 and other types as
-booleans. This is convenient but may cause mistakes.</p>
-<p>To pass this option the following constructs need improvements:</p>
-
-<ul>
-<li><q><code>1</code></q> and <q><code>0</code></q> as boolean constants. Use the slightly longer <q><code>true</code></q> and <q><code>false</code></q>.
-<li>Implicit non-zero checks. Write it out like <q><code>.if (lbl &amp; 1) != 0</code></q>.
-<li>Zero checks with <q><code>!</code></q>. Write it out like <q><code>lbl == 0</code></q>.
-<li>Binary operators on booleans. Use the proper <q><code>||</code></q>, <q><code>&amp;&amp;</code></q> and <q><code>^^</code></q> operators.
-<li>Numeric expressions like <q><code>1 + (lbl &gt; 3)</code></q>. It's better as <q><code>(lbl &gt; 3) ? 2 : 1</code></q>.
-</ul>
-
-<dt><b>-Wswitch-case</b><a name="o_Wswitch-case" href="#o_Wswitch-case"></a>
-<dd>Warn about multiple switch case matches
-<p>A switch value can match several case conditions but only the first
-occurance will compile. A second match might be a mistake.</p>
-
-<dt><b>-Wunused</b><a name="o_Wunused" href="#o_Wunused"></a>
-<dd>Warn about unused constant symbols.
-
-<p>Symbols which have no references to them are likely redundant. Before
-removing them check if there's any conditionally compiled out code which might
-still need them.</p>
-
-<p>The following options can be used to be more specific:</p>
-
-<dl class="dir">
-<dt><b>-Wunused-macro</b><a name="o_Wunused-macro" href="#o_Wunused-macro"></a>
-<dd>Warn about unused macros.
-
-<dt><b>-Wunused-const</b><a name="o_Wunused-const" href="#o_Wunused-const"></a>
-<dd>Warn about unused constants.
-
-<dt><b>-Wunused-label</b><a name="o_Wunused-label" href="#o_Wunused-label"></a>
-<dd>Warn about unused labels.
-
-<dt><b>-Wunused-variable</b><a name="o_Wunused-variable" href="#o_Wunused-variable"></a>
-<dd>Warn about unused variables.
-</dl>
-
-<p>Symbols which appear in a default 64tass symbol list file and their root
-symbols are treated as used for exporting purposes.</p>
+<dt><b>-Wno-star-assign</b><a name="o_Wstar-assign" href="#o_Wstar-assign"></a>
+<dd>Don't warn about ignored compound multiply.
+<p>Normally <q><code>symbol &lowast;= ...</code></q> means compound multiply of the variable in front.
+Unfortunately this looks the same a <q><code>label &lowast;=&lowast;+x</code></q> which is an old-school way to allocate space.</p>
+<p>If the symbol was a variable defined earlier then the multiply is performed without a warning.
+If it's a new label definition then this warning is used to note that maybe a variable definition was missed earlier.</p>
+<p>If the intention was really a label definition then the <q><code>&lowast;=</code></q>
+can be moved to a separate line, or in case of space allocation it could be
+improved to use <q><code>.byte&nbsp;?</code></q> or <q><code>.fill&nbsp;x</code></q>.</p>
 
 <dt><b>-Wno-wrap-addr</b><a name="o_Wwrap-addr" href="#o_Wwrap-addr"></a>
 <dd>Don't warn about memory location address space wrap around.
@@ -3866,10 +3782,11 @@ it could be turned into an error by using <code>-Werror=wrap-mem</code>.</p>
 <p>The image size depends on the output format. See the <a href="#commandline-output">Output options</a> section above.</p>
 
 <dt><b>-Wno-wrap-pc</b><a name="o_Wwrap-pc" href="#o_Wwrap-pc"></a>
-<dd>Don't warn for program counter wrap around.
+<dd>Don't warn for program counter bank crossing.
 <p>While assembling the program counter may reach the end of the current
-program bank.  If this happens a warning is issued and the address wraps
-around.</p>
+program bank. If this happens a warning is issued as a real CPU will not cross
+the bank on execution. On the other hand some addressing modes handle bank
+crosses so this might not be actually a problem for data.</p>
 
 <p>The warning may be ignored using this command line parameter. Alternatively
 it could be turned into an error by using <code>-Werror=wrap-pc</code>.</p>
@@ -3881,6 +3798,88 @@ program bank. If this happens a warning is issued and the address wraps around.<
 
 <p>The warning may be ignored using this command line parameter. Alternatively
 it could be turned into an error by using <code>-Werror=wrap-pbank</code>.</p>
+
+<dt><b>-Wold-equal</b><a name="o_Wold-equal" href="#o_Wold-equal"></a>
+<dd>Warn about old equal operator.
+<p>The single <q>=</q> operator is only there for compatibility reasons and should be written as <q>==</q> normally.</p>
+
+<dt><b>-Woptimize</b><a name="o_Woptimize" href="#o_Woptimize"></a>
+<dd>Warn about optimizable code.
+<p>Warns on things that could be optimized, at least according to the limited
+analysis done. Currently it's easy to fool with these constructs:</p>
+
+<ul>
+<li>Self modifying code, especially modifying immediate addressing mode instructions or branch targets
+<li>Using <code>.byte $2c</code> and similar tricks to skip instructions.
+<li>Using <code>&lowast;+5</code> and similar tricks to skip instructions, or to loop like <code>&lowast;-1</code>.
+<li>Any other method of flow control not involving referenced labels. E.g. calculated returns.
+<li>Register re-mappings on 65DTV02 with SIR and SAC.
+</ul>
+
+<p>It's also rather simple and conservative, so some opportunities will be
+missed. Most CPUs are supported with the notable exception of 65816 and 65EL02,
+but this could improve in later versions.</p>
+
+<dt><b>-Wshadow</b><a name="o_Wshadow" href="#o_Wshadow"></a>
+<dd>Warn about symbol shadowing.
+<p>Checks if local variables <q>shadow</q> other variables of same name in upper scopes in
+ambiguous ways.</p>
+<p>This is useful to detect hard to notice bugs where a new local
+variable takes the place of a global one by mistake.</p>
+
+<pre width=80>
+bl      <b class="k">.block</b>
+a       <b class="d">.byte</b> <span>2</span>         <i>;'a' is a built-in register</i>
+x       <b class="d">.byte</b> <span>2</span>         <i>;'x' is a built-in register</i>
+        <b>asl</b> <u>a</u>           <i>; accumulator or the byte above?</i>
+        <b class="k">.end</b>
+        <b>asl</b> <u>bl</u>.<u>x</u>        <i>; not ambiguous</i>
+</pre>
+
+<dt><b>-Wstrict-bool</b><a name="o_Wstrict-bool" href="#o_Wstrict-bool"></a>
+<dd>Warn about implicit boolean conversions.
+<p>Boolean values can be interpreted as numeric 0/1 and other types as
+booleans. This is convenient but may cause mistakes.</p>
+<p>To pass this option the following constructs need improvements:</p>
+
+<ul>
+<li><q><code>1</code></q> and <q><code>0</code></q> as boolean constants. Use the slightly longer <q><code>true</code></q> and <q><code>false</code></q>.
+<li>Implicit non-zero checks. Write it out like <q><code>.if (lbl &amp; 1) != 0</code></q>.
+<li>Zero checks with <q><code>!</code></q>. Write it out like <q><code>lbl == 0</code></q>.
+<li>Binary operators on booleans. Use the proper <q><code>||</code></q>, <q><code>&amp;&amp;</code></q> and <q><code>^^</code></q> operators.
+<li>Numeric expressions like <q><code>1 + (lbl &gt; 3)</code></q>. It's better as <q><code>(lbl &gt; 3) ? 2 : 1</code></q>.
+</ul>
+
+<dt><b>-Wswitch-case</b><a name="o_Wswitch-case" href="#o_Wswitch-case"></a>
+<dd>Warn about multiple switch case matches
+<p>A switch value can match several case conditions but only the first
+occurance will compile. A second match might be a mistake.</p>
+
+<dt><b>-Wunused</b><a name="o_Wunused" href="#o_Wunused"></a>
+<dd>Warn about unused constant symbols.
+
+<p>Symbols which have no references to them are likely redundant. Before
+removing them check if there's any conditionally compiled out code which might
+still need them.</p>
+
+<p>The following options can be used to be more specific:</p>
+
+<dl class="dir">
+<dt><b>-Wunused-const</b><a name="o_Wunused-const" href="#o_Wunused-const"></a>
+<dd>Warn about unused constants.
+
+<dt><b>-Wunused-label</b><a name="o_Wunused-label" href="#o_Wunused-label"></a>
+<dd>Warn about unused labels.
+
+<dt><b>-Wunused-macro</b><a name="o_Wunused-macro" href="#o_Wunused-macro"></a>
+<dd>Warn about unused macros.
+
+<dt><b>-Wunused-variable</b><a name="o_Wunused-variable" href="#o_Wunused-variable"></a>
+<dd>Warn about unused variables.
+</dl>
+
+<p>Symbols which appear in a default 64tass symbol list file and their root
+symbols are treated as used for exporting purposes.</p>
 
 </dl>
 
@@ -4259,6 +4258,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>direct page address overflow<dd>the calculated memory location address ended up outside of direct page and is now wrapped.
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons
 <dt>expected ? values but got ? to unpack<dd>the number of variables must match the number of values when unpacking
+<dt>file name uses reserved character '?'<dd>do not use \ : * ? " &lt; &gt; | in file names as some operating systems don't like these
 <dt>immediate addressing mode suggested<dd>numeric constant was used as an address which was likely meant as an immediate value
 <dt>implicit floating point rounding<dd>a floating point number with fractional part was used for an integer parameter
 <dt>independent result, possibly changeable to 'lda'<dd>the result does not seem to depend on the input so it could be just loaded instead
@@ -4274,11 +4274,10 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility was detected
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing by a constant offset
-<dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank as end of bank was reached
+<dt>processor program counter crossed bank<dd>pc address had crossed into another 64&nbsp;KiB program bank
 <dt>program bank address overflow<dd>the calculated memory location address ended up outside of the current program bank and is now wrapped.
 <dt>symbol case mismatch '?'<dd>the symbol is matching case insensitively but it's not all letters are exactly the same
 <dt>the file's real name is not '?'<dd>check if all characters match including their case as this is not the real name of the file
-<dt>this name uses reserved characters '?'<dd>do not use \ : * ? " &lt; &gt; | in file names as some operating systems don't like these
 <dt>unused symbol '?'<dd>this symbol has is not referred anywhere and therefore may be unused
 <dt>use '/' as path separation '?'<dd>backslash is not a path separator on all systems while forward slash will work independent of the host operating system
 <dt>use relative path for '?'<dd>file's path is absolute and depends on the file system layout and the source will not compile without the exact same environment

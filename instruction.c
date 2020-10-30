@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2209 2020-05-19 05:03:31Z soci $
+    $Id: instruction.c 2245 2020-10-17 08:09:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -512,19 +512,19 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (false) {
             justrel2:
                     invalid = touaddress(val, &uval, 16, epoint2);
-                    if (invalid) uval = current_address->l_address.address + 1 + ln;
+                    if (invalid) uval = current_address->l_address + 1 + ln;
                     uval &= 0xffff;
-                    uval |= (uval_t)current_address->l_address.bank;
+                    uval |= (uval_t)current_address->l_address & ~0xffff;
                     crossbank = false;
                 } else {
             justrel:
                     invalid = touaddress(val, &uval, all_mem_bits, epoint2);
                     if (invalid) {
-                        uval = current_address->l_address.address + 1 + ln;
+                        uval = current_address->l_address + 1 + ln;
                         crossbank = false;
                     } else {
                         uval &= all_mem;
-                        crossbank = ((uval_t)current_address->l_address.bank ^ uval) > 0xffff;
+                        crossbank = ((uval_t)current_address->l_address ^ uval) > 0xffff;
                     }
                 }
                 xadr = (uint16_t)adr;
@@ -534,9 +534,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 oval = val->obj == ADDRESS_OBJ ? ((Address *)val)->val : val;
                 if (oval->obj == CODE_OBJ && pass != ((Code *)oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
                     if (s == NULL) s = new_star(vline + 1, &starexists);
-                    adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address.address - 1 - ln);
+                    adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
                 } else {
-                    adr = (uint16_t)(uval - current_address->l_address.address - 1 - ln);
+                    adr = (uint16_t)(uval - current_address->l_address - 1 - ln);
                 }
                 if (false) {
                     bool longpossible;
@@ -550,7 +550,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     if (invalid) uval = 0;
                     if (!longpossible && (uval & 0x80) != 0) uval |= ~(uval_t)0xff;
                     uval &= 0xffff;
-                    uval |= (uval_t)current_address->l_address.bank;
+                    uval |= (uval_t)current_address->l_address & ~0xffff;
                     crossbank = false;
                     xadr = (uint16_t)adr;
                     starexists = false; s = NULL;
@@ -566,8 +566,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             bool exists;
                             struct longjump_s *lj = new_longjump(uval, &exists);
                             if (exists && lj->defpass == pass) {
-                                if ((current_address->l_address.bank ^ lj->dest) <= 0xffff) {
-                                    uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address.address - 2);
+                                if ((current_address->l_address ^ lj->dest) <= 0xffff) {
+                                    uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address - 2);
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
                                         adr = adrk;
                                         goto branchok;
@@ -576,8 +576,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             }
                             cpu_opt_long_branch(cnmemonic[ADR_REL]);
                             if (s == NULL) s = new_star(vline + 1, &starexists);
-                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, starexists ? ((uint16_t)(s->addr - current_address->l_address.address - 2)) : 3, 1, epoint);
-                            lj->dest = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, starexists ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
+                            lj->dest = current_address->l_address;
                             lj->defpass = pass;
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
                             cpu_opt_long_branch(0xea);
@@ -593,8 +593,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 goto branchok;
                             }
                             if (exists && lj->defpass == pass) {
-                                if ((current_address->l_address.bank ^ lj->dest) <= 0xffff) {
-                                    uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address.address - 3);
+                                if ((current_address->l_address ^ lj->dest) <= 0xffff) {
+                                    uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address - 3);
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
                                         adr = adrk;
                                         goto branchok;
@@ -603,7 +603,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             }
                             cpu_opt_long_branch(cnmemonic[ADR_BIT_ZP_REL] ^ longbranch);
                             dump_instr(cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch, xadr | 0x300, 2, epoint);
-                            lj->dest = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                            lj->dest = current_address->l_address;
                             lj->defpass = pass;
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
                             cpu_opt_long_branch(0xea);
@@ -631,7 +631,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 cpu_opt_long_branch(0);
                             branchend:
                                 if (s != NULL) {
-                                    address_t st = (current_address->l_address.address & 0xffff) | current_address->l_address.bank;
+                                    address_t st = current_address->l_address;
                                     if (starexists && s->addr != st) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                         fixeddig = false;
@@ -655,7 +655,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         }
                     }
                 } else if (!invalid) { /* short */
-                    if (((uint16_t)(current_address->l_address.address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
+                    if (((uint16_t)(current_address->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                         int diff = (int8_t)oadr;
                         if (diff >= 0) diff++;
                         if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, &diff, epoint2);
@@ -696,7 +696,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 }
             branchok:
                 if (s != NULL) {
-                    address_t st = ((current_address->l_address.address + 1 + ln) & 0xffff) | current_address->l_address.bank;
+                    address_t st = (current_address->l_address + 1 + ln) & all_mem;
                     if (starexists && s->addr != st) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = false;
@@ -913,9 +913,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
                 uval2 = uval;
             }
-            if ((current_address->l_address.bank ^ uval2) <= 0xffff) {
+            if ((current_address->l_address ^ uval2) <= 0xffff) {
                 adr = uval;
-                if ((current_address->l_address.bank ^ uval) > 0xffff) err_msg_pbank_wrap(epoint2);
+                if ((current_address->l_address ^ uval) > 0xffff) err_msg_pbank_wrap(epoint2);
                 break;
             }
             err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
@@ -1075,15 +1075,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
         ln = 2;
         if (touaddress(val, &uval, 16, epoint2)) break;
         uval &= 0xffff;
-        adr = uval - current_address->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
+        adr = uval - current_address->l_address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
         break;
     case AG_RELL:
         if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
         ln = 2;
         if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
         uval &= all_mem;
-        if ((current_address->l_address.bank ^ uval) <= 0xffff) {
-            adr = uval - current_address->l_address.address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
+        if ((current_address->l_address ^ uval) <= 0xffff) {
+            adr = uval - current_address->l_address - ((opcode != c65ce02.opcode && opcode != c4510.opcode) ? 3 : 2);
             break;
         }
         err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
@@ -1093,7 +1093,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (touaddress(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) ? 2 : 1;
             else {
                 uval &= all_mem;
-                if (cnmemonic[ADR_ADDR] != ____ && (current_address->l_address.bank ^ uval) <= 0xffff) {adr = uval; w = 1;}
+                if (cnmemonic[ADR_ADDR] != ____ && (current_address->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
                 else {adr = uval; w = 2;}
             }
         } else {
@@ -1102,7 +1102,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 if (cnmemonic[opr - 1] == ____) return err_addressize(ERROR__NO_WORD_ADDR, epoint2, prm);
                 if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
                 uval &= all_mem;
-                if ((current_address->l_address.bank ^ uval) <= 0xffff) adr = uval;
+                if ((current_address->l_address ^ uval) <= 0xffff) adr = uval;
                 else err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
                 break;
             case 2:

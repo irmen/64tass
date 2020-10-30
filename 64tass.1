@@ -194,10 +194,6 @@ Also it's hard to notice that an unchanged call turned into label after the
 definition got renamed. This warning helps to find such calls so that prefixes
 can be added.
 .TP 0.5i
-\fB\-Wno\-addr\-wrap\fR
-Don't warn about memory location address space wrap around.
-If a memory location ends up outside of the processors address space then just wrap it around.
-.TP 0.5i
 \fB\-Wno\-deprecated\fR
 Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
@@ -227,16 +223,8 @@ You may disable this if you use labels which look like mistyped versions of
 implied addressing mode instructions and you don't want to put them in the
 first column.
 .TP 0.5i
-\fB\-Wno\-mem\-wrap\fR
-Don't warn for compile offset wrap around.
-Continue from the beginning of image file once it's end was reached.
-.TP 0.5i
 \fB\-Wno\-page\fR
 Don't do an error for page crossing.
-.TP 0.5i
-\fB\-Wno\-pc\-wrap\fR
-Don't warn for program counter wrap around.
-Continue from the beginning of program bank once it's end was reached.
 .TP 0.5i
 \fB-Wno\-pitfalls\fR
 Don't note on common pitfalls.
@@ -245,8 +233,33 @@ Experts don't need notes about how to fix things ;)
 \fB\-Wno\-portable\fR
 Don't warn about source portability problems.
 .TP 0.5i
+\fB\-Wno\-size\-larger\fR
+Don't warn if size is larger due to negative offset
+Negative offsets add space in front of memory area that's out of bound. Sometimes this may be fine.
+.TP 0.5i
 \fB\-Wno\-star\-assign\fR
 Don't warn about ignored compound multiply.
+.TP 0.5i
+\fB\-Wno\-wrap\-addr\fR
+Don't warn about address space calculation wrap around.
+If a memory location ends up outside of the processors address space then just wrap it around.
+.TP 0.5i
+\fB\-Wno\-wrap\-bank0\fR
+Don't warn for bank 0 address calculation wrap around.
+.TP 0.5i
+\fB\-Wno\-wrap\-dpage\fR
+Don't warn for direct page address calculation wrap around.
+.TP 0.5i
+\fB\-Wno\-wrap\-mem\fR
+Don't warn for compile offset wrap around.
+Continue from the beginning of image file once it's end was reached.
+.TP 0.5i
+\fB\-Wno\-wrap\-pbank\fR
+Don't warn for program bank address calculation wrap around.
+.TP 0.5i
+\fB\-Wno\-wrap\-pc\fR
+Don't warn for program counter bank crossing.
+If it's data only and the programmer deals with it then this might be ok.
 .TP 0.5i
 \fB\-Wold\-equal\fR
 Warn about old equal operator.
@@ -263,10 +276,6 @@ Warn about symbol shadowing.
 Checks if local variables 'shadow' other variables of same name in upper
 scopes in ambiguous ways.
 .TP 0.5i
-\fB\-Wno\-size\-larger\fR
-Don't warn if size is larger due to negative offset
-Negative offsets add space in front of memory area that's out of bound. Sometimes this may be fine.
-.TP 0.5i
 \fB\-Wstrict\-bool\fR
 Warn about implicit boolean conversions.
 Boolean values can be interpreted as numeric 0/1 and other types as booleans. This is convenient but may cause mistakes.
@@ -277,14 +286,14 @@ Warn about multiple switch case matches
 \fB\-Wunused\fR
 Warn about unused constant symbols, any type.
 .TP 0.5i
-\fB\-Wunused-macro\fR
-Warn about unused macros.
-.TP 0.5i
 \fB\-Wunused-const\fR
 Warn about unused constants.
 .TP 0.5i
 \fB\-Wunused-label\fR
 Warn about unused labels.
+.TP 0.5i
+\fB\-Wunused-macro\fR
+Warn about unused macros.
 .TP 0.5i
 \fB\-Wunused-variable\fR
 Warn about unused variables.

@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 2016 2019-10-20 06:41:22Z soci $
+    $Id: section.h 2246 2020-10-17 09:51:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,13 +28,14 @@ struct optimizer_s;
 
 struct section_address_s {
     address_t address;
-    address2_t l_address;
+    address_t l_address;
     address_t start;
     address_t end;
-    address2_t l_start;
-    address2_t l_union;
+    address_t l_start;
+    address_t l_union;
     bool moved;
     bool wrapwarn;
+    bool bankwarn;
     bool unionmode;
     struct Obj *l_address_val;
     struct Memblocks *mem;
@@ -50,7 +51,7 @@ struct section_s {
     uval_t conflicts;
     uval_t provides;
     address_t restart;
-    address2_t l_restart;
+    address_t l_restart;
     address_t size;
     struct section_address_s address;
     uint8_t usepass;
