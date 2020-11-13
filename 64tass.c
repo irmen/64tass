@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2246 2020-10-17 09:51:34Z soci $
+    $Id: 64tass.c 2256 2020-11-13 07:21:53Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -409,7 +409,7 @@ static void memskip(address_t db, linepos_t epoint) {
     }
     if (current_address->bankwarn) {err_msg_pc_bank(epoint);current_address->bankwarn = false;}
     if (db > (~current_address->l_address & 0xffff)) {
-        current_address->bankwarn = ((-current_address->l_address & 0xffff) == db);
+        current_address->bankwarn = (0x10000 - (current_address->l_address & 0xffff) == db);
         if (!current_address->bankwarn) err_msg_pc_bank(epoint);
         current_address->l_address = (current_address->l_address + db) & all_mem;
     } else current_address->l_address += db;
@@ -441,7 +441,7 @@ FAST_CALL uint8_t *pokealloc(address_t db, linepos_t epoint) {
     }
     if (current_address->bankwarn) {err_msg_pc_bank(epoint);current_address->bankwarn = false;}
     if (db > (~current_address->l_address & 0xffff)) {
-        current_address->bankwarn = ((-current_address->l_address & 0xffff) == db);
+        current_address->bankwarn = (0x10000 - (current_address->l_address & 0xffff) == db);
         if (!current_address->bankwarn) err_msg_pc_bank(epoint);
         current_address->l_address = (current_address->l_address + db) & all_mem;
     } else current_address->l_address += db;
@@ -851,20 +851,12 @@ static void logical_close(linepos_t epoint) {
         current_address->l_union = waitfor->u.cmd_logical.laddr;
         diff = 0;
     } else {
-        bool overflowed = false;
         diff = (current_address->address - waitfor->u.cmd_logical.addr) & all_mem2;
-        if (diff != 0) {
-            current_address->bankwarn = ((-current_address->l_address & 0xffff) == diff);
-            if (diff > (~waitfor->u.cmd_logical.laddr & 0xffff)) {
-                current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
-                overflowed = current_address->l_address < diff;
-                if (epoint != NULL && !current_address->bankwarn) err_msg_pc_bank(epoint);
-            } else current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
-        } else current_address->l_address = waitfor->u.cmd_logical.laddr;
-        if (current_address->l_address > all_mem || overflowed) {
-            if (epoint != NULL) err_msg_big_address(epoint);
-            current_address->l_address &= all_mem;
-        }
+        if (diff > (~waitfor->u.cmd_logical.laddr & 0xffff)) {
+            current_address->bankwarn = (0x10000 - (waitfor->u.cmd_logical.laddr & 0xffff) == diff);
+            if (epoint != NULL && !current_address->bankwarn) err_msg_pc_bank(epoint);
+            current_address->l_address = (waitfor->u.cmd_logical.laddr + diff) & all_mem;
+        } else current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
     }
     val_destroy(current_address->l_address_val);
     current_address->l_address_val = waitfor->u.cmd_logical.val;
@@ -912,6 +904,8 @@ static void union_close(linepos_t epoint) {
     end = (current_address->address < current_address->end) ? current_address->end : current_address->address;
     current_address->end = (waitfor->u.cmd_union.addr2 > end) ? waitfor->u.cmd_union.addr2 : end;
     if (end > current_address->address) {
+        current_address->wrapwarn = false;
+        current_address->bankwarn = false;
         memskip(end - current_address->address, epoint);
     }
 }
@@ -3897,8 +3891,16 @@ MUST_CHECK Obj *compile(void)
                     if (prm == CMD_CWARN || prm == CMD_CERROR) {
                         bool writeit;
                         if (!get_exp(1, 1, 0, &epoint)) goto breakerr;
-                        if (tobool(get_val(), &writeit) || !writeit) goto breakerr;
-                        if (here() == ',') lpoint.pos++;
+                        if (here() == ',') {
+                            lpoint.pos++; ignore();
+                            if (here() == 0 || here() == ';') {
+                                err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
+                            }
+                        }
+                        if (tobool(get_val(), &writeit) || !writeit) {
+                            if (skip_exp()) get_exp(0, 0, 0, &epoint);
+                            goto breakerr;
+                        }
                     }
                     if (!get_exp(0, 0, 0, &epoint)) goto breakerr;
                     len = get_val_remaining();

@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2240 2020-07-18 22:37:17Z soci $
+    $Id: intobj.c 2250 2020-11-03 22:35:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1648,7 +1648,18 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         }
         return (Obj *)v;
     case O_EXP:
-        if (v2->len < 0) {
+        if (v2->len == 1) {
+            if (v2->data[0] == 2) {
+                v = (op->inplace == &v1->v) ? ref_int(v1) : new_int();
+                imul(v1, v1, v);
+                return (Obj *)v;
+            }
+            if (v2->data[0] == 1) {
+                return val_reference(&v1->v);
+            }
+        } else if (v2->len == 0) {
+            return (Obj *)ref_int(int_value[1]);
+        } else if (v2->len < 0) {
             Obj *vv1 = float_from_int(v1, op->epoint);
             Obj *vv2 = float_from_int(v2, op->epoint2);
             op->v1 = vv1;

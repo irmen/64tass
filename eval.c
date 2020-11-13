@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2214 2020-05-21 20:31:48Z soci $
+    $Id: eval.c 2253 2020-11-11 23:35:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1793,6 +1793,62 @@ static bool get_exp2(int stop) {
     }
     if (opr.l != lenof(oprdata)) free(opr.data);
     return false;
+}
+
+bool skip_exp(void) {
+    uint8_t q = 0;
+    size_t pp = 0, pl = 64;
+    uint8_t pbuf[64];
+    uint8_t *par = pbuf;
+    line_t ovline = vline;
+    struct linepos_s opoint = lpoint;
+    
+    for (;;) {
+        uint8_t ch = here();
+        if (ch == 0) {
+            if (pp == 0 || q != 0) break;
+            if (mtranslate()) { /* expand macro parameters, if any */
+                listing_line(listing, 0);
+                break;
+            }
+            listing_line(listing, 0);
+            continue;
+        }
+        if (ch == '"'  && (q & 2) == 0) { q ^= 1; }
+        else if (ch == '\'' && (q & 1) == 0) { q ^= 2; }
+        if (q == 0) {
+            if (ch == ';') break;
+            if (ch == '(' || ch == '[' || ch == '{') {
+                if (pp >= pl) {
+                    pl += 256;
+                    if (pl < 256) err_msg_out_of_memory();
+                    if (par == pbuf) {
+                        par = (uint8_t *)mallocx(pl);
+                        memcpy(par, pbuf, pp);
+                    } else par = (uint8_t *)reallocx(par, pl);
+                }
+                par[pp++] = ch;
+            } else if (pp != 0) {
+                if (ch == ')') {
+                    if (par[pp - 1] == '(') pp--; else break;
+                } else if (ch == ']') {
+                    if (par[pp - 1] == '[') pp--; else break;
+                } else if (ch == '}') {
+                    if (par[pp - 1] == '{') pp--; else break;
+                }
+            }
+        }
+        lpoint.pos++;
+    }
+    if (par != pbuf) free(par);
+    if (pp == 0 && q == 0) return false;
+    if (vline != ovline) {
+        lpoint.line = opoint.line - 1;
+        vline = ovline - 1;
+        mtranslate();
+    }
+    lpoint.pos = opoint.pos;
+    return true;
 }
 
 bool get_exp(int stop, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
