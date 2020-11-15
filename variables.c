@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2206 2020-05-05 20:00:40Z soci $
+    $Id: variables.c 2257 2020-11-14 19:49:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -597,17 +597,18 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
                 Error *err = val->obj->uval(val, &uv, 24, &epoint);
                 if (err == NULL) {
                     lastvc->addr = uv;
-                    if (avltree_insert(&lastvc->node, &vice_filter, duplicate_compare) != NULL) continue;
-                    if (vice_addrp == 255) {
-                        struct vice_addresses_s *old = vice_addresses;
-                        vice_addresses = (struct vice_addresses_s *)mallocx(sizeof *vice_addresses);
-                        vice_addresses->next = old;
-                        vice_addrp = 0;
-                    } else vice_addrp++;
-                    lastvc = &vice_addresses->list[vice_addrp];
-                    fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
-                    labelname_print(l, flab, ':');
-                    putc('\n', flab);
+                    if (avltree_insert(&lastvc->node, &vice_filter, duplicate_compare) == NULL) {
+                        if (vice_addrp == 255) {
+                            struct vice_addresses_s *old = vice_addresses;
+                            vice_addresses = (struct vice_addresses_s *)mallocx(sizeof *vice_addresses);
+                            vice_addresses->next = old;
+                            vice_addrp = 0;
+                        } else vice_addrp++;
+                        lastvc = &vice_addresses->list[vice_addrp];
+                        fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
+                        labelname_print(l, flab, ':');
+                        putc('\n', flab);
+                    }
                 } else val_destroy(&err->v);
             }
             if (l->owner) {
