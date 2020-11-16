@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2245 2020-10-17 08:09:10Z soci $
+    $Id: listing.c 2258 2020-11-15 13:53:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -362,7 +362,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
 }
 
 static void printsource(Listing *ls, linecpos_t pos) {
-    while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
+    while (pos > 0 && (llist[pos-1] == 0x20 || llist[pos-1] == 0x09)) pos--;
     padding2(ls, ls->columns.source);
     flushbuf(ls);
     printable_print2(llist, ls->flist, pos);

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2256 2020-11-13 07:21:53Z soci $
+    $Id: 64tass.c 2259 2020-11-15 22:31:12Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -856,7 +856,10 @@ static void logical_close(linepos_t epoint) {
             current_address->bankwarn = (0x10000 - (waitfor->u.cmd_logical.laddr & 0xffff) == diff);
             if (epoint != NULL && !current_address->bankwarn) err_msg_pc_bank(epoint);
             current_address->l_address = (waitfor->u.cmd_logical.laddr + diff) & all_mem;
-        } else current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
+        } else {
+            current_address->bankwarn = false;
+            current_address->l_address = waitfor->u.cmd_logical.laddr + diff;
+        }
     }
     val_destroy(current_address->l_address_val);
     current_address->l_address_val = waitfor->u.cmd_logical.val;
@@ -1312,7 +1315,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     iter.data = NULL;
 
     if (diagnostics.optimize) cpu_opt_invalidate();
-    if (lst != NULL) listing_equal2(listing, &lst->v, epoint->pos);
+    if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
     new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
 
@@ -1633,7 +1636,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
     size_t i = 0;
 
     if (diagnostics.optimize) cpu_opt_invalidate();
-    if (lst != NULL) listing_equal2(listing, &lst->v, epoint->pos);
+    if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
     new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
     if (!get_exp(0, 1, 1, epoint)) cnt = 0;
@@ -1694,7 +1697,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     const uint8_t *oldpline;
 
     if (diagnostics.optimize) cpu_opt_invalidate();
-    if (lst != NULL) listing_equal2(listing, &lst->v, epoint->pos);
+    if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
     new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
 
