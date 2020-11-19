@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2236 2020-07-11 22:36:28Z soci $
+    $Id: mem.c 2261 2020-11-18 20:27:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ void memref(Memblocks *memblocks, Memblocks *ref) {
     block->addr = memblocks->lastaddr;
 }
 
-void memprint(Memblocks *memblocks) {
+void memprint(Memblocks *memblocks, FILE *f) {
     size_t i;
     char temp[10], temp2[10];
 
@@ -170,7 +170,7 @@ void memprint(Memblocks *memblocks) {
         }
         sprintf(temp, "$%04" PRIaddress, start);
         sprintf(temp2, "$%04" PRIaddress, (address_t)(start + size - 1));
-        printf("Memory range: %10s-%-7s $%04" PRIaddress "\n", temp, temp2, size);
+        fprintf(f, "Memory range: %10s-%-7s $%04" PRIaddress "\n", temp, temp2, size);
     }
 }
 
@@ -482,6 +482,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC);
 
     if (memblocks->mem.p == 0) return;
+    if (output->name == NULL) return;
 
     if (dash_name(output->name)) {
 #if defined _WIN32 || defined __DJGPP__

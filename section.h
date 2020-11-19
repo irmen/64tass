@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 2246 2020-10-17 09:51:34Z soci $
+    $Id: section.h 2260 2020-11-18 20:04:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 */
 #ifndef SECTION_H
 #define SECTION_H
+#include <stdio.h>
 #include "avl.h"
 #include "stdbool.h"
 #include "str.h"
@@ -74,7 +75,7 @@ extern struct section_s *find_this_section(const char *);
 extern void init_section(void);
 extern void destroy_section(void);
 extern void reset_section(struct section_s *);
-extern void sectionprint(void);
+extern void sectionprint(FILE *);
 extern void section_sizecheck(void);
 extern struct section_s *current_section, root_section;
 extern struct section_address_s *current_address;

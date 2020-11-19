@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2246 2020-10-17 09:51:34Z soci $
+    $Id: section.c 2260 2020-11-18 20:04:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -183,15 +183,15 @@ void destroy_section(void) {
     root_section.optimizer = NULL;
 }
 
-static void sectionprint2(const struct section_s *l) {
+static void sectionprint2(const struct section_s *l, FILE *f) {
     if (l->name.data != NULL) {
-        sectionprint2(l->parent);
-        printable_print2(l->name.data, stdout, l->name.len);
-        putchar('.');
+        sectionprint2(l->parent, f);
+        printable_print2(l->name.data, f, l->name.len);
+        putc('.', f);
     }
 }
 
-static void printrange(const struct section_s *l) {
+static void printrange(const struct section_s *l, FILE *f) {
     char temp[10], temp2[10], temp3[10];
     sprintf(temp, "$%04" PRIaddress, l->address.start);
     temp2[0] = 0;
@@ -199,26 +199,26 @@ static void printrange(const struct section_s *l) {
         sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->address.start + l->size - 1));
     }
     sprintf(temp3, "$%04" PRIaddress, l->size);
-    printf("Section: %15s%-8s %-7s", temp, temp2, temp3);
+    fprintf(f, "Section: %15s%-8s %-7s", temp, temp2, temp3);
 }
 
-void sectionprint(void) {
+void sectionprint(FILE *f) {
     struct section_s *l = &root_section;
 
     if (l->size != 0) {
-        printrange(l);
-        putchar('\n');
+        printrange(l, f);
+        putc('\n', f);
     }
-    memprint(l->address.mem);
+    memprint(l->address.mem, f);
     l = root_section.next;
     while (l != NULL) {
         if (l->defpass == pass) {
-            printrange(l);
-            putchar(' ');
-            sectionprint2(l->parent);
-            printable_print2(l->name.data, stdout, l->name.len);
-            putchar('\n');
-            memprint(l->address.mem);
+            printrange(l, f);
+            putc(' ', f);
+            sectionprint2(l->parent, f);
+            printable_print2(l->name.data, f, l->name.len);
+            putc('\n', f);
+            memprint(l->address.mem, f);
         }
         l = l->next;
     }

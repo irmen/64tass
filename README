@@ -2811,6 +2811,8 @@ Output options
     Normally output files are overwritten but in some cases it's useful to
     append them instead.
 
+--no-output
+    Same as output but no file will be written.
 --output-section <sectionname>
     By default all sections go into the output file. Using this option limits
     the output to specific section and it's children. This is useful to split a

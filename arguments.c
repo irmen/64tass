@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2245 2020-10-17 08:09:10Z soci $
+    $Id: arguments.c 2261 2020-11-18 20:27:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -332,7 +332,7 @@ enum {
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
     INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
-    OUTPUT_APPEND
+    OUTPUT_APPEND, NO_OUTPUT
 };
 
 static const struct my_option long_options[] = {
@@ -370,6 +370,7 @@ static const struct my_option long_options[] = {
     {"m4510"            , my_no_argument      , NULL,  M4510},
     {"labels"           , my_required_argument, NULL, 'l'},
     {"output"           , my_required_argument, NULL, 'o'},
+    {"no-output"        , my_no_argument      , NULL,  NO_OUTPUT},
     {"output-append"    , my_required_argument, NULL,  OUTPUT_APPEND},
     {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
     {"error"            , my_required_argument, NULL, 'E'},
@@ -489,7 +490,7 @@ static address_t get_all_mem2(void) {
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
         }
-        if (dash_name(output->name)) tostdout = true;
+        if (output->name != NULL && dash_name(output->name)) tostdout = true;
     }
     if (tostdout) arguments.quiet = false;
     else setvbuf(stdout, NULL, _IOLBF, 1024);
@@ -534,8 +535,9 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case NO_ASCII:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
             case NO_TASM_COMPATIBLE:arguments.tasmcomp = false;break;
+            case NO_OUTPUT:
             case OUTPUT_APPEND:
-            case 'o': output.name = my_optarg;
+            case 'o': output.name = (opt == NO_OUTPUT) ? NULL : my_optarg;
                       output.append = (opt == OUTPUT_APPEND);
                       arguments.output_len++;
                       arguments.output = (struct output_s *)realloc(arguments.output, arguments.output_len * sizeof *arguments.output);
@@ -631,8 +633,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "        [--vice-labels-numeric] [--dump-labels] [--list=<file>] [--no-monitor]\n"
                "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
                "        [--dependencies=<file>] [--make-phony] [-W<option>] [--errors=<file>]\n"
-               "        [--output=<file>] [--output-append=<file>] [--help] [--usage]\n"
-               "        [--version] SOURCES");
+               "        [--output=<file>] [--output-append=<file>] [--no-output] [--help]\n"
+               "        [--usage] [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -699,6 +701,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wunused-variable      Warn about unused variables\n");
                puts(" Output selection:\n"
                "  -o, --output=<file>    Place output into <file>\n"
+               "  --no-output            Do not create an output file\n"
                "  --output-append=<file> Append output to <file>\n"
                "  --output-section=<n>   Output this section only\n"
                "  -b, --nostart          Strip starting address\n"

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2259 2020-11-15 22:31:12Z soci $
+    $Id: 64tass.c 2260 2020-11-18 20:04:07Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -4972,7 +4972,7 @@ int main2(int *argc2, char **argv2[]) {
     if (arguments.quiet) {
         error_status();
         printf("Passes: %12u\n",pass);
-        if (!failed) sectionprint();
+        if (!failed) sectionprint(stdout);
     }
     tfree();
     return failed ? EXIT_FAILURE : EXIT_SUCCESS;
