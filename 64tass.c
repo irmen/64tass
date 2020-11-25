@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2260 2020-11-18 20:04:07Z soci $
+    $Id: 64tass.c 2262 2020-11-22 21:47:59Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -4039,7 +4039,7 @@ MUST_CHECK Obj *compile(void)
                                 tmp.end = tmpe;
                             }
                             t = new_trans(&tmp, actual_encoding, &epoint);
-                            if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
+                            if (t->start > tmp.start || t->end < tmp.end || t->offset + (tmp.start - t->start) != tmp.offset) {
                                 err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
                             }
                         }
