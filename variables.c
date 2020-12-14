@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2257 2020-11-14 19:49:00Z soci $
+    $Id: variables.c 2263 2020-12-10 21:03:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -530,27 +530,6 @@ static void labelname_print(const Label *l, FILE *flab, char d) {
     printable_print2(l->name.data, flab, l->name.len);
 }
 
-struct vice_address_s {
-    address_t addr;
-    struct avltree_node node;
-};
-
-static struct vice_addresses_s {
-    struct vice_address_s list[256];
-    struct vice_addresses_s *next;
-} *vice_addresses = NULL;
-
-static struct avltree vice_filter;
-static struct vice_address_s *lastvc;
-static int vice_addrp;
-
-static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct vice_address_s *a = cavltree_container_of(aa, struct vice_address_s, node);
-    const struct vice_address_s *b = cavltree_container_of(bb, struct vice_address_s, node);
-    return (int)a->addr - (int)b->addr;
-}
-
 static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
     size_t n, ln;
 
@@ -596,19 +575,9 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
                 uval_t uv;
                 Error *err = val->obj->uval(val, &uv, 24, &epoint);
                 if (err == NULL) {
-                    lastvc->addr = uv;
-                    if (avltree_insert(&lastvc->node, &vice_filter, duplicate_compare) == NULL) {
-                        if (vice_addrp == 255) {
-                            struct vice_addresses_s *old = vice_addresses;
-                            vice_addresses = (struct vice_addresses_s *)mallocx(sizeof *vice_addresses);
-                            vice_addresses->next = old;
-                            vice_addrp = 0;
-                        } else vice_addrp++;
-                        lastvc = &vice_addresses->list[vice_addrp];
-                        fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
-                        labelname_print(l, flab, ':');
-                        putc('\n', flab);
-                    }
+                    fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
+                    labelname_print(l, flab, ':');
+                    putc('\n', flab);
                 } else val_destroy(&err->v);
             }
             if (l->owner) {
@@ -734,18 +703,6 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
         err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
     } else if (output->mode == LABEL_DUMP) {
         labeldump(space, flab);
-    } else if (output->mode == LABEL_VICE || output->mode == LABEL_VICE_NUMERIC) {
-        vice_addresses = (struct vice_addresses_s *)mallocx(sizeof *vice_addresses);
-        vice_addresses->next = NULL;
-        vice_addrp = 0;
-        avltree_init(&vice_filter);
-        lastvc = &vice_addresses->list[vice_addrp];
-        labelprint2(space, flab, output->mode);
-        while (vice_addresses != NULL) {
-            struct vice_addresses_s *old = vice_addresses;
-            vice_addresses = vice_addresses->next;
-            free(old);
-        }
     } else {
         labelprint2(space, flab, output->mode);
     }

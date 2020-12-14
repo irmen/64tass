@@ -4013,8 +4013,13 @@ VICE monitor. Therefore simple numeric constants will not show up unless
 converted to an address first.</p>
 <p>VICE symbols may only contain ASCII letters, numbers and underscore. Symbols
 not meeting this requirement will be omitted.</p>
-<p>If a memory location has several symbols only one will be included in the
-label list.</p>
+<p>There's a good chance VICE will complain about already existing labels on
+import. In the past an attempt was made to filter out such duplicates to
+eliminate these warnings. However soon it was pointed out that omitted labels
+are now unavailable for commands like setting breakpoints. As the latter use
+case is rather more important than some bogus import warnings one has to
+live with them.</p>
+
 <pre width=80>
 64tass --vice-labels -l labels.l a.asm
 *       <b>=</b> <span>$1000</span>
