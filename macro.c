@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2246 2020-10-17 09:51:34Z soci $
+    $Id: macro.c 2270 2021-01-09 08:04:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -436,8 +436,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         line_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
-        struct avltree *stree_old = star_tree;
-        line_t ovline = vline;
+        struct star_s *stree_old = star_tree;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
         if (starexists && s->addr != star) {
@@ -445,7 +444,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline = 0;
+        star_tree->vline = vline; star_tree = s; vline = s->vline;
         enterfile(macro->file_list->file, epoint);
         lpoint.line = macro->line;
         new_waitfor(t, epoint);
@@ -455,7 +454,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         close_waitfor(t);
         star = s->addr;
         exitfile();
-        star_tree = stree_old; vline = ovline;
+        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
         lpoint.line = lin;
     }
     val_destroy(&macro->v);
@@ -530,8 +529,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         line_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
-        struct avltree *stree_old = star_tree;
-        line_t ovline = vline;
+        struct star_s *stree_old = star_tree;
         size_t oldbottom;
         bool in_macro_old = in_macro;
         in_macro = false;
@@ -542,7 +540,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline = 0;
+        star_tree->vline = vline; star_tree = s; vline = s->vline;
         enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
         new_waitfor(W_ENDF3, epoint);
@@ -562,7 +560,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         close_waitfor(W_ENDF3);
         star = s->addr;
         exitfile();
-        star_tree = stree_old; vline = ovline;
+        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
         lpoint.line = lin;
         in_macro = in_macro_old;
     }
@@ -832,8 +830,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         line_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
-        struct avltree *stree_old = star_tree;
-        line_t ovline = vline;
+        struct star_s *stree_old = star_tree;
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
@@ -848,7 +845,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline = 0;
+        star_tree->vline = vline; star_tree = s; vline = s->vline;
         lpoint.line = mfunc->line;
         new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
@@ -890,7 +887,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         lpoint = opoint;
         pline = opline;
         llist = ollist;
-        star_tree = stree_old; vline = ovline;
+        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
         lpoint.line = lin;
         in_macro = in_macro_old;
     }

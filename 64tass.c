@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2262 2020-11-22 21:47:59Z soci $
+    $Id: 64tass.c 2272 2021-01-09 16:32:14Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -162,8 +162,8 @@ static struct waitfor_s {
     } u;
 } *waitfors, *waitfor;
 
-static struct avltree star_root;
-struct avltree *star_tree = NULL;
+static struct star_s star_root;
+struct star_s *star_tree = NULL;
 
 static const char * const command[] = { /* must be sorted, first char is the ID */
     "\x08" "addr",
@@ -1305,9 +1305,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     } labels;
     Label *label;
     Obj *val, *nf = NULL;
-    struct star_s *s;
-    struct avltree *stree_old;
-    line_t ovline, lvline;
+    struct star_s *s, *stree_old;
     bool starexists, foreach = false;
     struct iter_s iter;
     size_t i = 0;
@@ -1317,7 +1315,6 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (diagnostics.optimize) cpu_opt_invalidate();
     if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
-    new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
 
     do { /* label */
         bool labelexists;
@@ -1409,28 +1406,30 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         }
         ignore();
     } while (wht == ',');
+    
     if (foreach) {
         if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     } else {
         if (here() != ',') {err_msg(ERROR______EXPECTED, "','");
         error:
             if (labels.p != 0 && labels.data != labels.val) free(labels.data);
+            new_waitfor(W_NEXT, epoint); waitfor->skip = 0;
             return i;
         }
         lpoint.pos++;ignore();
     }
 
-    s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
+    s = new_star(vline, &starexists); stree_old = star_tree;
     if (starexists && s->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
     }
     s->addr = star;
-    star_tree = &s->tree; lvline = vline = 0;
+    star_tree->vline = vline; star_tree = s; vline = s->vline;
     lin = lpoint.line;
 
+    new_waitfor(W_NEXT2, epoint);
     if (foreach) {
-        new_waitfor(W_NEXT2, epoint);
         waitfor->u.cmd_rept.breakout = false;
         if (iter.data != NULL) {
             Obj *val2;
@@ -1453,7 +1452,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                     iter_destroy(&iter2);
                 }
                 lpoint.line = lin;
-                waitfor->skip = 1; lvline = vline;
+                waitfor->skip = 1;
                 if (lst != NULL) {
                     if (i >= lst->len && list_extend2(lst)) {i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL;}
                     else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
@@ -1473,6 +1472,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         line_t xlin = lpoint.line;
         struct oper_s tmp;
         const uint8_t *oldpline = pline, *oldpline2 = pline;
+        uint8_t skip = 0;
         expr2 = (uint8_t *)oldpline2;
         if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
             size_t lentmp = strlen((const char *)pline) + 1;
@@ -1481,20 +1481,18 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
             pline = expr;
         } else expr = (uint8_t *)oldpline;
         label = NULL;
-        new_waitfor(W_NEXT2, epoint);
         waitfor->u.cmd_rept.breakout = false;
         tmp.op = NULL;
         for (;;) {
             if (here() != ',' && here() != 0) {
-                struct values_s *vs;
                 bool truth;
-                if (!get_exp(1, 1, 1, &apoint)) break;
-                vs = get_val();
-                if (tobool(vs, &truth)) break;
-                if (!truth) break;
+                if (!get_exp(1, 1, 1, &apoint) || tobool(get_val(), &truth) || !truth) {
+                    waitfor->skip = skip;
+                    break;
+                }
             }
             if (nopos < 0) {
-                ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); break;}
+                ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); waitfor->skip = skip; break;}
                 lpoint.pos++;ignore();
                 oldpline2 = pline;
                 if (pline != expr && (size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
@@ -1506,9 +1504,8 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 if (here() == 0 || here() == ';') {bpoint.pos = 0; nopos = 0;}
                 else bpoint = lpoint;
             } else {
-                if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
+                if ((skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
             }
-            waitfor->skip = 1;lvline = vline;
             if (lst != NULL) {
                 if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
                 else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
@@ -1587,6 +1584,8 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 }
                 bpoint = lpoint; nopos = 1;
             }
+            skip = waitfor->skip;
+            waitfor->skip = 1;
             if (nopos > 0) {
                 struct linepos_s epoints[3];
                 lpoint = bpoint;
@@ -1621,12 +1620,13 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (nf != NULL) {
         if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
         else listing_line_cut2(listing, waitfor->epoint.pos);
+        close_waitfor(W_NEXT2);
+    } else {
+        waitfor->what = W_NEXT; waitfor->skip = 0;
     }
-    close_waitfor(W_NEXT2);
     free(expr);
     free(expr2);
-    if (nf != NULL) close_waitfor(W_NEXT);
-    star_tree = stree_old; vline = ovline + vline - lvline;
+    s->vline = vline; star_tree = stree_old; vline = star_tree->vline + lpoint.line - lin;
     return i;
 }
 
@@ -1638,30 +1638,29 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (diagnostics.optimize) cpu_opt_invalidate();
     if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
-    new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
     if (!get_exp(0, 1, 1, epoint)) cnt = 0;
     else {
         struct values_s *vs = get_val();
         if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) cnt = 0;
     }
-    if (cnt > 0) {
+    if (cnt == 0) {
+        new_waitfor(W_NEXT, epoint); waitfor->skip = 0;
+    } else {
         line_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
-        struct avltree *stree_old = star_tree;
-        line_t ovline = vline, lvline;
+        struct star_s *stree_old = star_tree;
 
         if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
             fixeddig = false;
         }
         s->addr = star;
-        star_tree = &s->tree;vline = 0;
+        star_tree->vline = vline; star_tree = s; vline = s->vline;
         new_waitfor(W_NEXT2, epoint);
         waitfor->u.cmd_rept.breakout = false;
         for (;;) {
             lpoint.line = lin;
-            waitfor->skip = 1; lvline = vline;
             if (lst != NULL) {
                 if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
                 else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
@@ -1672,14 +1671,16 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
                 break;
             }
             if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
+            waitfor->skip = 1;
         }
         if (nf != NULL) {
             if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
             else listing_line_cut2(listing, waitfor->epoint.pos);
+            close_waitfor(W_NEXT2);
+        } else {
+            waitfor->what = W_NEXT; waitfor->skip = 0;
         }
-        close_waitfor(W_NEXT2);
-        if (nf != NULL) close_waitfor(W_NEXT);
-        star_tree = stree_old; vline = ovline + vline - lvline;
+        s->vline = vline; star_tree = stree_old; vline = star_tree->vline + lpoint.line - lin;
     }
     return i;
 }
@@ -1687,27 +1688,25 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
 static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     uint8_t *expr;
     Obj *nf = NULL;
-    struct star_s *s;
-    struct avltree *stree_old;
-    line_t ovline, lvline;
+    struct star_s *s, *stree_old;
     bool starexists;
     size_t i = 0;
     struct linepos_s apoint;
     line_t xlin;
     const uint8_t *oldpline;
+    uint8_t skip = 0;
 
     if (diagnostics.optimize) cpu_opt_invalidate();
     if (lst != NULL && newlabel != NULL) listing_equal2(listing, &lst->v, epoint->pos);
     else listing_line(listing, epoint->pos);
-    new_waitfor(W_NEXT, epoint);waitfor->skip = 0;
 
-    s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
+    s = new_star(vline, &starexists); stree_old = star_tree;
     if (starexists && s->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
     }
     s->addr = star;
-    star_tree = &s->tree; lvline = vline = 0;
+    star_tree->vline = vline; star_tree = s; vline = s->vline;
 
     apoint = lpoint;
     xlin = lpoint.line;
@@ -1721,14 +1720,12 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     new_waitfor(W_NEXT2, epoint);
     waitfor->u.cmd_rept.breakout = false;
     for (;;) {
-        struct values_s *vs;
         bool truth;
-        if (!get_exp(1, 1, 1, &apoint)) break;
-        vs = get_val();
-        if (tobool(vs, &truth)) break;
-        if (!truth) break;
-        if ((waitfor->skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
-        waitfor->skip = 1;lvline = vline;
+        if (!get_exp(1, 1, 1, &apoint) || tobool(get_val(), &truth) || !truth) {
+            waitfor->skip = skip;
+            break;
+        }
+        if ((skip & 1) != 0) listing_line_cut(listing, waitfor->epoint.pos);
         if (lst != NULL) {
             if (i >= lst->len && list_extend2(lst)) { i = lst->len - 1; err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint); nf = NULL; }
             else if (newlabel == NULL) nf = tuple_scope_light(&lst->data[i], epoint);
@@ -1737,21 +1734,23 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
         } else nf = compile();
         xlin = lpoint.line;
         if (nf == NULL || waitfor->u.cmd_rept.breakout) break;
+        skip = waitfor->skip;
+        waitfor->skip = 1;
         pline = expr;
         lpoint = apoint;
     }
     pline = oldpline;
-    if (expr == oldpline) expr = NULL;
     lpoint.line = xlin;
     
     if (nf != NULL) {
         if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
         else listing_line_cut2(listing, waitfor->epoint.pos);
+        close_waitfor(W_NEXT2);
+    } else {
+        waitfor->what = W_NEXT; waitfor->skip = 0;
     }
-    close_waitfor(W_NEXT2);
-    free(expr);
-    if (nf != NULL) close_waitfor(W_NEXT);
-    star_tree = stree_old; vline = ovline + vline - lvline;
+    if (expr != oldpline) free(expr);
+    s->vline = vline; star_tree = stree_old; vline = star_tree->vline + lpoint.line - apoint.line;
     return i;
 }
 
@@ -1779,7 +1778,7 @@ MUST_CHECK Obj *compile(void)
         uint8_t type;
         uint8_t padding[3];
         line_t vline;
-        struct avltree *star_tree;
+        struct star_s *star_tree;
     } anonident2;
     struct linepos_s epoint;
 
@@ -2307,7 +2306,7 @@ MUST_CHECK Obj *compile(void)
                             Mfunc *mfunc;
                             bool labelexists;
                             listing_line(listing, 0);
-                            new_waitfor(W_ENDF, &cmdpoint);waitfor->skip = 0;
+                            new_waitfor(W_ENDF, &cmdpoint);
                             label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                             mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
                             mfunc->file_list = current_file_list;
@@ -2372,6 +2371,7 @@ MUST_CHECK Obj *compile(void)
                                 mfunc->names = new_namespace(current_file_list, &epoint);
                                 waitfor->u.cmd_function.val = val_reference(&mfunc->v);
                             }
+                            waitfor->skip = 0;
                             goto finish;
                         }
                     case CMD_STRUCT:
@@ -3092,20 +3092,17 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_ELSIF: /* .elsif */
                 {
-                    uint8_t skwait = waitfor->skip;
                     bool truth;
-                    struct values_s *vs;
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
                     if (waitfor->what == W_FI) {err_msg2(ERROR______EXPECTED, "'.fi'", &epoint); goto breakerr; }
                     if (waitfor->what != W_FI2) {err_msg2(ERROR__MISSING_OPEN, ".if", &epoint); goto breakerr;}
                     waitfor->epoint = epoint;
-                    if (skwait == 2) {
-                        if (!get_exp(0, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
-                        vs = get_val();
-                    } else { waitfor->skip = 0; break; }
-                    if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
-                    waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
-                    if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
+                    if (waitfor->skip != 2) { waitfor->skip = 0; break; }
+                    waitfor->skip = 1;
+                    if (!get_exp(0, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
+                    if (tobool(get_val(), &truth)) waitfor->skip = 0;
+                    else if (truth) listing_line_cut2(listing, epoint.pos);
+                    else waitfor->skip = 2;
                 }
                 break;
             case CMD_SWITCH: /* .switch */
@@ -3126,16 +3123,17 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_CASE: /* .case */
                 {
-                    uint8_t skwait = waitfor->skip;
                     bool truth = false;
-                    if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
+                    uint8_t skwait = waitfor->skip;
+                    if ((skwait & 1) != 0) listing_line_cut(listing, epoint.pos);
                     if (waitfor->what == W_SWITCH) { err_msg2(ERROR______EXPECTED, "'.endswitch'", &epoint); goto breakerr; }
                     if (waitfor->what != W_SWITCH2) { err_msg2(ERROR__MISSING_OPEN, ".switch", &epoint); goto breakerr; }
                     waitfor->epoint = epoint;
-                    if (skwait == 2 || diagnostics.switch_case) {
+                    if (skwait == 2) {
                         struct values_s *vs;
                         Obj *result2;
                         struct oper_s tmp;
+                        waitfor->skip = 1;
                         if (!get_exp(0, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
                         tmp.epoint = tmp.epoint3 = &epoint;
@@ -3150,14 +3148,9 @@ MUST_CHECK Obj *compile(void)
                             result2 = tmp.v1->obj->calc2(&tmp);
                             truth = (Bool *)result2 == true_value;
                             val_destroy(result2);
-                            if (truth && diagnostics.switch_case && skwait != 2) {
-                                err_msg2(ERROR_DUPLICATECASE, NULL, &vs->epoint);
-                                truth = false;
-                                break;
-                            }
                         }
                     }
-                    waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                    waitfor->skip = truth ? (skwait >> 1) : (skwait & 2);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
@@ -4162,9 +4155,8 @@ MUST_CHECK Obj *compile(void)
                         Wait_types what;
                         bool starexists;
                         struct star_s *s = new_star(vline, &starexists);
-                        struct avltree *stree_old = star_tree;
+                        struct star_s *stree_old = star_tree;
                         line_t lin = lpoint.line;
-                        line_t vlin = vline;
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -4211,15 +4203,15 @@ MUST_CHECK Obj *compile(void)
                             }
                         }
                         enterfile(f, &epoint);
-                        lpoint.line = vline = 0;
-                        star_tree = &s->tree;
+                        lpoint.line = 0;
+                        star_tree->vline = vline; star_tree = s; vline = s->vline;
                         what = waitfor->what; waitfor->what = W_NONE;
                         val = compile();
                         waitfor->what = what;
                         if (prm == CMD_BINCLUDE) pop_context();
                         if (val != NULL) val_destroy(val);
-                        lpoint.line = lin; vline = vlin;
-                        star_tree = stree_old;
+                        lpoint.line = lin; 
+                        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
                         exitfile();
                         listing_file(listing, ";******  Return to file: ", current_file_list->file);
                     }
@@ -4847,7 +4839,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         star_tree = &star_root;
         s = new_star(i, &starexists);
         s->addr = 0;
-        star_tree = &s->tree;
+        star_tree = s;
 
         if (i == opts - 1) {
             if (fin->lines != 0) {
@@ -4889,7 +4881,7 @@ int main2(int *argc2, char **argv2[]) {
     bool failed;
 
     err_init(*argv2[0]);
-    avltree_init(&star_root);
+    avltree_init(&star_root.tree);
     objects_init();
     init_section();
     init_file();

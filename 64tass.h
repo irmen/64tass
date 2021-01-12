@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 2200 2020-04-07 19:18:23Z soci $
+    $Id: 64tass.h 2270 2021-01-09 08:04:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ extern uint32_t outputeor;
 extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint;
-extern struct avltree *star_tree;
+extern struct star_s *star_tree;
 extern bool fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline;

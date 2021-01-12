@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2189 2020-04-01 05:23:52Z soci $
+    $Id: main.c 2265 2020-12-24 09:29:29Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -67,7 +67,7 @@ int wmain(int argc, wchar_t *argv2[]) {
 
         while (*p != 0) p++;
         c2 = (uint8_t *)malloc((p - s) * 4 / (sizeof *p) + 1);
-        if (c2 == 0) err_msg_out_of_memory2();
+        if (c2 == NULL) err_msg_out_of_memory2();
         p = s;
         argv[i] = (char *)c2;
 
@@ -95,7 +95,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     if (argc < 1) {
         argv[0] = (char *)malloc(7);
         if (argv[0] == NULL) err_msg_out_of_memory2();
-        strcpy(argv[0], "64tass");
+        memcpy(argv[0], "64tass", 7);
         argc = 1;
     }
     r = main2(&argc, &argv);

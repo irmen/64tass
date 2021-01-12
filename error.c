@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2245 2020-10-17 08:09:10Z soci $
+    $Id: error.c 2269 2021-01-08 23:05:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -465,10 +465,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_____OLD_EQUAL:
             new_error_msg2(diagnostic_errors.old_equal, epoint);
             adderror("deprecated equal operator, use '==' instead [-Wold-equal]");
-            break;
-        case ERROR_DUPLICATECASE:
-            new_error_msg2(diagnostic_errors.switch_case, epoint);
-            adderror("case ignored, value already handled [-Wswitch-case]");
             break;
         case ERROR_NONIMMEDCONST:
             new_error_msg2(diagnostic_errors.immediate, epoint);

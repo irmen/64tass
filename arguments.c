@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2261 2020-11-18 20:27:10Z soci $
+    $Id: arguments.c 2269 2021-01-08 23:05:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +78,6 @@ struct diagnostics_s diagnostics = {
         false,   /* unused-variable */
     },
     false,       /* case_symbol */
-    false,       /* switch_case */
     false,       /* immediate */
     true,        /* float_compare */
     false,       /* leading_zeros */
@@ -120,7 +119,6 @@ struct diagnostics_s diagnostic_errors = {
         false,   /* unused-variable */
     },
     false,       /* case_symbol */
-    false,       /* switch_case */
     false,       /* immediate */
     false,       /* float_compare */
     false,       /* leading_zeros */
@@ -163,7 +161,6 @@ static struct diagnostics_s diagnostic_all = {
         false,   /* unused-variable */
     },
     false,       /* case_symbol */
-    true,        /* switch_case */
     false,       /* immediate */
     true,        /* float_compare */
     true,        /* leading_zeros */
@@ -206,7 +203,6 @@ static struct diagnostics_s diagnostic_error_all = {
         true,    /* unused-variable */
     },
     true,        /* case_symbol */
-    true,        /* switch_case */
     true,        /* immediate */
     true,        /* float_compare */
     true,        /* leading_zeros */
@@ -251,7 +247,6 @@ static const struct w_options_s w_options[] = {
     {"unused-label",    &diagnostics.unused.label},
     {"unused-variable", &diagnostics.unused.variable},
     {"case-symbol",     &diagnostics.case_symbol},
-    {"switch-case",     &diagnostics.switch_case},
     {"immediate",       &diagnostics.immediate},
     {"float-compare",   &diagnostics.float_compare},
     {"leading-zeros",   &diagnostics.leading_zeros},
@@ -693,7 +688,6 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Woptimize             Optimization warnings\n"
                "  -Wshadow               Check symbol shadowing\n"
                "  -Wstrict-bool          No implicit bool conversions\n"
-               "  -Wswitch-case          Warn about ignored cases\n"
                "  -Wunused               Warn about unused symbols\n"
                "  -Wunused-macro         Warn about unused macros\n"
                "  -Wunused-const         Warn about unused consts\n"

@@ -3446,12 +3446,6 @@ default, the others are disabled.
         operators.
       + Numeric expressions like `1 + (lbl > 3)'. It's better as `(lbl > 3) ? 2
         : 1'.
--Wswitch-case
-    Warn about multiple switch case matches
-
-    A switch value can match several case conditions but only the first
-    occurance will compile. A second match might be a mistake.
-
 -Wunused
     Warn about unused constant symbols.
 

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2236 2020-07-11 22:36:28Z soci $
+    $Id: arguments.h 2269 2021-01-08 23:05:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -100,7 +100,6 @@ struct diagnostics_s {
         bool variable;
     } unused;
     bool case_symbol;
-    bool switch_case;
     bool immediate;
     bool float_compare;
     bool leading_zeros;

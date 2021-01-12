@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2125 2019-12-23 19:50:58Z soci $
+    $Id: file.h 2270 2021-01-09 08:04:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,8 +51,9 @@ struct file_s {
 };
 
 struct star_s {
-    line_t line;
+    line_t line, vline;
     address_t addr;
+    uint8_t pass;
     struct avltree tree;
     struct avltree_node node;
 };

@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2249 2020-10-25 21:13:54Z soci $
+    $Id: file.c 2270 2021-01-09 08:04:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -858,7 +858,7 @@ struct star_s *new_star(line_t line, bool *exists) {
     struct avltree_node *b;
     struct star_s *tmp;
     lastst->line = line;
-    b = avltree_insert(&lastst->node, star_tree, star_compare);
+    b = avltree_insert(&lastst->node, &star_tree->tree, star_compare);
     if (b == NULL) { /* new label */
         *exists = false;
         avltree_init(&lastst->tree);
@@ -870,10 +870,17 @@ struct star_s *new_star(line_t line, bool *exists) {
         } else starsp++;
         tmp = lastst;
         lastst = &stars->stars[starsp];
+        tmp->pass = 0;
+        tmp->vline = 0;
         return tmp;
     }
     *exists = true;
-    return avltree_container_of(b, struct star_s, node);            /* already exists */
+    tmp = avltree_container_of(b, struct star_s, node);
+    if (tmp->pass != pass) {
+        tmp->pass = pass;
+        tmp->vline = 0;
+    }
+    return tmp;            /* already exists */
 }
 
 void destroy_file(void) {

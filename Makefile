@@ -1,5 +1,4 @@
-CC = gcc
-OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
+OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
  intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o \
@@ -8,12 +7,11 @@ OBJ = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  errorobj.o macroobj.o mfuncobj.o identobj.o memblocksobj.o foldobj.o main.o console.o
 LDLIBS = -lm
 LANG = C
-REVISION := $(shell svnversion | grep --color=none "^[1-9]" || echo "2200?")
-CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
-LDFLAGS = -g
-CFLAGS += $(LDFLAGS)
+REVISION != svnversion | grep --color=none "^[1-9]" || echo "2200?"
+CFLAGS = -g -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
+LDFLAGS =
 TARGET = 64tass
-RM = rm -f
+RM ?= rm -f
 INSTALL = /usr/bin/install -c
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = $(INSTALL) -m 644
@@ -29,8 +27,8 @@ docdir = $(datarootdir)/doc/$(TARGET)
 
 all: $(TARGET) README
 
-$(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 README: README.html
 	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
@@ -219,10 +217,10 @@ wctype.o: wctype.c wctype.h
 .PHONY: all clean distclean install install-strip uninstall install-man install-doc
 
 clean:
-	-rm -f $(OBJ)
+	-$(RM) $(OBJS)
 
 distclean: clean
-	-rm -f $(TARGET)
+	-$(RM) $(TARGET)
 
 install-man:
 	-$(INSTALL) -d $(DESTDIR)$(man1dir)

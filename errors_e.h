@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2219 2020-06-06 12:15:21Z soci $
+    $Id: errors_e.h 2269 2021-01-08 23:05:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,6 @@ typedef enum Error_types {
     ERROR______SIMPLIFY,
     ERROR_____REDUNDANT,
     ERROR_____OLD_EQUAL,
-    ERROR_DUPLICATECASE,
     ERROR_NONIMMEDCONST,
     ERROR_FLOAT_COMPARE,
     ERROR_LEADING_ZEROS,
