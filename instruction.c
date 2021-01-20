@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2245 2020-10-17 08:09:10Z soci $
+    $Id: instruction.c 2273 2021-01-17 18:32:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -301,13 +301,13 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_ZR:/* lda (#$ff,d),z */
     case (A_DR << 8) | (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode == c65ce02.opcode) {
+        if (cnmemonic[ADR_ZP_I] != ____ && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
             adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d),z */
             break;
         }
         return AG_NONE;
     case (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode == c65ce02.opcode) {
+        if (cnmemonic[ADR_ZP_I] != ____ && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
             adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff),z */
             break;
         }
@@ -316,7 +316,7 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
     case (A_IMMEDIATE << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,s),y */
     case (A_SR << 8) | (A_I << 4) | A_YR:
         if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
-            adrgen = (opcode == c65ce02.opcode) ? AG_CHAR : AG_BYTE; *opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
+            adrgen = (opcode == c65ce02.opcode || opcode == c4510.opcode) ? AG_CHAR : AG_BYTE; *opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
             break;
         }
         return AG_NONE;
@@ -369,14 +369,14 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
             adrgen = AG_B0; *opr = ADR_ADDR_I; /* jmp ($ffff) */
             break;
         }
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode) {
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode && opcode != c4510.opcode) {
             adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff) */
             break;
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_I: /* lda (#$ff,d) */
     case (A_DR << 4) | A_I:
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode) {
+        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode && opcode != c4510.opcode) {
             adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d) */
             break;
         }
