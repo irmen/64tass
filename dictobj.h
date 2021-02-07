@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.h 2078 2019-11-09 21:29:50Z soci $
+    $Id: dictobj.h 2308 2021-01-31 11:16:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ typedef struct Dict {
     union {
         struct pair_s val[1];
         struct {
+            int hash;
             size_t max;
             size_t mask;
         } s;

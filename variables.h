@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 2134 2020-01-01 19:10:10Z soci $
+    $Id: variables.h 2293 2021-01-24 21:48:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #ifndef VARIABLES_H
 #define VARIABLES_H
 #include "stdbool.h"
-#include "str.h"
+#include "inttypes.h"
 
 struct Namespace;
 struct Label;
@@ -27,6 +27,7 @@ struct Obj;
 struct Mfunc;
 struct symbol_output_s;
 struct file_list_s;
+struct str_t;
 
 extern void push_dummy_context(void);
 extern void push_context(struct Namespace *);
@@ -40,13 +41,13 @@ extern void context_set_bottom(size_t);
 
 extern struct Namespace *current_context, *cheap_context, *root_namespace;
 extern size_t fwcount;
-extern struct Label *find_label(const str_t *, struct Namespace **);
-extern struct Label *find_label2(const str_t *, struct Namespace *);
-extern struct Label *find_label3(const str_t *, struct Namespace *, uint8_t);
+extern struct Label *find_label(const struct str_t *, struct Namespace **);
+extern struct Label *find_label2(const struct str_t *, struct Namespace *);
+extern struct Label *find_label3(const struct str_t *, struct Namespace *, uint8_t);
 extern struct Label *find_anonlabel(int32_t);
 extern struct Label *find_anonlabel2(int32_t, struct Namespace *);
-extern struct Label *new_label(const str_t *, struct Namespace *, uint8_t, bool *, const struct file_list_s *);
-extern void label_move(struct Label *, const str_t *, const struct file_list_s *);
+extern struct Label *new_label(const struct str_t *, struct Namespace *, uint8_t, bool *, const struct file_list_s *);
+extern void label_move(struct Label *, const struct str_t *, const struct file_list_s *);
 extern bool labelprint(const struct symbol_output_s *, bool);
 extern void unused_check(struct Namespace *);
 extern void ref_labels(void);

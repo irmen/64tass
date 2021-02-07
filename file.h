@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2270 2021-01-09 08:04:13Z soci $
+    $Id: file.h 2284 2021-01-24 09:44:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "attributes.h"
 #include "stdbool.h"
 #include "inttypes.h"
-#include "avl.h"
 #include "str.h"
 
 typedef enum Encoding_types {
@@ -54,8 +53,6 @@ struct star_s {
     line_t line, vline;
     address_t addr;
     uint8_t pass;
-    struct avltree tree;
-    struct avltree_node node;
 };
 
 static inline bool dash_name(const char *name) {
@@ -65,6 +62,7 @@ static inline bool dash_name(const char *name) {
 extern struct file_s *openfile(const char *, const char *, int, const struct str_t *, linepos_t);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t, bool *);
+extern struct star_s *init_star(line_t);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);

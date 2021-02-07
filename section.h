@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 2260 2020-11-18 20:04:07Z soci $
+    $Id: section.h 2277 2021-01-23 16:37:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,7 +57,6 @@ struct section_s {
     struct section_address_s address;
     uint8_t usepass;
     uint8_t defpass;
-    uint8_t structrecursion;
     uint8_t logicalrecursion;
     bool declared;
     struct section_s *parent;

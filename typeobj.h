@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2122 2019-12-21 06:27:50Z soci $
+    $Id: typeobj.h 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,10 +31,10 @@ typedef enum Truth_types {
 
 typedef enum Type_types {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
+    T_SYMBOL, T_ANONSYMBOL, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
     T_DEFAULT, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE, T_LABEL,
-    T_NAMESPACE, T_MEMBLOCKS, T_FOLD
+    T_NAMESPACE, T_MEMBLOCKS, T_FOLD, T_SFUNC
 } Type_types;
 
 typedef struct Type {
@@ -67,6 +67,7 @@ typedef struct Type {
     Obj *(*len)(struct oper_s *) MUST_CHECK;
     Obj *(*size)(struct oper_s *) MUST_CHECK;
     void (*getiter)(struct iter_s *);
+    void (*getriter)(struct iter_s *);
 } Type;
 
 extern void typeobj_init(void);

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2272 2021-01-09 16:32:14Z soci $
+    $Id: 64tass.c 2338 2021-02-06 17:22:10Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -70,7 +70,7 @@
 #include "macroobj.h"
 #include "mfuncobj.h"
 #include "memblocksobj.h"
-#include "identobj.h"
+#include "symbolobj.h"
 #include "dictobj.h"
 
 struct Listing *listing = NULL;
@@ -162,7 +162,6 @@ static struct waitfor_s {
     } u;
 } *waitfors, *waitfor;
 
-static struct star_s star_root;
 struct star_s *star_tree = NULL;
 
 static const char * const command[] = { /* must be sorted, first char is the ID */
@@ -205,16 +204,29 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x17" "elsif",
     "\x2c" "enc",
     "\x3f" "end",
+    "\x3a" "endblock",
     "\x1c" "endc",
+    "\x1c" "endcomment",
     "\x52" "endf",
-    "\x2d" "endif",
+    "\x52" "endfunction",
+    "\x16" "endif",
+    "\x20" "endlogical",
     "\x11" "endm",
+    "\x6a" "endmacro",
     "\x5f" "endn",
+    "\x5f" "endnamespace",
     "\x1e" "endp",
+    "\x1e" "endpage",
+    "\x27" "endproc",
     "\x46" "ends",
+    "\x4d" "endsection",
+    "\x6b" "endsegment",
+    "\x46" "endstruct",
     "\x56" "endswitch",
     "\x49" "endu",
+    "\x49" "endunion",
     "\x61" "endv",
+    "\x61" "endvirtual",
     "\x58" "endweak",
     "\x69" "endwith",
     "\x40" "eor",
@@ -255,6 +267,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x5d" "seed",
     "\x41" "segment",
     "\x4d" "send",
+    "\x2d" "sfunction",
     "\x02" "shift",
     "\x03" "shiftl",
     "\x3d" "showmac",
@@ -281,7 +294,7 @@ typedef enum Command_types {
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY,
     CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS,
     CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK,
-    CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ,
+    CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_SFUNCTION, CMD_IFNE, CMD_IFEQ,
     CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT,
     CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF,
     CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL,
@@ -291,7 +304,7 @@ typedef enum Command_types {
     CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
     CMD_MANSIZ, CMD_SEED, CMD_NAMESPACE, CMD_ENDN, CMD_VIRTUAL, CMD_ENDV,
     CMD_BREPT, CMD_BFOR, CMD_WHILE, CMD_BWHILE, CMD_BREAKIF, CMD_CONTINUEIF,
-    CMD_WITH, CMD_ENDWITH
+    CMD_WITH, CMD_ENDWITH, CMD_ENDMACRO, CMD_ENDSEGMENT
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
@@ -465,7 +478,7 @@ FAST_CALL uint8_t *pokealloc(address_t db, linepos_t epoint) {
 static int get_command(void) {
     unsigned int no, also, felso, elozo;
     const uint8_t *label;
-    uint8_t tmp[12];
+    uint8_t tmp[13];
     lpoint.pos++;
     label = pline + lpoint.pos;
     if (arguments.caseinsensitive) {
@@ -930,9 +943,12 @@ static const char *check_waitfor(void) {
         if (waitfor->u.cmd_page.label != NULL) {set_size(waitfor->u.cmd_page.label, current_address->address - waitfor->u.cmd_page.addr, current_address->mem, waitfor->u.cmd_page.addr, waitfor->u.cmd_page.membp);val_destroy(&waitfor->u.cmd_page.label->v);}
         /* fall through */
     case W_ENDP: return ".endp";
-    case W_ENDM:
+    case W_ENDSEGMENT:
         if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
-        return ".endm";
+        return ".endsegment";
+    case W_ENDMACRO:
+        if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
+        return ".endmacro";
     case W_ENDF: 
         if (waitfor->u.cmd_function.val != NULL) val_destroy(waitfor->u.cmd_function.val);
         return ".endf";
@@ -983,7 +999,8 @@ static const char *check_waitfor(void) {
     case W_ENDV: return ".endv";
     case W_ENDU3:
     case W_ENDS3:
-    case W_ENDM3:
+    case W_ENDSEGMENT2:
+    case W_ENDMACRO2:
     case W_ENDF3:
     case W_NEXT2:
     case W_NONE:
@@ -1770,16 +1787,16 @@ MUST_CHECK Obj *compile(void)
     size_t oldwaitforp = waitfor_p;
     bool nobreak = true;
     str_t labelname;
-    struct anonident_s {
+    struct anonsymbol_s {
         uint8_t dir, pad;
         uint8_t count[sizeof(uint32_t)];
-    } anonident;
+    } anonsymbol;
     struct {
         uint8_t type;
         uint8_t padding[3];
         line_t vline;
         struct star_s *star_tree;
-    } anonident2;
+    } anonsymbol2;
     struct linepos_s epoint;
 
     while (nobreak) {
@@ -1848,9 +1865,9 @@ MUST_CHECK Obj *compile(void)
                             if (tmp2->value == &none_value->v) err_msg_still_none(NULL, &epoint);
                             else if (tmp2->value->obj == ERROR_OBJ) err_msg_output((Error *)tmp2->value);
                             else {
-                                Ident *idn = new_ident(&labelname);
-                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, &idn->v, &epoint);
-                                val_destroy(&idn->v);
+                                Symbol *symbol = new_symbol(&labelname, &epoint);
+                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, &symbol->v, &epoint);
+                                val_destroy(&symbol->v);
                             }
                             error = true;
                         } else mycontext = context;
@@ -1898,12 +1915,12 @@ MUST_CHECK Obj *compile(void)
                         lpoint.pos += 3;
                     } else break;
 
-                    if (labelname.data == (const uint8_t *)&anonident) {
-                        uint32_t count = (uint32_t)((anonident.dir == '-') ? --current_context->backr :  --current_context->forwr);
+                    if (labelname.data == (const uint8_t *)&anonsymbol) {
+                        uint32_t count = (uint32_t)((anonsymbol.dir == '-') ? --current_context->backr :  --current_context->forwr);
                         count--;
                         labelname.len = 2;
                         while (count != 0) {
-                            anonident.count[labelname.len - 2] = count;
+                            anonsymbol.count[labelname.len - 2] = count;
                             labelname.len++;
                             count >>= 8;
                         }
@@ -2257,15 +2274,21 @@ MUST_CHECK Obj *compile(void)
                             Type *obj = (prm == CMD_MACRO) ? MACRO_OBJ : SEGMENT_OBJ;
                             bool labelexists;
                             listing_line(listing, 0);
-                            new_waitfor(W_ENDM, &cmdpoint);waitfor->skip = 0;
+                            new_waitfor(prm == CMD_MACRO ? W_ENDMACRO : W_ENDSEGMENT, &cmdpoint);waitfor->skip = 0;
                             label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                             macro = (Macro *)val_alloc(obj);
                             macro->file_list = current_file_list;
                             macro->line = epoint.line;
                             macro->recursion_pass = 0;
+                            if (labelexists && label->value->obj == obj) {
+                                macro->retval = ((Macro *)label->value)->retval;
+                                macro->argc = ((Macro *)label->value)->argc;
+                            } else {
+                                macro->retval = false;
+                                macro->argc = 0;
+                            }
                             get_macro_params(&macro->v);
                             if (labelexists) {
-                                macro->retval = (label->value->obj == obj) && ((Macro *)label->value)->retval;
                                 if (label->defpass == pass) {
                                     waitfor->u.cmd_macro.val = &macro->v;
                                     err_msg_double_defined(label, &labelname, &epoint);
@@ -2286,8 +2309,7 @@ MUST_CHECK Obj *compile(void)
                                     waitfor->u.cmd_macro.val = val_reference(label->value);
                                 }
                             } else {
-                                macro->retval = false;
-                                if (!constcreated == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2300,30 +2322,35 @@ MUST_CHECK Obj *compile(void)
                             }
                             goto finish;
                         }
+                    case CMD_SFUNCTION:
                     case CMD_FUNCTION:
                         {
                             Label *label;
                             Mfunc *mfunc;
-                            bool labelexists;
+                            bool labelexists, failed;
+                            Type *obj = (prm == CMD_FUNCTION) ? MFUNC_OBJ : SFUNC_OBJ;
                             listing_line(listing, 0);
-                            new_waitfor(W_ENDF, &cmdpoint);
+                            if (prm == CMD_FUNCTION) new_waitfor(W_ENDF, &cmdpoint);
                             label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
-                            mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
+                            mfunc = (Mfunc *)val_alloc(obj);
                             mfunc->file_list = current_file_list;
-                            mfunc->line = epoint.line;
+                            mfunc->epoint.line = epoint.line;
+                            mfunc->epoint.pos = 0;
                             mfunc->recursion_pass = 0;
                             mfunc->argc = 0;
                             mfunc->param = NULL; /* might be recursive through init */
                             mfunc->nslen = 0;
                             mfunc->namespaces = NULL;
                             mfunc->ipoint = 0;
+                            mfunc->single = (prm == CMD_SFUNCTION);
                             if (labelexists) {
-                                mfunc->retval = (label->value->obj == MFUNC_OBJ) && ((Mfunc *)label->value)->retval;
+                                mfunc->retval = (label->value->obj == obj) && ((Mfunc *)label->value)->retval;
                                 if (label->defpass == pass) {
-                                    waitfor->u.cmd_function.val = &mfunc->v;
                                     mfunc->names = new_namespace(current_file_list, &epoint);
                                     mfunc->inamespaces = ref_tuple(null_tuple);
+                                    if (prm == CMD_FUNCTION) waitfor->u.cmd_function.val = &mfunc->v; else val_destroy(&mfunc->v);
                                     err_msg_double_defined(label, &labelname, &epoint);
+                                    failed = true;
                                 } else {
                                     if (label->fwpass == pass) fwcount--;
                                     if (!constcreated && label->defpass != pass - 1) {
@@ -2335,24 +2362,25 @@ MUST_CHECK Obj *compile(void)
                                     if (label->file_list != current_file_list) {
                                         label_move(label, &labelname, current_file_list);
                                     }
-                                    if (label->value->obj == MFUNC_OBJ) {
+                                    if (label->value->obj == obj) {
                                         Mfunc *prev = (Mfunc *)label->value;
                                         mfunc->names = ref_namespace(prev->names);
                                         mfunc->names->backr = mfunc->names->forwr = 0;
                                         mfunc->names->file_list = current_file_list;
                                         mfunc->names->epoint = epoint;
                                         mfunc->inamespaces = ref_tuple(prev->inamespaces);
+                                        mfunc->argc = prev->argc;
                                     } else {
                                         mfunc->names = new_namespace(current_file_list, &epoint);
                                         mfunc->inamespaces = ref_tuple(null_tuple);
                                     }
                                     label->epoint = epoint;
                                     label->ref = false;
-                                    get_func_params(mfunc);
+                                    failed = get_func_params(mfunc, prm == CMD_SFUNCTION);
                                     get_namespaces(mfunc);
                                     const_assign(label, &mfunc->v);
                                     if (label->value != &mfunc->v) ((Mfunc *)label->value)->ipoint = 0;
-                                    waitfor->u.cmd_function.val = val_reference(label->value);
+                                    if (prm == CMD_FUNCTION) waitfor->u.cmd_function.val = val_reference(label->value);
                                 }
                             } else {
                                 mfunc->retval = false;
@@ -2366,12 +2394,17 @@ MUST_CHECK Obj *compile(void)
                                 mfunc->inamespaces = ref_tuple(null_tuple);
                                 label->epoint = epoint;
                                 label->ref = false;
-                                get_func_params(mfunc);
+                                failed = get_func_params(mfunc, prm == CMD_SFUNCTION);
                                 get_namespaces(mfunc);
                                 mfunc->names = new_namespace(current_file_list, &epoint);
-                                waitfor->u.cmd_function.val = val_reference(&mfunc->v);
+                                if (prm == CMD_FUNCTION) waitfor->u.cmd_function.val = val_reference(&mfunc->v);
                             }
-                            waitfor->skip = 0;
+                            if (prm == CMD_FUNCTION) {
+                                if (!failed && here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                                waitfor->skip = 0;
+                                goto breakerr;
+                            } 
+                            if (skip_exp()) get_exp(0, 0, 0, &epoint);
                             goto finish;
                         }
                     case CMD_STRUCT:
@@ -2406,9 +2439,15 @@ MUST_CHECK Obj *compile(void)
                             structure->file_list = current_file_list;
                             structure->line = epoint.line;
                             structure->recursion_pass = 0;
+                            if (labelexists && label->value->obj == obj) {
+                                structure->retval = ((Struct *)label->value)->retval;
+                                structure->argc = ((Struct *)label->value)->argc;
+                            } else {
+                                structure->retval = false;
+                                structure->argc = 0;
+                            }
                             get_macro_params(&structure->v);
                             if (labelexists) {
-                                structure->retval = (label->value->obj == obj) && ((Struct *)label->value)->retval;
                                 if (label->defpass == pass) {
                                     doubledef = true;
                                     structure->size = 0;
@@ -2442,8 +2481,7 @@ MUST_CHECK Obj *compile(void)
                                     structure = (Struct *)label->value;
                                 }
                             } else {
-                                structure->retval = false;
-                                if (!constcreated == 0) {
+                                if (!constcreated) {
                                     if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                     constcreated = true;
                                 }
@@ -2456,7 +2494,6 @@ MUST_CHECK Obj *compile(void)
                                 structure->names = new_namespace(current_file_list, &epoint);
                             }
                             listing_line(listing, cmdpoint.pos);
-                            current_section->structrecursion++;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip = 1;
                             val = macro_recurse(W_ENDS, &structure->v, structure->names, &cmdpoint);
@@ -2465,7 +2502,6 @@ MUST_CHECK Obj *compile(void)
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS : W_ENDU;
                             waitfor->skip = 0;
                             lpoint.line--; vline--;
-                            current_section->structrecursion--;
 
                             current_section->provides = provides; current_section->requires = requires; current_section->conflicts = conflicts;
                             current_address = oldsection_address;
@@ -2600,7 +2636,6 @@ MUST_CHECK Obj *compile(void)
                             } else val = NULL;
                             ret = (val != NULL) && ((Struct *)val)->retval;
                             if (here() == ',') lpoint.pos++;
-                            current_section->structrecursion++;
 
                             oaddr = current_address->address;
                             newmembp = get_mem(current_address->mem);
@@ -2662,12 +2697,12 @@ MUST_CHECK Obj *compile(void)
                                 Label *label2;
                                 bool labelexists2;
                                 str_t tmpname;
-                                if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                                else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                                anonident2.type = '#';
-                                anonident2.star_tree = star_tree;
-                                anonident2.vline = vline;
-                                tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                                if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                                else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                                anonsymbol2.type = '#';
+                                anonsymbol2.star_tree = star_tree;
+                                anonsymbol2.vline = vline;
+                                tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                                 label2 = new_label(&tmpname, mycontext, strength, &labelexists2, current_file_list);
                                 if (labelexists2) {
                                     if (label2->defpass == pass) err_msg_double_defined(label2, &tmpname, &epoint);
@@ -2700,7 +2735,6 @@ MUST_CHECK Obj *compile(void)
                                     else val_destroy(val);
                                 }
                             }
-                            current_section->structrecursion--;
 
                             if (!ret && !doubledef) set_size(label, ((current_address->end < current_address->address) ? current_address->address : current_address->end) - oaddr, current_address->mem, oaddr, newmembp);
                             current_address->start = oldstart;
@@ -2916,15 +2950,15 @@ MUST_CHECK Obj *compile(void)
                 case '\0':
                     {
                         uint32_t count = (uint32_t)((wht == '-') ? current_context->backr++ : current_context->forwr++);
-                        anonident.dir = (uint8_t)wht;
-                        anonident.pad = 0;
+                        anonsymbol.dir = (uint8_t)wht;
+                        anonsymbol.pad = 0;
                         labelname.len = 2;
                         while (count != 0) {
-                            anonident.count[labelname.len - 2] = count;
+                            anonsymbol.count[labelname.len - 2] = count;
                             labelname.len++;
                             count >>= 8;
                         }
-                        labelname.data = (const uint8_t *)&anonident;
+                        labelname.data = (const uint8_t *)&anonsymbol;
                     }
                     goto hh;
                 default:
@@ -2999,7 +3033,6 @@ MUST_CHECK Obj *compile(void)
                 if (!close_waitfor(W_ENDC)) {err_msg2(ERROR__MISSING_OPEN, ".comment", &epoint); goto breakerr;}
                 if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 break;
-            case CMD_ENDIF: /* .endif */
             case CMD_FI: /* .fi */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
@@ -3154,21 +3187,23 @@ MUST_CHECK Obj *compile(void)
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
+            case CMD_ENDMACRO: /* .endmacro */
+            case CMD_ENDSEGMENT: /* .endsegment */
             case CMD_ENDM: /* .endm */
-                if (waitfor->what==W_ENDM) {
+                if ((prm != CMD_ENDSEGMENT && waitfor->what == W_ENDMACRO) || (prm != CMD_ENDMACRO && waitfor->what==W_ENDSEGMENT)) {
                     if (waitfor->u.cmd_macro.val != NULL) {
                         ((Macro *)waitfor->u.cmd_macro.val)->retval = (here() != 0 && here() != ';');
                         val_destroy(waitfor->u.cmd_macro.val);
                     }
-                    close_waitfor(W_ENDM);
+                    close_waitfor(waitfor->what);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
-                } else if (waitfor->what==W_ENDM3) { /* not closed here */
+                } else if ((prm != CMD_ENDSEGMENT && waitfor->what == W_ENDMACRO2) || (prm != CMD_ENDMACRO && waitfor->what==W_ENDSEGMENT2)) { /* not closed here */
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                         break;
                     }
-                } else err_msg2(ERROR__MISSING_OPEN, ".macro' or '.segment", &epoint);
+                } else err_msg2(ERROR__MISSING_OPEN, prm == CMD_ENDMACRO ? ".macro" : prm == CMD_ENDSEGMENT ? ".segment" : ".macro' or '.segment", &epoint);
                 goto breakerr;
             case CMD_ENDF: /* .endf */
                 if (waitfor->what==W_ENDF) {
@@ -3599,12 +3634,12 @@ MUST_CHECK Obj *compile(void)
                         bool labelexists;
                         str_t tmpname;
                         waitfor->u.cmd_block.label = NULL;
-                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                        else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                        anonident2.type = '.';
-                        anonident2.star_tree = star_tree;
-                        anonident2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                        if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                        else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                        anonsymbol2.type = '.';
+                        anonsymbol2.star_tree = star_tree;
+                        anonsymbol2.vline = vline;
+                        tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                         label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -3647,12 +3682,12 @@ MUST_CHECK Obj *compile(void)
                             if (val == NULL) err_msg_wrong_type2(vs->val, NULL, &vs->epoint);
                         } else val = NULL;
                     } else val = NULL;
-                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                    else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                    anonident2.type = '.';
-                    anonident2.star_tree = star_tree;
-                    anonident2.vline = vline;
-                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                    if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                    else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                    anonsymbol2.type = '.';
+                    anonsymbol2.star_tree = star_tree;
+                    anonsymbol2.vline = vline;
+                    tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                     label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -3960,7 +3995,7 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_CDEF: if ((waitfor->skip & 1) != 0)
                 { /* .cdef */
-                    struct trans_s tmp, *t;
+                    struct character_range_s tmp;
                     struct encoding_s *old = actual_encoding;
                     bool rc;
                     size_t len;
@@ -4031,8 +4066,7 @@ MUST_CHECK Obj *compile(void)
                                 tmp.start = tmp.end;
                                 tmp.end = tmpe;
                             }
-                            t = new_trans(&tmp, actual_encoding, &epoint);
-                            if (t->start > tmp.start || t->end < tmp.end || t->offset + (tmp.start - t->start) != tmp.offset) {
+                            if (new_trans(actual_encoding, &tmp, &epoint)) {
                                 err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
                             }
                         }
@@ -4067,7 +4101,7 @@ MUST_CHECK Obj *compile(void)
                         if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr; }
                         val = vs2->val;
                         if (val == &none_value->v) err_msg_still_none(NULL, &vs2->epoint);
-                        else if (tryit && new_escape(&escape, val, actual_encoding, &vs2->epoint)) {
+                        else if (tryit && new_escape(actual_encoding, &escape, val, &vs2->epoint)) {
                             err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); goto breakerr;
                         }
                     }
@@ -4171,12 +4205,12 @@ MUST_CHECK Obj *compile(void)
                                 Label *label;
                                 bool labelexists;
                                 str_t tmpname;
-                                if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                                else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                                anonident2.type = '.';
-                                anonident2.star_tree = star_tree;
-                                anonident2.vline = vline;
-                                tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                                if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                                else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                                anonsymbol2.type = '.';
+                                anonsymbol2.star_tree = star_tree;
+                                anonsymbol2.vline = vline;
+                                tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                                 label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                                 if (labelexists) {
                                     if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -4228,12 +4262,12 @@ MUST_CHECK Obj *compile(void)
                     Label *label;
                     bool labelexists;
                     str_t tmpname;
-                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                    else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                    anonident2.type = '.';
-                    anonident2.star_tree = star_tree;
-                    anonident2.vline = vline;
-                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                    if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                    else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                    anonsymbol2.type = '.';
+                    anonsymbol2.star_tree = star_tree;
+                    anonsymbol2.vline = vline;
+                    tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                     label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -4384,7 +4418,7 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, 0);
                     if (labelname.len == 0) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                 }
-                new_waitfor(W_ENDM, &epoint);
+                new_waitfor(prm == CMD_MACRO ? W_ENDMACRO : W_ENDSEGMENT, &epoint);
                 waitfor->u.cmd_macro.val = NULL;
                 waitfor->skip = 0;
                 break;
@@ -4397,6 +4431,7 @@ MUST_CHECK Obj *compile(void)
                 waitfor->u.cmd_function.val = NULL;
                 waitfor->skip = 0;
                 break;
+            case CMD_SFUNCTION: /* .sfunction */
             case CMD_VAR: /* .var */
                 if ((waitfor->skip & 1) != 0) {
                     listing_line(listing, 0);
@@ -4457,7 +4492,6 @@ MUST_CHECK Obj *compile(void)
                     if (here() == ',') lpoint.pos++;
                     obj = (prm == CMD_DUNION) ? UNION_OBJ : STRUCT_OBJ;
                     if (val->obj != obj) {err_msg_wrong_type2(val, obj, &vs->epoint); goto breakerr;}
-                    current_section->structrecursion++;
                     oldstart = current_address->start;
                     oldend = current_address->end;
                     oldl_start = current_address->l_start;
@@ -4469,7 +4503,6 @@ MUST_CHECK Obj *compile(void)
                     current_address->unionmode = (prm == CMD_DUNION);
                     val = macro_recurse(prm == CMD_DUNION ? W_ENDU3 : W_ENDS3, val, NULL, &epoint);
                     if (val != NULL) val_destroy(val);
-                    current_section->structrecursion--;
                     current_address->start = oldstart;
                     oldstart = current_address->unionmode ? current_address->end : current_address->address;
                     if (oldend > current_address->end) current_address->end = oldend;
@@ -4488,7 +4521,6 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
-                    if (current_section->structrecursion != 0) { err_msg2(ERROR___NOT_ALLOWED, ".dsection", &epoint); goto breakerr; }
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label(sectionname.data);
                     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
@@ -4516,7 +4548,6 @@ MUST_CHECK Obj *compile(void)
                         tmp3->address.unionmode = current_address->unionmode;
                         tmp3->address.l_start = current_address->l_start;
                         tmp3->address.l_union = current_address->l_union;
-                        tmp3->structrecursion = current_section->structrecursion;
                         tmp3->logicalrecursion = current_section->logicalrecursion;
                         val_destroy(tmp3->address.l_address_val); /* TODO: restart as well */
                         tmp3->address.l_address_val = val_reference(current_address->l_address_val);
@@ -4615,12 +4646,12 @@ MUST_CHECK Obj *compile(void)
                         Label *label;
                         bool labelexists;
                         str_t tmpname;
-                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                        else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                        anonident2.type = '#';
-                        anonident2.star_tree = star_tree;
-                        anonident2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                        if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                        else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                        anonsymbol2.type = '#';
+                        anonsymbol2.star_tree = star_tree;
+                        anonsymbol2.vline = vline;
+                        tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                         label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -4650,18 +4681,18 @@ MUST_CHECK Obj *compile(void)
                     } else {
                         listing_line_cut(listing, epoint.pos);
                     }
-                    val = macro_recurse(val->obj == MACRO_OBJ ? W_ENDM3 : val->obj == STRUCT_OBJ ? W_ENDS3 : W_ENDU3, val, context, &epoint);
+                    val = macro_recurse(val->obj == MACRO_OBJ ? W_ENDMACRO2 : val->obj == STRUCT_OBJ ? W_ENDS3 : W_ENDU3, val, context, &epoint);
                 } else if (val->obj == MFUNC_OBJ) {
                     Label *label;
                     Mfunc *mfunc;
                     bool labelexists;
                     str_t tmpname;
-                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof anonident2);
-                    else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
-                    anonident2.type = '#';
-                    anonident2.star_tree = star_tree;
-                    anonident2.vline = vline;
-                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof anonident2;
+                    if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
+                    else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
+                    anonsymbol2.type = '#';
+                    anonsymbol2.star_tree = star_tree;
+                    anonsymbol2.vline = vline;
+                    tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
                     label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, current_file_list);
                     if (labelexists) {
                         if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
@@ -4703,7 +4734,7 @@ MUST_CHECK Obj *compile(void)
                     } else {
                         listing_line_cut(listing, epoint.pos);
                     }
-                    val = macro_recurse(W_ENDM3, val, NULL, &epoint);
+                    val = macro_recurse(W_ENDSEGMENT2, val, NULL, &epoint);
                 }
                 if (val != NULL) {
                     if (newlabel != NULL) {
@@ -4819,10 +4850,8 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
     Obj *val;
     int i;
     size_t ln = root_section.address.mem->mem.p, ln2 = root_section.address.mem->p;
-    bool starexists;
-    struct star_s *s;
 
-    fixeddig = true;constcreated = false; fwcount = 0;error_reset();random_reseed(&int_value[0]->v, NULL);
+    fixeddig = true;constcreated = false; fwcount = 0; efwcount = 0; error_reset();random_reseed(&int_value[0]->v, NULL);
     val_destroy(&root_section.address.mem->v);
     root_section.address.mem = new_memblocks(0, 0);
     if (diagnostics.optimize) cpu_opt_invalidate();
@@ -4836,10 +4865,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         current_address = &root_section.address;
         reset_section(current_section);
         init_macro();
-        star_tree = &star_root;
-        s = new_star(i, &starexists);
-        s->addr = 0;
-        star_tree = s;
+        star_tree = init_star(i);
 
         if (i == opts - 1) {
             if (fin->lines != 0) {
@@ -4866,7 +4892,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         }
     }
     ref_labels();
-    if (fwcount != 0) fixeddig = false;
+    if (fwcount != 0 || efwcount != 0) fixeddig = false;
     if (fixeddig) section_sizecheck();
     /*garbage_collect();*/
 }
@@ -4881,7 +4907,6 @@ int main2(int *argc2, char **argv2[]) {
     bool failed;
 
     err_init(*argv2[0]);
-    avltree_init(&star_root.tree);
     objects_init();
     init_section();
     init_file();

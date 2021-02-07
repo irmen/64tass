@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2245 2020-10-17 08:09:10Z soci $
+    $Id: error.h 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "attributes.h"
 #include "stdbool.h"
 #include "errors_e.h"
-#include "avl.h"
 #include "inttypes.h"
 
 struct file_s;
@@ -29,17 +28,15 @@ struct file_s;
 struct file_list_s {
     struct linepos_s epoint;
     struct file_s *file;
-    struct avltree_node node;
-    struct file_list_s *parent;
-    struct avltree members;
-    uint8_t pass;
 };
 
 extern struct file_list_s *current_file_list;
+extern const struct file_list_s *dummy_file_list;
 
 struct Obj;
 struct Type;
 struct Label;
+struct Symbol;
 struct Oper;
 struct Error;
 struct Namespace;
@@ -68,7 +65,8 @@ extern void err_msg_unused_const(struct Label *);
 extern void err_msg_unused_variable(struct Label *);
 extern void err_msg_not_defined(const struct str_t *, linepos_t);
 extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
-extern void err_msg_symbol_case(const struct str_t *, struct Label *, linepos_t);
+extern void err_msg_symbol_case(const struct str_t *, const struct Label *, linepos_t);
+extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);
 extern void err_msg_address_mismatch(int, int, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
@@ -100,6 +98,7 @@ extern void err_msg_immediate_note(linepos_t);
 extern void err_msg_big_address(linepos_t);
 extern void error_reset(void);
 extern void error_print(void);
+extern const struct file_list_s *parent_file_list(const struct file_list_s *);
 extern void enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(const char *);

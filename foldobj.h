@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.h 1925 2019-08-25 11:09:57Z soci $
+    $Id: foldobj.h 2278 2021-01-23 17:01:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,9 +22,11 @@
 
 extern struct Type *const FOLD_OBJ;
 
+struct Str;
+
 typedef struct Fold {
     Obj v;
-    int *dummy;
+    struct Str *repr;
 } Fold;
 
 extern Fold *fold_value;

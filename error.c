@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2269 2021-01-08 23:05:23Z soci $
+    $Id: error.c 2340 2021-02-06 17:30:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
 #include <string.h>
 #include <errno.h>
 #include "wchar.h"
-#ifdef _WIN32
-#include <locale.h>
-#endif
 #include "file.h"
 #include "64tass.h"
 #include "unicode.h"
@@ -41,18 +38,26 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "noneobj.h"
-#include "identobj.h"
+#include "symbolobj.h"
 #include "console.h"
 
 struct file_list_s *current_file_list;
+const struct file_list_s *dummy_file_list;
 
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
 
 static unsigned int errors = 0, warnings = 0;
 
-static struct file_list_s file_list;
-static struct file_s file_list_file;
-static const struct file_list_s *included_from = &file_list;
+struct file_listnode_s {
+    struct file_list_s flist;
+    struct file_listnode_s *parent;
+    struct avltree_node node;
+    struct avltree members;
+    uint8_t pass;
+};
+
+static struct file_listnode_s file_list;
+static const struct file_listnode_s *included_from = &file_list;
 static const char *prgname;
 
 struct errorbuffer_s {
@@ -250,29 +255,34 @@ static void new_error_msg2(bool type, linepos_t epoint) {
 
 static FAST_CALL int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
-    const struct file_list_s *b = cavltree_container_of(bb, struct file_list_s, node);
+    const struct file_list_s *a = &cavltree_container_of(aa, struct file_listnode_s, node)->flist;
+    const struct file_list_s *b = &cavltree_container_of(bb, struct file_listnode_s, node)->flist;
     if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
     if (a->epoint.pos != b->epoint.pos) return a->epoint.pos > b->epoint.pos ? 1 : -1;
     return a->file->uid - b->file->uid;
 }
 
 static struct file_lists_s {
-    struct file_list_s file_lists[90];
+    struct file_listnode_s file_lists[90];
     struct file_lists_s *next;
 } *file_lists = NULL;
 
-static struct file_list_s *lastfl;
+const struct file_list_s *parent_file_list(const struct file_list_s *cflist) {
+    return &((struct file_listnode_s *)cflist)->parent->flist;
+}
+
+static struct file_listnode_s *lastfl;
 static int file_listsp;
 void enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
-    lastfl->file = file;
-    lastfl->epoint = *epoint;
-    b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
+    struct file_listnode_s *cflist = (struct file_listnode_s *)current_file_list;
+    lastfl->flist.file = file;
+    lastfl->flist.epoint = *epoint;
+    b = avltree_insert(&lastfl->node, &cflist->members, file_list_compare);
     if (b == NULL) {
-        lastfl->parent = current_file_list;
+        lastfl->parent = cflist;
         avltree_init(&lastfl->members);
-        current_file_list = lastfl;
+        cflist = lastfl;
         if (file_listsp == 89) {
             struct file_lists_s *old = file_lists;
             file_lists = (struct file_lists_s *)mallocx(sizeof *file_lists);
@@ -281,13 +291,15 @@ void enterfile(struct file_s *file, linepos_t epoint) {
         } else file_listsp++;
         lastfl = &file_lists->file_lists[file_listsp];
     } else {
-        current_file_list = avltree_container_of(b, struct file_list_s, node);
+        cflist = avltree_container_of(b, struct file_listnode_s, node);
     }
-    current_file_list->pass = pass;
+    cflist->pass = pass;
+    current_file_list = &cflist->flist;
 }
 
 void exitfile(void) {
-    if (current_file_list->parent != NULL) current_file_list = current_file_list->parent;
+    struct file_listnode_s *cflist = (struct file_listnode_s *)current_file_list;
+    if (cflist->parent != NULL) current_file_list = &cflist->parent->flist;
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
@@ -349,7 +361,7 @@ static const char * const terr_error[] = {
     "requirements not met",
     "conflict",
     "index out of range ",
-    "key error ",
+    "key not in dictionary ",
     "offset out of range",
     "not hashable ",
     "not a key and value pair ",
@@ -546,10 +558,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             adderror((const char *)prm);
             adderror("' not found");
             break;
-        case ERROR___NOT_ALLOWED:
-            adderror("not allowed here: ");
-            adderror((const char *)prm);
-            break;
         case ERROR_RESERVED_LABL:
             adderror("reserved symbol name '");
             adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
@@ -704,8 +712,8 @@ static void err_msg_not_defined3(const Error *err) {
         lastnd = (struct notdefines_s *)mallocx(sizeof *lastnd);
     }
 
-    if (err->u.notdef.ident->obj == IDENT_OBJ) {
-        const str_t *name = &((Ident *)err->u.notdef.ident)->name;
+    if (err->u.notdef.symbol->obj == SYMBOL_OBJ) {
+        const str_t *name = &((Symbol *)err->u.notdef.symbol)->name;
         str_cfcpy(&lastnd->cfname, name);
         lastnd->file_list = l->file_list;
         lastnd->epoint = l->epoint;
@@ -726,7 +734,7 @@ static void err_msg_not_defined3(const Error *err) {
 
     more = new_error_msg_err(err);
     adderror("not defined ");
-    err_msg_variable(err->u.notdef.ident);
+    err_msg_variable(err->u.notdef.symbol);
     if (more) new_error_msg_err_more(err);
 
     if (l->file_list == NULL) {
@@ -744,7 +752,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
-    err->u.notdef.ident = (Obj *)new_ident(name);
+    err->u.notdef.symbol = (Obj *)new_symbol(name, epoint);
     err_msg_not_defined3(err);
     val_destroy(&err->v);
 }
@@ -1017,12 +1025,22 @@ void err_msg_immediate_note(linepos_t epoint) {
     adderror("to accept signed values use the '#+' operator [-Wpitfalls]");
 }
 
-void err_msg_symbol_case(const str_t *labelname1, Label *l, linepos_t epoint) {
+void err_msg_symbol_case(const str_t *labelname1, const Label *l, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.case_symbol, epoint);
     adderror("symbol case mismatch");
     str_name(labelname1->data, labelname1->len);
     adderror(" [-Wcase-symbol]");
     if (l != NULL) err_msg_double_note(l->file_list, &l->epoint, &l->name);
+}
+
+void err_msg_symbol_case2(const Symbol *l1, const Symbol *l2) {
+    Severity_types severity = diagnostic_errors.case_symbol ? SV_ERROR : SV_WARNING;
+    bool more = new_error_msg(severity, l1->file_list, &l1->epoint);
+    adderror("symbol case mismatch");
+    str_name(l1->name.data, l1->name.len);
+    adderror(" [-Wcase-symbol]");
+    if (more) new_error_msg_more();
+    err_msg_double_note(l2->file_list, &l2->epoint, &l2->name);
 }
 
 void err_msg_macro_prefix(linepos_t epoint) {
@@ -1110,7 +1128,7 @@ static const char * const order_suffix[4] = {
 void err_msg_missing_argument(linepos_t epoint, size_t n) {
     char msg2[4];
     int i = n % 10;
-    bool more = new_error_msg(SV_ERROR, current_file_list->parent, &current_file_list->epoint);
+    bool more = new_error_msg(SV_ERROR, &((const struct file_listnode_s *)current_file_list)->parent->flist, &current_file_list->epoint);
     msg2[0] = n + '1';
     memcpy(msg2 + 1, order_suffix[i < 4 ? i : 3], 3);
     adderror(msg2);
@@ -1299,24 +1317,24 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
     const uint8_t *line = NULL;
     bool bold;
 
-    if (cflist != &file_list) {
-        if (cflist != included_from) {
-            included_from = cflist;
+    if (cflist != &file_list.flist) {
+        if (cflist != &included_from->flist) {
+            included_from = (struct file_listnode_s *)cflist;
             while (included_from->parent != &file_list) {
-                if (included_from->file->entercount != 1) break;
+                if (included_from->flist.file->entercount != 1) break;
                 included_from = included_from->parent;
             }
-            if (included_from->parent != &file_list) included_from = cflist;
+            if (included_from->parent != &file_list) included_from = (struct file_listnode_s *)cflist;
             while (included_from->parent != &file_list) {
-                fputs((included_from == cflist) ? "In file included from " : "                      ", f);
+                fputs((&included_from->flist == cflist) ? "In file included from " : "                      ", f);
                 if (console_use_color) console_bold(f);
-                printable_print((const uint8_t *)included_from->parent->file->realname, f);
-                printline(included_from->parent, &included_from->epoint, NULL, f);
+                printable_print((const uint8_t *)included_from->parent->flist.file->realname, f);
+                printline(&included_from->parent->flist, &included_from->flist.epoint, NULL, f);
                 included_from = included_from->parent;
                 if (console_use_color) console_default(f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
             }
-            included_from = cflist;
+            included_from = (struct file_listnode_s *)cflist;
         }
         if (console_use_color) console_bold(f);
         printable_print((const uint8_t *)cflist->file->realname, f);
@@ -1374,13 +1392,13 @@ static bool different_line(const struct errorentry_s *err, const struct errorent
     return memcmp(err + 1, err2 + 1, err->line_len) != 0;
 }
 
-static void walkfilelist(struct file_list_s *cflist) {
+static void walkfilelist(struct file_listnode_s *cflist) {
     struct avltree_node *n;
 
     for (n = avltree_first(&cflist->members); n != NULL; n = avltree_next(n)) {
-        struct file_list_s *l = avltree_container_of(n, struct file_list_s, node);
-        if (l->file->entercount > 1 || l->pass != pass) continue;
-        l->file->entercount++;
+        struct file_listnode_s *l = avltree_container_of(n, struct file_listnode_s, node);
+        if (l->flist.file->entercount > 1 || l->pass != pass) continue;
+        l->flist.file->entercount++;
         walkfilelist(l);
     }
 }
@@ -1393,12 +1411,7 @@ void error_print(void) {
     struct linepos_s nopoint = {0, 0};
 
     if (error_list.header_pos != 0) {
-        struct avltree_node *n;
-        for (n = avltree_first(&file_list.members); n != NULL; n = avltree_next(n)) {
-            struct file_list_s *l = avltree_container_of(n, struct file_list_s, node);
-            if (l->file->entercount > 1 || l->pass != pass) continue;
-            walkfilelist(l);
-        }
+        walkfilelist(&file_list);
     }
 
     if (arguments.error != NULL) {
@@ -1478,11 +1491,12 @@ void error_print(void) {
 void error_reset(void) {
     error_list.len = error_list.header_pos = 0;
     avltree_init(&error_list.members);
-    current_file_list = &file_list;
+    current_file_list = &file_list.flist;
     included_from = &file_list;
 }
 
 void err_init(const char *name) {
+    static struct file_s file_list_file;
     prgname = name;
     setvbuf(stderr, NULL, _IOLBF, 1024);
     console_use(stderr);
@@ -1492,12 +1506,15 @@ void err_init(const char *name) {
     lastfl = &file_lists->file_lists[file_listsp];
     file_list_file.name = "";
     file_list_file.realname = file_list_file.name;
-    file_list.file = &file_list_file;
+    file_list_file.data = (uint8_t *)0;
+    file_list_file.len = SIZE_MAX;
+    file_list.flist.file = &file_list_file;
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
     error_list.data = NULL;
     avltree_init(&error_list.members);
-    current_file_list = &file_list;
+    current_file_list = &file_list.flist;
+    dummy_file_list = &file_list.flist;
     included_from = &file_list;
     avltree_init(&notdefines);
 }

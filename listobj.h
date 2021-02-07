@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 2137 2020-01-02 00:52:17Z soci $
+    $Id: listobj.h 2329 2021-02-06 04:59:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -77,6 +77,13 @@ static inline MUST_CHECK Colonlist *new_colonlist(void) {
     return (Colonlist *)val_alloc(COLONLIST_OBJ);
 }
 
+struct sliceparam_s {
+    uval_t length;
+    ival_t offset, end, step;
+};
+
+extern MUST_CHECK struct Error *indexoffs(Obj *, size_t, size_t *, linepos_t);
+extern MUST_CHECK Obj *sliceparams(const Colonlist *, size_t, struct sliceparam_s *, linepos_t);
 extern MUST_CHECK Tuple *new_tuple(size_t);
 extern Obj **list_create_elements(List *, size_t);
 extern MUST_CHECK bool list_extend(List *);

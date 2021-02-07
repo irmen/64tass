@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2270 2021-01-09 08:04:13Z soci $
+    $Id: macro.c 2321 2021-02-01 19:25:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
                     }
                     opoint->pos = pos + c;
                     opoint->line = flist->epoint.line;
-                    ret = flist->parent;
+                    ret = parent_file_list(flist);
                     flist = ret;
                     break;
                 }
@@ -542,7 +542,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         s->addr = star;
         star_tree->vline = vline; star_tree = s; vline = s->vline;
         enterfile(mfunc->file_list->file, epoint);
-        lpoint.line = mfunc->line;
+        lpoint.line = mfunc->epoint.line;
         new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
@@ -567,96 +567,135 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     return val;
 }
 
-void get_func_params(Mfunc *v) {
-    Mfunc new_mfunc;
-    size_t len = 0, i, j;
+bool get_func_params(Mfunc *v, bool single) {
+    struct mfunc_param_s *param;
+    size_t len = v->argc, i = 0, j;
     str_t label;
-    bool stard = false;
+    bool stard = false, ret = false;
 
-    new_mfunc.param = NULL;
-    for (i = 0;;i++) {
-        ignore();if (here() == 0 || here() == ';') break;
-        if (here() == '*') {
-            stard = true;
-            lpoint.pos++;ignore();
-        }
-        if (i >= len) {
-            len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *new_mfunc.param) err_msg_out_of_memory(); /* overflow */
-            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, len * sizeof *new_mfunc.param);
-        }
-        new_mfunc.param[i].epoint = lpoint;
-        label.data = pline + lpoint.pos;
-        label.len = get_label(label.data);
-        if (label.len != 0) {
-            lpoint.pos += label.len;
-            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_mfunc.param[i].epoint);break;}
-            if ((size_t)(label.data - v->file_list->file->data) < v->file_list->file->len) new_mfunc.param[i].name = label;
-            else str_cpy(&new_mfunc.param[i].name, &label);
-            str_cfcpy(&new_mfunc.param[i].cfname, &label);
-            if (new_mfunc.param[i].cfname.data != label.data) str_cfcpy(&new_mfunc.param[i].cfname, NULL);
-            else new_mfunc.param[i].cfname = new_mfunc.param[i].name;
-            for (j = 0; j < i; j++) if (new_mfunc.param[j].name.data != NULL) {
-                if (str_cmp(&new_mfunc.param[j].cfname, &new_mfunc.param[i].cfname) == 0) break;
+    param = (len != 0) ? (struct mfunc_param_s *)mallocx(len * sizeof *param) : NULL;
+    if (here() != 0 && here() != ';') {
+        for (;;) {
+            ignore();
+            if (here() == '*') {
+                stard = true;
+                lpoint.pos++;ignore();
             }
-            if (j != i) {
-                err_msg_double_definedo(v->file_list, &new_mfunc.param[j].epoint, &label, &new_mfunc.param[i].epoint);
+            if (i >= len) {
+                len += 16;
+                if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *param) err_msg_out_of_memory(); /* overflow */
+                param = (struct mfunc_param_s *)reallocx(param, len * sizeof *param);
             }
-        } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_mfunc.param[i].epoint);break;}
-        ignore();
-        if (stard) {
-            new_mfunc.param[i].init = (Obj *)ref_default();
-        } else {
-            new_mfunc.param[i].init = NULL;
-            if (here() == '=') {
-                lpoint.pos++;
-                if (!get_exp(1, 1, 1, &lpoint)) {
-                    i++;
+            param[i].epoint = lpoint;
+            label.data = pline + lpoint.pos;
+            label.len = get_label(label.data);
+            if (single) {
+                const uint8_t *s = pline + lpoint.pos + label.len;
+                if (!stard && s[0] != ',' && (s[0] != '=' || s[1] == '=')) {
+                    v->epoint.line = lpoint.line - 1;
+                    v->epoint.pos = lpoint.pos;
                     break;
                 }
-                new_mfunc.param[i].init = pull_val(NULL);
             }
-        }
-        if (here() == 0 || here() == ';') {
+            if (label.len != 0) {
+                lpoint.pos += label.len;
+                if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {
+                    err_msg2(ERROR_RESERVED_LABL, &label, &param[i].epoint);
+                    ret = true;
+                    break;
+                }
+                if ((size_t)(label.data - v->file_list->file->data) < v->file_list->file->len) param[i].name = label;
+                else str_cpy(&param[i].name, &label);
+                str_cfcpy(&param[i].cfname, &label);
+                if (param[i].cfname.data != label.data) str_cfcpy(&param[i].cfname, NULL);
+                else param[i].cfname = param[i].name;
+                for (j = 0; j < i; j++) if (param[j].name.data != NULL) {
+                    if (str_cmp(&param[j].cfname, &param[i].cfname) == 0) break;
+                }
+                if (j != i) {
+                    err_msg_double_definedo(v->file_list, &param[j].epoint, &label, &param[i].epoint);
+                }
+            } else {
+                err_msg2(ERROR_GENERL_SYNTAX, NULL, &param[i].epoint);
+                ret = true;
+                break;
+            }
+            ignore();
+            if (stard) {
+                param[i].init = (Obj *)ref_default();
+                i++;
+                if (single) {
+                    if (here() != ',') {
+                        err_msg2(ERROR______EXPECTED, "','", &lpoint);
+                        ret = true;
+                        break;
+                    }
+                    lpoint.pos++;
+                    ignore();
+                    v->epoint.line = lpoint.line - 1;
+                    v->epoint.pos = lpoint.pos;
+                }
+                break;
+            } else {
+                param[i].init = NULL;
+                if (here() == '=') {
+                    lpoint.pos++;
+                    if (!get_exp(1, 1, 1, &lpoint)) {
+                        ret = true;
+                        break;
+                    }
+                    param[i].init = pull_val(NULL);
+                }
+            }
             i++;
-            break;
+            if (here() == 0 || here() == ';') {
+                break;
+            }
+            if (here() != ',') {
+                err_msg2(ERROR______EXPECTED, "','", &lpoint);
+                ret = true;
+                break;
+            }
+            lpoint.pos++;
         }
-        if (here() != ',') {
-            err_msg2(ERROR______EXPECTED, "','", &lpoint);
-            i++;
-            break;
-        }
-        lpoint.pos++;
     }
-    if (i != len) {
+    if (i < len) {
         if (i != 0) {
-            if (i > SIZE_MAX / sizeof *new_mfunc.param) err_msg_out_of_memory(); /* overflow */
-            new_mfunc.param = (struct mfunc_param_s *)reallocx(new_mfunc.param, i * sizeof *new_mfunc.param);
+            struct mfunc_param_s *p = (struct mfunc_param_s *)realloc(param, i * sizeof *param);
+            if (p != NULL) param = p;
         } else {
-            free(new_mfunc.param);
-            new_mfunc.param = NULL;
+            free(param);
+            param = NULL;
         }
     }
     v->argc = i;
-    v->param = new_mfunc.param;
+    v->param = param;
+    return ret;
 }
 
 void get_macro_params(Obj *v) {
     Macro *macro = (Macro *)v;
-    Macro new_macro;
-    size_t len = 0, i, j;
+    struct macro_param_s *param;
+    size_t len = macro->argc, i, j;
     str_t label;
-    struct linepos_s *epoints = NULL;
+    struct linepos_s *epoints;
+    struct linepos_s vepoints[4];
     const struct file_s *cfile = macro->file_list->file;
 
-    new_macro.param = NULL;
+    param = (len != 0) ? (struct macro_param_s *)mallocx(len * sizeof *param) : NULL;
+    epoints = (len <= lenof(vepoints)) ? vepoints : (struct linepos_s *)mallocx(len * sizeof *epoints);
     for (i = 0;;i++) {
         ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
             len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / (sizeof *new_macro.param > sizeof *epoints ? sizeof *new_macro.param : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
-            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, len * sizeof *new_macro.param);
-            epoints = (struct linepos_s *)reallocx(epoints, len * sizeof *epoints);
+            if (/*len < 16 ||*/ len > SIZE_MAX / (sizeof *param > sizeof *epoints ? sizeof *param : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
+            param = (struct macro_param_s *)reallocx(param, len * sizeof *param);
+            if (epoints == vepoints) {
+                epoints = (struct linepos_s *)mallocx(len * sizeof *epoints);
+                memcpy(epoints, vepoints, sizeof vepoints);
+            } else {
+                epoints = (struct linepos_s *)reallocx(epoints, len * sizeof *epoints);
+            }
         }
         epoints[i] = lpoint;
         label.data = pline + lpoint.pos;
@@ -664,27 +703,27 @@ void get_macro_params(Obj *v) {
         if (label.len != 0) {
             str_t cf;
             lpoint.pos += label.len;
-            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
+            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);param[i].cfname.len = 0; param[i].cfname.data = NULL;}
             str_cfcpy(&cf, &label);
             if (cf.data == label.data) {
-                if ((size_t)(label.data - cfile->data) < cfile->len) new_macro.param[i].cfname = label;
-                else str_cpy(&new_macro.param[i].cfname, &label);
-            } else {str_cfcpy(&cf, NULL); new_macro.param[i].cfname = cf;}
-            for (j = 0; j < i; j++) if (new_macro.param[j].cfname.data != NULL) {
-                if (str_cmp(&new_macro.param[j].cfname, &cf) == 0) break;
+                if ((size_t)(label.data - cfile->data) < cfile->len) param[i].cfname = label;
+                else str_cpy(&param[i].cfname, &label);
+            } else {str_cfcpy(&cf, NULL); param[i].cfname = cf;}
+            for (j = 0; j < i; j++) if (param[j].cfname.data != NULL) {
+                if (str_cmp(&param[j].cfname, &cf) == 0) break;
             }
             if (j != i) {
                 err_msg_double_definedo(macro->file_list, &epoints[j], &label, &epoints[i]);
             }
-        } else {new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
+        } else {param[i].cfname.len = 0; param[i].cfname.data = NULL;}
         ignore();
         if (here() == '=') {
             lpoint.pos++;
             label.data = pline + lpoint.pos;
             label.len = macro_param_find();
-            if ((size_t)(label.data - cfile->data) < cfile->len) new_macro.param[i].init = label;
-            else str_cpy(&new_macro.param[i].init, &label);
-        } else {new_macro.param[i].init.len = 0; new_macro.param[i].init.data = NULL;}
+            if ((size_t)(label.data - cfile->data) < cfile->len) param[i].init = label;
+            else str_cpy(&param[i].init, &label);
+        } else {param[i].init.len = 0; param[i].init.data = NULL;}
         ignore();
         if (here() == 0 || here() == ';') {
             i++;
@@ -697,18 +736,18 @@ void get_macro_params(Obj *v) {
         }
         lpoint.pos++;
     }
-    if (i != len) {
+    if (i < len) {
         if (i != 0) {
-            if (i > SIZE_MAX / sizeof *new_macro.param) err_msg_out_of_memory(); /* overflow */
-            new_macro.param = (struct macro_param_s *)reallocx(new_macro.param, i * sizeof *new_macro.param);
+            struct macro_param_s *p = (struct macro_param_s *)realloc(param, i * sizeof *param);
+            if (p != NULL) param = p;
         } else {
-            free(new_macro.param);
-            new_macro.param = NULL;
+            free(param);
+            param = NULL;
         }
     }
     macro->argc = i;
-    macro->param = new_macro.param;
-    free(epoints);
+    macro->param = param;
+    if (epoints != vepoints) free(epoints);
 }
 
 static bool clean_namespace(Namespace *v1) {
@@ -766,7 +805,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     }
     if (context == NULL) {
         struct linepos_s xpoint;
-        xpoint.line = mfunc->line;
+        xpoint.line = mfunc->epoint.line;
         xpoint.pos = 0;
         context = new_namespace(mfunc->file_list, &xpoint);
         mfunc->inamespaces->data[mfunc->ipoint] = &context->v;
@@ -846,42 +885,53 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         }
         s->addr = star;
         star_tree->vline = vline; star_tree = s; vline = s->vline;
-        lpoint.line = mfunc->line;
-        new_waitfor(W_ENDF3, epoint);
+        lpoint.line = mfunc->epoint.line;
+        if (!mfunc->single) new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);
         }
         push_context(context);
         temporary_label_branch++;
-
-        section_address.moved = section_address.wrapwarn = section_address.bankwarn = section_address.unionmode = false;
-        section_address.address = 0;
-        section_address.start = 0;
-        section_address.l_start = 0;
-        section_address.l_union = 0;
-        section_address.end = 0;
-        section_address.mem = new_memblocks(0, 0);
-        section_address.mem->lastaddr = 0;
-        section_address.l_address = current_address->l_address;
-        section_address.l_address_val = val_reference(current_address->l_address_val);
-        current_address = &section_address;
         functionrecursion++;
-        retval = compile();
-        functionrecursion--;
-        val_destroy(current_address->l_address_val);
-        val_destroy(&current_address->mem->v);
-        current_address = oldsection_address;
-        if (current_address->l_address > all_mem) {
-            err_msg_big_address(epoint);
-            current_address->l_address &= all_mem;
+        if (mfunc->single) {
+            mtranslate();
+            lpoint.pos = mfunc->epoint.pos;
+            if (!get_exp(0, 0, 0, &mfunc->epoint)) {
+                retval = NULL;
+            } else {
+                retval = get_vals_tuple();
+            }
+        } else {
+            section_address.moved = section_address.wrapwarn = section_address.bankwarn = section_address.unionmode = false;
+            section_address.address = 0;
+            section_address.start = 0;
+            section_address.l_start = 0;
+            section_address.l_union = 0;
+            section_address.end = 0;
+            section_address.mem = new_memblocks(0, 0);
+            section_address.mem->lastaddr = 0;
+            section_address.l_address = current_address->l_address;
+            section_address.l_address_val = val_reference(current_address->l_address_val);
+            current_address = &section_address;
+
+            retval = compile();
+
+            val_destroy(current_address->l_address_val);
+            val_destroy(&current_address->mem->v);
+            current_address = oldsection_address;
+            if (current_address->l_address > all_mem) {
+                err_msg_big_address(epoint);
+                current_address->l_address &= all_mem;
+            }
         }
+        functionrecursion--;
         context_set_bottom(oldbottom);
         pop_context();
         for (i = 0; i < mfunc->nslen; i++) {
             pop_context();
         }
-        close_waitfor(W_ENDF3);
+        if (!mfunc->single) close_waitfor(W_ENDF3);
         star = s->addr;
         temporary_label_branch--;
         lpoint = opoint;

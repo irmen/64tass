@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2136 2020-01-01 23:01:52Z soci $
+    $Id: namespaceobj.c 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@
 #include "noneobj.h"
 #include "labelobj.h"
 #include "errorobj.h"
-#include "identobj.h"
+#include "symbolobj.h"
+#include "anonsymbolobj.h"
 #include "codeobj.h"
 #include "macroobj.h"
 #include "mfuncobj.h"
@@ -220,9 +221,9 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
     Error *err;
     Label *l;
     switch (o2->obj->type) {
-    case T_IDENT:
+    case T_SYMBOL:
         {
-            Ident *v2 = (Ident *)o2;
+            Symbol *v2 = (Symbol *)o2;
             l = find_label2(&v2->name, v1);
             if (l != NULL) {
                 if (diagnostics.case_symbol && str_cmp(&v2->name, &l->name) != 0) err_msg_symbol_case(&v2->name, l, op->epoint2);
@@ -234,13 +235,13 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             }
             err = new_error(ERROR___NOT_DEFINED, op->epoint2);
             err->u.notdef.names = ref_namespace(v1);
-            err->u.notdef.ident = (Obj *)ref_ident(v2);
+            err->u.notdef.symbol = (Obj *)ref_symbol(v2);
             err->u.notdef.down = false;
             return &err->v;
         }
-    case T_ANONIDENT:
+    case T_ANONSYMBOL:
         {
-            Anonident *v2 = (Anonident *)o2;
+            Anonsymbol *v2 = (Anonsymbol *)o2;
             l = find_anonlabel2(v2->count, v1);
             if (l != NULL) {
                 touch_label(l);
@@ -251,16 +252,19 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
             }
             err = new_error(ERROR___NOT_DEFINED, op->epoint2);
             err->u.notdef.names = ref_namespace(v1);
-            err->u.notdef.ident = (Obj *)ref_anonident(v2);
+            err->u.notdef.symbol = (Obj *)ref_anonsymbol(v2);
             err->u.notdef.down = false;
             return &err->v;
         }
-    case T_TUPLE:
-    case T_LIST: return o2->obj->rcalc2(op);
     case T_ERROR:
     case T_NONE: return val_reference(o2);
-    default: return obj_oper_error(op);
+    default:
+        if (o2->obj->iterable) {
+            return o2->obj->rcalc2(op);
+        }
+        break;
     }
+    return obj_oper_error(op);
 }
 
 MALLOC Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {

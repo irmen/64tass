@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: gapobj.c 2322 2021-02-01 21:30:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -185,15 +185,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         default: break;
         }
         break;
+    default:
+        if (!v1->obj->iterable) {
+            break;
+        }
+        /* fall through */
     case T_NONE:
     case T_ERROR:
-    case T_TUPLE:
-    case T_LIST:
         if (op->op != &o_IN) {
             return v1->obj->calc2(op);
         }
         break;
-    default: break;
     }
     return obj_oper_error(op);
 }

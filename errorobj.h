@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 2079 2019-11-11 20:40:59Z soci $
+    $Id: errorobj.h 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #define ERROROBJ_H
 #include "obj.h"
 #include "errors_e.h"
-#include "str.h"
 #include "stdbool.h"
 
 extern struct Type *const ERROR_OBJ;
@@ -39,7 +38,7 @@ typedef struct Error {
             Obj *v2;
         } invoper;
         struct {
-            Obj *ident;
+            Obj *symbol;
             struct Namespace *names;
             bool down;
         } notdef;

@@ -4,11 +4,11 @@
         <!ENTITY opcode    "\b(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpa|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?:\s+(a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY iopcode   "\b(ahx|alr|anc|ane|arr|asr|axs|dcm|dcp|ins|isb|isc|jam|lae|las|lax|lds|lxa|rla|rra|sax|sbx|sha|shs|shx|shy|slo|sre|tas|xaa)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY datadef   "\.(byte|char|[lsd]int|rta|long|d?word|fill|p?text|null|shiftl?|dstruct|dunion|binary|addr)\b">
-        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|breakif|continueif|break|continue)\b">
+        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|breakif|continueif|break|continue|sfunction)\b">
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 2131 2019-12-30 19:02:20Z soci $
+ $Id: katepart-asm6502.xml 2317 2021-01-31 22:46:47Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -106,31 +106,33 @@
       </context>
       <context name="foldstuff">
         <RegExpr beginRegion="proc" String="\.proc\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="proc" String="\.pend\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="proc" String="\.(pend|endproc)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="block" String="\.block\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="block" String="\.bend\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="block" String="\.(bend|endblock)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="section" String="\.section\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="section" String="\.send\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="section" String="\.(send|endsection)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="struct" String="\.struct\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="struct" String="\.ends\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="struct" String="\.(ends|endstruct)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="union" String="\.union\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="union" String="\.endu\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="union" String="\.(endu|endunion)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="page" String="\.page\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="page" String="\.endp\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="page" String="\.(endp|endpage)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="namespace" String="\.namespace\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="namespace" String="\.endn\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="namespace" String="\.(endn|endnamespace)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="with" String="\.with\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="with" String="\.endwith\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="macro" String="\.(macro|segment)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="macro" String="\.endm\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="segment" String="\.segment\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="segment" String="\.(endm|endsegment)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="macro" String="\.macro\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="macro" String="\.(endm|endmacro)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="function" String="\.function\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="function" String="\.endf\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="function" String="\.(endf|endfunction)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="for" String="\.(b?for|b?rept|b?while)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="for" String="\.next\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="logical" String="\.here\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="logical" String="\.(here|endlogical)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="virtual" String="\.virtual\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="virtual" String="\.endv\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="virtual" String="\.(endv|endvirtual)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="weak" String="\.weak\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="weak" String="\.endweak\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
@@ -156,7 +158,7 @@
       </context>
 
       <context attribute="Comment" name="folding" lineEndContext="#stay">
-        <RegExpr context="#pop" endRegion="foldingRegion" String="\.endc\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr context="#pop" endRegion="foldingRegion" String="\.(endc|endcomment)\b" attribute="Preprocessor" insensitive="TRUE"/>
       </context>
     </contexts>
 

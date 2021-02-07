@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.h 2329 2021-02-06 04:59:29Z soci $
+    $Id: anonsymbolobj.h 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,36 +16,24 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef BOOLOBJ_H
-#define BOOLOBJ_H
+#ifndef ANONSYMBOLOBJ_H
+#define ANONSYMBOLOBJ_H
 #include "obj.h"
-#include "stdbool.h"
 
-extern struct Type *const BOOL_OBJ;
+extern struct Type *const ANONSYMBOL_OBJ;
 
-struct Str;
+struct file_list_s;
 
-typedef struct Bool {
+typedef struct Anonsymbol {
     Obj v;
-    struct Str *repr;
-} Bool;
+    int32_t count;
+} Anonsymbol;
 
-extern Bool *true_value;
-extern Bool *false_value;
-extern Bool *bool_value[2];
+extern void anonsymbolobj_init(void);
 
-extern void boolobj_init(void);
-extern void boolobj_names(void);
-extern void boolobj_destroy(void);
+extern Anonsymbol *new_anonsymbol(int32_t);
 
-static inline Bool *ref_bool(Bool *v1) {
+static inline Anonsymbol *ref_anonsymbol(Anonsymbol *v1) {
     v1->v.refcount++; return v1;
 }
-
-static inline MUST_CHECK Obj *truth_reference(bool i) {
-    return (Obj *)ref_bool(bool_value[i ? 1 : 0]);
-}
-
-extern MUST_CHECK Obj *int_from_bool(const struct Bool *);
-extern MUST_CHECK struct Float *float_from_bool(const struct Bool *);
 #endif

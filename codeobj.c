@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2223 2020-06-07 10:01:25Z soci $
+    $Id: codeobj.c 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "memblocksobj.h"
-#include "identobj.h"
+#include "symbolobj.h"
 #include "addressobj.h"
 
 static Type obj;
@@ -453,21 +453,20 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        uval_t length;
-        ival_t offs, end, step;
+        struct sliceparam_s s;
         Tuple *v;
 
-        err = (Error *)sliceparams((Colonlist *)o2, ln, &length, &offs, &end, &step, epoint2);
+        err = (Error *)sliceparams((Colonlist *)o2, ln, &s, epoint2);
         if (err != NULL) return &err->v;
 
-        if (length == 0) {
+        if (s.length == 0) {
             return (Obj *)ref_tuple(null_tuple);
         }
-        v = new_tuple(length);
+        v = new_tuple(s.length);
         vals = v->data;
-        for (i = 0; i < length; i++) {
-            vals[i] = code_item(v1, offs + offs0, ln2);
-            offs += step;
+        for (i = 0; i < s.length; i++) {
+            vals[i] = code_item(v1, s.offset + offs0, ln2);
+            s.offset += s.step;
         }
         return &v->v;
     }
@@ -527,8 +526,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
     Error *err;
     if (op->op == &o_MEMBER) {
-        if (o2->obj == IDENT_OBJ) {
-            Ident *v2 = (Ident *)o2;
+        if (o2->obj == SYMBOL_OBJ) {
+            Symbol *v2 = (Symbol *)o2;
             if (v2->name.len == 10 && v2->name.data[0] == '_' && v2->name.data[1] == '_') {
                 static const str_t of = {(const uint8_t *)"__offset__", 10};
                 str_t cf;

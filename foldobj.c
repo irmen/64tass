@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 2116 2019-12-11 20:34:11Z soci $
+    $Id: foldobj.c 2323 2021-02-01 21:58:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,17 +20,20 @@
 #include <string.h>
 #include "values.h"
 #include "eval.h"
+#include "error.h"
 
 #include "typeobj.h"
 #include "operobj.h"
 #include "strobj.h"
 #include "errorobj.h"
+#include "boolobj.h"
 
 static Type obj;
 
 Type *const FOLD_OBJ = &obj;
 
 static Fold foldval = { { &obj, 1 }, NULL };
+
 Fold *fold_value = &foldval;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -55,17 +58,43 @@ static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)
 static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
     if (3 > maxsize) return NULL;
-    v = new_str2(3);
-    if (v == NULL) return NULL;
-    v->chars = 3;
-    memset(v->data, '.', 3);
-    return &v->v;
+    v = foldval.repr;
+    if (v == NULL) {
+        v = new_str2(3);
+        if (v == NULL) return NULL;
+        v->chars = 3;
+        memset(v->data, '.', 3);
+        foldval.repr = v;
+    }
+    return val_reference(&v->v);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
     if (v2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
-        return v2->obj->rcalc2(op);
+        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+        struct iter_s iter;
+        Obj *ret = NULL;
+        iter.data = v2; v2->obj->getiter(&iter);
+
+        while ((v2 = iter.next(&iter)) != NULL) {
+            Obj *val;
+            if (ret == NULL) {
+                ret = val_reference(v2);
+                continue;
+            }
+            op->v1 = ret;
+            op->v2 = v2;
+            op->inplace = (ret->refcount == 1 && !minmax) ? ret : NULL;
+            val = ret->obj->calc2(op);
+            if (minmax) {
+                if (val == &true_value->v) val_replace(&val, ret);
+                else if (val == &false_value->v) val_replace(&val, v2);
+            }
+            val_destroy(ret); ret = val;
+        }
+        iter_destroy(&iter);
+        return ret != NULL ? ret : (Obj *)new_error(ERROR____EMPTY_LIST, op->epoint2);
     }
     switch (v2->obj->type) {
     case T_NONE:
@@ -81,7 +110,29 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *v1 = op->v1;
     if (v1->obj->iterable) {
         if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
+            bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+            struct iter_s iter;
+            Obj *ret = NULL;
+            iter.data = v1; v1->obj->getriter(&iter);
+
+            while ((v1 = iter.next(&iter)) != NULL) {
+                Obj *val;
+                if (ret == NULL) {
+                    ret = val_reference(v1);
+                    continue;
+                }
+                op->v1 = v1;
+                op->v2 = ret;
+                op->inplace = (ret->refcount == 1 && !minmax) ? ret : NULL;
+                val = v1->obj->calc2(op);
+                if (minmax) {
+                    if (val == &true_value->v) val_replace(&val, v1);
+                    else if (val == &false_value->v) val_replace(&val, ret);
+                }
+                val_destroy(ret); ret = val;
+            }
+            iter_destroy(&iter);
+            return ret != NULL ? ret : (Obj *)new_error(ERROR____EMPTY_LIST, op->epoint);
         }
     }
     switch (v1->obj->type) {
@@ -108,4 +159,5 @@ void foldobj_destroy(void) {
 #ifdef DEBUG
     if (fold_value->v.refcount != 1) fprintf(stderr, "fold %" PRIuSIZE "\n", fold_value->v.refcount - 1);
 #endif
+    if (foldval.repr != NULL) val_destroy(&foldval.repr->v);
 }

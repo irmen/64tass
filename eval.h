@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 2253 2020-11-11 23:35:00Z soci $
+    $Id: eval.h 2328 2021-02-06 04:39:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "inttypes.h"
 #include "stdbool.h"
 
-struct List;
 struct Label;
 struct Oper;
 struct Obj;
@@ -52,8 +51,6 @@ extern MUST_CHECK struct Obj *get_star_value(address_t, struct Obj *);
 extern MUST_CHECK struct Obj *get_star(void);
 extern struct Obj *get_vals_tuple(void);
 extern struct Obj *get_vals_addrlist(struct linepos_s *);
-extern MUST_CHECK struct Error *indexoffs(struct Obj *, size_t, size_t *, linepos_t);
-extern MUST_CHECK struct Obj *sliceparams(const struct List *, size_t, uval_t *, ival_t *, ival_t *, ival_t *, linepos_t);
 extern void touch_label(struct Label *);
 
 struct values_s {

@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: obj.c 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,7 +43,8 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "mfuncobj.h"
-#include "identobj.h"
+#include "symbolobj.h"
+#include "anonsymbolobj.h"
 #include "memblocksobj.h"
 #include "foldobj.h"
 
@@ -73,6 +74,25 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
     err->u.invoper.v1 = (v1 != NULL) ? ((v1->refcount != 0) ? val_reference(v1) : v1) : NULL;
     err->u.invoper.v2 = (v2 != NULL) ? ((v2->refcount != 0) ? val_reference(v2) : v2) : NULL;
     return &err->v;
+}
+
+MUST_CHECK Obj *obj_oper_compare(oper_t op, int val) {
+    bool result;
+    switch (op->op->op) {
+    case O_CMP:
+        if (val < 0) return (Obj *)ref_int(minus1_value);
+        return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
+    case O_EQ: result = (val == 0); break;
+    case O_NE: result = (val != 0); break;
+    case O_MIN:
+    case O_LT: result = (val < 0); break;
+    case O_LE: result = (val <= 0); break;
+    case O_MAX:
+    case O_GT: result = (val > 0); break;
+    case O_GE: result = (val >= 0); break;
+    default: return obj_oper_error(op);
+    }
+    return truth_reference(result);
 }
 
 static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
@@ -277,6 +297,7 @@ void obj_init(Type *obj) {
     obj->len = invalid_len;
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;
+    obj->getriter = invalid_getiter;
 }
 
 void objects_init(void) {
@@ -302,7 +323,8 @@ void objects_init(void) {
     typeobj_init();
     noneobj_init();
     mfuncobj_init();
-    identobj_init();
+    symbolobj_init();
+    anonsymbolobj_init();
     foldobj_init();
 
     new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));

@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 2227 2020-06-28 04:03:37Z soci $
+	$Id: jedit-assembly-64tass.xml 2317 2021-01-31 22:46:47Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -38,14 +38,15 @@
 		<MARK_PREVIOUS TYPE="LABEL" MATCH_TYPE="OPERATOR" AT_LINE_START="TRUE">:</MARK_PREVIOUS>
 
 		<KEYWORDS>
+
                         <KEYWORD3>.al</KEYWORD3>
                         <KEYWORD3>.align</KEYWORD3>
                         <KEYWORD3>.as</KEYWORD3>
                         <KEYWORD3>.assert</KEYWORD3>
                         <KEYWORD3>.autsiz</KEYWORD3>
                         <KEYWORD3>.bend</KEYWORD3>
-                        <KEYWORD3>.binclude</KEYWORD3>
                         <KEYWORD3>.bfor</KEYWORD3>
+                        <KEYWORD3>.binclude</KEYWORD3>
                         <KEYWORD3>.block</KEYWORD3>
                         <KEYWORD3>.break</KEYWORD3>
                         <KEYWORD3>.breakif</KEYWORD3>
@@ -69,16 +70,29 @@
                         <KEYWORD3>.elsif</KEYWORD3>
                         <KEYWORD3>.enc</KEYWORD3>
                         <KEYWORD3>.end</KEYWORD3>
+                        <KEYWORD3>.endblock</KEYWORD3>
                         <KEYWORD3>.endc</KEYWORD3>
+                        <KEYWORD3>.endcomment</KEYWORD3>
                         <KEYWORD3>.endf</KEYWORD3>
+                        <KEYWORD3>.endfunction</KEYWORD3>
                         <KEYWORD3>.endif</KEYWORD3>
+                        <KEYWORD3>.endlogical</KEYWORD3>
                         <KEYWORD3>.endm</KEYWORD3>
+                        <KEYWORD3>.endmacro</KEYWORD3>
                         <KEYWORD3>.endn</KEYWORD3>
+                        <KEYWORD3>.endnamespace</KEYWORD3>
                         <KEYWORD3>.endp</KEYWORD3>
+                        <KEYWORD3>.endpage</KEYWORD3>
+                        <KEYWORD3>.endproc</KEYWORD3>
                         <KEYWORD3>.ends</KEYWORD3>
+                        <KEYWORD3>.endsection</KEYWORD3>
+                        <KEYWORD3>.endsegment</KEYWORD3>
+                        <KEYWORD3>.endstruct</KEYWORD3>
                         <KEYWORD3>.endswitch</KEYWORD3>
                         <KEYWORD3>.endu</KEYWORD3>
+                        <KEYWORD3>.endunion</KEYWORD3>
                         <KEYWORD3>.endv</KEYWORD3>
+                        <KEYWORD3>.endvirtual</KEYWORD3>
                         <KEYWORD3>.endweak</KEYWORD3>
                         <KEYWORD3>.endwith</KEYWORD3>
                         <KEYWORD3>.eor</KEYWORD3>
@@ -114,6 +128,7 @@
                         <KEYWORD3>.seed</KEYWORD3>
                         <KEYWORD3>.segment</KEYWORD3>
                         <KEYWORD3>.send</KEYWORD3>
+                        <KEYWORD3>.sfunction</KEYWORD3>
                         <KEYWORD3>.showmac</KEYWORD3>
                         <KEYWORD3>.struct</KEYWORD3>
                         <KEYWORD3>.switch</KEYWORD3>

@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2177 2020-03-25 13:51:29Z soci $
+    $Id: values.c 2344 2021-02-06 23:54:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -143,9 +143,9 @@ FAST_CALL void val_replace(Obj **val, Obj *val2) {
     *val = val_reference(val2);
 }
 
-size_t val_print(Obj *v1, FILE *f) {
+size_t val_print(Obj *v1, FILE *f, size_t max) {
     size_t len;
-    Obj *err = v1->obj->repr(v1, NULL, SIZE_MAX);
+    Obj *err = v1->obj->repr(v1, NULL, max);
     if (err == NULL) return 0;
     if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);
     else len = printable_print2((const uint8_t *)err->obj->name, f, strlen(err->obj->name));

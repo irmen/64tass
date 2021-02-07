@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2112 2019-12-11 17:56:46Z soci $
+    $Id: errorobj.c 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ static FAST_CALL void destroy(Obj *o1) {
         val_destroy(v1->u.intconv.val);
         return;
     case ERROR___NOT_DEFINED:
-        val_destroy(v1->u.notdef.ident);
+        val_destroy(v1->u.notdef.symbol);
         val_destroy((Obj *)v1->u.notdef.names);
         return;
     case ERROR__NOT_KEYVALUE:
@@ -108,7 +108,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         v = v1->u.intconv.val;
         break;
     case ERROR___NOT_DEFINED:
-        v = v1->u.notdef.ident;
+        v = v1->u.notdef.symbol;
         switch (i) {
         case -1:
             v->refcount--;

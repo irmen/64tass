@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2137 2020-01-02 00:52:17Z soci $
+    $Id: mfuncobj.c 2319 2021-01-31 23:51:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,9 +28,11 @@
 #include "operobj.h"
 #include "listobj.h"
 
-static Type obj;
+static Type mfunc_obj;
+static Type sfunc_obj;
 
-Type *const MFUNC_OBJ = &obj;
+Type *const MFUNC_OBJ = &mfunc_obj;
+Type *const SFUNC_OBJ = &sfunc_obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     Mfunc *v1 = (Mfunc *)o1;
@@ -118,7 +120,8 @@ static FAST_CALL void garbage(Obj *o1, int j) {
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
     size_t i;
-    if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return false;
+    if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->epoint.line != v2->epoint.line || v1->epoint.pos != v2->epoint.pos) return false;
+    if (v1->argc != v2->argc || v1->nslen != v2->nslen || v1->single != v2->single) return false;
     for (i = 0; i < v1->argc; i++) {
         if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return false;
         if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
@@ -169,10 +172,15 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 void mfuncobj_init(void) {
-    new_type(&obj, T_MFUNC, "function", sizeof(Mfunc));
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.calc2 = calc2;
+    new_type(&mfunc_obj, T_MFUNC, "function", sizeof(Mfunc));
+    mfunc_obj.destroy = destroy;
+    mfunc_obj.garbage = garbage;
+    mfunc_obj.same = same;
+    mfunc_obj.calc2 = calc2;
+    new_type(&sfunc_obj, T_SFUNC, "sfunction", sizeof(Sfunc));
+    sfunc_obj.destroy = destroy;
+    sfunc_obj.garbage = garbage;
+    sfunc_obj.same = same;
+    sfunc_obj.calc2 = calc2;
 }
 

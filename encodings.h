@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.h 2329 2021-02-06 04:59:29Z soci $
+    $Id: encodings.h 2292 2021-01-24 21:43:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,36 +16,15 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef BOOLOBJ_H
-#define BOOLOBJ_H
-#include "obj.h"
+#ifndef ENCODINGS_H
+#define ENCODINGS_H
 #include "stdbool.h"
 
-extern struct Type *const BOOL_OBJ;
+struct encoding_s;
+struct str_t;
 
-struct Str;
+extern const char *petscii_esc;
+#define identmap (const uint8_t *)petscii_esc
 
-typedef struct Bool {
-    Obj v;
-    struct Str *repr;
-} Bool;
-
-extern Bool *true_value;
-extern Bool *false_value;
-extern Bool *bool_value[2];
-
-extern void boolobj_init(void);
-extern void boolobj_names(void);
-extern void boolobj_destroy(void);
-
-static inline Bool *ref_bool(Bool *v1) {
-    v1->v.refcount++; return v1;
-}
-
-static inline MUST_CHECK Obj *truth_reference(bool i) {
-    return (Obj *)ref_bool(bool_value[i ? 1 : 0]);
-}
-
-extern MUST_CHECK Obj *int_from_bool(const struct Bool *);
-extern MUST_CHECK struct Float *float_from_bool(const struct Bool *);
+extern void enctables(struct encoding_s *, struct str_t *, bool);
 #endif

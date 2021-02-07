@@ -195,7 +195,7 @@ that the resulting file is directly runnable without additional compression:
 
 *       = $0801
         .word (+), 2005  ;pointer, line number
-        .null $9e, format("%d", start);will be sys 4096
+        .null $9e, format("%4d", start);will be sys 4096
 +       .word 0          ;basic line end
 
 *       = $1000
@@ -519,6 +519,11 @@ mylist  = ("e", cmd_e, "g", cmd_g, "i", cmd_i)
 keys    .text mylist[::2]    ; keys ("e", "g", "i")
 call_l  .byte <mylist[1::2]-1; routines (<cmd_e-1, <cmd_g-1, <cmd_i-1)
 call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
+
+Although lists elements of variables can't be changed using indexing (at the
+moment) the same effect can be achieved by combining slicing and concatenation:
+
+lst     := lst[:2] .. [4] .. lst[3:]; same as lst[2] := 4 would be
 
 Folding is done on pair of elements either forward (left) or reverse (right).
 The list must contain at least one element. Here are some folding examples:
@@ -1429,7 +1434,11 @@ it does not need to be.
     .1065   1001    ea              nop                     nop
 
 .logical <expression>
+    Starts a relocation block
 .here
+.endlogical
+    Ends a relocation block
+
     Changes the program counter only, the compile offset is not changed. When
     finished all continues where it was left off before.
 
@@ -1448,11 +1457,14 @@ it does not need to be.
                                                             .here
 
 .virtual [<expression>]
+    Starts a virtual block
 .endv
-    Changes the program counter to the expression (if given) and discards the
-    result of compilation.
+.endvirtual
+    Ends a virtual block
 
-    This is useful to define structures to fixed addresses.
+    Changes the program counter to the expression (if given) and discards the
+    result of compilation. This is useful to define structures to fixed
+    addresses.
 
             .virtual $d400  ; base address
     sid     .block
@@ -1770,8 +1782,13 @@ Structures are for organizing sequential data, so the length of a structure is
 the sum of lengths of all items.
 
 .struct [<name>][=<default>]][, [<name>][=<default>] ...]
+    Begins a structure block
 .ends [<result>][, <result> ...]
+.endstruct [<result>][, <result> ...]
+    Ends a structure block
+
     Structure definition, with named parameters and default values
+
 .dstruct <name>[, <initialization values>]
 .<name> [<initialization values>]
     Create instance of structure with initialization values
@@ -1799,8 +1816,13 @@ counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.
 
 .union [<name>][=<default>]][, [<name>][=<default>] ...]
+    Begins a union block
 .endu
+.endunion
+    Ends a union block
+
     Union definition, with named parameters and default values
+
 .dunion <name>[, <initialization values>]
 .<name> [<initialization values>]
     Create instance of union with initialization values
@@ -1858,15 +1880,25 @@ invocation is a copy of the macro's content with parameter references replaced
 by the parameter texts.
 
 .segment [<name>][=<default>]][, [<name>][=<default>] ...]
+    Start of segment block
 .endm [<result>][, <result> ...]
+.endsegment [<result>][, <result> ...]
+    End of segment block
+
     Copies the code segment as it is, so symbols can be used from outside, but
     this also means multiple use will result in double defines unless anonymous
     labels are used.
+
 .macro [<name>][=<default>]][, [<name>][=<default>] ...]
+    Start of macro block
 .endm [<result>][, <result> ...]
+.endmacro [<result>][, <result> ...]
+    End of macro block
+
     The code is enclosed in it's own block so symbols inside are
     non-accessible, unless a label is prefixed at the place of use, then local
     labels can be accessed through that label.
+
 #<name> [<param>][[,][<param>] ...]
 .<name> [<param>][[,][<param>] ...]
     Invoke the macro after `#' or `.' with the parameters. Normally the name of
@@ -1939,39 +1971,43 @@ Custom functions
 Beyond the built-in functions mentioned earlier it's possible to define custom
 ones for frequently used calculations.
 
+.sfunction [<name>[=<default>], ...][*<name>,] <expression>
+    Defines a simple function to return the result of a parametrised expression
 .function <name>[=<default>]][, <name>[=<default>] ...][, *<name>]
+    Defines a multi line function
 .endf [<result>][, <result> ...]
-    Defines a user function
+.endfunction [<result>][, <result> ...]
+    End of a multi line function
 #<name> [<param>][[,][<param>] ...]
 .<name> [<param>][[,][<param>] ...]
 <name> [<param>][[,][<param>] ...]
-    Invoke a function like a macro, directive or pseudo instruction.
+    Invoke a multi line function like a macro, directive or pseudo instruction
 
 Parameters are assigned to variables in the function scope on invocation. The
 default values are calculated at function definition time only, and these
 values are used at invocation time when a parameter is missing.
 
 Extra parameters are not accepted, unless the last parameter symbol is preceded
-with a star, in this case these parameters are collected into a tuple. Multiple
-values are returned are also returned as tuple.
+with a star, in this case these parameters are collected into a tuple.
 
-Functions can span multiple lines but unlike macros they can't create new code.
 Only those external variables and functions are available which were accessible
 at the place of definition, but not those at the place of invocation.
 
-wpack   .function a, b=0
-        .endf a+b*256
+vicmem  .sfunction _font, _scr=0, ((_font >> 10) & $0f) | ((_scr >> 6) & $f0)
 
-        .word wpack(1), wpack(2, 3)
+        lda #vicmem($2000, $0400); calculate constant
+        sta $d018
 
-If a function is used as macro, directive or pseudo instruction and there's a
-label in front then the returned value is assigned to it. If nothing is
-returned then it's used as regular label. Of course when used like this it can
-create code and access local variables.
+If a multi line macro is used in an expression only the returned result is
+used. If multiple values are returned these will form a tuple.
 
-mva     .function s, d
-        lda s
-        sta d
+If a multi line function is used as macro, directive or pseudo instruction and
+there's a label in front then the returned value is assigned to it. If nothing
+is returned then it's used as regular label.
+
+mva     .function value, target
+        lda value
+        sta target
         .endf
 
         mva #1, label
@@ -2050,6 +2086,7 @@ Comment
 .comment
     Never compile.
 .endc
+.endcomment
     End of conditional compilation.
 
         .comment
@@ -2217,8 +2254,10 @@ or tuple.
 ctable  .byte colors.(red, green, blue)
 
 .proc
+    Start of a procedure block
 .pend
-    Start a procedure, close and start next procedure and finish procedure.
+.endproc
+    End of a procedure block
 
     If the symbol in front is not referenced anywhere then the enclosed source
     won't be compiled.
@@ -2256,8 +2295,10 @@ ctable  .byte colors.(red, green, blue)
         macro calls still need to be manually managed.
 
 .block
+    Block scoping area start
 .bend
-    Block start and block end.
+.endblock
+    Block scoping area end
 
     All symbols inside a block are enclosed in a scope. If the block had a
     symbol then local symbols are accessible through that using the dot
@@ -2269,8 +2310,10 @@ ctable  .byte colors.(red, green, blue)
             .bend
 
 .namespace [<symbol>]
+    Namespace area start
 .endn
-    Namespace area
+.endnamespace
+    Namespace area end
 
     This directive either creates a new scope (if used without a parameter) or
     activates the one in the parameter.
@@ -2328,8 +2371,13 @@ moving source code lines around. This is achieved by having separate compile
 offset and program counters for each defined section.
 
 .section <name>
+    Starts a segment block
 .send [<name>]
+.endsection [<name>]
+    Ends a segment block
+
     Defines a section fragment. The name at .send must match but it's optional.
+
 .dsection <name>
     Collect the section fragments here.
 
@@ -2360,7 +2408,7 @@ start of .dsection is not allowed.
 ;--------------------
         .section code
         .word ss, 2005
-        .null $9e, format("%d", start)
+        .null $9e, format("%4d", start)
 ss      .word 0
 
 start   sei
@@ -2389,7 +2437,7 @@ p3      .addr ?         ;a pointer
 The compiled code will look like:
 
 >0801    0b 08 d5 07                            .word ss, 2005
->0805    9e 32 30 36 31 00                      .null $9e, format("%d", start)
+>0805    9e 32 30 36 31 00                      .null $9e, format("%4d", start)
 >080b    00 00                          ss      .word 0
 
 .080d    78                             start   sei
@@ -2521,7 +2569,11 @@ routine .addr print
 Controlling errors
 
 .page
+    Start of page check block
 .endp
+.endpage
+    End of page check block
+
     Gives an error on page boundary crossing, e.g. for timing sensitive code.
 
             .page
@@ -3790,7 +3842,7 @@ redirect them to a file append `2>filename.log' after the command or use the `
 The faulty line will be displayed after the message with a caret pointing to
 the error location unless this is disabled by using `--no-caret-diag' option.
 
-a.asm:3:21: error: not defined ident 'label'
+a.asm:3:21: error: not defined symbol 'label'
                  lda label
                      ^
 a.asm:3:21: note: searched in the global scope
@@ -3803,7 +3855,7 @@ after an `In file included from' text where all the files and positions
 involved are listed down to the main file.
 
 In file included from main.asm:3:3:
-included.asm:2:11: error: not defined ident 'test'
+included.asm:2:11: error: not defined symbol 'test'
                 #macro1 test
                         ^
 In file included from included.asm:2:3,
@@ -3992,7 +4044,7 @@ general syntax
     can't do anything with this
 index out of range
     not enough elements in list
-key error
+key not in dictionary
     key not in the dictionary
 label required
     a label is mandatory for this directive
@@ -4027,8 +4079,6 @@ not a key and value pair
     dictionaries are built from key and value pairs separated by a colon
 not a variable
     only variables are changeable
-not allowed here: ?
-    do not use this directive here
 not defined '?'
     can't find this label at this point
 not hashable
@@ -4648,13 +4698,15 @@ Assembler directives
 .addr .al .align .as .assert .autsiz .bend .binary .binclude .bfor .block
 .break .breakif .brept .bwhile .byte .case .cdef .cerror .char .check .comment
 .continue .continueif .cpu .cwarn .databank .default .dint .dpage .dsection
-.dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endf .endif .endm
-.endn .endp .ends .endswitch .endu .endv .endweak .endwith .eor .error .fi
+.dstruct .dunion .dword .edef .else .elsif .enc .end .endblock .endc
+.endcomment .endf .endfunction .endif .endlogical .endm .endmacro .endn
+.endnamespace .endp .endpage .endproc .ends .endsection .endsegment .endstruct
+.endswitch .endu .endunion .endv .endvirtual .endweak .endwith .eor .error .fi
 .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
 .lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs .option
 .page .pend .proc .proff .pron .ptext .rept .rta .section .seed .segment .send
-.shift .shiftl .showmac .sint .struct .switch .text .union .var .virtual .warn
-.weak .while .with .word .xl .xs
+.sfunction .shift .shiftl .showmac .sint .struct .switch .text .union .var
+.virtual .warn .weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 

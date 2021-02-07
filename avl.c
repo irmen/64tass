@@ -1,6 +1,6 @@
 /*
  * avltree - Implements an AVL tree with parent pointers.
- * $Id: avl.c 1964 2019-09-04 18:36:34Z soci $
+ * $Id: avl.c 2274 2021-01-23 07:49:28Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -34,13 +34,6 @@ static inline struct avltree_node *get_first(struct avltree_node *node)
         return node;
 }
 
-static inline struct avltree_node *get_last(struct avltree_node *node)
-{
-        while (node->right != NULL)
-                node = node->right;
-        return node;
-}
-
 struct avltree_node *avltree_first(const struct avltree *tree)
 {
         return tree->first;
@@ -54,18 +47,6 @@ struct avltree_node *avltree_next(const struct avltree_node *node)
                 return get_first(node->right);
 
         while ((parent = node->parent) != NULL && parent->right == node)
-                node = parent;
-        return parent;
-}
-
-struct avltree_node *avltree_prev(const struct avltree_node *node)
-{
-        struct avltree_node *parent;
-
-        if (node->left != NULL)
-                return get_last(node->left);
-
-        while ((parent = node->parent) != NULL && parent->left == node)
                 node = parent;
         return parent;
 }

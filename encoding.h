@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.h 1816 2019-01-13 18:35:30Z soci $
+    $Id: encoding.h 2292 2021-01-24 21:43:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 */
 #ifndef ENCODING_H
 #define ENCODING_H
-#include "avl.h"
 #include "stdbool.h"
 #include "inttypes.h"
 #include "errors_e.h"
@@ -26,24 +25,26 @@
 struct encoding_s;
 struct Obj;
 
-struct trans_s {
+struct character_range_s {
     uint32_t start;
     uint32_t end : 24;
     uint32_t offset : 8;
-    struct avltree_node node;
 };
 
 extern struct encoding_s *actual_encoding;
+extern size_t efwcount;
 
 struct str_t;
 struct Str;
+struct encoder_s;
 
+extern void add_esc(struct encoding_s *, const char *);
 extern struct encoding_s *new_encoding(const struct str_t *, linepos_t);
-extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *, linepos_t);
-extern bool new_escape(const struct str_t *, struct Obj *, struct encoding_s *, linepos_t);
-extern void encode_string_init(const struct Str *, linepos_t);
-extern int encode_string(void);
-extern void encode_error(Error_types);
+extern bool new_trans(struct encoding_s *, const struct character_range_s *, linepos_t);
+extern bool new_escape(struct encoding_s *, const struct str_t *, struct Obj *, linepos_t);
+extern struct encoder_s *encode_string_init(const struct Str *, linepos_t);
+extern int encode_string(struct encoder_s *);
+extern void encode_error(struct encoder_s *, Error_types);
 extern void init_encoding(bool);
 extern void destroy_encoding(void);
 #endif

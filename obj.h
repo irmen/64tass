@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 1925 2019-08-25 11:09:57Z soci $
+    $Id: obj.h 2306 2021-01-30 01:27:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ static inline Obj *val_reference(Obj *v1) {
 }
 
 extern MUST_CHECK Obj *obj_oper_error(struct oper_s *);
+extern MUST_CHECK Obj *obj_oper_compare(struct oper_s *, int);
 extern void obj_init(struct Type *);
 extern void objects_init(void);
 extern void objects_destroy(void);

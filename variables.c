@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2263 2020-12-10 21:03:08Z soci $
+    $Id: variables.c 2338 2021-02-06 17:22:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -340,7 +340,7 @@ Label *find_label2(const str_t *name, Namespace *context) {
     return namespace_lookup(context, &label);
 }
 
-struct anonident_s {
+struct anonsymbol_s {
     uint8_t dir, pad;
     uint8_t count[sizeof(uint32_t)];
 };
@@ -360,12 +360,12 @@ Label *find_anonlabel(int32_t count) {
     size_t p = context_stack.p;
     Namespace *context;
     Label label, *c;
-    struct anonident_s anonident;
+    struct anonsymbol_s anonsymbol;
 
-    anonident.dir = (count >= 0) ? '+' : '-';
-    anonident.pad = 0;
+    anonsymbol.dir = (count >= 0) ? '+' : '-';
+    anonsymbol.pad = 0;
 
-    label.cfname.data = (const uint8_t *)&anonident;
+    label.cfname.data = (const uint8_t *)&anonsymbol;
 
     while (context_stack.bottom < p) {
         uint32_t count2;
@@ -373,7 +373,7 @@ Label *find_anonlabel(int32_t count) {
         count2 = (uint32_t)((int32_t)((count >= 0) ? context->forwr : context->backr) + count);
         label.cfname.len = 2;
         while (count2 != 0) {
-            anonident.count[label.cfname.len - 2] = count2;
+            anonsymbol.count[label.cfname.len - 2] = count2;
             label.cfname.len++;
             count2 >>= 8;
         } 
@@ -388,15 +388,15 @@ Label *find_anonlabel(int32_t count) {
 Label *find_anonlabel2(int32_t count, Namespace *context) {
     Label label;
     uint32_t count2 = (uint32_t)((int32_t)((count >= 0) ? 0 : context->backr) + count);
-    struct anonident_s anonident;
+    struct anonsymbol_s anonsymbol;
 
-    anonident.dir = (count >= 0) ? '+' : '-';
-    anonident.pad = 0;
+    anonsymbol.dir = (count >= 0) ? '+' : '-';
+    anonsymbol.pad = 0;
 
-    label.cfname.data = (const uint8_t *)&anonident;
+    label.cfname.data = (const uint8_t *)&anonsymbol;
     label.cfname.len = 2;
     while (count2 != 0) {
-        anonident.count[label.cfname.len - 2] = count2;
+        anonsymbol.count[label.cfname.len - 2] = count2;
         label.cfname.len++;
         count2 >>= 8;
     } 
@@ -747,16 +747,14 @@ void ref_labels(void) {
     }
 }
 
-static struct file_list_s dummy_cflist;
-
-void new_builtin(const char *ident, Obj *val) {
+void new_builtin(const char *symbol, Obj *val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     Label *label;
     bool label_exists;
-    name.len = strlen(ident);
-    name.data = (const uint8_t *)ident;
-    label = new_label(&name, builtin_namespace, 0, &label_exists, &dummy_cflist);
+    name.len = strlen(symbol);
+    name.data = (const uint8_t *)symbol;
+    label = new_label(&name, builtin_namespace, 0, &label_exists, dummy_file_list);
     label->constant = true;
     label->owner = true;
     label->value = val;
@@ -766,11 +764,6 @@ void new_builtin(const char *ident, Obj *val) {
 void init_variables(void)
 {
     struct linepos_s nopoint = {0, 0};
-    static struct file_s cfile;
-
-    cfile.data = (uint8_t *)0;
-    cfile.len = SIZE_MAX;
-    dummy_cflist.file = &cfile;
 
     builtin_namespace = new_namespace(NULL, &nopoint);
     root_namespace = new_namespace(NULL, &nopoint);

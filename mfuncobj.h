@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 2137 2020-01-02 00:52:17Z soci $
+    $Id: mfuncobj.h 2318 2021-01-31 23:48:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "stdbool.h"
 
 extern struct Type *const MFUNC_OBJ;
+extern struct Type *const SFUNC_OBJ;
 
 struct mfunc_param_s {
     str_t name;
@@ -36,14 +37,15 @@ typedef struct Mfunc {
     size_t argc;
     struct mfunc_param_s *param;
     const struct file_list_s *file_list;
-    line_t line;
-    bool retval;
+    struct linepos_s epoint;
+    bool retval, single;
     uint8_t recursion_pass;
     size_t nslen;
     struct Namespace **namespaces, *names;
     size_t ipoint;
     struct List *inamespaces;
 } Mfunc;
+typedef struct Mfunc Sfunc;
 
 extern void mfuncobj_init(void);
 #endif

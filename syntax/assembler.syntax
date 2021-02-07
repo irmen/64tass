@@ -1,5 +1,5 @@
 #64tass mcedit/cooledit syntax
-# $Id: assembler.syntax 2131 2019-12-30 19:02:20Z soci $
+# $Id: assembler.syntax 2331 2021-02-06 05:43:56Z soci $
 #
 # Place it into this folder:
 #
@@ -114,8 +114,8 @@ context default lightgray
     keyword whole .as brightcyan
     keyword whole .assert brightcyan
     keyword whole .bend brightcyan
-    keyword whole .binclude brightcyan
     keyword whole .bfor brightcyan
+    keyword whole .binclude brightcyan
     keyword whole .block brightcyan
     keyword whole .break brightcyan
     keyword whole .breakif brightcyan
@@ -141,16 +141,29 @@ context default lightgray
     keyword whole .elsif brightcyan
     keyword whole .enc brightcyan
     keyword whole .end brightcyan
+    keyword whole .endblock brightcyan
     keyword whole .endc brightcyan
+    keyword whole .endcomment brightcyan
     keyword whole .endf brightcyan
+    keyword whole .endfunction brightcyan
     keyword whole .endif brightcyan
+    keyword whole .endlogical brightcyan
     keyword whole .endm brightcyan
+    keyword whole .endmacro brightcyan
     keyword whole .endn brightcyan
+    keyword whole .endnamespace brightcyan
     keyword whole .endp brightcyan
+    keyword whole .endpage brightcyan
+    keyword whole .endproc brightcyan
     keyword whole .ends brightcyan
+    keyword whole .endsection brightcyan
+    keyword whole .endsegment brightcyan
+    keyword whole .endstruct brightcyan
     keyword whole .endswitch brightcyan
     keyword whole .endu brightcyan
+    keyword whole .endunion brightcyan
     keyword whole .endv brightcyan
+    keyword whole .endvirtual brightcyan
     keyword whole .endweak brightcyan
     keyword whole .endwith brightcyan
     keyword whole .eor brightcyan
@@ -184,6 +197,7 @@ context default lightgray
     keyword whole .seed brightcyan
     keyword whole .segment brightcyan
     keyword whole .send brightcyan
+    keyword whole .sfunction brightcyan
     keyword whole .showmac brightcyan
     keyword whole .struct brightcyan
     keyword whole .switch brightcyan
@@ -192,8 +206,8 @@ context default lightgray
     keyword whole .virtual brightcyan
     keyword whole .warn brightcyan
     keyword whole .weak brightcyan
-    keyword whole .with brightcyan
     keyword whole .while brightcyan
+    keyword whole .with brightcyan
     keyword whole .xl brightcyan
     keyword whole .xs brightcyan
 
@@ -253,7 +267,8 @@ context default lightgray
     keyword ] white
     keyword { white
     keyword } white
-    keyword . white
+    keyword \.\. white
+    keyword \. white
     keyword , white
     keyword : white
     keyword - white

@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2227 2020-06-28 04:03:37Z soci $
+" $Id: 64tass.vim 2317 2021-01-31 22:46:47Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -121,16 +121,16 @@ if exists("tass64_4510")
 endif
 
 " Assembler directives
-syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|cdef|cpu)>/ contained
-syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endp)>/ contained
-syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|hidemac)>/ contained
-syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|virtual|endv)>/ contained
-syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|proff|pron|rept|brept|while|bwhile|section)>/ contained
-syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endn|with|endwith)>/ contained
-syn match tass64Define  /\v\.%(segment|macro|endm|function|endf)>/ contained
+syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|endblock|cdef|cpu)>/ contained
+syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endpage|endp)>/ contained
+syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|endlogical|hidemac)>/ contained
+syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|virtual|endv|endvirtual)>/ contained
+syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|endproc|proff|pron|rept|brept|while|bwhile|section|endsection)>/ contained
+syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endnamespace|endn|with|endwith)>/ contained
+syn match tass64Define  /\v\.%(segment|endsegment|macro|endmacro|endm|function|endfunction|endf|sfunction)>/ contained
 syn match tass64Include /\v\.%(include|binclude)>/ contained
-syn match tass64PreCondit /\v\.%(elsif|ifmi|ifne|ifpl|else|fi|if|ifeq|endif|switch|endswitch|case|default|comment|endc|breakif|continueif|break|continue)>/ contained
-syn match tass64Structure /\v\.%(union|endu|struct|ends|dstruct|dunion)>/ contained
+syn match tass64PreCondit /\v\.%(elsif|ifmi|ifne|ifpl|else|fi|if|ifeq|endif|switch|endswitch|case|default|comment|endcomment|endc|breakif|continueif|break|continue)>/ contained
+syn match tass64Structure /\v\.%(union|endunion|endu|struct|endstruct|ends|dstruct|dunion)>/ contained
 syn match tass64Debug /\v\.%(error|cwarn|warn|cerror|check|assert)>/ contained
 
 " Data statements

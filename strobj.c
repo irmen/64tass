@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: strobj.c 2327 2021-02-06 04:32:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "error.h"
 #include "variables.h"
 #include "arguments.h"
+#include "str.h"
 
 #include "boolobj.h"
 #include "bytesobj.h"
@@ -270,7 +271,7 @@ static MUST_CHECK Obj *len(oper_t op) {
     return (Obj *)int_from_size(v1->chars);
 }
 
-static FAST_CALL MUST_CHECK Obj *next(struct iter_s *v1) {
+static FAST_CALL MUST_CHECK Obj *iter_forward(struct iter_s *v1) {
     Str *iter;
     const Str *string = (Str *)v1->data;
     unsigned int ln;
@@ -295,7 +296,37 @@ static void getiter(struct iter_s *v) {
     v->iter = val_reference(v->data);
     v->val = 0;
     v->data = val_reference(v->data);
-    v->next = next;
+    v->next = iter_forward;
+    v->len = ((Str *)v->data)->chars;
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_reverse(struct iter_s *v1) {
+    Str *iter;
+    const Str *string = (Str *)v1->data;
+    unsigned int ln;
+    const uint8_t *s;
+    if (v1->val >= string->len) return NULL;
+    s = string->data + string->len - v1->val;
+    ln = 0;
+    do { s--; ln++; } while (*s >= 0x80 && *s < 0xc0);
+    v1->val += ln;
+    iter = (Str *)v1->iter;
+    if (iter->v.refcount != 1) {
+        iter->v.refcount--;
+        iter = new_str(6);
+        iter->chars = 1;
+        v1->iter = &iter->v;
+    }
+    iter->len = ln;
+    memcpy(iter->data, s, ln);
+    return &iter->v;
+}
+
+static void getriter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
+    v->val = 0;
+    v->data = val_reference(v->data);
+    v->next = iter_reverse;
     v->len = ((Str *)v->data)->chars;
 }
 
@@ -669,30 +700,29 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        uval_t length;
-        ival_t offs, end, step;
+        struct sliceparam_s s;
 
-        err = (Error *)sliceparams((Colonlist *)o2, len1, &length, &offs, &end, &step, epoint2);
+        err = (Error *)sliceparams((Colonlist *)o2, len1, &s, epoint2);
         if (err != NULL) return &err->v;
 
-        if (length == 0) {
+        if (s.length == 0) {
             return (Obj *)ref_str(null_str);
         }
-        if (step == 1) {
-            if (length == v1->chars) {
+        if (s.step == 1) {
+            if (s.length == v1->chars) {
                 return (Obj *)ref_str(v1); /* original string */
             }
             if (v1->len == v1->chars) {
-                len2 = length;
+                len2 = s.length;
             } else {
                 ival_t i;
                 p = v1->data;
-                for (i = 0; i < offs; i++) {
+                for (i = 0; i < s.offset; i++) {
                     p += utf8len(*p);
                 }
                 len2 = (size_t)(p - v1->data);
-                offs = (ival_t)len2;
-                for (; i < end; i++) {
+                s.offset = (ival_t)len2;
+                for (; i < s.end; i++) {
                     p += utf8len(*p);
                 }
                 len2 = (size_t)(p - v1->data) - len2;
@@ -701,40 +731,40 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
                 v = ref_str(v1);
                 v->len = len2;
                 if (v->data != v->u.val && len2 <= sizeof v->u.val) {
-                    memcpy(v->u.val, v1->data + offs, len2);
+                    memcpy(v->u.val, v1->data + s.offset, len2);
                     free(v->data);
                     v->data = v->u.val;
                 } else {
-                    if (offs != 0) memmove(v->data, v1->data + offs, len2);
+                    if (s.offset != 0) memmove(v->data, v1->data + s.offset, len2);
                     if (v->data != v->u.val) v->u.s.hash = -1;
                 }
             } else {
                 v = new_str2(len2);
                 if (v == NULL) goto failed;
-                memcpy(v->data, v1->data + offs, len2);
+                memcpy(v->data, v1->data + s.offset, len2);
             }
-            v->chars = length;
+            v->chars = s.length;
             return &v->v;
         }
         if (v1->len == v1->chars) {
             size_t i;
-            if (step > 0 && op->inplace == &v1->v) {
+            if (s.step > 0 && op->inplace == &v1->v) {
                 v = ref_str(v1);
-                if (v->data != v->u.val && length <= sizeof v->u.val) {
+                if (v->data != v->u.val && s.length <= sizeof v->u.val) {
                     p2 = v->u.val;
                 } else {
                     p2 = v->data;
                     if (v->data != v->u.val) v->u.s.hash = -1;
                 }
-                v->len = length;
+                v->len = s.length;
             } else {
-                v = new_str2(length);
+                v = new_str2(s.length);
                 if (v == NULL) goto failed;
                 p2 = v->data;
             }
-            for (i = 0; i < length; i++) {
-                p2[i] = v1->data[offs];
-                offs += step;
+            for (i = 0; i < s.length; i++) {
+                p2[i] = v1->data[s.offset];
+                s.offset += s.step;
             }
             if (p2 != v->data) {
                 free(v->data);
@@ -744,7 +774,7 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
             ival_t i, k;
             size_t j;
             uint8_t *o;
-            if (step > 0 && op->inplace == &v1->v) {
+            if (s.step > 0 && op->inplace == &v1->v) {
                 v = ref_str(v1);
             } else {
                 v = new_str2(v1->len);
@@ -752,26 +782,26 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
             }
             o = p2 = v->data;
             p = v1->data;
-            for (i = 0; i < offs; i++) {
+            for (i = 0; i < s.offset; i++) {
                 p += utf8len(*p);
             }
-            if (step > 0) {
-                for (k = i; i < end; i++) {
+            if (s.step > 0) {
+                for (k = i; i < s.end; i++) {
                     j = utf8len(*p);
                     if (i != k) {
                         for (offs2 = 0; offs2 < j; offs2++) p2[offs2] = p[offs2];
-                        p2 += j; k += step;
+                        p2 += j; k += s.step;
                     }
                     p += j;
                 }
             } else {
                 p += utf8len(*p);
-                for (k = i; i > end; i--) {
+                for (k = i; i > s.end; i--) {
                     j = 0;
                     do {
                         p--;j++;
                     } while (*p >= 0x80 && *p < 0xc0);
-                    if (i == k) {memcpy(p2, p, j);p2 += j; k += step;}
+                    if (i == k) {memcpy(p2, p, j);p2 += j; k += s.step;}
                 }
             }
             len2 = (size_t)(p2 - o);
@@ -789,7 +819,7 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
             }
             v->len = len2;
         }
-        v->chars = length;
+        v->chars = s.length;
         return &v->v;
     }
     err = indexoffs(o2, len1, &offs2, epoint2);
@@ -894,7 +924,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return result;
         }
     case T_GAP:
-    case T_DICT:
         if (op->op != &o_MEMBER) {
             return v2->obj->rcalc2(op);
         }
@@ -945,15 +974,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             val_destroy(tmp);
             return result;
         }
-    case T_TUPLE:
-    case T_LIST:
+    default:
+        if (!t1->iterable) {
+            break;
+        }
+        /* fall through */
     case T_NONE:
     case T_ERROR:
         if (op->op != &o_IN) {
             return t1->calc2(op);
         }
         break;
-    default: break;
     }
     return obj_oper_error(op);
 }
@@ -976,6 +1007,7 @@ void strobj_init(void) {
     obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
+    obj.getriter = getriter;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

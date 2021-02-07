@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2215 2020-05-21 20:52:43Z soci $
+    $Id: bytesobj.c 2327 2021-02-06 04:32:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -483,6 +483,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
     uint8_t *s;
     Bytes *v;
     if (len != 0 || len2 != 0) {
+        struct encoder_s *encoder;
         int ch;
         if (actual_encoding == NULL) {
             if (v1->chars == 1) {
@@ -499,8 +500,8 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         v = new_bytes2(len);
         if (v == NULL) goto failed;
         s = v->data;
-        encode_string_init(v1, epoint);
-        while ((ch = encode_string()) != EOF) {
+        encoder = encode_string_init(v1, epoint);
+        while ((ch = encode_string(encoder)) != EOF) {
             if (len2 >= len) {
                 if (v->u.val == s) {
                     len = 32;
@@ -520,10 +521,10 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             }
             switch (mode) {
             case BYTES_MODE_SHIFT_CHECK:
-            case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
-            case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) encode_error(ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
-            case BYTES_MODE_NULL_CHECK:if (ch == 0) {encode_error(ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
-            case BYTES_MODE_NULL: if (ch == 0) encode_error(ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
+            case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) encode_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
+            case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) encode_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
+            case BYTES_MODE_NULL_CHECK:if (ch == 0) {encode_error(encoder, ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
+            case BYTES_MODE_NULL: if (ch == 0) encode_error(encoder, ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
             case BYTES_MODE_PTEXT:
             case BYTES_MODE_TEXT: s[len2] = (uint8_t)ch; break;
             }
@@ -820,26 +821,42 @@ static MUST_CHECK Obj *len(oper_t op) {
     return (Obj *)int_from_size(byteslen(v1));
 }
 
-static FAST_CALL MUST_CHECK Obj *next(struct iter_s *v1) {
-    Bytes *iter;
+static FAST_CALL MUST_CHECK Obj *iter_element(struct iter_s *v1, size_t i) {
+    Bytes *iter = (Bytes *)v1->iter;
     const Bytes *vv1 = (Bytes *)v1->data;
-    if (v1->val >= v1->len) return NULL;
-    iter = (Bytes *)v1->iter;
     if (iter->v.refcount != 1) {
         iter->v.refcount--;
         iter = new_bytes(1);
         v1->iter = &iter->v;
         iter->len = (vv1->len < 0) ? ~1 : 1;
     }
-    iter->data[0] = vv1->data[v1->val++];
+    iter->data[0] = vv1->data[i];
     return &iter->v;
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_forward(struct iter_s *v1) {
+    if (v1->val >= v1->len) return NULL;
+    return iter_element(v1, v1->val++);
 }
 
 static void getiter(struct iter_s *v) {
     v->iter = val_reference(v->data);
     v->val = 0;
     v->data = val_reference(v->data);
-    v->next = next;
+    v->next = iter_forward;
+    v->len = byteslen((Bytes *)v->data);
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_reverse(struct iter_s *v1) {
+    if (v1->val >= v1->len) return NULL;
+    return iter_element(v1, v1->len - ++v1->val);
+}
+
+static void getriter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
+    v->val = 0;
+    v->data = val_reference(v->data);
+    v->next = iter_reverse;
     v->len = byteslen((Bytes *)v->data);
 }
 
@@ -1245,62 +1262,61 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
-        uval_t length;
-        ival_t offs, end, step;
+        struct sliceparam_s s;
 
-        err = (Error *)sliceparams((Colonlist *)o2, len1, &length, &offs, &end, &step, epoint2);
+        err = (Error *)sliceparams((Colonlist *)o2, len1, &s, epoint2);
         if (err != NULL) return &err->v;
 
-        switch (length) {
+        switch (s.length) {
         case 0:
             return (Obj *)ref_bytes(null_bytes);
         case 1:
-            return (Obj *)bytes_from_u8(v1->data[offs] ^ inv);
+            return (Obj *)bytes_from_u8(v1->data[s.offset] ^ inv);
         }
-        if (step == 1 && inv == 0) {
-            if (length == byteslen(v1)) {
+        if (s.step == 1 && inv == 0) {
+            if (s.length == byteslen(v1)) {
                 return (Obj *)ref_bytes(v1); /* original bytes */
             }
             if (op->inplace == &v1->v) {
                 v = ref_bytes(v1);
-                if (v->data != v->u.val && length <= sizeof v->u.val) {
+                if (v->data != v->u.val && s.length <= sizeof v->u.val) {
                     p2 = v->u.val;
-                    memcpy(p2, v1->data + offs, length);
+                    memcpy(p2, v1->data + s.offset, s.length);
                 } else {
                     p2 = v->data;
-                    if (offs != 0) memmove(p2, v1->data + offs, length);
+                    if (s.offset != 0) memmove(p2, v1->data + s.offset, s.length);
                     if (v->data != v->u.val) v->u.s.hash = -1;
                 }
             } else {
-                v = new_bytes2(length);
+                v = new_bytes2(s.length);
                 if (v == NULL) goto failed;
                 p2 = v->data;
-                memcpy(p2, v1->data + offs, length);
+                memcpy(p2, v1->data + s.offset, s.length);
             }
         } else {
-            if (step > 0 && op->inplace == &v1->v) {
+            if (s.step > 0 && op->inplace == &v1->v) {
                 v = ref_bytes(v1);
-                if (v->data != v->u.val && length <= sizeof v->u.val) {
+                if (v->data != v->u.val && s.length <= sizeof v->u.val) {
                     p2 = v->u.val;
                 } else {
                     p2 = v->data;
                     if (v->data != v->u.val) v->u.s.hash = -1;
                 }
             } else {
-                v = new_bytes2(length);
+                v = new_bytes2(s.length);
                 if (v == NULL) goto failed;
                 p2 = v->data;
             }
-            for (i = 0; i < length; i++) {
-                p2[i] = v1->data[offs] ^ inv;
-                offs += step;
+            for (i = 0; i < s.length; i++) {
+                p2[i] = v1->data[s.offset] ^ inv;
+                s.offset += s.step;
             }
         }
         if (p2 != v->data) {
             free(v->data);
             v->data = p2;
         }
-        v->len = (ssize_t)length;
+        v->len = (ssize_t)s.length;
         return &v->v;
     }
     err = indexoffs(o2, len1, &offs2, epoint2);
@@ -1363,7 +1379,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
     case T_STR:
     case T_GAP:
-    case T_DICT:
         if (op->op != &o_MEMBER) {
             return o2->obj->rcalc2(op);
         }
@@ -1405,8 +1420,11 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             val_destroy(tmp);
             return result;
         }
-    case T_TUPLE:
-    case T_LIST:
+    default:
+        if (!o1->obj->iterable) {
+            break;
+        }
+        /* fall through */
     case T_STR:
     case T_NONE:
     case T_ERROR:
@@ -1414,7 +1432,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return o1->obj->calc2(op);
         }
         break;
-    default: break;
     }
     return obj_oper_error(op);
 }
@@ -1437,6 +1454,7 @@ void bytesobj_init(void) {
     obj.function = function;
     obj.len = len;
     obj.getiter = getiter;
+    obj.getriter = getriter;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

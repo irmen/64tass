@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2260 2020-11-18 20:04:07Z soci $
+    $Id: section.c 2277 2021-01-23 16:37:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -104,7 +104,6 @@ struct section_s *new_section(const str_t *name) {
         lastsc->defpass = 0;
         lastsc->usepass = 0;
         lastsc->address.unionmode = false;
-        lastsc->structrecursion = 0;
         lastsc->logicalrecursion = 0;
         lastsc->address.moved = false;
         lastsc->address.wrapwarn = false;
@@ -149,7 +148,6 @@ void reset_section(struct section_s *section) {
     section->address.end = section->address.start = section->restart = section->l_restart = section->address.address = section->address.l_address = section->address.l_start = section->address.l_union = 0;
     val_destroy(section->address.l_address_val);
     section->address.l_address_val = (Obj *)ref_int(int_value[0]);
-    section->structrecursion = 0;
     section->logicalrecursion = 0;
     section->address.moved = false;
     section->address.wrapwarn = false;

@@ -57,14 +57,10 @@ a[href]:hover { text-decoration: underline; }
    pre {overflow:hidden;}
 }
 
+#toc ul { counter-reset: section; }
+#toc li > a:before { content: counters(section, ".") " "; counter-increment: section; }
 #toc ul { margin: 0px; font-weight: normal;}
 #toc > ul > li { margin-top: 0.5em; font-weight: bold; }
-#toc { counter-reset: count1 }
-#toc > ul > li > a:before { content: counter(count1) " "; counter-increment: count1; }
-#toc > ul > li > a { counter-reset: count2;}
-#toc > ul ul > li > a:before { content: counter(count1) "." counter(count2) " "; counter-increment: count2; }
-#toc > ul ul > li > a { counter-reset: count3;}
-#toc > ul ul ul > li > a:before { content: counter(count1) "." counter(count2) "." counter(count3) " "; counter-increment: count3; }
 
 body { counter-reset: countcaption;}
 h1 { counter-reset: counth2; font-size: 2em; margin: 0 0 0.67em 0; }
@@ -326,7 +322,7 @@ compression:</p>
 <pre width=80>
 *       <b>=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
-        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)<i>;will be sys 4096</i>
+        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)<i>;will be sys 4096</i>
 +	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
 *       <b>=</b> <span>$1000</span>
@@ -696,6 +692,14 @@ mylist  <b>=</b> (<span class="s">"e"</span>, <u>cmd_e</u>, <span class="s">"g"<
 keys    <b class="d">.text</b> <u>mylist</u>[::<span>2</span>]    <i>; keys ("e", "g", "i")</i>
 call_l  <b class="d">.byte</b> &lt;<u>mylist</u>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&lt;cmd_e&minus;1, &lt;cmd_g&minus;1, &lt;cmd_i&minus;1)</i>
 call_h  <b class="d">.byte</b> &gt;<u>mylist</u>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e&minus;1, &gt;cmd_g&minus;1, &gt;cmd_i&minus;1)</i>
+</pre>
+
+<p>Although lists elements of variables can't be changed using indexing (at the
+moment) the same effect can be achieved by combining slicing and
+concatenation:</p>
+
+<pre width=80>
+lst     := <u>lst</u>[:<span>2</span>] .. [<span>4</span>] .. <u>lst</u>[<span>3</span>:]<i>; same as lst[2] := 4 would be</i>
 </pre>
 
 <p>Folding is done on pair of elements either forward (left) or reverse
@@ -1820,8 +1824,11 @@ to use alternatives below.</p>
 .1065	1001	ea		nop			<b>nop</b>
 </pre>
 <dt><code><b class="k">.logical</b></code> &lt;expression&gt;<a name="d_logical" href="#d_logical"></a>
+<dd>Starts a relocation block
 <dt><code><b class="k">.here</b></code><a name="d_here" href="#d_here"></a>
-<dd>Changes the program counter only, the compile offset is not changed. When finished all continues where it was left off before.
+<dt><code><b class="k">.endlogical</b></code><a name="d_endlogical" href="#d_endlogical"></a>
+<dd>Ends a relocation block
+<p>Changes the program counter only, the compile offset is not changed. When finished all continues where it was left off before.</p>
 <p>The naming is not logical at all for relocated code, but that's how it was named in old 6502tass.</p>
 <p>It's used for code copied to it's proper location at runtime. Can be nested of course.</p>
 <pre width=80>
@@ -1835,9 +1842,12 @@ to use alternatives below.</p>
 </pre>
 
 <dt><code><b class="k">.virtual</b></code> [&lt;expression&gt;]<a name="d_virtual" href="#d_virtual"></a>
+<dd>Starts a virtual block
 <dt><code><b class="k">.endv</b></code><a name="d_endv" href="#d_endv"></a>
-<dd>Changes the program counter to the expression (if given) and discards the result of compilation.
-<p>This is useful to define structures to fixed addresses.</p>
+<dt><code><b class="k">.endvirtual</b></code><a name="d_endvirtual" href="#d_endvirtual"></a>
+<dd>Ends a virtual block
+<p>Changes the program counter to the expression (if given) and discards the result of compilation.
+This is useful to define structures to fixed addresses.</p>
 <pre width=80>
 	<b class="k">.virtual</b> <span>$d400</span>	<i>; base address</i>
 sid	<b class="k">.block</b>
@@ -2151,8 +2161,11 @@ is the sum of lengths of all items.</p>
 
 <dl class="dir">
 <dt><code><b class="k">.struct</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_struct" href="#d_struct"></a>
+<dd>Begins a structure block
 <dt><code><b class="k">.ends</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_ends" href="#d_ends"></a>
-<dd>Structure definition, with named parameters and default values
+<dt><code><b class="k">.endstruct</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endstruct" href="#d_endstruct"></a>
+<dd>Ends a structure block
+<p>Structure definition, with named parameters and default values</p>
 <dt><code><b class="d">.dstruct</b></code> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dstruct" href="#d_dstruct"></a>
 <dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
 <dd>Create instance of structure with initialization values
@@ -2183,8 +2196,11 @@ length of it's longest item.</p>
 
 <dl class="dir">
 <dt><code><b class="k">.union</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_union" href="#d_union"></a>
+<dd>Begins a union block
 <dt><code><b class="k">.endu</b></code><a name="d_endu" href="#d_endu"></a>
-<dd>Union definition, with named parameters and default values
+<dt><code><b class="k">.endunion</b></code><a name="d_endunion" href="#d_endunion"></a>
+<dd>Ends a union block
+<p>Union definition, with named parameters and default values</p>
 <dt><code><b class="d">.dunion</b></code> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dunion" href="#d_dunion"></a>
 <dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
 <dd>Create instance of union with initialization values
@@ -2248,15 +2264,21 @@ replaced by the parameter texts.</p>
 
 <dl class="dir">
 <dt><code><b class="k">.segment</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_segment" href="#d_segment"></a>
+<dd>Start of segment block
 <dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endm" href="#d_endm"></a>
-<dd>Copies the code segment as it is, so symbols can be used from
+<dt><code><b class="k">.endsegment</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endsegment" href="#d_endsegment"></a>
+<dd>End of segment block
+<p>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
-unless anonymous labels are used.
+unless anonymous labels are used.</p>
 <dt><code><b class="k">.macro</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_macro" href="#d_macro"></a>
+<dd>Start of macro block
 <dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
-<dd>The code is enclosed in it's own block so symbols inside are
+<dt><code><b class="k">.endmacro</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endmacro" href="#d_endmacro"></a>
+<dd>End of macro block
+<p>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
-labels can be accessed through that label.
+labels can be accessed through that label.</p>
 <dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke the macro after <q>#</q> or <q>.</q> with the parameters. Normally the name of
@@ -2335,41 +2357,44 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.</p>
 
 <dl class="dir">
+<dt><code><b class="k">.sfunction</b></code> [&lt;name&gt;[=&lt;default&gt;], &hellip;][&lowast;&lt;name&gt;,] &lt;expression&gt;<a name="d_sfunction" href="#d_sfunction"></a>
+<dd>Defines a simple function to return the result of a parametrised expression
 <dt><code><b class="k">.function</b></code> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]<a name="d_function" href="#d_function"></a>
+<dd>Defines a multi line function
 <dt><code><b class="k">.endf</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endf" href="#d_endf"></a>
-<dd>Defines a user function
+<dt><code><b class="k">.endfunction</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endfunction" href="#d_endfunction"></a>
+<dd>End of a multi line function
 <dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dt><code><b class="k">&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dd>Invoke a function like a macro, directive or pseudo instruction.
+<dd>Invoke a multi line function like a macro, directive or pseudo instruction
 </dl>
 
 <p>Parameters are assigned to variables in the function scope on
 invocation. The default values are calculated at function definition time only,
 and these values are used at invocation time when a parameter is missing.</p>
 <p>Extra parameters are not accepted, unless the last parameter symbol is
-preceded with a star, in this case these parameters are collected into a tuple.
-Multiple values are returned are also returned as tuple.</p>
-<p>Functions can span multiple lines but unlike macros they can't create new
-code. Only those external variables and functions are available which were
-accessible at the place of definition, but not those at the place of
-invocation.</p>
-<pre width=80>
-wpack   <b class="k">.function</b> <u>a</u>, <u>b</u>=<span>0</span>
-        <b class="k">.endf</b> <u>a</u>+<u>b</u>*<span>256</span>
+preceded with a star, in this case these parameters are collected into a tuple.</p>
+<p>Only those external variables and functions are available which were accessible at
+the place of definition, but not those at the place of invocation.</p>
 
-        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>), <span class="k">wpack</span>(<span>2</span>, <span>3</span>)
+<pre width=80>
+vicmem  <b class="k">.sfunction</b> <u>_font</u>, <u>_scr</u>=<span>0</span>, ((<u>_font</u> &gt;&gt; <span>10</span>) &amp; <span>$0f</span>) | ((<u>_scr</u> &gt;&gt; <span>6</span>) &amp; <span>$f0</span>)
+
+        <b>lda</b> #<u>vicmem</u>(<span>$2000</span>, <span>$0400</span>)<i>; calculate constant</i>
+        <b>sta</b> <span>$d018</span>
 </pre>
 
-<p>If a function is used as macro, directive or pseudo instruction and there's
-a label in front then the returned value is assigned to it. If nothing is
-returned then it's used as regular label. Of course when used like this it can
-create code and access local variables.</p>
+<p>If a multi line macro is used in an expression only the returned result is
+used. If multiple values are returned these will form a tuple.</p>
+<p>If a multi line function is used as macro, directive or pseudo instruction
+and there's a label in front then the returned value is assigned to it. If
+nothing is returned then it's used as regular label.</p>
 
 <pre width=80>
-mva     <b class="k">.function</b> <u>s</u>, <u>d</u>
-        <b>lda</b> <u>s</u>
-        <b>sta</b> <u>d</u>
+mva     <b class="k">.function</b> <u>value</u>, <u>target</u>
+        <b>lda</b> <u>value</u>
+        <b>sta</b> <u>target</u>
         <b class="k">.endf</b>
 
         <b class="k">mva</b> #<span>1</span>, <u>label</u>
@@ -2455,6 +2480,7 @@ statement.</p>
 <dt><code><b class="k">.comment</b></code><a name="d_comment" href="#d_comment"></a>
 <dd>Never compile.
 <dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
+<dt><code><b class="k">.endcomment</b></code><a name="d_endcomment" href="#d_endcomment"></a>
 <dd>End of conditional compilation.
 </dl>
 
@@ -2632,8 +2658,10 @@ ctable  <b class="d">.byte</b> <u>colors</u>.(<u>red</u>, <u>green</u>, <u>blue<
 </pre>
 <dl class="dir">
 <dt><code><b class="k">.proc</b></code><a name="d_proc" href="#d_proc"></a>
+<dd>Start of a procedure block
 <dt><code><b class="k">.pend</b></code><a name="d_pend" href="#d_pend"></a>
-<dd>Start a procedure, close and start next procedure and finish procedure.
+<dt><code><b class="k">.endproc</b></code><a name="d_endproc" href="#d_endproc"></a>
+<dd>End of a procedure block
 <p>If the symbol in front is not referenced anywhere then the enclosed source
 won't be compiled.</p>
 <p>Symbols inside are enclosed in a scope and are accessible through the
@@ -2669,8 +2697,10 @@ but these macro calls still need to be manually managed.
 </dl>
 
 <dt><code><b class="k">.block</b></code><a name="d_block" href="#d_block"></a>
+<dd>Block scoping area start
 <dt><code><b class="k">.bend</b></code><a name="d_bend" href="#d_bend"></a>
-<dd>Block start and block end.
+<dt><code><b class="k">.endblock</b></code><a name="d_endblock" href="#d_endblock"></a>
+<dd>Block scoping area end
 <p>All symbols inside a block are enclosed in a scope. If the block had a symbol
 then local symbols are accessible through that using the dot notation.</p>
 <pre width=80>
@@ -2681,8 +2711,10 @@ count	<b>ldx</b> #<span>0</span>
 </pre>
 
 <dt><code><b class="k">.namespace</b> [&lt;symbol&gt;]</code><a name="d_namespace" href="#d_namespace"></a>
+<dd>Namespace area start
 <dt><code><b class="k">.endn</b></code><a name="d_endn" href="#d_endn"></a>
-<dd>Namespace area
+<dt><code><b class="k">.endnamespace</b></code><a name="d_endnamespace" href="#d_endnamespace"></a>
+<dd>Namespace area end
 <p>This directive either creates a new scope (if used without a parameter) or activates the one in the parameter.</p>
 <p>The scope can be assigned to a symbol in front of the directive so that it can be reactivated later.</p>
 <p>This enabled label definitions into the same scope in different files.</p>
@@ -2738,9 +2770,12 @@ compile offset and program counters for each defined section.</p>
 
 <dl class="dir">
 <dt><code><b class="k">.section</b></code> &lt;name&gt;<a name="d_section" href="#d_section"></a>
+<dd>Starts a segment block
 <dt><code><b class="k">.send</b></code> [&lt;name&gt;]<a name="d_send" href="#d_send"></a>
-<dd>Defines a section fragment. The name at <code>.send</code> must match but
-it's optional.
+<dt><code><b class="k">.endsection</b></code> [&lt;name&gt;]<a name="d_endsection" href="#d_endsection"></a>
+<dd>Ends a segment block
+<p>Defines a section fragment. The name at <code>.send</code> must match but
+it's optional.</p>
 <dt><code><b class="d">.dsection</b></code> &lt;name&gt;<a name="d_dsection" href="#d_dsection"></a>
 <dd>Collect the section fragments here.
 </dl>
@@ -2774,7 +2809,7 @@ start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.</p>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;</i>
         <b class="k">.section</b> <u>code</u>
         <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)
+        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
 ss	<b class="d">.word</b> <span>0</span>
 
 start   <b>sei</b>
@@ -2803,7 +2838,7 @@ p3	<b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
 <p>The compiled code will look like:</p>
 <pre width=80>
 &gt;0801	 0b 08 d5 07			        <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%d"</span>, <u>start</u>)
+&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
 &gt;080b	 00 00				ss      <b class="d">.word</b> <span>0</span>
 
 .080d	 78				start   <b>sei</b>
@@ -2942,8 +2977,11 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <dl class="dir">
 
 <dt><code><b class="k">.page</b></code><a name="d_page" href="#d_page"></a>
+<dd>Start of page check block
 <dt><code><b class="k">.endp</b></code><a name="d_endp" href="#d_endp"></a>
-<dd>Gives an error on page boundary crossing, e.g. for timing sensitive code.
+<dt><code><b class="k">.endpage</b></code><a name="d_endpage" href="#d_endpage"></a>
+<dd>End of page check block
+<p>Gives an error on page boundary crossing, e.g. for timing sensitive code.</p>
 
 <pre width=80>
 	<b class="k">.page</b>
@@ -4223,7 +4261,7 @@ line option. The message format is the following:</p>
 the error location unless this is disabled by using <q><a
 href="#o_no-caret-diag"><code>--no-caret-diag</code></a></q> option.</p>
 
-<pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined ident 'label'</strong>
+<pre width=80><strong>a.asm:3:21: <span style="color:red">error:</span> not defined symbol 'label'</strong>
                  lda label
                      <strong><span style="color:green">^</span></strong>
 <strong>a.asm:3:21: <span style="color:darkcyan">note:</span></strong> searched in the global scope</pre>
@@ -4232,7 +4270,7 @@ looks different to the one in the original source file.</p>
 Error buried deep in included files or macros display a backtrace of files after an <q>In
 file included from</q> text where all the files and positions involved are listed down to the main file.
 <pre width=80>In file included from <strong>main.asm:3:3</strong>:
-<strong>included.asm:2:11: <span style="color:red">error:</span> not defined ident 'test'</strong>
+<strong>included.asm:2:11: <span style="color:red">error:</span> not defined symbol 'test'</strong>
  		#macro1 test
  		        <strong><span style="color:green">^</span></strong>
 In file included from <strong>included.asm:2:3</strong>,
@@ -4323,7 +4361,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>floating point overflow<dd>infinity reached during a calculation
 <dt>general syntax<dd>can't do anything with this
 <dt>index out of range<dd>not enough elements in list
-<dt>key error<dd>key not in the dictionary
+<dt>key not in dictionary<dd>key not in the dictionary
 <dt>label required<dd>a label is mandatory for this directive
 <dt>larger than original due to negative offset<dd>if a negative offset is used the size gets larger than the original as this effectively adds bytes to the front.
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
@@ -4340,7 +4378,6 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.</p>
 <dt>not a direct page address<dd>value must be a direct page address
 <dt>not a key and value pair<dd>dictionaries are built from key and value pairs separated by a colon
 <dt>not a variable<dd>only variables are changeable
-<dt>not allowed here: ?<dd>do not use this directive here
 <dt>not defined '?'<dd>can't find this label at this point
 <dt>not hashable<dd>the type can't be used as a key in a dictionary
 <dt>not in range -1.0 to 1.0<dd>the function is only valid in the -1.0 to 1.0 range
@@ -5471,16 +5508,29 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#d_elsif">.elsif</a>
 <a href="#d_enc">.enc</a>
 <a href="#d_end">.end</a>
+<a href="#d_endblock">.endblock</a>
 <a href="#d_endc">.endc</a>
+<a href="#d_endcomment">.endcomment</a>
 <a href="#d_endf">.endf</a>
+<a href="#d_endfunction">.endfunction</a>
 <a href="#d_endif">.endif</a>
+<a href="#d_endlogical">.endlogical</a>
 <a href="#d_endm">.endm</a>
+<a href="#d_endmacro">.endmacro</a>
 <a href="#d_endn">.endn</a>
+<a href="#d_endnamespace">.endnamespace</a>
 <a href="#d_endp">.endp</a>
+<a href="#d_endpage">.endpage</a>
+<a href="#d_endproc">.endproc</a>
 <a href="#d_ends">.ends</a>
+<a href="#d_endsection">.endsection</a>
+<a href="#d_endsegment">.endsegment</a>
+<a href="#d_endstruct">.endstruct</a>
 <a href="#d_endswitch">.endswitch</a>
 <a href="#d_endu">.endu</a>
+<a href="#d_endunion">.endunion</a>
 <a href="#d_endv">.endv</a>
+<a href="#d_endvirtual">.endvirtual</a>
 <a href="#d_endweak">.endweak</a>
 <a href="#d_endwith">.endwith</a>
 <a href="#d_eor">.eor</a>
@@ -5521,6 +5571,7 @@ parameters (e.g. <code>rmb 7,$20</code>).</p>
 <a href="#d_seed">.seed</a>
 <a href="#d_segment">.segment</a>
 <a href="#d_send">.send</a>
+<a href="#d_sfunction">.sfunction</a>
 <a href="#d_shift">.shift</a>
 <a href="#d_shiftl">.shiftl</a>
 <a href="#d_showmac">.showmac</a>

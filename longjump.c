@@ -1,5 +1,5 @@
 /*
-    $Id: longjump.c 1961 2019-09-04 03:35:09Z soci $
+    $Id: longjump.c 2296 2021-01-24 22:52:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,10 +22,9 @@
 
 static FAST_CALL int longjump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    const struct longjump_s *a = cavltree_container_of(aa, struct longjump_s, node);
-    const struct longjump_s *b = cavltree_container_of(bb, struct longjump_s, node);
-    if (a->address != b->address) return a->address > b->address ? 1 : -1;
-    return 0;
+    address_t a = cavltree_container_of(aa, struct longjump_s, node)->address;
+    address_t b = cavltree_container_of(bb, struct longjump_s, node)->address;
+    return (a > b) - (a < b);
 }
 
 static void longjump_free(struct avltree_node *aa)
