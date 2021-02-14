@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2343 2021-02-06 22:40:40Z soci $
+    $Id: symbolobj.c 2352 2021-02-07 22:28:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -137,6 +137,21 @@ static MUST_CHECK struct Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint))
     v1->hash = h;
     *hs = h;
     return NULL;
+}
+
+bool symbol_cfsame(Symbol *v1, Symbol *v2) {
+    str_t *n1 = &v1->cfname, *n2 = &v2->cfname;
+    if (n1->data == NULL) {
+        str_cfcpy(n1, &v1->name);
+        if (n1->data != v1->name.data) str_cfcpy(n1, NULL);
+    }
+    if (n2->data == NULL) {
+        str_cfcpy(n2, &v2->name);
+        if (n2->data != v2->name.data) str_cfcpy(n2, NULL);
+    }
+    if (str_cmp(n1, n2) != 0) return false;
+    if (diagnostics.case_symbol && str_cmp(&v1->name, &v2->name) != 0) err_msg_symbol_case2(v1, v2);
+    return true;
 }
 
 static inline int icmp(oper_t op) {

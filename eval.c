@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: eval.c 2355 2021-02-07 23:13:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1311,6 +1311,7 @@ static bool get_exp2(int stop) {
                 symbol.len = get_label(symbol.data);
                 if (symbol.len != 0) {
                     lpoint.pos += symbol.len + 1;
+                    if (symbol.len > 1 && symbol.data[0] == '_' && symbol.data[1] == '_') err_msg2(ERROR_RESERVED_LABL, &symbol, &epoint);
                     push_oper((Obj *)new_symbol(&symbol, &epoint), &epoint);
                     goto other;
                 }
@@ -1596,7 +1597,14 @@ static bool get_exp2(int stop) {
             if (opr.p >= opr.l) extend_opr(&opr);
             lpoint.pos++;
             continue;
-        case '=': op = &o_EQ; if (pline[lpoint.pos + 1] != '=') {if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint);lpoint.pos--;}
+        case '=':
+            if (pline[lpoint.pos + 1] != '=') {
+                if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint);
+                lpoint.pos--;
+                op = &o_EQ;
+            } else {
+                op = pline[lpoint.pos + 2] != '=' ? &o_EQ : &o_IDENTITY;
+            }
         push2:
             lpoint.pos += op->len;
         push2a:

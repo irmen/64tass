@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: obj.c 2354 2021-02-07 23:03:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
     Obj *v1, *v2;
     Error *err;
     switch (op->op->op) {
+    case O_IDENTITY:
     case O_EQ: return truth_reference(op->v1 == op->v2 || op->v1->obj->same(op->v1, op->v2));
     case O_NE: return truth_reference(op->v1 != op->v2 && !op->v1->obj->same(op->v1, op->v2));
     case O_X:

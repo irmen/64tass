@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.h 2338 2021-02-06 17:22:10Z soci $
+    $Id: symbolobj.h 2352 2021-02-07 22:28:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define SYMBOLOBJ_H
 #include "obj.h"
 #include "str.h"
+#include "stdbool.h"
 
 extern struct Type *const SYMBOL_OBJ;
 
@@ -38,6 +39,7 @@ extern void symbolobj_init(void);
 
 extern Symbol *new_symbol(const str_t *name, linepos_t);
 
+extern bool symbol_cfsame(Symbol *, Symbol *);
 static inline Symbol *ref_symbol(Symbol *v1) {
     v1->v.refcount++; return v1;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2327 2021-02-06 04:32:47Z soci $
+    $Id: bitsobj.c 2354 2021-02-07 23:03:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -291,10 +291,10 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     int h;
 
     switch (v1->len) {
-    case ~1: *hs = (~v1->data[0]) & ((~0U) >> 1); return NULL;
-    case ~0: *hs = ((~0U) >> 1); return NULL;
-    case 0: *hs = 0; return NULL;
-    case 1: *hs = v1->data[0] & ((~0U) >> 1); return NULL;
+    case ~1: *hs = (v1->bits ^ ~v1->data[0]) & ((~0U) >> 1); return NULL;
+    case ~0: *hs = (v1->bits ^ ~0U) & ((~0U) >> 1); return NULL;
+    case 0: *hs = v1->bits & ((~0U) >> 1); return NULL;
+    case 1: *hs = (v1->bits ^ v1->data[0]) & ((~0U) >> 1); return NULL;
     default: break;
     }
     if (v1->data != v1->u.val && v1->u.hash >= 0) {
@@ -314,6 +314,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
             h += v1->data[l];
         }
     }
+    h ^= v1->bits;
     h &= ((~0U) >> 1);
     if (v1->data != v1->u.val) v1->u.hash = h;
     *hs = h;
@@ -1150,6 +1151,7 @@ static MUST_CHECK Obj *calc2_bits(oper_t op) {
     case O_XOR: return xor_(op);
     case O_CONCAT: return concat(op);
     case O_IN: return obj_oper_error(op); /* TODO */
+    case O_IDENTITY: return truth_reference(op->v1 == op->v2 || same(op->v1, op->v2));
     default: return NULL;
     }
 }

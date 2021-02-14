@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: dictobj.c 2352 2021-02-07 22:28:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "symbolobj.h"
 
 static Type obj;
 
@@ -129,52 +130,11 @@ static FAST_CALL void garbage(Obj *o1, int j) {
     }
 }
 
-static struct oper_s pair_oper;
-
-static bool equal(Obj *, Obj *);
-
-static bool iter_equal(Obj *o1, Obj *o2) {
-    bool h;
-    struct iter_s iter1;
-    struct iter_s iter2;
-    iter1.data = o1; o1->obj->getiter(&iter1);
-    iter2.data = o2; o2->obj->getiter(&iter2);
-    do {
-        o1 = iter1.next(&iter1);
-        o2 = iter2.next(&iter2);
-        if (o1 == NULL) {
-            h = (o2 == NULL);
-            break;
-        }
-        if (o2 == NULL) {
-            h = false;
-            break;
-        }
-        h = equal(o1, o2);
-    } while (h);
-    iter_destroy(&iter2);
-    iter_destroy(&iter1);
-    return h;
-}
-
-static bool equal(Obj *o1, Obj *o2) {
-    bool h;
-    Obj *result;
-    if (o1->obj->iterable || o2->obj->iterable) {
-        return o1->obj->iterable && o2->obj->iterable && iter_equal(o1, o2);
-    }
-    pair_oper.v1 = o1;
-    pair_oper.v2 = o2;
-    pair_oper.inplace = NULL;
-    result = o1->obj->calc2(&pair_oper);
-    h = (result == &true_value->v);
-    val_destroy(result);
-    return h;
-}
-
-static bool pair_equal(const struct pair_s *a, const struct pair_s *b)
+static bool pair_same(const struct pair_s *a, const struct pair_s *b)
 {
-    return a->hash == b->hash && equal(a->key, b->key);
+    if (a->hash != b->hash || a->key->obj != b->key->obj) return false;
+    if (a->key->obj->type == T_SYMBOL) return symbol_cfsame((Symbol *)a->key, (Symbol *)b->key);
+    return a->key->obj->same(a->key, b->key);
 }
 
 static void dict_update(Dict *dict, const struct pair_s *p) {
@@ -188,7 +148,7 @@ static void dict_update(Dict *dict, const struct pair_s *p) {
         uint8_t *indexes = (uint8_t *)&dict->data[dict->u.s.max];
         while (indexes[offs] != (uint8_t)~0) {
             d = &dict->data[indexes[offs]];
-            if (p->key == d->key || pair_equal(p, d)) {
+            if (p->key == d->key || pair_same(p, d)) {
             found:
                 if (d->data != NULL) val_destroy(d->data);
                 d->data = (p->data == NULL) ? NULL : val_reference(p->data);
@@ -205,7 +165,7 @@ static void dict_update(Dict *dict, const struct pair_s *p) {
         size_t *indexes = (size_t *)&dict->data[dict->u.s.max];
         while (indexes[offs] != SIZE_MAX) {
             d = &dict->data[indexes[offs]];
-            if (p->key == d->key || pair_equal(p, d)) goto found;
+            if (p->key == d->key || pair_same(p, d)) goto found;
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
         } 
@@ -222,7 +182,7 @@ static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p
     struct pair_s *d;
     if (dict->u.val == dict->data) {
         d = &dict->data[0];
-        if (p->key == d->key || pair_equal(p, d)) return d;
+        if (p->key == d->key || pair_same(p, d)) return d;
     } else if (dict->u.s.mask < (1 << (sizeof(uint8_t)*8))) {
         size_t mask = dict->u.s.mask;
         size_t hash = (size_t)p->hash;
@@ -230,7 +190,7 @@ static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p
         uint8_t *indexes = (uint8_t *)&dict->data[dict->u.s.max];
         while (indexes[offs] != (uint8_t)~0) {
             d = &dict->data[indexes[offs]];
-            if (p->key == d->key || pair_equal(p, d)) return d;
+            if (p->key == d->key || pair_same(p, d)) return d;
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
         } 
@@ -241,7 +201,7 @@ static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p
         size_t *indexes = (size_t *)&dict->data[dict->u.s.max];
         while (indexes[offs] != SIZE_MAX) {
             d = &dict->data[indexes[offs]];
-            if (p->key == d->key || pair_equal(p, d)) return d;
+            if (p->key == d->key || pair_same(p, d)) return d;
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
         } 
@@ -639,7 +599,6 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         }
         v = new_list();
         v->data = vals = list_create_elements(v, iter.len);
-        pair_oper.epoint3 = epoint2;
         for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             vv = findit(v1, o2, epoint2);
             if (vv->obj != ERROR_OBJ && more) {
@@ -695,7 +654,6 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         return &v->v;
     }
 
-    pair_oper.epoint3 = epoint2;
     vv = findit(v1, o2, epoint2);
     if (vv->obj != ERROR_OBJ && more) {
         op->v1 = vv;
@@ -865,8 +823,6 @@ Obj *dictobj_parse(struct values_s *values, size_t args) {
 }
 
 void dictobj_init(void) {
-    static struct linepos_s nopoint;
-
     new_type(&obj, T_DICT, "dict", sizeof(Dict));
     obj.iterable = true;
     obj.create = create;
@@ -881,11 +837,6 @@ void dictobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
     obj.slice = slice;
-
-    pair_oper.op = &o_EQ;
-    pair_oper.epoint = &nopoint;
-    pair_oper.epoint2 = &nopoint;
-    pair_oper.epoint3 = &nopoint;
 }
 
 void dictobj_names(void) {

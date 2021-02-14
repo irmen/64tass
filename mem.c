@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2261 2020-11-18 20:27:10Z soci $
+    $Id: mem.c 2362 2021-02-14 08:01:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -536,16 +536,12 @@ FAST_CALL uint8_t *alloc_mem(Memblocks *memblocks, size_t len) {
     return d;
 }
 
-static size_t omemp;
-static size_t ptextaddr;
-static address_t oaddr, oaddr2, olastaddr;
-
-void mark_mem(const Memblocks *memblocks, address_t adr, address_t adr2) {
-    ptextaddr = memblocks->mem.p;
-    omemp = memblocks->p;
-    olastaddr = memblocks->lastaddr;
-    oaddr = adr;
-    oaddr2 = adr2;
+void mark_mem(struct mem_mark_s *mm, const Memblocks *memblocks, address_t adr, address_t adr2) {
+    mm->ptextaddr = memblocks->mem.p;
+    mm->omemp = memblocks->p;
+    mm->olastaddr = memblocks->lastaddr;
+    mm->oaddr = adr;
+    mm->oaddr2 = adr2;
 }
 
 size_t get_mem(const Memblocks *memblocks) {
@@ -583,14 +579,14 @@ int read_mem(const Memblocks *memblocks, address_t raddr, size_t membp, size_t o
     return -1;
 }
 
-void write_mark_mem(Memblocks *memblocks, unsigned int c) {
-    memblocks->mem.data[ptextaddr] = (uint8_t)c;
+void write_mark_mem(const struct mem_mark_s *mm, Memblocks *memblocks, unsigned int c) {
+    memblocks->mem.data[mm->ptextaddr] = (uint8_t)c;
 }
 
-void list_mem(const Memblocks *memblocks) {
+void list_mem(const struct mem_mark_s *mm, const Memblocks *memblocks) {
     bool first = true;
-    size_t o = omemp;
-    address_t addr2 = oaddr;
+    size_t o = mm->omemp;
+    address_t addr2 = mm->oaddr;
 
     for (; o <= memblocks->p; o++) {
         size_t p;
@@ -608,7 +604,7 @@ void list_mem(const Memblocks *memblocks) {
 
         if (first) {
             first = false;
-            if (addr != olastaddr) {
+            if (addr != mm->olastaddr) {
                 len = 0;
                 o--;
             } else {
@@ -621,6 +617,6 @@ void list_mem(const Memblocks *memblocks) {
         } else {
             if (len == 0) continue;
         }
-        listing_mem(listing, memblocks->mem.data + p, len, addr, ((oaddr2 + addr - addr2) & 0xffff) | (oaddr2 & ~(address_t)0xffff));
+        listing_mem(listing, memblocks->mem.data + p, len, addr, (mm->oaddr2 + addr - addr2) & all_mem);
     }
 }

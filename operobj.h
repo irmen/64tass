@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.h 1943 2019-08-31 09:05:47Z soci $
+    $Id: operobj.h 2354 2021-02-07 23:03:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,6 +90,7 @@ extern Oper o_STRING;
 extern Oper o_LOR;
 extern Oper o_LXOR;
 extern Oper o_LAND;
+extern Oper o_IDENTITY;
 extern Oper o_IN;
 extern Oper o_CMP;
 extern Oper o_EQ;

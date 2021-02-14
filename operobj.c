@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 1669 2018-12-03 21:10:34Z soci $
+    $Id: operobj.c 2354 2021-02-07 23:03:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ Oper o_STRING      = { {&obj, 0}, "decimal string '^", O_STRING, 4, 1};
 Oper o_LOR         = { {&obj, 0}, "logical or '||", O_LOR, 5, 2};
 Oper o_LXOR        = { {&obj, 0}, "logical xor '^^", O_LXOR, 6, 2};
 Oper o_LAND        = { {&obj, 0}, "logical and '&&", O_LAND, 7, 2};
+Oper o_IDENTITY    = { {&obj, 0}, "identity '===", O_IDENTITY, 8, 3};
 Oper o_IN          = { {&obj, 0}, "contains 'in", O_IN, 8, 2};
 Oper o_CMP         = { {&obj, 0}, "compare '<=>", O_CMP, 8, 3};
 Oper o_EQ          = { {&obj, 0}, "equal '==", O_EQ, 8, 2};

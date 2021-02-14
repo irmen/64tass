@@ -396,10 +396,10 @@ y .. x concatenate strings  "a" .. "b" is "ab"
 y in x is substring of      "b" in "abc" is true
 a x n  repeat               "ab" x 3 is "ababab"
 a[i]   character from start "abc"[1] is "b"
-a[i]   character from end   "abc"[-1] is "c"
-a[s]   no change            "abc"[:] is "abc"
-a[s]   cut off start        "abc"[1:] is "bc"
-a[s]   cut off end          "abc"[:-1] is "ab"
+a[-i]  character from end   "abc"[-1] is "c"
+a[:]   no change            "abc"[:] is "abc"
+a[s:]  cut off start        "abc"[1:] is "bc"
+a[:-s] cut off end          "abc"[:-1] is "ab"
 a[s]   reverse              "abc"[::-1] is "cba"
 
 Character strings are converted to integers, byte and bit strings as necessary
@@ -437,10 +437,10 @@ y .. x concatenate strings x"12" .. x"34" is x"1234"
 y in x is substring of     x"34" in x"1234" is true
 a x n  repeat              x"ab" x 3 is x"ababab"
 a[i]   byte from start     x"abcd12"[1] is x"cd"
-a[i]   byte from end       x"abcd"[-1] is x"cd"
-a[s]   no change           x"abcd"[:] is x"abcd"
-a[s]   cut off start       x"abcdef"[1:] is x"cdef"
-a[s]   cut off end         x"abcdef"[:-1] is x"abcd"
+a[-i]  byte from end       x"abcd"[-1] is x"cd"
+a[:]   no change           x"abcd"[:] is x"abcd"
+a[s:]  cut off start       x"abcdef"[1:] is x"cdef"
+a[:-s] cut off end         x"abcdef"[:-1] is x"abcd"
 a[s]   reverse             x"abcdef"[::-1] is x"efcdab"
 
 Byte strings support indexing and slicing. This is explained in detail in
@@ -482,18 +482,18 @@ Lists and tuples can hold a collection of values. Lists are defined from values
 separated by comma between square brackets [1, 2, 3], an empty list is [].
 Tuples are similar but are enclosed in parentheses instead. An empty tuple is
 (), a single element tuple is (4,) to differentiate from normal numeric
-expression parentheses. When nested they function similar to an array.
-Currently both types are immutable.
+expression parentheses. When nested they function similar to an array. Both
+types are immutable.
 
           List and tuple operators and functions
 y .. x   concatenate lists    [1] .. [2] is [1, 2]
 y in x   is member of list    2 in [1, 2, 3] is true
 a x n    repeat               [1, 2] x 2 is [1, 2, 1, 2]
 a[i]     element from start   ("1", 2)[1] is 2
-a[i]     element from end     ("1", 2, 3)[-1] is 3
-a[s]     no change            (1, 2, 3)[:] is (1, 2, 3)
-a[s]     cut off start        (1, 2, 3)[1:] is (2, 3)
-a[s]     cut off end          (1, 2.0, 3)[:-1] is (1, 2.0)
+a[-i]    element from end     ("1", 2, 3)[-1] is 3
+a[:]     no change            (1, 2, 3)[:] is (1, 2, 3)
+a[s:]    cut off start        (1, 2, 3)[1:] is (2, 3)
+a[:-s]   cut off end          (1, 2.0, 3)[:-1] is (1, 2.0)
 a[s]     reverse              (1, 2, 3)[::-1] is (3, 2, 1)
 *a       convert to arguments format("%d: %s", *mylist)
 ... op a left fold            ... + (1, 2, 3) is ((1+2)+3)
@@ -553,17 +553,19 @@ scrhi   .byte >_
 
 Dictionaries
 
-Dictionaries are unsorted lists holding key and value pairs. Definition is done
-by collecting key:value pairs separated by comma between braces {1:"value",
-"key":1, :"optional default value"}.
+Dictionaries hold key and value pairs. Definition is done by collecting
+key:value pairs separated by comma between braces {"key":"value", :"default
+value"}.
 
-Looking up a non existing key is normally an error unless a default value is
-given. An empty dictionary is {}. Currently this type is immutable. Numeric and
-string keys are accepted, the value can be anything.
+Looking up a non-existing key is normally an error unless a default value is
+given. An empty dictionary is {}. This type is immutable. There are limitations
+what may be used as a key but the value can be anything.
 
-  Dictionary operators and functions
-x[i]   value lookup {"1":2}["1"] is 2
-y in x is a key     1 in {1:2} is true
+                  Dictionary operators and functions
+y .. x combine dictionaries {1:2, 3:4} .. {2:3, 3:1} is {1:2, 2:3, 3:1}
+x[i]   value lookup         {"1":2}["1"] is 2
+x.i    symbol lookup        {.ONE:1, .TWO:2}.ONE is 1
+y in x is a key             1 in {1:2} is true
 
 ; Simple lookup
         .text {1:"one", 2:"two"}[2]; "two"
@@ -1225,10 +1227,10 @@ Traditional comparison operators give false or true depending on the result.
 The compare operator (<=>) gives -1 for less, 0 for equal and 1 for more.
 
         Comparison operators
-<=> compare
-==  equals    != not equal
-<   less than >= more than or equals
->   more than <= less than or equals
+<=> compare   === identical
+==  equals    !=  not equal
+<   less than >=  more than or equals
+>   more than <=  less than or equals
 
 Byte extraction operators
 

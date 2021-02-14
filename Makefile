@@ -76,7 +76,8 @@ codeobj.o: codeobj.c codeobj.h obj.h attributes.h inttypes.h values.h \
 console.o: console.c console.h stdbool.h
 dictobj.o: dictobj.c dictobj.h obj.h attributes.h inttypes.h eval.h \
  stdbool.h error.h errors_e.h variables.h intobj.h listobj.h values.h \
- strobj.h boolobj.h operobj.h oper_e.h typeobj.h noneobj.h errorobj.h
+ strobj.h boolobj.h operobj.h oper_e.h typeobj.h noneobj.h errorobj.h \
+ symbolobj.h str.h
 encoding.o: encoding.c encoding.h stdbool.h inttypes.h errors_e.h \
  encodings.h error.h attributes.h ternary.h unicode.h values.h 64tass.h \
  wait_e.h avl.h str.h strobj.h obj.h bytesobj.h oper_e.h typeobj.h \
@@ -198,7 +199,7 @@ strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
  boolobj.h bytesobj.h oper_e.h intobj.h bitsobj.h listobj.h values.h \
  operobj.h typeobj.h noneobj.h errorobj.h
 symbolobj.o: symbolobj.c symbolobj.h obj.h attributes.h inttypes.h str.h \
- eval.h stdbool.h unicode.h error.h errors_e.h file.h values.h \
+ stdbool.h eval.h unicode.h error.h errors_e.h file.h values.h \
  arguments.h typeobj.h operobj.h oper_e.h strobj.h errorobj.h
 ternary.o: ternary.c ternary.h stdbool.h inttypes.h unicode.h \
  attributes.h error.h errors_e.h

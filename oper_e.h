@@ -1,5 +1,5 @@
 /*
-    $Id: oper_e.h 1943 2019-08-31 09:05:47Z soci $
+    $Id: oper_e.h 2354 2021-02-07 23:03:40Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -76,8 +76,9 @@ typedef enum Oper_types {
     O_INV,           /* ~     */
     O_LNOT,          /* !     */
 
+    O_IDENTITY,      /* ===   */
     O_CMP,           /* <=>   */
-    O_EQ,            /* =     */
+    O_EQ,            /* ==    */
     O_NE,            /* !=    */
     O_LT,            /* <     */
     O_GT,            /* >     */

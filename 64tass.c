@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: 64tass.c 2364 2021-02-14 09:03:47Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -3387,8 +3387,8 @@ MUST_CHECK Obj *compile(void)
             case CMD_DWORD: /* .dword */
             case CMD_BINARY: if ((waitfor->skip & 1) != 0)
                 { /* .binary */
+                    struct mem_mark_s mm;
                     if (diagnostics.optimize) cpu_opt_invalidate();
-                    mark_mem(current_address->mem, current_address->address, star);
 
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         size_t ln;
@@ -3408,6 +3408,7 @@ MUST_CHECK Obj *compile(void)
                         trec.prm = prm;
                         trec.error = ERROR__USER_DEFINED;
                         trec.epoint = &epoint;
+                        mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
                             if (trec.len != 0) {
                                 if (trec.len > 0) memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
@@ -3437,8 +3438,9 @@ MUST_CHECK Obj *compile(void)
                         if (trec.len > 0) memcpy(pokealloc(trec.len, trec.epoint), trec.buff, trec.len);
                         if (prm == CMD_PTEXT) {
                             if (trec.sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &trec.sum, &epoint);
-                            write_mark_mem(current_address->mem, (trec.sum-1) ^ outputeor);
+                            write_mark_mem(&mm, current_address->mem, (trec.sum-1) ^ outputeor);
                         }
+                        if (nolisting == 0) list_mem(&mm, current_address->mem);
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
                         int bits;
                         size_t ln;
@@ -3475,6 +3477,7 @@ MUST_CHECK Obj *compile(void)
                         if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         brec.len = 0;
                         brec.warn = false;
+                        mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
                             brec.epoint = &vs->epoint;
                             byterecursion(vs->val, prm, &brec, bits);
@@ -3484,6 +3487,7 @@ MUST_CHECK Obj *compile(void)
                             else memskip(-brec.len, brec.epoint);
                             brec.len = 0;
                         }
+                        if (nolisting == 0) list_mem(&mm, current_address->mem);
                     } else if (prm==CMD_BINARY) { /* .binary */
                         struct file_s *cfile2 = NULL;
                         ival_t foffs = 0;
@@ -3514,6 +3518,7 @@ MUST_CHECK Obj *compile(void)
 
                         if (cfile2 != NULL) {
                             size_t foffset;
+                            mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                             if (foffs < 0) foffset = (uval_t)-foffs < cfile2->len ? (cfile2->len - (uval_t)-foffs) : 0;
                             else foffset = (uval_t)foffs;
                             for (; fsize != 0 && foffset < cfile2->len;) {
@@ -3527,11 +3532,8 @@ MUST_CHECK Obj *compile(void)
                                 foffset += ln;
                                 fsize -= ln;
                             }
+                            if (nolisting == 0) list_mem(&mm, current_address->mem);
                         }
-                    }
-
-                    if (nolisting == 0) {
-                        list_mem(current_address->mem);
                     }
                 }
                 break;
@@ -3542,16 +3544,16 @@ MUST_CHECK Obj *compile(void)
 
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
+                    vs = get_val();
+                    if (toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) break;
                     if (!current_address->moved) {
                         if (current_address->end < current_address->address) current_address->end = current_address->address;
                         current_address->moved = true;
                     }
                     current_address->wrapwarn = false;
-                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
-                    vs = get_val();
-                    if (toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) break;
-                    if (current_address->address != ((address_t)(star + ival) & all_mem2)) {
-                        current_address->address = (address_t)(star + ival) & all_mem2;
+                    if (current_address->address != ((address_t)(current_address->l_address + ival) & all_mem2)) {
+                        current_address->address = (address_t)(current_address->l_address + ival) & all_mem2;
                         memjmp(current_address->mem, current_address->address);
                     }
                 }
@@ -3791,6 +3793,7 @@ MUST_CHECK Obj *compile(void)
                     address_t db = 0;
                     uval_t uval;
                     struct values_s *vs;
+                    struct mem_mark_s mm;
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         ((Code *)newlabel->value)->dtype = D_BYTE;
@@ -3814,7 +3817,7 @@ MUST_CHECK Obj *compile(void)
                         if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
                         else db = uval;
                     }
-                    mark_mem(current_address->mem, current_address->address, star);
+                    mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                     if ((vs = get_val()) != NULL) {
                         struct textrecursion_s trec;
                         size_t membp = get_mem(current_address->mem);
@@ -3872,7 +3875,7 @@ MUST_CHECK Obj *compile(void)
                         memskip(db, &epoint);
                     }
                     if (nolisting == 0) {
-                        list_mem(current_address->mem);
+                        list_mem(&mm, current_address->mem);
                     }
                 }
                 break;
@@ -4565,7 +4568,7 @@ MUST_CHECK Obj *compile(void)
                                 tmp3->address.address = (tmp3->address.address + change) & all_mem2;
                                 tmp3->address.start = tmp3->restart = current_address->address;
                                 if (tmp3->address.end < tmp3->address.start) tmp3->address.end = all_mem2 + 1;
-                                memjmp(tmp3->address.mem, current_address->address);
+                                tmp3->address.mem->lastaddr = (tmp3->address.mem->lastaddr + change) & all_mem2;
                             }
                             if (tmp3->l_restart != current_address->l_address) {
                                 tmp3->address.l_address = (tmp3->address.l_address + current_address->l_address - tmp3->l_restart) & all_mem;
