@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2306 2021-01-30 01:27:18Z soci $
+    $Id: functionobj.c 2411 2021-02-23 23:29:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -107,87 +107,76 @@ typedef MUST_CHECK Obj *(*func_t)(Funcargs *, linepos_t);
 static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f) {
     struct values_s *v = vals->val;
     size_t args = vals->len;
-    size_t j;
+    size_t j, k, ln = 1;
+    List *vv;
     struct elements_s {
         Obj *oval;
         struct iter_s iters;
     };
-    struct elements_s elements3[3], *elements;
+    struct elements_s elements3[3], *elements = NULL;
+
     for (j = 0; j < args; j++) {
-        const Type *objt2, *objt = v[j].val->obj;
+        const Type *objt = v[j].val->obj;
         if (objt->iterable) {
-            struct iter_s iter;
-            size_t ln, k;
-            if (args <= lenof(elements3)) {
-                elements = elements3; 
-            } else {
-                if (args > SIZE_MAX / sizeof *elements) goto failed; /* overflow */
-                elements = (struct elements_s *)malloc(args * sizeof *elements);
-                if (elements == NULL) goto failed;
+            struct iter_s *iter;
+            if (elements == NULL) {
+                if (args <= lenof(elements3)) {
+                    elements = elements3; 
+                } else {
+                    if (args > SIZE_MAX / sizeof *elements) goto failed; /* overflow */
+                    elements = (struct elements_s *)malloc(args * sizeof *elements);
+                    if (elements == NULL) goto failed;
+                }
+                k = j;
             }
-            elements[j].oval = v[j].val;
-            iter.data = v[j].val; objt->getiter(&iter);
-            ln = iter.len;
-            if (ln == 1) {
-                v[j].val = iter.next(&iter);
-                iter_destroy(&iter);
-                elements[j].iters.data = NULL;
-            } else elements[j].iters = iter;
-            for (k = j + 1; k < args; k++) {
-                elements[k].oval = v[k].val;
-                objt2 = elements[k].oval->obj;
-                if (objt2->iterable) {
-                    Error *err;
-                    struct iter_s iter2;
-                    iter2.data = elements[k].oval; objt2->getiter(&iter2);
-                    if (iter2.len != 1) {
-                        elements[k].iters = iter2;
-                        if (iter2.len == ln) continue;
-                        if (ln == 1) {
-                            ln = iter2.len;
-                            continue;
-                        }
-                        for (; k > j; k--) {
-                            if (elements[k].iters.data != NULL) iter_destroy(&elements[k].iters);
-                            v[k].val = elements[k].oval;
-                        }
-                        if (elements[j].iters.data != NULL) iter_destroy(&elements[j].iters);
-                        v[j].val = elements[j].oval;
-                        if (elements != elements3) free(elements);
-                        err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
-                        err->u.broadcast.v1 = ln;
-                        err->u.broadcast.v2 = iter2.len;
-                        return &err->v;
+            iter = &elements[j].iters;
+            elements[j].oval = iter->data = v[j].val; objt->getiter(iter);
+            if (iter->len == 1) {
+                v[j].val = iter->next(iter);
+            } else if (iter->len != ln) {
+                if (ln != 1) {
+                    Error *err = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
+                    err->u.broadcast.v1 = ln;
+                    err->u.broadcast.v2 = iter->len;
+                    for (; k < j + 1; k++) {
+                        if (elements[k].oval == NULL) continue;
+                        v[k].val = elements[k].oval;
+                        iter_destroy(&elements[k].iters);
                     }
-                    v[k].val = iter2.next(&iter2);
-                    iter_destroy(&iter2);
+                    if (elements != elements3) free(elements);
+                    return &err->v;
                 }
-                elements[k].iters.data = NULL;
+                ln = iter->len;
             }
-            if (ln != 0) {
-                size_t i;
-                List *vv = (List *)val_alloc(objt == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
-                Obj **vals2 = vv->data = list_create_elements(vv, ln);
-                for (i = 0; i < ln; i++) {
-                    for (k = j; k < args; k++) {
-                        if (elements[k].iters.data != NULL) v[k].val = elements[k].iters.next(&elements[k].iters);
-                    }
-                    vals2[i] = gen_broadcast(vals, epoint, f);
-                }
-                vv->len = i;
-                for (k = j; k < args; k++) {
-                    if (elements[k].iters.data != NULL) iter_destroy(&elements[k].iters);
-                    v[k].val = elements[k].oval;
-                }
-                if (elements != elements3) free(elements);
-                return &vv->v;
-            }
-            if (elements != elements3) free(elements);
-            iter_destroy(&iter);
-            return val_reference(objt == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+        } else if (elements != NULL) {
+            elements[j].oval = NULL;
         }
     }
-    return f(vals, epoint);
+    if (elements == NULL) {
+        return f(vals, epoint);
+    }
+    if (ln != 0) {
+        size_t i;
+        vv = (List *)val_alloc(v[k].val->obj == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+        Obj **vals2 = vv->data = list_create_elements(vv, ln);
+        for (i = 0; i < ln; i++) {
+            for (j = k; j < args; j++) {
+                if (elements[j].oval == NULL) continue;
+                if (elements[j].iters.len != 1) v[j].val = elements[j].iters.next(&elements[j].iters);
+            }
+            vals2[i] = gen_broadcast(vals, epoint, f);
+        }
+        vv->len = i;
+    } else {
+        vv = (List *)val_reference(v[k].val->obj == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+    }
+    for (; k < args; k++) {
+        if (elements[k].oval == NULL) continue;
+        v[k].val = elements[k].oval;
+        iter_destroy(&elements[k].iters);
+    }
+    if (elements != elements3) free(elements);
+    return &vv->v;
 failed:
     return (Obj *)new_error_mem(epoint);
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2352 2021-02-07 22:28:48Z soci $
+    $Id: symbolobj.c 2385 2021-02-20 12:25:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,7 +184,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(o2);
     default:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
+        if (o2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
         break;

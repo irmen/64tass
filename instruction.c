@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2273 2021-01-17 18:32:54Z soci $
+    $Id: instruction.c 2376 2021-02-14 23:59:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -528,14 +528,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     }
                 }
                 xadr = (uint16_t)adr;
-                s = invalid ? new_star(vline + 1, &starexists) : NULL;
 
                 oadr = uval;
                 oval = val->obj == ADDRESS_OBJ ? ((Address *)val)->val : val;
                 if (oval->obj == CODE_OBJ && pass != ((Code *)oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
-                    if (s == NULL) s = new_star(vline + 1, &starexists);
+                    s = new_star(vline + 1, &starexists);
                     adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
                 } else {
+                    s = invalid ? new_star(vline + 1, &starexists) : NULL;
                     adr = (uint16_t)(uval - current_address->l_address - 1 - ln);
                 }
                 if (false) {

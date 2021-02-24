@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2352 2021-02-07 22:28:48Z soci $
+    $Id: dictobj.c 2408 2021-02-23 19:43:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -602,8 +602,11 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
             vv = findit(v1, o2, epoint2);
             if (vv->obj != ERROR_OBJ && more) {
+                Obj *result;
                 op->v1 = vv;
-                vv = vv->obj->slice(op, indx + 1);
+                result = vv->obj->slice(op, indx + 1);
+                val_destroy(vv);
+                vv = result;
             }
             vals[i] = vv;
         }
@@ -656,8 +659,11 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
 
     vv = findit(v1, o2, epoint2);
     if (vv->obj != ERROR_OBJ && more) {
+        Obj *result;
         op->v1 = vv;
-        vv = vv->obj->slice(op, indx + 1);
+        result = vv->obj->slice(op, indx + 1);
+        val_destroy(vv);
+        return result;
     }
     return vv;
 }
@@ -717,7 +723,14 @@ static MUST_CHECK Obj *concat(oper_t op) {
     for (j = 0; j < v2->len; j++) {
         dict_update(dict, &v2->data[j]);
     }
-    dict->def = v2->def != NULL ? val_reference(v2->def) : v1->def != NULL ? val_reference(v1->def) : NULL;
+    if (op->inplace == &v1->v) {
+        if (v2->def != NULL) {
+            if (dict->def != NULL) val_destroy(dict->def);
+            dict->def = val_reference(v2->def);
+        }
+    } else {
+        dict->def = v2->def != NULL ? val_reference(v2->def) : v1->def != NULL ? val_reference(v1->def) : NULL;
+    }
     if (dict == v1) return &dict->v;
     return normalize(dict);
 failed:

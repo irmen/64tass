@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2327 2021-02-06 04:32:47Z soci $
+    $Id: bytesobj.c 2389 2021-02-20 18:50:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -238,12 +238,11 @@ static uint8_t *z85_encode(uint8_t *dest, const uint8_t *src, size_t len) {
     size_t i;
 
     for (i = 0; i < len; i += 4) {
-        uint8_t src2[4];
+        const uint8_t *src2 = src + i;
         uint32_t tmp;
         unsigned int j;
 
-        memcpy(src2, src + i, 4);
-        tmp = src2[3] | (src2[2] << 8) | (src2[1] << 16) | (src2[0] << 24);
+        tmp = (uint32_t)src2[3] | ((uint32_t)src2[2] << 8) | ((uint32_t)src2[1] << 16) | ((uint32_t)src2[0] << 24);
 
         for (j = 4; j > 0; j--) {
             uint32_t divided = tmp / 85;

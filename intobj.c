@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2281 2021-01-23 23:51:36Z soci $
+    $Id: intobj.c 2405 2021-02-21 21:58:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,11 +184,11 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = 0;
     if (l > 0) {
         while ((l--) != 0) {
-            h += v1->val[l];
+            h += v1->data[l];
         }
     } else {
         while ((l++) != 0) {
-            h -= v1->val[-l];
+            h -= v1->data[-l];
         }
     }
     *hs = h & ((~0U) >> 1);
@@ -569,7 +569,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
     while (i != 0 && v[i - 1] == 0) i--;
     if (vv == vv1 || vv == vv2) destroy(&vv->v);
     if (i <= lenof(vv->val)) {
-        memcpy(vv->val, v, i * sizeof *v);
+        if (i != 0) memcpy(vv->val, v, i * sizeof *v); else vv->val[0] = 0;
         if (tmp.val != v) free(v);
         v = vv->val;
     }
@@ -841,13 +841,20 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
             return val_reference(&minus1_value->v);
         }
         sz = (size_t)vv->len - word;
+        v = vv->data;
     } else {
         if ((size_t)vv1->len <= word) return val_reference(&int_value[0]->v);
         sz = (size_t)vv1->len - word;
-        vv = new_int();
+        if (op->inplace == &vv1->v) {
+            vv = ref_int(vv1);
+            v = vv->data;
+        }
+        else {
+            vv = new_int();
+            vv->data = v = inew2(vv, sz);
+            if (v == NULL) goto failed2;
+        }
     }
-    vv->data = v = inew2(vv, sz);
-    if (v == NULL) goto failed2;
     v1 = vv1->data + word;
     if (bit != 0) {
         for (i = 0; i < sz - 1; i++) {
@@ -855,7 +862,7 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
             v[i] |= v1[i + 1] << (SHIFT - bit);
         }
         v[i] = v1[i] >> bit;
-    } else if (sz != 0) memcpy(v, v1, sz * sizeof *v);
+    } else if (sz != 0) memmove(v, v1, sz * sizeof *v);
 
     if (neg) {
         vv->len = (ssize_t)sz;
@@ -896,6 +903,7 @@ static inline MUST_CHECK Obj *and_(oper_t op) {
 
     sz = neg2 ? len1 : len2;
     if (neg1 && neg2) sz++;
+    if (sz == 0) return (Obj *)ref_int(int_value[0]);
     vv = new_int();
     vv->data = v = inew2(vv, sz);
     if (v == NULL) goto failed2;
@@ -1476,7 +1484,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     while (osz != 0 && d[osz - 1] == 0) osz--;
     if (v->val != d) {
         if (osz <= lenof(v->val)) {
-            memcpy(v->val, d, osz * sizeof *d);
+            if (osz != 0) memcpy(v->val, d, osz * sizeof *d); else v->val[0] = 0;
             free(d);
             v->data = v->val;
         } else if (osz < sz) {
@@ -1502,7 +1510,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
         for (;;k++) {
             uint8_t c = s[k] ^ 0x30;
             if (c < 10) {
-                val = val * 10 + c;
+                val = (val <= ((~(digit_t)0)-9)/10) ? val * 10 + c : ~(digit_t)0;
                 continue;
             }
             if (c != ('_' ^ 0x30)) break;
@@ -1516,7 +1524,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (i < 10) {
+    if (~val != 0) {
         if (val >= lenof(int_value)) {
             v = new_int();
             v->data = v->val;

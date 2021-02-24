@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2340 2021-02-06 17:30:52Z soci $
+    $Id: error.c 2394 2021-02-20 22:40:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #include "errorobj.h"
 #include "noneobj.h"
 #include "symbolobj.h"
+#include "anonsymbolobj.h"
 #include "console.h"
 
 struct file_list_s *current_file_list;
@@ -159,18 +160,19 @@ static void error_extend(void) {
     struct errorentry_s *err;
     uint8_t *data = (uint8_t *)realloc(error_list.data, error_list.max);
     size_t diff, pos;
+    bool dir;
     if (data == NULL) err_msg_out_of_memory2();
-    diff = data - error_list.data;
+    dir = data >= error_list.data;
+    diff = dir ? (data - error_list.data) : (error_list.data - data);
     error_list.data = data;
     if (diff == 0) return;
     for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (struct errorentry_s *)&data[pos];
-        if (err->node.left != NULL) err->node.left = (struct avltree_node *)((uint8_t *)err->node.left + diff);
-        if (err->node.right != NULL) err->node.right = (struct avltree_node *)((uint8_t *)err->node.right + diff);
-        if (err->node.parent != NULL) err->node.parent = (struct avltree_node *)((uint8_t *)err->node.parent + diff);
+        if (err->node.left != NULL) err->node.left = (struct avltree_node *)((dir ? ((uint8_t *)err->node.left + diff) : ((uint8_t *)err->node.left - diff)));
+        if (err->node.right != NULL) err->node.right = (struct avltree_node *)((dir ? ((uint8_t *)err->node.right + diff) : ((uint8_t *)err->node.right - diff)));
+        if (err->node.parent != NULL) err->node.parent = (struct avltree_node *)((dir ? ((uint8_t *)err->node.parent + diff) : ((uint8_t *)err->node.parent - diff)));
     }
-    if (error_list.members.root != NULL) error_list.members.root = (struct avltree_node *)((uint8_t *)error_list.members.root + diff);
-    if (error_list.members.first != NULL) error_list.members.first = (struct avltree_node *)((uint8_t *)error_list.members.first + diff);
+    if (error_list.members.root != NULL) error_list.members.root = (struct avltree_node *)((dir ? ((uint8_t *)error_list.members.root + diff) : ((uint8_t *)error_list.members.root - diff)));
 }
 
 static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len, size_t pos) {
@@ -757,6 +759,15 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     val_destroy(&err->v);
 }
 
+void err_msg_not_defined2a(int32_t count, Namespace *l, bool down, linepos_t epoint) {
+    Error *err = new_error(ERROR___NOT_DEFINED, epoint);
+    err->u.notdef.down = down;
+    err->u.notdef.names = ref_namespace(l);
+    err->u.notdef.symbol = (Obj *)new_anonsymbol(count);
+    err_msg_not_defined3(err);
+    val_destroy(&err->v);
+}
+
 static void err_opcode(uint32_t cod) {
     adderror(" addressing mode ");
     if (cod != 0) {
@@ -981,6 +992,24 @@ void err_msg_still_none(const str_t *name, linepos_t epoint) {
 
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
+}
+
+unsigned int err_msg_unknown_formatchar(const Str *s, size_t offs, linepos_t epoint) {
+    struct linepos_s epoint2 = *epoint;
+    unsigned int len;
+    bool more;
+    epoint2.pos = interstring_position(&epoint2, s->data, offs);
+    len = offs < s->len ? utf8len(s->data[offs]) : 0;
+    more = new_error_msg(SV_ERROR, current_file_list, &epoint2);
+    if (len == 0) {
+        adderror("format character expected");
+    } else {
+        adderror("unknown format character '");
+        adderror2(s->data + offs, len);
+        adderror("'");
+    }
+    if (more) new_error_msg_more();
+    return len;
 }
 
 static void err_msg_double_note(const struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
@@ -1392,15 +1421,11 @@ static bool different_line(const struct errorentry_s *err, const struct errorent
     return memcmp(err + 1, err2 + 1, err->line_len) != 0;
 }
 
-static void walkfilelist(struct file_listnode_s *cflist) {
-    struct avltree_node *n;
-
-    for (n = avltree_first(&cflist->members); n != NULL; n = avltree_next(n)) {
-        struct file_listnode_s *l = avltree_container_of(n, struct file_listnode_s, node);
-        if (l->flist.file->entercount > 1 || l->pass != pass) continue;
-        l->flist.file->entercount++;
-        walkfilelist(l);
-    }
+static void walkfilelist(struct avltree_node *aa) {
+    struct file_listnode_s *l = avltree_container_of(aa, struct file_listnode_s, node);
+    if (l->flist.file->entercount > 1 || l->pass != pass) return;
+    l->flist.file->entercount++;
+    avltree_destroy(&l->members, walkfilelist);
 }
 
 void error_print(void) {
@@ -1411,7 +1436,7 @@ void error_print(void) {
     struct linepos_s nopoint = {0, 0};
 
     if (error_list.header_pos != 0) {
-        walkfilelist(&file_list);
+        avltree_destroy(&file_list.members, walkfilelist);
     }
 
     if (arguments.error != NULL) {

@@ -324,11 +324,11 @@ compression:
 *       <b>=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)<i>;will be sys 4096</i>
-+	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
++       <b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
 *       <b>=</b> <span>$1000</span>
 
-start	<b>rts</b>
+start   <b>rts</b>
 </pre>
 
 <p>A frequently coming up question is, how to automatically allocate
@@ -340,8 +340,8 @@ giving a fill byte value to <a href="#d_fill"><code>.fill</code></a>.
 
 <pre width="80">
 *       <b>=</b> <span>$02</span>
-p1	<b class="d">.addr</b> <span>?</span>         <i>;a zero page pointer</i>
-temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
+p1      <b class="d">.addr</b> <span>?</span>         <i>;a zero page pointer</i>
+temp    <b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
 </pre>
 
 <p>Space allocated this way
@@ -366,8 +366,8 @@ wrbyte  <b>sta</b> <span>$ffff</span>       <i>;quick byte writer at $02</i>
         <b>inc</b> <u>wrbyte</u>+<span>1</span>
         <b>bne</b> <u>+</u>
         <b>inc</b> <u>wrbyte</u>+<span>2</span>
-+	<b>rts</b>
-	<b class="k">.here</b>
++       <b>rts</b>
+        <b class="k">.here</b>
 </pre>
 
 <p>The assembler supports lists and tuples, which does not seems interesting at
@@ -386,7 +386,7 @@ jumpcmd <b>lda</b> <u>hibytes</u>,x   <i>; selected routine in X register</i>
         <b>pha</b>
         <b>rts</b>             <i>; jump, rts will increase pc by one!</i>
 <i>; Build a list of jump addresses minus 1</i>
-_	<b>:=</b> (<u>cmd_p</u>, <u>cmd_c</u>, <u>cmd_m</u>, <u>cmd_s</u>, <u>cmd_r</u>, <u>cmd_l</u>, <u>cmd_e</u>)-<span>1</span>
+_       <b>:=</b> (<u>cmd_p</u>, <u>cmd_c</u>, <u>cmd_m</u>, <u>cmd_s</u>, <u>cmd_r</u>, <u>cmd_l</u>, <u>cmd_e</u>)-<span>1</span>
 lobytes <b class="d">.byte</b> &lt;<u>_</u>        <i>; low bytes of jump addresses</i>
 hibytes <b class="d">.byte</b> &gt;<u>_</u>        <i>; high bytes</i>
 </pre>
@@ -405,15 +405,15 @@ accepted:
 
 <div><table border="0">
 <caption>Integer operators and functions</caption>
-<tr><td width="60"><code><u>x</u> + <u>y</u></code><td>add x to y<td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
-<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract y from x<td><code><span>4</span> &minus; <span>1</span></code> is <code><span>3</span></code>
-<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply x with y<td><code><span>2</span> &lowast; <span>3</span></code> is <code><span>6</span></code>
-<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
-<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
-<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td>x raised to power of y<td><code><span>2</span> &lowast;&lowast; <span>4</span></code> is <code><span>16</span></code>
+<tr><td width="60"><code><u>x</u> + <u>y</u></code><td>add <code><u>x</u></code> to <code><u>y</u></code><td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
+<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract <code><u>y</u></code> from <code><u>x</u></code><td><code><span>4</span> &minus; <span>1</span></code> is <code><span>3</span></code>
+<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply <code><u>x</u></code> with <code><u>y</u></code><td><code><span>2</span> &lowast; <span>3</span></code> is <code><span>6</span></code>
+<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide <code><u>x</u></code> by <code><u>y</u></code><td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
+<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of <code><u>x</u></code> divided by <code><u>y</u></code><td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
+<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td><code><u>x</u></code> raised to power of <code><u>y</u></code><td><code><span>2</span> &lowast;&lowast; <span>4</span></code> is <code><span>16</span></code>
 <tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2</span></code> is <code><span>&minus;2</span></code>
 <tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
-<tr><td><code>~<u>x</u></code><td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>&minus;4</span></code>
+<tr><td><code>~<u>x</u></code><td><code>&minus;<u>x</u> &minus; <span>1</span></code><td><code>~<span>3</span></code> is <code><span>&minus;4</span></code>
 <tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2</span> | <span>6</span></code> is <code><span>6</span></code>
 <tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2</span> ^ <span>6</span></code> is <code><span>4</span></code>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
@@ -494,15 +494,15 @@ readability. The following operations can be used:
 
 <div><table border="0">
 <caption>Floating point operators and functions</caption>
-<tr><td width="80"><code><u>x</u> + <u>y</u></code><td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
-<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract y from x<td><code><span>4.1</span> &minus; <span>1.1</span></code> is <code><span>3.0</span></code>
-<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply x with y<td><code><span>1.5</span> &lowast; <span>3</span></code> is <code><span>4.5</span></code>
-<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
-<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
-<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td>x raised t power of y<td><code><span>2.0</span> &lowast;&lowast; <span>&minus;1</span></code> is <code><span>0.5</span></code>
+<tr><td width="80"><code><u>x</u> + <u>y</u></code><td>add <code><u>x</u></code> to <code><u>y</u></code><td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
+<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract <code><u>y</u></code> from <code><u>x</u></code><td><code><span>4.1</span> &minus; <span>1.1</span></code> is <code><span>3.0</span></code>
+<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply <code><u>x</u></code> with <code><u>y</u></code><td><code><span>1.5</span> &lowast; <span>3</span></code> is <code><span>4.5</span></code>
+<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide <code><u>x</u></code> by <code><u>y</u></code><td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
+<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of <code><u>x</u></code> divided by <code><u>y</u></code><td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
+<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td><code><u>x</u></code> raised to power of <code><u>y</u></code><td><code><span>2.0</span> &lowast;&lowast; <span>&minus;1</span></code> is <code><span>0.5</span></code>
 <tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2.0</span></code> is <code><span>&minus;2.0</span></code>
 <tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
-<tr><td><code>~<u>x</u></code><td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
+<tr><td><code>~<u>x</u></code><td>almost <code>&minus;<u>x</u></code><td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
 <tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2.5</span> | <span>6.5</span></code> is <code><span>6.5</span></code>
 <tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2.5</span> ^ <span>6.5</span></code> is <code><span>4.0</span></code>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2.5</span> &amp; <span>6.5</span></code> is <code><span>2.5</span></code>
@@ -605,9 +605,9 @@ in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.
 <p>Other types can be converted to byte strings by using the type <code>bytes</code>.
 
 <pre width="80">
-        <b class="k">.enc</b> <span class="s">"screen"</span>	<i>;use screen encoding</i>
+        <b class="k">.enc</b> <span class="s">"screen"</span>   <i>;use screen encoding</i>
 mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes, like .text</i>
-        <b class="k">.enc</b> <span class="s">"none"</span>	<i>;normal encoding</i>
+        <b class="k">.enc</b> <span class="s">"none"</span>     <i>;normal encoding</i>
 
         <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
         <b class="d">.text</b> <span class="s">s"p1"</span>     <i>;convert to bytes like .shift</i>
@@ -766,10 +766,10 @@ risk for now, you might need to update your code later.</b>
 <caption>Label operators and functions</caption>
 <tr><td><code><u>a</u>.<u>b</u></code><td>member<td><code><u>label</u>.<u>locallabel</u></code>
 <tr><td><code><u>a</u>[<u>i</u>]</code><td>element from start<td><code><u>label</u>[<span>1</span>]</code>
-<tr><td><code><u>a</u>[<u>i</u>]</code><td>element from end<td><code><u>label</u>[<span>&minus;1</span>]</code>
-<tr><td><code><u>a</u>[<u>s</u>]</code><td>copy as tuple<td><code><u>label</u>[:]</code>
-<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
-<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end, as tuple<td><code><u>label</u>[:<span>&minus;1</span>]</code>
+<tr><td><code><u>a</u>[&minus;<u>i</u>]</code><td>element from end<td><code><u>label</u>[<span>&minus;1</span>]</code>
+<tr><td><code><u>a</u>[<u>:</u>]</code><td>copy as tuple<td><code><u>label</u>[:]</code>
+<tr><td><code><u>a</u>[<u>s</u>:]</code><td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
+<tr><td><code><u>a</u>[:&minus;<u>s</u>]</code><td>cut off end, as tuple<td><code><u>label</u>[:<span>&minus;1</span>]</code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse, as tuple<td><code><u>label</u>[::<span>&minus;1</span>]</code>
 </table></div>
 
@@ -801,8 +801,8 @@ as an operator.
 <tr><td><code>#</code><td>immediate
 <tr><td><code>#+</code><td>signed immediate
 <tr><td><code>#&minus;</code><td>signed immediate
-<tr><td><code>(</code><td>indirect
-<tr><td><code>[</code><td>long indirect
+<tr><td><code>( )</code><td>indirect
+<tr><td><code>[ ]</code><td>long indirect
 <tr><td><code>,b</code><td>data bank indexed
 <tr><td><code>,d</code><td>direct page indexed
 <tr><td><code>,k</code><td>program bank indexed
@@ -932,9 +932,9 @@ well.
 
 <pre width="80">
 *       <b>=</b> <span>$200</span>          <i>;bytes as necessary</i>
-	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
-	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
-	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
+        <b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
+        <b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
+        <b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
 </pre>
 
 <h3>Booleans<a name="booleans" href="#booleans"></a></h3>
@@ -959,7 +959,7 @@ used.
 <tr><td><code><u>bool</u></code><td>When true
 <tr><td><code><u>bytes</u></code><td>At least one non-zero byte
 <tr><td><code><u>code</u></code><td>Address is non-zero
-<tr><td><code><u>float</u></code><td>Not 0.0
+<tr><td><code><u>float</u></code><td>Not <code><span>0.0</span></code>
 <tr><td><code><u>int</u></code><td>Not zero
 <tr><td><code><u>str</u></code><td>At least one non-zero byte after translation
 </table></div>
@@ -987,7 +987,7 @@ used for conversions or type checks.
 </table></div>
 
 <pre width="80">
-        <b class="k">.cerror</b> <span class="k">type</span>(<u>var</u>) != <u>str</u>, <span class="s">"Not a string!"</span>
+        <b class="k">.cerror</b> <span class="k">type</span>(<u>var</u>) != <span class="k">str</span>, <span class="s">"Not a string!"</span>
         <b class="d">.text</b> <span class="k">str</span>(<u>year</u>)   <i>; convert to string</i>
 </pre>
 
@@ -1037,8 +1037,8 @@ until the global scope is reached.
 f       <b class="k">.block</b>
 g        <b class="k">.block</b>
 n        <b>nop</b>            <i>;jump here</i>
-	 <b class="k">.bend</b>
-	<b class="k">.bend</b>
+         <b class="k">.bend</b>
+        <b class="k">.bend</b>
 
         <b>jsr</b> <u>f</u>.<u>g</u>.<u>n</u>       <i>;reference from a scope</i>
 f.x     <b>=</b> <span>3</span>             <i>;create x in scope f with value 3</i>
@@ -1066,15 +1066,15 @@ symbol is used as a constant.
 <p>A local symbol is only looked up in it's own scope and nowhere else.
 
 <pre width="80">
-incr	<b>inc</b> <u>ac</u>
+incr    <b>inc</b> <u>ac</u>
         <b>bne</b> <u>_skip</u>
         <b>inc</b> <u>ac</u>+<span>1</span>
-_skip	<b>rts</b>
+_skip   <b>rts</b>
 
-decr	<b>lda</b> <u>ac</u>
+decr    <b>lda</b> <u>ac</u>
         <b>bne</b> <u>_skip</u>
         <b>dec</b> <u>ac</u>+<span>1</span>
-_skip	<b>dec</b> <u>ac</u>          <i>;symbol reused here</i>
+_skip   <b>dec</b> <u>ac</u>          <i>;symbol reused here</i>
         <b>jmp</b> <u>incr</u>.<u>_skip</u>  <i>;this works too, but is not advised</i>
 </pre>
 
@@ -1092,13 +1092,13 @@ and backward (<code>&minus;</code>) references.
 -       <b>ldx</b> #<span>0</span>
 -       <b>txa</b>
         <b>cmp</b> #<span>3</span>
-	<b>bcc</b> +
+        <b>bcc</b> +
         <b>adc</b> #<span>44</span>
 +       <b>sta</b> <span>$400</span>,x
-	<b>inx</b>
-	<b>bne</b> -
-	<b>dey</b>
-	<b>bne</b> --
+        <b>inx</b>
+        <b>bne</b> -
+        <b>dey</b>
+        <b>bne</b> --
 </pre>
 
 <p>Excessive nesting or long distance references create poorly readable code.
@@ -1110,9 +1110,9 @@ long debugging session to find out what went wrong.
 trap when segments are copied into the code with their internal references.
 
 <pre width="80">
-	<b>bne</b> +
+        <b>bne</b> +
         <b class="k">#somemakro</b>      <i>;let's hope that this segment does</i>
-+	<b>nop</b>             <i>;not contain forward references...</i>
++       <b>nop</b>             <i>;not contain forward references...</i>
 </pre>
 
 <p>Anonymous symbols are looked up first in the current scope, then in lower scopes
@@ -1144,11 +1144,11 @@ otherwise a new one is created with this value.
 <pre width="80">
 WIDTH   <b>=</b> <span>40</span>            <i>;a constant</i>
         <b>lda</b> #<u>WIDTH</u>      <i>;lda #$28</i>
-variabl	<b class="k">.var</b> <span>1</span>          <i>;a variable</i>
-var2	<b>:=</b> <span>1</span>            <i>;another variable</i>
-variabl	<b class="k">.var</b> <u>variabl</u> + <span>1</span><i>;update it verbosely</i>
-var2	<b>+=</b> <span>1</span>            <i>;compound assignment (add one)</i>
-var3	<b>:?=</b> <span>5</span>           <i>;assign 5 if undefined</i>
+variabl <b class="k">.var</b> <span>1</span>          <i>;a variable</i>
+var2    <b>:=</b> <span>1</span>            <i>;another variable</i>
+variabl <b class="k">.var</b> <u>variabl</u> + <span>1</span><i>;update it verbosely</i>
+var2    <b>+=</b> <span>1</span>            <i>;compound assignment (add one)</i>
+var3    <b>:?=</b> <span>5</span>           <i>;assign 5 if undefined</i>
 </pre>
 
 <h4>The star label<a name="star" href="#star"></a></h4>
@@ -1289,34 +1289,34 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 <dt><code><b>byte(</b>&lt;expression&gt;<b>)</b></code><a name="f_byte" href="#f_byte"></a>
 <dt><code><b>char(</b>&lt;expression&gt;<b>)</b></code><a name="f_char" href="#f_char"></a>
 <dd>Return a single byte string from a 8&nbsp;bit unsigned (0&ndash;255) or signed number (&minus;128&ndash;127). E.g.
-<code><span class="k">byte</span>(<span>0</span>)</code> is <code><span>x"00"</span></code> and
-<code><span class="k">char</span>(<span>-1</span>)</code> is <code><span>x"ff"</span></code>
+<code><span class="k">byte</span>(<span>0</span>)</code> is <code><span class="s">x"00"</span></code> and
+<code><span class="k">char</span>(<span>-1</span>)</code> is <code><span class="s">x"ff"</span></code>
 
 <dt><code><b>word(</b>&lt;expression&gt;<b>)</b></code><a name="f_word" href="#f_word"></a>
 <dt><code><b>sint(</b>&lt;expression&gt;<b>)</b></code><a name="f_sint" href="#f_sint"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from a 16&nbsp;bit unsigned (0&ndash;65535) or signed number (&minus;32768&ndash;32767). E.g.
-<code><span class="k">word</span>(<span>1024</span>)</code> is <code><span>x"0004"</span></code> and
-<code><span class="k">sint</span>(<span>-1</span>)</code> is <code><span>x"ffff"</span></code>
+<code><span class="k">word</span>(<span>1024</span>)</code> is <code><span class="s">x"0004"</span></code> and
+<code><span class="k">sint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffff"</span></code>
 
 <dt><code><b>long(</b>&lt;expression&gt;<b>)</b></code><a name="f_long" href="#f_long"></a>
 <dt><code><b>lint(</b>&lt;expression&gt;<b>)</b></code><a name="f_lint" href="#f_lint"></a>
 <dd>Return a little endian byte string of 3&nbsp;bytes from a 24&nbsp;bit unsigned (0&ndash;16777216) or signed number (&minus;8388608&ndash;8388607). E.g.
-<code><span class="k">long</span>(<span>123456</span>)</code> is <code><span>x"40E201"</span></code> and
-<code><span class="k">lint</span>(<span>-1</span>)</code> is <code><span>x"ffffff"</span></code>
+<code><span class="k">long</span>(<span>123456</span>)</code> is <code><span class="s">x"40E201"</span></code> and
+<code><span class="k">lint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffffff"</span></code>
 
 <dt><code><b>dword(</b>&lt;expression&gt;<b>)</b></code><a name="f_dword" href="#f_dword"></a>
 <dt><code><b>dint(</b>&lt;expression&gt;<b>)</b></code><a name="f_dint" href="#f_dint"></a>
 <dd>Return a little endian byte string of 4&nbsp;bytes from a 32&nbsp;bit unsigned (0&ndash;4294967296) or signed number (&minus;2147483648&ndash;2147483647). E.g.
-<code><span class="k">dword</span>(<span>123456789</span>)</code> is <code><span>x"15CD5B07"</span></code> and
-<code><span class="k">dint</span>(<span>-1</span>)</code> is <code><span>x"ffffffff"</span></code>
+<code><span class="k">dword</span>(<span>123456789</span>)</code> is <code><span class="s">x"15CD5B07"</span></code> and
+<code><span class="k">dint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffffffff"</span></code>
 
 <dt><code><b>addr(</b>&lt;expression&gt;<b>)</b></code><a name="f_addr" href="#f_addr"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from an address in the current program bank. E.g.
-<code><span class="k">addr</span>(start)</code> is <code><span>x"0d08"</span></code>
+<code><span class="k">addr</span>(start)</code> is <code><span class="s">x"0d08"</span></code>
 
 <dt><code><b>rta(</b>&lt;expression&gt;<b>)</b></code><a name="f_rta" href="#f_rta"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from a return address in the current program bank. E.g.
-<code><span class="k">rta</span>(<span>4096</span>)</code> is <code><span>x"ff0f"</span></code>
+<code><span class="k">rta</span>(<span>4096</span>)</code> is <code><span class="s">x"ff0f"</span></code>
 
 </dl>
 
@@ -1381,7 +1381,7 @@ type character. These flags can be used:</p>
 
 <div><table border="0">
 <caption>Formatting flags</caption>
-<tr><td width="40"><code>#</code><td>alternate form ($a, %10, 10.)
+<tr><td width="40"><code>#</code><td>alternate form (<code><span>$a</span></code>, <code><span>%10</span></code>, <code><span>10.</span></code>)
 <tr><td><code>&lowast;</code><td>width/precision from list
 <tr><td><code>.</code><td>precision
 <tr><td><code>0</code><td>pad with zeros
@@ -1394,8 +1394,7 @@ type character. These flags can be used:</p>
 
 <div><table border="0">
 <caption>Formatting conversion types</caption>
-<tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
-<tr><td><code>b</code><td>binary
+<tr><td width="40"><code>b</code><td>binary
 <tr><td><code>c</code><td>Unicode character
 <tr><td><code>d</code><td>decimal
 <tr><td><code>e&nbsp;E</code><td>exponential float (uppercase)
@@ -1432,10 +1431,10 @@ Different sequences can be generated by seeding with <a href="#d_seed"><code>.se
 
 <div><table border="0">
 <caption>Random function invocation types</caption>
-<tr><td>floating point number 0.0 &lt;= x &lt; 1.0<td><code><span class="k">random</span>()</code>
-<tr><td>integer in range of 0 &lt;= x &lt; e<td><code><span class="k">random</span>(<u>e</u>)</code>
-<tr><td>integer in range of s &lt;= x &lt; e<td><code><span class="k">random</span>(<u>s</u>, <u>a</u>)</code>
-<tr><td>integer in range of s &lt;= x &lt; e, step t<td><code><span class="k">random</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
+<tr><td>floating point number <code><span>0.0</span> &lt;= <u>x</u> &lt; <span>1.0</span></code><td><code><span class="k">random</span>()</code>
+<tr><td>integer in range of <code><span>0</span> &lt;= <u>x</u> &lt; <u>e</u></code><td><code><span class="k">random</span>(<u>e</u>)</code>
+<tr><td>integer in range of <code><u>s</u> &lt;= <u>x</u> &lt; <u>e</u></code><td><code><span class="k">random</span>(<u>s</u>, <u>a</u>)</code>
+<tr><td>integer in range of <code><u>s</u> &lt;= <u>x</u> &lt; <u>e</u></code>, step <code><u>t</u></code><td><code><span class="k">random</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
 </table></div>
 <pre width="80">
         <b class="k">.seed</b> <span>1234</span>      <i>; default is boring, seed the generator</i>
@@ -1448,9 +1447,9 @@ Different sequences can be generated by seeding with <a href="#d_seed"><code>.se
 
 <div><table border="0">
 <caption>Range function invocation types</caption>
-<tr><td>integers from 0 to e&minus;1<td><code><span class="k">range</span>(<u>e</u>)</code>
-<tr><td>integers from s to e&minus;1<td><code><span class="k">range</span>(<u>s</u>, <u>a</u>)</code>
-<tr><td>integers from s to e (not including e), step t<td><code><span class="k">range</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
+<tr><td>integers from <code><span>0</span></code> to <code><u>e</u>&minus;<span>1</span></code><td><code><span class="k">range</span>(<u>e</u>)</code>
+<tr><td>integers from <code><u>s</u></code> to <code><u>e</u>&minus;<span>1</span></code><td><code><span class="k">range</span>(<u>s</u>, <u>a</u>)</code>
+<tr><td>integers from <code><u>s</u></code> to <code><u>e</u></code> (not including <code><u>e</u></code>), step <code><u>t</u></code><td><code><span class="k">range</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
 </table></div>
 
 <pre width="80">
@@ -1507,8 +1506,8 @@ arguments and their meaning might slightly vary depending on the type.
 <td><code>^</code><td><i>decimal string</i>
 </table></div>
 
-<p><b>The <q>^</q> decimal string operator will be changed to mean the
-bank byte soon. Please update your sources to use format("%d", xxx) instead!</b>
+<p><b>The <q><code>^</code></q> decimal string operator will be changed to mean the
+bank byte soon. Please update your sources to use <code>format("%d", xxx)</code> instead!</b>
 This is done to be in line with it's use in most other assemblers.
 
 <div><table border="0">
@@ -1605,13 +1604,13 @@ operands as the result.
 
 <div><table border="0">
 <caption>Logical and conditional operators</caption>
-<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if <code>x</code> is true then <code>x</code> otherwise <code>y</code>
-<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then <code>false</code> otherwise <code>x || y</code>
-<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if <code>x</code> is true then <code>y</code> otherwise <code>x</code>
-<tr><td><code>!<u>x</u></code><td>if <code>x</code> is true then <code>false</code> otherwise <code>true</code>
-<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then <code>x</code> otherwise <code>y</code>
-<tr><td><code><u>x</u>&nbsp;&lt;?&nbsp;<u>y</u></code><td>if x is smaller then <code>x</code> otherwise <code>y</code>
-<tr><td><code><u>x</u>&nbsp;&gt;?&nbsp;<u>y</u></code><td>if x is greater then <code>x</code> otherwise <code>y</code>
+<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if <code><u>x</u></code> is true then <code><u>x</u></code> otherwise <code><u>y</u></code>
+<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then <code><span>false</span></code> otherwise <code><u>x</u> || <u>y</u></code>
+<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if <code><u>x</u></code> is true then <code><u>y</u></code> otherwise <code><u>x</u></code>
+<tr><td><code>!<u>x</u></code><td>if <code><u>x</u></code> is true then <code><span>false</span></code> otherwise <code><span>true</span></code>
+<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if <code><u>c</u></code> is true then <code><u>x</u></code> otherwise <code><u>y</u></code>
+<tr><td><code><u>x</u>&nbsp;&lt;?&nbsp;<u>y</u></code><td>if <code><u>x</u></code> is smaller then <code><u>x</u></code> otherwise <code><u>y</u></code>
+<tr><td><code><u>x</u>&nbsp;&gt;?&nbsp;<u>y</u></code><td>if <code><u>x</u></code> is greater then <code><u>x</u></code> otherwise <code><u>y</u></code>
 </table></div>
 
 <pre width="80">
@@ -1769,15 +1768,15 @@ but it does not need to be.
 will match the requested address in the expression.
 
 <pre width="80">
-<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
-						*	<b>=</b> <span>$0800</span>
-.0800						label1
-							<b class="k">.logical</b> <span>$1000</span>
-.0800	1000					label2
-						*	= <span>$1200</span>
-.0a00	1200					label3
-							<b class="k">.here</b>
-.0a00						label4
+<i>;Offset ;PC     ;Hex            ;Monitor        ;Source</i>
+                                                *       <b>=</b> <span>$0800</span>
+.0800                                           label1
+                                                        <b class="k">.logical</b> <span>$1000</span>
+.0800   1000                                    label2
+                                                *       = <span>$1200</span>
+.0a00   1200                                    label3
+                                                        <b class="k">.here</b>
+.0a00                                           label4
 </pre>
 
 <dt><code><b class="k">.offs</b></code> &lt;expression&gt;<a name="d_offs" href="#d_offs"></a>
@@ -1788,11 +1787,11 @@ relocated code, otherwise it's use is not recommended as there are easier
 to use alternatives below.</p>
 
 <pre width="80">
-<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
-						*	<b>=</b> <span>$1000</span>
-.1000		ea		nop			<b>nop</b>
-							<b class="k">.offs</b> <span>100</span>
-.1065	1001	ea		nop			<b>nop</b>
+<i>;Offset ;PC     ;Hex            ;Monitor        ;Source</i>
+                                                *       <b>=</b> <span>$1000</span>
+.1000           ea              nop                     <b>nop</b>
+                                                        <b class="k">.offs</b> <span>100</span>
+.1065   1001    ea              nop                     <b>nop</b>
 </pre>
 <dt><code><b class="k">.logical</b></code> &lt;expression&gt;<a name="d_logical" href="#d_logical"></a>
 <dd>Starts a relocation block
@@ -1807,13 +1806,13 @@ to use alternatives below.</p>
 <p>It's used for code copied to it's proper location at runtime. Can be nested of course.</p>
 
 <pre width="80">
-<i>;Offset	;PC	;Hex		;Monitor	;Source</i>
-						*	<b>=</b> <span>$1000</span>
-							<b class="k">.logical</b> <span>$300</span>
-.1000	0300	 a9 80		lda #$80	drive	<b>lda</b> #<span>$80</span>
-.1002	0302	 85 00		sta $00			<b>sta</b> <span>$00</span>
-.1004	0304	 4c 00 03	jmp $0300		<b>jmp</b> <u>drive</u>
-							<b class="k">.here</b>
+<i>;Offset ;PC     ;Hex            ;Monitor        ;Source</i>
+                                                *       <b>=</b> <span>$1000</span>
+                                                        <b class="k">.logical</b> <span>$300</span>
+.1000   0300     a9 80          lda #$80        drive   <b>lda</b> #<span>$80</span>
+.1002   0302     85 00          sta $00                 <b>sta</b> <span>$00</span>
+.1004   0304     4c 00 03       jmp $0300               <b>jmp</b> <u>drive</u>
+                                                        <b class="k">.here</b>
 </pre>
 
 <dt><code><b class="k">.virtual</b></code> [&lt;expression&gt;]<a name="d_virtual" href="#d_virtual"></a>
@@ -1826,25 +1825,25 @@ to use alternatives below.</p>
 This is useful to define structures to fixed addresses.</p>
 
 <pre width="80">
-	<b class="k">.virtual</b> <span>$d400</span>	<i>; base address</i>
-sid	<b class="k">.block</b>
-freq	<b class="d">.word</b> <span>?</span>	        <i>; frequency</i>
-pulsew	<b class="d">.word</b> <span>?</span>	        <i>; pulse width</i>
-control	<b class="d">.byte</b> <span>?</span>	        <i>; control</i>
-ad	<b class="d">.byte</b> <span>?</span>	        <i>; attack/decay</i>
-sr	<b class="d">.byte</b> <span>?</span>	        <i>; sustain/release</i>
-	<b class="k">.bend</b>
-	<b class="k">.endv</b>
+        <b class="k">.virtual</b> <span>$d400</span>  <i>; base address</i>
+sid     <b class="k">.block</b>
+freq    <b class="d">.word</b> <span>?</span>         <i>; frequency</i>
+pulsew  <b class="d">.word</b> <span>?</span>         <i>; pulse width</i>
+control <b class="d">.byte</b> <span>?</span>         <i>; control</i>
+ad      <b class="d">.byte</b> <span>?</span>         <i>; attack/decay</i>
+sr      <b class="d">.byte</b> <span>?</span>         <i>; sustain/release</i>
+        <b class="k">.bend</b>
+        <b class="k">.endv</b>
 </pre>
 
 <p>Or to define stack "allocated" variables on 65816.</p>
 
 <pre width="80">
-	<b class="k">.virtual</b> #<span>1</span>,s
-p1	<b class="d">.addr</b> <span>?</span>	        <i>; at #1,s</i>
-tmp	<b class="d">.byte</b> <span>?</span>	        <i>; at #3,s</i>
-	<b class="k">.endv</b>
-	<b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
+        <b class="k">.virtual</b> #<span>1</span>,s
+p1      <b class="d">.addr</b> <span>?</span>         <i>; at #1,s</i>
+tmp     <b class="d">.byte</b> <span>?</span>         <i>; at #3,s</i>
+        <b class="k">.endv</b>
+        <b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
 </pre>
 
 <dt><code><b class="k">.align</b></code> &lt;expression&gt;[, &lt;fill&gt;]<a name="d_align" href="#d_align"></a>
@@ -1854,11 +1853,11 @@ tmp	<b class="d">.byte</b> <span>?</span>	        <i>; at #3,s</i>
 
 <pre width="80">
 <i>;Offset PC       Bytes          Disassembly     Source</i>
-						*	<b>=</b> <span>$ffc</span>
-&gt;0ffc							<b class="k">.align</b> <span>$100</span>
-.1000		 ee 19 d0	inc $d019	irq	<b>inc</b> <span>$d019</span>
-&gt;1003		 ea					<b class="k">.align</b> <span>4</span>, <span>$ea</span>
-.1004		 69 01		adc #$01	loop	<b>adc</b> #<span>1</span>
+                                                *       <b>=</b> <span>$ffc</span>
+&gt;0ffc                                                   <b class="k">.align</b> <span>$100</span>
+.1000            ee 19 d0       inc $d019       irq     <b>inc</b> <span>$d019</span>
+&gt;1003            ea                                     <b class="k">.align</b> <span>4</span>, <span>$ea</span>
+.1004            69 01          adc #$01        loop    <b>adc</b> #<span>1</span>
 </pre>
 
 <p>When alignment is done within named structures then it's relative to the start
@@ -1947,7 +1946,7 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 
 <pre width="80">
 &gt;1000  56 34 12                          <b class="d">.long</b> <span>$123456</span>
-&gt;1003                                    <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes</i>
+&gt;1003                                    <b class="d">.long</b> <span>?</span>        <i>; reserve 3 bytes</i>
 &gt;1006  eb fd ff 51 11 00                 <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
 <i>;Store 8.16 signed fixed point constants</i>
 &gt;100c  5d 8f fc 66 66 03 1e 85           <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
@@ -1994,8 +1993,8 @@ are converted using the current encoding.
 <pre width="80">
 &gt;1000  4f 45 d5  <b class="d">.text</b> <span class="s">"oeU"</span>
 &gt;1003  4f 45 d5  <b class="d">.text</b> <span class="s">'oeU'</span>
-&gt;1006  17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
-&gt;1008  0d 0a     <b class="d">.text</b> <span>$0a0d</span>	<i>; $0d, $0a, little endian!</i>
+&gt;1006  17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>  <i>; bytes</i>
+&gt;1008  0d 0a     <b class="d">.text</b> <span>$0a0d</span>    <i>; $0d, $0a, little endian!</i>
 &gt;100a  1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
 </pre>
 
@@ -2124,7 +2123,7 @@ The start and end positions are Unicode character codes either by numbers or by
 typing them. Overlapping ranges are not allowed.</p>
 
 <pre width="80">
-        <b class="k">.enc</b> <span class="s">"ascii"</span>	<i>;define an ascii encoding</i>
+        <b class="k">.enc</b> <span class="s">"ascii"</span>    <i>;define an ascii encoding</i>
         <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity for printable</i>
 </pre>
 <dt><code><b class="k">.edef</b></code> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
@@ -2226,7 +2225,7 @@ length of it's longest item.
         <b class="k">.union</b>          <i>;anonymous union</i>
 x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.word</b> <span>0</span>         <i>;content compiled here</i>
-	<b class="k">.endu</b>
+        <b class="k">.endu</b>
 
 nn_u    <b class="k">.union</b>          <i>;named union</i>
 x       <b class="d">.byte</b> <span>?</span>         <i>;labels are not visible</i>
@@ -2248,12 +2247,12 @@ nn      <b class="d">.dunion</b> <u>nn_u</u>, <span>1</span> <i>;union instance 
         <b class="k">.union</b>
         <b class="d">.binary</b> <span class="s">"pic.drp"</span>, <span>2</span>
         <b class="k">.struct</b>
-color	<b class="d">.fill</b> <span>1024</span>
-screen	<b class="d">.fill</b> <span>1024</span>
-bitmap	<b class="d">.fill</b> <span>8000</span>
-backg	<b class="d">.byte</b> <span>?</span>
+color   <b class="d">.fill</b> <span>1024</span>
+screen  <b class="d">.fill</b> <span>1024</span>
+bitmap  <b class="d">.fill</b> <span>8000</span>
+backg   <b class="d">.byte</b> <span>?</span>
         <b class="k">.ends</b>
-	<b class="k">.endu</b>
+        <b class="k">.endu</b>
 </pre>
 
 <p>Anonymous structures and unions in combination with sections are useful for
@@ -2313,16 +2312,16 @@ copy    <b class="k">.macro</b>
         <b>ldx</b> #<span class="k">size</span>(<span class="k">\1</span>)
 lp      <b>lda</b> <span class="k">\1</span>,x
         <b>sta</b> <span class="k">\2</span>,x
-	<b>dex</b>
+        <b>dex</b>
         <b>bpl</b> <u>lp</u>
-	<b class="k">.endm</b>
+        <b class="k">.endm</b>
 
         <b class="k">#copy</b> <u>label</u>, <span>$500</span>
 
 <i>;Use macro as an assembler directive</i>
 lohi    <b class="k">.macro</b>
-lo	<b class="d">.byte</b> &lt;(<span class="k">\@</span>)
-hi	<b class="d">.byte</b> &gt;(<span class="k">\@</span>)
+lo      <b class="d">.byte</b> &lt;(<span class="k">\@</span>)
+hi      <b class="d">.byte</b> &gt;(<span class="k">\@</span>)
         <b class="k">.endm</b>
 
 var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
@@ -2337,11 +2336,11 @@ var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
 The entire parameter list including separators is <q><code>\@</code></q>.
 
 <pre width="80">
-name	<b class="k">.macro</b>
-        <b>lda</b> #<span class="k">\1</span> 	<i>;first parameter 23+1</i>
-	<b class="k">.endm</b>
+name    <b class="k">.macro</b>
+        <b>lda</b> #<span class="k">\1</span>         <i>;first parameter 23+1</i>
+        <b class="k">.endm</b>
 
-        <b class="k">#name</b> <span>23</span>+<span>1</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span>23</span>+<span>1</span>      <i>;call macro</i>
 </pre>
 
 <p>Parameters can be named, and it's possible to set a default value after an
@@ -2352,14 +2351,14 @@ equal sign which is used as a replacement when the parameter is missing.
 name reference syntax.
 
 <pre width="80">
-name	<b class="k">.macro</b> first, b=<span>2</span>, , last
-        <b>lda</b> #<span class="k">\first</span>	<i>;first parameter</i>
-        <b>lda</b> #<span class="k">\b</span> 	<i>;second parameter</i>
-        <b>lda</b> #<span class="k">\3</span> 	<i>;third parameter</i>
-        <b>lda</b> #<span class="k">\last</span> 	<i>;fourth parameter</i>
-	<b class="k">.endm</b>
+name    <b class="k">.macro</b> first, b=<span>2</span>, , last
+        <b>lda</b> #<span class="k">\first</span>     <i>;first parameter</i>
+        <b>lda</b> #<span class="k">\b</span>         <i>;second parameter</i>
+        <b>lda</b> #<span class="k">\3</span>         <i>;third parameter</i>
+        <b>lda</b> #<span class="k">\last</span>      <i>;fourth parameter</i>
+        <b class="k">.endm</b>
 
-        <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span> <i>;call macro</i>
 </pre>
 
 <h4>Text references<a name="macro-textreference" href="#macro-textreference"></a></h4>
@@ -2374,9 +2373,9 @@ first 9 parameters can be referenced as text by
 name    <b class="k">.macro</b>
         <b>jsr</b> <u>print</u>
         <b class="d">.null</b> <span class="s">"Hello <span>@1</span>!"</span><i>;first parameter</i>
-	<b class="k">.endm</b>
+        <b class="k">.endm</b>
 
-        <b class="k">#name</b> <span class="s">"wth?"</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span class="s">"wth?"</span>    <i>;call macro</i>
 </pre>
 
 <h3>Custom functions<a name="user-functions" href="#user-functions"></a></h3>
@@ -2467,15 +2466,15 @@ across conditionally compiled areas with such labels.
 better to use comparison operators instead.
 
 <pre width="80">
-        <b class="k">.if</b> <u>wait</u>==<span>2</span>	<i>;2 cycles</i>
-	<b>nop</b>
-        <b class="k">.elsif</b> <u>wait</u>==<span>3</span>	<i>;3 cycles</i>
+        <b class="k">.if</b> <u>wait</u>==<span>2</span>     <i>;2 cycles</i>
+        <b>nop</b>
+        <b class="k">.elsif</b> <u>wait</u>==<span>3</span>  <i>;3 cycles</i>
         <b>bit</b> <span>$ea</span>
-        <b class="k">.elsif</b> <u>wait</u>==<span>4</span>	<i>;4 cycles</i>
+        <b class="k">.elsif</b> <u>wait</u>==<span>4</span>  <i>;4 cycles</i>
         <b>bit</b> <span>$eaea</span>
-        <b class="k">.else</b>		<i>;else 5 cycles</i>
+        <b class="k">.else</b>           <i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
-	<b class="k">.fi</b>
+        <b class="k">.fi</b>
 </pre>
 
 <h4>Switch, case, default<a name="conditional-switch" href="#conditional-switch"></a></h4>
@@ -2497,15 +2496,15 @@ statement.
 
 <pre width="80">
         <b class="k">.switch</b> <u>wait</u>
-        <b class="k">.case</b> <span>2</span>	        <i>;2 cycles</i>
-	<b>nop</b>
-        <b class="k">.case</b> <span>3</span>	        <i>;3 cycles</i>
+        <b class="k">.case</b> <span>2</span>         <i>;2 cycles</i>
+        <b>nop</b>
+        <b class="k">.case</b> <span>3</span>         <i>;3 cycles</i>
         <b>bit</b> <span>$ea</span>
-        <b class="k">.case</b> <span>4</span>	        <i>;4 cycles</i>
+        <b class="k">.case</b> <span>4</span>         <i>;4 cycles</i>
         <b>bit</b> <span>$eaea</span>
-        <b class="k">.default</b>	<i>;else 5 cycles</i>
+        <b class="k">.default</b>        <i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
-	<b class="k">.endswitch</b>
+        <b class="k">.endswitch</b>
 </pre>
 
 <h4>Comment<a name="conditional-comment" href="#conditional-comment"></a></h4>
@@ -2518,10 +2517,10 @@ statement.
 </dl>
 
 <pre width="80">
-	<b class="k">.comment</b>
+        <b class="k">.comment</b>
 <i>        lda #1          ;this won't be compiled</i>
-<i>	sta $d020</i>
-	<b class="k">.endc</b>
+<i>        sta $d020</i>
+        <b class="k">.endc</b>
 </pre>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
@@ -2555,7 +2554,7 @@ each iteration will be assigned to it. This allows accessing labels within.
         <b>lda</b> #<span>32</span>
 lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <span>$800</span>, <u>ue</u> += <span>$100</span>
         <b>sta</b> <u>ue</u>,x         <i>;do $400, $500, $600 and $700</i>
-	<b class="k">.next</b>
+        <b class="k">.next</b>
         <b>dex</b>
         <b>bne</b> <u>lp</u>
 </pre>
@@ -2571,7 +2570,7 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
         <b class="k">.for</b> <u>col</u> <span class="k">in</span> <span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>
         <b>lda</b> #<u>col</u>         <i>;0, 11, 12, 15 and 1</i>
         <b>sta</b> <span>$d020</span>
-	<b class="k">.next</b>
+        <b class="k">.next</b>
 </pre>
 
 <dt><code><b class="k">.rept</b></code> &lt;expression&gt;<a name="d_rept" href="#d_rept"></a>
@@ -2581,14 +2580,14 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
 
 <pre width="80">
         <b class="k">.rept</b> <span>100</span>
--	<b>inx</b>
-	<b>bne</b> <u>-</u>
-	<b class="k">.next</b>
+-       <b>inx</b>
+        <b>bne</b> <u>-</u>
+        <b class="k">.next</b>
 
 lst     <b class="k">.brept</b> <span>100</span>       <i>;each iteration into a tuple</i>
-label	<b>jmp</b> <u>label</u>        <i>;not a duplicate definition</i>
-	<b class="k">.next</b>
-	<b>jmp</b> <u>lst</u>[<span>5</span>].<u>label</u> <i>;use label of 6th iteration</i>
+label   <b>jmp</b> <u>label</u>        <i>;not a duplicate definition</i>
+        <b class="k">.next</b>
+        <b>jmp</b> <u>lst</u>[<span>5</span>].<u>label</u> <i>;use label of 6th iteration</i>
 </pre>
 
 <dt><code><b class="k">.while</b></code> &lt;condition&gt;<a name="d_while" href="#d_while"></a>
@@ -2629,8 +2628,8 @@ forward references of course, handle with care. Should only be used in
 classic TASM sources for creating loops.
 
 <pre width="80">
-i	<b class="k">.var</b> <span>100</span>
-loop	<b class="k">.lbl</b>
+i       <b class="k">.var</b> <span>100</span>
+loop    <b class="k">.lbl</b>
         <b>nop</b>
 i       <b class="k">.var</b> <u>i</u> - <span>1</span>
         <b class="k">.ifne</b> <u>i</u>
@@ -2662,9 +2661,9 @@ with a label then all labels are local and are accessible through that label
 only, otherwise not reachable at all.
 <pre width="80">
 
-	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include macros</i>
+        <b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include macros</i>
 menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;include in a block</i>
-	<b>jmp</b> <u>menu</u>.<u>start</u>
+        <b>jmp</b> <u>menu</u>.<u>start</u>
 </pre>
 
 <dt><code><b class="d">.binary</b></code> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<a name="d_binary" href="#d_binary"></a>
@@ -2716,9 +2715,9 @@ whole procedure of course.</p>
 
 <pre width="80">
 ize     <b class="k">.proc</b>
-	<b>nop</b>
+        <b>nop</b>
 cucc    <b>nop</b>
-	<b class="k">.pend</b>
+        <b class="k">.pend</b>
 
         <b>jsr</b> <u>ize</u>
         <b>jmp</b> <u>ize</u>.<u>cucc</u>
@@ -2755,10 +2754,10 @@ but these macro calls still need to be manually managed.
 then local symbols are accessible through that using the dot notation.</p>
 
 <pre width="80">
-	<b class="k">.block</b>
+        <b class="k">.block</b>
         <b>inc</b> <u>count</u> + <span>1</span>
-count	<b>ldx</b> #<span>0</span>
-	<b class="k">.bend</b>
+count   <b>ldx</b> #<span>0</span>
+        <b class="k">.bend</b>
 </pre>
 
 <dt><code><b class="k">.namespace</b> [&lt;symbol&gt;]</code><a name="d_namespace" href="#d_namespace"></a>
@@ -2785,10 +2784,10 @@ not always exist without resorting to <code>.ifdef</code>/<code>.ifndef</code> o
 similar directives in other assemblers.</p>
 
 <pre width="80">
-symbol	<b>=</b> <span>1</span>            <i>;stronger symbol than the one below</i>
-	<b class="k">.weak</b>
-symbol	<b>=</b> <span>0</span>            <i>;default value if the one above does not exists</i>
-	<b class="k">.endweak</b>
+symbol  <b>=</b> <span>1</span>            <i>;stronger symbol than the one below</i>
+        <b class="k">.weak</b>
+symbol  <b>=</b> <span>0</span>            <i>;default value if the one above does not exists</i>
+        <b class="k">.endweak</b>
         <b class="k">.if</b> <u>symbol</u>     <i>;almost like an .ifdef ;)</i>
 </pre>
 
@@ -2868,14 +2867,14 @@ start of <a href="#d_dsection"><code>.dsection</code></a> is not allowed.
         <b class="k">.section</b> <u>code</u>
         <b class="d">.word</b> <u>ss</u>, <span>2005</span>
         <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
-ss	<b class="d">.word</b> <span>0</span>
+ss      <b class="d">.word</b> <span>0</span>
 
 start   <b>sei</b>
         <b class="k">.section</b> <u>zp</u>     <i>;declare some new zero page variables</i>
-p2	<b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
+p2      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
         <b class="k">.send</b> <u>zp</u>
         <b class="k">.section</b> <u>bss</u>    <i>;new variables</i>
-buffer	<b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
+buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
         <b class="k">.send</b> <u>bss</u>
 
         <b>lda</b> (<u>p2</u>),y
@@ -2889,7 +2888,7 @@ label   <b class="d">.null</b> <span class="s">"message"</span>
 
         <b>jmp</b> <u>error</u>
         <b class="k">.section</b> <u>zp</u>     <i>;declare some more zero page variables</i>
-p3	<b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
+p3      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
         <b class="k">.send</b> <u>zp</u>
         <b class="k">.send</b> <u>code</u>
 </pre>
@@ -2897,25 +2896,25 @@ p3	<b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
 <p>The compiled code will look like:
 
 <pre width="80">
-&gt;0801	 0b 08 d5 07			        <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-&gt;0805	 9e 32 30 36 31 00		        <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
-&gt;080b	 00 00				ss      <b class="d">.word</b> <span>0</span>
+&gt;0801    0b 08 d5 07                            <b class="d">.word</b> <u>ss</u>, <span>2005</span>
+&gt;0805    9e 32 30 36 31 00                      <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
+&gt;080b    00 00                          ss      <b class="d">.word</b> <span>0</span>
 
-.080d	 78				start   <b>sei</b>
+.080d    78                             start   <b>sei</b>
 
-&gt;0002					p2      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
-&gt;0334					buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
+&gt;0002                                   p2      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
+&gt;0334                                   buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
 
-.080e	 b1 02				        <b>lda</b> (<u>p2</u>),y
-.0810	 a9 00				        <b>lda</b> #&lt;<u>label</u>
-.0812	 a0 10				        <b>ldy</b> #&gt;<u>label</u>
-.0814	 20 1e ab			        <b>jsr</b> <u>print</u>
+.080e    b1 02                                  <b>lda</b> (<u>p2</u>),y
+.0810    a9 00                                  <b>lda</b> #&lt;<u>label</u>
+.0812    a0 10                                  <b>ldy</b> #&gt;<u>label</u>
+.0814    20 1e ab                               <b>jsr</b> <u>print</u>
 
-&gt;1000	 6d 65 73 73 61 67 65 00	label   <b class="d">.null</b> <span class="s">"message"</span>
+&gt;1000    6d 65 73 73 61 67 65 00        label   <b class="d">.null</b> <span class="s">"message"</span>
 
-.0817	 4c e2 fc			        <b>jmp</b> <u>error</u>
+.0817    4c e2 fc                               <b>jmp</b> <u>error</u>
 
-&gt;0004					p2      <b class="d">.addr</b> ?         <i>;a pointer</i>
+&gt;0004                                   p2      <b class="d">.addr</b> ?         <i>;a pointer</i>
 </pre>
 
 <p>Sections can form a hierarchy by nesting a <a href="#d_dsection"><code>.dsection</code></a> into
@@ -2933,35 +2932,35 @@ shared for all banks.
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank1</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
-	<b class="k">.here</b>
+        <b class="k">.here</b>
 
-bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
+bank1   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <u>bank1</u>
         <b class="d">.dsection</b> <u>code</u>  <i>;Code and data sections in bank1</i>
         <b class="d">.dsection</b> <u>data</u>
         <b class="k">.section</b> <u>code</u>   <i>;Pre-open code section</i>
-	<b class="k">.include</b> <span class="s">"code.asm"</span><i>; see below</i>
-	<b class="k">.include</b> <span class="s">"iter.asm"</span>
+        <b class="k">.include</b> <span class="s">"code.asm"</span><i>; see below</i>
+        <b class="k">.include</b> <span class="s">"iter.asm"</span>
         <b class="k">.send</b> <u>code</u>
         <b class="k">.send</b> <u>bank1</u>
-	<b class="k">.bend</b>
+        <b class="k">.bend</b>
 
 <i>;Second 8K bank at $2000, PC at $8000</i>
 *       <b>=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank2</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
-	<b class="k">.here</b>
+        <b class="k">.here</b>
 
-bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
+bank2   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <u>bank2</u>
         <b class="d">.dsection</b> <u>code</u>  <i>;Code and data sections in bank2</i>
         <b class="d">.dsection</b> <u>data</u>
         <b class="k">.section</b> <u>code</u>   <i>;Pre-open code section</i>
-	<b class="k">.include</b> <span class="s">"scr.asm"</span>
+        <b class="k">.include</b> <span class="s">"scr.asm"</span>
         <b class="k">.send</b> <u>code</u>
         <b class="k">.send</b> <u>bank2</u>
-	<b class="k">.bend</b>
+        <b class="k">.bend</b>
 
 <i>;Common data, avoid initialized variables here!</i>
 *       <b>=</b> <span>$c000</span>
@@ -2971,7 +2970,7 @@ bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
 code    <b>sei</b>
 
         <b class="k">.section</b> <u>bss</u>   <i>;Common data section</i>
-buffer	<b class="d">.fill</b> <span>10</span>
+buffer  <b class="d">.fill</b> <span>10</span>
         <b class="k">.send</b> <u>bss</u>
 
         <b class="k">.section</b> <u>data</u>  <i>;Data section (in bank1)</i>
@@ -2986,7 +2985,7 @@ routine <b class="d">.addr</b> <u>print</u>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) accumulator immediate constants.
 
 <pre width="80">
-	<b class="k">.al</b>
+        <b class="k">.al</b>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
@@ -2994,7 +2993,7 @@ routine <b class="d">.addr</b> <u>print</u>
 <dt><code><b class="k">.xl</b></code><a name="d_xl" href="#d_xl"></a>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) index register immediate constants.
 <pre width="80">
-	<b class="k">.xl</b>
+        <b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
@@ -3004,7 +3003,7 @@ routine <b class="d">.addr</b> <u>print</u>
 <code>SEP</code>/<code>REP</code> instructions.
 
 <pre width="80">
-	<b class="k">.autsiz</b>
+        <b class="k">.autsiz</b>
         <b>rep</b> #<span>$10</span>        <i>;implicit .xl</i>
         <b>ldx</b> #<span>$1000</span>
 </pre>
@@ -3050,9 +3049,9 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <p>Gives an error on page boundary crossing, e.g. for timing sensitive code.</p>
 
 <pre width="80">
-	<b class="k">.page</b>
+        <b class="k">.page</b>
 table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
-	<b class="k">.endp</b>
+        <b class="k">.endp</b>
 </pre>
 
 <dt><code><b class="k">.option</b></code> allow_branch_across_page<a name="d_option" href="#d_option"></a>
@@ -3064,7 +3063,7 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.option</b> allow_branch_across_page = <span>0</span>
         <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
 -       <b>dex</b>             <i>;16 cycles for sure</i>
-	<b>bne</b> <u>-</u>
+        <b>bne</b> <u>-</u>
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
@@ -3095,17 +3094,17 @@ can ruin the timing of a carefully cycle counted code.
 <dd>Selects CPU according to the string argument.
 
 <pre width="80">
-	<b class="k">.cpu</b> <span class="s">"6502"</span>	<i>;standard 65xx</i>
-	<b class="k">.cpu</b> <span class="s">"65c02"</span>	<i>;CMOS 65C02</i>
-	<b class="k">.cpu</b> <span class="s">"65ce02"</span>	<i>;CSG 65CE02</i>
-	<b class="k">.cpu</b> <span class="s">"6502i"</span>	<i>;NMOS 65xx</i>
-	<b class="k">.cpu</b> <span class="s">"65816"</span>	<i>;W65C816</i>
-	<b class="k">.cpu</b> <span class="s">"65dtv02"</span>	<i>;65dtv02</i>
-	<b class="k">.cpu</b> <span class="s">"65el02"</span>	<i>;65el02</i>
-	<b class="k">.cpu</b> <span class="s">"r65c02"</span>	<i>;R65C02</i>
-	<b class="k">.cpu</b> <span class="s">"w65c02"</span>	<i>;W65C02</i>
-	<b class="k">.cpu</b> <span class="s">"4510"</span>	<i>;CSG 4510</i>
-	<b class="k">.cpu</b> <span class="s">"default"</span>	<i>;cpu set on commandline</i>
+        <b class="k">.cpu</b> <span class="s">"6502"</span>     <i>;standard 65xx</i>
+        <b class="k">.cpu</b> <span class="s">"65c02"</span>    <i>;CMOS 65C02</i>
+        <b class="k">.cpu</b> <span class="s">"65ce02"</span>   <i>;CSG 65CE02</i>
+        <b class="k">.cpu</b> <span class="s">"6502i"</span>    <i>;NMOS 65xx</i>
+        <b class="k">.cpu</b> <span class="s">"65816"</span>    <i>;W65C816</i>
+        <b class="k">.cpu</b> <span class="s">"65dtv02"</span>  <i>;65dtv02</i>
+        <b class="k">.cpu</b> <span class="s">"65el02"</span>   <i>;65el02</i>
+        <b class="k">.cpu</b> <span class="s">"r65c02"</span>   <i>;R65C02</i>
+        <b class="k">.cpu</b> <span class="s">"w65c02"</span>   <i>;W65C02</i>
+        <b class="k">.cpu</b> <span class="s">"4510"</span>     <i>;CSG 4510</i>
+        <b class="k">.cpu</b> <span class="s">"default"</span>  <i>;cpu set on commandline</i>
 </pre>
 </dl>
 
@@ -3143,7 +3142,7 @@ is set to the value of expression or reference of variable.
         <b class="k">.proff</b>           <i>;Don't put filler bytes into listing</i>
 *       <b>=</b> <span>$8000</span>
         <b class="d">.fill</b> <span>$2000</span>, <span>$ff</span> <i>;Pre-fill ROM area</i>
-	<b class="k">.pron</b>
+        <b class="k">.pron</b>
 *       <b>=</b> <span>$8000</span>
         <b class="d">.addr</b> <u>reset</u>, <u>restore</u>
         <b class="d">.text</b> <span class="s">"CBM80"</span>
@@ -3441,7 +3440,7 @@ zeros. Uninitialized memory after the last valid byte is not saved. Up to 4&nbsp
 *       <b>=</b> <span>$1000</span>
         <b>lda</b> #<span>2</span>
 *       <b>=</b> <span>$2000</span>
-	<b>nop</b>
+        <b>nop</b>
 </pre>
 
 <div><table border="0">
@@ -3469,7 +3468,7 @@ skipped in the output. Up to 64&nbsp;KiB.</p>
 *       <b>=</b> <span>$02e0</span>
         <b class="d">.addr</b> <u>start</u>      <i>;run address</i>
 *       <b>=</b> <span>$2000</span>
-start	<b>rts</b>
+start   <b>rts</b>
 </pre>
 
 <div><table border="0">
@@ -3592,16 +3591,16 @@ is of course not converted.
 <pre width="80">
 64tass a.asm
 *       <b>=</b> <span>$1000</span>
-        <b>bcc</b> <span>$1233</span>	<i>;error...</i>
+        <b>bcc</b> <span>$1233</span>       <i>;error...</i>
 
 64tass a.asm
 *       <b>=</b> <span>$1000</span>
-        <b>bcs</b> *+<span>5</span>		<i>;opposite condition</i>
-        <b>jmp</b> <span>$1233</span>	<i>;as simple workaround</i>
+        <b>bcs</b> *+<span>5</span>         <i>;opposite condition</i>
+        <b>jmp</b> <span>$1233</span>       <i>;as simple workaround</i>
 
 64tass --long-branch a.asm
 *       <b>=</b> <span>$1000</span>
-        <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
+        <b>bcc</b> <span>$1233</span>       <i>;no error, automatically converted to the above one.</i>
 </pre>
 
 <dt><b>-C</b>, <b>--case-sensitive</b><a name="o_case-sensitive" href="#o_case-sensitive"></a>
@@ -3610,12 +3609,12 @@ sensitive. Otherwise everything is case insensitive by default.
 
 <pre width="80">
 64tass a.asm
-label	<b>nop</b>
-Label	<b>nop</b>	<i>;double defined...</i>
+label   <b>nop</b>
+Label   <b>nop</b>     <i>;double defined...</i>
 
 64tass --case-sensitive a.asm
 label   <b>nop</b>
-Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
+Label   <b>nop</b>     <i>;Ok, it's a different label...</i>
 </pre>
 
 <dt><b>-D</b> &lt;label&gt;=&lt;value&gt;<a name="o_D" href="#o_D"></a>
@@ -4090,7 +4089,7 @@ is the default.
 
 <pre width="80">
 64tass --m65xx a.asm
-        <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
+        <b>lda</b> <span>$14</span>         <i>;regular instructions</i>
 </pre>
 
 <dt><b>-c</b>, <b>--m65c02</b><a name="o_m65c02" href="#o_m65c02"></a>
@@ -4099,7 +4098,7 @@ CPU.
 
 <pre width="80">
 64tass --m65c02 a.asm
-        <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
+        <b>stz</b> <span>$d020</span>       <i>;65c02 instruction</i>
 </pre>
 
 <dt><b>--m65ce02</b><a name="o_m65ce02" href="#o_m65ce02"></a>
@@ -4117,7 +4116,7 @@ disk drive code, etc.
 
 <pre width="80">
 64tass --m6502 a.asm
-        <b>lax</b> <span>$14</span>		<i>;illegal instruction</i>
+        <b>lax</b> <span>$14</span>         <i>;illegal instruction</i>
 </pre>
 
 <dt><b>-t</b>, <b>--m65dtv02</b><a name="o_m65dtv02" href="#o_m65dtv02"></a>
@@ -4293,10 +4292,10 @@ the source files.
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-.1000	a2 00		ldx #$00		ldx #0
-.1002	ca		dex		loop	dex
-.1003	d0 fd		bne $1002		bne loop
-.1005	60		rts			rts
+.1000   a2 00           ldx #$00                ldx #0
+.1002   ca              dex             loop    dex
+.1003   d0 fd           bne $1002               bne loop
+.1005   60              rts                     rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -4313,10 +4312,10 @@ the source files.
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-.1000   a2 00			ldx #0
-.1002	ca		loop	dex
-.1003	d0 fd			bne loop
-.1005	60			rts
+.1000   a2 00                   ldx #0
+.1002   ca              loop    dex
+.1003   d0 fd                   bne loop
+.1005   60                      rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -4333,10 +4332,10 @@ the source files.
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-.1000   a2 00		ldx #$00
-.1002   ca		dex
-.1003   d0 fd		bne $1002
-.1005   60		rts
+.1000   a2 00           ldx #$00
+.1002   ca              dex
+.1003   d0 fd           bne $1002
+.1005   60              rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -4352,14 +4351,14 @@ separated file number in case it comes from a different file then the previous l
 ; 64tass --line-numbers -L list.txt a.asm
 ; Fri Dec  9 19:13:25 2005
 
-;Line	;Offset ;Hex		;Monitor	;Source
+;Line   ;Offset ;Hex            ;Monitor        ;Source
 
-:1	;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
+:1      ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  Processing input file: a.asm
 
-3	.1000	a2 00		ldx #$00		ldx #0
-4	.1002	ca		dex		loop	dex
-5	.1003	d0 fd		bne $1002		bne loop
-6	.1005	60		rts			rts
+3       .1000   a2 00           ldx #$00                ldx #0
+4       .1002   ca              dex             loop    dex
+5       .1003   d0 fd           bne $1002               bne loop
+6       .1005   60              rts                     rts
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
@@ -4467,13 +4466,13 @@ file included from</q> text where all the files and positions involved are liste
 <pre width="80">
 In file included from <strong>main.asm:3:3</strong>:
 <strong>included.asm:2:11: <span style="color:red">error:</span> not defined symbol 'test'</strong>
- 		#macro1 test
- 		        <strong><span style="color:green">^</span></strong>
+                #macro1 test
+                        <strong><span style="color:green">^</span></strong>
 In file included from <strong>included.asm:2:3</strong>,
                       <strong>main.asm:3:3</strong>:
 <strong>macros.asm:3:7: <span style="color:darkcyan">note:</span></strong> original location in an expanded macro was here
- 		lda test
- 		    <strong><span style="color:green">^</span></strong>
+                lda test
+                    <strong><span style="color:green">^</span></strong>
 </pre>
 
 <p>Messages ending with <q><code>[-Wxxx]</code></q> are user controllable. This means
@@ -4558,6 +4557,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>expression syntax<dd>syntax error
 <dt>extra characters on line<dd>there's some garbage on the end of line
 <dt>floating point overflow<dd>infinity reached during a calculation
+<dt>format character expected<dd>string ended before a format character was found
 <dt>general syntax<dd>can't do anything with this
 <dt>index out of range<dd>not enough elements in list
 <dt>key not in dictionary<dd>key not in the dictionary
@@ -4594,6 +4594,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
 <dt>unknown processor '?'<dd>unknown cpu name
 <dt>unknown argument name '?'<dd>no parameter argument known like this
+<dt>unknown format character '?'<dd>no format character known like this
 <dt>value needs to be non-negative<dd>only positive numbers or zero is accepted here
 <dt>wrong type &lt;?&gt;<dd>wrong object type used
 <dt>zero value not allowed<dd>do not use zero for example with .null

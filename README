@@ -352,7 +352,7 @@ x - y       subtract y from x                4.1 - 1.1 is 3.0
 x * y       multiply x with y                1.5 * 3 is 4.5
 x / y       integer divide x by y            7.0 / 2.0 is 3.5
 x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
-x ** y      x raised t power of y            2.0 ** -1 is 0.5
+x ** y      x raised to power of y           2.0 ** -1 is 0.5
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
 ~x          almost -x                        ~2.1 is almost -2.1
@@ -583,14 +583,14 @@ Indexing and slicing of code to access the compiled content might be
 implemented differently in future releases. Use this feature at your own risk
 for now, you might need to update your code later.
 
-        Label operators and functions
-a.b  member                  label.locallabel
-a[i] element from start      label[1]
-a[i] element from end        label[-1]
-a[s] copy as tuple           label[:]
-a[s] cut off start, as tuple label[1:]
-a[s] cut off end, as tuple   label[:-1]
-a[s] reverse, as tuple       label[::-1]
+         Label operators and functions
+a.b    member                  label.locallabel
+a[i]   element from start      label[1]
+a[-i]  element from end        label[-1]
+a[:]   copy as tuple           label[:]
+a[s:]  cut off start, as tuple label[1:]
+a[:-s] cut off end, as tuple   label[:-1]
+a[s]   reverse, as tuple       label[::-1]
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -612,20 +612,20 @@ letter, otherwise the indexing operator is not recognized. On the other hand
 put a space between the comma and a single letter symbol in a list to avoid it
 being recognized as an operator.
 
-  Addressing mode operators
-#  immediate
-#+ signed immediate
-#- signed immediate
-(  indirect
-[  long indirect
-,b data bank indexed
-,d direct page indexed
-,k program bank indexed
-,r data stack pointer indexed
-,s stack pointer indexed
-,x x register indexed
-,y y register indexed
-,z z register indexed
+   Addressing mode operators
+#   immediate
+#+  signed immediate
+#-  signed immediate
+( ) indirect
+[ ] long indirect
+,b  data bank indexed
+,d  direct page indexed
+,k  program bank indexed
+,r  data stack pointer indexed
+,s  stack pointer indexed
+,x  x register indexed
+,y  y register indexed
+,z  z register indexed
 
 Parentheses are used for indirection and square brackets for long indirection.
 These operations are only available after instructions and functions to not
@@ -1105,8 +1105,7 @@ format(<string expression>[, <expression>, ...])
 
     The following conversion types are implemented:
 
-          Formatting conversion types
-    a A   hexadecimal floating point (uppercase)
+      Formatting conversion types
     b     binary
     c     Unicode character
     d     decimal
@@ -1578,7 +1577,7 @@ which accepts strings of any length.
     Create bytes from 24 bit signed constants (-8388608-8388607)
 
     >1000  56 34 12                          .long $123456
-    >1003                                    .long ?                ; reserve 3 bytes
+    >1003                                    .long ?        ; reserve 3 bytes
     >1006  eb fd ff 51 11 00                 .lint -533, 4433
     ;Store 8.16 signed fixed point constants
     >100c  5d 8f fc 66 66 03 1e 85           .lint (-3.44, 3.4, 3.52) * 1p16
@@ -4042,6 +4041,8 @@ extra characters on line
     there's some garbage on the end of line
 floating point overflow
     infinity reached during a calculation
+format character expected
+    string ended before a format character was found
 general syntax
     can't do anything with this
 index out of range
@@ -4117,6 +4118,8 @@ unknown processor '?'
     unknown cpu name
 unknown argument name '?'
     no parameter argument known like this
+unknown format character '?'
+    no format character known like this
 value needs to be non-negative
     only positive numbers or zero is accepted here
 wrong type <?>

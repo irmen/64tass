@@ -1,5 +1,5 @@
 /*
-    $Id: str.h 2026 2019-10-26 06:10:15Z soci $
+    $Id: str.h 2381 2021-02-18 22:52:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ typedef struct str_t {
     size_t len;
 } str_t;
 
-extern int str_hash(const str_t *);
+extern unsigned int str_hash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);
 extern void str_cfcpy(str_t *, const str_t *);
 extern void str_cpy(str_t *, const str_t *);

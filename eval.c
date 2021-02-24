@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2355 2021-02-07 23:13:57Z soci $
+    $Id: eval.c 2402 2021-02-21 19:23:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1463,9 +1463,7 @@ static bool get_exp2(int stop) {
                 if (opr.data[opr.p - 1].val == &o_SPLAT) {
                     opr.p--;
                     if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || symbollist != 0) {
-                        str_t symbol;
-                        symbol.data = pline + opr.data[opr.p].epoint.pos;
-                        symbol.len = 1;
+                        static const str_t symbol = { (const uint8_t *)"*", 1 };
                         push_oper((Obj *)new_symbol(&symbol, &opr.data[opr.p].epoint), &opr.data[opr.p].epoint);
                         goto other;
                     }
@@ -1481,9 +1479,7 @@ static bool get_exp2(int stop) {
             opr.p--;
             lpoint.pos = epoint.pos;
             if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER) || symbollist != 0) {
-                str_t symbol;
-                symbol.data = pline + opr.data[opr.p].epoint.pos;
-                symbol.len = 1;
+                static const str_t symbol = { (const uint8_t *)"*", 1 };
                 push_oper((Obj *)new_symbol(&symbol, &opr.data[opr.p].epoint), &opr.data[opr.p].epoint);
                 goto other;
             }
@@ -1842,12 +1838,19 @@ Obj *get_vals_tuple(void) {
 Obj *get_vals_addrlist(struct linepos_s *epoints) {
     size_t i, j, len = get_val_remaining();
     Addrlist *list;
+    Obj *val;
 
     switch (len) {
     case 0:
         return (Obj *)ref_addrlist(null_addrlist);
     case 1:
-        return pull_val(&epoints[0]);
+        val = pull_val(&epoints[0]);
+        if (val->obj == ADDRLIST_OBJ) {
+            list = (Addrlist *)val;
+            i = list->len < 3 ? list->len : 3;
+            for (j = 1; j < i; j++) epoints[j] = epoints[0];
+        }
+        return val;
     default:
         break;
     }

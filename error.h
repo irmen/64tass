@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2338 2021-02-06 17:22:10Z soci $
+    $Id: error.h 2383 2021-02-20 12:12:10Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ extern struct file_list_s *current_file_list;
 extern const struct file_list_s *dummy_file_list;
 
 struct Obj;
+struct Str;
 struct Type;
 struct Label;
 struct Symbol;
@@ -64,7 +65,9 @@ extern void err_msg_unused_label(struct Label *);
 extern void err_msg_unused_const(struct Label *);
 extern void err_msg_unused_variable(struct Label *);
 extern void err_msg_not_defined(const struct str_t *, linepos_t);
+extern unsigned int err_msg_unknown_formatchar(const struct Str *, size_t, linepos_t);
 extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
+extern void err_msg_not_defined2a(int32_t, struct Namespace *, bool, linepos_t);
 extern void err_msg_symbol_case(const struct str_t *, const struct Label *, linepos_t);
 extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2321 2021-02-01 19:25:39Z soci $
+    $Id: macro.c 2401 2021-02-21 16:50:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,17 +109,19 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
 }
 
 size_t macro_error_translate2(size_t pos) {
-    const struct macro_pline_s *mline = &macro_parameters.current->pline;
-    if (macro_parameters.p != 0 && pline == mline->data) {
-        size_t i, pos2 = pos;
-        for (i = 0; i < mline->rp; i++) {
-            const struct macro_rpos_s *rpositions = &mline->rpositions[i];
-            if (rpositions->pos > pos2) break;
-            if (rpositions->pos + rpositions->len > pos2) {
-                pos = rpositions->opos;
-                break;
+    if (macro_parameters.p != 0) {
+        const struct macro_pline_s *mline = &macro_parameters.current->pline;
+        if (pline == mline->data) {
+            size_t i, pos2 = pos;
+            for (i = 0; i < mline->rp; i++) {
+                const struct macro_rpos_s *rpositions = &mline->rpositions[i];
+                if (rpositions->pos > pos2) break;
+                if (rpositions->pos + rpositions->len > pos2) {
+                    pos = rpositions->opos;
+                    break;
+                }
+                pos = pos + rpositions->olen - rpositions->len;
             }
-            pos = pos + rpositions->olen - rpositions->len;
         }
     }
     return pos;
@@ -636,16 +638,16 @@ bool get_func_params(Mfunc *v, bool single) {
                     v->epoint.pos = lpoint.pos;
                 }
                 break;
-            } else {
-                param[i].init = NULL;
-                if (here() == '=') {
-                    lpoint.pos++;
-                    if (!get_exp(1, 1, 1, &lpoint)) {
-                        ret = true;
-                        break;
-                    }
-                    param[i].init = pull_val(NULL);
+            }
+            param[i].init = NULL;
+            if (here() == '=') {
+                lpoint.pos++;
+                if (!get_exp(1, 1, 1, &lpoint)) {
+                    i++;
+                    ret = true;
+                    break;
                 }
+                param[i].init = pull_val(NULL);
             }
             i++;
             if (here() == 0 || here() == ';') {
@@ -866,27 +868,26 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     if (tuple != NULL) val_destroy(&tuple->v);
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
-        line_t lin = lpoint.line;
-        bool starexists;
-        struct star_s *s = new_star(vline, &starexists);
-        struct star_s *stree_old = star_tree;
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
         size_t oldbottom;
         bool in_macro_old = in_macro;
         struct section_address_s section_address, *oldsection_address = current_address;
-        in_macro = false;
+        bool starexists;
+        struct star_s *s = new_star(vline, &starexists);
+        struct star_s *stree_old = star_tree;
 
-        if (diagnostics.optimize) cpu_opt_invalidate();
         if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }
         s->addr = star;
         star_tree->vline = vline; star_tree = s; vline = s->vline;
+
+        in_macro = false;
+
         lpoint.line = mfunc->epoint.line;
-        if (!mfunc->single) new_waitfor(W_ENDF3, epoint);
         oldbottom = context_get_bottom();
         for (i = 0; i < mfunc->nslen; i++) {
             push_context(mfunc->namespaces[i]);
@@ -903,6 +904,10 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
                 retval = get_vals_tuple();
             }
         } else {
+            if (diagnostics.optimize) cpu_opt_invalidate();
+
+            new_waitfor(W_ENDF3, epoint);
+
             section_address.moved = section_address.wrapwarn = section_address.bankwarn = section_address.unionmode = false;
             section_address.address = 0;
             section_address.start = 0;
@@ -924,21 +929,21 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
                 err_msg_big_address(epoint);
                 current_address->l_address &= all_mem;
             }
+
+            close_waitfor(W_ENDF3);
         }
+        star = s->addr;
+        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
         functionrecursion--;
         context_set_bottom(oldbottom);
         pop_context();
         for (i = 0; i < mfunc->nslen; i++) {
             pop_context();
         }
-        if (!mfunc->single) close_waitfor(W_ENDF3);
-        star = s->addr;
         temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
         llist = ollist;
-        s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
-        lpoint.line = lin;
         in_macro = in_macro_old;
     }
     exitfile();

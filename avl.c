@@ -1,6 +1,6 @@
 /*
  * avltree - Implements an AVL tree with parent pointers.
- * $Id: avl.c 2274 2021-01-23 07:49:28Z soci $
+ * $Id: avl.c 2375 2021-02-14 23:42:39Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -23,33 +23,6 @@
 #include "avl.h"
 #include "attributes.h"
 #include "stdbool.h"
-
-/*
- * Iterators
- */
-static inline struct avltree_node *get_first(struct avltree_node *node)
-{
-        while (node->left != NULL)
-                node = node->left;
-        return node;
-}
-
-struct avltree_node *avltree_first(const struct avltree *tree)
-{
-        return tree->first;
-}
-
-struct avltree_node *avltree_next(const struct avltree_node *node)
-{
-        struct avltree_node *parent;
-
-        if (node->right != NULL)
-                return get_first(node->right);
-
-        while ((parent = node->parent) != NULL && parent->right == node)
-                node = parent;
-        return parent;
-}
 
 /*
  * The AVL tree is more rigidly balanced than Red-Black trees, leading
@@ -164,12 +137,9 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 
         if (parent == NULL) {
                 tree->root = node;
-                tree->first = node;
                 return NULL;
         }
         if (is_left) {
-                if (parent == tree->first)
-                        tree->first = node;
                 parent->left = node;
         } else {
                 parent->right = node;
@@ -249,12 +219,6 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
         }
         }
         return NULL;
-}
-
-void avltree_init(struct avltree *tree)
-{
-        tree->root = NULL;
-        tree->first = NULL;
 }
 
 static void destroy(struct avltree_node *node, avltree_free_fn_t free_fn)

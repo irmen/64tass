@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2364 2021-02-14 09:03:47Z soci $
+    $Id: 64tass.c 2406 2021-02-22 22:43:19Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1771,6 +1771,47 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     return i;
 }
 
+static Namespace *anonlabel(Namespace *mycontext, uint8_t type, linepos_t epoint) {
+    struct {
+        uint8_t type;
+        uint8_t padding[3];
+        line_t vline;
+        struct star_s *star_tree;
+    } anonsymbol;
+    Label *label;
+    bool labelexists;
+    str_t tmpname;
+    if (sizeof(anonsymbol) != sizeof(anonsymbol.type) + sizeof(anonsymbol.padding) + sizeof(anonsymbol.star_tree) + sizeof(anonsymbol.vline)) memset(&anonsymbol, 0, sizeof anonsymbol);
+    else anonsymbol.padding[0] = anonsymbol.padding[1] = anonsymbol.padding[2] = 0;
+    anonsymbol.type = type;
+    anonsymbol.star_tree = star_tree;
+    anonsymbol.vline = vline;
+    tmpname.data = (const uint8_t *)&anonsymbol; tmpname.len = sizeof anonsymbol;
+    label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
+    if (labelexists) {
+        if (label->defpass == pass) err_msg_double_defined(label, &tmpname, epoint);
+        else if (label->fwpass == pass) fwcount--;
+        label->constant = true;
+        label->owner = true;
+        label->defpass = pass;
+        if (label->value->obj != NAMESPACE_OBJ) {
+            val_destroy(label->value);
+            label->value = (Obj *)new_namespace(current_file_list, epoint);
+        } else {
+            Namespace *names = (Namespace *)label->value;
+            names->backr = names->forwr = 0;
+            names->file_list = current_file_list;
+            names->epoint = *epoint;
+        }
+    } else {
+        label->constant = true;
+        label->owner = true;
+        label->value = (Obj *)new_namespace(current_file_list, epoint);
+        label->epoint = *epoint;
+    }
+    return (Namespace *)label->value;
+}
+
 MUST_CHECK Obj *compile(void)
 {
     int wht;
@@ -1945,7 +1986,11 @@ MUST_CHECK Obj *compile(void)
                                 wht = '*';
                                 break;
                             }
-                            err_msg_not_defined2(&labelname, mycontext, false, &epoint);
+                            if (labelname.data == (const uint8_t *)&anonsymbol) {
+                                err_msg_not_defined2a((anonsymbol.dir == '-') ? -1 : 0, mycontext, false, &epoint);
+                            } else {
+                                err_msg_not_defined2(&labelname, mycontext, false, &epoint);
+                            }
                             goto breakerr;
                         }
                         if (label->constant) {
@@ -1970,7 +2015,10 @@ MUST_CHECK Obj *compile(void)
                         struct linepos_s epoints[3];
                         bool oldreferenceit = referenceit;
                         referenceit &= 1; /* not good... */
-                        if (!get_exp(0, 0, 0, NULL)) goto breakerr;
+                        if (!get_exp(0, 0, 0, NULL)) {
+                            if (label == NULL && val != NULL) val_destroy(val);
+                            goto breakerr;
+                        }
                         val2 = get_vals_addrlist(epoints);
                         referenceit = oldreferenceit;
                     }
@@ -1979,7 +2027,7 @@ MUST_CHECK Obj *compile(void)
                         label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                         if (labelexists) {
                             if (label->constant) {
-                                err_msg_not_variable(label, &labelname, &epoint); goto breakerr;
+                                err_msg_not_variable(label, &labelname, &epoint);
                                 val_destroy(val2);
                                 goto breakerr;
                             }
@@ -2694,38 +2742,7 @@ MUST_CHECK Obj *compile(void)
                                 }
                                 context = code->names;
                             } else {
-                                Label *label2;
-                                bool labelexists2;
-                                str_t tmpname;
-                                if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
-                                else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
-                                anonsymbol2.type = '#';
-                                anonsymbol2.star_tree = star_tree;
-                                anonsymbol2.vline = vline;
-                                tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
-                                label2 = new_label(&tmpname, mycontext, strength, &labelexists2, current_file_list);
-                                if (labelexists2) {
-                                    if (label2->defpass == pass) err_msg_double_defined(label2, &tmpname, &epoint);
-                                    else if (label2->fwpass == pass) fwcount--;
-                                    label2->constant = true;
-                                    label2->owner = true;
-                                    label2->defpass = pass;
-                                    if (label2->value->obj != NAMESPACE_OBJ) {
-                                        val_destroy(label2->value);
-                                        label2->value = (Obj *)new_namespace(current_file_list, &epoint);
-                                    } else {
-                                        Namespace *names = (Namespace *)label2->value;
-                                        names->backr = names->forwr = 0;
-                                        names->file_list = current_file_list;
-                                        names->epoint = epoint;
-                                    }
-                                } else {
-                                    label2->constant = true;
-                                    label2->owner = true;
-                                    label2->value = (Obj *)new_namespace(current_file_list, &epoint);
-                                    label2->epoint = epoint;
-                                }
-                                context = (Namespace *)label2->value;
+                                context = anonlabel(mycontext, '#', &epoint);
                             }
                             label = ref_label(label);
                             if (val != NULL) {
@@ -2787,9 +2804,11 @@ MUST_CHECK Obj *compile(void)
                     }
                     if (!labelexists) newlabel = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
                     oaddr = current_address->address;
+                    ref_label(newlabel);
                     if (labelexists) {
                         if (newlabel->defpass == pass) {
                             err_msg_double_defined(newlabel, &labelname, &epoint);
+                            val_destroy(&newlabel->v);
                             newlabel = NULL;
                             if (wht == '.') {
                                 epoint = cmdpoint;
@@ -2882,6 +2901,7 @@ MUST_CHECK Obj *compile(void)
                             listing_line(listing, 0);
                             waitfor->skip = 0; push_dummy_context();
                             waitfor->u.cmd_proc.label = NULL;
+                            val_destroy(&newlabel->v);
                         } else if (!newlabel->ref && ((Code *)newlabel->value)->pass != 0) {
                             listing_line(listing, 0);
                             waitfor->skip = 0; 
@@ -2889,22 +2909,23 @@ MUST_CHECK Obj *compile(void)
                             ((Code *)newlabel->value)->pass = 1;
                             push_dummy_context();
                             waitfor->u.cmd_proc.label = NULL;
+                            val_destroy(&newlabel->v);
                         } else {         /* TODO: first time it should not compile */
                             listing_line(listing, epoint.pos);
                             push_context(((Code *)newlabel->value)->names);
                             newlabel->ref = false;
-                            waitfor->u.cmd_proc.addr = current_address->address;waitfor->u.cmd_proc.membp = newmembp;waitfor->u.cmd_proc.label = ref_label(newlabel);
+                            waitfor->u.cmd_proc.addr = current_address->address;waitfor->u.cmd_proc.membp = newmembp;waitfor->u.cmd_proc.label = newlabel;
                         }
                         newlabel = NULL;
                         goto finish;
                     case CMD_SECTION:
-                        waitfor->u.cmd_section.addr = current_address->address;waitfor->u.cmd_section.membp = newmembp;waitfor->u.cmd_section.label = ref_label(newlabel);
+                        waitfor->u.cmd_section.addr = current_address->address;waitfor->u.cmd_section.membp = newmembp;waitfor->u.cmd_section.label = newlabel;
                         listing_line(listing, epoint.pos);
                         newlabel->ref = false;
                         newlabel = NULL;
                         goto finish;
                     case CMD_VIRTUAL:
-                        waitfor->u.cmd_virtual.membp = newmembp;waitfor->u.cmd_virtual.label = ref_label(newlabel);
+                        waitfor->u.cmd_virtual.membp = newmembp;waitfor->u.cmd_virtual.label = newlabel;
                         listing_line(listing, epoint.pos);
                         newlabel->ref = false;
                         newlabel = NULL;
@@ -3351,6 +3372,9 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_ENDWITH: /* .endwith */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
+                if ((waitfor->what==W_ENDWITH || waitfor->what==W_ENDWITH2) && waitfor->u.cmd_with.label != NULL) {
+                    set_size(waitfor->u.cmd_with.label, current_address->address - waitfor->u.cmd_with.addr, current_address->mem, waitfor->u.cmd_with.addr, waitfor->u.cmd_with.membp);val_destroy(&waitfor->u.cmd_with.label->v);
+                }
                 if (close_waitfor(W_ENDWITH)) {
                 } else if (waitfor->what==W_ENDWITH2) {
                     if (pop_context2()) err_msg2(ERROR__MISSING_OPEN, ".with", &epoint);
@@ -3568,10 +3592,12 @@ MUST_CHECK Obj *compile(void)
                     if (diagnostics.optimize) cpu_opt_invalidate();
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_HERE2, &epoint);
-                    waitfor->u.cmd_logical.laddr = current_address->unionmode ? current_address->l_union : current_address->l_address;waitfor->u.cmd_logical.addr = current_address->address;waitfor->u.cmd_logical.val = val_reference(current_address->l_address_val);
-                    if (newlabel == NULL) waitfor->u.cmd_logical.label = NULL;
-                    else {
-                        waitfor->u.cmd_logical.membp = newmembp;waitfor->u.cmd_logical.label = ref_label(newlabel);
+                    waitfor->u.cmd_logical.laddr = current_address->unionmode ? current_address->l_union : current_address->l_address;
+                    waitfor->u.cmd_logical.addr = current_address->address;
+                    waitfor->u.cmd_logical.val = val_reference(current_address->l_address_val);
+                    waitfor->u.cmd_logical.label = newlabel;
+                    if (newlabel != NULL) {
+                        waitfor->u.cmd_logical.membp = newmembp;
                         newlabel = NULL;
                     }
                     current_section->logicalrecursion++;
@@ -3629,42 +3655,11 @@ MUST_CHECK Obj *compile(void)
                     new_waitfor(W_BEND2, &epoint);
                     if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                         push_context(((Code *)newlabel->value)->names);
-                        waitfor->u.cmd_block.addr = current_address->address;waitfor->u.cmd_block.membp = newmembp;waitfor->u.cmd_block.label = ref_label(newlabel);
+                        waitfor->u.cmd_block.addr = current_address->address;waitfor->u.cmd_block.membp = newmembp;waitfor->u.cmd_block.label = newlabel;
                         newlabel = NULL;
                     } else {
-                        Label *label;
-                        bool labelexists;
-                        str_t tmpname;
                         waitfor->u.cmd_block.label = NULL;
-                        if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
-                        else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
-                        anonsymbol2.type = '.';
-                        anonsymbol2.star_tree = star_tree;
-                        anonsymbol2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
-                        if (labelexists) {
-                            if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
-                            else if (label->fwpass == pass) fwcount--;
-                            label->constant = true;
-                            label->owner = true;
-                            label->defpass = pass;
-                            if (label->value->obj != NAMESPACE_OBJ) {
-                                val_destroy(label->value);
-                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                            } else {
-                                Namespace *names = (Namespace *)label->value;
-                                names->backr = names->forwr = 0;
-                                names->file_list = current_file_list;
-                                names->epoint = epoint;
-                            }
-                        } else {
-                            label->constant = true;
-                            label->owner = true;
-                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                            label->epoint = epoint;
-                        }
-                        push_context((Namespace *)label->value);
+                        push_context(anonlabel(mycontext, '.', &epoint));
                     }
                 } else {push_dummy_context(); new_waitfor(W_BEND, &epoint);}
                 break;
@@ -3722,13 +3717,13 @@ MUST_CHECK Obj *compile(void)
                 } else {push_dummy_context(); new_waitfor(W_ENDN, &epoint);}
                 break;
             case CMD_WITH: if ((waitfor->skip & 1) != 0)
-                { /* .namespace */
+                { /* .with */
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_ENDWITH, &epoint);
-                    if (newlabel == NULL) waitfor->u.cmd_with.label = NULL;
-                    else {
-                        waitfor->u.cmd_with.addr = current_address->address;waitfor->u.cmd_with.membp = newmembp;waitfor->u.cmd_with.label = ref_label(newlabel);
+                    waitfor->u.cmd_with.label = newlabel;
+                    if (newlabel != NULL) {
+                        waitfor->u.cmd_with.addr = current_address->address;waitfor->u.cmd_with.membp = newmembp;
                         newlabel = NULL;
                     }
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
@@ -3739,15 +3734,15 @@ MUST_CHECK Obj *compile(void)
                         push_context2((Namespace *)val);
                         waitfor->what = W_ENDWITH2;
                     }
-                } else new_waitfor(W_ENDWITH, &epoint);
+                } else { new_waitfor(W_ENDWITH, &epoint); waitfor->u.cmd_with.label = NULL; }
                 break;
             case CMD_WEAK: if ((waitfor->skip & 1) != 0)
                 { /* .weak */
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_WEAK2, &epoint);
-                    if (newlabel == NULL) waitfor->u.cmd_weak.label = NULL;
-                    else {
-                        waitfor->u.cmd_weak.addr = current_address->address;waitfor->u.cmd_weak.membp = newmembp;waitfor->u.cmd_weak.label = ref_label(newlabel);
+                    waitfor->u.cmd_weak.label = newlabel;
+                    if (newlabel != NULL) {
+                        waitfor->u.cmd_weak.addr = current_address->address;waitfor->u.cmd_weak.membp = newmembp;
                         newlabel = NULL;
                     }
                     strength++;
@@ -3758,7 +3753,7 @@ MUST_CHECK Obj *compile(void)
             case CMD_DATABANK:
             case CMD_DPAGE:
             case CMD_EOR: if ((waitfor->skip & 1) != 0)
-                { /* .databank, .dpage, .eor */
+                { /* .seed .databank, .dpage, .eor */
                     uval_t uval;
                     struct values_s *vs;
                     listing_line(listing, epoint.pos);
@@ -4205,38 +4200,7 @@ MUST_CHECK Obj *compile(void)
                             if (newlabel != NULL && newlabel->value->obj == CODE_OBJ) {
                                 push_context(((Code *)newlabel->value)->names);
                             } else {
-                                Label *label;
-                                bool labelexists;
-                                str_t tmpname;
-                                if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
-                                else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
-                                anonsymbol2.type = '.';
-                                anonsymbol2.star_tree = star_tree;
-                                anonsymbol2.vline = vline;
-                                tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
-                                label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
-                                if (labelexists) {
-                                    if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
-                                    else if (label->fwpass == pass) fwcount--;
-                                    label->constant = true;
-                                    label->owner = true;
-                                    label->defpass = pass;
-                                    if (label->value->obj != NAMESPACE_OBJ) {
-                                        val_destroy(label->value);
-                                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                                    } else {
-                                        Namespace *names = (Namespace *)label->value;
-                                        names->backr = names->forwr = 0;
-                                        names->file_list = current_file_list;
-                                        names->epoint = epoint;
-                                    }
-                                } else {
-                                    label->constant = true;
-                                    label->owner = true;
-                                    label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                                    label->epoint = epoint;
-                                }
-                                push_context((Namespace *)label->value);
+                                push_context(anonlabel(mycontext, '.', &epoint));
                             }
                         }
                         enterfile(f, &epoint);
@@ -4303,7 +4267,7 @@ MUST_CHECK Obj *compile(void)
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
             case CMD_REPT: if ((waitfor->skip & 1) != 0)
-                { /* .for */
+                { /* .rept */
                     rept_command(NULL, NULL, &epoint);
                     goto breakerr;
                 } else new_waitfor(W_NEXT, &epoint);
@@ -4352,9 +4316,9 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, epoint.pos);
                     new_waitfor(W_ENDP2, &epoint);
                     waitfor->u.cmd_page.laddr = current_address->l_address;
-                    if (newlabel == NULL) waitfor->u.cmd_page.label = NULL;
-                    else {
-                        waitfor->u.cmd_page.addr = current_address->address;waitfor->u.cmd_page.membp = newmembp;waitfor->u.cmd_page.label = ref_label(newlabel);
+                    waitfor->u.cmd_page.label = newlabel;
+                    if (newlabel != NULL) {
+                        waitfor->u.cmd_page.addr = current_address->address;waitfor->u.cmd_page.membp = newmembp;
                         newlabel = NULL;
                     }
                 } else new_waitfor(W_ENDP, &epoint);
@@ -4646,38 +4610,7 @@ MUST_CHECK Obj *compile(void)
                     if (newlabel != NULL && !((Macro *)val)->retval && newlabel->value->obj == CODE_OBJ) {
                         context = ((Code *)newlabel->value)->names;
                     } else {
-                        Label *label;
-                        bool labelexists;
-                        str_t tmpname;
-                        if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
-                        else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
-                        anonsymbol2.type = '#';
-                        anonsymbol2.star_tree = star_tree;
-                        anonsymbol2.vline = vline;
-                        tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
-                        label = new_label(&tmpname, mycontext, strength, &labelexists, current_file_list);
-                        if (labelexists) {
-                            if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
-                            else if (label->fwpass == pass) fwcount--;
-                            label->constant = true;
-                            label->owner = true;
-                            label->defpass = pass;
-                            if (label->value->obj != NAMESPACE_OBJ) {
-                                val_destroy(label->value);
-                                label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                            } else {
-                                Namespace *names = (Namespace *)label->value;
-                                names->backr = names->forwr = 0;
-                                names->file_list = current_file_list;
-                                names->epoint = epoint;
-                            }
-                        } else {
-                            label->constant = true;
-                            label->owner = true;
-                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                            label->epoint = epoint;
-                        }
-                        context = (Namespace *)label->value;
+                        context = anonlabel(mycontext, '#', &epoint);
                     }
                     if (newlabel != NULL && ((Macro *)val)->retval) {
                         listing_equal(listing, newlabel->value);
@@ -4686,50 +4619,18 @@ MUST_CHECK Obj *compile(void)
                     }
                     val = macro_recurse(val->obj == MACRO_OBJ ? W_ENDMACRO2 : val->obj == STRUCT_OBJ ? W_ENDS3 : W_ENDU3, val, context, &epoint);
                 } else if (val->obj == MFUNC_OBJ) {
-                    Label *label;
-                    Mfunc *mfunc;
-                    bool labelexists;
-                    str_t tmpname;
-                    if (sizeof(anonsymbol2) != sizeof(anonsymbol2.type) + sizeof(anonsymbol2.padding) + sizeof(anonsymbol2.star_tree) + sizeof(anonsymbol2.vline)) memset(&anonsymbol2, 0, sizeof anonsymbol2);
-                    else anonsymbol2.padding[0] = anonsymbol2.padding[1] = anonsymbol2.padding[2] = 0;
-                    anonsymbol2.type = '#';
-                    anonsymbol2.star_tree = star_tree;
-                    anonsymbol2.vline = vline;
-                    tmpname.data = (const uint8_t *)&anonsymbol2; tmpname.len = sizeof anonsymbol2;
-                    label = new_label(&tmpname, ((Mfunc *)val)->namespaces[((Mfunc *)val)->nslen - 1], strength, &labelexists, current_file_list);
-                    if (labelexists) {
-                        if (label->defpass == pass) err_msg_double_defined(label, &tmpname, &epoint);
-                        else if (label->fwpass == pass) fwcount--;
-                        label->constant = true;
-                        label->owner = true;
-                        label->defpass = pass;
-                        if (label->value->obj != NAMESPACE_OBJ) {
-                            val_destroy(label->value);
-                            label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                        } else {
-                            Namespace *names = (Namespace *)label->value;
-                            names->backr = names->forwr = 0;
-                            names->file_list = current_file_list;
-                            names->epoint = epoint;
-                        }
-                    } else {
-                        label->constant = true;
-                        label->owner = true;
-                        label->value = (Obj *)new_namespace(current_file_list, &epoint);
-                        label->epoint = epoint;
-                    }
-                    mfunc = (Mfunc *)val_reference(val);
+                    Mfunc *mfunc = (Mfunc *)val_reference(val);
                     if (!get_exp(4, 0, 0, NULL)) {
                         val = NULL;
                         val_destroy(&mfunc->v);
                         goto breakerr;
                     }
-                    if (newlabel != NULL && ((Mfunc *)val)->retval) {
+                    if (newlabel != NULL && mfunc->retval) {
                         listing_equal(listing, newlabel->value);
                     } else {
                         listing_line_cut(listing, epoint.pos);
                     }
-                    val = mfunc_recurse(mfunc, (Namespace *)label->value, strength, &epoint);
+                    val = mfunc_recurse(mfunc, anonlabel(mfunc->namespaces[mfunc->nslen - 1], '#', &epoint), strength, &epoint);
                     val_destroy(&mfunc->v);
                 } else { /* segment */
                     if (newlabel != NULL && ((Macro *)val)->retval) {
@@ -4835,7 +4736,10 @@ MUST_CHECK Obj *compile(void)
     finish:
         ignore();if (here() != 0 && here() != ';' && (waitfor->skip & 1) != 0) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
-        if (newlabel != NULL && !newlabel->update_after) set_size(newlabel, current_address->address - oaddr, current_address->mem, oaddr, newmembp);
+        if (newlabel != NULL) { 
+            if (!newlabel->update_after) set_size(newlabel, current_address->address - oaddr, current_address->mem, oaddr, newmembp);
+            val_destroy(&newlabel->v);
+        }
     }
 
     while (oldwaitforp < waitfor_p) {

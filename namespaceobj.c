@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: namespaceobj.c 2389 2021-02-20 18:50:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         return;
     case 1:
         for (i = 0; i <= v1->mask; i++) {
-            Obj *v = &v1->data[i]->v;
+            Obj *v = (Obj *)v1->data[i];
             if (v == NULL) continue;
             if ((v->refcount & SIZE_MSB) != 0) {
                 v->refcount -= SIZE_MSB - 1;
