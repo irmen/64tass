@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 2013 2019-10-20 04:31:33Z soci $
+    $Id: codeobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,11 +52,13 @@ typedef struct Code {
     uval_t conflicts;
 } Code;
 
+#define Code(a) ((Code *)(1 ? (a) : (Obj *)(Code *)(a)))
+
 extern void codeobj_init(void);
 extern void codeobj_names(void);
 
 static inline MUST_CHECK Code *new_code(void) {
-    return (Code *)val_alloc(CODE_OBJ);
+    return Code(val_alloc(CODE_OBJ));
 }
 
 struct Error;

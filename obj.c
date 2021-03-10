@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2354 2021-02-07 23:03:40Z soci $
+    $Id: obj.c 2476 2021-03-07 02:25:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -55,15 +55,28 @@ static Type funcargs_obj;
 Type *const LBL_OBJ = &lbl_obj;
 Type *const DEFAULT_OBJ = &default_obj;
 Type *const FUNCARGS_OBJ = &funcargs_obj;
-Default *default_value;
+
+static Default defaultval = { { &default_obj, 1} };
+
+Obj *const default_value = &defaultval.v;
 
 MUST_CHECK Obj *obj_oper_error(oper_t op) {
     Obj *v1, *v2;
     Error *err;
     switch (op->op->op) {
-    case O_IDENTITY:
     case O_EQ: return truth_reference(op->v1 == op->v2 || op->v1->obj->same(op->v1, op->v2));
     case O_NE: return truth_reference(op->v1 != op->v2 && !op->v1->obj->same(op->v1, op->v2));
+    case O_WORD:
+    case O_HWORD:
+    case O_BSWORD:
+    case O_LOWER:
+    case O_HIGHER:
+    case O_BANK:
+    case O_STRING:
+    case O_INV:
+    case O_NEG:
+    case O_POS:
+    case O_LNOT:
     case O_X:
     case O_FUNC:
     case O_INDEX: v2 = NULL; break;
@@ -74,15 +87,13 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
     err->u.invoper.op = op->op;
     err->u.invoper.v1 = (v1 != NULL) ? ((v1->refcount != 0) ? val_reference(v1) : v1) : NULL;
     err->u.invoper.v2 = (v2 != NULL) ? ((v2->refcount != 0) ? val_reference(v2) : v2) : NULL;
-    return &err->v;
+    return Obj(err);
 }
 
 MUST_CHECK Obj *obj_oper_compare(oper_t op, int val) {
     bool result;
     switch (op->op->op) {
-    case O_CMP:
-        if (val < 0) return (Obj *)ref_int(minus1_value);
-        return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
+    case O_CMP: return val_reference(val < 0 ? minus1_value : int_value[(val > 0) ? 1 : 0]);
     case O_EQ: result = (val == 0); break;
     case O_NE: result = (val != 0); break;
     case O_MIN:
@@ -101,33 +112,30 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR: return val_reference(v1);
     case T_ADDRESS:
-        if (((Address *)v1)->val == &none_value->v || ((Address *)v1)->val->obj == ERROR_OBJ) return val_reference(((Address *)v1)->val);
+        if (Address(v1)->val == none_value || Address(v1)->val->obj == ERROR_OBJ) return val_reference(Address(v1)->val);
         break;
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
+    return ref_none();
 }
 
-static FAST_CALL bool invalid_same(const Obj *v1, const Obj *v2) {
-    return v1->obj == v2->obj;
+static FAST_CALL bool invalid_same(const Obj *o1, const Obj *o2) {
+    return o1->obj == o2->obj;
 }
 
-static MUST_CHECK Error *generic_invalid(Obj *v1, linepos_t epoint, Error_types num) {
-    Error *err;
+static MUST_CHECK Obj *generic_invalid(Obj *v1, linepos_t epoint, Error_types num) {
     if (v1->obj == ERROR_OBJ) {
-        return (Error *)val_reference(v1);
+        return val_reference(v1);
     }
-    err = new_error(num, epoint);
-    err->u.obj = val_reference(v1);
-    return err;
+    return new_error_obj(num, v1, epoint);
 }
 
 static MUST_CHECK Obj *invalid_truth(Obj *v1, Truth_types UNUSED(type), linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_BOOL);
+    return generic_invalid(v1, epoint, ERROR_____CANT_BOOL);
 }
 
-static MUST_CHECK Error *invalid_hash(Obj *v1, int *UNUSED(hash), linepos_t epoint) {
+static MUST_CHECK Obj *invalid_hash(Obj *v1, int *UNUSED(hash), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR__NOT_HASHABLE);
 }
 
@@ -151,7 +159,7 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     *s++ = '<';
     memcpy(s, name, len2);
     s[len2] = '>';
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *invalid_str(Obj *v1, linepos_t epoint, size_t maxsize) {
@@ -164,53 +172,53 @@ static MUST_CHECK Obj *invalid_calc1(oper_t op) {
 
 static MUST_CHECK Obj *invalid_calc2(oper_t op) {
     Obj *o2 = op->v2;
-    if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
+    if (o2 == none_value || o2->obj == ERROR_OBJ) {
         return val_reference(o2);
     }
     if (o2->obj == ADDRESS_OBJ) {
-        Obj *val = ((Address *)o2)->val;
-        if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
+        Obj *val = Address(o2)->val;
+        if (val == none_value || val->obj == ERROR_OBJ) return val_reference(val);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     Obj *o1 = op->v1;
-    if (o1 == &none_value->v || o1->obj == ERROR_OBJ) {
+    if (o1 == none_value || o1->obj == ERROR_OBJ) {
         return val_reference(o1);
     }
     if (o1->obj == ADDRESS_OBJ) {
-        Obj *val = ((Address *)o1)->val;
-        if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
+        Obj *val = Address(o1)->val;
+        if (val == none_value || val->obj == ERROR_OBJ) return val_reference(val);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_slice(oper_t op, size_t indx) {
-    Funcargs *args = (Funcargs *)op->v2;
+    Funcargs *args = Funcargs(op->v2);
     if (indx == 0) {
         if (args->len > 0) {
             Obj *o2 = args->val[0].val;
-            if (o2 == &none_value->v || o2->obj == ERROR_OBJ) {
+            if (o2 == none_value || o2->obj == ERROR_OBJ) {
                 return val_reference(o2);
             }
             if (o2->obj == ADDRESS_OBJ) {
-                Obj *val = ((Address *)o2)->val;
-                if (val == &none_value->v || val->obj == ERROR_OBJ) return val_reference(val);
+                Obj *val = Address(o2)->val;
+                if (val == none_value || val->obj == ERROR_OBJ) return val_reference(val);
             }
         }
     } else {
-        return (Obj *)new_error_argnum(args->len, 1, indx, op->epoint2);
+        return new_error_argnum(args->len, 1, indx, op->epoint2);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Error *invalid_ival(Obj *v1, ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR______CANT_INT);
+    return Error(generic_invalid(v1, epoint, ERROR______CANT_INT));
 }
 
 static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), unsigned int UNUSED(bits), linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR______CANT_INT);
+    return Error(generic_invalid(v1, epoint, ERROR______CANT_INT));
 }
 
 static MUST_CHECK Error *invalid_uval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
@@ -230,19 +238,19 @@ static MUST_CHECK Error *invalid_uaddress(Obj *v1, uval_t *uv, unsigned int bits
 }
 
 static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
-    return (Obj *)generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
+    return generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
 static MUST_CHECK Obj *invalid_function(oper_t op) {
-    return (Obj *)generic_invalid(op->v2, op->epoint2, (((Function *)op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
+    return generic_invalid(op->v2, op->epoint2, (Function(op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
 }
 
 static MUST_CHECK Obj *invalid_len(oper_t op) {
-    return (Obj *)generic_invalid(op->v2, op->epoint2, ERROR______CANT_LEN);
+    return generic_invalid(op->v2, op->epoint2, ERROR______CANT_LEN);
 }
 
 static MUST_CHECK Obj *invalid_size(oper_t op) {
-    return (Obj *)generic_invalid(op->v2, op->epoint2, ERROR_____CANT_SIZE);
+    return generic_invalid(op->v2, op->epoint2, ERROR_____CANT_SIZE);
 }
 
 static FAST_CALL MUST_CHECK Obj *invalid_next(struct iter_s *v1) {
@@ -260,8 +268,8 @@ static void invalid_getiter(struct iter_s *v) {
 }
 
 static FAST_CALL bool lbl_same(const Obj *o1, const Obj *o2) {
-    const Lbl *v1 = (const Lbl *)o1, *v2 = (const Lbl *)o2;
-    return o2->obj == LBL_OBJ && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
+    const Lbl *v1 = Lbl(o1), *v2 = Lbl(o2);
+    return o1->obj == o2->obj && v1->sline == v2->sline && v1->waitforp == v2->waitforp && v1->file_list == v2->file_list && v1->parent == v2->parent;
 }
 
 static FAST_CALL bool default_same(const Obj *o1, const Obj *o2) {
@@ -269,8 +277,8 @@ static FAST_CALL bool default_same(const Obj *o1, const Obj *o2) {
 }
 
 static FAST_CALL bool funcargs_same(const Obj *o1, const Obj *o2) {
-    const Funcargs *v1 = (const Funcargs *)o1, *v2 = (const Funcargs *)o2;
-    return o2->obj == FUNCARGS_OBJ && v1->val == v2->val && v1->len == v2->len;
+    const Funcargs *v1 = Funcargs(o1), *v2 = Funcargs(o2);
+    return o1->obj == o2->obj && v1->val == v2->val && v1->len == v2->len;
 }
 
 void obj_init(Type *obj) {
@@ -334,8 +342,6 @@ void objects_init(void) {
     default_obj.same = default_same;
     new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
     funcargs_obj.same = funcargs_same;
-
-    default_value = (Default *)val_alloc(DEFAULT_OBJ);
 }
 
 void objects_destroy(void) {
@@ -350,8 +356,6 @@ void objects_destroy(void) {
     foldobj_destroy();
 
 #ifdef DEBUG
-    if (default_value->v.refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->v.refcount - 1);
+    if (default_value->refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->refcount - 1);
 #endif
-
-    val_destroy(&default_value->v);
 }

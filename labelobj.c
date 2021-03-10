@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 2083 2019-11-16 05:49:12Z soci $
+    $Id: labelobj.c 2468 2021-03-06 22:28:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,11 +38,11 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_LABEL: return val_reference(v1);
     default: break;
     }
-    return (Obj *)new_error_conv(v1, LABEL_OBJ, epoint);
+    return new_error_conv(v1, LABEL_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
-    Label *v1 = (Label *)o1;
+    Label *v1 = Label(o1);
     const struct file_s *cfile = v1->file_list->file;
     if ((size_t)(v1->name.data - cfile->data) >= cfile->len) free((char *)v1->name.data);
     if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
@@ -50,7 +50,7 @@ static FAST_CALL void destroy(Obj *o1) {
 }
 
 static FAST_CALL void garbage(Obj *o1, int i) {
-    Label *v1 = (Label *)o1;
+    Label *v1 = Label(o1);
     Obj *v;
     const struct file_s *cfile;
     switch (i) {
@@ -73,8 +73,8 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
-    return o2->obj == LABEL_OBJ
+    const Label *v1 = Label(o1), *v2 = Label(o2);
+    return o1->obj == o2->obj
         && v1->epoint.pos == v2->epoint.pos
         && v1->epoint.line == v2->epoint.line
         && v1->file_list == v2->file_list
@@ -84,7 +84,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
-    Label *v1 = (Label *)o1;
+    Label *v1 = Label(o1);
     size_t len, len2;
     uint8_t *s;
     Str *v;
@@ -107,11 +107,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxlen) {
     memcpy(s, v1->name.data, len);
     s[len] = '\'';
     s[len + 1] = '>';
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxlen) {
-    Label *v1 = (Label *)o1;
+    Label *v1 = Label(o1);
     size_t len, chars;
     Str *v;
     switch (v1->name.data[0]) {
@@ -127,7 +127,7 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxlen) {
     if (v == NULL) return NULL;
     v->chars = chars;
     memcpy(v->data, v1->name.data, len);
-    return &v->v;
+    return Obj(v);
 }
 
 void labelobj_init(void) {

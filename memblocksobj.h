@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 2129 2019-12-30 16:41:47Z soci $
+    $Id: memblocksobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ typedef struct Memblocks {
     bool flattened, merged, enumeration;
     struct memblock_s *data;
 } Memblocks;
+
+#define Memblocks(a) ((Memblocks *)(1 ? (a) : (Obj *)(Memblocks *)(a)))
 
 extern void memblocksobj_init(void);
 

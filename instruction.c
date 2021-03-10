@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2376 2021-02-14 23:59:32Z soci $
+    $Id: instruction.c 2469 2021-03-06 22:39:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ void select_opcodes(const struct cpu_s *cpumode) {
 
 MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Error *err;
-    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    if (v1 == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
     err = v1->obj->uval(v1, uv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
@@ -81,7 +81,7 @@ MUST_CHECK bool touval(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint)
 
 MUST_CHECK bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Error *err;
-    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    if (v1 == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
     err = v1->obj->ival(v1, iv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
@@ -90,7 +90,7 @@ MUST_CHECK bool toival(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint)
 
 MUST_CHECK bool touaddress(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
     Error *err;
-    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    if (v1 == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
     err = v1->obj->uaddress(v1, uv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
@@ -99,7 +99,7 @@ MUST_CHECK bool touaddress(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epo
 
 MUST_CHECK bool toiaddress(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epoint) {
     Error *err;
-    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    if (v1 == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
     err = v1->obj->iaddress(v1, iv, bits, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
@@ -108,7 +108,7 @@ MUST_CHECK bool toiaddress(Obj *v1, ival_t *iv, unsigned int bits, linepos_t epo
 
 static MUST_CHECK bool tocode_uaddress(Obj *v1, uval_t *uv, uval_t *uv2, linepos_t epoint) {
     Error *err;
-    if (v1 == &none_value->v && (constcreated || !fixeddig) && pass < max_pass) return true;
+    if (v1 == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
     err = code_uaddress(v1, uv, uv2, epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
@@ -132,18 +132,18 @@ static MUST_CHECK Error *err_addressize(Error_types no, linepos_t epoint, int pr
 }
 
 static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)  {
-    if (diagnostics.optimize) cpu_opt(cod, adr, ln, epoint);
+    if (diagnostics.optimize) cpu_opt((uint8_t)cod, adr, ln, epoint);
     if (ln >= 0) {
         uint8_t *d;
         uint32_t temp;
-        d = pokealloc(ln + 1, epoint);
+        d = pokealloc((unsigned int)(ln + 1), epoint);
         temp = adr ^ outputeor;
         switch (ln) {
-        case 4: d[4] = temp >> 24; /* fall through */
-        case 3: d[3] = temp >> 16; /* fall through */
-        case 2: d[2] = temp >> 8; /* fall through */
-        case 1: d[1] = temp; /* fall through */
-        default: d[0] = cod ^ outputeor;
+        case 4: d[4] = (uint8_t)(temp >> 24); /* fall through */
+        case 3: d[3] = (uint8_t)(temp >> 16); /* fall through */
+        case 2: d[2] = (uint8_t)(temp >> 8); /* fall through */
+        case 1: d[1] = (uint8_t)temp; /* fall through */
+        default: d[0] = (uint8_t)(cod ^ outputeor);
         }
     }
     listing_instr(listing, cod, adr, ln);
@@ -427,7 +427,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     } else {
         Addrlist *addrlist;
         atype_t am;
-        switch (((Addrlist *)vals)->len) {
+        switch (Addrlist(vals)->len) {
         case 0:
             if (cnmemonic[ADR_IMPLIED] != ____) {
                 if (diagnostics.implied_reg && cnmemonic[ADR_REG] != 0) err_msg_implied_reg(epoint, mnemonic[prm]);
@@ -436,7 +436,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             }
             return err_addressing(A_NONE, epoint, prm);
         case 1:
-            addrlist = (Addrlist *)vals;
+            addrlist = Addrlist(vals);
             val = addrlist->data[0];
         single:
             am = val->obj->address(val);
@@ -482,7 +482,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 return err_addressing(am, epoint2, prm);
             }
             if (val->obj == REGISTER_OBJ) {
-                Register *cpureg = (Register *)val;
+                Register *cpureg = Register(val);
                 cod = cnmemonic[(opr = ADR_REG)];
                 if (cod != 0 && cpureg->len == 1) {
                     const char *ind = strchr(reg_names, cpureg->data[0]);
@@ -498,7 +498,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 err->u.reg.reg = ref_register(cpureg);
                 err->u.reg.cod = mnemonic[prm];
                 err_msg_output_and_destroy(err);
-                val = &none_value->v;
+                val = none_value;
             }
             if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
@@ -514,7 +514,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     invalid = touaddress(val, &uval, 16, epoint2);
                     if (invalid) uval = current_address->l_address + 1 + ln;
                     uval &= 0xffff;
-                    uval |= (uval_t)current_address->l_address & ~0xffff;
+                    uval |= current_address->l_address & ~(uval_t)0xffff;
                     crossbank = false;
                 } else {
             justrel:
@@ -524,14 +524,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         crossbank = false;
                     } else {
                         uval &= all_mem;
-                        crossbank = ((uval_t)current_address->l_address ^ uval) > 0xffff;
+                        crossbank = (current_address->l_address ^ uval) > 0xffff;
                     }
                 }
                 xadr = (uint16_t)adr;
 
                 oadr = uval;
-                oval = val->obj == ADDRESS_OBJ ? ((Address *)val)->val : val;
-                if (oval->obj == CODE_OBJ && pass != ((Code *)oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
+                oval = val->obj == ADDRESS_OBJ ? Address(val)->val : val;
+                if (oval->obj == CODE_OBJ && pass != Code(oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
                     s = new_star(vline + 1, &starexists);
                     adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
                 } else {
@@ -550,7 +550,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     if (invalid) uval = 0;
                     if (!longpossible && (uval & 0x80) != 0) uval |= ~(uval_t)0xff;
                     uval &= 0xffff;
-                    uval |= (uval_t)current_address->l_address & ~0xffff;
+                    uval |= current_address->l_address & ~(uval_t)0xffff;
                     crossbank = false;
                     xadr = (uint16_t)adr;
                     starexists = false; s = NULL;
@@ -614,7 +614,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             if (current_cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
                             asbrl:
                                 if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                                 err = instruction(current_cpu->brl, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
                                 goto branchend;
@@ -626,7 +626,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             } else { /* bra -> jmp */
                             asjmp:
                                 if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                                 err = instruction(current_cpu->jmp, w, vals, epoint, epoints);
                                 cpu_opt_long_branch(0);
                             branchend:
@@ -669,14 +669,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         }
                         if (adr == 1) {
                             if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                                 dump_instr(cnmemonic[ADR_REL] ^ 0x20, 1, 0, epoint);
                                 cpu_opt_long_branch(0);
                                 err = NULL;
                                 goto branchend;
                             }
                             if (cnmemonic[ADR_REL] == 0x80 && (opcode == r65c02.opcode || opcode == w65c02.opcode)) {
-                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                                 dump_instr(0x82, 1, 0, epoint);
                                 cpu_opt_long_branch(0);
                                 err = NULL;
@@ -685,7 +685,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         }
                         if (adr == 2 && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
                             if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100);
+                                cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                                 dump_instr(cnmemonic[ADR_REL] ^ 0x23, 2, 0, epoint);
                                 cpu_opt_long_branch(0);
                                 err = NULL;
@@ -726,7 +726,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                 break;
             }
-            if (val == &none_value->v) {
+            if (val == none_value) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint2);
@@ -734,7 +734,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             err->u.opers.cod = mnemonic[prm];
             return err;
         case 2:
-            addrlist = (Addrlist *)vals;
+            addrlist = Addrlist(vals);
             if (cnmemonic[ADR_MOVE] != ____) {
                 if (w != 3 && w != 1) return err_addressize((w == 0) ? ERROR__NO_BYTE_ADDR : ERROR__NO_LONG_ADDR, epoint2, prm);
                 val = addrlist->data[0];
@@ -772,10 +772,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 opr = ADR_BIT_ZP;
                 break;
             }
-            if (addrlist->data[0] == &none_value->v) {
+            if (addrlist->data[0] == none_value) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
-            if (addrlist->data[1] == &none_value->v) {
+            if (addrlist->data[1] == none_value) {
                 return new_error(ERROR____STILL_NONE, &epoints[1]);
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint2);
@@ -783,7 +783,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             err->u.opers.cod = mnemonic[prm];
             return err;
         case 3:
-            addrlist = (Addrlist *)vals;
+            addrlist = Addrlist(vals);
             if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
                 if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
                 if (touval(addrlist->data[0], &uval, 3, epoint2)) {}
@@ -824,20 +824,20 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             }
             /* fall through */
         default:
-            addrlist = (Addrlist *)vals;
-            if (addrlist->data[0] == &none_value->v) {
+            addrlist = Addrlist(vals);
+            if (addrlist->data[0] == none_value) {
                 return new_error(ERROR____STILL_NONE, epoint2);
             }
-            if (addrlist->data[1] == &none_value->v) {
+            if (addrlist->data[1] == none_value) {
                 return new_error(ERROR____STILL_NONE, &epoints[1]);
             }
-            if (addrlist->data[2] == &none_value->v) {
+            if (addrlist->data[2] == none_value) {
                 return new_error(ERROR____STILL_NONE, &epoints[2]);
             }
             {
                 size_t i;
                 for (i = 3; i < addrlist->len; i++) {
-                    if (addrlist->data[i] == &none_value->v) {
+                    if (addrlist->data[i] == none_value) {
                         return new_error(ERROR____STILL_NONE, epoint);
                     }
                 }
@@ -855,7 +855,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             Obj *val2;
             if (w != 3 && w != 0) return err_addressize((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint2, prm);
             ln = 1;
-            val2 = (val->obj == ADDRESS_OBJ) ? ((Address *)val)->val : val;
+            val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
             if (val2->obj == CODE_OBJ) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
@@ -883,7 +883,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             Obj *val2;
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
             ln = 2;
-            val2 = (val->obj == ADDRESS_OBJ) ? ((Address *)val)->val : val;
+            val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
             if (val2->obj == CODE_OBJ) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
@@ -906,7 +906,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             Obj *val2;
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
             ln = 2;
-            val2 = (val->obj == ADDRESS_OBJ) ? ((Address *)val)->val : val;
+            val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
             if (val2->obj == CODE_OBJ) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
@@ -930,9 +930,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toiaddress(val, (ival_t *)&uval, 8, epoint2)) break;
         } else {
             if (touaddress(val, &uval, 8, epoint2)) {
-                if (adrgen == AG_SBYTE && diagnostics.pitfalls && val != &none_value->v) {
+                if (adrgen == AG_SBYTE && diagnostics.pitfalls && val != none_value) {
                     err = val->obj->iaddress(val, (ival_t *)&uval, 8, epoint2);
-                    if (err != NULL) val_destroy(&err->v);
+                    if (err != NULL) val_destroy(Obj(err));
                     else if (once != pass) {
                         err_msg_immediate_note(epoint2);
                         once = pass;
@@ -959,7 +959,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
     case AG_DB3: /* 3 choice data bank */
         {
             uval_t uval2;
-            Obj *val2 = (val->obj == ADDRESS_OBJ) ? ((Address *)val)->val : val;
+            Obj *val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
 
             if (w == 3) {/* auto length */
                 if (val2->obj == CODE_OBJ) {
@@ -979,7 +979,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     }
 
                     if (cnmemonic[opr] != ____ && uval3 <= 0xffff && dpage <= 0xffff && (uint16_t)(uval3 - dpage) <= 0xff) {
-                        if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && (val->obj != CODE_OBJ || ((Code *)val)->memblocks->enumeration) && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                        if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && (val->obj != CODE_OBJ || Code(val)->memblocks->enumeration) && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
                         else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2);
                         adr = uval - dpage; w = 0;
                         if (opcode == c65el02.opcode || opcode == w65816.opcode) {
@@ -1057,9 +1057,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             if (toiaddress(val, (ival_t *)&uval, 16, epoint2)) break;
         } else {
             if (touaddress(val, &uval, 16, epoint2)) {
-                if (adrgen == AG_SWORD && diagnostics.pitfalls && val != &none_value->v) {
+                if (adrgen == AG_SWORD && diagnostics.pitfalls && val != none_value) {
                     err = val->obj->iaddress(val, (ival_t *)&uval, 16, epoint2);
-                    if (err != NULL) val_destroy(&err->v);
+                    if (err != NULL) val_destroy(Obj(err));
                     else if (once != pass) {
                         err_msg_immediate_note(epoint2);
                         once = pass;

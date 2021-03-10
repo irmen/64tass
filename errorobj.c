@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: errorobj.c 2479 2021-03-07 09:13:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static Type obj;
 Type *const ERROR_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
-    Error *v1 = (Error *)o1;
+    Error *v1 = Error(o1);
     if (v1->line != NULL) free((uint8_t *)v1->line);
     switch (v1->num) {
     case ERROR__INVALID_OPER:
@@ -42,7 +42,7 @@ static FAST_CALL void destroy(Obj *o1) {
         if (v1->u.invoper.v2 != NULL) val_destroy(v1->u.invoper.v2);
         return;
     case ERROR___NO_REGISTER:
-        val_destroy(&v1->u.reg.reg->v);
+        val_destroy(Obj(v1->u.reg.reg));
         return;
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
@@ -51,7 +51,7 @@ static FAST_CALL void destroy(Obj *o1) {
         return;
     case ERROR___NOT_DEFINED:
         val_destroy(v1->u.notdef.symbol);
-        val_destroy((Obj *)v1->u.notdef.names);
+        val_destroy(Obj(v1->u.notdef.names));
         return;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
@@ -67,6 +67,8 @@ static FAST_CALL void destroy(Obj *o1) {
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
+    case ERROR_DIVISION_BY_Z:
+    case ERROR_ZERO_NEGPOWER:
         val_destroy(v1->u.obj);
         return;
     case ERROR__INVALID_CONV:
@@ -77,7 +79,7 @@ static FAST_CALL void destroy(Obj *o1) {
 }
 
 static FAST_CALL void garbage(Obj *o1, int i) {
-    Error *v1 = (Error *)o1;
+    Error *v1 = Error(o1);
     Obj *v;
     switch (v1->num) {
     case ERROR__INVALID_OPER:
@@ -100,7 +102,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         }
         break;
     case ERROR___NO_REGISTER:
-        v = &v1->u.reg.reg->v;
+        v = Obj(v1->u.reg.reg);
         break;
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
@@ -122,7 +124,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
             } else v->refcount++;
             break;
         }
-        v = &v1->u.notdef.names->v;
+        v = Obj(v1->u.notdef.names);
         break;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
@@ -138,6 +140,8 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
+    case ERROR_DIVISION_BY_Z:
+    case ERROR_ZERO_NEGPOWER:
         v = v1->u.obj;
         break;
     case ERROR__INVALID_CONV:
@@ -164,7 +168,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 }
 
 MALLOC Error *new_error(Error_types num, linepos_t epoint) {
-    Error *v = (Error *)val_alloc(ERROR_OBJ);
+    Error *v = Error(val_alloc(ERROR_OBJ));
     v->num = num;
     v->file_list = current_file_list;
     v->epoint.line = epoint->line;
@@ -179,29 +183,29 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     return v;
 }
 
-MALLOC Error *new_error_mem(linepos_t epoint) {
-    return new_error(ERROR_OUT_OF_MEMORY, epoint);
+MALLOC Obj *new_error_mem(linepos_t epoint) {
+    return Obj(new_error(ERROR_OUT_OF_MEMORY, epoint));
 }
 
-MALLOC Error *new_error_obj(Error_types num, Obj *v1, linepos_t epoint) {
+MALLOC Obj *new_error_obj(Error_types num, Obj *v1, linepos_t epoint) {
     Error *v = new_error(num, epoint);
     v->u.obj = val_reference(v1);
-    return v;
+    return Obj(v);
 }
 
-MALLOC Error *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
+MALLOC Obj *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
     Error *v = new_error(ERROR__INVALID_CONV, epoint);
     v->u.conv.t = t;
     v->u.conv.val = val_reference(v1);
-    return v;
+    return Obj(v);
 }
 
-MALLOC Error *new_error_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
+MALLOC Obj *new_error_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
     Error *v = new_error(ERROR__WRONG_ARGNUM, epoint);
     v->u.argnum.num = num;
     v->u.argnum.min = min;
     v->u.argnum.max = max;
-    return v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
@@ -228,4 +232,46 @@ void errorobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
     obj.slice = slice;
+}
+
+void error_obj_update(Error *err, const Obj *v1, Obj *v2) {
+    switch (err->num) {
+    case ERROR__INVALID_OPER:
+        if (err->u.invoper.v1 == v1) {
+            val_replace(&err->u.invoper.v1, v2);
+        }
+        if (err->u.invoper.v2 == v1) {
+            val_replace(&err->u.invoper.v2, v2);
+        }
+        return;
+    case ERROR_____CANT_UVAL:
+    case ERROR_____CANT_IVAL:
+    case ERROR______NOT_UVAL:
+        if (err->u.intconv.val == v1) {
+            val_replace(&err->u.intconv.val, v2);
+        }
+        return;
+    case ERROR__NOT_KEYVALUE:
+    case ERROR__NOT_HASHABLE:
+    case ERROR_____CANT_SIGN:
+    case ERROR______CANT_ABS:
+    case ERROR______CANT_INT:
+    case ERROR______CANT_LEN:
+    case ERROR_____CANT_SIZE:
+    case ERROR_____CANT_BOOL:
+    case ERROR______NOT_ITER:
+    case ERROR___MATH_DOMAIN:
+    case ERROR_LOG_NON_POSIT:
+    case ERROR_SQUARE_ROOT_N:
+    case ERROR___INDEX_RANGE:
+    case ERROR_____KEY_ERROR:
+    case ERROR_DIVISION_BY_Z:
+    case ERROR_ZERO_NEGPOWER:
+        if (err->u.obj == v1) {
+            val_replace(&err->u.obj, v2);
+        }
+        return;
+    default:
+        return;
+    }
 }

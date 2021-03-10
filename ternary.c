@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 2217 2020-05-29 19:22:09Z soci $
+   $Id: ternary.c 2428 2021-02-28 11:48:36Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -155,7 +155,7 @@ void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
     while (last != NULL && (~last->splitchar) != 0) {
         last = last->hikid;
     }
-    *len = prev - start;
+    *len = (size_t)(prev - start);
     return (last != NULL) ? (void *)last->eqkid : NULL;
 }
 

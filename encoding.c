@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2298 2021-01-25 20:53:11Z soci $
+    $Id: encoding.c 2465 2021-03-06 19:58:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 
 #include "strobj.h"
 #include "bytesobj.h"
+#include "bitsobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
 
@@ -72,7 +73,7 @@ static FAST_CALL int encoding_compare(const struct avltree_node *aa, const struc
 
 static void escape_free(void *e) {
     struct escape_s *esc;
-    size_t i = (const uint8_t *)e - identmap;
+    size_t i = (size_t)((const uint8_t *)e - identmap);
     if (i < 256) return;
     esc = (struct escape_s *)e;
     if (esc->data != esc->val) free(esc->data);
@@ -195,56 +196,41 @@ bool new_escape(struct encoding_s *enc, const str_t *v, Obj *val, linepos_t epoi
 {
     struct escape_s **b2, *b, tmp;
     Obj *val2;
-    struct iter_s iter;
-    uval_t uval;
-    size_t i, len;
+    size_t i;
     uint8_t *d;
     bool ret;
+    struct iter_s iter;
 
     b2 = (struct escape_s **)ternary_insert(&enc->escapes, v->data, v->data + v->len);
     if (b2 == NULL) err_msg_out_of_memory();
     b = *b2;
     *b2 = NULL;
 
-    i = 0;
-    len = sizeof tmp.val;
-    d = tmp.val;
+    if (val->obj == STR_OBJ || val->obj == BITS_OBJ) {
+        val2 = BYTES_OBJ->create(val, epoint);
+        iter.data = val2; val->obj->getiter(&iter); 
+        val_destroy(val2);
+    } else {
+        iter.data = val; val->obj->getiter(&iter); 
+    }
 
-    if (val->obj == STR_OBJ) {
-        Obj *tmp2 = bytes_from_str((Str *)val, epoint, BYTES_MODE_TEXT);
-        iter.data = tmp2; tmp2->obj->getiter(&iter);
-        val_destroy(tmp2);
-    } else { iter.data = val; val->obj->getiter(&iter); }
-
-    while ((val2 = iter.next(&iter)) != NULL) {
+    d = (iter.len <= lenof(tmp.val)) ? tmp.val : (uint8_t *)mallocx(iter.len * sizeof *d);
+    for (i = 0; i < iter.len && (val2 = iter.next(&iter)) != NULL; i++) {
+        uval_t uval;
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
         if (err != NULL) {
             err_msg_output_and_destroy(err);
             uval = 0;
         }
-        if (i >= len) {
-            if (i == sizeof tmp.val) {
-                len = 16;
-                d = (uint8_t *)mallocx(len);
-                memcpy(d, tmp.val, i);
-            } else {
-                len += 1024;
-                if (len < 1024) err_msg_out_of_memory(); /* overflow */
-                d = (uint8_t *)reallocx(d, len);
-            }
-        }
-        d[i++] = (uint8_t)uval;
+        d[i] = (uint8_t)uval;
     }
     iter_destroy(&iter);
 
     if (b == NULL) { /* new escape */
         b = (struct escape_s *)mallocx(sizeof *b);
         if (d == tmp.val) {
-            memcpy(b->val, tmp.val, i);
+            if (i != 0) memcpy(b->val, d, i);
             d = b->val;
-        } else if (i < len) {
-            uint8_t *d2 = (uint8_t *)realloc(d, i);
-            if (d2 != NULL) d = d2;
         }
         b->len = i;
         b->data = d;
@@ -266,7 +252,7 @@ bool new_escape(struct encoding_s *enc, const str_t *v, Obj *val, linepos_t epoi
     }
     *b2 = b;
     if (i == 1) {
-        size_t j = (const uint8_t *)b - identmap;
+        size_t j = (size_t)((const uint8_t *)b - identmap);
         if (j < 256) {
             return b != (struct escape_s *)(identmap + tmp.val[0]);
         }
@@ -282,12 +268,9 @@ bool new_escape(struct encoding_s *enc, const str_t *v, Obj *val, linepos_t epoi
     if (b->fwpass == pass) efwcount--;
     if (ret) {
         if (b->data != b->val) free(b->data);
-        if (tmp.val == d) {
-            memcpy(b->val, tmp.val, i);
+        if (d == tmp.val) {
+            if (i != 0) memcpy(b->val, d, i);
             d = b->val;
-        } else if (i < len) {
-            uint8_t *d2 = (uint8_t *)realloc(d, i);
-            if (d2 != NULL) d = d2;
         }
         b->data = d;
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -359,10 +342,10 @@ next:
         size_t len = encoder->len - encoder->i;
         struct escape_s *e = (struct escape_s *)ternary_search(encoding->escapes, encoder->data + encoder->i, &len);
         if (e != NULL) {
-            size_t i = (const uint8_t *)e - identmap;
+            size_t i = (size_t)((const uint8_t *)e - identmap);
             if (i < 256) {
                 encoder->i += len;
-                return i;
+                return (int)i;
             }
             if (e->pass >= pass || !fixeddig || e->pass == pass - 1) {
                 encoder->i += len;
@@ -386,7 +369,7 @@ next:
         }
         ln = 1;
     }
-    tmp.range.start = tmp.range.end = ch;
+    tmp.range.start = tmp.range.end = ch & 0xffffff;
 
     c = avltree_lookup(&tmp.node, &encoding->ranges, trans_compare);
     if (c != NULL) {

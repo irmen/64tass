@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2344 2021-02-06 23:54:01Z soci $
+    $Id: listing.c 2432 2021-02-28 13:18:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ static void out_pb(Listing *ls, unsigned int adr) {
 }
 
 static void out_bit(Listing *ls, unsigned int cod, unsigned int c) {
-    ls->s[ls->i++] = 0x30 + ((cod >> 4) & 7);
+    ls->s[ls->i++] = (char)('0' + ((cod >> 4) & 7));
     ls->s[ls->i++] = ',';
     out_zp(ls, c);
 }
@@ -151,17 +151,17 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     memcpy(ls->hex, "0123456789abcdef", 16);
     ls->filename = filename;
     ls->flist = flist;
-    ls->linenum = arguments.linenum;
+    ls->linenum = arguments.list.linenum;
     ls->pccolumn = listing_pccolumn;
-    ls->columns.addr = arguments.linenum ? LINE_WIDTH : 0;
+    ls->columns.addr = arguments.list.linenum ? LINE_WIDTH : 0;
     ls->columns.laddr = ls->columns.addr + ADDR_WIDTH;
     ls->columns.hex = ls->columns.laddr + (ls->pccolumn ? LADDR_WIDTH : 0);
     ls->columns.monitor = ls->columns.hex + HEX_WIDTH;
-    ls->columns.source = ls->columns.monitor + (arguments.monitor ? MONITOR_WIDTH : 0);
+    ls->columns.source = ls->columns.monitor + (arguments.list.monitor ? MONITOR_WIDTH : 0);
     ls->tab_size = arguments.tab_size;
-    ls->verbose = arguments.verbose;
-    ls->monitor = arguments.monitor;
-    ls->source = arguments.source;
+    ls->verbose = arguments.list.verbose;
+    ls->monitor = arguments.list.monitor;
+    ls->source = arguments.list.source;
     ls->lastfile = 0;
     ls->i = 0;
 
@@ -232,9 +232,9 @@ static void printdec(Listing *ls, uint32_t dec) {
     for (; i < 9; i++) {
         uint32_t a = dec / d[i];
         dec = dec % d[i];
-        ls->s[ls->i++] = '0' + a;
+        ls->s[ls->i++] = (char)('0' + a);
     }
-    ls->s[ls->i++] = '0' + dec;
+    ls->s[ls->i++] = (char)('0' + dec);
 }
 
 static void printfile(Listing *ls) {
@@ -393,7 +393,7 @@ FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
     if (nolisting != 0  || temporary_label_branch != 0 || llist == NULL) return;
     if (ls == NULL) {
         address_t addr;
-        if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
+        if (!fixeddig || constcreated || listing_pccolumn || !arguments.list.source) return;
         addr = current_address->l_address;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
@@ -430,7 +430,7 @@ FAST_CALL void listing_line_cut(Listing *ls, linecpos_t pos) {
     size_t i;
     if (nolisting != 0 || temporary_label_branch != 0 || llist == NULL) return;
     if (ls == NULL) {
-        if (!fixeddig || constcreated || listing_pccolumn || !arguments.source) return;
+        if (!fixeddig || constcreated || listing_pccolumn || !arguments.list.source) return;
         i = 0;
         while (i < pos && (llist[i] == 0x20 || llist[i] == 0x09)) i++;
         if (i < pos && current_address->address != current_address->l_address) listing_pccolumn = true;
@@ -474,8 +474,9 @@ void listing_instr(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
     if (nolisting != 0 || temporary_label_branch != 0) return;
     if (ls == NULL) {
         if (!fixeddig || constcreated || listing_pccolumn) return;
-        addr = (current_address->l_address - ln - 1) & all_mem;
-        addr2 = (current_address->address - ln - 1) & all_mem2;
+        ln++;
+        addr = (current_address->l_address - (unsigned int)ln) & all_mem;
+        addr2 = (current_address->address - (unsigned int)ln) & all_mem2;
         if (addr2 != addr) listing_pccolumn = true;
         return;
     }
@@ -484,8 +485,8 @@ void listing_instr(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
         if (llist != NULL) printline(ls);
         padding2(ls, ls->columns.addr);
     }
-    addr = (current_address->l_address - ln - 1) & all_mem;
-    addr2 = (current_address->address - ln - 1) & all_mem2;
+    addr = (current_address->l_address - (unsigned int)(ln + 1)) & all_mem;
+    addr2 = (current_address->address - (unsigned int)(ln + 1)) & all_mem2;
     printaddr(ls, '.', addr2, addr);
     if (ln >= 0) {
         printhex(ls, cod ^ outputeor, adr ^ outputeor, ln);

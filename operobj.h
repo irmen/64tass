@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.h 2354 2021-02-07 23:03:40Z soci $
+    $Id: operobj.h 2480 2021-03-07 11:41:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ typedef struct Oper {
     unsigned int prio;
     unsigned int len;
 } Oper;
+
+#define Oper(a) ((Oper *)(1 ? (a) : (Obj *)(Oper *)(a)))
 
 extern void operobj_init(void);
 
@@ -67,8 +69,10 @@ extern Oper o_LOR_ASSIGN;
 extern Oper o_LAND_ASSIGN;
 extern Oper o_COND_ASSIGN;
 extern Oper o_QUEST;
+extern Oper o_DQUEST;
 extern Oper o_COLON;
 extern Oper o_COND;
+extern Oper o_DCOND;
 extern Oper o_COLON2;
 extern Oper o_HASH;
 extern Oper o_HASH_SIGNED;

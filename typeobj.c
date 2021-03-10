@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2218 2020-06-06 11:14:26Z soci $
+    $Id: typeobj.c 2495 2021-03-10 00:40:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 
 #include "strobj.h"
 #include "operobj.h"
-#include "intobj.h"
-#include "boolobj.h"
-#include "listobj.h"
-#include "noneobj.h"
 #include "errorobj.h"
 #include "functionobj.h"
 
@@ -52,25 +48,23 @@ void new_type(Type *t, Type_types type, const char *name, size_t length) {
 static MUST_CHECK Obj *create(Obj *v1, linepos_t UNUSED(epoint)) {
     switch (v1->obj->type) {
     case T_NONE:
-    case T_ERROR:
-    case T_TYPE: return val_reference(v1);
+    case T_ERROR: return val_reference(v1);
     default: break;
     }
-    return val_reference((Obj *)&v1->obj->v);
+    return val_reference((Obj *)Obj(v1->obj));
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
-static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    Type *v1 = (Type *)o1;
-    *hs = v1->type;
+static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    *hs = (int)Type(o1)->type;
     return NULL;
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
-    Type *v1 = (Type *)o1;
+    Type *v1 = Type(o1);
     Str *v;
     uint8_t *s;
     const char *name;
@@ -89,49 +83,30 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     memcpy(s, name, ln);
     s[ln] = '\'';
     s[ln + 1] = '>';
-    return &v->v;
+    return Obj(v);
 }
 
-static inline int icmp(const Type *vv1, const Type *vv2) {
-    Type_types v1 = vv1->type;
-    Type_types v2 = vv2->type;
-    if (v1 < v2) return -1;
-    return (v1 > v2) ? 1 : 0;
+static inline int icmp(oper_t op) {
+    Type_types v1 = Type(op->v1)->type;
+    Type_types v2 = Type(op->v2)->type;
+    return (v1 < v2) ? -1 : (v1 > v2) ? 1 : 0;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    Type *v1 = (Type *)op->v1;
     Obj *o2 = op->v2;
 
     switch (o2->obj->type) {
     case T_TYPE:
-        {
-            Type *v2 = (Type *)o2;
-            int val = icmp(v1, v2);
-            switch (op->op->op) {
-            case O_CMP:
-                if (val < 0) return (Obj *)ref_int(minus1_value);
-                return (Obj *)ref_int(int_value[(val > 0) ? 1 : 0]);
-            case O_EQ: return truth_reference(val == 0);
-            case O_NE: return truth_reference(val != 0);
-            case O_MIN:
-            case O_LT: return truth_reference(val < 0);
-            case O_LE: return truth_reference(val <= 0);
-            case O_MAX:
-            case O_GT: return truth_reference(val > 0);
-            case O_GE: return truth_reference(val >= 0);
-            default: break;
-            }
-        }
-        break;
+        return obj_oper_compare(op, icmp(op));
     case T_FUNCARGS:
-        if (op->op == &o_FUNC) {
-            Funcargs *v2 = (Funcargs *)o2;
+        if (op->op->op == O_FUNC) {
+            Type *v1 = Type(op->v1);
+            Funcargs *v2 = Funcargs(o2);
             size_t args = v2->len;
             if (args != 1) {
-                return (Obj *)new_error_argnum(args, 1, 1, op->epoint2);
+                return new_error_argnum(args, 1, 1, op->epoint2);
             }
-            if (v1 == LIST_OBJ || v1 == TUPLE_OBJ || v1 == TYPE_OBJ) return v1->create(v2->val[0].val, &v2->val[0].epoint);
+            if (v1->iterable || v1 == TYPE_OBJ) return v1->create(v2->val[0].val, &v2->val[0].epoint);
             return apply_convert(op);
         }
         break;
@@ -158,5 +133,5 @@ void typeobj_init(void) {
 }
 
 void typeobj_names(void) {
-    new_builtin("type", val_reference(&TYPE_OBJ->v));
+    new_builtin("type", val_reference(Obj(TYPE_OBJ)));
 }

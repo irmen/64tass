@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2397 2021-02-21 10:35:28Z soci $
+    $Id: values.c 2467 2021-03-06 21:46:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static FAST_CALL NO_INLINE Obj *value_alloc(const Type *obj) {
 
     slot->v.obj = obj;
     *obj->slot = slot->next;
-    return &slot->v;
+    return Obj(slot);
 }
 
 FAST_CALL MALLOC Obj *val_alloc(const Type *obj) {
@@ -73,7 +73,7 @@ FAST_CALL MALLOC Obj *val_alloc(const Type *obj) {
     if (slot == NULL) return value_alloc(obj);
     slot->v.obj = obj;
     *obj->slot = slot->next;
-    return &slot->v;
+    return Obj(slot);
 }
 
 void garbage_collect(void) {
@@ -147,7 +147,7 @@ size_t val_print(Obj *v1, FILE *f, size_t max) {
     size_t len;
     Obj *err = v1->obj->repr(v1, NULL, max);
     if (err == NULL) return 0;
-    if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);
+    if (err->obj == STR_OBJ) len = printable_print2(Str(err)->data, f, Str(err)->len);
     else len = printable_print2((const uint8_t *)err->obj->name, f, strlen(err->obj->name));
     val_destroy(err);
     return len;

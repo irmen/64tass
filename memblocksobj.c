@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2129 2019-12-30 16:41:47Z soci $
+    $Id: memblocksobj.c 2467 2021-03-06 21:46:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,32 +29,32 @@ Type *const MEMBLOCKS_OBJ = &obj;
 
 static FAST_CALL void destroy(Obj *o1) {
     size_t i;
-    Memblocks *v1 = (Memblocks *)o1;
+    Memblocks *v1 = Memblocks(o1);
     free(v1->mem.data);
     for (i = 0; i < v1->p; i++) {
         const struct memblock_s *b = &v1->data[i];
-        if (b->ref != NULL) val_destroy(&b->ref->v);
+        if (b->ref != NULL) val_destroy(Obj(b->ref));
     }
     free(v1->data);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     size_t i;
-    const Memblocks *v1 = (const Memblocks *)o1, *v2 = (const Memblocks *)o2;
-    if (v1->p != v2->p) return false;
+    const Memblocks *v1 = Memblocks(o1), *v2 = Memblocks(o2);
+    if (o1->obj != o2->obj || v1->p != v2->p) return false;
     for (i = 0; i < v1->p; i++) {
         struct memblock_s *b1 = &v1->data[i];
         struct memblock_s *b2 = &v2->data[i];
         if (b1->p != b2->p || b1->addr != b2->addr || b1->len != b2->len) return false;
         if (b1->ref == b2->ref) continue;
         if (b1->ref == NULL || b2->ref == NULL) return false;
-        if (!same(&b1->ref->v, &b2->ref->v)) return false;
+        if (!same(Obj(b1->ref), Obj(b2->ref))) return false;
     }
     return v1->mem.p == v2->mem.p && !memcmp(v1->mem.data, v2->mem.data, v1->mem.p);
 }
 
 MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
-    Memblocks *val = (Memblocks *)val_alloc(MEMBLOCKS_OBJ);
+    Memblocks *val = Memblocks(val_alloc(MEMBLOCKS_OBJ));
     val->mem.p = 0;
     val->mem.len = ln;
     val->mem.data = (ln == 0) ? NULL : (uint8_t*)mallocx(ln);
@@ -70,7 +70,7 @@ MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
 }
 
 MALLOC Memblocks *copy_memblocks(Memblocks *m) {
-    Memblocks *val = (Memblocks *)val_alloc(MEMBLOCKS_OBJ);
+    Memblocks *val = Memblocks(val_alloc(MEMBLOCKS_OBJ));
     size_t i;
     val->mem.p = m->mem.p;
     val->mem.len = m->mem.len;

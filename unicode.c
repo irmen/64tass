@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2214 2020-05-21 20:31:48Z soci $
+    $Id: unicode.c 2432 2021-02-28 13:18:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,38 +56,38 @@ FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for inte
 
 FAST_CALL uint8_t *utf8out(uchar_t i, uint8_t *c) {
     if (i < 0x800) {
-        *c++=0xc0 | (uint8_t)(i >> 6);
-        *c++=0x80 | (i & 0x3f);
+        *c++ = (uint8_t)(0xc0 | (i >> 6));
+        *c++ = (uint8_t)(0x80 | (i & 0x3f));
         return c;
     }
     if (i < 0x10000) {
-        *c++=0xe0 | (uint8_t)(i >> 12);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
+        *c++ = (uint8_t)(0xe0 | (i >> 12));
+        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        *c++ = (uint8_t)(0x80 | (i & 0x3f));
         return c;
     }
     if (i < 0x200000) {
-        *c++=0xf0 | (uint8_t)(i >> 18);
-        *c++=0x80 | ((i >> 12) & 0x3f);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
+        *c++ = (uint8_t)(0xf0 | (i >> 18));
+        *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        *c++ = (uint8_t)(0x80 | (i & 0x3f));
         return c;
     }
     if (i < 0x4000000) {
-        *c++=0xf8 | (i >> 24);
-        *c++=0x80 | ((i >> 18) & 0x3f);
-        *c++=0x80 | ((i >> 12) & 0x3f);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
+        *c++ = (uint8_t)(0xf8 | (i >> 24));
+        *c++ = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
+        *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        *c++ = (uint8_t)(0x80 | (i & 0x3f));
         return c;
     }
     if ((i & ~(uchar_t)0x7fffffff) != 0) return c;
-    *c++=0xfc | (i >> 30);
-    *c++=0x80 | ((i >> 24) & 0x3f);
-    *c++=0x80 | ((i >> 18) & 0x3f);
-    *c++=0x80 | ((i >> 12) & 0x3f);
-    *c++=0x80 | ((i >> 6) & 0x3f);
-    *c++=0x80 | (i & 0x3f);
+    *c++ = (uint8_t)(0xfc | (i >> 30));
+    *c++ = (uint8_t)(0x80 | ((i >> 24) & 0x3f));
+    *c++ = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
+    *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+    *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+    *c++ = (uint8_t)(0x80 | (i & 0x3f));
     return c;
 }
 
@@ -427,9 +427,9 @@ size_t argv_print(const char *line, FILE *f) {
         if (ch == 0) break;
 
         if (quote) {
-            if (strchr("$`\"\\", ch) != NULL) {len++;putc('\\', f);}
+            if (strchr("$`\"\\", (int)ch) != NULL) {len++;putc('\\', f);}
         } else {
-            if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch) != NULL) {
+            if (strchr(" !\"$&()*;<>'?[\\]`{|}", (int)ch) != NULL) {
                 len++;putc('\\', f);
             }
         }
@@ -440,7 +440,7 @@ size_t argv_print(const char *line, FILE *f) {
             if (ln > 0) len += (size_t)ln;
             continue;
         }
-        len++;putc(ch, f);
+        len++;putc((int)ch, f);
     }
     if (quote) {len++;putc('"', f);}
 #endif
@@ -512,7 +512,7 @@ size_t makefile_print(const char *line, FILE *f) {
 
         i++;
         if (isprint(ch) == 0) ch = '?';
-        len++; putc(ch, f);
+        len++; putc((int)ch, f);
     }
     return len;
 }

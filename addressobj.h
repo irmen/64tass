@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: addressobj.h 2484 2021-03-08 22:04:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,14 +49,16 @@ typedef struct Address {
     Obj *val;
 } Address;
 
+#define Address(a) ((Address *)(1 ? (a) : (Obj *)(Address *)(a)))
+
 extern void addressobj_init(void);
 extern void addressobj_names(void);
 
-static inline MUST_CHECK Address *new_address(Obj *val, atype_t type) {
-    Address *v = (Address *)val_alloc(ADDRESS_OBJ);
+static inline MUST_CHECK Obj *new_address(Obj *val, atype_t type) {
+    Address *v = Address(val_alloc(ADDRESS_OBJ));
     v->val = val;
     v->type = type;
-    return v;
+    return Obj(v);
 }
 
 extern MUST_CHECK Obj *int_from_address(Address *, linepos_t);

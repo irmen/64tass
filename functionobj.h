@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.h 2226 2020-06-27 20:10:25Z soci $
+    $Id: functionobj.h 2480 2021-03-07 11:41:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,9 +39,12 @@ typedef struct Function {
     Function_types func;
 } Function;
 
+#define Function(a) ((Function *)(1 ? (a) : (Obj *)(Function *)(a)))
+
 struct oper_s;
 
 extern MUST_CHECK Obj *apply_convert(struct oper_s *);
+extern MUST_CHECK Obj *apply_condition(struct oper_s *);
 extern void functionobj_init(void);
 extern void functionobj_names(void);
 extern void random_reseed(Obj *, linepos_t);

@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.h 1838 2019-01-27 10:03:06Z soci $
+    $Id: bitsobj.h 2492 2021-03-09 23:53:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define BITSOBJ_H
 #include "obj.h"
 #include "stdbool.h"
+#include "oper_e.h"
 
 extern struct Type *const BITS_OBJ;
 
@@ -35,9 +36,11 @@ typedef struct Bits {
     } u;
 } Bits;
 
-extern Bits *null_bits;
-extern Bits *inv_bits;
-extern Bits *bits_value[2];
+#define Bits(a) ((Bits *)(1 ? (a) : (Obj *)(Bits *)(a)))
+
+extern Obj *const null_bits;
+extern Obj *const inv_bits;
+extern Obj *const bits_value[2];
 
 extern void bitsobj_init(void);
 extern void bitsobj_names(void);
@@ -46,17 +49,14 @@ extern void bitsobj_destroy(void);
 struct Str;
 struct Bytes;
 
-static inline Bits *ref_bits(Bits *v1) {
-    v1->v.refcount++; return v1;
-}
-
+extern MUST_CHECK Obj *bits_calc1(Oper_types, unsigned int);
 extern MUST_CHECK Obj *bits_from_hexstr(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *bits_from_binstr(const uint8_t *, size_t *, linepos_t);
 extern MUST_CHECK Obj *bits_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Obj *bits_from_bytes(const struct Bytes *, linepos_t);
-extern MUST_CHECK Bits *bits_from_uval(uval_t, unsigned int);
-extern MUST_CHECK Bits *ibits_from_bool(bool);
-extern MUST_CHECK Bits *bits_from_bools(bool, bool);
+extern MUST_CHECK Obj *bits_from_uval(uval_t, unsigned int);
+extern MUST_CHECK Obj *ibits_from_bool(bool);
+extern MUST_CHECK Obj *bits_from_bools(bool, bool);
 extern MUST_CHECK Obj *float_from_bits(const Bits *, linepos_t);
 
 #endif

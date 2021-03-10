@@ -1,5 +1,5 @@
 /*
-    $Id: optimizer.c 2245 2020-10-17 08:09:10Z soci $
+    $Id: optimizer.c 2432 2021-02-28 13:18:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,13 +35,13 @@ typedef struct Reg8 {
 struct optimizer_s {
     bool branched;
     bool call;
-    uint16_t lb;
+    bool zcmp, ccmp;
+    unsigned int lb;
     unsigned int pc;
     Reg8 a, x, y, z, s, sh, b;
     struct {
         Bit *n, *v, *e, *d, *i, *z, *c;
     } p;
-    bool zcmp, ccmp;
     Bit *cc;
     Reg8 z1, z2, z3;
     unsigned int sir, sac;
@@ -67,7 +67,7 @@ void cpu_opt_set_cpumode(const struct cpu_s *cpu) {
     cputype_65ce02 = (cpu == &c65ce02 || cpu == &c4510);
 }
 
-void cpu_opt_long_branch(uint16_t cod) {
+void cpu_opt_long_branch(unsigned int cod) {
     struct optimizer_s *cpu = current_section->optimizer;
     if (cpu == NULL) {
         cpu_opt_invalidate();
@@ -595,7 +595,7 @@ static void load_imm(uint32_t v, Reg8 *r) {
     for (i = 0; i < 8; i++, v >>= 1) r->a[i] = ((v & 1) == 1) ? new_bit1() : new_bit0();
 }
 
-void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
+void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     struct optimizer_s *cpu = current_section->optimizer;
     const char *optname;
     Reg8 alu;
@@ -619,7 +619,7 @@ void cpu_opt(uint8_t cod, uint32_t adr, int ln, linepos_t epoint) {
     }
 
     if (cpu->lb != 0) {
-        cod = cpu->lb & 0xff;
+        cod = (uint8_t)cpu->lb;
     }
 
     if (cputype == &w65816 || cputype == &c65el02) return; /* unsupported for now */

@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2319 2021-01-31 23:51:56Z soci $
+    $Id: mfuncobj.c 2472 2021-03-07 00:38:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ Type *const MFUNC_OBJ = &mfunc_obj;
 Type *const SFUNC_OBJ = &sfunc_obj;
 
 static FAST_CALL void destroy(Obj *o1) {
-    Mfunc *v1 = (Mfunc *)o1;
+    Mfunc *v1 = Mfunc(o1);
     const struct file_s *cfile = v1->file_list->file;
     size_t i = v1->argc;
     while ((i--) != 0) {
@@ -46,16 +46,16 @@ static FAST_CALL void destroy(Obj *o1) {
     }
     i = v1->nslen;
     while ((i--) != 0) {
-        val_destroy(&v1->namespaces[i]->v);
+        val_destroy(Obj(v1->namespaces[i]));
     }
     free(v1->namespaces);
-    val_destroy(&v1->names->v);
-    val_destroy(&v1->inamespaces->v);
+    val_destroy(Obj(v1->names));
+    val_destroy(Obj(v1->inamespaces));
     free(v1->param);
 }
 
 static FAST_CALL void garbage(Obj *o1, int j) {
-    Mfunc *v1 = (Mfunc *)o1;
+    Mfunc *v1 = Mfunc(o1);
     size_t i = v1->argc;
     Obj *v ;
     const struct file_s *cfile;
@@ -67,12 +67,12 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         }
         i = v1->nslen;
         while ((i--) != 0) {
-            v = &v1->namespaces[i]->v;
+            v = Obj(v1->namespaces[i]);
             v->refcount--;
         }
-        v = &v1->names->v;
+        v = Obj(v1->names);
         v->refcount--;
-        v = &v1->inamespaces->v;
+        v = Obj(v1->inamespaces);
         v->refcount--;
         return;
     case 0:
@@ -97,18 +97,18 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         }
         i = v1->nslen;
         while ((i--) != 0) {
-            v = &v1->namespaces[i]->v;
+            v = Obj(v1->namespaces[i]);
             if ((v->refcount & SIZE_MSB) != 0) {
                 v->refcount -= SIZE_MSB - 1;
                 v->obj->garbage(v, 1);
             } else v->refcount++;
         }
-        v = &v1->names->v;
+        v = Obj(v1->names);
         if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
         } else v->refcount++;
-        v = &v1->inamespaces->v;
+        v = Obj(v1->inamespaces);
         if ((v->refcount & SIZE_MSB) != 0) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
@@ -118,7 +118,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
+    const Mfunc *v1 = Mfunc(o1), *v2 = Mfunc(o2);
     size_t i;
     if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->epoint.line != v2->epoint.line || v1->epoint.pos != v2->epoint.pos) return false;
     if (v1->argc != v2->argc || v1->nslen != v2->nslen || v1->single != v2->single) return false;
@@ -129,20 +129,18 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
         if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return false;
     }
     for (i = 0; i < v1->nslen; i++) {
-        if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(&v1->namespaces[i]->v, &v2->namespaces[i]->v)) return false;
+        if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(Obj(v1->namespaces[i]), Obj(v2->namespaces[i]))) return false;
     }
-    if (v1->names != v2->names && !v1->names->v.obj->same(&v1->names->v, &v2->names->v)) return false;
+    if (v1->names != v2->names && !v1->names->v.obj->same(Obj(v1->names), Obj(v2->names))) return false;
     return true;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_FUNCARGS:
-        switch (op->op->op) {
-        case O_FUNC:
-        {
-            Mfunc *v1 = (Mfunc *)op->v1;
-            Funcargs *v2 = (Funcargs *)op->v2;
+        if (op->op->op == O_FUNC) {
+            Mfunc *v1 = Mfunc(op->v1);
+            Funcargs *v2 = Funcargs(op->v2);
             Obj *val;
             size_t i, max = 0, args = v2->len;
             for (i = args; i < v1->argc; i++) {
@@ -154,9 +152,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             eval_enter();
             val = mfunc2_recurse(v1, v2->val, args, op->epoint);
             eval_leave();
-            return (val != NULL) ? val : (Obj *)ref_tuple(null_tuple);
-        }
-        default: break;
+            return (val != NULL) ? val : val_reference(null_tuple);
         }
         break;
     case T_NONE:
@@ -164,7 +160,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return val_reference(op->v2);
     default: 
         if (op->op == &o_MEMBER) {
-            return namespace_member(op, ((Mfunc *)op->v1)->names);
+            return namespace_member(op, Mfunc(op->v1)->names);
         }
         break;
     }

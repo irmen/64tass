@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 2194 2020-04-01 08:38:40Z soci $
+ *  $Id: my_getopt.c 2464 2021-03-06 18:30:11Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -187,7 +187,7 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
   } else if ((!long_only) && (argv[my_optind][1] != '-'))
     opt = my_getopt(argc, argv, shortopts);
   else {
-    int charind, offset;
+    size_t charind, offset;
     int found = 0, ind, hits = 0;
 
     if (((my_optopt = argv[my_optind][1]) != '-') && argv[my_optind][2] == 0) {
@@ -208,7 +208,7 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
           (argv[my_optind][charind] != '=');
         charind++);
     for (ind = 0; longopts[ind].name != NULL && hits == 0; ind++)
-      if ((strlen(longopts[ind].name) == (size_t) (charind - offset)) &&
+      if ((strlen(longopts[ind].name) == charind - offset) &&
          (strncmp(longopts[ind].name,
                   argv[my_optind] + offset, charind - offset) == 0))
         found = ind, hits++;

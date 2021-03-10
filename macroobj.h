@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.h 2016 2019-10-20 06:41:22Z soci $
+    $Id: macroobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,6 +43,9 @@ typedef struct Macro {
 } Macro;
 typedef struct Macro Segment;
 
+#define Macro(a) ((Macro *)(1 ? (a) : (Obj *)(Macro *)(a)))
+#define Segment(a) ((Segment *)(1 ? (a) : (Obj *)(Segment *)(a)))
+
 typedef struct Struct {
     Obj v;
     size_t argc;
@@ -55,6 +58,9 @@ typedef struct Struct {
     struct Namespace *names;
 } Struct;
 typedef struct Struct Union;
+
+#define Struct(a) ((Struct *)(1 ? (a) : (Obj *)(Struct *)(a)))
+#define Union(a) ((Union *)(1 ? (a) : (Obj *)(Union *)(a)))
 
 extern void macroobj_init(void);
 

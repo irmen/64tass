@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2401 2021-02-21 16:50:09Z soci $
+    $Id: macro.c 2472 2021-03-07 00:38:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -197,7 +197,7 @@ bool mtranslate(void) {
                 lpoint.pos += param.len;
             }
             if (param.len != 0) {
-                Macro *macro = (Macro *)macro_parameters.current->macro;
+                Macro *macro = Macro(macro_parameters.current->macro);
                 str_t cf;
                 p += p2 - last2;
                 op = p2;
@@ -309,7 +309,7 @@ bool mtranslate(void) {
             if (cfile->nomacro == NULL) err_msg_out_of_memory();
         }
         lnum = lpoint.line - 1;
-        cfile->nomacro[lnum / 8] |= 1 << (lnum & 7);
+        cfile->nomacro[lnum / 8] |= (uint8_t)(1U << (lnum & 7));
     }
     lpoint.pos = 0;
     return false;
@@ -350,7 +350,7 @@ static size_t macro_param_find(void) {
 Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint) {
     bool in_macro_old;
     Obj *val;
-    Macro *macro = (Macro *)tmp2;
+    Macro *macro = Macro(tmp2);
     if (macro->recursion_pass == pass) return NULL;
     if (macro_parameters.p > 100) {
         macro->recursion_pass = pass;
@@ -376,7 +376,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         macro_parameters.params[macro_parameters.p - 1].used = (pline == macro_parameters.params[macro_parameters.p - 1].pline.data);
     }
     macro_parameters.current = &macro_parameters.params[macro_parameters.p];
-    macro_parameters.current->macro = val_reference(&macro->v);
+    macro_parameters.current->macro = val_reference(Obj(macro));
     macro_parameters.p++;
     in_macro_old = in_macro;
     in_macro = true;
@@ -459,7 +459,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
         lpoint.line = lin;
     }
-    val_destroy(&macro->v);
+    val_destroy(Obj(macro));
     macro_parameters.p--;
     in_macro = in_macro_old;
     if (macro_parameters.p != 0) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
@@ -482,19 +482,19 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     for (i = 0; i < mfunc->argc; i++) {
         const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
-        if (param->init == &default_value->v) {
+        if (param->init == default_value) {
             size_t j, len = get_val_remaining();
             tuple = new_tuple(len);
             for (j = 0; j < len; j++) {
                 tuple->data[j] = pull_val(NULL);
             }
-            val = &tuple->v;
+            val = Obj(tuple);
         } else {
             struct values_s *vs;
             vs = get_val();
             if (vs == NULL) {
                 val = param->init;
-                if (val == NULL) { max = i + 1; val = (Obj *)none_value; }
+                if (val == NULL) { max = i + 1; val = none_value; }
             } else {
                 val = vs->val;
             }
@@ -524,7 +524,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
             label->epoint = param->epoint;
         }
     }
-    if (tuple != NULL) val_destroy(&tuple->v);
+    if (tuple != NULL) val_destroy(Obj(tuple));
     else if (i < args) err_msg_argnum(args, i, i, epoint);
     if (max != 0) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
@@ -624,7 +624,7 @@ bool get_func_params(Mfunc *v, bool single) {
             }
             ignore();
             if (stard) {
-                param[i].init = (Obj *)ref_default();
+                param[i].init = ref_default();
                 i++;
                 if (single) {
                     if (here() != ',') {
@@ -676,7 +676,7 @@ bool get_func_params(Mfunc *v, bool single) {
 }
 
 void get_macro_params(Obj *v) {
-    Macro *macro = (Macro *)v;
+    Macro *macro = Macro(v);
     struct macro_param_s *param;
     size_t len = macro->argc, i, j;
     str_t label;
@@ -766,7 +766,7 @@ static bool clean_namespace(Namespace *v1) {
     for (n2 = 0; n2 < n; n2++) {
         Label *p = v1->data[n2];
         if (p == NULL) continue;
-        val_destroy(&p->v);
+        val_destroy(Obj(p));
         v1->data[n2] = NULL;
     }
     v1->len = 0;
@@ -788,8 +788,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         return NULL;
     }
 
-    if (mfunc->inamespaces == null_tuple) {
-        val_destroy(&mfunc->inamespaces->v);
+    if (mfunc->inamespaces == Tuple(null_tuple)) {
+        val_destroy(Obj(mfunc->inamespaces));
         mfunc->inamespaces = new_tuple(1);
         context = NULL;
     } else {
@@ -798,19 +798,19 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             if ((lst->data == lst->u.val ? mfunc->ipoint >= lenof(lst->u.val) : mfunc->ipoint >= lst->u.s.max)) {
                 if (list_extend(lst)) {
                     err_msg2(ERROR_OUT_OF_MEMORY, NULL, epoint);
-                    return (Obj *)ref_none();
+                    return ref_none();
                 }
             }
             lst->len++;
             context = NULL;
-        } else context = (Namespace *)lst->data[mfunc->ipoint];
+        } else context = Namespace(lst->data[mfunc->ipoint]);
     }
     if (context == NULL) {
         struct linepos_s xpoint;
         xpoint.line = mfunc->epoint.line;
         xpoint.pos = 0;
         context = new_namespace(mfunc->file_list, &xpoint);
-        mfunc->inamespaces->data[mfunc->ipoint] = &context->v;
+        mfunc->inamespaces->data[mfunc->ipoint] = Obj(context);
     } else {
         context->backr = context->forwr = 0;
     }
@@ -821,22 +821,22 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
     for (i = 0; i < mfunc->argc; i++) {
         const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
-        if (param->init == &default_value->v) {
+        if (param->init == default_value) {
             if (i < args) {
                 size_t j = i;
                 tuple = new_tuple(args - i);
-                none_value->v.refcount += args - i;
+                none_value->refcount += args - i;
                 while (j < args) {
                     tuple->data[j - i] = vals[j].val;
-                    vals[j].val = (Obj *)none_value;
+                    vals[j].val = none_value;
                     j++;
                 }
             } else {
-                tuple = (Tuple *)val_reference(&null_tuple->v);
+                tuple = Tuple(val_reference(null_tuple));
             }
-            val = &tuple->v;
+            val = Obj(tuple);
         } else {
-            val = (i < args) ? vals[i].val : (param->init != NULL) ? param->init : (Obj *)none_value;
+            val = (i < args) ? vals[i].val : (param->init != NULL) ? param->init : none_value;
         }
         label = new_label(&param->name, context, 0, &labelexists, mfunc->file_list);
         if (labelexists) {
@@ -865,7 +865,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             label->epoint = param->epoint;
         }
     }
-    if (tuple != NULL) val_destroy(&tuple->v);
+    if (tuple != NULL) val_destroy(Obj(tuple));
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
         struct linepos_s opoint = lpoint;
@@ -923,7 +923,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
             retval = compile();
 
             val_destroy(current_address->l_address_val);
-            val_destroy(&current_address->mem->v);
+            val_destroy(Obj(current_address->mem));
             current_address = oldsection_address;
             if (current_address->l_address > all_mem) {
                 err_msg_big_address(epoint);

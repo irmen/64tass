@@ -64,7 +64,7 @@ Table of Contents
       + Expressions
           o Operators
           o Comparison operators
-          o Byte extraction operators
+          o Bit string extraction operators
           o Conditional operators
           o Address length forcing
           o Compound assignment
@@ -1191,24 +1191,24 @@ Operators
 The following operators are available. Not all are defined for all types of
 arguments and their meaning might slightly vary depending on the type.
 
-            Unary operators
-- negative             + positive
-! not                  ~ invert
-* convert to arguments ^ decimal string
+                                Unary operators
+-     negative                          +     positive
+!     not                               ~     invert
+*     convert to arguments              ^     decimal string
 
 The `^' decimal string operator will be changed to mean the bank byte soon.
 Please update your sources to use format("%d", xxx) instead! This is done to be
 in line with it's use in most other assemblers.
 
-        Binary operators
-+  add         -  subtract
-*  multiply    /  divide
-%  modulo      ** raise to power
-|  binary or   ^  binary xor
-&  binary and  << shift left
->> shift right .  member
-.. concat      x  repeat
-in contains
+                               Binary operators
++     add                               -     subtract
+*     multiply                          /     divide
+%     modulo                            **    raise to power
+|     binary or                         ^     binary xor
+&     binary and                        <<    shift left
+>>    shift right                       .     member
+..    concat                            x     repeat
+in    contains
 
 Spacing must be used for the `x' and `in' operators or else they won't be
 recognized as such. For example the expression `[1,2]x2' should be written as
@@ -1225,21 +1225,21 @@ Traditional comparison operators give false or true depending on the result.
 
 The compare operator (<=>) gives -1 for less, 0 for equal and 1 for more.
 
-        Comparison operators
-<=> compare   === identical
-==  equals    !=  not equal
-<   less than >=  more than or equals
->   more than <=  less than or equals
+                             Comparison operators
+<=>   compare                           ===   identical
+==    equals                            !=    not equal
+<     less than                         >=    more than or equals
+>     more than                         <=    less than or equals
 
-Byte extraction operators
+Bit string extraction operators
 
 These unary operators extract 8 or 16 bits. Usually they are used to get parts
 of a memory address.
 
-     Byte/word extraction operators
-<  lower byte              >  higher byte
-<> lower word              >` higher word
->< lower byte swapped word `  bank byte
+                        Bit string extraction operators
+<     lower byte                        >     higher byte
+<>    lower word                        >`    higher word
+><    lower byte swapped word           `     bank byte
 
         lda #<label     ; low byte of address
         ldy #>label     ; high byte of address
@@ -1271,6 +1271,7 @@ x ^^ y      if both false or true then false otherwise x || y
 x && y      if x is true then y otherwise x
 !x          if x is true then false otherwise true
 c ? x : y   if c is true then x otherwise y
+c ?? x : y  if c is true then x otherwise y (broadcasting)
 x <? y      if x is smaller then x otherwise y
 x >? y      if x is greater then x otherwise y
 
@@ -1308,16 +1309,16 @@ These assignment operators are short hands for updating variables.
 The variables on the left must be defined beforehand by `:=' or `.var'.
 Constants can't be changed of course.
 
-       Compound assignments
-+=  add         -=  subtract
-*=  multiply    /=  divide
-%=  modulo      **= raise to power
-|=  binary or   ^=  binary xor
-&=  binary and  ||= logical or
-&&= logical and <<= shift left
->>= shift right ..= concat
-<?= smaller     >?= greater
-x=  repeat      .=  member
+                             Compound assignments
++=    add                               -=    subtract
+*=    multiply                          /=    divide
+%=    modulo                            **=   raise to power
+|=    binary or                         ^=    binary xor
+&=    binary and                        ||=   logical or
+&&=   logical and                       <<=   shift left
+>>=   shift right                       ..=   concat
+<?=   smaller                           >?=   greater
+x=    repeat                            .=    member
 
 v       += 1            ; same as 'v .var v + 1'
 
@@ -2866,6 +2867,9 @@ Output options
 
 --no-output
     Same as output but no file will be written.
+
+    Useful for test compiles.
+
 --output-section <sectionname>
     By default all sections go into the output file. Using this option limits
     the output to specific section and it's children. This is useful to split a
@@ -3089,34 +3093,6 @@ Operation options
             lda #ii ;result: $a9, $02
     FAST    :?= false ;define if undefined
 
--w, --no-warn
-    Suppress warnings.
-
-    Disables warnings during compile. For fine grained diagnostic message
-    suppression see the diagnostic options section.
-
-    64tass --no-warn a.asm
-
---no-caret-diag
-    Suppress displaying of faulty source line and fault position after fault
-    messages.
-
-    This is for cases where the fault log is automatically processed and no one
-    ever looks at it and therefore there's no point to display the source
-    lines.
-
-    64tass --no-caret-diag a.asm
-
---macro-caret-diag
-    Restrict source line and fault position display to macro expansions only.
-
-    This is for cases where the fault log is processed by an editor which also
-    displays the compilation output somewhere. Only lines which are the result
-    of macro processing will be output to aid debugging. Those which would just
-    duplicate what's in the source editor window will be not.
-
-    64tass --macro-caret-diag a.asm
-
 -q, --quiet
     Suppress messages. Disables header and summary messages.
 
@@ -3162,6 +3138,12 @@ Operation options
     .dep:
     -include .dep
 
+Diagnostic options
+
+Diagnostic message switched start with a `-W' and can have an optional `no-'
+prefix to disable them. The options below with this prefix are enabled by
+default, the others are disabled.
+
 -E <file>, --error <file>
     Specify error output file
 
@@ -3169,11 +3151,37 @@ Operation options
     possible to redirect them to a file or to the standard output by using `-'
     as the file name.
 
-Diagnostic options
+--error-append <filename>
+    Same as the error option but appends instead of overwrites.
+--no-error
+    Do not output any error messages, just count them.
+-w, --no-warn
+    Suppress warnings.
 
-Diagnostic message switched start with a `-W' and can have an optional `no-'
-prefix to disable them. The options below with this prefix are enabled by
-default, the others are disabled.
+    Disables warnings during compile. For fine grained diagnostic message
+    suppression see the diagnostic options section.
+
+    64tass --no-warn a.asm
+
+--no-caret-diag
+    Suppress displaying of faulty source line and fault position after fault
+    messages.
+
+    This is for cases where the fault log is automatically processed and no one
+    ever looks at it and therefore there's no point to display the source
+    lines.
+
+    64tass --no-caret-diag a.asm
+
+--macro-caret-diag
+    Restrict source line and fault position display to macro expansions only.
+
+    This is for cases where the fault log is processed by an editor which also
+    displays the compilation output somewhere. Only lines which are the result
+    of macro processing will be output to aid debugging. Those which would just
+    duplicate what's in the source editor window will be not.
+
+    64tass --macro-caret-diag a.asm
 
 -Wall
     Enable most diagnostic warnings, except those individually disabled. Or
@@ -4124,6 +4132,8 @@ value needs to be non-negative
     only positive numbers or zero is accepted here
 wrong type <?>
     wrong object type used
+zero raised to negative power
+    can't calculate this
 zero value not allowed
     do not use zero for example with .null
 

@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 1818 2019-01-13 20:30:50Z soci $
+    $Id: strobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,15 +37,13 @@ typedef struct Str {
     } u;
 } Str;
 
-extern Str *null_str;
+#define Str(a) ((Str *)(1 ? (a) : (Obj *)(Str *)(a)))
+
+extern Obj *const null_str;
 
 extern void strobj_init(void);
 extern void strobj_names(void);
 extern void strobj_destroy(void);
-
-static inline Str *ref_str(Str *v1) {
-    v1->v.refcount++; return v1;
-}
 
 struct str_t;
 

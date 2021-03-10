@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2269 2021-01-08 23:05:23Z soci $
+    $Id: arguments.h 2415 2021-02-25 19:51:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,23 +44,33 @@ struct output_s {
     bool longaddr;
 };
 
+struct error_output_s {
+    const char *name;
+    Caret_types caret;
+    bool warning;
+    bool no_output;
+    bool append;
+};
+
 struct symbol_output_s {
     const char *name;
     Symbollist_types mode;
     const char *space;
 };
 
-struct arguments_s {
-    bool warning;
-    Caret_types caret;
-    bool quiet;
-    bool to_ascii;
+struct list_output_s {
+    const char *name;
     bool monitor;
     bool source;
     bool linenum;
+    bool verbose;
+};
+
+struct arguments_s {
+    bool quiet;
+    bool to_ascii;
     bool longbranch;
     bool tasmcomp;
-    bool verbose;
     bool make_phony;
     uint8_t caseinsensitive;
     struct output_s *output;
@@ -68,9 +78,9 @@ struct arguments_s {
     const struct cpu_s *cpumode;
     struct symbol_output_s *symbol_output;
     size_t symbol_output_len;
-    const char *list;
+    struct list_output_s list;
     const char *make;
-    const char *error;
+    struct error_output_s error;
     unsigned int tab_size;
 };
 

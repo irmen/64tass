@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2269 2021-01-08 23:05:23Z soci $
+    $Id: arguments.c 2415 2021-02-25 19:51:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,16 +29,10 @@
 #include "wchar.h"
 
 struct arguments_s arguments = {
-    true,        /* warning */
-    CARET_ALWAYS,/* caret */
     true,        /* quiet */
     false,       /* to_ascii */
-    true,        /* monitor */
-    true,        /* source */
-    false,       /* linenum */
     false,       /* longbranch */
     false,       /* tasmcomp */
-    false,       /* verbose */
     false,       /* make_phony */
     0x20,        /* caseinsensitive */
     NULL,        /* output */
@@ -46,9 +40,21 @@ struct arguments_s arguments = {
     &c6502,      /* cpumode */
     NULL,        /* symbol_output */
     0,           /* symbol_output_len */
-    NULL,        /* list */
+    {            /* list */
+        NULL,    /* name */
+        true,    /* monitor */
+        true,    /* source */
+        false,   /* linenum */
+        false    /* verbose */
+    },
     NULL,        /* make */
-    NULL,        /* error */
+    {            /* error */
+        NULL,    /* name */
+        CARET_ALWAYS, /* caret */
+        true,    /* warning */
+        false,   /* no_output */
+        false    /* append */
+    },
     8,           /* tab_size */
 };
 
@@ -327,7 +333,7 @@ enum {
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
     INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
-    OUTPUT_APPEND, NO_OUTPUT
+    OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR
 };
 
 static const struct my_option long_options[] = {
@@ -369,6 +375,8 @@ static const struct my_option long_options[] = {
     {"output-append"    , my_required_argument, NULL,  OUTPUT_APPEND},
     {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
     {"error"            , my_required_argument, NULL, 'E'},
+    {"no-error"         , my_no_argument      , NULL,  NO_ERROR},
+    {"error-append"     , my_required_argument, NULL,  ERROR_APPEND},
     {"normal-labels"    , my_no_argument      , NULL,  NORMAL_LABELS},
     {"export-labels"    , my_no_argument      , NULL,  EXPORT_LABELS},
     {"vice-labels"      , my_no_argument      , NULL,  VICE_LABELS},
@@ -512,8 +520,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 'W':
                 if (woption(my_optarg)) goto exit;
                 break;
-            case 'w':arguments.warning = false;break;
-            case WARN:arguments.warning = true;break;
+            case 'w':arguments.error.warning = false;break;
+            case WARN:arguments.error.warning = true;break;
             case 'q':arguments.quiet = false;break;
             case NO_QUIET:arguments.quiet = true;break;
             case 'X':output.longaddr = true;break;
@@ -541,9 +549,9 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                       output.section = NULL;
                       break;
             case OUTPUT_SECTION:output.section = my_optarg; break;
-            case CARET_DIAG:arguments.caret = CARET_ALWAYS;break;
-            case MACRO_CARET_DIAG:arguments.caret = CARET_MACRO;break;
-            case NO_CARET_DIAG:arguments.caret = CARET_NEVER;break;
+            case CARET_DIAG:arguments.error.caret = CARET_ALWAYS;break;
+            case MACRO_CARET_DIAG:arguments.error.caret = CARET_MACRO;break;
+            case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
             case 'D':
                 {
                     size_t len = strlen(my_optarg) + 1;
@@ -592,20 +600,22 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case VICE_LABELS_NUMERIC: symbol_output.mode = LABEL_VICE_NUMERIC; break;
             case DUMP_LABELS: symbol_output.mode = LABEL_DUMP; break;
             case LABELS_ROOT: symbol_output.space = my_optarg; break;
-            case 'E': arguments.error = my_optarg;break;
-            case 'L': arguments.list = my_optarg;break;
+            case NO_ERROR: arguments.error.name = NULL; arguments.error.no_output = true; arguments.error.append = false; break;
+            case ERROR_APPEND:
+            case 'E': arguments.error.name = my_optarg; arguments.error.no_output = false; arguments.error.append = (opt == ERROR_APPEND); break;
+            case 'L': arguments.list.name = my_optarg;break;
             case 'M': arguments.make = my_optarg;break;
             case 'I': include_list_add(my_optarg);break;
-            case 'm': arguments.monitor = false;break;
-            case MONITOR: arguments.monitor = true;break;
-            case 's': arguments.source = false;break;
-            case SOURCE: arguments.source = true;break;
-            case LINE_NUMBERS: arguments.linenum = true;break;
-            case NO_LINE_NUMBERS: arguments.linenum = false;break;
+            case 'm': arguments.list.monitor = false;break;
+            case MONITOR: arguments.list.monitor = true;break;
+            case 's': arguments.list.source = false;break;
+            case SOURCE: arguments.list.source = true;break;
+            case LINE_NUMBERS: arguments.list.linenum = true;break;
+            case NO_LINE_NUMBERS: arguments.list.linenum = false;break;
             case 'C': arguments.caseinsensitive = 0;break;
             case NO_CASE_SENSITIVE: arguments.caseinsensitive = 0x20;break;
-            case VERBOSE_LIST: arguments.verbose = true;break;
-            case NO_VERBOSE_LIST: arguments.verbose = false;break;
+            case VERBOSE_LIST: arguments.list.verbose = true;break;
+            case NO_VERBOSE_LIST: arguments.list.verbose = false;break;
             case MAKE_PHONY: arguments.make_phony = true;break;
             case NO_MAKE_PHONY: arguments.make_phony = false;break;
             case TAB_SIZE:
@@ -644,6 +654,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -C, --case-sensitive   Case sensitive labels\n"
                "  -D <label>=<value>     Define <label> to <value>\n"
                "  -E, --error=<file>     Place errors into <file>\n"
+               "      --error-append=<f> Append errors to <file>\n"
+               "      --no-error         Do not output any errors\n"
                "  -I <path>              Include search path\n"
                "  -M, --dependencies=<f> Makefile dependencies to <file>\n"
                "  -q, --quiet            Do not output summary and header\n"
@@ -695,9 +707,9 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "  -Wunused-variable      Warn about unused variables\n");
                puts(" Output selection:\n"
                "  -o, --output=<file>    Place output into <file>\n"
-               "  --no-output            Do not create an output file\n"
-               "  --output-append=<file> Append output to <file>\n"
-               "  --output-section=<n>   Output this section only\n"
+               "      --output-append=<f> Append output to <file>\n"
+               "      --no-output        Do not create an output file\n"
+               "      --output-section=<n> Output this section only\n"
                "  -b, --nostart          Strip starting address\n"
                "  -f, --flat             Generate flat output file\n"
                "  -n, --nonlinear        Generate nonlinear output file\n"

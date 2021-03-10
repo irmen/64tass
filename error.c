@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2394 2021-02-20 22:40:18Z soci $
+    $Id: error.c 2477 2021-03-07 03:39:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const stru
     const struct errorentry_s *b = cavltree_container_of(bb, struct errorentry_s, node);
     const uint8_t *aerr, *berr;
 
-    if (a->severity != b->severity) return a->severity - b->severity;
+    if (a->severity != b->severity) return (int)a->severity - (int)b->severity;
     if (a->file_list != b->file_list) return a->file_list > b->file_list ? 1 : -1;
     if (a->error_len != b->error_len) return a->error_len > b->error_len ? 1 : -1;
     if (a->epoint.line != b->epoint.line) return a->epoint.line > b->epoint.line ? 1 : -1;
@@ -163,7 +163,7 @@ static void error_extend(void) {
     bool dir;
     if (data == NULL) err_msg_out_of_memory2();
     dir = data >= error_list.data;
-    diff = dir ? (data - error_list.data) : (error_list.data - data);
+    diff = dir ? (size_t)(data - error_list.data) : (size_t)(error_list.data - data);
     error_list.data = data;
     if (diff == 0) return;
     for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
@@ -345,7 +345,7 @@ static const char * const terr_error[] = {
     "general syntax",
     "expression syntax",
     "label required",
-    "division by zero",
+    "division by zero ",
     "zero value not allowed",
     "most significiant bit must be clear in byte",
     "at least one byte is needed",
@@ -353,6 +353,7 @@ static const char * const terr_error[] = {
     "address in different program bank ",
     "address out of section",
     "negative number raised on fractional power",
+    "zero raised to negative power ",
     "square root of negative number ",
     "logarithm of non-positive number ",
     "not in range -1.0 to 1.0 ",
@@ -414,7 +415,7 @@ static void err_msg_variable(Obj *val) {
     err = val->obj->str(val, NULL, 40);
     if (err != NULL) {
         if (err->obj == STR_OBJ) {
-            Str *str = (Str *)err;
+            Str *str = Str(err);
             adderror(" '");
             adderror2(str->data, str->len);
             adderror("'");
@@ -633,11 +634,13 @@ void err_msg_big_address(linepos_t epoint) {
     if (more) new_error_msg_more();
 }
 
-static void err_msg_big_integer(const char *msg, unsigned int bits, Obj *val) {
+static bool err_msg_big_integer(const Error *err) {
     char msg2[256];
-    sprintf(msg2, msg, bits);
+    bool more = new_error_msg_err(err); 
+    sprintf(msg2, terr_error[err->num - 0x40], err->u.intconv.bits);
     adderror(msg2);
-    err_msg_variable(val);
+    err_msg_variable(err->u.intconv.val);
+    return more;
 }
 
 static void new_error_msg_err_more(const Error *err) {
@@ -715,7 +718,7 @@ static void err_msg_not_defined3(const Error *err) {
     }
 
     if (err->u.notdef.symbol->obj == SYMBOL_OBJ) {
-        const str_t *name = &((Symbol *)err->u.notdef.symbol)->name;
+        const str_t *name = &Symbol(err->u.notdef.symbol)->name;
         str_cfcpy(&lastnd->cfname, name);
         lastnd->file_list = l->file_list;
         lastnd->epoint = l->epoint;
@@ -754,18 +757,18 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
-    err->u.notdef.symbol = (Obj *)new_symbol(name, epoint);
+    err->u.notdef.symbol = Obj(new_symbol(name, epoint));
     err_msg_not_defined3(err);
-    val_destroy(&err->v);
+    val_destroy(Obj(err));
 }
 
 void err_msg_not_defined2a(int32_t count, Namespace *l, bool down, linepos_t epoint) {
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
-    err->u.notdef.symbol = (Obj *)new_anonsymbol(count);
+    err->u.notdef.symbol = Obj(new_anonsymbol(count));
     err_msg_not_defined3(err);
-    val_destroy(&err->v);
+    val_destroy(Obj(err));
 }
 
 static void err_opcode(uint32_t cod) {
@@ -773,9 +776,9 @@ static void err_opcode(uint32_t cod) {
     if (cod != 0) {
         char tmp[17];
         memcpy(tmp, "for opcode 'xxx'", sizeof tmp);
-        tmp[12] = cod >> 16;
-        tmp[13] = cod >> 8;
-        tmp[14] = cod;
+        tmp[12] = (char)(cod >> 16);
+        tmp[13] = (char)(cod >> 8);
+        tmp[14] = (char)cod;
         adderror(tmp);
     } else adderror("accepted");
 }
@@ -805,24 +808,31 @@ static void err_msg_no_addressing(atype_t addrtype, uint32_t cod) {
     err_opcode(cod);
 }
 
-static void err_msg_no_register(Register *val, uint32_t cod) {
+static bool err_msg_no_register(const Error *err) {
+    bool more = new_error_msg_err(err); 
+    Register *val = err->u.reg.reg;
     adderror("no register '");
     adderror2(val->data, val->len);
     adderror("'");
-    err_opcode(cod);
+    err_opcode(err->u.reg.cod);
+    return more;
 }
 
-static void err_msg_no_lot_operand(size_t opers, uint32_t cod) {
+static bool err_msg_no_lot_operand(const Error *err) {
     char msg2[256];
-    sprintf(msg2, "no %" PRIuSIZE " operand", opers);
+    bool more = new_error_msg_err(err); 
+    sprintf(msg2, "no %" PRIuSIZE " operand", err->u.opers.num);
     adderror(msg2);
-    err_opcode(cod);
+    err_opcode(err->u.opers.cod);
+    return more;
 }
 
-static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2) {
+static bool err_msg_cant_broadcast(const Error *err) {
     char msg2[256];
-    sprintf(msg2, msg, v1, v2);
+    bool more = new_error_msg_err(err); 
+    sprintf(msg2, terr_error[err->num - 0x40], err->u.broadcast.v1, err->u.broadcast.v2);
     adderror(msg2);
+    return more;
 }
 
 static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2) {
@@ -893,7 +903,7 @@ void err_msg_output(const Error *val) {
     case ERROR____STILL_NONE: more = err_msg_still_none2(val); break;
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL:
-    case ERROR______NOT_UVAL: more = new_error_msg_err(val); err_msg_big_integer(terr_error[val->num - 0x40], val->u.intconv.bits, val->u.intconv.val); break;
+    case ERROR______NOT_UVAL: more = err_msg_big_integer(val); break;
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
     case ERROR_NOT_TWO_CHARS:
@@ -908,15 +918,16 @@ void err_msg_output(const Error *val) {
     case ERROR_NO_ZERO_VALUE:
     case ERROR_OUT_OF_MEMORY:
     case ERROR__ADDR_COMPLEX:
-    case ERROR_NEGATIVE_SIZE:
-    case ERROR_DIVISION_BY_Z: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); break;
+    case ERROR_NEGATIVE_SIZE: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); break;
     case ERROR_NO_ADDRESSING: more = new_error_msg_err(val); err_msg_no_addressing(val->u.addressing.am, val->u.addressing.cod);break;
-    case ERROR___NO_REGISTER: more = new_error_msg_err(val); err_msg_no_register(val->u.reg.reg, val->u.reg.cod);break;
-    case ERROR___NO_LOT_OPER: more = new_error_msg_err(val); err_msg_no_lot_operand(val->u.opers.num, val->u.opers.cod);break;
-    case ERROR_CANT_BROADCAS: more = new_error_msg_err(val); err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2);break;
+    case ERROR___NO_REGISTER: more = err_msg_no_register(val);break;
+    case ERROR___NO_LOT_OPER: more = err_msg_no_lot_operand(val);break;
+    case ERROR_CANT_BROADCAS: more = err_msg_cant_broadcast(val);break;
     case ERROR__NO_BYTE_ADDR:
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_opcode(val->u.addresssize.cod); break;
+    case ERROR_DIVISION_BY_Z:
+    case ERROR_ZERO_NEGPOWER:
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
     case ERROR_____CANT_SIGN:
@@ -939,7 +950,7 @@ void err_msg_output(const Error *val) {
 
 void err_msg_output_and_destroy(Error *val) {
     err_msg_output(val);
-    val_destroy(&val->v);
+    val_destroy(Obj(val));
 }
 
 void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
@@ -956,11 +967,11 @@ void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
 
 void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
     if (val->obj == ADDRESS_OBJ) {
-        const Obj *val2 = ((Address *)val)->val;
-        if (val2 == &none_value->v || val2->obj == ERROR_OBJ) val = val2;
+        const Obj *val2 = Address(val)->val;
+        if (val2 == none_value || val2->obj == ERROR_OBJ) val = val2;
     }
-    if (val->obj == ERROR_OBJ) err_msg_output((Error *)val);
-    else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, epoint);
+    if (val->obj == ERROR_OBJ) err_msg_output(Error(val));
+    else if (val == none_value) err_msg_still_none(NULL, epoint);
     else err_msg_wrong_type(val, expected, epoint);
 }
 
@@ -1108,7 +1119,7 @@ static const char * const opr_names[ADR_LEN] = {
     "", /* ADR_BIT_ZP_REL */
 };
 
-void err_msg_address_mismatch(int a, int b, linepos_t epoint) {
+void err_msg_address_mismatch(unsigned int a, unsigned int b, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.altmode, epoint);
     adderror("using ");
     adderror(opr_names[a]);
@@ -1156,9 +1167,9 @@ static const char * const order_suffix[4] = {
 
 void err_msg_missing_argument(linepos_t epoint, size_t n) {
     char msg2[4];
-    int i = n % 10;
+    unsigned int i = n % 10;
     bool more = new_error_msg(SV_ERROR, &((const struct file_listnode_s *)current_file_list)->parent->flist, &current_file_list->epoint);
-    msg2[0] = n + '1';
+    msg2[0] = (char)(n + '1');
     memcpy(msg2 + 1, order_suffix[i < 4 ? i : 3], 3);
     adderror(msg2);
     adderror(" argument is missing");
@@ -1208,7 +1219,7 @@ void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     err->u.invoper.v1 = (v1 != NULL) ? ((v1->refcount != 0) ? val_reference(v1) : v1) : NULL;
     err->u.invoper.v2 = (v2 != NULL) ? ((v2->refcount != 0) ? val_reference(v2) : v2) : NULL;
     err_msg_invalid_oper3(err);
-    val_destroy(&err->v);
+    val_destroy(Obj(err));
 }
 
 void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
@@ -1225,8 +1236,26 @@ void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
 }
 
 void err_msg_bool_oper(oper_t op) {
+    Obj *v2;
     new_error_msg2(diagnostic_errors.strict_bool, op->epoint3);
-    err_msg_invalid_oper2(op->op, op->v1, op->v2);
+    switch (op->op->op) {
+    case O_WORD:
+    case O_HWORD:
+    case O_BSWORD:
+    case O_LOWER:
+    case O_HIGHER:
+    case O_BANK:
+    case O_STRING:
+    case O_INV:
+    case O_NEG:
+    case O_POS:
+    case O_LNOT:
+    case O_X:
+    case O_FUNC:
+    case O_INDEX: v2 = NULL; break;
+    default: v2 = op->v2; break;
+    }
+    err_msg_invalid_oper2(op->op, op->v1, v2);
     adderror(" [-Wstrict-bool]");
 }
 
@@ -1410,7 +1439,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
 }
 
 static inline bool caret_needed(const struct errorentry_s *err) {
-    return (arguments.caret == CARET_ALWAYS || (arguments.caret != CARET_NEVER && (err->line_len != 0 || err->file_list->file->name[0] == 0)));
+    return (arguments.error.caret == CARET_ALWAYS || (arguments.error.caret != CARET_NEVER && (err->line_len != 0 || err->file_list->file->name[0] == 0)));
 }
 
 static bool different_line(const struct errorentry_s *err, const struct errorentry_s *err2) {
@@ -1428,7 +1457,7 @@ static void walkfilelist(struct avltree_node *aa) {
     avltree_destroy(&l->members, walkfilelist);
 }
 
-void error_print(void) {
+void error_print(const struct error_output_s *output) {
     const struct errorentry_s *err, *err2, *err3;
     size_t pos;
     bool noneerr = false, anyerr = false, usenote;
@@ -1439,15 +1468,17 @@ void error_print(void) {
         avltree_destroy(&file_list.members, walkfilelist);
     }
 
-    if (arguments.error != NULL) {
-        ferr = dash_name(arguments.error) ? stdout : file_open(arguments.error, "wt");
+    if (output->name != NULL) {
+        ferr = dash_name(output->name) ? stdout : file_open(output->name, output->append ? "at" : "wt");
         if (ferr == NULL) {
-            err_msg_file(ERROR_CANT_WRTE_ERR, arguments.error, &nopoint);
+            err_msg_file(ERROR_CANT_WRTE_ERR, output->name, &nopoint);
             ferr = stderr;
         }
-    } else ferr = stderr;
+    } else ferr = output->no_output ? NULL : stderr;
 
-    if (ferr != stderr) console_use(ferr); else if (arguments.quiet) fflush(stdout);
+    if (ferr != NULL) {
+        if (ferr != stderr) console_use(ferr); else if (arguments.quiet) fflush(stdout);
+    }
 
     warnings = errors = 0;
     close_error();
@@ -1470,7 +1501,7 @@ void error_print(void) {
         switch (err->severity) {
         case SV_NOTE:
             if (!usenote) continue;
-            if (err3 != NULL) {
+            if (err3 != NULL && ferr != NULL) {
                 if (err->severity != err3->severity || err->file_list != err3->file_list ||
                         err->line_len != err3->line_len || err->error_len != err3->error_len ||
                         err->epoint.line != err3->epoint.line || err->epoint.pos != err3->epoint.pos ||
@@ -1482,7 +1513,7 @@ void error_print(void) {
             err2 = err;
             continue;
         case SV_WARNING:
-            if (!arguments.warning) {
+            if (!output->warning) {
                 usenote = false;
                 continue;
             }
@@ -1502,11 +1533,12 @@ void error_print(void) {
             errors++;
             break;
         }
-        if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
+        if (err3 != NULL && ferr != NULL) print_error(ferr, err3, different_line(err2, err3));
         err3 = err2;
         err2 = err;
         usenote = true;
     }
+    if (ferr == NULL) return;
     if (err3 != NULL) print_error(ferr, err3, different_line(err2, err3));
     if (err2 != NULL) print_error(ferr, err2, caret_needed(err2));
     if (ferr != stderr) console_use(stderr);
@@ -1582,7 +1614,7 @@ NO_RETURN void err_msg_out_of_memory2(void)
 
 NO_RETURN void err_msg_out_of_memory(void)
 {
-    error_print();
+    error_print(&arguments.error);
     err_msg_out_of_memory2();
 }
 

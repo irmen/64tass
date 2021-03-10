@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2277 2021-01-23 16:37:23Z soci $
+    $Id: errors_e.h 2453 2021-03-01 01:08:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ typedef enum Error_types {
     ERROR_CANT_CROSS_BA,
     ERROR_OUTOF_SECTION,
     ERROR_NEGFRAC_POWER,
+    ERROR_ZERO_NEGPOWER,
     ERROR_SQUARE_ROOT_N,
     ERROR_LOG_NON_POSIT,
     ERROR___MATH_DOMAIN,

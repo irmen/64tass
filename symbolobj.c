@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2385 2021-02-20 12:25:17Z soci $
+    $Id: symbolobj.c 2468 2021-03-06 22:28:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,11 +41,11 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_SYMBOL: return val_reference(v1);
     default: break;
     }
-    return (Obj *)new_error_conv(v1, SYMBOL_OBJ, epoint);
+    return new_error_conv(v1, SYMBOL_OBJ, epoint);
 }
 
 Symbol *new_symbol(const str_t *name, linepos_t epoint) {
-    Symbol *idn = (Symbol *)val_alloc(SYMBOL_OBJ);
+    Symbol *idn = Symbol(val_alloc(SYMBOL_OBJ));
     if ((size_t)(name->data - current_file_list->file->data) < current_file_list->file->len) idn->name = *name;
     else str_cpy(&idn->name, name);
     idn->cfname.data = NULL;
@@ -65,7 +65,7 @@ static FAST_CALL NO_INLINE bool symbol_same(const Symbol *v1, const Symbol *v2) 
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Symbol *v1 = (const Symbol *)o1, *v2 = (const Symbol *)o2;
+    const Symbol *v1 = Symbol(o1), *v2 = Symbol(o2);
     if (o1->obj != o2->obj || v1->name.len != v2->name.len) return false;
     switch (v1->name.len) {
     case 0: return true;
@@ -75,14 +75,14 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 }
 
 static FAST_CALL void destroy(Obj *o1) {
-    Symbol *v1 = (Symbol *)o1;
+    Symbol *v1 = Symbol(o1);
     const struct file_s *cfile = v1->file_list->file;
     if ((size_t)(v1->name.data - cfile->data) >= cfile->len) symbol_destroy(v1);
     if (v1->cfname.data != NULL && v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    Symbol *v1 = (Symbol *)o1;
+    Symbol *v1 = Symbol(o1);
     size_t chars;
     Str *v;
     size_t len;
@@ -96,11 +96,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     v->chars = chars;
     v->data[0] = '.';
     memcpy(v->data + 1, v1->name.data, len - 1);
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    Symbol *v1 = (Symbol *)o1;
+    Symbol *v1 = Symbol(o1);
     Str *v;
     size_t chars = calcpos(v1->name.data, v1->name.len);
     if (chars > maxsize) return NULL;
@@ -108,11 +108,11 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     if (v == NULL) return NULL;
     v->chars = chars;
     memcpy(v->data, v1->name.data, v1->name.len);
-    return &v->v;
+    return Obj(v);
 }
 
-static MUST_CHECK struct Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    Symbol *v1 = (Symbol *)o1;
+static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    Symbol *v1 = Symbol(o1);
     str_t s;
     size_t l;
     unsigned int h;
@@ -133,9 +133,7 @@ static MUST_CHECK struct Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint))
     l = s.len;
     while ((l--) != 0) h = (1000003 * h) ^ *s.data++;
     h ^= s.len;
-    h &= ((~0U) >> 1);
-    v1->hash = h;
-    *hs = h;
+    *hs = v1->hash = h & ((~0U) >> 1);
     return NULL;
 }
 
@@ -155,7 +153,7 @@ bool symbol_cfsame(Symbol *v1, Symbol *v2) {
 }
 
 static inline int icmp(oper_t op) {
-    Symbol *v1 = (Symbol *)op->v1, *v2 = (Symbol *)op->v2;
+    Symbol *v1 = Symbol(op->v1), *v2 = Symbol(op->v2);
     str_t *n1 = &v1->cfname, *n2 = &v2->cfname;
     int h;
     if (n1->data == NULL) {
@@ -178,7 +176,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     switch (o2->obj->type) {
     case T_SYMBOL:
         i = icmp(op);
-        if (i == 0 && diagnostics.case_symbol && str_cmp(&((Symbol *)op->v1)->name, &((Symbol *)o2)->name) != 0) err_msg_symbol_case2((Symbol *)op->v1, (Symbol *)o2);
+        if (i == 0 && diagnostics.case_symbol && str_cmp(&Symbol(op->v1)->name, &Symbol(o2)->name) != 0) err_msg_symbol_case2(Symbol(op->v1), Symbol(o2));
         return obj_oper_compare(op, i);
     case T_NONE:
     case T_ERROR:

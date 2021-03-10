@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 2306 2021-01-30 01:27:18Z soci $
+    $Id: obj.h 2476 2021-03-07 02:25:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,9 @@ typedef struct Obj {
     size_t refcount;
 } Obj;
 
-typedef struct Lbl_s {
+#define Obj(a) ((0 ? &(a)->v : (Obj *)(a)))
+
+typedef struct Lbl {
     Obj v;
     line_t sline;
     size_t waitforp;
@@ -37,16 +39,21 @@ typedef struct Lbl_s {
     struct Namespace *parent;
 } Lbl;
 
+#define Lbl(a) ((Lbl *)(1 ? (a) : (Obj *)(Lbl *)(a)))
+
 typedef struct Funcargs {
     Obj v;
     size_t len;
     struct values_s *val;
 } Funcargs;
 
+#define Funcargs(a) ((Funcargs *)(1 ? (a) : (Obj *)(Funcargs *)(a)))
+
 typedef struct Default {
     Obj v;
-    int *dummy;
 } Default;
+
+#define Default(a) ((Default *)(1 ? (a) : (Obj *)(Default *)(a)))
 
 static inline Obj *val_reference(Obj *v1) {
     v1->refcount++; return v1;
@@ -61,9 +68,9 @@ extern void objects_destroy(void);
 extern struct Type *const LBL_OBJ;
 extern struct Type *const DEFAULT_OBJ;
 extern struct Type *const FUNCARGS_OBJ;
-extern Default *default_value;
+extern Obj *const default_value;
 
-static inline Default *ref_default(void) {
-    default_value->v.refcount++; return default_value;
+static inline Obj *ref_default(void) {
+    default_value->refcount++; return default_value;
 }
 #endif

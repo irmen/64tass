@@ -1,5 +1,5 @@
 /*
-    $Id: oper_e.h 2354 2021-02-07 23:03:40Z soci $
+    $Id: oper_e.h 2480 2021-03-07 11:41:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ typedef enum Oper_types {
     O_LAND_ASSIGN,   /* &&=   */
     O_COND_ASSIGN,   /* :?=   */
     O_COND,          /* ?     */
+    O_DCOND,         /* ??    */
     O_COLON2,        /* :     */
     O_LOR,           /* ||    */
     O_LXOR,          /* ^^    */
@@ -110,6 +111,7 @@ typedef enum Oper_types {
     O_RBRACKET,      /* ]     */
     O_RBRACE,        /* }     */
     O_QUEST,         /* ?     */
+    O_DQUEST,        /* ??    */
     O_COLON          /* :     */
 } Oper_types;
 

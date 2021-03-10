@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: addressobj.c 2484 2021-03-08 22:04:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,22 +46,22 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_FLOAT:
     case T_BYTES:
     case T_STR:
-        return (Obj *)new_address(val_reference(v1), A_NONE);
+        return new_address(val_reference(v1), A_NONE);
     case T_NONE:
     case T_ERROR:
     case T_ADDRESS: return val_reference(v1);
     default: break;
     }
-    return (Obj *)new_error_conv(v1, ADDRESS_OBJ, epoint);
+    return new_error_conv(v1, ADDRESS_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     val_destroy(v1->val);
 }
 
 static FAST_CALL void garbage(Obj *o1, int i) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
     switch (i) {
     case -1:
@@ -80,24 +80,24 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Address *v1 = (const Address *)o1, *v2 = (const Address *)o2;
-    return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
+    const Address *v1 = Address(o1), *v2 = Address(o2);
+    return o1->obj == o2->obj && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->truth(o1, type, epoint);
     }
     v = v1->val;
     return v->obj->truth(v, type, epoint);
 }
 
-static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t epoint) {
+    Address *v1 = Address(o1);
     Obj *v = v1->val;
-    Error *err = v->obj->hash(v, hs, epoint);
+    Obj *err = v->obj->hash(v, hs, epoint);
     if (err == NULL) {
         *hs = ((unsigned int)*hs + v1->type) & ((~0U) >> 1);
     }
@@ -105,7 +105,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     uint8_t *s;
     size_t len, chars;
     char buffer[100], buffer2[100], *b2;
@@ -157,7 +157,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     if (chars > maxsize) return NULL;
     tmp = v1->val->obj->repr(v1->val, epoint, maxsize - chars);
     if (tmp == NULL || tmp->obj != STR_OBJ) return tmp;
-    str = (Str *)tmp;
+    str = Str(tmp);
     len = chars + str->len;
     if (len < chars) goto error; /* overflow */
     chars += str->chars;
@@ -181,11 +181,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     }
     if (ind2 != 0) memcpy(s, buffer, ind2);
     val_destroy(tmp);
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t epoint, size_t maxsize) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     if (v1->type == A_NONE) {
         o1 = v1->val;
         return o1->obj->repr(o1, epoint, maxsize);
@@ -238,7 +238,7 @@ static inline bool check_addr2(atype_t type) {
 }
 
 static FAST_CALL uint32_t address(const Obj *o1) {
-    const Address *v1 = (Address *)o1;
+    const Address *v1 = Address(o1);
     Obj *v = v1->val;
     uint32_t am = v->obj->address(v);
     atype_t type = v1->type;
@@ -250,9 +250,9 @@ static FAST_CALL uint32_t address(const Obj *o1) {
 }
 
 static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->ival(o1, iv, bits, epoint);
     }
     v = v1->val;
@@ -260,9 +260,9 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
 }
 
 static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->uval(o1, uv, bits, epoint);
     }
     v = v1->val;
@@ -270,9 +270,9 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
 }
 
 static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->uval2(o1, uv, bits, epoint);
     }
     v = v1->val;
@@ -280,49 +280,49 @@ static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t
 }
 
 static MUST_CHECK Error *iaddress(Obj *o1, ival_t *iv, unsigned int bits, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v = v1->val;
     return v->obj->iaddress(v, iv, bits, epoint);
 }
 
 static MUST_CHECK Error *uaddress(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v = v1->val;
     return v->obj->uaddress(v, uv, bits, epoint);
 }
 
 MUST_CHECK Obj *float_from_address(Address *v1, linepos_t epoint) {
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return (Obj *)new_error_conv(&v1->v, FLOAT_OBJ, epoint);
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
+        return new_error_conv(Obj(v1), FLOAT_OBJ, epoint);
     }
     return FLOAT_OBJ->create(v1->val, epoint);
 }
 
 MUST_CHECK Obj *int_from_address(Address *v1, linepos_t epoint) {
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return (Obj *)new_error_conv(&v1->v, INT_OBJ, epoint);
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
+        return new_error_conv(Obj(v1), INT_OBJ, epoint);
     }
     return INT_OBJ->create(v1->val, epoint);
 }
 
 MUST_CHECK Obj *bits_from_address(Address *v1, linepos_t epoint) {
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return (Obj *)new_error_conv(&v1->v, BITS_OBJ, epoint);
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
+        return new_error_conv(Obj(v1), BITS_OBJ, epoint);
     }
     return BITS_OBJ->create(v1->val, epoint);
 }
 
 MUST_CHECK Obj *bytes_from_address(Address *v1, linepos_t epoint) {
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
-        return (Obj *)new_error_conv(&v1->v, BYTES_OBJ, epoint);
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
+        return new_error_conv(Obj(v1), BYTES_OBJ, epoint);
     }
     return BYTES_OBJ->create(v1->val, epoint);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
-    Address *v1 = (Address *)o1;
+    Address *v1 = Address(o1);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->sign(o1, epoint);
     }
     v = v1->val;
@@ -330,19 +330,19 @@ static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *function(oper_t op) {
-    Address *v1 = (Address *)op->v2;
+    Address *v1 = Address(op->v2);
     Obj *v;
-    if (v1->type != A_NONE && v1->val != &none_value->v && v1->val->obj != ERROR_OBJ) {
+    if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return DEFAULT_OBJ->function(op);
     }
     op->v2 = v = v1->val;
-    op->inplace = op->inplace == &v1->v && v->refcount == 1 ? v : NULL;
+    op->inplace = op->inplace == Obj(v1) && v->refcount == 1 ? v : NULL;
     return v->obj->function(op);
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *result;
-    Address *v1 = (Address *)op->v1;
+    Address *v1 = Address(op->v1);
     atype_t am = v1->type;
     switch (op->op->op) {
     case O_LNOT:
@@ -365,16 +365,16 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         op->inplace = NULL;
         result = op->v1->obj->calc1(op);
         if (am == A_NONE) return result;
-        return (Obj *)new_address(result, am);
+        return new_address(result, am);
     default: break;
     }
-    if (v1->val == &none_value->v || v1->val->obj == ERROR_OBJ) return val_reference(v1->val);
+    if (v1->val == none_value || v1->val->obj == ERROR_OBJ) return val_reference(v1->val);
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
-    Obj *val = ((Address *)op->v1)->val;
-    if (val == &none_value->v || val->obj == ERROR_OBJ) {
+    Obj *val = Address(op->v1)->val;
+    if (val == none_value || val->obj == ERROR_OBJ) {
         return val_reference(val);
     }
     return DEFAULT_OBJ->slice(op, indx);
@@ -382,21 +382,22 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2, *result;
-    Address *v1 = (Address *)op->v1, *v;
+    Address *v1 = Address(op->v1);
     atype_t am;
     if (op->op == &o_LAND || op->op == &o_LOR) {
         bool i;
-        result = truth(&v1->v, TRUTH_BOOL, op->epoint);
+        result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         if (result->obj != BOOL_OBJ) return result;
-        i = (result == &true_value->v) != (op->op == &o_LOR);
+        i = (result == true_value) != (op->op == &o_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        return val_reference(i ? o2 : &v1->v);
+        return val_reference(i ? o2 : Obj(v1));
     }
     switch (o2->obj->type) {
     case T_ADDRESS:
         {
-            Address *v2 = (Address *)o2;
+            Address *v2 = Address(o2);
+            atype_t am2 = v2->type;
             am = v1->type;
             switch (op->op->op) {
             case O_CMP:
@@ -408,42 +409,28 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_MAX:
             case O_GT:
             case O_GE:
-                if (am == v2->type) {
+                if (am == am2) {
                     op->v1 = v1->val;
                     op->v2 = v2->val;
                     op->inplace = NULL;
                     return op->v1->obj->calc2(op);
                 }
-                switch (op->op->op) {
-                default: /* can't happen */
-                case O_CMP: return (Obj *)ref_int((am < v2->type) ? minus1_value : int_value[1]);
-                case O_EQ: return (Obj *)ref_bool(false_value);
-                case O_NE: return (Obj *)ref_bool(true_value);
-                case O_LE:
-                case O_MIN:
-                case O_LT: return truth_reference(am < v2->type);
-                case O_GE:
-                case O_MAX:
-                case O_GT: return truth_reference(am > v2->type);
-                }
+                return obj_oper_compare(op, (am < am2) ? -1 : 1);
             case O_ADD:
                 if (check_addr(am)) break;
-                if (check_addr(v2->type)) break;
+                if (check_addr(am2)) break;
                 op->v1 = v1->val;
                 op->v2 = v2->val;
                 op->inplace = NULL;
                 result = op->v1->obj->calc2(op);
                 if (am == A_NONE && v2->type == A_NONE) return result;
-                v = new_address(result, am);
-                am = v2->type;
-                while ((Address_types)(am & 0xf) != A_NONE) { v->type <<= 4; am >>= 4; }
-                v->type |= v2->type;
-                return &v->v;
+                while ((Address_types)(am2 & 0xf) != A_NONE) { am <<= 4; am2 >>= 4; }
+                return new_address(result, am | v2->type);
             case O_SUB:
                 if (check_addr(am)) break;
-                if (check_addr(v2->type)) break;
+                if (check_addr(am2)) break;
                 {
-                    atype_t am1 = A_NONE, am2 = v2->type;
+                    atype_t am1 = A_NONE;
                     for (; (am & MAX_ADDRESS_MASK) != 0; am <<= 4) {
                         atype_t amc = (am >> 8) & 0xf;
                         atype_t am3, am4;
@@ -465,7 +452,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     op->inplace = NULL;
                     result = op->v1->obj->calc2(op);
                     if (am1 == A_NONE) return result;
-                    return (Obj *)new_address(result, am1);
+                    return new_address(result, am1);
                 }
             default:
                 break;
@@ -511,22 +498,22 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         ok:
             op->v1 = v1->val;
             op->inplace = NULL;
-            return (Obj *)new_address(op->v1->obj->calc2(op), am);
+            return new_address(op->v1->obj->calc2(op), am);
         }
         break;
     default:
         if (op->op != &o_MEMBER && op->op != &o_X) {
             return o2->obj->rcalc2(op);
         }
-        if (o2 == &none_value->v || o2->obj == ERROR_OBJ) return val_reference(o2);
+        if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
     }
-    if (v1->val == &none_value->v || v1->val->obj == ERROR_OBJ) return val_reference(v1->val);
+    if (v1->val == none_value || v1->val->obj == ERROR_OBJ) return val_reference(v1->val);
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     const Type *t1 = op->v1->obj;
-    Address *v2 = (Address *)op->v2;
+    Address *v2 = Address(op->v2);
     atype_t am;
     switch (t1->type) {
     case T_BOOL:
@@ -558,7 +545,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         ok:
             op->v2 = v2->val;
             op->inplace = NULL;
-            return (Obj *)new_address(t1->calc2(op), am);
+            return new_address(t1->calc2(op), am);
         }
         break;
     case T_CODE:
@@ -568,7 +555,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         break;
     default: break;
     }
-    if (v2->val == &none_value->v || v2->val->obj == ERROR_OBJ) return val_reference(v2->val);
+    if (v2->val == none_value || v2->val->obj == ERROR_OBJ) return val_reference(v2->val);
     return obj_oper_error(op);
 }
 
@@ -597,5 +584,5 @@ void addressobj_init(void) {
 }
 
 void addressobj_names(void) {
-    new_builtin("address", val_reference(&ADDRESS_OBJ->v));
+    new_builtin("address", val_reference(Obj(ADDRESS_OBJ)));
 }

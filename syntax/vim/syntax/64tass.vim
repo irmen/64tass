@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2317 2021-01-31 22:46:47Z soci $
+" $Id: 64tass.vim 2481 2021-03-07 14:13:53Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -219,7 +219,7 @@ syn match tass64Dec     /\v%(%(\d_+)+\d|\d)+>\.@!/ skipwhite contained contains=
 syn match tass64Hex     /\v\$%(%(\x_+)+\x|\x)+>\.@!/ skipwhite contained contains=tass64Delimiter nextgroup=@tass64Expression2
 syn match tass64Ident   /\v[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>['"]@!/ skipwhite contained contains=tass64Reg,tass64Function,tass64Const nextgroup=@tass64Expression2
 syn match tass64Gap     /\v\?/ skipwhite contained nextgroup=@tass64Expression2
-syn match tass64Anon    /\v[-+]+%(\s*[)\]};,:]|\s*$)@=/ skipwhite contained nextgroup=@tass64Expression2
+syn match tass64Anon    /\v%([-+]+|\*)%(\s*[)\]};,:]|\s*$)@=/ skipwhite contained nextgroup=@tass64Expression2
 syn match tass64Float   /\v\%%(%(\.%(%([01]_+)+[01]|[01])+|%(%([01]_+)+[01]|[01])+\.\.@!%(%([01]_+)+[01]|[01])*)%([ep][+-]?%(%(\d_+)+\d|\d)+)?|%(%([01]_+)+[01]|[01])+[ep][+-]?%(%(\d_+)+\d|\d)+)/ skipwhite contained contains=tass64Expo,tass64Delimiter nextgroup=@tass64Expression2
 syn match tass64Float   /\v\$%(%(\.%(%(\x_+)+\x|\x)+|%(%(\x_+)+\x|\x)+\.\.@!%(%(\x_+)+\x|\x)*)%(p[+-]?%(%(\d_+)+\d|\d)+)?|%(%(\x_+)+\x|\x)+p[+-]?%(%(\d_+)+\d|\d)+)/ skipwhite contained contains=tass64Expo,tass64Delimiter nextgroup=@tass64Expression2
 syn match tass64Float   /\v%(\.%(%(\d_+)+\d|\d)+|%(%(\d_+)+\d|\d)+\.\.@!%(%(\d_+)+\d|\d)*)%([ep][+-]?%(%(\d_+)+\d|\d)+)?|%(%(\d_+)+\d|\d)+[ep][+-]?%(%(\d_+)+\d|\d)+/ skipwhite contained contains=tass64Expo,tass64Delimiter nextgroup=@tass64Expression2
@@ -228,10 +228,11 @@ syn match tass64Float   /\v%(\.%(%(\d_+)+\d|\d)+|%(%(\d_+)+\d|\d)+\.\.@!%(%(\d_+
 syn match tass64MacroRef /\v\\%([@1-9]>|[[:lower:][:upper:]_][[:lower:][:upper:]0-9_]*>|\{[^}]*\})/ skipwhite contained nextgroup=@tass64Expression2
 
 " Operators
-syn match tass64Oper1   /\v[#*!~<>`^([{:]|([-+])%(\1|\s*[)\]};,:]|\s*$)@!/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Oper1   /\v[#!~<>`^([{:]|([-+*])%(\1|\s*[)\]};,:]|\s*$)@!/ skipwhite contained nextgroup=@tass64Expression
 syn match tass64Oper1   /\v[)\]}]/ skipwhite contained nextgroup=@tass64Expression2
+syn match tass64Oper1   /\v\.[-+(\*[:lower:][:upper:]_]@=/ contained nextgroup=@tass64Expression
 
-syn match tass64Oper2   /\v[<>&^|*.]{2}|[>=<!]\=|[><]\?|[-+/*%^|&,.?:<>=[(]|%(in|x)>/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Oper2   /\v[<>&^|*.]{2}|[>=<!]\=|[><?]\?|[-+/*%^|&,.?:<>=[(]|%(in|x)>/ skipwhite contained nextgroup=@tass64Expression
 syn match tass64Oper2   /\v[<>&|*.<>]{2}\=|[><]\?\=|[-+/*%^|&:x]\=/ skipwhite contained nextgroup=@tass64Expression
 syn match tass64Oper2   /\v,[xyzrsdbk]>|[\])}]/ skipwhite contained nextgroup=@tass64Expression2
 

@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2411 2021-02-23 23:29:17Z soci $
+    $Id: functionobj.c 2480 2021-03-07 11:41:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,16 +53,16 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_FUNCTION: return val_reference(v1);
     default: break;
     }
-    return (Obj *)new_error_conv(v1, FUNCTION_OBJ, epoint);
+    return new_error_conv(v1, FUNCTION_OBJ, epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
-    return o2->obj == FUNCTION_OBJ && v1->func == v2->func;
+    const Function *v1 = Function(o1), *v2 = Function(o2);
+    return o1->obj == o2->obj && v1->func == v2->func;
 }
 
-static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    Function *v1 = (Function *)o1;
+static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    Function *v1 = Function(o1);
     int h = v1->name_hash;
     if (h < 0) v1->name_hash = h = str_hash(&v1->name);
     *hs = h;
@@ -70,7 +70,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
-    const Function *v1 = (const Function *)o1;
+    const Function *v1 = Function(o1);
     uint8_t *s;
     size_t len;
     Str *v;
@@ -88,23 +88,24 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     s += v1->name.len;
     *s = '\'';
     s[1] = '>';
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    const Function *v1 = (const Function *)o1;
+    const Function *v1 = Function(o1);
     Str *v;
     if (v1->name.len > maxsize) return NULL;
     v = new_str2(v1->name.len);
     if (v == NULL) return NULL;
     v->chars = v1->name.len;
     memcpy(v->data, v1->name.data, v1->name.len);
-    return &v->v;
+    return Obj(v);
 }
 
-typedef MUST_CHECK Obj *(*func_t)(Funcargs *, linepos_t);
+typedef MUST_CHECK Obj *(*func_t)(oper_t op);
 
-static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f) {
+static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
+    Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     size_t args = vals->len;
     size_t j, k, ln = 1;
@@ -144,7 +145,7 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
                         iter_destroy(&elements[k].iters);
                     }
                     if (elements != elements3) free(elements);
-                    return &err->v;
+                    return Obj(err);
                 }
                 ln = iter->len;
             }
@@ -153,22 +154,23 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
         }
     }
     if (elements == NULL) {
-        return f(vals, epoint);
+        return f(op);
     }
     if (ln != 0) {
         size_t i;
-        vv = (List *)val_alloc(v[k].val->obj == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
-        Obj **vals2 = vv->data = list_create_elements(vv, ln);
+        Obj **vals2;
+        vv = List(val_alloc(v[k].val->obj == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ));
+        vals2 = vv->data = list_create_elements(vv, ln);
         for (i = 0; i < ln; i++) {
             for (j = k; j < args; j++) {
                 if (elements[j].oval == NULL) continue;
                 if (elements[j].iters.len != 1) v[j].val = elements[j].iters.next(&elements[j].iters);
             }
-            vals2[i] = gen_broadcast(vals, epoint, f);
+            vals2[i] = gen_broadcast(op, f);
         }
         vv->len = i;
     } else {
-        vv = (List *)val_reference(v[k].val->obj == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+        vv = List(val_reference(v[k].val->obj == TUPLE_OBJ ? null_tuple : null_list));
     }
     for (; k < args; k++) {
         if (elements[k].oval == NULL) continue;
@@ -176,13 +178,14 @@ static MUST_CHECK Obj *gen_broadcast(Funcargs *vals, linepos_t epoint, func_t f)
         iter_destroy(&elements[k].iters);
     }
     if (elements != elements3) free(elements);
-    return &vv->v;
+    return Obj(vv);
 failed:
-    return (Obj *)new_error_mem(epoint);
+    return new_error_mem(op->epoint);
 }
 
 /* range([start],end,[step]) */
-static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *function_range(oper_t op) {
+    Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     List *new_value;
     Error *err = NULL;
@@ -197,17 +200,17 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
         break;
     case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         /* fall through */
     case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         err = v[1].val->obj->ival(v[1].val, &end, 8 * sizeof end, &v[1].epoint);
         break;
     }
-    if (err != NULL) return &err->v;
+    if (err != NULL) return Obj(err);
     if (step == 0) {
-        return (Obj *)new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint);
+        return Obj(new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint));
     }
     if (step > 0) {
         if (end < start) end = start;
@@ -219,12 +222,12 @@ static MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t UNUSED(epoint)) 
     new_value = new_list();
     val = list_create_elements(new_value, len2);
     for (i = 0; i < len2; i++) {
-        val[i] = (Obj *)int_from_ival(start);
+        val[i] = int_from_ival(start);
         start += step;
     }
     new_value->len = len2;
     new_value->data = val;
-    return &new_value->v;
+    return Obj(new_value);
 }
 
 static uint64_t state[2];
@@ -243,10 +246,10 @@ static uint64_t random64(void) {
 void random_reseed(Obj *o1, linepos_t epoint) {
     Obj *v = INT_OBJ->create(o1, epoint);
     if (v->obj != INT_OBJ) {
-        if (v == &none_value->v) err_msg_still_none(NULL, epoint);
-        else if (v->obj == ERROR_OBJ) err_msg_output((Error *)v);
+        if (v == none_value) err_msg_still_none(NULL, epoint);
+        else if (v->obj == ERROR_OBJ) err_msg_output(Error(v));
     } else {
-        Int *v1 = (Int *)v;
+        Int *v1 = Int(v);
         Error *err;
 
         state[0] = (((uint64_t)0x5229a30f) << 32) | (uint64_t)0x996ad7eb;
@@ -269,7 +272,8 @@ void random_reseed(Obj *o1, linepos_t epoint) {
 }
 
 /* random() */
-static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
+static MUST_CHECK Obj *function_random(oper_t op) {
+    Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     Error *err = NULL;
     ival_t start = 0, end, step = 1;
@@ -277,23 +281,23 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
 
     switch (vals->len) {
     default:
-        return (Obj *)new_float((random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
+        return new_float((double)(random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
     case 1:
         err = v[0].val->obj->ival(v[0].val, &end, 8 * sizeof end, &v[0].epoint);
         break;
     case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         /* fall through */
     case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         err = v[1].val->obj->ival(v[1].val, &end, 8 * sizeof end, &v[1].epoint);
         break;
     }
-    if (err != NULL) return &err->v;
+    if (err != NULL) return Obj(err);
     if (step == 0) {
-        return (Obj *)new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint);
+        return Obj(new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint));
     }
     if (step > 0) {
         if (end < start) end = start;
@@ -310,11 +314,11 @@ static MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
             do {
                 r = (uval_t)random64();
             } while (r >= b);
-            return (Obj *)int_from_ival(start + (ival_t)(r / a) * step);
+            return int_from_ival(start + (ival_t)(r / a) * step);
         }
-        return (Obj *)int_from_ival(start + (ival_t)(random64() & (len2 - 1)));
+        return int_from_ival(start + (ival_t)(random64() & (len2 - 1)));
     }
-    return (Obj *)new_error(ERROR___EMPTY_RANGE, epoint);
+    return Obj(new_error(ERROR___EMPTY_RANGE, op->epoint));
 }
 
 static struct oper_s sort_tmp;
@@ -328,19 +332,19 @@ static int sortcomp(void) {
     Obj *o2 = sort_tmp.v2;
     sort_tmp.inplace = NULL;
     result = sort_tmp.v1->obj->calc2(&sort_tmp);
-    if (result->obj == INT_OBJ) ret = (int)((Int *)result)->len;
+    if (result->obj == INT_OBJ) ret = (int)Int(result)->len;
     else {
         ret = 0;
         if (sort_error == NULL) {
             if (result->obj == ERROR_OBJ) sort_error = val_reference(result);
             else {
                 if (result->obj == TUPLE_OBJ || result->obj == LIST_OBJ) {
-                    List *v1 = (List *)result;
+                    List *v1 = List(result);
                     size_t i;
                     for (i = 0; i < v1->len; i++) {
                         Obj *v2 = v1->data[i];
                         if (v2->obj == INT_OBJ) {
-                            ret = (int)((Int *)v2)->len;
+                            ret = (int)Int(v2)->len;
                             if (ret == 0) continue;
                             val_destroy(result);
                             return ret;
@@ -365,7 +369,7 @@ static int sortcomp(void) {
 static int list_sortcomp(const void *a, const void *b) {
     int ret;
     size_t aa = *(const size_t *)a, bb = *(const size_t *)b;
-    List *list = (List *)sort_val;
+    List *list = List(sort_val);
     sort_tmp.v1 = list->data[aa];
     sort_tmp.v2 = list->data[bb];
     ret = sortcomp();
@@ -376,7 +380,7 @@ static int list_sortcomp(const void *a, const void *b) {
 static int dict_sortcomp(const void *a, const void *b) {
     int ret;
     size_t aa = *(const size_t *)a, bb = *(const size_t *)b;
-    Dict *dict = (Dict *)sort_val;
+    Dict *dict = Dict(sort_val);
     sort_tmp.v1 = dict->data[aa].key;
     sort_tmp.v2 = dict->data[bb].key;
     ret = sortcomp();
@@ -387,7 +391,7 @@ static int dict_sortcomp(const void *a, const void *b) {
 /* sort() */
 static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ || o1->obj == DICT_OBJ) {
-        size_t ln = (o1->obj == DICT_OBJ) ? ((Dict *)o1)->len : ((List *)o1)->len;
+        size_t ln = (o1->obj == DICT_OBJ) ? Dict(o1)->len : List(o1)->len;
         if (ln > 1) {
             size_t i;
             Obj **vals;
@@ -405,13 +409,13 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
                 free(sort_index);
                 return sort_error;
             }
-            if (o1->obj == DICT_OBJ) o1 = dict_sort((Dict *)o1, sort_index);
+            if (o1->obj == DICT_OBJ) o1 = dict_sort(Dict(o1), sort_index);
             else {
-                List *v = (List *)val_alloc(o1->obj);
+                List *v = List(val_alloc(o1->obj));
                 v->data = vals = list_create_elements(v, ln);
                 v->len = ln;
-                for (i = 0; i < ln; i++) vals[i] = val_reference(((List *)o1)->data[sort_index[i]]);
-                o1 = &v->v;
+                for (i = 0; i < ln; i++) vals[i] = val_reference(List(o1)->data[sort_index[i]]);
+                o1 = Obj(v);
             }
             free(sort_index);
             return o1;
@@ -419,11 +423,12 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
     }
     return val_reference(o1);
 failed:
-    return (Obj *)new_error_mem(epoint);
+    return new_error_mem(epoint);
 }
 
 /* binary(name,[start],[length]) */
-static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
+static MUST_CHECK Obj *function_binary(oper_t op) {
+    Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     Error *err;
     ival_t offs = 0;
@@ -440,11 +445,11 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
     switch (vals->len) {
     case 3:
         err = v[2].val->obj->uval(v[2].val, &length, 8 * sizeof length, &v[2].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         /* fall through */
     case 2:
         err = v[1].val->obj->ival(v[1].val, &offs, 8 * sizeof offs, &v[1].epoint);
-        if (err != NULL) return &err->v;
+        if (err != NULL) return Obj(err);
         /* fall through */
     default:
         break;
@@ -457,26 +462,26 @@ static MUST_CHECK Obj *function_binary(Funcargs *vals, linepos_t epoint) {
         else offset = (uval_t)offs;
         if (offset < ln) ln -= offset; else ln = 0;
         if (length < ln) ln = length;
-        if (ln == 0) return (Obj *)ref_bytes(null_bytes);
-        if (ln > SSIZE_MAX) return (Obj *)new_error_mem(epoint);
+        if (ln == 0) return val_reference(null_bytes);
+        if (ln > SSIZE_MAX) return new_error_mem(op->epoint);
         b = new_bytes(ln);
-        b->len = ln;
+        b->len = (ssize_t)ln;
         memcpy(b->data, cfile2->data + offset, ln);
-        return &b->v;
+        return Obj(b);
     }
-    return (Obj *)ref_none();
+    return ref_none();
 }
 
 static Obj *function_unsigned_bytes(oper_t op, unsigned int bits) {
     uval_t uv;
     if (touval(op->v2, &uv, bits, op->epoint2)) uv = 0;
-    return (Obj *)bytes_from_uval(uv, bits >> 3);
+    return bytes_from_uval(uv, bits >> 3);
 }
 
 static Obj *function_signed_bytes(oper_t op, unsigned int bits) {
     ival_t iv;
     if (toival(op->v2, &iv, bits, op->epoint2)) iv = 0;
-    return (Obj *)bytes_from_uval((uval_t)iv, bits >> 3);
+    return bytes_from_uval((uval_t)iv, bits >> 3);
 }
 
 static Obj *function_rta_addr(oper_t op, bool rta) {
@@ -498,7 +503,7 @@ static Obj *function_rta_addr(oper_t op, bool rta) {
         }
         if (rta) uv--;
     }
-    return (Obj *)bytes_from_uval(uv, 2);
+    return bytes_from_uval(uv, 2);
 }
 
 static MUST_CHECK Obj *apply_func(oper_t op) {
@@ -518,9 +523,9 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
             iter.data = o2; typ->getiter(&iter);
             if (iter.len == 0) {
                 iter_destroy(&iter);
-                return val_reference(typ == TUPLE_OBJ ? &null_tuple->v : &null_list->v);
+                return val_reference(typ == TUPLE_OBJ ? null_tuple : null_list);
             }
-            v = (List *)val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ);
+            v = List(val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ));
             v->data = vals = list_create_elements(v, iter.len);
             for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
                 op->v2 = o2;
@@ -529,9 +534,9 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
             }
             iter_destroy(&iter);
             v->len = i;
-            return &v->v;
+            return Obj(v);
         } 
-        v = (List *)val_reference(o2);
+        v = List(val_reference(o2));
         len = v->len;
         vals = v->data;
         for (i = 0; i < len; i++) {
@@ -540,10 +545,10 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
             vals[i] = apply_func(op);
             val_destroy(o2);
         }
-        return &v->v;
+        return Obj(v);
     }
-    if (op->v1->obj != FUNCTION_OBJ) return ((Type *)op->v1)->create(op->v2, op->epoint2);
-    switch (((Function *)op->v1)->func) {
+    if (op->v1->obj != FUNCTION_OBJ) return Type(op->v1)->create(op->v2, op->epoint2);
+    switch (Function(op->v1)->func) {
     case F_SIZE: return typ->size(op);
     case F_SIGN: return typ->sign(o2, op->epoint2);
     case F_BYTE: return function_unsigned_bytes(op, 8);
@@ -564,7 +569,7 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
     case F_REPR:
         {
             Obj *v = typ->repr(o2, op->epoint2, SIZE_MAX);
-            return v != NULL ? v : (Obj *)new_error_mem(op->epoint2);
+            return v != NULL ? v : new_error_mem(op->epoint2);
         }
     default: break;
     }
@@ -573,8 +578,8 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
         if (o2->obj != FLOAT_OBJ) return o2;
         inplace = o2->refcount == 1;
     }
-    real = ((Float *)o2)->real;
-    switch (((Function *)op->v1)->func) {
+    real = Float(o2)->real;
+    switch (Function(op->v1)->func) {
     case F_SQRT:
         if (real < 0.0) {
             err = ERROR_SQUARE_ROOT_N; goto failed;
@@ -619,31 +624,31 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
     case F_TANH: real = tanh(real);break;
     default: real = HUGE_VAL; break; /* can't happen */
     }
-    if (!inplace || real == HUGE_VAL || real == -HUGE_VAL) {
+    if (!inplace || real == HUGE_VAL || real == -HUGE_VAL || real != real) {
         if (typ != FLOAT_OBJ) val_destroy(o2);
         return float_from_double(real, op->epoint2);
     }
-    ((Float *)o2)->real = real;
+    Float(o2)->real = real;
     return typ != FLOAT_OBJ ? o2 : val_reference(o2);
 failed:
     if (typ != FLOAT_OBJ) val_destroy(o2);
-    return (Obj *)new_error_obj(err, op->v2, op->epoint2);
+    return new_error_obj(err, op->v2, op->epoint2);
 }
 
 static MUST_CHECK Obj *to_real(struct values_s *v, double *r) {
     if (v->val->obj == FLOAT_OBJ) {
-        *r = ((Float *)v->val)->real;
+        *r = Float(v->val)->real;
     } else {
         Obj *val = FLOAT_OBJ->create(v->val, &v->epoint);
         if (val->obj != FLOAT_OBJ) return val;
-        *r = ((Float *)val)->real;
+        *r = Float(val)->real;
         val_destroy(val);
     }
     return NULL;
 }
 
-static MUST_CHECK Obj *function_hypot(Funcargs *vals, linepos_t epoint) {
-    struct values_s *v = vals->val;
+static MUST_CHECK Obj *function_hypot(oper_t op) {
+    struct values_s *v = Funcargs(op->v2)->val;
     Obj *val;
     double real, real2;
 
@@ -651,11 +656,11 @@ static MUST_CHECK Obj *function_hypot(Funcargs *vals, linepos_t epoint) {
     if (val != NULL) return val;
     val = to_real(&v[1], &real2);
     if (val != NULL) return val;
-    return float_from_double(hypot(real, real2), epoint);
+    return float_from_double(hypot(real, real2), op->epoint);
 }
 
-static MUST_CHECK Obj *function_atan2(Funcargs *vals, linepos_t epoint) {
-    struct values_s *v = vals->val;
+static MUST_CHECK Obj *function_atan2(oper_t op) {
+    struct values_s *v = Funcargs(op->v2)->val;
     Obj *val;
     double real, real2;
 
@@ -663,11 +668,11 @@ static MUST_CHECK Obj *function_atan2(Funcargs *vals, linepos_t epoint) {
     if (val != NULL) return val;
     val = to_real(&v[1], &real2);
     if (val != NULL) return val;
-    return float_from_double(atan2(real, real2), epoint);
+    return float_from_double(atan2(real, real2), op->epoint);
 }
 
-static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
-    struct values_s *v = vals->val;
+static MUST_CHECK Obj *function_pow(oper_t op) {
+    struct values_s *v = Funcargs(op->v2)->val;
     Obj *val;
     double real, real2;
 
@@ -676,23 +681,81 @@ static MUST_CHECK Obj *function_pow(Funcargs *vals, linepos_t epoint) {
     val = to_real(&v[1], &real2);
     if (val != NULL) return val;
     if (real2 < 0.0 && real == 0.0) {
-        return (Obj *)new_error(ERROR_DIVISION_BY_Z, epoint);
+        return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint3);
     }
     if (real < 0.0 && floor(real2) != real2) {
-        return (Obj *)new_error(ERROR_NEGFRAC_POWER, epoint);
+        return Obj(new_error(ERROR_NEGFRAC_POWER, op->epoint));
     }
-    return float_from_double(pow(real, real2), epoint);
+    return float_from_double(pow(real, real2), op->epoint);
+}
+
+static MUST_CHECK Obj *function_all_any(oper_t op, Obj **warn, bool first) {
+    Truth_types typ = (Function(op->v1)->func == F_ALL) ? TRUTH_ALL : TRUTH_ANY;
+    struct values_s *v = Funcargs(op->v2)->val;
+    Obj *val = v->val;
+    const Type *objt = val->obj;
+    if (objt->iterable) {
+        struct iter_s iter;
+        Obj *good = (typ == TRUTH_ALL) ? true_value : false_value;
+        Obj *result2 = val_reference(good);
+        iter.data = val; objt->getiter(&iter);
+        while ((v->val = iter.next(&iter)) != NULL) {
+            Obj *result = v->val;
+            if (result->obj == BOOL_OBJ) {
+                if (result == good) continue;
+                val_destroy(result2);
+                result2 = val_reference(result);
+                break;
+            }
+            result = function_all_any(op, warn, false);
+            if (result == good) {
+                val_destroy(result);
+                continue;
+            }
+            val_destroy(result2); result2 = result;
+            if (result->obj == BOOL_OBJ) {
+                break;
+            }
+        }
+        iter_destroy(&iter);
+        v->val = val;
+        return result2;
+    }
+    if (objt == BOOL_OBJ) {
+        return val_reference(val);
+    }
+    if (!first) {
+        if (diagnostics.strict_bool && *warn == NULL) *warn = val_reference(val);
+        typ = TRUTH_BOOL;
+    }
+    return objt->truth(val, typ, &v->epoint);
+}
+
+static MUST_CHECK Obj *function_condition(oper_t op) {
+    struct values_s *v = Funcargs(op->v2)->val;
+    bool cond;
+
+    if (v->val->obj == BOOL_OBJ) {
+        cond = (v->val == true_value);
+    } else {
+        Obj *val = v->val->obj->truth(v->val, TRUTH_BOOL, &v->epoint);
+        if (val->obj != BOOL_OBJ) return val;
+        cond = (val == true_value);
+        if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, v->val, &v->epoint);
+        val_destroy(val);
+    } 
+    return val_reference(v[cond ? 1 : 2].val);
 }
 
 static inline int icmp(oper_t op) {
-    Function_types v1 = ((Function *)op->v1)->func;
-    Function_types v2 = ((Function *)op->v2)->func;
+    Function_types v1 = Function(op->v1)->func;
+    Function_types v2 = Function(op->v2)->func;
     if (v1 < v2) return -1;
     return (v1 > v2) ? 1 : 0;
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
-    Function *v1 = (Function *)op->v1;
+    Function *v1 = Function(op->v1);
     Obj *o2 = op->v2;
     Function_types func;
     struct values_s *v;
@@ -702,7 +765,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return obj_oper_compare(op, icmp(op));
     case T_FUNCARGS:
         {
-            Funcargs *v2 = (Funcargs *)o2;
+            Funcargs *v2 = Funcargs(o2);
             v = v2->val;
             args = v2->len;
             switch (op->op->op) {
@@ -711,53 +774,62 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 switch (func) {
                 case F_HYPOT:
                     if (args != 2) {
-                        return (Obj *)new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_hypot);
+                    return gen_broadcast(op, function_hypot);
                 case F_ATAN2:
                     if (args != 2) {
-                        return (Obj *)new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_atan2);
+                    return gen_broadcast(op, function_atan2);
                 case F_POW:
                     if (args != 2) {
-                        return (Obj *)new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_pow);
+                    return gen_broadcast(op, function_pow);
                 case F_RANGE:
                     if (args < 1 || args > 3) {
-                        return (Obj *)new_error_argnum(args, 1, 3, op->epoint2);
+                        return new_error_argnum(args, 1, 3, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_range);
+                    return gen_broadcast(op, function_range);
                 case F_BINARY:
                     if (args < 1 || args > 3) {
-                        return (Obj *)new_error_argnum(args, 1, 3, op->epoint2);
+                        return new_error_argnum(args, 1, 3, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_binary);
+                    return gen_broadcast(op, function_binary);
                 case F_FORMAT:
                     if (args < 1) {
-                        return (Obj *)new_error_argnum(args, 1, 0, op->epoint2);
+                        return new_error_argnum(args, 1, 0, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, isnprintf);
+                    return gen_broadcast(op, isnprintf);
                 case F_RANDOM:
                     if (args > 3) {
-                        return (Obj *)new_error_argnum(args, 0, 3, op->epoint2);
+                        return new_error_argnum(args, 0, 3, op->epoint2);
                     }
-                    return gen_broadcast(v2, op->epoint, function_random);
+                    return gen_broadcast(op, function_random);
                 default:
                     if (args != 1) {
-                        return (Obj *)new_error_argnum(args, 1, 1, op->epoint2);
+                        return new_error_argnum(args, 1, 1, op->epoint2);
                     }
                     switch (func) {
-                    case F_ANY: return v[0].val->obj->truth(v[0].val, TRUTH_ANY, &v[0].epoint);
-                    case F_ALL: return v[0].val->obj->truth(v[0].val, TRUTH_ALL, &v[0].epoint);
+                    case F_ANY:
+                    case F_ALL:
+                        {
+                            Obj *warn = NULL;
+                            Obj *ret = function_all_any(op, &warn, true);
+                            if (warn != NULL) {
+                                if (ret->obj == BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, warn, &v->epoint);
+                                val_destroy(warn);
+                            }
+                            return ret;
+                        }
                     case F_LEN: 
-                        op->v2 = v[0].val;
-                        return v[0].val->obj->len(op);
-                    case F_SORT: return function_sort(v[0].val, &v[0].epoint);
+                        op->v2 = v->val;
+                        return v->val->obj->len(op);
+                    case F_SORT: return function_sort(v->val, &v->epoint);
                     default: 
-                        op->v2 = v[0].val;
-                        op->inplace = v[0].val->refcount == 1 ? v[0].val : NULL;
+                        op->v2 = v->val;
+                        op->inplace = v->val->refcount == 1 ? v->val : NULL;
                         return apply_func(op);
                     }
                 }
@@ -778,10 +850,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 MUST_CHECK Obj *apply_convert(oper_t op) {
-    struct values_s *v = ((Funcargs *)op->v2)->val;
-    op->v2 = v[0].val;
-    op->inplace = v[0].val->refcount == 1 ? v[0].val : NULL;
+    struct values_s *v = Funcargs(op->v2)->val;
+    op->v2 = v->val;
+    op->inplace = v->val->refcount == 1 ? v->val : NULL;
     return apply_func(op);
+}
+
+MUST_CHECK Obj *apply_condition(oper_t op) {
+    return gen_broadcast(op, function_condition);
 }
 
 void functionobj_init(void) {
@@ -853,11 +929,11 @@ void functionobj_names(void) {
     int i;
 
     for (i = 0; builtin_functions[i].name != NULL; i++) {
-        Function *func = (Function *)val_alloc(FUNCTION_OBJ);
+        Function *func = Function(val_alloc(FUNCTION_OBJ));
         func->name.data = (const uint8_t *)builtin_functions[i].name;
         func->name.len = strlen(builtin_functions[i].name);
         func->func = builtin_functions[i].func;
         func->name_hash = -1;
-        new_builtin(builtin_functions[i].name, &func->v);
+        new_builtin(builtin_functions[i].name, Obj(func));
     }
 }

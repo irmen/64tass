@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 1943 2019-08-31 09:05:47Z soci $
+    $Id: bytesobj.h 2492 2021-03-09 23:53:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifndef BYTESOBJ_H
 #define BYTESOBJ_H
 #include "obj.h"
-#include "oper_e.h"
 
 extern struct Type *const BYTES_OBJ;
 
@@ -36,8 +35,10 @@ typedef struct Bytes {
     } u;
 } Bytes;
 
-extern Bytes *null_bytes;
-extern Bytes *inv_bytes;
+#define Bytes(a) ((Bytes *)(1 ? (a) : (Obj *)(Bytes *)(a)))
+
+extern Obj *const null_bytes;
+extern Obj *const inv_bytes;
 
 extern void bytesobj_init(void);
 extern void bytesobj_names(void);
@@ -53,17 +54,12 @@ typedef enum Textconv_types {
     BYTES_MODE_PTEXT
 } Textconv_types;
 
-static inline Bytes *ref_bytes(Bytes *v1) {
-    v1->v.refcount++; return v1;
-}
-
 extern MALLOC Bytes *new_bytes(size_t);
 
 struct Str;
 struct Bits;
 
-extern MUST_CHECK Obj *bytes_calc1(enum Oper_types, unsigned int);
-extern MUST_CHECK Bytes *bytes_from_uval(uval_t, unsigned int);
+extern MUST_CHECK Obj *bytes_from_uval(uval_t, unsigned int);
 extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, Textconv_types);
 extern MUST_CHECK Obj *bytes_from_bits(const struct Bits *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *, size_t *, linepos_t);

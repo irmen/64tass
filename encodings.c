@@ -1,5 +1,5 @@
 /*
-    $Id: encodings.c 2295 2021-01-24 22:25:33Z soci $
+    $Id: encodings.c 2465 2021-03-06 19:58:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -535,7 +535,7 @@ static void add_trans(struct encoding_s *enc, const struct translate_table_s *ta
         uint32_t start = table[i].start;
         if (start >= 0x8000) start += 0x10000;
         range.start = start;
-        range.end = start + table[i].length;
+        range.end = (start + table[i].length) & 0xffffff;
         range.offset = table[i].offset;
         new_trans(enc, &range, &nopoint);
     }

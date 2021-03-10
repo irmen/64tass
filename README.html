@@ -152,7 +152,7 @@ difficult to get everything <q>right</q> first time.</b>
   <ul>
    <li><a href="#operators">Operators</a>
    <li><a href="#comparison">Comparison operators</a>
-   <li><a href="#bitstringextractor">Byte extraction operators</a>
+   <li><a href="#bitstringextractor">Bit string extraction operators</a>
    <li><a href="#conditionals">Conditional operators</a>
    <li><a href="#addresslength">Address length forcing</a>
    <li><a href="#compound">Compound assignment</a>
@@ -1496,10 +1496,10 @@ irqs    <b class="d">.addr</b> <u>sorted</u>[:, <span>1</span>] <i>; irq2, irq1<
 <p>The following operators are available. Not all are defined for all types of
 arguments and their meaning might slightly vary depending on the type.
 
-<div><table border="0">
+<div><table width="100%" border="0">
 <caption>Unary operators</caption>
-<tr><td><code>&minus;</code><td>negative
-<td><code>+</code><td>positive
+<tr><td width="6%"><code>&minus;</code><td width="44%">negative
+<td width="6%"><code>+</code><td width="44%">positive
 <tr><td><code>!</code><td>not
 <td><code>~</code><td>invert
 <tr><td><code>&lowast;</code><td>convert to arguments
@@ -1510,10 +1510,10 @@ arguments and their meaning might slightly vary depending on the type.
 bank byte soon. Please update your sources to use <code>format("%d", xxx)</code> instead!</b>
 This is done to be in line with it's use in most other assemblers.
 
-<div><table border="0">
+<div><table width="100%" border="0">
 <caption>Binary operators</caption>
-<tr><td><code>+</code><td>add
-<td><code>&minus;</code><td>subtract
+<tr><td width="6%"><code>+</code><td width="44%">add
+<td width="6%"><code>&minus;</code><td width="44%">subtract
 <tr><td><code>&lowast;</code><td>multiply
 <td><code>/</code><td>divide
 <tr><td><code>%</code><td>modulo
@@ -1547,10 +1547,10 @@ opcodes.
 
 <p>The compare operator (<code>&lt;=&gt;</code>) gives &minus;1 for less, 0 for equal and 1 for more.
 
-<div><table border="0">
+<div><table width="100%" border="0">
 <caption>Comparison operators</caption>
-<tr><td><code>&lt;=&gt;</code><td>compare
-<td>===<td>identical
+<tr><td width="6%"><code>&lt;=&gt;</code><td width="44%">compare
+<td width="6%"><code>===</code><td width="44%">identical
 <tr><td><code>==</code><td>equals
 <td><code>!=</code><td>not equal
 <tr><td><code>&lt;</code><td>less than
@@ -1559,15 +1559,15 @@ opcodes.
 <td><code>&lt;=</code><td>less than or equals
 </table></div>
 
-<h4>Byte extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>
+<h4>Bit string extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>
 
 <p>These unary operators extract 8 or 16&nbsp;bits. Usually they are used to get
 parts of a memory address.
 
-<div><table border="0">
-<caption>Byte/word extraction operators</caption>
-<tr><td><code>&lt;</code><td>lower byte
-<td><code>&gt;</code><td>higher byte
+<div><table width="100%" border="0">
+<caption>Bit string extraction operators</caption>
+<tr><td width="6%"><code>&lt;</code><td width="44%">lower byte
+<td width="6%"><code>&gt;</code><td width="44%">higher byte
 <tr><td><code>&lt;&gt;</code><td>lower word
 <td><code>&gt;`</code><td>higher word
 <tr><td><code>&gt;&lt;</code><td>lower byte swapped word
@@ -1609,6 +1609,7 @@ operands as the result.
 <tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if <code><u>x</u></code> is true then <code><u>y</u></code> otherwise <code><u>x</u></code>
 <tr><td><code>!<u>x</u></code><td>if <code><u>x</u></code> is true then <code><span>false</span></code> otherwise <code><span>true</span></code>
 <tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if <code><u>c</u></code> is true then <code><u>x</u></code> otherwise <code><u>y</u></code>
+<tr><td><code><u>c</u>&nbsp;??&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if <code><u>c</u></code> is true then <code><u>x</u></code> otherwise <code><u>y</u></code> (broadcasting)
 <tr><td><code><u>x</u>&nbsp;&lt;?&nbsp;<u>y</u></code><td>if <code><u>x</u></code> is smaller then <code><u>x</u></code> otherwise <code><u>y</u></code>
 <tr><td><code><u>x</u>&nbsp;&gt;?&nbsp;<u>y</u></code><td>if <code><u>x</u></code> is greater then <code><u>x</u></code> otherwise <code><u>y</u></code>
 </table></div>
@@ -1653,10 +1654,10 @@ directly at the mnemonic.
 <p>The variables on the left must be defined beforehand by <q><code>:=</code></q>
 or <q><a href="#d_var"><code>.var</code></a></q>. Constants can't be changed of course.
 
-<div><table border="0">
+<div><table width="100%" border="0">
 <caption>Compound assignments</caption>
-<tr><td><code>+=</code><td>add
-<td><code>&minus;=</code><td>subtract
+<tr><td width="6%"><code>+=</code><td width="44%">add
+<td width="6%"><code>&minus;=</code><td width="44%">subtract
 <tr><td><code>&lowast;=</code><td>multiply
 <td><code>/=</code><td>divide
 <tr><td><code>%=</code><td>modulo
@@ -3385,6 +3386,8 @@ formats. Using the same name multiple times is not a good idea.</p>
 <dt><b>--no-output</b><a name="o_no-output" href="#o_no-output"></a>
 <dd>Same as output but no file will be written.
 
+<p>Useful for test compiles.</p>
+
 <dt><b>--output-section</b> &lt;sectionname&gt;<a name="o_output-section" href="#o_output-section"></a>
 <dd>By default all sections go into the output file. Using this option
 limits the output to specific section and it's children. This is useful
@@ -3635,38 +3638,6 @@ be done over the normal shell escaping. For example <q>$1000</q> becomes <q>\$$1
 FAST    <b>:?=</b> <span>false</span> <i>;define if undefined</i>
 </pre>
 
-<dt><b>-w</b><a name="o_w"></a>, <b>--no-warn</b><a name="o_no-warn" href="#o_no-warn"></a>
-<dd>Suppress warnings.
-
-<p>Disables warnings during compile. For fine grained diagnostic message suppression see the <a href="#commandline-diagnostic">diagnostic options</a> section.</p>
-
-<pre width="80">
-64tass --no-warn a.asm
-</pre>
-
-<dt><b>--no-caret-diag</b><a name="o_no-caret-diag" href="#o_no-caret-diag"></a>
-<dd>Suppress displaying of faulty source line and fault position after
-fault messages.
-
-<p>This is for cases where the fault log is automatically processed and no one
-ever looks at it and therefore there's no point to display the source lines.</p>
-
-<pre width="80">
-64tass --no-caret-diag a.asm
-</pre>
-
-<dt><b>--macro-caret-diag</b><a name="o_macro-caret-diag" href="#o_macro-caret-diag"></a>
-<dd>Restrict source line and fault position display to macro expansions only.
-
-<p>This is for cases where the fault log is processed by an editor which also
-displays the compilation output somewhere. Only lines which are the result of
-macro processing will be output to aid debugging. Those which would just
-duplicate what's in the source editor window will be not.</p>
-
-<pre width="80">
-64tass --macro-caret-diag a.asm
-</pre>
-
 <dt><b>-q</b><a name="o_q"></a>, <b>--quiet</b><a name="o_quiet" href="#o_quiet"></a>
 <dd>Suppress messages. Disables header and summary messages.
 
@@ -3711,13 +3682,6 @@ to achieve automatic dependency tracking:</p>
 <span>.dep:</span>
 -<b>include</b> .dep
 </pre>
-
-<dt><b>-E</b> &lt;file&gt;, <b>--error</b> &lt;file&gt;<a name="o_error" href="#o_error"></a>
-<dd>Specify error output file
-
-<p>Normally compilation errors a written to the standard error output.
-It's possible to redirect them to a file or to the standard output by
-using <q>-</q> as the file name.</p>
 </dl>
 
 <h3>Diagnostic options<a name="commandline-diagnostic" href="#commandline-diagnostic"></a></h3>
@@ -3726,6 +3690,52 @@ using <q>-</q> as the file name.</p>
 disable them. The options below with this prefix are enabled by default, the others are disabled.
 
 <dl class="dir">
+<dt><b>-E</b> &lt;file&gt;, <b>--error</b> &lt;file&gt;<a name="o_error" href="#o_error"></a>
+<dd>Specify error output file
+
+<p>Normally compilation errors a written to the standard error output.
+It's possible to redirect them to a file or to the standard output by
+using <q>-</q> as the file name.</p>
+
+<dt><b>--error-append</b> &lt;filename&gt;<a name="o_error-append" href="#o_error-append"></a>
+<dd>Same as the error option but appends instead of overwrites.
+
+<dt><b>--no-error</b><a name="o_no_error" href="#o_no_error"></a>
+<dd>Do not output any error messages, just count them.
+
+<dt><b>-w</b>, <b>--no-warn</b><a name="o_no-warn" href="#o_no-warn"></a>
+<dd>Suppress warnings.
+
+<p>Disables warnings during compile. For fine grained diagnostic message suppression see the <a href="#commandline-diagnostic">diagnostic options</a> section.</p>
+
+<pre width="80">
+64tass --no-warn a.asm
+</pre>
+
+<dt><b>--no-caret-diag</b><a name="o_no-caret-diag" href="#o_no-caret-diag"></a>
+<dd>Suppress displaying of faulty source line and fault position after
+fault messages.
+
+<p>This is for cases where the fault log is automatically processed and no one
+ever looks at it and therefore there's no point to display the source lines.</p>
+
+<pre width="80">
+64tass --no-caret-diag a.asm
+</pre>
+
+<dt><b>--macro-caret-diag</b><a name="o_macro-caret-diag" href="#o_macro-caret-diag"></a>
+<dd>Restrict source line and fault position display to macro expansions only.
+
+<p>This is for cases where the fault log is processed by an editor which also
+displays the compilation output somewhere. Only lines which are the result of
+macro processing will be output to aid debugging. Those which would just
+duplicate what's in the source editor window will be not.</p>
+
+<pre width="80">
+64tass --macro-caret-diag a.asm
+</pre>
+
+
 <dt><b>-Wall</b><a name="o_Wall" href="#o_Wall"></a>
 <dd>Enable most diagnostic warnings, except those individually disabled. Or with the <q>no-</q> prefix disable all except those enabled.
 
@@ -4597,6 +4607,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>unknown format character '?'<dd>no format character known like this
 <dt>value needs to be non-negative<dd>only positive numbers or zero is accepted here
 <dt>wrong type &lt;?&gt;<dd>wrong object type used
+<dt>zero raised to negative power<dd>can't calculate this
 <dt>zero value not allowed<dd>do not use zero for example with .null
 </dl>
 

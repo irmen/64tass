@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: intobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,25 +32,23 @@ typedef struct Int {
     digit_t *data;
 } Int;
 
-extern Int *int_value[2];
-extern Int *minus1_value;
+#define Int(a) ((Int *)(1 ? (a) : (Obj *)(Int *)(a)))
+
+extern Obj *const int_value[2];
+extern Obj *const minus1_value;
 
 extern void intobj_init(void);
 extern void intobj_names(void);
 extern void intobj_destroy(void);
-
-static inline Int *ref_int(Int *v1) {
-    v1->v.refcount++; return v1;
-}
 
 struct Str;
 struct Bytes;
 struct Bits;
 struct Float;
 
-extern MUST_CHECK Int *int_from_size(size_t);
-extern MUST_CHECK Int *int_from_uval(uval_t);
-extern MUST_CHECK Int *int_from_ival(ival_t);
+extern MUST_CHECK Obj *int_from_size(size_t);
+extern MUST_CHECK Obj *int_from_uval(uval_t);
+extern MUST_CHECK Obj *int_from_ival(ival_t);
 extern MUST_CHECK Obj *int_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Obj *int_from_bytes(const struct Bytes *, linepos_t);
 extern MUST_CHECK Obj *int_from_bits(const struct Bits *, linepos_t);

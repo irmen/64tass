@@ -1,5 +1,5 @@
 /*
-    $Id: optimizer.h 1382 2017-03-26 17:48:00Z soci $
+    $Id: optimizer.h 2432 2021-02-28 13:18:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@
 struct optimizer_s;
 struct cpu_s;
 
-extern void cpu_opt(uint8_t, uint32_t, int, linepos_t);
+extern void cpu_opt(unsigned int, uint32_t, int, linepos_t);
 extern void cpu_opt_invalidate(void);
 extern void cpu_opt_destroy(struct optimizer_s *);
-extern void cpu_opt_long_branch(uint16_t);
+extern void cpu_opt_long_branch(unsigned int);
 extern void cpu_opt_set_cpumode(const struct cpu_s *);
 
 #endif

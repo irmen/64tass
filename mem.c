@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2362 2021-02-14 08:01:41Z soci $
+    $Id: mem.c 2467 2021-03-06 21:46:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ static void memcomp(Memblocks *memblocks, bool nomerge) {
                     memcpy(&memblocks->mem.data[b2->p], &b->mem.data[b->data[k].p], b2->len);
                 }
                 j--;
-                val_destroy(&b->v);
+                val_destroy(Obj(b));
             }
         }
     }
@@ -148,7 +148,7 @@ void memref(Memblocks *memblocks, Memblocks *ref) {
     block = &memblocks->data[memblocks->p++];
     block->len = 0;
     block->p = memblocks->lastp;
-    block->ref = (Memblocks *)val_reference(&ref->v);
+    block->ref = Memblocks(val_reference(Obj(ref)));
     block->addr = memblocks->lastaddr;
 }
 
@@ -202,20 +202,20 @@ static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct 
     pos = memblocks->data[0].addr;
     switch (output->mode) {
     case OUTPUT_CBM:
-        header[0] = pos;
-        header[1] = pos >> 8;
+        header[0] = (uint8_t)pos;
+        header[1] = (uint8_t)(pos >> 8);
         if (output->longaddr) {
-            header[2] = pos >> 16;
+            header[2] = (uint8_t)(pos >> 16);
             i = 3;
         } else i = 2;
         break;
     case OUTPUT_APPLE:
-        header[0] = pos;
-        header[1] = pos >> 8;
+        header[0] = (uint8_t)pos;
+        header[1] = (uint8_t)(pos >> 8);
         end = memblocks->data[memblocks->p - 1].addr + memblocks->data[memblocks->p - 1].len;
         end -= pos;
-        header[2] = end;
-        header[3] = end >> 8;
+        header[2] = (uint8_t)end;
+        header[3] = (uint8_t)(end >> 8);
         i = 4;
         break;
     default:
@@ -244,16 +244,16 @@ static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool lo
             if (b->addr != addr || addr < start) break;
             size += b->len;
         }
-        header[0] = size;
-        header[1] = size >> 8;
+        header[0] = (uint8_t)size;
+        header[1] = (uint8_t)(size >> 8);
         if (longaddr) {
-            header[2] = size >> 16;
-            header[3] = start;
-            header[4] = start >> 8;
-            header[5] = start >> 16;
+            header[2] = (uint8_t)(size >> 16);
+            header[3] = (uint8_t)start;
+            header[4] = (uint8_t)(start >> 8);
+            header[5] = (uint8_t)(start >> 16);
         } else {
-            header[2] = start;
-            header[3] = start >> 8;
+            header[2] = (uint8_t)start;
+            header[3] = (uint8_t)(start >> 8);
         }
         if (fwrite(header, longaddr ? 6 : 4, 1, fout) == 0) return;
         for (;i < j; i++) {
@@ -294,11 +294,11 @@ static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
             size += b->len;
         }
         special = (i == 0 || start == 0xffff);
-        header[2] = start;
-        header[3] = start >> 8;
+        header[2] = (uint8_t)start;
+        header[3] = (uint8_t)(start >> 8);
         end = start + size - 1;
-        header[4] = end;
-        header[5] = end >> 8;
+        header[4] = (uint8_t)end;
+        header[5] = (uint8_t)(end >> 8);
         if (fwrite(special ? header : &header[2], special ? 6 : 4, 1, fout) == 0) return;
         for (;i < j; i++) {
             const struct memblock_s *b = &memblocks->data[i];
@@ -340,7 +340,7 @@ static void output_mem_ihex_line(struct ihex_s *ihex, unsigned int length, addre
     }
     hexput(&h, (-h.sum) & 0xff);
     *h.line++ = '\n';
-    fwrite(line, h.line - line, 1, ihex->file);
+    fwrite(line, (size_t)(h.line - line), 1, ihex->file);
 }
 
 static void output_mem_ihex_data(struct ihex_s *ihex) {
@@ -411,7 +411,7 @@ static void output_mem_srec_line(struct srecord_s *srec) {
     char line[1+1+(1+4+32+1)*2+1];
     struct hexput_s h = { line + 2, 0 };
     line[0] = 'S';
-    line[1] = srec->length != 0 ? ('1' + srec->type) : ('9' - srec->type);
+    line[1] = (char)(srec->length != 0 ? ('1' + srec->type) : ('9' - srec->type));
     hexput(&h, srec->length + srec->type + 3);
     if (srec->type > 1) hexput(&h, (srec->address >> 24) & 0xff);
     if (srec->type > 0) hexput(&h, (srec->address >> 16) & 0xff);
@@ -424,7 +424,7 @@ static void output_mem_srec_line(struct srecord_s *srec) {
     *h.line++ = '\n';
     srec->address += srec->length;
     srec->length = 0;
-    fwrite(line, h.line - line, 1, srec->file);
+    fwrite(line, (size_t)(h.line - line), 1, srec->file);
 }
 
 static void output_mem_srec(FILE *fout, const Memblocks *memblocks) {

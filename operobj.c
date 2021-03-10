@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 2354 2021-02-07 23:03:40Z soci $
+    $Id: operobj.c 2480 2021-03-07 11:41:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,8 +60,10 @@ Oper o_LOR_ASSIGN  = { {&obj, 0}, "logical or assign '||=", O_LOR_ASSIGN, 2, 3};
 Oper o_LAND_ASSIGN = { {&obj, 0}, "logical and assign '&&=", O_LAND_ASSIGN, 2, 3};
 Oper o_COND_ASSIGN = { {&obj, 0}, "conditional assign ':?=", O_COND_ASSIGN, 2, 3};
 Oper o_QUEST       = { {&obj, 0}, "'?", O_QUEST, 2, 1};
+Oper o_DQUEST      = { {&obj, 0}, "'??", O_DQUEST, 2, 2};
 Oper o_COLON       = { {&obj, 0}, "':", O_COLON, 2, 1};
 Oper o_COND        = { {&obj, 0}, "condition '?", O_COND, 3, 1};
+Oper o_DCOND       = { {&obj, 0}, "condition '??", O_DCOND, 3, 2};
 Oper o_COLON2      = { {&obj, 0}, "':", O_COLON2, 3, 1};
 Oper o_HASH        = { {&obj, 0}, "immediate '#", O_HASH, 3, 1};
 Oper o_HASH_SIGNED = { {&obj, 0}, "signed immediate '#+", O_HASH_SIGNED, 3, 2};
@@ -115,7 +117,7 @@ Oper o_COMMAK      = { {&obj, 0}, "register indexing ',k", O_COMMAK, 21, 2};
 Oper o_MEMBER      = { {&obj, 0}, "member '.", O_MEMBER, 22, 1};
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
-    Oper *v1 = (Oper *)o1;
+    Oper *v1 = Oper(o1);
     const char *txt;
     size_t len, len2;
     uint8_t *s;
@@ -134,7 +136,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     memcpy(s, txt, len);
     s[len] = '\'';
     s[len + 1] = '>';
-    return &v->v;
+    return Obj(v);
 }
 
 void operobj_init(void) {

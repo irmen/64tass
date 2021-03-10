@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2338 2021-02-06 17:22:10Z soci $
+    $Id: typeobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ typedef struct Type {
     void (*garbage)(Obj *, int) FAST_CALL;
     bool (*same)(const Obj *, const Obj *) FAST_CALL;
     Obj *(*truth)(Obj *, Truth_types, linepos_t) MUST_CHECK;
-    struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
+    Obj *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t, size_t) MUST_CHECK;
     Obj *(*str)(Obj *, linepos_t, size_t) MUST_CHECK;
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
@@ -69,6 +69,8 @@ typedef struct Type {
     void (*getiter)(struct iter_s *);
     void (*getriter)(struct iter_s *);
 } Type;
+
+#define Type(a) ((Type *)(1 ? (a) : (Obj *)(Type *)(a)))
 
 extern void typeobj_init(void);
 extern void typeobj_names(void);

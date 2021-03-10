@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2338 2021-02-06 17:22:10Z soci $
+    $Id: variables.c 2467 2021-03-06 21:46:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,8 +90,8 @@ void push_dummy_context(void) {
 bool pop_context(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
-        val_destroy(&c->normal->v);
-        val_destroy(&cheap_context->v);
+        val_destroy(Obj(c->normal));
+        val_destroy(Obj(cheap_context));
         cheap_context = c->cheap;
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
@@ -115,9 +115,9 @@ void push_context2(Namespace *name) {
 bool pop_context2(void) {
     if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
-        val_destroy(&context_stack.stack[context_stack.p - 1].normal->v);
+        val_destroy(Obj(context_stack.stack[context_stack.p - 1].normal));
         context_stack.stack[context_stack.p - 1].normal = c->normal;
-        val_destroy(&c->cheap->v);
+        val_destroy(Obj(c->cheap));
         return false;
     }
     return true;
@@ -127,10 +127,10 @@ void reset_context(void) {
     context_stack.bottom = 0;
     while (context_stack.p != 0) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
-        val_destroy(&c->normal->v);
-        val_destroy(&c->cheap->v);
+        val_destroy(Obj(c->normal));
+        val_destroy(Obj(c->cheap));
     }
-    val_destroy(&cheap_context->v);
+    val_destroy(Obj(cheap_context));
     cheap_context = ref_namespace(root_namespace);
     push_context(root_namespace);
     root_namespace->backr = root_namespace->forwr = 0;
@@ -146,8 +146,8 @@ static struct label_stack_s label_stack;
 static void push_label(Label *name) {
     if (label_stack.p >= label_stack.len) {
         label_stack.len += 8;
-        if (/*label_stack.len < 8 ||*/ label_stack.len > SIZE_MAX / sizeof(Label *)) err_msg_out_of_memory(); /* overflow */
-        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(Label *));
+        if (/*label_stack.len < 8 ||*/ label_stack.len > SIZE_MAX / sizeof(*label_stack.stack)) err_msg_out_of_memory(); /* overflow */
+        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(*label_stack.stack));
     }
     label_stack.stack[label_stack.p] = name;
     label_stack.p++;
@@ -373,7 +373,7 @@ Label *find_anonlabel(int32_t count) {
         count2 = (uint32_t)((int32_t)((count >= 0) ? context->forwr : context->backr) + count);
         label.cfname.len = 2;
         while (count2 != 0) {
-            anonsymbol.count[label.cfname.len - 2] = count2;
+            anonsymbol.count[label.cfname.len - 2] = (uint8_t)count2;
             label.cfname.len++;
             count2 >>= 8;
         } 
@@ -396,7 +396,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
     label.cfname.data = (const uint8_t *)&anonsymbol;
     label.cfname.len = 2;
     while (count2 != 0) {
-        anonsymbol.count[label.cfname.len - 2] = count2;
+        anonsymbol.count[label.cfname.len - 2] = (uint8_t)count2;
         label.cfname.len++;
         count2 >>= 8;
     } 
@@ -408,7 +408,7 @@ Label *find_anonlabel2(int32_t count, Namespace *context) {
 /* --------------------------------------------------------------------------- */
 Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, const struct file_list_s *cflist) {
     Label *b;
-    if (lastlb == NULL) lastlb = (Label *)val_alloc(LABEL_OBJ);
+    if (lastlb == NULL) lastlb = Label(val_alloc(LABEL_OBJ));
 
     if (name->len > 1 && name->data[1] == 0) lastlb->cfname = *name;
     else str_cfcpy(&lastlb->cfname, name);
@@ -483,18 +483,18 @@ void unused_check(Namespace *names) {
         if (!key2->owner) continue;
         switch (o->obj->type) {
         case T_CODE:
-            ns = ((Code *)o)->names;
+            ns = Code(o)->names;
             break;
         case T_NAMESPACE:
-            ns = (Namespace *)o;
+            ns = Namespace(o);
             break;
         case T_MFUNC:
             {
-                Mfunc *mfunc = (Mfunc *)o;
+                Mfunc *mfunc = Mfunc(o);
                 List *lst = mfunc->inamespaces;
                 size_t i;
                 for (i = 0; i < lst->len; i++) {
-                    ns = (Namespace *)lst->data[i];
+                    ns = Namespace(lst->data[i]);
                     if (ns->len != 0) unused_check(ns);
                 }
                 ns = mfunc->names;
@@ -530,7 +530,7 @@ static void labelname_print(const Label *l, FILE *flab, char d) {
     printable_print2(l->name.data, flab, l->name.len);
 }
 
-static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
+static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode) {
     size_t n, ln;
 
     if (names->len == 0) return;
@@ -546,7 +546,7 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
         case T_UNION:
         case T_STRUCT: continue;
         case T_CODE:
-            if (((Code *)l->value)->pass != ((Code *)l->value)->apass) continue;
+            if (Code(l->value)->pass != Code(l->value)->apass) continue;
             break;
         default:break;
         }
@@ -578,7 +578,7 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
                     fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
                     labelname_print(l, flab, ':');
                     putc('\n', flab);
-                } else val_destroy(&err->v);
+                } else val_destroy(Obj(err));
             }
             if (l->owner) {
                 Namespace *ns = get_namespace(val);
@@ -590,9 +590,10 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
             }
         } else {
             Obj *val = l->value;
-            Str *str = (Str *)val->obj->repr(val, NULL, SIZE_MAX);
-            if (str == NULL) continue;
-            if (str->v.obj == STR_OBJ) {
+            val = val->obj->repr(val, NULL, SIZE_MAX);
+            if (val == NULL) continue;
+            if (val->obj == STR_OBJ) {
+                const Str *str = Str(val);
                 size_t len = printable_print2(l->name.data, flab, l->name.len);
                 padding(len, EQUAL_COLUMN, flab);
                 if (l->constant) fputs("= ", flab);
@@ -600,7 +601,7 @@ static void labelprint2(Namespace *names, FILE *flab, int labelmode) {
                 printable_print2(str->data, flab, str->len);
                 putc('\n', flab);
             }
-            val_destroy(&str->v);
+            val_destroy(val);
         }
     }
     names->len = ln;
@@ -621,19 +622,21 @@ static void labeldump(Namespace *names, FILE *flab) {
 
         if (l2 == NULL) continue;
         if (l2->name.len < 2 || l2->name.data[1] != 0) {
-            Str *val = (Str *)l2->value->obj->repr(l2->value, NULL, SIZE_MAX);
+            Obj *val = l2->value;
+            val = val->obj->repr(val, NULL, SIZE_MAX);
             if (val != NULL) {
-                if (val->v.obj == STR_OBJ) {
+                if (val->obj == STR_OBJ) {
+                    const Str *str = Str(val);
                     const struct file_s *file = l2->file_list->file;
                     linepos_t epoint = &l2->epoint;
                     printable_print((const uint8_t *)file->realname, flab);
                     fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((file->encoding == E_UTF8) ? (linecpos_t)calcpos(get_line(file, epoint->line), epoint->pos) : epoint->pos) + 1);
                     labelname_print(l2, flab, '.');
                     fputs(l2->constant ? " = " : " := ", flab);
-                    printable_print2(val->data, flab, val->len);
+                    printable_print2(str->data, flab, str->len);
                     putc('\n', flab);
                 }
-                val_destroy(&val->v);
+                val_destroy(val);
             }
         }
         if (!l2->owner) continue;
@@ -740,7 +743,7 @@ void ref_labels(void) {
             default:break;
             }
             if (l != namespace_lookup(space, l)) continue;
-            if (l->value->obj == ERROR_OBJ) err_msg_output((Error *)l->value);
+            if (l->value->obj == ERROR_OBJ) err_msg_output(Error(l->value));
             l->ref = true;
             l->usepass = pass;
         }
@@ -792,21 +795,21 @@ void init_variables(void)
 void destroy_lastlb(void) {
     if (lastlb != NULL) {
         lastlb->v.obj = NONE_OBJ;
-        val_destroy(&lastlb->v);
+        val_destroy(Obj(lastlb));
         lastlb = NULL;
     }
 }
 
 void destroy_variables(void)
 {
-    val_destroy(&builtin_namespace->v);
-    val_destroy(&root_namespace->v);
-    val_destroy(&cheap_context->v);
+    val_destroy(Obj(builtin_namespace));
+    val_destroy(Obj(root_namespace));
+    val_destroy(Obj(cheap_context));
     destroy_lastlb();
     while (context_stack.p != 0) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
-        val_destroy(&c->normal->v);
-        val_destroy(&c->cheap->v);
+        val_destroy(Obj(c->normal));
+        val_destroy(Obj(c->cheap));
     }
     free(context_stack.stack);
 }

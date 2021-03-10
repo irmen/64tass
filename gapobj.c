@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2322 2021-02-01 21:30:43Z soci $
+    $Id: gapobj.c 2495 2021-03-10 00:40:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 
 #include "strobj.h"
 #include "operobj.h"
-#include "intobj.h"
 #include "boolobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
@@ -35,7 +34,7 @@ Type *const GAP_OBJ = &obj;
 
 static Gap gapval = { { &obj, 1 }, NULL};
 
-Gap *gap_value = &gapval;
+Obj *const gap_value = &gapval.v;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -44,14 +43,14 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     case T_GAP: return val_reference(v1);
     default: break;
     }
-    return (Obj *)new_error_conv(v1, GAP_OBJ, epoint);
+    return new_error_conv(v1, GAP_OBJ, epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
-static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *hash(Obj *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
     *hs = 0; /* whatever, there's only one */
     return NULL;
 }
@@ -67,7 +66,7 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
         v->data[0] = '?';
         gapval.repr = v;
     }
-    return val_reference(&v->v);
+    return val_reference(Obj(v));
 }
 
 static MUST_CHECK Obj *function(oper_t op) {
@@ -96,15 +95,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     switch (v2->obj->type) {
     case T_GAP:
         switch (op->op->op) {
-        case O_CMP: return (Obj *)ref_int(int_value[0]);
-        case O_GE:
-        case O_LE:
-        case O_EQ: return (Obj *)ref_bool(true_value);
-        case O_NE:
-        case O_MIN:
-        case O_LT:
-        case O_MAX:
-        case O_GT: return (Obj *)ref_bool(false_value);
         case O_ADD:
         case O_SUB:
         case O_MUL:
@@ -118,7 +108,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_RSHIFT: return val_reference(op->v1);
         default: break;
         }
-        break;
+        return obj_oper_compare(op, 0);
     case T_STR:
     case T_BOOL:
     case T_INT:
@@ -129,8 +119,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BYTES:
     case T_REGISTER:
         switch (op->op->op) {
-        case O_EQ: return (Obj *)ref_bool(false_value);
-        case O_NE: return (Obj *)ref_bool(true_value);
+        case O_EQ: return ref_false();
+        case O_NE: return ref_true();
         case O_ADD:
         case O_SUB:
         case O_MUL:
@@ -171,8 +161,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BYTES:
     case T_REGISTER:
         switch (op->op->op) {
-        case O_EQ: return (Obj *)ref_bool(false_value);
-        case O_NE: return (Obj *)ref_bool(true_value);
+        case O_EQ: return ref_false();
+        case O_NE: return ref_true();
         case O_ADD:
         case O_SUB:
         case O_MUL:
@@ -213,14 +203,14 @@ void gapobj_init(void) {
 }
 
 void gapobj_names(void) {
-    new_builtin("gap", val_reference(&GAP_OBJ->v));
+    new_builtin("gap", val_reference(Obj(GAP_OBJ)));
 }
 
 void gapobj_destroy(void) {
 #ifdef DEBUG
-    if (gap_value->v.refcount != 1) fprintf(stderr, "gap %" PRIuSIZE "\n", gap_value->v.refcount - 1);
+    if (gap_value->refcount != 1) fprintf(stderr, "gap %" PRIuSIZE "\n", gap_value->refcount - 1);
     if (gapval.repr != NULL && gapval.repr->v.refcount != 1) fprintf(stderr, "gaprepr %" PRIuSIZE "\n", gapval.repr->v.refcount - 1);
 #endif
 
-    if (gapval.repr != NULL) val_destroy(&gapval.repr->v);
+    if (gapval.repr != NULL) val_destroy(Obj(gapval.repr));
 }

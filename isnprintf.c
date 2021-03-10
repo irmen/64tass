@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2396 2021-02-21 09:14:54Z soci $
+   $Id: isnprintf.c 2472 2021-03-07 00:38:18Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -98,7 +98,7 @@ static const struct values_s *next_arg(void) {
         Obj *val;
         ret = &list[listp];
         val = ret->val;
-        if (val == &none_value->v) {
+        if (val == none_value) {
             if (none != 0) none = listp;
             ret = NULL;
         } else if (val->obj == ERROR_OBJ) {
@@ -141,10 +141,10 @@ static inline void pad_right(Data *p)
 static void pad_right2(Data *p, uint8_t c, bool minus, size_t ln)
 {
     size_t n = 0;
-    p->width -= ln;
-    if (p->precision > 0 && (size_t)p->precision > ln) {
-        n = (size_t)p->precision - ln;
-        p->width -= n;
+    p->width = (p->width < 0 || ln > (unsigned int)p->width) ? -1 : p->width - (int)ln;
+    if (p->precision > 0 && (unsigned int)p->precision > ln) {
+        n = (unsigned int)p->precision - ln;
+        p->width = (p->width < 0 || n > (unsigned int)p->width) ? -1 : p->width - (int)n;
     }
     if (minus || p->plus || p->space) p->width--;
     if (c != 0 && p->square) p->width--;
@@ -185,7 +185,7 @@ static ival_t get_ival(void) {
         Obj *val = v->val;
         Error *err = val->obj->ival(val, &ival, 8 * (sizeof ival), &v->epoint);
         if (err == NULL) return ival;
-        note_failure(&err->v);
+        note_failure(Obj(err));
     }
     return 0;
 }
@@ -211,13 +211,13 @@ static inline void decimal(Data *p)
 {
     const struct values_s *v = next_arg();
     bool minus;
-    Str *str;
     size_t i;
+    Str *str;
+    Obj *err2 = NULL;
 
     star_args(p);
 
     if (v == NULL) {
-        str = ref_str(null_str);
         minus = false;
         if (p->precision < 1) p->precision = 1;
     } else {
@@ -225,31 +225,30 @@ static inline void decimal(Data *p)
         Obj *err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) {
             note_failure(err);
-            str = ref_str(null_str);
             minus = false;
         } else {
-            Obj *err2 = INT_OBJ->repr(err, &v->epoint, SIZE_MAX);
-            if (err2 == NULL) err2 = (Obj *)new_error_mem(&v->epoint);
+            err2 = INT_OBJ->repr(err, &v->epoint, SIZE_MAX);
+            if (err2 == NULL) err2 = new_error_mem(&v->epoint);
             if (err2->obj != STR_OBJ) {
                 note_failure(err2);
-                str = ref_str(null_str);
+                err2 = NULL;
                 minus = false;
             } else {
-                str = (Str *)err2;
-                minus = ((Int *)err)->len < 0;
+                minus = Int(err)->len < 0;
             }
             val_destroy(err);
         }
     }
 
+    str = Str(err2 != NULL ? err2 : val_reference(null_str));
     i = minus ? 1 : 0;
     pad_right2(p, 0, minus, str->len - i);
     for (; i < str->len; i++) put_char(str->data[i]);
-    val_destroy(&str->v);
+    val_destroy(Obj(str));
     pad_left(p);
 }
 
-static MUST_CHECK Int *get_int(Data *p) {
+static MUST_CHECK Obj *get_int(Data *p) {
     const struct values_s *v = next_arg();
 
     star_args(p);
@@ -257,10 +256,10 @@ static MUST_CHECK Int *get_int(Data *p) {
     if (v != NULL) {
         Obj *val = v->val;
         Obj *err = INT_OBJ->create(val, &v->epoint);
-        if (err->obj == INT_OBJ) return (Int *)err;
+        if (err->obj == INT_OBJ) return err;
         note_failure(err);
     }
-    return ref_int(int_value[0]);
+    return val_reference(int_value[0]);
 }
 
 /* for %x %X hexadecimal representation */
@@ -272,9 +271,9 @@ static inline void hexa(Data *p)
     unsigned int bp, b;
     size_t bp2;
 
-    integer = get_int(p);
+    integer = Int(get_int(p));
     minus = (integer->len < 0);
-    bp2 = (size_t)(minus ? -integer->len : integer->len);
+    bp2 = minus ? (size_t)-integer->len : (size_t)integer->len;
     bp = b = 0;
     do {
         if (bp == 0) {
@@ -295,7 +294,7 @@ static inline void hexa(Data *p)
         } else bp -= 4;
         b = (integer->data[bp2] >> bp) & 0xf;
     }
-    val_destroy(&integer->v);
+    val_destroy(Obj(integer));
     pad_left(p);
 }
 
@@ -307,9 +306,9 @@ static inline void bin(Data *p)
     unsigned int bp, b;
     size_t bp2;
 
-    integer = get_int(p);
+    integer = Int(get_int(p));
     minus = (integer->len < 0);
-    bp2 = (size_t)(minus ? -integer->len : integer->len);
+    bp2 = minus ? (size_t)-integer->len : (size_t)integer->len;
     bp = b = 0;
     do {
         if (bp == 0) {
@@ -330,7 +329,7 @@ static inline void bin(Data *p)
         } else bp--;
         b = (integer->data[bp2] >> bp) & 1;
     }
-    val_destroy(&integer->v);
+    val_destroy(Obj(integer));
     pad_left(p);
 }
 
@@ -346,7 +345,7 @@ static inline void chars(void)
         Obj *val = v->val;
         Error *err = val->obj->uval(val, &uval, 24, &v->epoint);
         if (err != NULL) {
-            note_failure(&err->v);
+            note_failure(Obj(err));
             uval = 63;
         } else {
             uval &= 0xffffff;
@@ -360,46 +359,42 @@ static inline void chars(void)
 static inline void strings(Data *p)
 {
     const struct values_s *v = next_arg();
-    int i;
+    size_t i;
     const uint8_t *tmp;
     uchar_t ch;
     Str *str;
+    Obj *err = NULL;
 
     star_args(p);
 
-    if (v == NULL) {
-        str = ref_str(null_str);
-    } else {
-        Obj *err;
+    if (v != NULL) {
         if (*p->pf == 'r') {
             Obj *val = v->val;
             err = val->obj->repr(val, &v->epoint, SIZE_MAX);
-            if (err == NULL) err = (Obj *)new_error_mem(&v->epoint);
+            if (err == NULL) err = new_error_mem(&v->epoint);
         } else {
             err = STR_OBJ->create(v->val, &v->epoint);
         }
         if (err->obj != STR_OBJ) {
             note_failure(err);
-            str = ref_str(null_str);
-        } else {
-            str = (Str *)err;
+            err = NULL;
         }
     }
 
+    str = Str(err != NULL ? err : val_reference(null_str));
     tmp = str->data;
-    i = (int)str->chars;
-    if (p->dot) { /* the smallest number */
-        i = (i < p->precision ? i : p->precision);
+    i = str->chars;
+    if (p->dot) { /* the smaller number */
+        i = (p->precision < 0) ? 0 : (i < (unsigned int)p->precision) ? i : (unsigned int)p->precision;
     }
-    if (i < 0) i = 0;
-    p->width -= i;
+    p->width = (p->width < 0 || i > (unsigned int)p->width) ? -1 : p->width - (int)i;
     pad_right(p);
-    while (i-- > 0) { /* put the string */
+    for (; i != 0; i--) { /* put the string */
         ch = *tmp;
         if ((ch & 0x80) != 0) tmp += utf8in(tmp, &ch); else tmp++;
         put_char(ch);
     }
-    val_destroy(&str->v);
+    val_destroy(Obj(str));
     pad_left(p);
 }
 
@@ -422,7 +417,7 @@ static inline void floating(Data *p)
             note_failure(err);
             d = 0.0;
         } else {
-            d = ((Float *)err)->real;
+            d = Float(err)->real;
             val_destroy(err);
         }
     }
@@ -447,8 +442,9 @@ static inline void floating(Data *p)
     pad_left(p);
 }
 
-MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
+MUST_CHECK Obj *isnprintf(oper_t op)
 {
+    Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     size_t args = vals->len;
     Obj *val;
@@ -462,14 +458,14 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
         return val_reference(val);
     case T_STR: break;
     case T_ADDRESS:
-        if (((Address *)val)->val == &none_value->v || ((Address *)val)->val->obj == ERROR_OBJ) return val_reference(((Address *)val)->val);
+        if (Address(val)->val == none_value || Address(val)->val->obj == ERROR_OBJ) return val_reference(Address(val)->val);
         /* fall through */
     default:
         err_msg_wrong_type(val, STR_OBJ, &v[0].epoint);
-        return (Obj *)ref_none();
+        return ref_none();
     }
-    data.pf = ((Str *)val)->data;
-    data.pfend = data.pf +((Str *)val)->len;
+    data.pf = Str(val)->data;
+    data.pfend = data.pf + Str(val)->len;
 
     listp = 0;
     list = &v[1];
@@ -585,7 +581,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
                 /* fall through */
             default:
             error:
-                data.pf += err_msg_unknown_formatchar((Str *)val, (size_t)(data.pf - ((Str *)val)->data), &v[0].epoint);
+                data.pf += err_msg_unknown_formatchar(Str(val), (size_t)(data.pf - Str(val)->data), &v[0].epoint);
                 next_arg();
                 star_args(&data);
                 while (pf < data.pf) {
@@ -600,11 +596,11 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
         }
     }
     if (listp != largs) {
-        err_msg_argnum(args, listp + 1, listp + 1, epoint);
+        err_msg_argnum(args, listp + 1, listp + 1, op->epoint);
     } else if (failure != NULL) {
-        err_msg_output((const Error *)failure);
+        err_msg_output(Error(failure));
     } else if (none != 0) {
-        err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : epoint);
+        err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : op->epoint);
     }
     if (failure != NULL) val_destroy(failure);
     str = new_str(0);
@@ -617,15 +613,15 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
             uint8_t *d = (uint8_t *)realloc(return_value.data, return_value.len);
             if (d != NULL) {
                 str->data = d;
-                return &str->v;
+                return Obj(str);
             }
         }
         str->data = return_value.data;
-        return &str->v;
+        return Obj(str);
     }
     if (return_value.len != 0) memcpy(str->u.val, return_value.data, return_value.len);
     str->data = str->u.val;
     free(return_value.data);
-    return &str->v;
+    return Obj(str);
 }
 

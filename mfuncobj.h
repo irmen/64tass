@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 2318 2021-01-31 23:48:51Z soci $
+    $Id: mfuncobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,6 +46,9 @@ typedef struct Mfunc {
     struct List *inamespaces;
 } Mfunc;
 typedef struct Mfunc Sfunc;
+
+#define Mfunc(a) ((Mfunc *)(1 ? (a) : (Obj *)(Mfunc *)(a)))
+#define Sfunc(a) ((Sfunc *)(1 ? (a) : (Obj *)(Sfunc *)(a)))
 
 extern void mfuncobj_init(void);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2322 2021-02-01 21:30:43Z soci $
+    $Id: registerobj.c 2495 2021-03-10 00:40:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,9 +22,7 @@
 #include "variables.h"
 #include "values.h"
 
-#include "boolobj.h"
 #include "strobj.h"
-#include "intobj.h"
 #include "operobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
@@ -38,12 +36,12 @@ static FAST_CALL NO_INLINE void register_destroy(Register *v1) {
 }
 
 static FAST_CALL void destroy(Obj *o1) {
-    Register *v1 = (Register *)o1;
+    Register *v1 = Register(o1);
     if (v1->val != v1->data) register_destroy(v1);
 }
 
 static inline MALLOC Register *new_register(void) {
-    return (Register *)val_alloc(REGISTER_OBJ);
+    return Register(val_alloc(REGISTER_OBJ));
 }
 
 static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
@@ -55,34 +53,34 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
         return val_reference(o1);
     case T_STR:
         {
-            Str *v1 = (Str *)o1;
+            Str *v1 = Str(o1);
             Register *v = new_register();
             v->chars = v1->chars;
             v->len = v1->len;
             if (v->len != 0) {
                 if (v->len > sizeof v->val) {
                     s = (uint8_t *)malloc(v->len);
-                    if (s == NULL) return (Obj *)new_error_mem(epoint);
+                    if (s == NULL) return new_error_mem(epoint);
                 } else s = v->val;
                 memcpy(s, v1->data, v->len);
             } else s = NULL;
             v->data = s;
-            return &v->v;
+            return Obj(v);
         }
     default: break;
     }
-    return (Obj *)new_error_conv(o1, REGISTER_OBJ, epoint);
+    return new_error_conv(o1, REGISTER_OBJ, epoint);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
-    const Register *v1 = (const Register *)o1, *v2 = (const Register *)o2;
-    return o2->obj == REGISTER_OBJ && v1->len == v2->len && (
+    const Register *v1 = Register(o1), *v2 = Register(o2);
+    return o1->obj == o2->obj && v1->len == v2->len && (
             v1->data == v2->data ||
             memcmp(v1->data, v2->data, v2->len) == 0);
 }
 
-static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
-    Register *v1 = (Register *)o1;
+static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    Register *v1 = Register(o1);
     size_t l = v1->len;
     const uint8_t *s2 = v1->data;
     unsigned int h;
@@ -98,7 +96,7 @@ static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    Register *v1 = (Register *)o1;
+    Register *v1 = Register(o1);
     size_t i2, i;
     uint8_t *s, *s2;
     uint8_t q;
@@ -127,11 +125,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     }
     s[i] = q;
     s[i + 1] = ')';
-    return &v->v;
+    return Obj(v);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
-    Register *v1 = (Register *)o1;
+    Register *v1 = Register(o1);
     Str *v;
 
     if (v1->chars > maxsize) return NULL;
@@ -139,11 +137,11 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     if (v == NULL) return NULL;
     v->chars = v1->chars;
     memcpy(v->data, v1->data, v1->len);
-    return &v->v;
+    return Obj(v);
 }
 
 static inline int icmp(oper_t op) {
-    const Register *v1 = (Register *)op->v1, *v2 = (Register *)op->v2;
+    const Register *v1 = Register(op->v1), *v2 = Register(op->v2);
     int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h != 0) return h;
     if (v1->len < v2->len) return -1;
@@ -198,7 +196,7 @@ void registerobj_init(void) {
 }
 
 void registerobj_names(void) {
-    new_builtin("register", val_reference(&REGISTER_OBJ->v));
+    new_builtin("register", val_reference(Obj(REGISTER_OBJ)));
 }
 
 static uint32_t register_names;
@@ -218,7 +216,7 @@ bool registerobj_createnames(uint32_t registers) {
         reg->data = reg->val;
         reg->len = 1;
         reg->chars = 1;
-        new_builtin((const char *)reg->val, &reg->v);
+        new_builtin((const char *)reg->val, Obj(reg));
     }
     return true;
 }

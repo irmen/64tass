@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.h 1984 2019-09-20 19:51:05Z soci $
+    $Id: floatobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,13 +28,15 @@ typedef struct Float {
     double real;
 } Float;
 
+#define Float(a) ((Float *)(1 ? (a) : (Obj *)(Float *)(a)))
+
 extern void floatobj_init(void);
 extern void floatobj_names(void);
 
-static inline MUST_CHECK Float *new_float(double d) {
-    Float *v = (Float *)val_alloc(FLOAT_OBJ);
+static inline MUST_CHECK Obj *new_float(double d) {
+    Float *v = Float(val_alloc(FLOAT_OBJ));
     v->real = d;
-    return v;
+    return Obj(v);
 }
 
 struct oper_s;

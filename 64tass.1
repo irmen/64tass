@@ -104,16 +104,6 @@ Defines a \fIlabel\fR to a \fIvalue\fR. Same syntax is
 allowed as in source files. Be careful with string quoting, the shell
 might eat some of the characters.
 .TP 0.5i
-\fB\-w\fR, \fB\-\-no\-warn\fR
-Suppress warnings. Disables warnings during compile.
-.TP 0.5i
-\fB\-\-no\-caret\-diag\fR
-Suppress displaying of faulty source line and fault position after fault
-messages.
-.TP 0.5i
-\fB\-\-macro\-caret\-diag\fR
-Restrict source line and fault position display to macro expansions only.
-.TP 0.5i
 \fB\-q\fR, \fB\-\-quiet\fR
 Suppress messages. Disables header and summary messages.
 .TP 0.5i
@@ -145,6 +135,22 @@ Specify error output \fIfile\fR.
 Normally compilation errors a written to the standard error output. It's
 possible to redirect them to a file or to the standard output by using '-'
 as the file name.
+.TP 0.5i
+\fB\-\-error\-append\fR \fIfile\fR
+Append to error file instead of overwriting it.
+.TP 0.5i
+\fB\-\-no\-error\fR
+Do not output any errors, just count them.
+.TP 0.5i
+\fB\-w\fR, \fB\-\-no\-warn\fR
+Suppress warnings. Disables warnings during compile. Finer grained warning control is available by using the -W options.
+.TP 0.5i
+\fB\-\-no\-caret\-diag\fR
+Suppress displaying of faulty source line and fault position after fault
+messages.
+.TP 0.5i
+\fB\-\-macro\-caret\-diag\fR
+Restrict source line and fault position display to macro expansions only.
 .TP 0.5i
 \fB\-Wall\fR
 Enable most diagnostic warnings, except those individually disabled. Or with the 'no-' prefix disable all except those enabled.

@@ -1,5 +1,5 @@
 /*
-    $Id: str.c 2381 2021-02-18 22:52:33Z soci $
+    $Id: str.c 2428 2021-02-28 11:48:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "error.h"
 #include "arguments.h"
 
-unsigned int str_hash(const str_t *s) {
+int str_hash(const str_t *s) {
     size_t l = s->len;
     const uint8_t *s2 = s->data;
     unsigned int h;

@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 2122 2019-12-21 06:27:50Z soci $
+    $Id: noneobj.c 2476 2021-03-07 02:25:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,20 +27,20 @@ static Type obj;
 
 Type *const NONE_OBJ = &obj;
 
-static None noneval = { { &obj, 1}, NULL };
+static None noneval = { { &obj, 1} };
 
-None *none_value = &noneval;
+Obj *const none_value = &noneval.v;
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
 static MUST_CHECK Obj *truth(Obj *UNUSED(v1), Truth_types UNUSED(type), linepos_t epoint) {
-    return (Obj *)new_error(ERROR____STILL_NONE, epoint);
+    return Obj(new_error(ERROR____STILL_NONE, epoint));
 }
 
-static MUST_CHECK Error *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint) {
-    return new_error(ERROR____STILL_NONE, epoint);
+static MUST_CHECK Obj *hash(Obj *UNUSED(v1), int *UNUSED(v), linepos_t epoint) {
+    return Obj(new_error(ERROR____STILL_NONE, epoint));
 }
 
 static MUST_CHECK Obj *repr(Obj *v1, linepos_t epoint, size_t UNUSED(maxsize)) {
@@ -115,6 +115,6 @@ void noneobj_init(void) {
 
 void noneobj_destroy(void) {
 #ifdef DEBUG
-    if (none_value->v.refcount != 1) fprintf(stderr, "none %" PRIuSIZE "\n", none_value->v.refcount - 1);
+    if (none_value->refcount != 1) fprintf(stderr, "none %" PRIuSIZE "\n", none_value->refcount - 1);
 #endif
 }

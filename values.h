@@ -1,5 +1,5 @@
 /*
-    $Id: values.h 2344 2021-02-06 23:54:01Z soci $
+    $Id: values.h 2485 2021-03-08 22:09:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,14 +24,11 @@
 struct Type;
 struct Obj;
 
-struct iter_s;
-typedef FAST_CALL MUST_CHECK struct Obj *(*iter_next_t)(struct iter_s *);
-
 struct iter_s {
     struct Obj *data;
     struct Obj *iter;
     size_t val;
-    iter_next_t next;
+    struct Obj *(*next)(struct iter_s *) FAST_CALL MUST_CHECK;
     size_t len;
 };
 

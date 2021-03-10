@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2383 2021-02-20 12:12:10Z soci $
+    $Id: error.h 2428 2021-02-28 11:48:36Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ struct Error;
 struct Namespace;
 struct oper_s;
 struct str_t;
+struct error_output_s;
 
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
@@ -71,7 +72,7 @@ extern void err_msg_not_defined2a(int32_t, struct Namespace *, bool, linepos_t);
 extern void err_msg_symbol_case(const struct str_t *, const struct Label *, linepos_t);
 extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);
-extern void err_msg_address_mismatch(int, int, linepos_t);
+extern void err_msg_address_mismatch(unsigned int, unsigned int, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
@@ -100,7 +101,7 @@ extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);
 extern void err_msg_big_address(linepos_t);
 extern void error_reset(void);
-extern void error_print(void);
+extern void error_print(const struct error_output_s *);
 extern const struct file_list_s *parent_file_list(const struct file_list_s *);
 extern void enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);

@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 2329 2021-02-06 04:59:29Z soci $
+    $Id: listobj.h 2475 2021-03-07 01:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,38 +43,27 @@ typedef struct List Tuple;
 typedef struct List Addrlist;
 typedef struct List Colonlist;
 
-extern Tuple *null_tuple;
-extern List *null_list;
-extern Addrlist *null_addrlist;
+#define List(a) ((List *)(1 ? (a) : (Obj *)(List *)(a)))
+#define Tuple(a) ((Tuple *)(1 ? (a) : (Obj *)(Tuple *)(a)))
+#define Addrlist(a) ((Addrlist *)(1 ? (a) : (Obj *)(Addrlist *)(a)))
+#define Colonlist(a) ((Colonlist *)(1 ? (a) : (Obj *)(Colonlist *)(a)))
+
+extern Obj *const null_tuple;
+extern Obj *const null_list;
+extern Obj *const null_addrlist;
 
 extern void listobj_init(void);
 extern void listobj_names(void);
 extern void listobj_destroy(void);
 
-static inline List *ref_list(List *v1) {
-    v1->v.refcount++; return v1;
-}
-
-static inline Tuple *ref_tuple(Tuple *v1) {
-    v1->v.refcount++; return v1;
-}
-
-static inline Addrlist *ref_addrlist(Addrlist *v1) {
-    v1->v.refcount++; return v1;
-}
-
-static inline Colonlist *ref_colonlist(Colonlist *v1) {
-    v1->v.refcount++; return v1;
-}
-
 static inline MUST_CHECK List *new_list(void) {
-    return (List *)val_alloc(LIST_OBJ);
+    return List(val_alloc(LIST_OBJ));
 }
 static inline MUST_CHECK Addrlist *new_addrlist(void) {
-    return (Addrlist *)val_alloc(ADDRLIST_OBJ);
+    return Addrlist(val_alloc(ADDRLIST_OBJ));
 }
 static inline MUST_CHECK Colonlist *new_colonlist(void) {
-    return (Colonlist *)val_alloc(COLONLIST_OBJ);
+    return Colonlist(val_alloc(COLONLIST_OBJ));
 }
 
 struct sliceparam_s {
@@ -82,7 +71,7 @@ struct sliceparam_s {
     ival_t offset, end, step;
 };
 
-extern MUST_CHECK struct Error *indexoffs(Obj *, size_t, size_t *, linepos_t);
+extern MUST_CHECK Obj *indexoffs(Obj *, size_t, size_t *, linepos_t);
 extern MUST_CHECK Obj *sliceparams(const Colonlist *, size_t, struct sliceparam_s *, linepos_t);
 extern MUST_CHECK Tuple *new_tuple(size_t);
 extern Obj **list_create_elements(List *, size_t);

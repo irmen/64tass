@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.h 1560 2017-08-03 21:44:46Z soci $
+    $Id: noneobj.h 2476 2021-03-07 02:25:57Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,16 +24,17 @@ extern struct Type *const NONE_OBJ;
 
 typedef struct None {
     Obj v;
-    int *dummy;
 } None;
 
-extern None *none_value;
+#define None(a) ((None *)(1 ? (a) : (Obj *)(None *)(a)))
+
+extern Obj *const none_value;
 
 extern void noneobj_init(void);
 extern void noneobj_destroy(void);
 
-static inline None *ref_none(void) {
-    none_value->v.refcount++; return none_value;
+static inline Obj *ref_none(void) {
+    none_value->refcount++; return none_value;
 }
 
 #endif
