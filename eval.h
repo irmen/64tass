@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 2328 2021-02-06 04:39:54Z soci $
+    $Id: eval.h 2507 2021-03-14 16:10:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,11 +37,10 @@ struct oper_s {
 };
 typedef struct oper_s *oper_t;
 
-extern bool get_exp(int, unsigned int, unsigned int, linepos_t);
-extern bool skip_exp(void);
+extern bool get_exp(int, argcount_t, argcount_t, linepos_t);
 extern struct values_s *get_val(void);
 extern struct Obj *pull_val(struct linepos_s *);
-extern size_t get_val_remaining(void);
+extern argcount_t get_val_remaining(void);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);

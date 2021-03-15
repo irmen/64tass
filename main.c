@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2265 2020-12-24 09:29:29Z soci $
+    $Id: main.c 2522 2021-03-14 20:16:55Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -57,7 +57,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     console_init();
     atexit(console_destroy);
 
-    argv = (char **)malloc((argc < 1 ? 1 : argc) * sizeof *argv);
+    argv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *argv);
     if (argv == NULL) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         uchar_t c = 0, lastchar;
@@ -66,7 +66,7 @@ int wmain(int argc, wchar_t *argv2[]) {
         uint8_t *c2;
 
         while (*p != 0) p++;
-        c2 = (uint8_t *)malloc((p - s) * 4 / (sizeof *p) + 1);
+        c2 = (uint8_t *)malloc((size_t)(p - s) * 4 / (sizeof *p) + 1);
         if (c2 == NULL) err_msg_out_of_memory2();
         p = s;
         argv[i] = (char *)c2;
@@ -86,10 +86,10 @@ int wmain(int argc, wchar_t *argv2[]) {
             } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
                 c = 0xfffd;
             }
-            if (c != 0 && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
+            if (c != 0 && c < 0x80) *c2++ = (uint8_t)c; else c2 = utf8out(c, c2);
         }
         *c2++ = 0;
-        argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
+        argv[i] = (char *)realloc(argv[i], (size_t)((char *)c2 - argv[i]));
         if (argv[i] == NULL) err_msg_out_of_memory2();
     }
     if (argc < 1) {

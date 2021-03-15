@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2472 2021-03-07 00:38:18Z soci $
+    $Id: dictobj.c 2521 2021-03-14 19:37:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t epoint) {
         if (err != NULL) return err;
         h += (unsigned int)h2;
     }
-    h ^= i;
+    h ^= (unsigned int)i;
     h &= ((~0U) >> 1);
     if (vals != v1->u.val) v1->u.s.hash = (int)h;
     *hs = (int)h;
@@ -574,17 +574,17 @@ static MUST_CHECK Obj *dictsliceparams(const Dict *v1, const Colonlist *v2, stru
     return NULL;
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     Obj *o2 = op->v2, *vv;
     Dict *v1 = Dict(op->v1);
     Funcargs *args = Funcargs(o2);
-    bool more = args->len > indx + 1;
+    bool more;
     linepos_t epoint2;
 
     if (args->len < 1) {
         return new_error_argnum(args->len, 1, 0, op->epoint2);
     }
-
+    more =  args->len - 1> indx;
     o2 = args->val[indx].val;
     epoint2 = &args->val[indx].epoint;
 

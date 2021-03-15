@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2492 2021-03-09 23:53:31Z soci $
+    $Id: codeobj.c 2526 2021-03-14 23:02:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -289,15 +289,6 @@ MUST_CHECK Obj *int_from_code(const Code *v1, linepos_t epoint) {
     return result;
 }
 
-static address_t calc_size(const Code *v1) {
-    if (v1->offs >= 0) {
-        if (v1->size < (uval_t)v1->offs) return 0;
-        return v1->size - (uval_t)v1->offs;
-    }
-    if (v1->size + (uval_t)-v1->offs < v1->size) err_msg_out_of_memory(); /* overflow */
-    return v1->size + (uval_t)-v1->offs;
-}
-
 static MUST_CHECK Obj *len(oper_t op) {
     address_t ln, s;
     Code *v1 = Code(op->v2);
@@ -357,34 +348,62 @@ MUST_CHECK Obj *bytes_from_code(const Code *v1, linepos_t epoint) {
     return result;
 }
 
-static MUST_CHECK Obj *code_item(const Code *v1, ssize_t offs2, size_t ln2) {
+struct code_item_s {
+    const Code *v1; 
+    address_t offs2; 
+    ival_t offs0; 
+    address_t ln2;
+};
+
+static MUST_CHECK Obj *code_item(const struct code_item_s *ci) {
     int r;
-    size_t i2, offs;
+    address_t i2;
+    address_t offs;
     uval_t val;
-    if (offs2 < 0) return ref_gap();
-    offs = (size_t)offs2 * ln2;
+
+    if (ci->offs0 < 0) {
+        if (ci->offs2 < (uval_t)-ci->offs0) return ref_gap();
+        offs = ci->offs2 - (uval_t)-ci->offs0;
+    } else {
+        offs = ci->offs2 + (uval_t)ci->offs0;
+    }
+    offs *= ci->ln2;
     r = -1;
-    for (val = i2 = 0; i2 < ln2; i2++, offs++) {
-        r = read_mem(v1->memblocks, v1->memaddr, v1->membp, offs);
+    val = 0;
+    for (i2 = 0; i2 < ci->ln2; i2++, offs++) {
+        r = read_mem(ci->v1->memblocks, ci->v1->memaddr, ci->v1->membp, offs);
         if (r < 0) return ref_gap();
         val |= (uval_t)r << (i2 * 8);
     }
-    if (v1->dtype < 0 && (r & 0x80) != 0) {
+    if (ci->v1->dtype < 0 && (r & 0x80) != 0) {
         for (; i2 < sizeof val; i2++) val |= (uval_t)0xff << (i2 * 8);
     }
-    return (v1->dtype < 0) ? int_from_ival((ival_t)val) : int_from_uval(val);
+    return (ci->v1->dtype < 0) ? int_from_ival((ival_t)val) : int_from_uval(val);
+}
+
+static address_t code_item_prepare(struct code_item_s *ci, const Code *v1) {
+    address_t ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
+    if (ln2 == 0) ln2 = 1;
+    ci->ln2 = ln2;
+    ci->v1 = v1;
+
+    if (v1->offs >= 0) {
+        ci->offs0 = (ival_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
+        if (v1->size < (uval_t)v1->offs) return 0;
+        return (v1->size - (uval_t)v1->offs) / ln2;
+    } 
+    ci->offs0 = -(ival_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
+    if (v1->size + (uval_t)-v1->offs < v1->size) err_msg_out_of_memory(); /* overflow */
+    return (v1->size + (uval_t)-v1->offs) / ln2;
 }
 
 MUST_CHECK Obj *tuple_from_code(const Code *v1, const Type *typ) {
-    address_t ln, ln2;
-    size_t  i;
-    ssize_t offs;
+    address_t ln;
     List *v;
     Obj **vals;
+    struct code_item_s ci;
 
-    ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
-    if (ln2 == 0) ln2 = 1;
-    ln = calc_size(v1) / ln2;
+    ln = code_item_prepare(&ci, v1);
 
     if (ln == 0) {
         return val_reference(typ == TUPLE_OBJ ? null_tuple : null_list);
@@ -393,48 +412,32 @@ MUST_CHECK Obj *tuple_from_code(const Code *v1, const Type *typ) {
     v = List(val_alloc(typ));
     v->len = ln;
     v->data = vals = list_create_elements(v, ln);
-    if (v1->offs >= 0) {
-        offs = (ssize_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
-    } else {
-        offs = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
-    }
-    for (i = 0; i < ln; i++, offs++) {
-        vals[i] = code_item(v1, offs, ln2);
+    for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
+        vals[ci.offs2] = code_item(&ci);
     }
     return Obj(v);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     Obj **vals;
-    size_t i;
-    address_t ln, ln2;
-    size_t offs1;
-    ssize_t offs0;
     Code *v1 = Code(op->v1);
-    Obj *o2 = op->v2;
     Obj *err;
-    Funcargs *args = Funcargs(o2);
-    linepos_t epoint2;
+    Funcargs *args = Funcargs(op->v2);
+    struct code_item_s ci;
+    struct indexoffs_s io;
 
-    if (args->len < 1 || args->len > indx + 1) {
+    if (args->len < 1 || args->len - 1 > indx) {
         return new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
-    o2 = args->val[indx].val;
-    epoint2 = &args->val[indx].epoint;
-
-    ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
-    if (ln2 == 0) ln2 = 1;
-    ln = calc_size(v1) / ln2;
-
-    if (v1->offs >= 0) {
-        offs0 = (ssize_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
-    } else {
-        offs0 = -(ssize_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
-    }
-    if (o2->obj->iterable) {
+    io.len = code_item_prepare(&ci, v1);
+    io.epoint = &args->val[indx].epoint;
+    io.val = args->val[indx].val;
+  
+    if (io.val->obj->iterable) {
         struct iter_s iter;
         Tuple *v;
-        iter.data = o2; o2->obj->getiter(&iter);
+        size_t i;
+        iter.data = io.val; io.val->obj->getiter(&iter);
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -442,23 +445,25 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         }
         v = new_tuple(iter.len);
         vals = v->data;
-        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
-            err = indexoffs(o2, ln, &offs1, epoint2);
+        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+            err = indexoffs(&io);
             if (err != NULL) {
                 vals[i] = err;
                 continue;
             }
-            vals[i] = code_item(v1, (ssize_t)offs1 + offs0, ln2);
+            ci.offs2 = (address_t)io.offs;
+            vals[i] = code_item(&ci);
         }
         iter_destroy(&iter);
         v->len = i;
         return Obj(v);
     }
-    if (o2->obj == COLONLIST_OBJ) {
+    if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;
         Tuple *v;
+        size_t i;
 
-        err = sliceparams(Colonlist(o2), ln, &s, epoint2);
+        err = sliceparams(&s, &io);
         if (err != NULL) return err;
 
         if (s.length == 0) {
@@ -466,16 +471,19 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         }
         v = new_tuple(s.length);
         vals = v->data;
+        ci.offs2 = 0;
+        ci.offs0 += s.offset;
         for (i = 0; i < s.length; i++) {
-            vals[i] = code_item(v1, s.offset + offs0, ln2);
-            s.offset += s.step;
+            vals[i] = code_item(&ci);
+            ci.offs0 += s.step;
         }
         return Obj(v);
     }
-    err = indexoffs(o2, ln, &offs1, epoint2);
+    err = indexoffs(&io);
     if (err != NULL) return err;
 
-    return code_item(v1, (ssize_t)offs1 + offs0, ln2);
+    ci.offs2 = (address_t)io.offs;
+    return code_item(&ci);
 }
 
 static inline address_t ldigit(Code *v1, linepos_t epoint) {
@@ -635,31 +643,22 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *o1 = op->v1;
     if (op->op == &o_IN) {
         struct oper_s oper;
-        address_t ln, ln2;
-        size_t i;
-        ssize_t offs;
+        address_t ln;
         Obj *tmp, *result;
+        struct code_item_s ci;
 
-        ln2 = (v2->dtype < 0) ? (address_t)-v2->dtype : (address_t)v2->dtype;
-        if (ln2 == 0) ln2 = 1;
-        ln = calc_size(v2) / ln2;
+        ln = code_item_prepare(&ci, v2);
 
         if (ln == 0) {
             return ref_false();
-        }
-
-        if (v2->offs >= 0) {
-            offs = (ssize_t)(((uval_t)v2->offs + ln2 - 1) / ln2);
-        } else {
-            offs = -(ssize_t)(((uval_t)-v2->offs + ln2 - 1) / ln2);
         }
 
         oper.op = &o_EQ;
         oper.epoint = op->epoint;
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
-        for (i = 0; i < ln; i++) {
-            tmp = code_item(v2, (ssize_t)i + offs, ln2);
+        for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
+            tmp = code_item(&ci);
             oper.v1 = tmp;
             oper.v2 = o1;
             oper.inplace = NULL;

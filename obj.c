@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2476 2021-03-07 02:25:57Z soci $
+    $Id: obj.c 2509 2021-03-14 16:15:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@ static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *invalid_slice(oper_t op, size_t indx) {
+static MUST_CHECK Obj *invalid_slice(oper_t op, argcount_t indx) {
     Funcargs *args = Funcargs(op->v2);
     if (indx == 0) {
         if (args->len > 0) {

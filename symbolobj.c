@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2468 2021-03-06 22:28:44Z soci $
+    $Id: symbolobj.c 2518 2021-03-14 19:05:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -132,7 +132,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     h = (unsigned int)*s.data << 7;
     l = s.len;
     while ((l--) != 0) h = (1000003 * h) ^ *s.data++;
-    h ^= s.len;
+    h ^= (unsigned int)s.len;
     *hs = v1->hash = h & ((~0U) >> 1);
     return NULL;
 }

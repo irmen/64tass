@@ -1,5 +1,5 @@
 /*
-    $Id: str.c 2428 2021-02-28 11:48:36Z soci $
+    $Id: str.c 2521 2021-03-14 19:37:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ int str_hash(const str_t *s) {
     if (l == 0) return 0;
     h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
-    h ^= s->len;
+    h ^= (unsigned int)s->len;
     return h & ((~0U) >> 1);
 }
 

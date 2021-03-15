@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2477 2021-03-07 03:39:58Z soci $
+    $Id: error.c 2521 2021-03-14 19:37:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -762,7 +762,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     val_destroy(Obj(err));
 }
 
-void err_msg_not_defined2a(int32_t count, Namespace *l, bool down, linepos_t epoint) {
+void err_msg_not_defined2a(ssize_t count, Namespace *l, bool down, linepos_t epoint) {
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
@@ -875,8 +875,8 @@ static bool err_msg_still_none2(const Error *err) {
     return more;
 }
 
-static void err_msg_argnum2(size_t num, size_t min, size_t max) {
-    size_t n;
+static void err_msg_argnum2(argcount_t num, argcount_t min, argcount_t max) {
+    argcount_t n;
     char line[1024];
     adderror("expected ");
     n = min;
@@ -886,10 +886,10 @@ static void err_msg_argnum2(size_t num, size_t min, size_t max) {
     switch (n) {
     case 0: adderror("no arguments"); break;
     case 1: adderror("one argument"); break;
-    default: sprintf(line, "%" PRIuSIZE " arguments", n); adderror(line); break;
+    default: sprintf(line, "%" PRIuargcount " arguments", n); adderror(line); break;
     }
     if (num != 0) {
-        sprintf(line, ", got %" PRIuSIZE, num);
+        sprintf(line, ", got %" PRIuargcount, num);
         adderror(line);
     }
 }
@@ -1165,12 +1165,11 @@ static const char * const order_suffix[4] = {
     "st", "nd", "rd", "th"
 };
 
-void err_msg_missing_argument(linepos_t epoint, size_t n) {
+void err_msg_missing_argument(linepos_t epoint, argcount_t n) {
     char msg2[4];
-    unsigned int i = n % 10;
     bool more = new_error_msg(SV_ERROR, &((const struct file_listnode_s *)current_file_list)->parent->flist, &current_file_list->epoint);
     msg2[0] = (char)(n + '1');
-    memcpy(msg2 + 1, order_suffix[i < 4 ? i : 3], 3);
+    memcpy(msg2 + 1, order_suffix[n < 4 ? n : 3], 3);
     adderror(msg2);
     adderror(" argument is missing");
     if (more) new_error_msg_more();
@@ -1222,7 +1221,7 @@ void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
     val_destroy(Obj(err));
 }
 
-void err_msg_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
+void err_msg_argnum(argcount_t num, argcount_t min, argcount_t max, linepos_t epoint) {
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
     err_msg_argnum2(num, min, max);
     if (more) new_error_msg_more();

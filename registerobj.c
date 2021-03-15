@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2495 2021-03-10 00:40:31Z soci $
+    $Id: registerobj.c 2520 2021-03-14 19:25:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     }
     h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
-    h ^= v1->len;
+    h ^= (unsigned int)v1->len;
     *hs = h & ((~0U) >> 1);
     return NULL;
 }

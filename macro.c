@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2472 2021-03-07 00:38:18Z soci $
+    $Id: macro.c 2521 2021-03-14 19:37:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,14 +41,15 @@
 static int functionrecursion;
 
 struct macro_rpos_s {
-    size_t opos, olen, pos, len, param;
+    size_t opos, olen, pos, len;
+    argcount_t param;
 };
 
 struct macro_pline_s {
     uint8_t *data;
     size_t len;
     struct macro_rpos_s *rpositions;
-    size_t rp, rlen;
+    argcount_t rp, rlen;
 };
 
 struct macro_value_s {
@@ -59,7 +60,7 @@ struct macro_value_s {
 };
 
 struct macro_params_s {
-    size_t len, size;
+    argcount_t len, size;
     struct macro_value_s *param, all;
     struct macro_pline_s pline;
     bool used;
@@ -73,6 +74,8 @@ static struct {
 
 bool in_macro;
 
+#define ALL_MACRO_PARAMS (~(argcount_t)0)
+
 const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t pos) {
     const struct file_list_s *ret = NULL;
     if (pline == macro_parameters.current->pline.data) {
@@ -80,18 +83,18 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
         size_t p = macro_parameters.p;
         while (p != 0) {
             const struct macro_pline_s *mline;
-            size_t i;
+            argcount_t i;
             p--;
             mline = &macro_parameters.params[p].pline;
             for (i = 0; i < mline->rp; i++) {
                 size_t c = pos - mline->rpositions[i].pos;
                 if (c < mline->rpositions[i].len) {
-                    size_t param = mline->rpositions[i].param;
+                    argcount_t param = mline->rpositions[i].param;
                     if (param < macro_parameters.params[p].len) {
                         if (macro_parameters.params[p].param[param].init) return ret;
                         pos = macro_parameters.params[p].param[param].pos;
                     } else {
-                        if (param != SIZE_MAX) return ret;
+                        if (param != ALL_MACRO_PARAMS) return ret;
                         pos = macro_parameters.params[p].all.pos;
                     }
                     opoint->pos = pos + c;
@@ -112,7 +115,8 @@ size_t macro_error_translate2(size_t pos) {
     if (macro_parameters.p != 0) {
         const struct macro_pline_s *mline = &macro_parameters.current->pline;
         if (pline == mline->data) {
-            size_t i, pos2 = pos;
+            size_t pos2 = pos;
+            argcount_t i;
             for (i = 0; i < mline->rp; i++) {
                 const struct macro_rpos_s *rpositions = &mline->rpositions[i];
                 if (rpositions->pos > pos2) break;
@@ -130,8 +134,8 @@ size_t macro_error_translate2(size_t pos) {
 /* ------------------------------------------------------------------------------ */
 bool mtranslate(void) {
     unsigned int q;
-    size_t j, n, op;
-    size_t p, p2;
+    argcount_t j, n;
+    size_t p, p2, op;
     size_t last, last2;
     struct macro_pline_s *mline;
     bool changed, fault;
@@ -144,7 +148,7 @@ bool mtranslate(void) {
     if (changed) return false;
     mline = &macro_parameters.current->pline;
 
-    q = p = p2 = n = 0; last = last2 = 0; fault = false;
+    q = 0; p = 0; p2 = 0; n = 0; last = 0; last2 = 0; fault = false;
     while (pline[p2] != 0) {
         str_t param;
         switch (pline[p2]) {
@@ -177,7 +181,7 @@ bool mtranslate(void) {
                 break;
             }
             if (j == ('@' - '1')) { /* \@ gives complete parameter list */
-                j = SIZE_MAX;
+                j = ALL_MACRO_PARAMS;
                 p += p2 - last2;
                 op = p2;
                 p2 += 2;
@@ -237,7 +241,7 @@ bool mtranslate(void) {
         if (j < macro_parameters.current->len) {
             param.data = macro_parameters.current->param[j].data;
             param.len = macro_parameters.current->param[j].len;
-        } else if (j == SIZE_MAX) {
+        } else if (j == ALL_MACRO_PARAMS) {
             param.data = macro_parameters.current->all.data;
             param.len = macro_parameters.current->all.len;
         } else {
@@ -264,7 +268,7 @@ bool mtranslate(void) {
         }
         if (n >= mline->rlen) {
             mline->rlen += 8;
-            if (mline->rlen < 8) err_msg_out_of_memory(); /* overflow */
+            if (mline->rlen < 8 || mline->rlen > ARGCOUNT_MAX / sizeof *mline->rpositions) err_msg_out_of_memory(); /* overflow */
             mline->rpositions = (struct macro_rpos_s *)reallocx(mline->rpositions, mline->rlen * sizeof *mline->rpositions);
         }
         mline->rpositions[n].opos = op;
@@ -382,7 +386,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     in_macro = true;
     {
         struct linepos_s opoint, npoint;
-        size_t p = 0;
+        argcount_t p = 0;
 
         ignore(); opoint = lpoint;
         for (;;) {
@@ -392,9 +396,9 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
                 if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
                 else {
                     macro_parameters.current->size += 4;
-                    /*if (macro_parameters.current->size < 4) err_msg_out_of_memory();*/ /* overflow */
+                    if (macro_parameters.current->size < 4) err_msg_out_of_memory(); /* overflow */
                 }
-                if (macro_parameters.current->size > SIZE_MAX / sizeof *params) err_msg_out_of_memory();
+                if (macro_parameters.current->size > ARGCOUNT_MAX / sizeof *params) err_msg_out_of_memory();
                 params = (struct macro_value_s *)reallocx(params, macro_parameters.current->size * sizeof *params);
                 macro_parameters.current->param = params;
             }
@@ -467,11 +471,11 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
 }
 
 Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t epoint) {
-    size_t i;
+    argcount_t i;
     Label *label;
     Obj *val;
     Tuple *tuple = NULL;
-    size_t max = 0, args = get_val_remaining();
+    argcount_t max = 0, args = get_val_remaining();
 
     if (mfunc->recursion_pass == pass) return NULL;
     if (functionrecursion>100) {
@@ -483,7 +487,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
         const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
         if (param->init == default_value) {
-            size_t j, len = get_val_remaining();
+            argcount_t j, len = get_val_remaining();
             tuple = new_tuple(len);
             for (j = 0; j < len; j++) {
                 tuple->data[j] = pull_val(NULL);
@@ -571,7 +575,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
 
 bool get_func_params(Mfunc *v, bool single) {
     struct mfunc_param_s *param;
-    size_t len = v->argc, i = 0, j;
+    argcount_t len = v->argc, i = 0, j;
     str_t label;
     bool stard = false, ret = false;
 
@@ -585,7 +589,7 @@ bool get_func_params(Mfunc *v, bool single) {
             }
             if (i >= len) {
                 len += 16;
-                if (/*len < 16 ||*/ len > SIZE_MAX / sizeof *param) err_msg_out_of_memory(); /* overflow */
+                if (len < 16 || len > ARGCOUNT_MAX / sizeof *param) err_msg_out_of_memory(); /* overflow */
                 param = (struct mfunc_param_s *)reallocx(param, len * sizeof *param);
             }
             param[i].epoint = lpoint;
@@ -678,7 +682,7 @@ bool get_func_params(Mfunc *v, bool single) {
 void get_macro_params(Obj *v) {
     Macro *macro = Macro(v);
     struct macro_param_s *param;
-    size_t len = macro->argc, i, j;
+    argcount_t len = macro->argc, i, j;
     str_t label;
     struct linepos_s *epoints;
     struct linepos_s vepoints[4];
@@ -690,7 +694,7 @@ void get_macro_params(Obj *v) {
         ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
             len += 16;
-            if (/*len < 16 ||*/ len > SIZE_MAX / (sizeof *param > sizeof *epoints ? sizeof *param : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
+            if (len < 16 || len > ARGCOUNT_MAX / (sizeof *param > sizeof *epoints ? sizeof *param : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
             param = (struct macro_param_s *)reallocx(param, len * sizeof *param);
             if (epoints == vepoints) {
                 epoints = (struct linepos_s *)mallocx(len * sizeof *epoints);
@@ -773,8 +777,10 @@ static bool clean_namespace(Namespace *v1) {
     return true;
 }
 
-Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t epoint) {
-    size_t i;
+Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
+    struct values_s *vals = v2->val;
+    argcount_t args = v2->len;
+    argcount_t i;
     Label *label;
     Obj *val;
     Tuple *tuple;
@@ -823,7 +829,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         bool labelexists;
         if (param->init == default_value) {
             if (i < args) {
-                size_t j = i;
+                argcount_t j = i;
                 tuple = new_tuple(args - i);
                 none_value->refcount += args - i;
                 while (j < args) {
@@ -877,6 +883,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
         struct star_s *stree_old = star_tree;
+        size_t j;
 
         if (starexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -889,8 +896,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
 
         lpoint.line = mfunc->epoint.line;
         oldbottom = context_get_bottom();
-        for (i = 0; i < mfunc->nslen; i++) {
-            push_context(mfunc->namespaces[i]);
+        for (j = 0; j < mfunc->nslen; j++) {
+            push_context(mfunc->namespaces[j]);
         }
         push_context(context);
         temporary_label_branch++;
@@ -937,7 +944,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, size_t args, linepos_t 
         functionrecursion--;
         context_set_bottom(oldbottom);
         pop_context();
-        for (i = 0; i < mfunc->nslen; i++) {
+        for (j = 0; j < mfunc->nslen; j++) {
             pop_context();
         }
         temporary_label_branch--;

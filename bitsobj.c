@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2492 2021-03-09 23:53:31Z soci $
+    $Id: bitsobj.c 2526 2021-03-14 23:02:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -324,7 +324,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
             h += v1->data[l];
         }
     }
-    h ^= v1->bits;
+    h ^= (unsigned int)v1->bits;
     h &= ((~0U) >> 1);
     if (v1->data != v1->u.val) v1->u.hash = (int)h;
     *hs = (int)h;
@@ -483,7 +483,7 @@ MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, size_t *ln, linepos_t epoint)
     v->bits = i * 4;
     d = v->data;
 
-    uv = j = 0; bits = 0;
+    uv = 0; j = 0; bits = 0;
     while ((k--) != 0) {
         uint8_t c = s[k] ^ 0x30;
         if (c < 10) uv |= (bdigit_t)c << bits;
@@ -538,7 +538,7 @@ MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, size_t *ln, linepos_t epoint)
     v->bits = i;
     d = v->data;
 
-    uv = j = 0; bits = 0;
+    uv = 0; j = 0; bits = 0;
     while ((k--) != 0) {
         uint8_t c = s[k];
         if (c == 0x31) uv |= 1U << bits;
@@ -583,7 +583,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     if (v == NULL) goto failed;
     d = v->data;
 
-    uv = bits = j = 0;
+    uv = 0; bits = 0; j = 0;
     encoder = encode_string_init(v1, epoint);
     while ((ch = encode_string(encoder)) != EOF) {
         uv |= (bdigit_t)(ch & 0xff) << bits;
@@ -674,7 +674,7 @@ MUST_CHECK Obj *bits_from_bytes(const Bytes *v1, linepos_t epoint) {
     v->bits = len1 * 8;
     d = v->data;
 
-    uv = j = i = 0; bits = 0;
+    uv = 0; j = 0; i = 0; bits = 0;
     while (len1 > i) {
         uv |= (bdigit_t)v1->data[i++] << bits;
         if (bits == SHIFT - 8) {
@@ -729,10 +729,10 @@ MUST_CHECK Obj *bits_calc1(Oper_types op, unsigned int val) {
     case O_BANK: val >>= 8; /* fall through */
     case O_HIGHER: val >>= 8; /* fall through */
     case O_LOWER: 
-    default: return return_bits(val, 8, false);
+    default: return return_bits((uint8_t)val, 8, false);
+    case O_BSWORD: val = (uint16_t)val | (val << 16); /* fall through */
     case O_HWORD: val >>= 8; /* fall through */
-    case O_WORD: return return_bits(val, 16, false);
-    case O_BSWORD: return return_bits(((uint16_t)val >> 8) | (val << 8), 16, false);
+    case O_WORD: return return_bits((uint16_t)val, 16, false);
     }
 }
 
@@ -1243,31 +1243,28 @@ failed:
     return new_error_mem(op->epoint3);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
-    size_t offs2, ln, sz;
+static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
+    size_t sz;
     size_t i, o;
     Bits *vv, *vv1 = Bits(op->v1);
-    Obj *o2 = op->v2;
     bdigit_t *v;
     bdigit_t uv;
     bdigit_t inv = (vv1->len < 0) ? ~(bdigit_t)0 : 0;
     int bits;
     Obj *err;
-    Funcargs *args = Funcargs(o2);
-    linepos_t epoint2;
+    Funcargs *args = Funcargs(op->v2);
+    struct indexoffs_s io;
 
-    if (args->len < 1 || args->len > indx + 1) {
+    if (args->len < 1 || args->len - 1 > indx) {
         return new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
+    io.len = vv1->bits;
+    io.epoint = &args->val[indx].epoint;
+    io.val = args->val[indx].val;
 
-    o2 = args->val[indx].val;
-    epoint2 = &args->val[indx].epoint;
-
-    ln = vv1->bits;
-
-    if (o2->obj->iterable) {
+    if (io.val->obj->iterable) {
         struct iter_s iter;
-        iter.data = o2; o2->obj->getiter(&iter);
+        iter.data = io.val; io.val->obj->getiter(&iter);
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -1284,15 +1281,15 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
 
         uv = inv;
         bits = 0; sz = 0;
-        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
-            err = indexoffs(o2, ln, &offs2, epoint2);
+        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+            err = indexoffs(&io);
             if (err != NULL) {
                 val_destroy(Obj(vv));
                 iter_destroy(&iter);
                 return err;
             }
-            o = offs2 / SHIFT;
-            if (o < bitslen(vv1) && ((vv1->data[o] >> (offs2 % SHIFT)) & 1) != 0) {
+            o = io.offs / SHIFT;
+            if (o < bitslen(vv1) && ((vv1->data[o] >> (io.offs % SHIFT)) & 1) != 0) {
                 uv ^= 1U << bits;
             }
             bits++;
@@ -1308,12 +1305,12 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         vv->bits = i;
         return normalize(vv, sz, false);
     }
-    if (o2->obj == COLONLIST_OBJ) {
+    if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;
         size_t bo, wo, bl, wl, wl2, l;
         bdigit_t *v1;
 
-        err = sliceparams(Colonlist(o2), ln, &s, epoint2);
+        err = sliceparams(&s, &io);
         if (err != NULL) return err;
 
         if (s.length == 0) {
@@ -1381,12 +1378,12 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         vv->bits = s.length;
         return normalize(vv, sz, false);
     }
-    err = indexoffs(o2, ln, &offs2, epoint2);
+    err = indexoffs(&io);
     if (err != NULL) return err;
 
     uv = inv;
-    o = offs2 / SHIFT;
-    if (o < bitslen(vv1) && ((vv1->data[o] >> (offs2 % SHIFT)) & 1) != 0) {
+    o = io.offs / SHIFT;
+    if (o < bitslen(vv1) && ((vv1->data[o] >> (io.offs % SHIFT)) & 1) != 0) {
         uv ^= 1;
     }
     return val_reference(bits_value[uv & 1]);

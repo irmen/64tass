@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2428 2021-02-28 11:48:36Z soci $
+    $Id: error.h 2521 2021-03-14 19:37:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ extern void err_msg_not_variable(struct Label *, const struct str_t *, linepos_t
 extern void err_msg_double_defined(struct Label *, const struct str_t *, linepos_t);
 extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_shadow_defined2(struct Label *);
-extern void err_msg_missing_argument(linepos_t, size_t);
+extern void err_msg_missing_argument(linepos_t, argcount_t);
 extern void err_msg_unknown_argument(const struct str_t *, linepos_t);
 extern void err_msg_unused_macro(struct Label *);
 extern void err_msg_unused_label(struct Label *);
@@ -68,7 +68,7 @@ extern void err_msg_unused_variable(struct Label *);
 extern void err_msg_not_defined(const struct str_t *, linepos_t);
 extern unsigned int err_msg_unknown_formatchar(const struct Str *, size_t, linepos_t);
 extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
-extern void err_msg_not_defined2a(int32_t, struct Namespace *, bool, linepos_t);
+extern void err_msg_not_defined2a(ssize_t, struct Namespace *, bool, linepos_t);
 extern void err_msg_symbol_case(const struct str_t *, const struct Label *, linepos_t);
 extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);
@@ -76,7 +76,7 @@ extern void err_msg_address_mismatch(unsigned int, unsigned int, linepos_t);
 extern void err_msg_file(Error_types, const char *, linepos_t);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
-extern void err_msg_argnum(size_t, size_t, size_t, linepos_t);
+extern void err_msg_argnum(argcount_t, argcount_t, argcount_t, linepos_t);
 extern void err_msg_bool(Error_types, struct Obj *, linepos_t);
 extern void err_msg_bool_oper(struct oper_s *);
 extern void err_msg_implied_reg(linepos_t, uint32_t);

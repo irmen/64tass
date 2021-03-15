@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2480 2021-03-07 11:41:17Z soci $
+    $Id: functionobj.c 2508 2021-03-14 16:12:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -107,8 +107,9 @@ typedef MUST_CHECK Obj *(*func_t)(oper_t op);
 static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
     Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
-    size_t args = vals->len;
-    size_t j, k, ln = 1;
+    argcount_t args = vals->len;
+    argcount_t j, k;
+    size_t ln = 1;
     List *vv;
     struct elements_s {
         Obj *oval;
@@ -124,7 +125,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
                 if (args <= lenof(elements3)) {
                     elements = elements3; 
                 } else {
-                    if (args > SIZE_MAX / sizeof *elements) goto failed; /* overflow */
+                    if (args > ARGCOUNT_MAX / sizeof *elements) goto failed; /* overflow */
                     elements = (struct elements_s *)malloc(args * sizeof *elements);
                     if (elements == NULL) goto failed;
                 }
@@ -758,16 +759,14 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Function *v1 = Function(op->v1);
     Obj *o2 = op->v2;
     Function_types func;
-    struct values_s *v;
-    size_t args;
     switch (o2->obj->type) {
     case T_FUNCTION:
         return obj_oper_compare(op, icmp(op));
     case T_FUNCARGS:
         {
             Funcargs *v2 = Funcargs(o2);
-            v = v2->val;
-            args = v2->len;
+            argcount_t args = v2->len;
+            struct values_s *v = v2->val;
             switch (op->op->op) {
             case O_FUNC:
                 func = v1->func;

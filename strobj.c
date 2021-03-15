@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2479 2021-03-07 09:13:38Z soci $
+    $Id: strobj.c 2526 2021-03-14 23:02:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -216,7 +216,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     }
     h = (unsigned int)*s2 << 7;
     while ((l--) != 0) h = (1000003 * h) ^ *s2++;
-    h ^= v1->len;
+    h ^= (unsigned int)v1->len;
     h &= ((~0U) >> 1);
     if (v1->data != v1->u.val) v1->u.s.hash = (int)h;
     *hs = (int)h;
@@ -580,29 +580,26 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     return new_error_mem(op->epoint3);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     uint8_t *p, *p2;
-    size_t offs2;
     size_t len1, len2;
     Obj *o2 = op->v2;
     Str *v, *v1 = Str(op->v1);
     Funcargs *args = Funcargs(o2);
     Obj *err;
-    linepos_t epoint2;
+    struct indexoffs_s io;
 
-    if (args->len < 1 || args->len > indx + 1) {
+    if (args->len < 1 || args->len - 1 > indx) {
         return new_error_argnum(args->len, 1, indx + 1, op->epoint2);
     }
+    io.len = v1->chars;
+    io.epoint = &args->val[indx].epoint;
+    io.val = args->val[indx].val;
 
-    o2 = args->val[indx].val;
-    epoint2 = &args->val[indx].epoint;
-
-    len1 = v1->chars;
-
-    if (o2->obj->iterable) {
+    if (io.val->obj->iterable) {
         struct iter_s iter;
         size_t i;
-        iter.data = o2; o2->obj->getiter(&iter);
+        iter.data = io.val; io.val->obj->getiter(&iter);
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -616,14 +613,14 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
                 goto failed;
             }
             p2 = v->data;
-            for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
-                err = indexoffs(o2, len1, &offs2, epoint2);
+            for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+                err = indexoffs(&io);
                 if (err != NULL) {
                     val_destroy(Obj(v));
                     iter_destroy(&iter);
                     return err;
                 }
-                *p2++ = v1->data[offs2];
+                *p2++ = v1->data[io.offs];
             }
             iter_destroy(&iter);
             len1 = i;
@@ -640,16 +637,16 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
             o = p2 = v->data;
             p = v1->data;
 
-            for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
+            for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
                 unsigned int k;
-                err = indexoffs(o2, len1, &offs2, epoint2);
+                err = indexoffs(&io);
                 if (err != NULL) {
                     val_destroy(Obj(v));
                     iter_destroy(&iter);
                     return err;
                 }
-                while (offs2 != j) {
-                    if (offs2 > j) {
+                while (io.offs != j) {
+                    if (io.offs > j) {
                         p += utf8len(*p);
                         j++;
                     } else {
@@ -706,10 +703,10 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         v->chars = len1;
         return Obj(v);
     }
-    if (o2->obj == COLONLIST_OBJ) {
+    if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;
 
-        err = sliceparams(Colonlist(o2), len1, &s, epoint2);
+        err = sliceparams(&s, &io);
         if (err != NULL) return err;
 
         if (s.length == 0) {
@@ -779,7 +776,7 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
             }
         } else {
             ival_t i, k;
-            size_t j;
+            size_t j, offs2;
             uint8_t *o;
             if (s.step > 0 && op->inplace == Obj(v1)) {
                 v = ref_str(v1);
@@ -829,15 +826,15 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
         v->chars = s.length;
         return Obj(v);
     }
-    err = indexoffs(o2, len1, &offs2, epoint2);
+    err = indexoffs(&io);
     if (err != NULL) return err;
 
     if (v1->len == v1->chars) {
-        p = v1->data + offs2;
+        p = v1->data + io.offs;
         len1 = 1;
     } else {
         p = v1->data;
-        for (; offs2 != 0; offs2--) p += utf8len(*p);
+        for (; io.offs != 0; io.offs--) p += utf8len(*p);
         len1 = utf8len(*p);
     }
 
@@ -857,7 +854,7 @@ static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
     v->chars = 1;
     p2[0] = p[0];
     if (len1 > 1) {
-        for (offs2 = 1; offs2 < len1; offs2++) p2[offs2] = p[offs2];
+        for (io.offs = 1; io.offs < len1; io.offs++) p2[io.offs] = p[io.offs];
     }
     if (p2 != v->data) {
         free(v->data);

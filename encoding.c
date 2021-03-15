@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2465 2021-03-06 19:58:00Z soci $
+    $Id: encoding.c 2529 2021-03-15 00:05:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ bool new_escape(struct encoding_s *enc, const str_t *v, Obj *val, linepos_t epoi
 
     if (val->obj == STR_OBJ || val->obj == BITS_OBJ) {
         val2 = BYTES_OBJ->create(val, epoint);
-        iter.data = val2; val->obj->getiter(&iter); 
+        iter.data = val2; val2->obj->getiter(&iter); 
         val_destroy(val2);
     } else {
         iter.data = val; val->obj->getiter(&iter); 

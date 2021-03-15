@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2467 2021-03-06 21:46:50Z soci $
+    $Id: memblocksobj.c 2523 2021-03-14 20:58:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return v1->mem.p == v2->mem.p && !memcmp(v1->mem.data, v2->mem.data, v1->mem.p);
 }
 
-MALLOC Memblocks *new_memblocks(size_t ln, size_t ln2) {
+MALLOC Memblocks *new_memblocks(address_t ln, size_t ln2) {
     Memblocks *val = Memblocks(val_alloc(MEMBLOCKS_OBJ));
     val->mem.p = 0;
     val->mem.len = ln;

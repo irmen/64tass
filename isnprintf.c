@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2472 2021-03-07 00:38:18Z soci $
+   $Id: isnprintf.c 2507 2021-03-14 16:10:18Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -70,7 +70,7 @@
 
 static Str return_value;
 static size_t returnsize = 0;
-static size_t none;
+static argcount_t none;
 static Obj *failure;
 
 /* this struct holds everything we need */
@@ -88,9 +88,9 @@ typedef struct Data {
  */
 enum { NOT_FOUND = -1 };
 
-static size_t listp;
+static argcount_t listp;
 static const struct values_s *list;
-static size_t largs;
+static argcount_t largs;
 
 static const struct values_s *next_arg(void) {
     const struct values_s *ret;
@@ -446,7 +446,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
 {
     Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
-    size_t args = vals->len;
+    argcount_t args = vals->len;
     Obj *val;
     Str *str;
     Data data;
@@ -475,7 +475,8 @@ MUST_CHECK Obj *isnprintf(oper_t op)
     failure = NULL;
     return_value.len = 0;
     return_value.chars = 0;
-    none = returnsize = 0;
+    none = 0;
+    returnsize = 0;
 
     for (; data.pf < data.pfend; data.pf++) {
         const uint8_t *pf = data.pf;

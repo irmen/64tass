@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: memblocksobj.h 2523 2021-03-14 20:58:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 extern struct Type *const MEMBLOCKS_OBJ;
 
 struct memblock_s { /* starts and sizes */
-    size_t p;
+    address_t p;
     address_t addr, len;
     struct Memblocks *ref;
 };
@@ -33,11 +33,11 @@ struct memblock_s { /* starts and sizes */
 typedef struct Memblocks {
     Obj v;
     struct {       /* Linear memory dump */
-        size_t p, len;
+        address_t p, len;
         uint8_t *data;
     } mem;
     size_t p, len;
-    size_t lastp;
+    address_t lastp;
     address_t lastaddr;
     bool flattened, merged, enumeration;
     struct memblock_s *data;
@@ -51,6 +51,6 @@ static inline Memblocks *ref_memblocks(Memblocks *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MALLOC Memblocks *new_memblocks(size_t, size_t);
+extern MALLOC Memblocks *new_memblocks(address_t, size_t);
 extern MALLOC Memblocks *copy_memblocks(Memblocks *);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2479 2021-03-07 09:13:38Z soci $
+    $Id: errorobj.c 2510 2021-03-14 16:16:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -200,7 +200,7 @@ MALLOC Obj *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
     return Obj(v);
 }
 
-MALLOC Obj *new_error_argnum(size_t num, size_t min, size_t max, linepos_t epoint) {
+MALLOC Obj *new_error_argnum(argcount_t num, argcount_t min, argcount_t max, linepos_t epoint) {
     Error *v = new_error(ERROR__WRONG_ARGNUM, epoint);
     v->u.argnum.num = num;
     v->u.argnum.min = min;
@@ -220,7 +220,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(op->v2);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t UNUSED(indx)) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t UNUSED(indx)) {
     return val_reference(op->v1);
 }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2472 2021-03-07 00:38:18Z soci $
+    $Id: section.c 2523 2021-03-14 20:58:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@ static void printrange(const struct section_s *l, FILE *f) {
     sprintf(temp, "$%04" PRIaddress, l->address.start);
     temp2[0] = 0;
     if (l->size != 0) {
-        sprintf(temp2, "-$%04" PRIaddress, (address_t)(l->address.start + l->size - 1));
+        sprintf(temp2, "-$%04" PRIaddress, l->address.start + l->size - 1U);
     }
     sprintf(temp3, "$%04" PRIaddress, l->size);
     fprintf(f, "Section: %15s%-8s %-7s", temp, temp2, temp3);

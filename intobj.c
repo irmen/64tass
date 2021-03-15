@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2492 2021-03-09 23:53:31Z soci $
+    $Id: intobj.c 2520 2021-03-14 19:25:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1333,7 +1333,7 @@ MUST_CHECK Obj *int_from_bytes(const Bytes *v1, linepos_t epoint) {
     v->data = d = inew2(v, sz);
     if (d == NULL) goto failed2;
 
-    uv = bits = j = i = 0;
+    uv = 0; bits = 0; j = 0; i = 0;
     if (inv) {
         uint8_t c = 0xff;
         for (;c == 0xff && i < len1 - 1; i++) {
@@ -1438,7 +1438,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     v-> data = d = inew2(v, sz);
     if (d == NULL) goto failed2;
 
-    uv = bits = j = 0;
+    uv = 0; bits = 0; j = 0;
     encoder = encode_string_init(v1, epoint);
     while ((ch = encode_string(encoder)) != EOF) {
         uv |= (digit_t)(ch & 0xff) << bits;

@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 2476 2021-03-07 02:25:57Z soci $
+    $Id: noneobj.c 2509 2021-03-14 16:15:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(op->v1->obj->type == T_ERROR ? op->v1 : op->v2);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t UNUSED(indx)) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t UNUSED(indx)) {
     return val_reference(op->v1);
 }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: inttypes.h 2245 2020-10-17 08:09:10Z soci $
+    $Id: inttypes.h 2508 2021-03-14 16:12:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,6 +80,8 @@ typedef SSIZE_T ssize_t;
 #endif
 #endif
 
+typedef uint32_t argcount_t;
+#define PRIuargcount PRIu32
 typedef uint32_t uchar_t;
 typedef uint32_t line_t;
 #define PRIuline PRIu32
@@ -97,12 +99,16 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 #define PRIXval PRIX32
 
+#ifndef ARGCOUNT_MAX
+#define ARGCOUNT_MAX (~(argcount_t)0)
+#endif
+
 #ifndef SIZE_MAX
-# define SIZE_MAX ((size_t)-1)
+#define SIZE_MAX (~(size_t)0)
 #endif
 
 #ifndef SSIZE_MAX
-# define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
+#define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
 #endif
 
 #define SIZE_MSB ((size_t)1 << (sizeof(size_t) * 8 - 1))

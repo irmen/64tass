@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 2476 2021-03-07 02:25:57Z soci $
+    $Id: obj.h 2507 2021-03-14 16:10:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ typedef struct Lbl {
 
 typedef struct Funcargs {
     Obj v;
-    size_t len;
+    argcount_t len;
     struct values_s *val;
 } Funcargs;
 

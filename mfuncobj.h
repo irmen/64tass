@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: mfuncobj.h 2517 2021-03-14 18:44:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ struct mfunc_param_s {
 
 typedef struct Mfunc {
     Obj v;
-    size_t argc;
+    argcount_t argc;
     struct mfunc_param_s *param;
     const struct file_list_s *file_list;
     struct linepos_s epoint;

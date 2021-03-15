@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2463 2021-03-06 15:37:18Z soci $
+    $Id: file.c 2522 2021-03-14 20:16:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -162,7 +162,7 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     wname = (wchar_t *)malloc(len * sizeof *wname);
     if (wname == NULL) return NULL;
     while (name[i] != 0 && i < max) {
-        ch = name[i];
+        ch = (uint8_t)name[i];
         if ((ch & 0x80) != 0) {
             i += utf8in((const uint8_t *)name + i, &ch);
             if (ch == 0) ch = REPLACEMENT_CHARACTER;
@@ -177,10 +177,10 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
         }
         if (ch < 0x10000) {
         } else if (ch < 0x110000) {
-            wname[j++] = (ch >> 10) + 0xd7c0;
+            wname[j++] = (wchar_t)((ch >> 10) + 0xd7c0);
             ch = (ch & 0x3ff) | 0xdc00;
         } else ch = REPLACEMENT_CHARACTER;
-        wname[j++] = ch;
+        wname[j++] = (wchar_t)ch;
     }
     wname[j] = 0;
     return wname;
@@ -198,7 +198,7 @@ static bool portability(const str_t *name, linepos_t epoint) {
     pos = (const uint8_t *)memchr(name->data, '\\', name->len);
     if (pos != NULL) {
         epoint2.line = epoint->line;
-        epoint2.pos = interstring_position(epoint, name->data, pos - name->data);
+        epoint2.pos = interstring_position(epoint, name->data, (size_t)(pos - name->data));
         err_msg2(ERROR_____BACKSLASH, name, &epoint2);
         return false;
     }

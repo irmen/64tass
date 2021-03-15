@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.c 2472 2021-03-07 00:38:18Z soci $
+    $Id: macroobj.c 2515 2021-03-14 18:27:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,8 +42,9 @@ Type *const UNION_OBJ = &union_obj;
 static FAST_CALL void macro_destroy(Obj *o1) {
     Macro *v1 = Macro(o1);
     const struct file_s *cfile = v1->file_list->file;
-    while (v1->argc != 0) {
-        const struct macro_param_s *param = &v1->param[--v1->argc];
+    argcount_t i;
+    for (i = 0; i < v1->argc; i++) {
+        const struct macro_param_s *param = &v1->param[i];
         if ((size_t)(param->cfname.data - cfile->data) >= cfile->len) free((char *)param->cfname.data);
         if ((size_t)(param->init.data - cfile->data) >= cfile->len) free((char *)param->init.data);
     }
@@ -52,7 +53,7 @@ static FAST_CALL void macro_destroy(Obj *o1) {
 
 static FAST_CALL bool macro_same(const Obj *o1, const Obj *o2) {
     const Macro *v1 = Macro(o1), *v2 = Macro(o2);
-    size_t i;
+    argcount_t i;
     if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return false;
     for (i = 0; i < v1->argc; i++) {
         if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
@@ -62,33 +63,19 @@ static FAST_CALL bool macro_same(const Obj *o1, const Obj *o2) {
 }
 
 static FAST_CALL void struct_destroy(Obj *o1) {
-    Struct *v1 = Struct(o1);
-    const struct file_s *cfile = v1->file_list->file;
-    while (v1->argc != 0) {
-        const struct macro_param_s *param = &v1->param[--v1->argc];
-        if ((size_t)(param->cfname.data - cfile->data) >= cfile->len) free((char *)param->cfname.data);
-        if ((size_t)(param->init.data - cfile->data) >= cfile->len) free((char *)param->init.data);
-    }
-    free(v1->param);
-    val_destroy(Obj(v1->names));
+    macro_destroy(o1);
+    val_destroy(Obj(Struct(o1)->names));
 }
 
 static FAST_CALL void struct_garbage(Obj *o1, int i) {
     Struct *v1 = Struct(o1);
     Obj *v;
-    const struct file_s *cfile;
     switch (i) {
     case -1:
         Obj(v1->names)->refcount--;
         return;
     case 0:
-        cfile = v1->file_list->file;
-        while (v1->argc != 0) {
-            const struct macro_param_s *param = &v1->param[--v1->argc];
-            if ((size_t)(param->cfname.data - cfile->data) >= cfile->len) free((char *)param->cfname.data);
-            if ((size_t)(param->init.data - cfile->data) >= cfile->len) free((char *)param->init.data);
-        }
-        free(v1->param);
+        macro_destroy(o1);
         return;
     case 1:
         v = Obj(v1->names);
@@ -102,7 +89,7 @@ static FAST_CALL void struct_garbage(Obj *o1, int i) {
 
 static FAST_CALL bool struct_same(const Obj *o1, const Obj *o2) {
     const Struct *v1 = Struct(o1), *v2 = Struct(o2);
-    size_t i;
+    argcount_t i;
     if (o1->obj != o2->obj || v1->size != v2->size || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return false;
     if (v1->names != v2->names && !v1->names->v.obj->same(Obj(v1->names), Obj(v2->names))) return false;
     for (i = 0; i < v1->argc; i++) {

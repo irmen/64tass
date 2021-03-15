@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2484 2021-03-08 22:04:15Z soci $
+    $Id: addressobj.c 2509 2021-03-14 16:15:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -372,7 +372,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK Obj *slice(oper_t op, size_t indx) {
+static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     Obj *val = Address(op->v1)->val;
     if (val == none_value || val->obj == ERROR_OBJ) {
         return val_reference(val);
