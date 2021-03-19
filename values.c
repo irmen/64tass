@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2467 2021-03-06 21:46:50Z soci $
+    $Id: values.c 2530 2021-03-15 22:31:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ static FAST_CALL NO_INLINE Obj *value_alloc(const Type *obj) {
     for (i = 0; i < (SLOTS - 1); i++, slot2 = slot2->next) {
         slot2->v.obj = NULL;
         slot2->v.refcount = 1;
-        slot2->next = (Slot *)(((const char *)slot2) + size);
+        slot2->next = (Slot *)(((char *)slot2) + size);
     }
     slot2->v.obj = NULL;
     slot2->v.refcount = 1;
@@ -84,7 +84,7 @@ void garbage_collect(void) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
-            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((char *)val) + size)) {
                 if (val->obj != NULL && val->obj->garbage != NULL) {
                     val->obj->garbage(val, -1);
                     val->refcount |= SIZE_MSB;
@@ -97,7 +97,7 @@ void garbage_collect(void) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
-            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((char *)val) + size)) {
                 if (val->obj != NULL && val->obj->garbage != NULL) {
                     if (val->refcount > SIZE_MSB) {
                         val->refcount -= SIZE_MSB;
@@ -112,7 +112,7 @@ void garbage_collect(void) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals != NULL; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
-            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((char *)val) + size)) {
                 if ((val->refcount & ~SIZE_MSB) == 0) {
                     val->refcount = 1;
                     if (val->obj->garbage != NULL) val->obj->garbage(val, 0);

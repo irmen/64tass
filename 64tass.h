@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 2270 2021-01-09 08:04:13Z soci $
+    $Id: 64tass.h 2533 2021-03-17 20:28:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ extern address_t star;
 extern const uint8_t *pline;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
+extern bool signal_received;
 extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
 extern bool close_waitfor(Wait_types);

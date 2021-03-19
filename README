@@ -4151,6 +4151,8 @@ can't write make file
     cannot write the make rule file
 can't write object file
     cannot write the result
+compilation was interrupted
+    shows the line where the interruption happened
 error reading file
     error while reading
 file recursion

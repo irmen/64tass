@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2521 2021-03-14 19:37:04Z soci $
+    $Id: error.h 2533 2021-03-17 20:28:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -110,6 +110,7 @@ extern void err_destroy(void);
 extern void fatal_error(const char *);
 extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
+extern void err_msg_signal(void);
 extern void error_status(void);
 extern bool error_serious(void);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);

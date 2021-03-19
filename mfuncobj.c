@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2517 2021-03-14 18:44:48Z soci $
+    $Id: mfuncobj.c 2538 2021-03-19 06:55:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 */
 #include "mfuncobj.h"
+#include <string.h>
 #include "values.h"
 #include "eval.h"
 #include "error.h"
@@ -53,6 +54,7 @@ static FAST_CALL void destroy(Obj *o1) {
     val_destroy(Obj(v1->names));
     val_destroy(Obj(v1->inamespaces));
     free(v1->param);
+    if (v1->line != NULL) free((uint8_t *)v1->line);
 }
 
 static FAST_CALL void garbage(Obj *o1, int j) {
@@ -86,6 +88,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         }
         free(v1->param);
         free(v1->namespaces);
+        if (v1->line != NULL) free((uint8_t *)v1->line);
         return;
     case 1:
         while ((i--) != 0) {
@@ -124,7 +127,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     argcount_t i;
     size_t k;
     if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->epoint.line != v2->epoint.line || v1->epoint.pos != v2->epoint.pos) return false;
-    if (v1->argc != v2->argc || v1->nslen != v2->nslen || v1->single != v2->single) return false;
+    if (v1->argc != v2->argc || v1->nslen != v2->nslen) return false;
     for (i = 0; i < v1->argc; i++) {
         if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return false;
         if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
@@ -135,6 +138,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
         if (v1->namespaces[k] != v2->namespaces[k] && !v1->namespaces[k]->v.obj->same(Obj(v1->namespaces[k]), Obj(v2->namespaces[k]))) return false;
     }
     if (v1->names != v2->names && !v1->names->v.obj->same(Obj(v1->names), Obj(v2->names))) return false;
+    if (v1->line != v2->line && (v1->line == NULL || v2->line == NULL || strcmp((const char *)v1->line, (const char *)v2->line) != 0)) return false;
     return true;
 }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2526 2021-03-14 23:02:07Z soci $
+    $Id: strobj.c 2530 2021-03-15 22:31:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -539,7 +539,7 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             c2 = v2->data;
             e = c2 + v2->len - v1->len;
             for (;;) {
-                c = (uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
+                c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
                 if (c == NULL) return ref_false();
                 if (memcmp(c, v1->data, v1->len) == 0) return ref_true();
                 c2 = c + 1;

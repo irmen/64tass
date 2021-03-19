@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2528 2021-03-14 23:32:10Z soci $
+    $Id: 64tass.c 2537 2021-03-19 06:41:48Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -86,6 +86,7 @@ static uint8_t strength = 0;
 bool fixeddig, constcreated;
 uint32_t outputeor = 0; /* EOR value for final output (usually 0, unless changed by .eor) */
 bool referenceit = true;
+bool signal_received = false;
 const struct cpu_s *current_cpu;
 
 static size_t waitfor_p, waitfor_len;
@@ -1860,7 +1861,10 @@ MUST_CHECK Obj *compile(void)
     struct linepos_s epoint;
 
     while (nobreak) {
-        if (mtranslate()) break; /* expand macro parameters, if any */
+        if (mtranslate()) {
+            if (signal_received) err_msg_signal();
+            break;
+        }
         newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_address->unionmode) {
@@ -2409,7 +2413,12 @@ MUST_CHECK Obj *compile(void)
                             mfunc->nslen = 0;
                             mfunc->namespaces = NULL;
                             mfunc->ipoint = 0;
-                            mfunc->single = (prm == CMD_SFUNCTION);
+                            if (prm == CMD_SFUNCTION && (size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+                                size_t ln = strlen((const char *)pline) + 1;
+                                uint8_t *l = (uint8_t *)malloc(ln);
+                                if (l != NULL) memcpy(l, pline, ln);
+                                mfunc->line = l;
+                            } else mfunc->line = NULL;
                             if (labelexists) {
                                 mfunc->retval = (label->value->obj == obj) && Mfunc(label->value)->retval;
                                 if (label->defpass == pass) {
@@ -4849,6 +4858,7 @@ int main2(int *argc2, char **argv2[]) {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         listing_pccolumn = false;
         one_pass(argc, argv, opts, fin);
+        if (signal_received) { err_msg_signal(); break; }
     } while (!fixeddig || constcreated);
 
     if (arguments.list.name == NULL) {

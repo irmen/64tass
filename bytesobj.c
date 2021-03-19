@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2526 2021-03-14 23:02:07Z soci $
+    $Id: bytesobj.c 2530 2021-03-15 22:31:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1143,7 +1143,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             e = c2 + len2 - len1;
             if ((v1->len ^ v2->len) < 0) {
                 for (;;) {
-                    c = (uint8_t *)memchr(c2, ~v1->data[0], (size_t)(e - c2) + 1);
+                    c = (const uint8_t *)memchr(c2, ~v1->data[0], (size_t)(e - c2) + 1);
                     if (c == NULL) return ref_false();
                     for (i = 1; i < len1; i++) {
                         if (c[i] != (0xff - v1->data[i])) break;
@@ -1153,7 +1153,7 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
                 }
             } else {
                 for (;;) {
-                    c = (uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
+                    c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
                     if (c == NULL) return ref_false();
                     if (memcmp(c, v1->data, len1) == 0) return ref_true();
                     c2 = c + 1;

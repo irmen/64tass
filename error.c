@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2521 2021-03-14 19:37:04Z soci $
+    $Id: error.c 2535 2021-03-17 23:12:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ struct errorbuffer_s {
     size_t max;
     size_t len;
     size_t header_pos;
+    size_t header_stop;
     uint8_t *data;
     struct avltree members;
 };
@@ -270,7 +271,7 @@ static struct file_lists_s {
 } *file_lists = NULL;
 
 const struct file_list_s *parent_file_list(const struct file_list_s *cflist) {
-    return &((struct file_listnode_s *)cflist)->parent->flist;
+    return &((const struct file_listnode_s *)cflist)->parent->flist;
 }
 
 static struct file_listnode_s *lastfl;
@@ -582,7 +583,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR__NO_WORD_ADDR:
         case ERROR__NO_LONG_ADDR: 
             adderror(terr_error[no - 0x40]); 
-            err_opcode(*(uint32_t *)prm); 
+            err_opcode(*(const uint32_t *)prm); 
             break;
         default:
             adderror(terr_error[no - 0x40]);
@@ -880,7 +881,7 @@ static void err_msg_argnum2(argcount_t num, argcount_t min, argcount_t max) {
     char line[1024];
     adderror("expected ");
     n = min;
-    if (min == max) adderror("exactly ");
+    if (min == max) { if (min != 0) adderror("exactly "); } 
     else if (num < min) adderror("at least ");
     else {n = max; adderror("at most "); }
     switch (n) {
@@ -1376,12 +1377,12 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
 
     if (cflist != &file_list.flist) {
         if (cflist != &included_from->flist) {
-            included_from = (struct file_listnode_s *)cflist;
+            included_from = (const struct file_listnode_s *)cflist;
             while (included_from->parent != &file_list) {
                 if (included_from->flist.file->entercount != 1) break;
                 included_from = included_from->parent;
             }
-            if (included_from->parent != &file_list) included_from = (struct file_listnode_s *)cflist;
+            if (included_from->parent != &file_list) included_from = (const struct file_listnode_s *)cflist;
             while (included_from->parent != &file_list) {
                 fputs((&included_from->flist == cflist) ? "In file included from " : "                      ", f);
                 if (console_use_color) console_bold(f);
@@ -1391,7 +1392,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
                 if (console_use_color) console_default(f);
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
             }
-            included_from = (struct file_listnode_s *)cflist;
+            included_from = (const struct file_listnode_s *)cflist;
         }
         if (console_use_color) console_bold(f);
         printable_print((const uint8_t *)cflist->file->realname, f);
@@ -1458,7 +1459,7 @@ static void walkfilelist(struct avltree_node *aa) {
 
 void error_print(const struct error_output_s *output) {
     const struct errorentry_s *err, *err2, *err3;
-    size_t pos;
+    size_t pos, end;
     bool noneerr = false, anyerr = false, usenote;
     FILE *ferr;
     struct linepos_s nopoint = {0, 0};
@@ -1482,7 +1483,8 @@ void error_print(const struct error_output_s *output) {
     warnings = errors = 0;
     close_error();
 
-    for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
+    end = (error_list.header_stop != SIZE_MAX) ? error_list.header_stop : error_list.header_pos;
+    for (pos = 0; pos < end; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NONEERROR: anyerr = true; break;
@@ -1495,7 +1497,7 @@ void error_print(const struct error_output_s *output) {
 
     err2 = err3 = NULL;
     usenote = false;
-    for (pos = 0; pos < error_list.header_pos; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
+    for (pos = 0; pos < end; pos = ALIGN(pos + (sizeof *err) + err->line_len + err->error_len)) {
         err = (const struct errorentry_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTE:
@@ -1546,6 +1548,7 @@ void error_print(const struct error_output_s *output) {
 
 void error_reset(void) {
     error_list.len = error_list.header_pos = 0;
+    error_list.header_stop = SIZE_MAX;
     avltree_init(&error_list.members);
     current_file_list = &file_list.flist;
     included_from = &file_list;
@@ -1615,6 +1618,16 @@ NO_RETURN void err_msg_out_of_memory(void)
 {
     error_print(&arguments.error);
     err_msg_out_of_memory2();
+}
+
+void err_msg_signal(void)
+{
+    if (error_list.header_stop == SIZE_MAX) {
+        bool more = new_error_msg(SV_FATAL, current_file_list, &lpoint);
+        adderror("compilation was interrupted");
+        if (more) new_error_msg_more();
+        error_list.header_stop = error_list.header_pos + 1;
+    }
 }
 
 void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {

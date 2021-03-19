@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2522 2021-03-14 20:16:55Z soci $
+    $Id: main.c 2533 2021-03-17 20:28:24Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -28,13 +28,26 @@
 */
 
 #include "64tass.h"
-#include <locale.h>
-#include "wchar.h"
 #include <string.h>
+#include <signal.h>
 
+#include "wchar.h"
 #include "error.h"
 #include "unicode.h"
 #include "console.h"
+
+static void signal_handler(int signum) {
+    signal(signum, SIG_DFL);
+    signal_received = true;
+}
+
+static inline void install_signal_handler(void) {
+#ifdef SIGPIPE
+    signal(SIGPIPE, SIG_IGN);
+#endif
+    if (signal(SIGINT, signal_handler) == SIG_IGN) signal(SIGINT, SIG_IGN);
+    if (signal(SIGTERM, signal_handler) == SIG_IGN) signal(SIGTERM, SIG_IGN);
+}
 
 #ifdef _WIN32
 static const wchar_t *prgname(const wchar_t *name) {
@@ -54,6 +67,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
     char **argv;
 
+    install_signal_handler();
     console_init();
     atexit(console_destroy);
 
@@ -104,7 +118,32 @@ int wmain(int argc, wchar_t *argv2[]) {
     free(argv);
     return r;
 }
-#else
+
+#ifdef __MINGW32__
+#include <windows.h>
+#include <shellapi.h>
+
+int main(void)
+{
+  LPWSTR commandLine = GetCommandLineW();
+  int argcw = 0;
+  LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
+  if (!argvw)
+    return EXIT_FAILURE;
+
+  int result = wmain(argcw, argvw);
+  LocalFree(argvw);
+  return result;
+}
+#endif /* __MINGW32__ */
+
+#else /* _WIN32 */
+#include <locale.h>
+#include <unistd.h>
+#if _POSIX_VERSION >= 200112L
+#include <sys/resource.h>
+#endif
+
 static const char *prgname(const char *name) {
     const char *newp = strrchr(name, '/');
     if (newp != NULL) return newp + 1;
@@ -121,6 +160,16 @@ int main(int argc, char *argv[]) {
     int i, r;
     char **uargv;
 
+#if _POSIX_VERSION >= 200112L
+    struct rlimit rlim;
+    if (getrlimit(RLIMIT_DATA, &rlim) == 0) {
+        if (rlim.rlim_cur > 2147483647) rlim.rlim_cur = 2147483647;
+        if (rlim.rlim_max > 2147483647) rlim.rlim_max = 2147483647;
+        setrlimit(RLIMIT_DATA, &rlim);
+    }
+#endif
+
+    install_signal_handler();
     setlocale(LC_CTYPE, "");
 
     uargv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *uargv);
@@ -174,21 +223,3 @@ int main(int argc, char *argv[]) {
 }
 #endif
 
-
-#ifdef __MINGW32__
-#include <windows.h>
-#include <shellapi.h>
-
-int main(void)
-{
-  LPWSTR commandLine = GetCommandLineW();
-  int argcw = 0;
-  LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
-  if (!argvw)
-    return EXIT_FAILURE;
-
-  int result = wmain(argcw, argvw);
-  LocalFree(argvw);
-  return result;
-}
-#endif /* __MINGW32__ */
