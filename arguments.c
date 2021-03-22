@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2415 2021-02-25 19:51:54Z soci $
+    $Id: arguments.c 2546 2021-03-19 23:31:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -411,7 +411,8 @@ static MUST_CHECK char *read_one(FILE *f) {
     size_t i, ln, n, j, len;
     int c;
     mbstate_t ps;
-    uint8_t *p, *data;
+    size_t p;
+    uint8_t *data;
 
     do {
         c = getc(f);
@@ -450,17 +451,15 @@ static MUST_CHECK char *read_one(FILE *f) {
     if (data == NULL || len < 64) err_msg_out_of_memory2();
 
     memset(&ps, 0, sizeof ps);
-    p = data;
+    p = 0;
     for (;;) {
         ssize_t l;
         wchar_t w;
         uchar_t ch;
-        if (p + 6*6 + 1 > data + len) {
-            size_t o = (size_t)(p - data);
+        if (p + 6*6 + 1 > len) {
             len += 1024;
             data = (uint8_t*)realloc(data, len);
             if (data == NULL) err_msg_out_of_memory2();
-            p = data + o;
         }
         l = (ssize_t)mbrtowc(&w, line + j, n - j,  &ps);
         if (l < 1) {
@@ -470,9 +469,9 @@ static MUST_CHECK char *read_one(FILE *f) {
         }
         j += (size_t)l;
         ch = (uchar_t)w;
-        if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
+        if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
     }
-    *p++ = 0;
+    data[p] = 0;
     free(line);
     return (char *)data;
 }
@@ -504,7 +503,8 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     int argc = *argc2;
     char **argv = *argv2;
     int opt;
-    size_t max_lines = 0, fp = 0;
+    size_t max_lines = 0;
+    filesize_t fp = 0;
     int max = 10;
     bool again;
     struct symbol_output_s symbol_output = { NULL, LABEL_64TASS, NULL };
@@ -554,25 +554,26 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
             case 'D':
                 {
-                    size_t len = strlen(my_optarg) + 1;
+                    size_t len;
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
                         if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof *fin->line) err_msg_out_of_memory2(); /* overflow */
-                        fin->line = (size_t *)realloc(fin->line, max_lines * sizeof *fin->line);
+                        fin->line = (filesize_t *)realloc(fin->line, max_lines * sizeof *fin->line);
                         if (fin->line == NULL) err_msg_out_of_memory2();
                     }
                     fin->line[fin->lines++] = fp;
 
-                    if (len < 1 || fp + len < len) err_msg_out_of_memory2();
-                    if (fp + len > fin->len) {
-                        fin->len = fp + len + 1024;
+                    len = strlen(my_optarg) + 1;
+                    fp += (filesize_t)len;
+                    if (fp < len) err_msg_out_of_memory2();
+                    if (fp > fin->len) {
+                        fin->len = fp + 1024;
                         if (fin->len < 1024) err_msg_out_of_memory2();
                         fin->data = (uint8_t*)realloc(fin->data, fin->len);
                         if (fin->data == NULL) err_msg_out_of_memory2();
                     }
-                    memcpy(fin->data + fp, my_optarg, len);
-                    fp += len;
+                    memcpy(fin->data + fp - len, my_optarg, len);
                 }
                 break;
             case 'B': arguments.longbranch = true;break;
@@ -824,7 +825,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         diagnostics.case_symbol = false;
     }
     if (fin->lines != max_lines) {
-        size_t *d = (size_t *)realloc(fin->line, fin->lines * sizeof *fin->line);
+        filesize_t *d = (filesize_t *)realloc(fin->line, fin->lines * sizeof *fin->line);
         if (fin->lines == 0 || d != NULL) fin->line = d;
     }
     closefile(fin);

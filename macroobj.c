@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.c 2515 2021-03-14 18:27:21Z soci $
+    $Id: macroobj.c 2542 2021-03-19 21:35:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,8 +45,8 @@ static FAST_CALL void macro_destroy(Obj *o1) {
     argcount_t i;
     for (i = 0; i < v1->argc; i++) {
         const struct macro_param_s *param = &v1->param[i];
-        if ((size_t)(param->cfname.data - cfile->data) >= cfile->len) free((char *)param->cfname.data);
-        if ((size_t)(param->init.data - cfile->data) >= cfile->len) free((char *)param->init.data);
+        if (not_in_file(param->cfname.data, cfile)) free((char *)param->cfname.data);
+        if (not_in_file(param->init.data, cfile)) free((char *)param->init.data);
     }
     free(v1->param);
 }

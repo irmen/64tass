@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.h 2515 2021-03-14 18:27:21Z soci $
+    $Id: macroobj.h 2547 2021-03-19 23:40:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ struct macro_param_s {
 typedef struct Macro {
     Obj v;
     argcount_t argc;
-    line_t line;
+    linenum_t line;
     struct macro_param_s *param;
     const struct file_list_s *file_list;
     bool retval;
@@ -49,7 +49,7 @@ typedef struct Macro Segment;
 typedef struct Struct {
     Obj v;
     argcount_t argc;
-    line_t line;
+    linenum_t line;
     struct macro_param_s *param;
     const struct file_list_s *file_list;
     bool retval;

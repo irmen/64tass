@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2507 2021-03-14 16:10:18Z soci $
+   $Id: isnprintf.c 2544 2021-03-19 23:01:43Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -126,8 +126,7 @@ static void put_char(uchar_t c) {
         p[return_value.len++] = (uint8_t)c;
         return;
     }
-    p = utf8out(c, p + return_value.len);
-    return_value.len = (size_t)(p - return_value.data);
+    return_value.len += utf8out(c, p + return_value.len);
 }
 
 /* pad right */

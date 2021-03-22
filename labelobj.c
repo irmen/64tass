@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 2468 2021-03-06 22:28:44Z soci $
+    $Id: labelobj.c 2542 2021-03-19 21:35:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
 static FAST_CALL void destroy(Obj *o1) {
     Label *v1 = Label(o1);
     const struct file_s *cfile = v1->file_list->file;
-    if ((size_t)(v1->name.data - cfile->data) >= cfile->len) free((char *)v1->name.data);
+    if (not_in_file(v1->name.data, cfile)) free((char *)v1->name.data);
     if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
     val_destroy(v1->value);
 }
@@ -59,7 +59,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
         return;
     case 0:
         cfile = v1->file_list->file;
-        if ((size_t)(v1->name.data - cfile->data) >= cfile->len) free((char *)v1->name.data);
+        if (not_in_file(v1->name.data, cfile)) free((char *)v1->name.data);
         if (v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
         return;
     case 1:

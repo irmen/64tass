@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2524 2021-03-14 22:13:09Z soci $
+    $Id: unicode.c 2551 2021-03-20 01:14:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,41 +53,41 @@ FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for inte
     return i;
 }
 
-FAST_CALL uint8_t *utf8out(uchar_t i, uint8_t *c) {
+FAST_CALL unsigned int utf8out(uchar_t i, uint8_t *c) {
     if (i < 0x800) {
-        *c++ = (uint8_t)(0xc0 | (i >> 6));
-        *c++ = (uint8_t)(0x80 | (i & 0x3f));
-        return c;
+        c[0] = (uint8_t)(0xc0 | (i >> 6));
+        c[1] = (uint8_t)(0x80 | (i & 0x3f));
+        return 2;
     }
     if (i < 0x10000) {
-        *c++ = (uint8_t)(0xe0 | (i >> 12));
-        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
-        *c++ = (uint8_t)(0x80 | (i & 0x3f));
-        return c;
+        c[0] = (uint8_t)(0xe0 | (i >> 12));
+        c[1] = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        c[2] = (uint8_t)(0x80 | (i & 0x3f));
+        return 3;
     }
     if (i < 0x200000) {
-        *c++ = (uint8_t)(0xf0 | (i >> 18));
-        *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
-        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
-        *c++ = (uint8_t)(0x80 | (i & 0x3f));
-        return c;
+        c[0] = (uint8_t)(0xf0 | (i >> 18));
+        c[1] = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+        c[2] = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        c[3] = (uint8_t)(0x80 | (i & 0x3f));
+        return 4;
     }
     if (i < 0x4000000) {
-        *c++ = (uint8_t)(0xf8 | (i >> 24));
-        *c++ = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
-        *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
-        *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
-        *c++ = (uint8_t)(0x80 | (i & 0x3f));
-        return c;
+        c[0] = (uint8_t)(0xf8 | (i >> 24));
+        c[1] = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
+        c[2] = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+        c[3] = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+        c[4] = (uint8_t)(0x80 | (i & 0x3f));
+        return 5;
     }
-    if ((i & ~(uchar_t)0x7fffffff) != 0) return c;
-    *c++ = (uint8_t)(0xfc | (i >> 30));
-    *c++ = (uint8_t)(0x80 | ((i >> 24) & 0x3f));
-    *c++ = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
-    *c++ = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
-    *c++ = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
-    *c++ = (uint8_t)(0x80 | (i & 0x3f));
-    return c;
+    if ((i & ~(uchar_t)0x7fffffff) != 0) return 0;
+    c[0] = (uint8_t)(0xfc | (i >> 30));
+    c[1] = (uint8_t)(0x80 | ((i >> 24) & 0x3f));
+    c[2] = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
+    c[3] = (uint8_t)(0x80 | ((i >> 12) & 0x3f));
+    c[4] = (uint8_t)(0x80 | ((i >> 6) & 0x3f));
+    c[5] = (uint8_t)(0x80 | (i & 0x3f));
+    return 6;
 }
 
 static inline unsigned int utf8outlen(uchar_t i) {
@@ -99,9 +99,9 @@ static inline unsigned int utf8outlen(uchar_t i) {
 }
 
 MUST_CHECK bool extend_ubuff(struct ubuff_s *d) {
-    size_t len = d->len + 16;
+    uint32_t len = d->len + 16;
     uchar_t *data;
-    if (/*d->len < 16 ||*/ len > SIZE_MAX / sizeof *data) return true;
+    if (len < 16 || ((size_t)len + 0) > SIZE_MAX / sizeof *data) return true;
     data = (uchar_t *)realloc(d->data, len * sizeof *data);
     if (data == NULL) return true;
     d->data = data;
@@ -175,7 +175,7 @@ static MUST_CHECK bool udecompose(uchar_t ch, struct ubuff_s *d, int options) {
 }
 
 static void unormalize(struct ubuff_s *d) {
-    size_t pos, max;
+    uint32_t pos, max;
     if (d->p < 2) return;
     pos = 0;
     max = d->p - 1;
@@ -204,12 +204,12 @@ static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
     const struct properties_s *prop, *sprop = NULL;
     uchar_t ch;
     int mclass = -1;
-    size_t i, sp = (size_t)-1;
+    uint32_t i, sp = ~(uint32_t)0;
     d->p = 0;
     for (i = 0; i < buff->p; i++) {
         ch = buff->data[i];
         prop = uget_property(ch);
-        if (sp != (size_t)-1 && prop->combclass > mclass) {
+        if (sp != ~(uint32_t)0 && prop->combclass > mclass) {
             uchar_t sc = d->data[sp];
             if (sc >= 0xac00) {
                 uchar_t hs = sc - 0xac00;
@@ -251,7 +251,7 @@ static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
 }
 
 MUST_CHECK bool unfc(struct ubuff_s *b) {
-    size_t i;
+    uint32_t i;
     static struct ubuff_s dbuf;
     if (b == NULL) {
         free(dbuf.data);
@@ -268,6 +268,7 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     const uint8_t *d;
     uint8_t *s;
     size_t i, l;
+    uint32_t j;
     static struct ubuff_s dbuf, dbuf2;
     if (s2 == NULL) {
         free(dbuf.data);
@@ -276,7 +277,8 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     }
     mode = ((mode != 0) ? U_CASEFOLD : 0) | U_COMPAT;
     d = s2->data;
-    for (dbuf.p = i = 0; i < s2->len;) {
+    dbuf.p = 0;
+    for (i = 0; i < s2->len;) {
         uchar_t ch = d[i];
         if ((ch & 0x80) != 0) {
             i += utf8in(d + i, &ch);
@@ -290,8 +292,9 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     }
     unormalize(&dbuf);
     if (ucompose(&dbuf, &dbuf2)) return true;
-    for (l = i = 0; i < dbuf2.p; i++) {
-        uchar_t ch = dbuf2.data[i];
+    l = 0;
+    for (j = 0; j < dbuf2.p; j++) {
+        uchar_t ch = dbuf2.data[j];
         l += (ch != 0 && ch < 0x80) ? 1 : utf8outlen(ch);
     }
     s = (uint8_t *)s1->data;
@@ -301,13 +304,13 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
         s1->data = s;
     }
     s1->len = l;
-    for (i = 0; i < dbuf2.p; i++) {
-        uchar_t ch = dbuf2.data[i];
+    for (j = 0; j < dbuf2.p; j++) {
+        uchar_t ch = dbuf2.data[j];
         if (ch != 0 && ch < 0x80) {
             *s++ = (uint8_t)ch;
             continue;
         }
-        s = utf8out(ch, s);
+        s += utf8out(ch, s);
     }
     return false;
 }

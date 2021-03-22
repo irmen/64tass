@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2508 2021-03-14 16:12:04Z soci $
+    $Id: functionobj.c 2552 2021-03-20 01:18:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -457,14 +457,14 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
     }
     
     if (cfile2 != NULL) {
-        size_t offset, ln = cfile2->len;
+        filesize_t offset, ln = cfile2->len;
         Bytes *b;
         if (offs < 0) offset = ((uval_t)-offs < ln) ? (ln - (uval_t)-offs) : 0;
         else offset = (uval_t)offs;
         if (offset < ln) ln -= offset; else ln = 0;
         if (length < ln) ln = length;
         if (ln == 0) return val_reference(null_bytes);
-        if (ln > SSIZE_MAX) return new_error_mem(op->epoint);
+        if (((size_t)ln + 0) > SSIZE_MAX) return new_error_mem(op->epoint);
         b = new_bytes(ln);
         b->len = (ssize_t)ln;
         memcpy(b->data, cfile2->data + offset, ln);

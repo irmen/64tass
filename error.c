@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2535 2021-03-17 23:12:09Z soci $
+    $Id: error.c 2544 2021-03-19 23:01:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -220,7 +220,7 @@ static bool new_error_msg(Severity_types severity, const struct file_list_s *fli
     }
     switch (severity) {
     case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && not_in_file(pline, flist->file)) ? (strlen((const char *)pline) + 1) : 0; break;
     }
     new_error_msg_common(severity, flist, epoint, line_len, macro_error_translate2(epoint->pos));
     if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
@@ -666,7 +666,7 @@ static void new_error_msg_more(void) {
     size_t line_len;
     switch (new_error_msg_more_param.severity) {
     case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && (size_t)(pline - flist->file->data) >= flist->file->len) ? (strlen((const char *)pline) + 1) : 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && not_in_file(pline, flist->file)) ? (strlen((const char *)pline) + 1) : 0; break;
     }
     new_error_msg_common(SV_NOTE, flist, epoint, line_len, macro_error_translate2(epoint->pos));
     if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
@@ -758,7 +758,7 @@ void err_msg_not_defined2(const str_t *name, Namespace *l, bool down, linepos_t 
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
-    err->u.notdef.symbol = Obj(new_symbol(name, epoint));
+    err->u.notdef.symbol = new_symbol(name, epoint);
     err_msg_not_defined3(err);
     val_destroy(Obj(err));
 }
@@ -767,7 +767,7 @@ void err_msg_not_defined2a(ssize_t count, Namespace *l, bool down, linepos_t epo
     Error *err = new_error(ERROR___NOT_DEFINED, epoint);
     err->u.notdef.down = down;
     err->u.notdef.names = ref_namespace(l);
-    err->u.notdef.symbol = Obj(new_anonsymbol(count));
+    err->u.notdef.symbol = new_anonsymbol(count);
     err_msg_not_defined3(err);
     val_destroy(Obj(err));
 }
@@ -1353,7 +1353,7 @@ void err_msg_unknown_char(uchar_t ch, const str_t *name, linepos_t epoint) {
     uint8_t line[256], *s = line;
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("can't encode character '");
-    if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s = utf8out(ch, s);
+    if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s += utf8out(ch, s);
     sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror((char *)line);
     adderror2(name->data, name->len);
     adderror("'");
@@ -1566,7 +1566,7 @@ void err_init(const char *name) {
     file_list_file.name = "";
     file_list_file.realname = file_list_file.name;
     file_list_file.data = (uint8_t *)0;
-    file_list_file.len = SIZE_MAX;
+    file_list_file.len = ~(filesize_t)0;
     file_list.flist.file = &file_list_file;
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
@@ -1660,7 +1660,7 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
             if (w == 0 || l == 0) break;
             l = 1;
         }
-        s2[utf8out((uchar_t)w, s2) - s2] = 0;
+        s2[utf8out((uchar_t)w, s2)] = 0;
         adderror((char *)s2);
         i += (size_t)l;
     }

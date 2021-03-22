@@ -1,5 +1,5 @@
 /*
-    $Id: inttypes.h 2508 2021-03-14 16:12:04Z soci $
+    $Id: inttypes.h 2547 2021-03-19 23:40:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,13 +83,13 @@ typedef SSIZE_T ssize_t;
 typedef uint32_t argcount_t;
 #define PRIuargcount PRIu32
 typedef uint32_t uchar_t;
-typedef uint32_t line_t;
+typedef uint32_t linenum_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
 typedef uint32_t address_t;
 #define PRIaddress PRIx32
 typedef uint32_t linecpos_t;
-struct linepos_s {line_t line;linecpos_t pos;};
+struct linepos_s {linenum_t line;linecpos_t pos;};
 #define PRIlinepos PRIu32
 typedef const struct linepos_s *linepos_t;
 typedef int32_t ival_t;

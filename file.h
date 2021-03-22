@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2428 2021-02-28 11:48:36Z soci $
+    $Id: file.h 2547 2021-03-19 23:40:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,16 +28,18 @@ typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO
 } Encoding_types;
 
+typedef uint32_t filesize_t;
+
 struct file_s {
     const char *name;
     const char *realname;
     str_t base;
     int hash;
     uint8_t *nomacro;
-    size_t *line;
-    line_t lines;
+    filesize_t *line;
+    linenum_t lines;
     uint8_t *data;    /* data */
-    size_t len;       /* length */
+    filesize_t len;   /* length */
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
     unsigned int type;
@@ -49,8 +51,10 @@ struct file_s {
     Encoding_types encoding;
 };
 
+#define not_in_file(a, b) ((size_t)((a) - (1 ? (b) : (struct file_s *)(b))->data) >= (b)->len)
+
 struct star_s {
-    line_t line, vline;
+    linenum_t line, vline;
     address_t addr;
     uint8_t pass;
 };
@@ -61,8 +65,8 @@ static inline bool dash_name(const char *name) {
 
 extern struct file_s *openfile(const char *, const char *, unsigned int, const struct str_t *, linepos_t);
 extern void closefile(struct file_s*);
-extern struct star_s *new_star(line_t, bool *);
-extern struct star_s *init_star(line_t);
+extern struct star_s *new_star(linenum_t, bool *);
+extern struct star_s *init_star(linenum_t);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);

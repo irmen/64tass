@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.c 2518 2021-03-14 19:05:51Z soci $
+    $Id: anonsymbolobj.c 2541 2021-03-19 19:48:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,10 +40,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return new_error_conv(v1, ANONSYMBOL_OBJ, epoint);
 }
 
-Anonsymbol *new_anonsymbol(ssize_t count) {
+Obj *new_anonsymbol(ssize_t count) {
     Anonsymbol *anonsymbol = Anonsymbol(val_alloc(ANONSYMBOL_OBJ));
     anonsymbol->count = count;
-    return anonsymbol;
+    return Obj(anonsymbol);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

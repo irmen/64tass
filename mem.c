@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2524 2021-03-14 22:13:09Z soci $
+    $Id: mem.c 2559 2021-03-20 12:53:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,15 +37,14 @@
 #include "memblocksobj.h"
 
 static int memblockcomp(const void *a, const void *b) {
-    const struct memblock_s *aa = (const struct memblock_s *)a;
-    const struct memblock_s *bb = (const struct memblock_s *)b;
-    address_t ad = aa->addr, bd = bb->addr;
-    if (ad < bd) return -1;
-    return (ad > bd) ? 1 : 0;
+    address_t aa = ((const struct memblock_s *)a)->addr;
+    address_t bb = ((const struct memblock_s *)b)->addr;
+    if (aa < bb) return -1;
+    return (aa > bb) ? 1 : 0;
 }
 
 static void memcomp(Memblocks *memblocks, bool nomerge) {
-    unsigned int i, j, k;
+    size_t i, j, k;
     if (!memblocks->flattened) {
         memblocks->flattened = true;
         memjmp(memblocks, 0);
@@ -195,7 +194,7 @@ err:
 
 static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     address_t pos, end;
-    unsigned int i;
+    size_t i;
     unsigned char header[4];
 
     if (memblocks->p == 0) return;

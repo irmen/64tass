@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2492 2021-03-09 23:53:31Z soci $
+    $Id: boolobj.c 2560 2021-03-21 14:15:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -134,8 +134,8 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_WORD:
     case O_BSWORD:
         return bits_calc1(op->op->op, v1 ? 1U : 0U);
-    case O_INV: return ibits_from_bool(v1);
-    case O_NEG: return v1 ? ibits_from_bool(false) : val_reference(bits_value[0]);
+    case O_INV: return val_reference(ibits_value[v1 ? 1 : 0]);
+    case O_NEG: return val_reference(v1 ? ibits_value[0] : bits_value[0]);
     case O_POS: return val_reference(bits_value[v1 ? 1 : 0]);
     case O_STRING:
         v = new_str2(1);
@@ -181,9 +181,9 @@ static MUST_CHECK Obj *calc2_bool(oper_t op) {
     case O_AND: return truth_reference(v1 && v2);
     case O_OR: return truth_reference(v1 || v2);
     case O_XOR: return truth_reference(v1 != v2);
-    case O_LSHIFT: return v2 ? bits_from_bools(v1, false) : val_reference(bits_value[v1 ? 1 : 0]);
+    case O_LSHIFT: return v2 ? bits_from_uval(v1 ? 2 : 0, 2) : val_reference(bits_value[v1 ? 1 : 0]);
     case O_RSHIFT: return val_reference(v2 ? null_bits : bits_value[v1 ? 1 : 0]);
-    case O_CONCAT: return bits_from_bools(v1, v2);
+    case O_CONCAT: return bits_from_uval((v1 ? 2U : 0U) + (v2 ? 1U : 0U), 2);
     default: break;
     }
     return obj_oper_error(op);

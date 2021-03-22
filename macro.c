@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2537 2021-03-19 06:41:48Z soci $
+    $Id: macro.c 2547 2021-03-19 23:40:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -307,7 +307,7 @@ bool mtranslate(void) {
         mline->data[p] = 0;
         llist = pline = fault ? (const uint8_t *)"" : mline->data;
     } else {
-        line_t lnum;
+        linenum_t lnum;
         if (cfile->nomacro == NULL) {
             cfile->nomacro = (uint8_t *)calloc((cfile->lines + 7) / 8, sizeof *cfile->nomacro);
             if (cfile->nomacro == NULL) err_msg_out_of_memory();
@@ -439,7 +439,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         val = compile();
         if (context != NULL) pop_context();
     } else {
-        line_t lin = lpoint.line;
+        linenum_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
         struct star_s *stree_old = star_tree;
@@ -532,7 +532,7 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     else if (i < args) err_msg_argnum(args, i, i, epoint);
     if (max != 0) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
-        line_t lin = lpoint.line;
+        linenum_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
         struct star_s *stree_old = star_tree;
@@ -612,8 +612,8 @@ bool get_func_params(Mfunc *v, bool single) {
                     ret = true;
                     break;
                 }
-                if ((size_t)(label.data - v->file_list->file->data) < v->file_list->file->len) param->name = label;
-                else str_cpy(&param->name, &label);
+                if (not_in_file(label.data, v->file_list->file)) str_cpy(&param->name, &label);
+                else param->name = label;
                 str_cfcpy(&param->cfname, &label);
                 if (param->cfname.data != label.data) str_cfcpy(&param->cfname, NULL);
                 else param->cfname = param->name;
@@ -716,8 +716,8 @@ void get_macro_params(Obj *v) {
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);param->cfname.len = 0; param->cfname.data = NULL;}
             str_cfcpy(&cf, &label);
             if (cf.data == label.data) {
-                if ((size_t)(label.data - cfile->data) < cfile->len) param->cfname = label;
-                else str_cpy(&param->cfname, &label);
+                if (not_in_file(label.data, cfile)) str_cpy(&param->cfname, &label);
+                else param->cfname = label;
             } else {str_cfcpy(&cf, NULL); param->cfname = cf;}
             for (j = 0; j < i; j++) if (params[j].cfname.data != NULL) {
                 if (str_cmp(&params[j].cfname, &cf) == 0) break;
@@ -732,8 +732,8 @@ void get_macro_params(Obj *v) {
             lpoint.pos++;
             label.data = pline + lpoint.pos;
             label.len = macro_param_find();
-            if ((size_t)(label.data - cfile->data) < cfile->len) param->init = label;
-            else str_cpy(&param->init, &label);
+            if (not_in_file(label.data, cfile)) str_cpy(&param->init, &label);
+            else param->init = label;
         } else {param->init.len = 0; param->init.data = NULL;}
         ignore();
         if (here() == 0 || here() == ';') {

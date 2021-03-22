@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2519 2021-03-14 19:13:24Z soci $
+    $Id: variables.c 2547 2021-03-19 23:40:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -433,8 +433,8 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
     b = namespace_update(context, lastlb);
 
     if (b == NULL) { /* new label */
-        if ((size_t)(name->data - cflist->file->data) < cflist->file->len) lastlb->name = *name;
-        else str_cpy(&lastlb->name, name);
+        if (not_in_file(name->data, cflist->file)) str_cpy(&lastlb->name, name);
+        else lastlb->name = *name;
         if (lastlb->cfname.data != name->data) str_cfcpy(&lastlb->cfname, NULL);
         else lastlb->cfname = lastlb->name;
         lastlb->file_list = cflist;
@@ -454,9 +454,9 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
 
 void label_move(Label *label, const str_t *name, const struct file_list_s *cflist) {
     bool cfsame = (label->cfname.data == label->name.data);
-    if ((size_t)(label->name.data - label->file_list->file->data) < label->file_list->file->len) {
-        if ((size_t)(name->data - cflist->file->data) < cflist->file->len) label->name = *name;
-        else str_cpy(&label->name, name);
+    if (!not_in_file(label->name.data, label->file_list->file)) {
+        if (not_in_file(name->data, cflist->file)) str_cpy(&label->name, name);
+        else label->name = *name;
     }
     if (cfsame) {
         label->cfname = label->name;
@@ -622,7 +622,7 @@ static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode
     names->len = ln;
 }
 
-static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
+static inline const uint8_t *get_line(const struct file_s *file, linenum_t line) {
     return &file->data[file->line[line - 1]];
 }
 

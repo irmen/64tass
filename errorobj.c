@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2510 2021-03-14 16:16:20Z soci $
+    $Id: errorobj.c 2542 2021-03-19 21:35:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -174,7 +174,7 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     v->epoint.line = epoint->line;
     v->caret = epoint->pos;
     v->epoint.pos = macro_error_translate2(epoint->pos);
-    if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+    if (not_in_file(pline, current_file_list->file)) {
         size_t ln = strlen((const char *)pline) + 1;
         uint8_t *l = (uint8_t *)malloc(ln);
         if (l != NULL) memcpy(l, pline, ln);

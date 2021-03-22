@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.h 2492 2021-03-09 23:53:31Z soci $
+    $Id: bitsobj.h 2560 2021-03-21 14:15:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifndef BITSOBJ_H
 #define BITSOBJ_H
 #include "obj.h"
-#include "stdbool.h"
 #include "oper_e.h"
 
 extern struct Type *const BITS_OBJ;
@@ -41,6 +40,7 @@ typedef struct Bits {
 extern Obj *const null_bits;
 extern Obj *const inv_bits;
 extern Obj *const bits_value[2];
+extern Obj *const ibits_value[2];
 
 extern void bitsobj_init(void);
 extern void bitsobj_names(void);
@@ -50,13 +50,11 @@ struct Str;
 struct Bytes;
 
 extern MUST_CHECK Obj *bits_calc1(Oper_types, unsigned int);
-extern MUST_CHECK Obj *bits_from_hexstr(const uint8_t *, size_t *, linepos_t);
-extern MUST_CHECK Obj *bits_from_binstr(const uint8_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *bits_from_hexstr(const uint8_t *, size_t *);
+extern MUST_CHECK Obj *bits_from_binstr(const uint8_t *, size_t *);
 extern MUST_CHECK Obj *bits_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Obj *bits_from_bytes(const struct Bytes *, linepos_t);
 extern MUST_CHECK Obj *bits_from_uval(uval_t, unsigned int);
-extern MUST_CHECK Obj *ibits_from_bool(bool);
-extern MUST_CHECK Obj *bits_from_bools(bool, bool);
 extern MUST_CHECK Obj *float_from_bits(const Bits *, linepos_t);
 
 #endif

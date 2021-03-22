@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2520 2021-03-14 19:25:33Z soci $
+    $Id: intobj.c 2561 2021-03-21 15:42:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -121,20 +121,28 @@ failed2:
     return new_error_mem(epoint);
 }
 
-static MUST_CHECK Obj *normalize(Int *v, size_t sz, bool neg) {
+static FAST_CALL NO_INLINE Obj *normalize2(Int *v, size_t sz) {
+    if (sz != 0) {
+        do {
+            sz--;
+            v->val[sz] = v->data[sz];
+        } while (sz != 0);
+    } else {
+        v->val[0] = 0;
+    }
+    free(v->data);
+    v->data = v->val;
+    return Obj(v);
+}
+
+static FAST_CALL MUST_CHECK Obj *normalize(Int *v, size_t sz, bool neg) {
     digit_t *d = v->data;
     while (sz != 0 && d[sz - 1] == 0) sz--;
-    if (v->val != d && sz <= (ssize_t)lenof(v->val)) {
-        if (sz != 0) {
-            memcpy(v->val, d, sz * sizeof *d);
-        } else {
-            v->val[0] = 0;
-        }
-        free(d);
-        v->data = v->val;
-    }
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     v->len = neg ? -(ssize_t)sz : (ssize_t)sz;
+    if (v->val != d && sz <= lenof(v->val)) {
+        return normalize2(v, sz);
+    }
     return Obj(v);
 }
 
@@ -1499,7 +1507,7 @@ failed2:
     return new_error_mem(epoint);
 }
 
-MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linepos_t epoint) {
+MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     const uint8_t *end;
     size_t i, j, k, sz;
     digit_t *d, *end2, val;
@@ -1510,7 +1518,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
         for (;;k++) {
             uint8_t c = s[k] ^ 0x30;
             if (c < 10) {
-                val = (val <= ((~(digit_t)0)-9)/10) ? val * 10 + c : ~(digit_t)0;
+                if (val <= ((~(digit_t)0)-9)/10) val = val * 10 + c;
                 continue;
             }
             if (c != ('_' ^ 0x30)) break;
@@ -1524,7 +1532,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (~val != 0) {
+    if (val <= ((~(digit_t)0)-9)/10) {
         if (val >= lenof(int_value)) {
             v = new_int();
             v->data = v->val;
@@ -1543,12 +1551,11 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
     end = s + k;
     end2 = d;
     while (s < end) {
-        digit_t *d2 = d;
-        twodigits_t mul, a;
-        for (a = j = 0; j < 9 && s < end; s++) {
+        digit_t *d2, mul;
+        for (val = j = 0; j < 9 && s < end; s++) {
             uint8_t c = *s ^ 0x30;
             if (c < 10) {
-                a = a * 10 + c;
+                val = val * 10 + c;
                 j++;
                 continue;
             }
@@ -1558,13 +1565,13 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
             mul = 10;
             while ((--j) != 0) mul *= 10;
         }
+        d2 = d;
         while (d2 < end2) {
-            twodigits_t m = *d2 * mul;
-            a += m;
+            twodigits_t a = (twodigits_t)*d2 * mul + val;
             *d2++ = (digit_t)a;
-            a >>= SHIFT;
+            val = (digit_t)(a >> SHIFT);
         }
-        if (a != 0) {
+        if (val != 0) {
             if (end2 >= &d[sz]) {
                 sz++;
                 if (sz > lenof(v->val)) {
@@ -1582,7 +1589,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
                 }
                 end2 = d + sz - 1;
             }
-            *end2++ = (digit_t)a;
+            *end2++ = val;
         }
     }
 
@@ -1590,7 +1597,7 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2, linep
     return normalize(v, sz, false);
 failed2:
     val_destroy(Obj(v));
-    return new_error_mem(epoint);
+    return NULL;
 }
 
 static MUST_CHECK Obj *calc2_int(oper_t op) {

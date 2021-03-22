@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2522 2021-03-14 20:16:55Z soci $
+    $Id: file.c 2550 2021-03-20 01:04:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -372,7 +372,7 @@ static void file_free(struct file_s *a)
 
 static bool extendfile(struct file_s *tmp) {
     uint8_t *d;
-    size_t len2 = tmp->len + 4096;
+    filesize_t len2 = tmp->len + 4096;
     if (len2 < 4096) return true; /* overflow */
     d = (uint8_t *)realloc(tmp->data, len2);
     if (d == NULL) return true;
@@ -381,19 +381,17 @@ static bool extendfile(struct file_s *tmp) {
     return false;
 }
 
-static uint8_t *flush_ubuff(struct ubuff_s *ubuff, uint8_t *p, struct file_s *tmp) {
-    size_t i;
+static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_s *tmp) {
+    uint32_t i;
+    filesize_t p = *p2;
     for (i = 0; i < ubuff->p; i++) {
-        size_t o = (size_t)(p - tmp->data);
         uchar_t ch;
-        if (o + 6*6 + 1 > tmp->len) {
-            if (extendfile(tmp)) return NULL;
-            p = tmp->data + o;
-        }
+        if (p + 6*6 + 1 > tmp->len && extendfile(tmp)) return true;
         ch = ubuff->data[i];
-        if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
+        if (ch != 0 && ch < 0x80) tmp->data[p++] = (uint8_t)ch; else p += utf8out(ch, tmp->data + p);
     }
-    return p;
+    *p2 = p;
+    return false;
 }
 
 static uchar_t fromiso2(uchar_t c) {
@@ -418,12 +416,12 @@ static inline uchar_t fromiso(uchar_t c) {
     return conv[c];
 }
 
-static size_t fsize(FILE *f) {
+static filesize_t fsize(FILE *f) {
 #if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
     struct stat st;
     if (fstat(fileno(f), &st) == 0) {
         if (S_ISREG(st.st_mode) && st.st_size > 0) {
-            return (size_t)st.st_size;
+            return (st.st_size & ~(off_t)~(filesize_t)0) == 0 ? (filesize_t)st.st_size : ~(filesize_t)0;
         }
     }
 #else
@@ -431,7 +429,7 @@ static size_t fsize(FILE *f) {
         long len = ftell(f);
         rewind(f);
         if (len > 0) {
-            return (size_t)len;
+            return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
         }
     }
 #endif
@@ -466,7 +464,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
         Encoding_types encoding = E_UNKNOWN;
         FILE *f;
         uchar_t c = 0;
-        size_t fp = 0;
+        filesize_t fp = 0;
 
         lastfi->nomacro = NULL;
         lastfi->line = NULL;
@@ -510,7 +508,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
             tmp->read_error = true;
             if (ftype == 1) {
                 bool check;
-                size_t fs = fsize(f);
+                filesize_t fs = fsize(f);
                 if (fs > 0) {
                     tmp->data = (uint8_t *)malloc(fs);
                     if (tmp->data != NULL) tmp->len = fs;
@@ -519,7 +517,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 clearerr(f); errno = 0;
                 if (tmp->len != 0 || !extendfile(tmp)) {
                     for (;;) {
-                        fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
+                        fp += (filesize_t)fread(tmp->data + fp, 1, tmp->len - fp, f);
                         if (feof(f) == 0 && fp >= tmp->len) {
                             if (check) {
                                 int c2 = getc(f);
@@ -541,18 +539,19 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
             } else {
                 struct ubuff_s ubuff = last_ubuff;
                 size_t max_lines = 0;
-                line_t lines = 0;
+                linenum_t lines = 0;
                 uint8_t buffer[BUFSIZ * 2];
-                size_t bp = 0, bl, qr = 1;
-                size_t fs = fsize(f);
+                size_t bp = 0, bl;
+                unsigned int qr = 1;
+                filesize_t fs = fsize(f);
                 if (fs > 0) {
-                    size_t len2 = fs + 4096;
-                    if (len2 < 4096) len2 = SIZE_MAX; /* overflow */
+                    filesize_t len2 = fs + 4096;
+                    if (len2 < 4096) len2 = ~(filesize_t)0; /* overflow */
                     tmp->data = (uint8_t *)malloc(len2);
                     if (tmp->data != NULL) tmp->len = len2;
                     max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
                     if (max_lines > SIZE_MAX / sizeof *tmp->line) max_lines = SIZE_MAX / sizeof *tmp->line; /* overflow */
-                    tmp->line = (size_t *)malloc(max_lines * sizeof *tmp->line);
+                    tmp->line = (filesize_t *)malloc(max_lines * sizeof *tmp->line);
                     if (tmp->line == NULL) max_lines = 0;
                 }
                 clearerr(f); errno = 0;
@@ -563,31 +562,27 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
 #endif
                 ubuff.p = 0;
                 do {
-                    size_t k;
-                    uint8_t *p;
+                    filesize_t p;
                     uchar_t lastchar;
                     bool qc = true;
                     uint8_t cclass = 0;
 
                     if (lines >= max_lines) {
-                        size_t *d, len2 = max_lines + 1024;
+                        filesize_t *d;
+                        size_t len2 = max_lines + 1024;
                         if (/*len2 < 1024 ||*/ len2 > SIZE_MAX / sizeof *tmp->line) goto failed; /* overflow */
-                        d = (size_t *)realloc(tmp->line, len2 * sizeof *tmp->line);
+                        d = (filesize_t *)realloc(tmp->line, len2 * sizeof *tmp->line);
                         if (d == NULL) goto failed;
                         tmp->line = d;
                         max_lines = len2;
                     }
-                    if ((line_t)(lines + 1) < 1) goto failed; /* overflow */
+                    if ((linenum_t)(lines + 1) < 1) goto failed; /* overflow */
                     tmp->line[lines++] = fp;
-                    p = tmp->data + fp;
+                    p = fp;
                     for (;;) {
                         unsigned int i, j;
-                        size_t o = (size_t)(p - tmp->data);
                         uint8_t ch2;
-                        if (o + 6*6 + 1 > tmp->len) {
-                            if (extendfile(tmp)) goto failed;
-                            p = tmp->data + o;
-                        }
+                        if (p + 6*6 + 1 > tmp->len && extendfile(tmp)) goto failed;
                         if (bp / (BUFSIZ / 2) == qr) {
                             if (qr == 1) {
                                 qr = 3;
@@ -608,7 +603,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                             if (c == 13) {
                                 break;
                             }
-                            if (c != 0 && c < 0x80) *p++ = (uint8_t)c; else p = utf8out(c, p);
+                            if (c != 0 && c < 0x80) tmp->data[p++] = (uint8_t)c; else p += utf8out(c, tmp->data + p);
                             continue;
                         }
                         switch (encoding) {
@@ -726,10 +721,9 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                                 qc = true;
                             }
                             if (ubuff.p == 1) {
-                                if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) tmp->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], tmp->data + p);
                             } else {
-                                p = flush_ubuff(&ubuff, p, tmp);
-                                if (p == NULL) goto failed;
+                                if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, tmp)) goto failed;
                                 ubuff.p = 1;
                             }
                             ubuff.data[0] = c;
@@ -746,10 +740,9 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                                     qc = true;
                                 }
                                 if (ubuff.p == 1) {
-                                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) *p++ = (uint8_t)ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) tmp->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], tmp->data + p);
                                 } else {
-                                    p = flush_ubuff(&ubuff, p, tmp);
-                                    if (p == NULL) goto failed;
+                                    if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, tmp)) goto failed;
                                     ubuff.p = 1;
                                 }
                                 ubuff.data[0] = c;
@@ -759,15 +752,16 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                     }
                 eof:
                     if (!qc && unfc(&ubuff)) goto failed;
-                    p = flush_ubuff(&ubuff, p, tmp);
-                    if (p == NULL) goto failed;
+                    if (ubuff.p == 1) {
+                        if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) tmp->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], tmp->data + p);
+                    } else {
+                        if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, tmp)) goto failed;
+                    }
                     ubuff.p = 0;
-                    k = (size_t)(p - tmp->data) - fp;
-                    p = tmp->data + fp;
-                    while (k != 0 && (p[k-1]==' ' || p[k-1]=='\t')) k--;
-                    if (fp == 0 && k > 1 && p[0] == '#' && p[1] == '!') k = 0;
-                    p[k++] = 0;
-                    fp += k;
+                    while (p > fp && (tmp->data[p - 1] == ' ' || tmp->data[p - 1] == '\t')) p--;
+                    if (fp == 0 && p > 1 && tmp->data[0] == '#' && tmp->data[1] == '!') p = 0;
+                    tmp->data[p++] = 0;
+                    fp = p;
                 } while (bp != bl);
                 err = 0;
             failed:
@@ -777,18 +771,18 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 last_ubuff = ubuff;
                 tmp->lines = lines;
                 if (lines != max_lines) {
-                    size_t *d = (size_t *)realloc(tmp->line, lines * sizeof *tmp->line);
+                    filesize_t *d = (filesize_t *)realloc(tmp->line, lines * sizeof *tmp->line);
                     if (lines == 0 || d != NULL) tmp->line = d;
                 }
             }
-            tmp->len = fp;
             if (fp == 0) {
                 free(tmp->data);
                 tmp->data = NULL;
-            } else {
+            } else if (tmp->len != fp) {
                 uint8_t *d = (uint8_t *)realloc(tmp->data, fp);
                 if (d != NULL) tmp->data = d;
             }
+            tmp->len = fp;
             if (err != 0) errno = ENOMEM;
             err |= ferror(f);
             if (f != stdin) err |= fclose(f);
@@ -847,8 +841,8 @@ struct starnode_s {
 
 static FAST_CALL int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    line_t a = cavltree_container_of(aa, struct starnode_s, node)->star.line;
-    line_t b = cavltree_container_of(bb, struct starnode_s, node)->star.line;
+    linenum_t a = cavltree_container_of(aa, struct starnode_s, node)->star.line;
+    linenum_t b = cavltree_container_of(bb, struct starnode_s, node)->star.line;
     return (a > b) - (a < b);
 }
 
@@ -859,7 +853,7 @@ static struct stars_s {
 
 static struct starnode_s *lastst;
 static int starsp;
-struct star_s *new_star(line_t line, bool *exists) {
+struct star_s *new_star(linenum_t line, bool *exists) {
     struct avltree_node *b;
     struct starnode_s *tmp;
     lastst->star.line = line;
@@ -890,7 +884,7 @@ struct star_s *new_star(line_t line, bool *exists) {
 
 static struct starnode_s star_root;
 
-struct star_s *init_star(line_t i) {
+struct star_s *init_star(linenum_t i) {
     bool starexists;
     struct star_s *s;
     star_tree = &star_root.star;

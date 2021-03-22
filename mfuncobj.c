@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2538 2021-03-19 06:55:14Z soci $
+    $Id: mfuncobj.c 2542 2021-03-19 21:35:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ static FAST_CALL void destroy(Obj *o1) {
     size_t k;
     while ((i--) != 0) {
         struct mfunc_param_s *param = &v1->param[i];
-        if ((size_t)(param->name.data - cfile->data) >= cfile->len) free((char *)param->name.data);
+        if (not_in_file(param->name.data, cfile)) free((char *)param->name.data);
         if (param->name.data != param->cfname.data) free((char *)param->cfname.data);
         if (param->init != NULL) val_destroy(param->init);
     }
@@ -83,7 +83,7 @@ static FAST_CALL void garbage(Obj *o1, int j) {
         cfile = v1->file_list->file;
         while ((i--) != 0) {
             struct mfunc_param_s *param = &v1->param[i];
-            if ((size_t)(param->name.data - cfile->data) >= cfile->len) free((char *)param->name.data);
+            if (not_in_file(param->name.data, cfile)) free((char *)param->name.data);
             if (param->name.data != param->cfname.data) free((char *)param->cfname.data);
         }
         free(v1->param);

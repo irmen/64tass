@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2518 2021-03-14 19:05:51Z soci $
+    $Id: symbolobj.c 2542 2021-03-19 21:35:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,16 +44,16 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     return new_error_conv(v1, SYMBOL_OBJ, epoint);
 }
 
-Symbol *new_symbol(const str_t *name, linepos_t epoint) {
-    Symbol *idn = Symbol(val_alloc(SYMBOL_OBJ));
-    if ((size_t)(name->data - current_file_list->file->data) < current_file_list->file->len) idn->name = *name;
-    else str_cpy(&idn->name, name);
-    idn->cfname.data = NULL;
-    idn->cfname.len = 0;
-    idn->hash = -1;
-    idn->file_list = current_file_list;
-    idn->epoint = *epoint;
-    return idn;
+Obj *new_symbol(const str_t *name, linepos_t epoint) {
+    Symbol *symbol = Symbol(val_alloc(SYMBOL_OBJ));
+    if (not_in_file(name->data, current_file_list->file)) str_cpy(&symbol->name, name);
+    else symbol->name = *name;
+    symbol->cfname.data = NULL;
+    symbol->cfname.len = 0;
+    symbol->hash = -1;
+    symbol->file_list = current_file_list;
+    symbol->epoint = *epoint;
+    return Obj(symbol);
 }
 
 static FAST_CALL NO_INLINE void symbol_destroy(Symbol *v1) {
@@ -77,7 +77,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 static FAST_CALL void destroy(Obj *o1) {
     Symbol *v1 = Symbol(o1);
     const struct file_s *cfile = v1->file_list->file;
-    if ((size_t)(v1->name.data - cfile->data) >= cfile->len) symbol_destroy(v1);
+    if (not_in_file(v1->name.data, cfile)) symbol_destroy(v1);
     if (v1->cfname.data != NULL && v1->name.data != v1->cfname.data) free((uint8_t *)v1->cfname.data);
 }
 

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2537 2021-03-19 06:41:48Z soci $
+    $Id: 64tass.c 2547 2021-03-19 23:40:46Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -75,7 +75,7 @@
 
 struct Listing *listing = NULL;
 int temporary_label_branch; /* function declaration in function context, not good */
-line_t vline;      /* current line */
+linenum_t vline;      /* current line */
 address_t all_mem, all_mem2;
 unsigned int all_mem_bits;
 uint8_t pass = 0, max_pass = MAX_PASS;         /* pass */
@@ -1331,7 +1331,7 @@ static MUST_CHECK bool list_extend2(List *lst) {
 
 static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     int wht;
-    line_t lin;
+    linenum_t lin;
     int nopos = -1;
     struct linepos_s epoint2, epoint3;
     uint8_t *expr, *expr2;
@@ -1506,12 +1506,12 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         expr = expr2 = NULL;
     } else {
         struct linepos_s apoint = lpoint, bpoint = {0, 0};
-        line_t xlin = lpoint.line;
+        linenum_t xlin = lpoint.line;
         struct oper_s tmp;
         const uint8_t *oldpline = pline, *oldpline2 = pline;
         uint8_t skip = 0;
         expr2 = (uint8_t *)oldpline2;
-        if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+        if (not_in_file(pline, current_file_list->file)) {
             size_t lentmp = strlen((const char *)pline) + 1;
             expr = (uint8_t *)mallocx(lentmp);
             memcpy(expr, pline, lentmp);
@@ -1532,7 +1532,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 ignore();if (here() != ',') {err_msg(ERROR______EXPECTED, "','"); waitfor->skip = skip; break;}
                 lpoint.pos++;ignore();
                 oldpline2 = pline;
-                if (pline != expr && (size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+                if (pline != expr && not_in_file(pline, current_file_list->file)) {
                     size_t lentmp = strlen((const char *)pline) + 1;
                     expr2 = (uint8_t *)mallocx(lentmp);
                     memcpy(expr2, pline, lentmp);
@@ -1683,7 +1683,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (cnt == 0) {
         new_waitfor(W_NEXT, epoint); waitfor->skip = 0;
     } else {
-        line_t lin = lpoint.line;
+        linenum_t lin = lpoint.line;
         bool starexists;
         struct star_s *s = new_star(vline, &starexists);
         struct star_s *stree_old = star_tree;
@@ -1729,7 +1729,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     bool starexists;
     size_t i = 0;
     struct linepos_s apoint;
-    line_t xlin;
+    linenum_t xlin;
     const uint8_t *oldpline;
     uint8_t skip = 0;
 
@@ -1748,7 +1748,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     apoint = lpoint;
     xlin = lpoint.line;
     oldpline = pline;
-    if ((size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+    if (not_in_file(pline, current_file_list->file)) {
         size_t lentmp = strlen((const char *)pline) + 1;
         expr = (uint8_t *)mallocx(lentmp);
         memcpy(expr, pline, lentmp);
@@ -1795,7 +1795,7 @@ static Namespace *anonlabel(Namespace *mycontext, uint8_t type, linepos_t epoint
     struct {
         uint8_t type;
         uint8_t padding[3];
-        line_t vline;
+        linenum_t vline;
         struct star_s *star_tree;
     } anonsymbol;
     Label *label;
@@ -1855,7 +1855,7 @@ MUST_CHECK Obj *compile(void)
     struct {
         uint8_t type;
         uint8_t padding[3];
-        line_t vline;
+        linenum_t vline;
         struct star_s *star_tree;
     } anonsymbol2;
     struct linepos_s epoint;
@@ -1929,9 +1929,9 @@ MUST_CHECK Obj *compile(void)
                             if (tmp2->value == none_value) err_msg_still_none(NULL, &epoint);
                             else if (tmp2->value->obj == ERROR_OBJ) err_msg_output(Error(tmp2->value));
                             else {
-                                Symbol *symbol = new_symbol(&labelname, &epoint);
-                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, Obj(symbol), &epoint);
-                                val_destroy(Obj(symbol));
+                                Obj *symbol = new_symbol(&labelname, &epoint);
+                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, symbol, &epoint);
+                                val_destroy(symbol);
                             }
                             error = true;
                         } else mycontext = context;
@@ -2413,7 +2413,7 @@ MUST_CHECK Obj *compile(void)
                             mfunc->nslen = 0;
                             mfunc->namespaces = NULL;
                             mfunc->ipoint = 0;
-                            if (prm == CMD_SFUNCTION && (size_t)(pline - current_file_list->file->data) >= current_file_list->file->len) {
+                            if (prm == CMD_SFUNCTION && not_in_file(pline, current_file_list->file)) {
                                 size_t ln = strlen((const char *)pline) + 1;
                                 uint8_t *l = (uint8_t *)malloc(ln);
                                 if (l != NULL) memcpy(l, pline, ln);
@@ -3544,7 +3544,7 @@ MUST_CHECK Obj *compile(void)
                     } else if (prm==CMD_BINARY) { /* .binary */
                         struct file_s *cfile2 = NULL;
                         ival_t foffs = 0;
-                        size_t fsize = SIZE_MAX;
+                        filesize_t fsize = ~(filesize_t)0;
                         struct values_s *vs;
                         str_t filename;
 
@@ -3570,12 +3570,12 @@ MUST_CHECK Obj *compile(void)
                         }
 
                         if (cfile2 != NULL) {
-                            size_t foffset;
+                            filesize_t foffset;
                             mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                             if (foffs < 0) foffset = (uval_t)-foffs < cfile2->len ? (cfile2->len - (uval_t)-foffs) : 0;
                             else foffset = (uval_t)foffs;
                             for (; fsize != 0 && foffset < cfile2->len;) {
-                                size_t i, ln = cfile2->len - foffset;
+                                filesize_t i, ln = cfile2->len - foffset;
                                 uint8_t *d, *s = cfile2->data + foffset;
                                 if (ln > fsize) ln = fsize;
                                 d = pokealloc(ln, &epoint);
@@ -4204,7 +4204,7 @@ MUST_CHECK Obj *compile(void)
                         bool starexists;
                         struct star_s *s = new_star(vline, &starexists);
                         struct star_s *stree_old = star_tree;
-                        line_t lin = lpoint.line;
+                        linenum_t lin = lpoint.line;
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -4791,7 +4791,7 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         current_address = &root_section.address;
         reset_section(current_section);
         init_macro();
-        star_tree = init_star((line_t)i);
+        star_tree = init_star((linenum_t)i);
 
         if (i == opts - 1) {
             if (fin->lines != 0) {

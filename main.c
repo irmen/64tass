@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2533 2021-03-17 20:28:24Z soci $
+    $Id: main.c 2544 2021-03-19 23:01:43Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -100,7 +100,7 @@ int wmain(int argc, wchar_t *argv2[]) {
             } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
                 c = 0xfffd;
             }
-            if (c != 0 && c < 0x80) *c2++ = (uint8_t)c; else c2 = utf8out(c, c2);
+            if (c != 0 && c < 0x80) *c2++ = (uint8_t)c; else c2 += utf8out(c, c2);
         }
         *c2++ = 0;
         argv[i] = (char *)realloc(argv[i], (size_t)((char *)c2 - argv[i]));
@@ -177,24 +177,22 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < argc; i++) {
         const char *s = (i == 0) ? prgname(*argv) : argv[i];
         mbstate_t ps;
-        uint8_t *p;
+        size_t p;
         size_t n = strlen(s), j = 0;
         size_t len = n + 64;
         uint8_t *data = (uint8_t *)malloc(len);
         if (data == NULL || len < 64) err_msg_out_of_memory2();
 
         memset(&ps, 0, sizeof ps);
-        p = data;
+        p = 0;
         for (;;) {
             ssize_t l;
             wchar_t w;
             uchar_t ch;
-            if (p + 6*6 + 1 > data + len) {
-                size_t o = (size_t)(p - data);
+            if (p + 6*6 + 1 > len) {
                 len += 1024;
                 data = (uint8_t*)realloc(data, len);
                 if (data == NULL) err_msg_out_of_memory2();
-                p = data + o;
             }
             l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
             if (l < 1) {
@@ -204,9 +202,9 @@ int main(int argc, char *argv[]) {
             }
             j += (size_t)l;
             ch = (uchar_t)w;
-            if (ch != 0 && ch < 0x80) *p++ = (uint8_t)ch; else p = utf8out(ch, p);
+            if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
         }
-        *p++ = 0;
+        data[p] = 0;
         uargv[i] = (char *)data;
     }
     if (argc < 1) {

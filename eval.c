@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2531 2021-03-16 06:58:25Z soci $
+    $Id: eval.c 2560 2021-03-21 14:15:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,12 +93,10 @@ FAST_CALL size_t get_label(const uint8_t *s) {
 }
 
 static MUST_CHECK Obj *get_dec(linepos_t epoint) {
-    Obj *v;
     size_t len, len2;
-
-    v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
+    Obj *v = int_from_decstr(pline + lpoint.pos, &len, &len2);
     lpoint.pos += len;
-    return v;
+    return (v != NULL) ? v : new_error_mem(epoint);
 }
 
 static double ldexp10(double d, unsigned int expo, bool neg) {
@@ -124,9 +122,13 @@ static MUST_CHECK Obj *get_exponent(Obj *v1, Obj *v2, size_t len, linepos_t epoi
             size_t len1, len2;
             lpoint.pos++;
 
-            v = int_from_decstr(pline + lpoint.pos, &len1, &len2, epoint);
-            err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
-            val_destroy(v);
+            v = int_from_decstr(pline + lpoint.pos, &len1, &len2);
+            if (v == NULL) {
+                err = Error(new_error_mem(epoint));
+            } else {
+                err = v->obj->uval(v, &expo, 8 * (sizeof expo < sizeof(int) ? sizeof expo : sizeof(int)) - 1, &lpoint);
+                val_destroy(v);
+            }
             lpoint.pos += len1;
             if (err != NULL) {
                 if (v2 != NULL) val_destroy(v2);
@@ -186,41 +188,33 @@ static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
 
 static MUST_CHECK Obj *get_hex(linepos_t epoint) {
     size_t len;
-    Obj *v, *v2;
-
-    v = bits_from_hexstr(pline + lpoint.pos + 1, &len, epoint);
+    Obj *v = bits_from_hexstr(pline + lpoint.pos + 1, &len);
+    if (v == NULL) v = new_error_mem(epoint);
     lpoint.pos += len + 1;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        lpoint.pos++;
-
-        v2 = bits_from_hexstr(pline + lpoint.pos, &len, epoint);
-        lpoint.pos += len;
-        return get_exponent(v, v2, 0, epoint);
+        Obj *v2 = bits_from_hexstr(pline + lpoint.pos + 1, &len);
+        lpoint.pos += len + 1;
+        return get_exponent(v, (v2 != NULL) ? v2 : new_error_mem(epoint), 0, epoint);
     }
     return (here() | 0x20) == 'p' ? get_exponent2(v, epoint) : v;
 }
 
 static MUST_CHECK Obj *get_hex_compat(linepos_t epoint) {
     size_t len;
-    Obj *v;
-
-    v = bits_from_hexstr(pline + lpoint.pos + 1, &len, epoint);
+    Obj *v = bits_from_hexstr(pline + lpoint.pos + 1, &len);
     lpoint.pos += len + 1;
-    return v;
+    return (v != NULL) ? v : new_error_mem(epoint);
 }
 
 static MUST_CHECK Obj *get_bin(linepos_t epoint) {
     size_t len;
-    Obj *v, *v2;
-
-    v = bits_from_binstr(pline + lpoint.pos + 1, &len, epoint);
+    Obj *v = bits_from_binstr(pline + lpoint.pos + 1, &len);
+    if (v == NULL) v = new_error_mem(epoint);
     lpoint.pos += len + 1;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        lpoint.pos++;
-
-        v2 = bits_from_binstr(pline + lpoint.pos, &len, epoint);
-        lpoint.pos += len;
-        return get_exponent(v, v2, 0, epoint);
+        Obj *v2 = bits_from_binstr(pline + lpoint.pos + 1, &len);
+        lpoint.pos += len + 1;
+        return get_exponent(v, (v2 != NULL) ? v2 : new_error_mem(epoint), 0, epoint);
     }
     switch (here() | 0x20) {
     case 'e':
@@ -233,26 +227,20 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
 
 static MUST_CHECK Obj *get_bin_compat(linepos_t epoint) {
     size_t len;
-    Obj *v;
-
-    v = bits_from_binstr(pline + lpoint.pos + 1, &len, epoint);
+    Obj *v = bits_from_binstr(pline + lpoint.pos + 1, &len);
     lpoint.pos += len + 1;
-    return v;
+    return (v != NULL) ? v : new_error_mem(epoint);
 }
 
 static MUST_CHECK Obj *get_float(linepos_t epoint) {
     size_t len, len2;
-    Obj *v, *v2;
-
-    v = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
+    Obj *v = int_from_decstr(pline + lpoint.pos, &len, &len2);
+    if (v == NULL) v = new_error_mem(epoint);
     lpoint.pos += len;
     if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        lpoint.pos++;
-
-        v2 = int_from_decstr(pline + lpoint.pos, &len, &len2, epoint);
-        lpoint.pos += len;
-
-        return get_exponent(v, v2, len2, epoint);
+        Obj *v2 = int_from_decstr(pline + lpoint.pos + 1, &len, &len2);
+        lpoint.pos += len + 1;
+        return get_exponent(v, (v2 != NULL) ? v2 : new_error_mem(epoint), len2, epoint);
     }
     switch (here() | 0x20) {
     case 'e':
@@ -362,7 +350,7 @@ static MUST_CHECK Obj *new_starsymbol(linecpos_t pos) {
     struct linepos_s epoint;
     epoint.line = lpoint.line;
     epoint.pos = pos;
-    return Obj(new_symbol(&symbol, &epoint));
+    return new_symbol(&symbol, &epoint);
 }
 
 static MUST_CHECK Obj *resolv_anonlabel(ssize_t as, linecpos_t pos) {
@@ -379,7 +367,7 @@ static MUST_CHECK Obj *resolv_anonlabel(ssize_t as, linecpos_t pos) {
     epoint.line = lpoint.line;
     epoint.pos = pos;
     err = new_error(ERROR___NOT_DEFINED, &epoint);
-    err->u.notdef.symbol = Obj(new_anonsymbol(as));
+    err->u.notdef.symbol = new_anonsymbol(as);
     err->u.notdef.names = ref_namespace(current_context);
     err->u.notdef.down = true;
     return Obj(err);
@@ -493,7 +481,7 @@ rest:
             val = ref_none();
         } else {
             Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
-            err->u.notdef.symbol = Obj(new_symbol(&symbol, &epoint));
+            err->u.notdef.symbol = new_symbol(&symbol, &epoint);
             err->u.notdef.names = ref_namespace(current_context);
             err->u.notdef.down = true;
             val = Obj(err);
@@ -1428,32 +1416,44 @@ static bool get_exp2(int stop) {
         case '.':
             if ((pline[lpoint.pos + 1] ^ 0x30) >= 10) {
                 str_t symbol;
-                if (pline[lpoint.pos + 1] == '.' && pline[lpoint.pos + 2] == '.') {
-                    lpoint.pos += 3; val = ref_fold(); goto push_other;
-                }
                 symbol.data = pline + lpoint.pos + 1;
                 symbol.len = get_label(symbol.data);
                 if (symbol.len != 0) {
                     lpoint.pos += symbol.len + 1;
                     if (symbol.len > 1 && symbol.data[0] == '_' && symbol.data[1] == '_') err_msg2(ERROR_RESERVED_LABL, &symbol, &epoint);
-                    val = Obj(new_symbol(&symbol, &epoint));
+                    val = new_symbol(&symbol, &epoint);
                     goto push_other;
                 }
-                if (symbol.data[0] == '+' || symbol.data[0] == '-') {
+                switch (symbol.data[0]) {
+                case '+':
+                case '-':
                     while (symbol.data[0] == symbol.data[++symbol.len]);
                     lpoint.pos += symbol.len + 1;
-                    val = Obj(new_anonsymbol((symbol.data[0] == '+') ? ((ssize_t)symbol.len - 1) : -(ssize_t)symbol.len));
+                    val = new_anonsymbol((symbol.data[0] == '+') ? ((ssize_t)symbol.len - 1) : -(ssize_t)symbol.len);
                     goto push_other;
-                }
-                if (symbol.data[0] == '*') {
+                case '*':
                     lpoint.pos += 2;
                     symbol.len = 1;
-                    val = Obj(new_symbol(&symbol, &epoint));
+                    val = new_symbol(&symbol, &epoint);
                     goto push_other;
+                case '(':
+                    lpoint.pos++; 
+                    symbollist++; 
+                    goto tphack2;
+                case '[':
+                    lpoint.pos++; 
+                    symbollist++; 
+                    goto lshack2;
+                case '.':
+                    if (symbol.data[1] == '.') {
+                        lpoint.pos += 3; 
+                        val = ref_fold(); 
+                        goto push_other;
+                    }
+                    /* fall through */
+                default:
+                    goto tryanon;
                 }
-                if (symbol.data[0] == '(') { lpoint.pos++; symbollist++; goto tphack2; }
-                if (symbol.data[0] == '[') { lpoint.pos++; symbollist++; goto lshack2; }
-                goto tryanon;
             }
             val = get_float(&epoint);
             goto push_other;
@@ -1502,7 +1502,7 @@ static bool get_exp2(int stop) {
                 symbol.data = pline + epoint.pos;
                 symbol.len = lpoint.pos - epoint.pos;
                 if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER.v) || symbollist != 0) {
-                    val = Obj(new_symbol(&symbol, &epoint));
+                    val = new_symbol(&symbol, &epoint);
                 } else {
                     down = (symbol.data[0] != '_');
                     l = down ? find_label(&symbol, NULL) : find_label2(&symbol, cheap_context);
@@ -1514,7 +1514,7 @@ static bool get_exp2(int stop) {
                         val = ref_none();
                     } else {
                         Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
-                        err->u.notdef.symbol = Obj(new_symbol(&symbol, &epoint));
+                        err->u.notdef.symbol = new_symbol(&symbol, &epoint);
                         err->u.notdef.names = ref_namespace(down ? current_context : cheap_context);
                         err->u.notdef.down = down;
                         val = Obj(err);
@@ -1528,7 +1528,7 @@ static bool get_exp2(int stop) {
             if (db != opr.p) {
                 ssize_t as = (ssize_t)(db - opr.p) - 1;
                 if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER.v) || symbollist != 0) {
-                    val = Obj(new_anonsymbol(as));
+                    val = new_anonsymbol(as);
                 } else {
                     val = resolv_anonlabel(as, opr.data[opr.p].pos);
                 }
@@ -1539,7 +1539,7 @@ static bool get_exp2(int stop) {
             if (db != opr.p) {
                 ssize_t as = -(ssize_t)(db - opr.p);
                 if ((opr.p != 0 && opr.data[opr.p - 1].val == &o_MEMBER.v) || symbollist != 0) {
-                    val = Obj(new_anonsymbol(as));
+                    val = new_anonsymbol(as);
                 } else {
                     val = resolv_anonlabel(as, opr.data[opr.p].pos);
                 }
