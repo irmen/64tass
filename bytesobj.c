@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2557 2021-03-20 11:52:13Z soci $
+    $Id: bytesobj.c 2569 2021-03-30 21:27:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1285,6 +1285,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_FLOAT:
     case T_CODE:
     case T_ADDRESS:
+    case T_REGISTER:
         {
             Obj *result;
             switch (op->op->op) {
@@ -1352,7 +1353,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             break;
         }
         /* fall through */
-    case T_STR:
     case T_NONE:
     case T_ERROR:
         if (op->op != &o_IN) {

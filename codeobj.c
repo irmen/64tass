@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2526 2021-03-14 23:02:07Z soci $
+    $Id: codeobj.c 2569 2021-03-30 21:27:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -587,14 +587,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return result;
         }
     case T_BOOL:
-        if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
     case T_STR:
     case T_BYTES:
     case T_ADDRESS:
+    case T_REGISTER:
         {
             Obj *tmp, *result;
             switch (op->op->op) {
@@ -604,7 +603,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     bool inplace;
                     ival_t iv;
                     Error *err = o2->obj->ival(o2, &iv, 30, op->epoint2);
-                    if (err != NULL) return Obj(err);
+                    if (err != NULL) { val_destroy(Obj(err)); break; }
                     if (iv == 0) return val_reference(Obj(v1));
                     inplace = (op->inplace == Obj(v1));
                     if (inplace) {
@@ -671,8 +670,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     }
     switch (o1->obj->type) {
     case T_BOOL:
-        if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -682,7 +679,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             if (op->op == &o_ADD) {
                 ival_t iv;
                 Error *err = o1->obj->ival(o1, &iv, 30, op->epoint);
-                if (err != NULL) return Obj(err);
+                if (err != NULL) { val_destroy(Obj(err)); break; }
                 v = new_code();
                 memcpy(((unsigned char *)v) + sizeof(Obj), ((unsigned char *)v2) + sizeof(Obj), sizeof(Code) - sizeof(Obj));
                 v->memblocks = ref_memblocks(v2->memblocks);

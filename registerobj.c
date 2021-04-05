@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2520 2021-03-14 19:25:33Z soci $
+    $Id: registerobj.c 2569 2021-03-30 21:27:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
+#include "addressobj.h"
+#include "intobj.h"
 
 static Type obj;
 
@@ -153,6 +155,28 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     switch (t2->type) {
     case T_REGISTER: 
         return obj_oper_compare(op, icmp(op));
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_BYTES:
+    case T_STR:
+    case T_CODE:
+        if (Register(op->v1)->len == 1) {
+            Address_types am = register_to_indexing(Register(op->v1)->data[0]);
+            if (am == A_NONE) break;
+            if (op->op->op == O_ADD) {
+                return new_address(val_reference(op->v2), am);
+            }
+            if (op->op->op == O_SUB) {
+                op->v1 = int_value[0];
+                op->inplace = NULL;
+                return new_address(INT_OBJ->calc2(op), am);
+            }
+        }
+        break;
+    case T_ADDRESS:
+        return t2->rcalc2(op);
     case T_NONE:
     case T_ERROR:
         return val_reference(op->v2);
@@ -168,6 +192,20 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     const Type *t1 = op->v1->obj;
     switch (t1->type) {
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_BYTES:
+        if (Register(op->v2)->len == 1) {
+            if (op->op->op == O_ADD) {
+                Address_types am = register_to_indexing(Register(op->v2)->data[0]);
+                if (am != A_NONE) {
+                    return new_address(val_reference(op->v1), am);
+                }
+            }
+        }
+        break;
     default:
         if (!t1->iterable) {
             break;

@@ -33,7 +33,7 @@ $(TARGET): $(OBJS)
 addressobj.o: addressobj.c addressobj.h obj.h attributes.h inttypes.h \
  values.h stdbool.h error.h errors_e.h eval.h variables.h arguments.h \
  boolobj.h strobj.h intobj.h operobj.h oper_e.h typeobj.h noneobj.h \
- errorobj.h floatobj.h bitsobj.h bytesobj.h
+ errorobj.h floatobj.h bitsobj.h bytesobj.h registerobj.h
 anonsymbolobj.o: anonsymbolobj.c anonsymbolobj.h obj.h attributes.h \
  inttypes.h eval.h stdbool.h values.h typeobj.h operobj.h oper_e.h \
  strobj.h errorobj.h errors_e.h
@@ -41,8 +41,8 @@ arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
  attributes.h wait_e.h opcodes.h my_getopt.h file.h str.h error.h \
  errors_e.h unicode.h wchar.h
 avl.o: avl.c avl.h attributes.h stdbool.h
-bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h stdbool.h \
- oper_e.h math.h eval.h variables.h unicode.h encoding.h errors_e.h \
+bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h oper_e.h \
+ math.h eval.h stdbool.h variables.h unicode.h encoding.h errors_e.h \
  error.h arguments.h codeobj.h values.h boolobj.h floatobj.h strobj.h \
  bytesobj.h intobj.h listobj.h operobj.h typeobj.h noneobj.h errorobj.h \
  addressobj.h
@@ -177,7 +177,7 @@ optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
  macro.h wait_e.h 64tass.h
 registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
  stdbool.h eval.h variables.h values.h strobj.h operobj.h oper_e.h \
- typeobj.h errorobj.h errors_e.h
+ typeobj.h errorobj.h errors_e.h addressobj.h intobj.h
 section.o: section.c section.h avl.h attributes.h stdbool.h str.h \
  inttypes.h unicode.h error.h errors_e.h 64tass.h wait_e.h values.h \
  intobj.h obj.h longjump.h optimizer.h eval.h mem.h memblocksobj.h

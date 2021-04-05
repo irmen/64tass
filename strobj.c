@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2530 2021-03-15 22:31:01Z soci $
+    $Id: strobj.c 2569 2021-03-30 21:27:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -900,6 +900,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_FLOAT:
     case T_CODE:
     case T_ADDRESS:
+    case T_REGISTER:
         {
             Obj *result;
             switch (op->op->op) {
