@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2492 2021-03-09 23:53:31Z soci $
+    $Id: floatobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ static Type obj;
 
 Type *const FLOAT_OBJ = &obj;
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+MUST_CHECK Obj *float_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -56,6 +56,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(v1, FLOAT_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return float_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -388,7 +392,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (op->op == &o_RSHIFT) shift = -shift;
             return float_from_double_inplace(ldexp(Float(op->v1)->real, shift), op);
         }
-        err = create(v2, op->epoint2);
+        err = float_from_obj(v2, op->epoint2);
         if (err->obj != FLOAT_OBJ) return err;
         op->v2 = err;
         op->inplace = (err->refcount == 1) ? err : NULL;
@@ -414,7 +418,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         /* fall through */
     case T_INT:
     case T_BITS:
-        err = create(v1, op->epoint);
+        err = float_from_obj(v1, op->epoint);
         if (err->obj != FLOAT_OBJ) return err;
         op->v1 = err;
         op->inplace = (err->refcount == 1) ? err : NULL;

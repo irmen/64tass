@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2569 2021-03-30 21:27:52Z soci $
+    $Id: strobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ static inline Str *ref_str(Str *v1) {
     v1->v.refcount++; return v1;
 }
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+MUST_CHECK Obj *str_from_obj(Obj *v1, linepos_t epoint) {
     Obj *v;
     switch (v1->obj->type) {
     case T_NONE:
@@ -58,6 +58,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
         v = v1->obj->str(v1, epoint, SIZE_MAX);
         return v != NULL ? v : new_error_mem(epoint);
     }
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return str_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL NO_INLINE void str_destroy(Str *v1) {

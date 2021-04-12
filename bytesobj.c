@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2569 2021-03-30 21:27:52Z soci $
+    $Id: bytesobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ static inline size_t byteslen(const Bytes *v1) {
 static MUST_CHECK Obj *bytes_from_int(const Int *, linepos_t);
 static MUST_CHECK Obj *bytes_from_u8(unsigned int i);
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+MUST_CHECK Obj *bytes_from_obj(Obj *v1, linepos_t epoint) {
     Obj *err, *ret;
     switch (v1->obj->type) {
     case T_NONE:
@@ -83,6 +83,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(v1, BYTES_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return bytes_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL NO_INLINE void bytes_destroy(Bytes *v1) {

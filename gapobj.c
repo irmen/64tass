@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2495 2021-03-10 00:40:31Z soci $
+    $Id: gapobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,16 +35,6 @@ Type *const GAP_OBJ = &obj;
 static Gap gapval = { { &obj, 1 }, NULL};
 
 Obj *const gap_value = &gapval.v;
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_GAP: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, GAP_OBJ, epoint);
-}
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
@@ -192,7 +182,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void gapobj_init(void) {
     new_type(&obj, T_GAP, "gap", sizeof(Gap));
-    obj.create = create;
     obj.same = same;
     obj.hash = hash;
     obj.repr = repr;

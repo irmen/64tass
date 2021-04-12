@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2563 2021-03-30 21:19:36Z soci $
+    $Id: boolobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ Obj *const true_value = &trueval.v;
 Obj *const false_value = &falseval.v;
 Obj *const bool_value[2] = { &falseval.v, &trueval.v };
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+static MUST_CHECK Obj *bool_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -56,6 +56,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
         break;
     }
     return new_error_conv(v1, BOOL_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return bool_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2526 2021-03-14 23:02:07Z soci $
+    $Id: listobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -143,6 +143,31 @@ static Obj **lextend(List *v, size_t len) {
     return tmp;
 }
 
+static MUST_CHECK Obj *tuple_from_iterable(Obj *v1, Type *typ, linepos_t epoint) {
+    Obj *v;
+    struct iter_s iter;
+    iter.data = v1; v1->obj->getiter(&iter);
+
+    if (iter.len == 0) {
+        v = val_reference((typ == TUPLE_OBJ) ? null_tuple : null_list);
+    } else {
+        Obj **vals, *o2;
+        v = val_alloc(typ);
+        vals = lnew(List(v), iter.len);
+        if (vals == NULL) {
+            v = new_error_mem(epoint);
+        } else {
+            size_t i;
+            for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
+                vals[i] = val_reference(o2);
+            }
+            List(v)->len = i;
+        }
+    } 
+    iter_destroy(&iter);
+    return v;
+}
+
 static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ, linepos_t epoint) {
     size_t i, ln;
     Obj **vals, **data = v1->data;
@@ -158,28 +183,34 @@ static MUST_CHECK Obj *tuple_from_list(List *v1, Type *typ, linepos_t epoint) {
     return Obj(v);
 }
 
-static MUST_CHECK Obj *list_create(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *list_from_obj(Obj *o1, Type *typ, linepos_t epoint) {
+    if (o1->obj == typ) {
+        return val_reference(o1);
+    }
     switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
-    case T_LIST: return val_reference(o1);
-    case T_TUPLE: return tuple_from_list(List(o1), LIST_OBJ, epoint);
-    case T_CODE: return tuple_from_code(Code(o1), LIST_OBJ);
-    default: break;
+        return val_reference(o1);
+    case T_LIST: 
+    case T_TUPLE: 
+        return tuple_from_list(List(o1), typ, epoint);
+    case T_CODE: 
+        return tuple_from_code(Code(o1), typ);
+    default: 
+        if (o1->obj->iterable) {
+            return tuple_from_iterable(o1, typ, epoint);
+        }
+        break;
     }
-    return new_error_conv(o1, LIST_OBJ, epoint);
+    return new_error_conv(o1, typ, epoint);
 }
 
-static MUST_CHECK Obj *tuple_create(Obj *o1, linepos_t epoint) {
-    switch (o1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_TUPLE: return val_reference(o1);
-    case T_LIST: return tuple_from_list(List(o1), TUPLE_OBJ, epoint);
-    case T_CODE: return tuple_from_code(Code(o1), TUPLE_OBJ);
-    default: break;
-    }
-    return new_error_conv(o1, TUPLE_OBJ, epoint);
+static MUST_CHECK Obj *list_create(oper_t op) {
+    return list_from_obj(op->v2, LIST_OBJ, op->epoint2);
+}
+
+static MUST_CHECK Obj *tuple_create(oper_t op) {
+    return list_from_obj(op->v2, TUPLE_OBJ, op->epoint2);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.c 2541 2021-03-19 19:48:02Z soci $
+    $Id: anonsymbolobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,16 +29,6 @@
 static Type obj;
 
 Type *const ANONSYMBOL_OBJ = &obj;
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_ANONSYMBOL: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, ANONSYMBOL_OBJ, epoint);
-}
 
 Obj *new_anonsymbol(ssize_t count) {
     Anonsymbol *anonsymbol = Anonsymbol(val_alloc(ANONSYMBOL_OBJ));
@@ -114,7 +104,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void anonsymbolobj_init(void) {
     new_type(&obj, T_ANONSYMBOL, "anonsymbol", sizeof(Anonsymbol));
-    obj.create = create;
     obj.same = same;
     obj.hash = hash;
     obj.repr = repr;

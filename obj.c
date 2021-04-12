@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2509 2021-03-14 16:15:17Z soci $
+    $Id: obj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -107,7 +107,9 @@ MUST_CHECK Obj *obj_oper_compare(oper_t op, int val) {
     return truth_reference(result);
 }
 
-static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
+static MUST_CHECK Obj *invalid_create(oper_t op) {
+    Obj *v1 = op->v2;
+    if (v1->obj == Type(op->v1)) return val_reference(v1);
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR: return val_reference(v1);
@@ -116,8 +118,7 @@ static MUST_CHECK Obj *invalid_create(Obj *v1, linepos_t epoint) {
         break;
     default: break;
     }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return ref_none();
+    return new_error_conv(v1, Type(op->v1), op->epoint2);
 }
 
 static FAST_CALL bool invalid_same(const Obj *o1, const Obj *o2) {

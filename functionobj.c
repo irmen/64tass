@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2552 2021-03-20 01:18:44Z soci $
+    $Id: functionobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,16 +45,6 @@
 static Type obj;
 
 Type *const FUNCTION_OBJ = &obj;
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_FUNCTION: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, FUNCTION_OBJ, epoint);
-}
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Function *v1 = Function(o1), *v2 = Function(o2);
@@ -245,7 +235,7 @@ static uint64_t random64(void) {
 }
 
 void random_reseed(Obj *o1, linepos_t epoint) {
-    Obj *v = INT_OBJ->create(o1, epoint);
+    Obj *v = int_from_obj(o1, epoint);
     if (v->obj != INT_OBJ) {
         if (v == none_value) err_msg_still_none(NULL, epoint);
         else if (v->obj == ERROR_OBJ) err_msg_output(Error(v));
@@ -507,48 +497,12 @@ static Obj *function_rta_addr(oper_t op, bool rta) {
     return bytes_from_uval(uv, 2);
 }
 
-static MUST_CHECK Obj *apply_func(oper_t op) {
+static MUST_CHECK Obj *function_function(oper_t op) {
     Obj *o2 = op->v2;
     const Type *typ = o2->obj;
     bool inplace = op->inplace == o2;
     double real;
     Error_types err;
-
-    if (typ->iterable) {
-        List *v;
-        size_t i, len;
-        Obj **vals;
-
-        if (!inplace || (typ != TUPLE_OBJ && typ != LIST_OBJ)) {
-            struct iter_s iter;
-            iter.data = o2; typ->getiter(&iter);
-            if (iter.len == 0) {
-                iter_destroy(&iter);
-                return val_reference(typ == TUPLE_OBJ ? null_tuple : null_list);
-            }
-            v = List(val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ));
-            v->data = vals = list_create_elements(v, iter.len);
-            for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
-                op->v2 = o2;
-                op->inplace = inplace && o2->refcount == 1 ? o2 : NULL;
-                vals[i] = apply_func(op);
-            }
-            iter_destroy(&iter);
-            v->len = i;
-            return Obj(v);
-        } 
-        v = List(val_reference(o2));
-        len = v->len;
-        vals = v->data;
-        for (i = 0; i < len; i++) {
-            op->v2 = o2 = vals[i];
-            op->inplace = o2->refcount == 1 ? o2 : NULL;
-            vals[i] = apply_func(op);
-            val_destroy(o2);
-        }
-        return Obj(v);
-    }
-    if (op->v1->obj != FUNCTION_OBJ) return Type(op->v1)->create(op->v2, op->epoint2);
     switch (Function(op->v1)->func) {
     case F_SIZE: return typ->size(op);
     case F_SIGN: return typ->sign(o2, op->epoint2);
@@ -575,7 +529,7 @@ static MUST_CHECK Obj *apply_func(oper_t op) {
     default: break;
     }
     if (typ != FLOAT_OBJ) {
-        o2 = FLOAT_OBJ->create(o2, op->epoint2);
+        o2 = float_from_obj(o2, op->epoint2);
         if (o2->obj != FLOAT_OBJ) return o2;
         inplace = o2->refcount == 1;
     }
@@ -636,11 +590,53 @@ failed:
     return new_error_obj(err, op->v2, op->epoint2);
 }
 
+static MUST_CHECK Obj *apply_func(oper_t op, func_t f) {
+    Obj *o2 = op->v2;
+    const Type *typ = o2->obj;
+
+    if (typ->iterable) {
+        bool inplace = op->inplace == o2;
+        List *v;
+        size_t i, len;
+        Obj **vals;
+
+        if (!inplace || (typ != TUPLE_OBJ && typ != LIST_OBJ)) {
+            struct iter_s iter;
+            iter.data = o2; typ->getiter(&iter);
+            if (iter.len == 0) {
+                iter_destroy(&iter);
+                return val_reference(typ == TUPLE_OBJ ? null_tuple : null_list);
+            }
+            v = List(val_alloc(typ == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ));
+            v->data = vals = list_create_elements(v, iter.len);
+            for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
+                op->v2 = o2;
+                op->inplace = inplace && o2->refcount == 1 ? o2 : NULL;
+                vals[i] = apply_func(op, f);
+            }
+            iter_destroy(&iter);
+            v->len = i;
+            return Obj(v);
+        } 
+        v = List(val_reference(o2));
+        len = v->len;
+        vals = v->data;
+        for (i = 0; i < len; i++) {
+            op->v2 = o2 = vals[i];
+            op->inplace = inplace && o2->refcount == 1 ? o2 : NULL;
+            vals[i] = apply_func(op, f);
+            val_destroy(o2);
+        }
+        return Obj(v);
+    }
+    return f(op);
+}
+
 static MUST_CHECK Obj *to_real(struct values_s *v, double *r) {
     if (v->val->obj == FLOAT_OBJ) {
         *r = Float(v->val)->real;
     } else {
-        Obj *val = FLOAT_OBJ->create(v->val, &v->epoint);
+        Obj *val = float_from_obj(v->val, &v->epoint);
         if (val->obj != FLOAT_OBJ) return val;
         *r = Float(val)->real;
         val_destroy(val);
@@ -825,11 +821,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     case F_LEN: 
                         op->v2 = v->val;
                         return v->val->obj->len(op);
-                    case F_SORT: return function_sort(v->val, &v->epoint);
+                    case F_SORT:
+                        return function_sort(v->val, &v->epoint);
                     default: 
                         op->v2 = v->val;
                         op->inplace = v->val->refcount == 1 ? v->val : NULL;
-                        return apply_func(op);
+                        return apply_func(op, function_function);
                     }
                 }
             default: break;
@@ -849,10 +846,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 MUST_CHECK Obj *apply_convert(oper_t op) {
-    struct values_s *v = Funcargs(op->v2)->val;
-    op->v2 = v->val;
-    op->inplace = v->val->refcount == 1 ? v->val : NULL;
-    return apply_func(op);
+    return apply_func(op, Type(op->v1)->create);
 }
 
 MUST_CHECK Obj *apply_condition(oper_t op) {
@@ -861,7 +855,6 @@ MUST_CHECK Obj *apply_condition(oper_t op) {
 
 void functionobj_init(void) {
     new_type(&obj, T_FUNCTION, "function", sizeof(Function));
-    obj.create = create;
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;

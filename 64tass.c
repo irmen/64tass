@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2547 2021-03-19 23:40:46Z soci $
+    $Id: 64tass.c 2570 2021-04-11 22:11:00Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -3956,7 +3956,7 @@ MUST_CHECK Obj *compile(void)
                     vs = get_val();
                     len2 = 0; chars = 0;
                     for (i = 0; i < len; i++, vs++) {
-                        val = STR_OBJ->create(vs->val, &vs->epoint);
+                        val = str_from_obj(vs->val, &vs->epoint);
                         if (val->obj != STR_OBJ) {
                             if (val == none_value) err_msg_still_none(NULL, &vs->epoint);
                             else if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(Error(val)); break; }

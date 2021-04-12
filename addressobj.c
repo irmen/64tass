@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2568 2021-03-30 21:27:18Z soci $
+    $Id: addressobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ static Type obj;
 
 Type *const ADDRESS_OBJ = &obj;
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+static MUST_CHECK Obj *address_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_BOOL:
     case T_INT:
@@ -55,6 +55,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(v1, ADDRESS_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return address_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -311,28 +315,28 @@ MUST_CHECK Obj *float_from_address(Address *v1, linepos_t epoint) {
     if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return new_error_conv(Obj(v1), FLOAT_OBJ, epoint);
     }
-    return FLOAT_OBJ->create(v1->val, epoint);
+    return float_from_obj(v1->val, epoint);
 }
 
 MUST_CHECK Obj *int_from_address(Address *v1, linepos_t epoint) {
     if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return new_error_conv(Obj(v1), INT_OBJ, epoint);
     }
-    return INT_OBJ->create(v1->val, epoint);
+    return int_from_obj(v1->val, epoint);
 }
 
 MUST_CHECK Obj *bits_from_address(Address *v1, linepos_t epoint) {
     if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return new_error_conv(Obj(v1), BITS_OBJ, epoint);
     }
-    return BITS_OBJ->create(v1->val, epoint);
+    return bits_from_obj(v1->val, epoint);
 }
 
 MUST_CHECK Obj *bytes_from_address(Address *v1, linepos_t epoint) {
     if (v1->type != A_NONE && v1->val != none_value && v1->val->obj != ERROR_OBJ) {
         return new_error_conv(Obj(v1), BYTES_OBJ, epoint);
     }
-    return BYTES_OBJ->create(v1->val, epoint);
+    return bytes_from_obj(v1->val, epoint);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {

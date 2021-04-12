@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: floatobj.h 2570 2021-04-11 22:11:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,5 +42,6 @@ static inline MUST_CHECK Obj *new_float(double d) {
 struct oper_s;
 
 extern MUST_CHECK Obj *float_from_double(double, linepos_t);
+extern MUST_CHECK Obj *float_from_obj(Obj *, linepos_t);
 
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2569 2021-03-30 21:27:52Z soci $
+    $Id: registerobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ static inline MALLOC Register *new_register(void) {
     return Register(val_alloc(REGISTER_OBJ));
 }
 
-static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
+static MUST_CHECK Obj *register_from_obj(Obj *o1, linepos_t epoint) {
     uint8_t *s;
     switch (o1->obj->type) {
     case T_NONE:
@@ -72,6 +72,10 @@ static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(o1, REGISTER_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return register_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {

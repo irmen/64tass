@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2469 2021-03-06 22:39:25Z soci $
+    $Id: namespaceobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ static Type obj;
 
 Type *const NAMESPACE_OBJ = &obj;
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+static MUST_CHECK Obj *namespace_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -56,6 +56,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(v1, NAMESPACE_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return namespace_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL void destroy(Obj *o1) {

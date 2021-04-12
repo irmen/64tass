@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2542 2021-03-19 21:35:06Z soci $
+    $Id: symbolobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,16 +33,6 @@
 static Type obj;
 
 Type *const SYMBOL_OBJ = &obj;
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_SYMBOL: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, SYMBOL_OBJ, epoint);
-}
 
 Obj *new_symbol(const str_t *name, linepos_t epoint) {
     Symbol *symbol = Symbol(val_alloc(SYMBOL_OBJ));
@@ -199,7 +189,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void symbolobj_init(void) {
     new_type(&obj, T_SYMBOL, "symbol", sizeof(Symbol));
-    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.hash = hash;

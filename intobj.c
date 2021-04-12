@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2561 2021-03-21 15:42:44Z soci $
+    $Id: intobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ static inline size_t intlen(const Int *v1) {
     return (len < 0) ? (size_t)-len : (size_t)len;
 }
 
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+MUST_CHECK Obj *int_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -78,6 +78,10 @@ static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     default: break;
     }
     return new_error_conv(v1, INT_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *create(oper_t op) {
+    return int_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL NO_INLINE void int_destroy(Int *v1) {

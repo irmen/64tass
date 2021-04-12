@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 2542 2021-03-19 21:35:06Z soci $
+    $Id: labelobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,16 +30,6 @@
 static Type obj;
 
 Type *const LABEL_OBJ = &obj;
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_LABEL: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, LABEL_OBJ, epoint);
-}
 
 static FAST_CALL void destroy(Obj *o1) {
     Label *v1 = Label(o1);
@@ -132,7 +122,6 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxlen) {
 
 void labelobj_init(void) {
     new_type(&obj, T_LABEL, "label", sizeof(Label));
-    obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;

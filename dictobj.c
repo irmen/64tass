@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2521 2021-03-14 19:37:04Z soci $
+    $Id: dictobj.c 2573 2021-04-12 00:12:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,16 +63,6 @@ static Dict *new_dict(size_t ln) {
     }
     v->len = 0;
     return v;
-}
-
-static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_DICT: return val_reference(v1);
-    default: break;
-    }
-    return new_error_conv(v1, DICT_OBJ, epoint);
 }
 
 static FAST_CALL void destroy(Obj *o1) {
@@ -840,7 +830,6 @@ Obj *dictobj_parse(struct values_s *values, size_t args) {
 void dictobj_init(void) {
     new_type(&obj, T_DICT, "dict", sizeof(Dict));
     obj.iterable = true;
-    obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
