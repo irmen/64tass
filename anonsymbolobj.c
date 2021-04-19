@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: anonsymbolobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "values.h"
 
 #include "typeobj.h"
-#include "operobj.h"
 #include "strobj.h"
 #include "errorobj.h"
 
@@ -87,7 +86,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(o2);
     default:
-        if (o2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        if (o2->obj->iterable && op->op != O_MEMBER && op->op != O_X) {
             return o2->obj->rcalc2(op);
         }
         break;
@@ -96,7 +95,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    if (op->op == &o_MEMBER) {
+    if (op->op == O_MEMBER) {
         return op->v1->obj->calc2(op);
     }
     return obj_oper_error(op);

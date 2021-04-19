@@ -8,7 +8,7 @@
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 2317 2021-01-31 22:46:47Z soci $
+ $Id: katepart-asm6502.xml 2590 2021-04-18 08:46:50Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -127,8 +127,12 @@
         <RegExpr endRegion="macro" String="\.(endm|endmacro)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="function" String="\.function\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="function" String="\.(endf|endfunction)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="for" String="\.(b?for|b?rept|b?while)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="for" String="\.next\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="for" String="\.b?for\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="for" String="\.(next|endfor)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="rept" String="\.b?rept\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="rept" String="\.(next|endrept)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="while" String="\.b?while\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="while" String="\.(next|endwhile)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="logical" String="\.(here|endlogical)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="virtual" String="\.virtual\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>

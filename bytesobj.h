@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 2570 2021-04-11 22:11:00Z soci $
+    $Id: bytesobj.h 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -62,8 +62,8 @@ struct Bits;
 extern MUST_CHECK Obj *bytes_from_uval(uval_t, unsigned int);
 extern MUST_CHECK Obj *bytes_from_str(const struct Str *, linepos_t, Textconv_types);
 extern MUST_CHECK Obj *bytes_from_bits(const struct Bits *, linepos_t);
-extern MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *, size_t *, linepos_t);
-extern MUST_CHECK Obj *bytes_from_z85str(const uint8_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_hexstr(const uint8_t *, linecpos_t *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_z85str(const uint8_t *, linecpos_t *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_obj(Obj *, linepos_t);
 extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);
 #endif

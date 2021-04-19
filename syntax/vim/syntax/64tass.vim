@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2481 2021-03-07 14:13:53Z soci $
+" $Id: 64tass.vim 2590 2021-04-18 08:46:50Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -124,7 +124,7 @@ endif
 syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|endblock|cdef|cpu)>/ contained
 syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endpage|endp)>/ contained
 syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|endlogical|hidemac)>/ contained
-syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|virtual|endv|endvirtual)>/ contained
+syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|endfor|endrept|endwhile|virtual|endv|endvirtual)>/ contained
 syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|endproc|proff|pron|rept|brept|while|bwhile|section|endsection)>/ contained
 syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endnamespace|endn|with|endwith)>/ contained
 syn match tass64Define  /\v\.%(segment|endsegment|macro|endmacro|endm|function|endfunction|endf|sfunction)>/ contained

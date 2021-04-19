@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: dictobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #include "listobj.h"
 #include "strobj.h"
 #include "boolobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
@@ -510,8 +509,11 @@ static MUST_CHECK Obj *indexof(const Dict *v1, Obj *o2, ival_t *r, linepos_t epo
         if (err != NULL) return err;
         p = dict_lookup(v1, &pair);
         if (p != NULL) {
-            *r = p - v1->data;
-            return NULL;
+            size_t i = (size_t)(p - v1->data);
+            if (i <= ~(uval_t)0 >> 1) {
+                *r = (ival_t)i;
+                return NULL;
+            }
         }
     }
     return new_error_obj(ERROR_____KEY_ERROR, o2, epoint);
@@ -525,7 +527,7 @@ static MUST_CHECK Obj *dictsliceparams(const Dict *v1, const Colonlist *v2, stru
     if (v1->len >= (1U << (8 * sizeof(ival_t) - 1))) return new_error_mem(epoint); /* overflow */
     len = (ival_t)v1->len;
     if (v2->len > 3 || v2->len < 1) {
-        return new_error_argnum(v2->len, 1, 3, epoint);
+        return new_error_argnum(v2->len <= ~(argcount_t)0 ? (argcount_t)v2->len : ~(argcount_t)0, 1, 3, epoint);
     }
     end = len;
     if (v2->len > 2) {
@@ -735,13 +737,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
     switch (o2->obj->type) {
     case T_DICT:
-        if (op->op->op == O_CONCAT) {
+        if (op->op == O_CONCAT) {
             return concat(op);
         }
         break;
     case T_ANONSYMBOL:
     case T_SYMBOL:
-        if (op->op == &o_MEMBER) {
+        if (op->op == O_MEMBER) {
             return findit(Dict(op->v1), o2, op->epoint2);
         }
         break;
@@ -749,7 +751,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(o2);
     default: 
-        if (o2->obj->iterable && op->op != &o_X) {
+        if (o2->obj->iterable && op->op != O_X) {
             return o2->obj->rcalc2(op);
         }
         break;
@@ -760,7 +762,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Dict *v2 = Dict(op->v2);
     Obj *o1 = op->v1;
-    if (op->op == &o_IN) {
+    if (op->op == O_IN) {
         struct pair_s p;
         Obj *err;
 

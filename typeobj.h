@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2573 2021-04-12 00:12:54Z soci $
+    $Id: typeobj.h 2580 2021-04-17 16:09:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ typedef struct Type {
     const char *name;
     struct Slot **slot;
     size_t length;
-    Obj *(*create)(struct oper_s *) MUST_CHECK;
+    Obj *(*convert)(struct oper_s *) MUST_CHECK;
+    Obj *(*convert2)(struct oper_s *) MUST_CHECK;
     void (*destroy)(Obj *) FAST_CALL;
     void (*garbage)(Obj *, int) FAST_CALL;
     bool (*same)(const Obj *, const Obj *) FAST_CALL;

@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2550 2021-03-20 01:04:25Z soci $
+    $Id: file.c 2578 2021-04-17 13:33:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -576,8 +576,8 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                         tmp->line = d;
                         max_lines = len2;
                     }
-                    if ((linenum_t)(lines + 1) < 1) goto failed; /* overflow */
                     tmp->line[lines++] = fp;
+                    if (lines == 0) { lines = ~(linenum_t)0; goto failed; } /* overflow */
                     p = fp;
                     for (;;) {
                         unsigned int i, j;

@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: floatobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ MUST_CHECK Obj *float_from_obj(Obj *v1, linepos_t epoint) {
     return new_error_conv(v1, FLOAT_OBJ, epoint);
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return float_from_obj(op->v2, op->epoint2);
 }
 
@@ -187,7 +187,7 @@ static MUST_CHECK Obj *float_from_double_inplace(double d, oper_t op) {
 static MUST_CHECK Obj *calc1(oper_t op) {
     Float *v1 = Float(op->v1);
     double real = v1->real;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -202,7 +202,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
             if (neg) real = -real;
             if (real >= 4294967296.0) real = fmod(real, 4294967296.0);
             r = (uint32_t)real;
-            return bits_calc1(op->op->op, neg ? ~r + 1U : r);
+            return bits_calc1(op->op, neg ? ~r + 1U : r);
         }
     case O_INV: 
         return float_from_double_inplace(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1))) - real, op);
@@ -228,7 +228,7 @@ static bool almost_equal(oper_t op, double a, double b) {
     double ab = fabs(b);
     if (fabs(a - b) <= (aa > ab ? ab : aa) * 0.0000000005) {
         if (diagnostics.float_compare) {
-            if (op->epoint3->line != 0) err_msg2(ERROR_FLOAT_COMPARE, op->op->name, op->epoint3);
+            if (op->epoint3->line != 0) err_msg2(ERROR_FLOAT_COMPARE, operators[op->op].name, op->epoint3);
         }
         return true;
     }
@@ -261,7 +261,7 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
     v1 = (uint64_t)ldexp(r1, e1);
     v2 = (uint64_t)ldexp(r2, e2);
 
-    switch (op->op->op) {
+    switch (op->op) {
     case O_AND: 
         if (neg1) {
             if (neg2) {
@@ -311,7 +311,7 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
 
 static MUST_CHECK Obj *calc2_double(oper_t op) {
     double r, v1 = Float(op->v1)->real, v2 = Float(op->v2)->real;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_CMP: return val_reference((v1 == v2 || almost_equal(op, v1, v2)) ? int_value[0] : (v1 < v2) ? minus1_value : int_value[1]);
     case O_EQ: return truth_reference(v1 == v2 || almost_equal(op, v1, v2));
     case O_NE: return truth_reference(v1 != v2 && !almost_equal(op, v1, v2));
@@ -367,11 +367,11 @@ MUST_CHECK Obj *float_from_double(double d, linepos_t epoint) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *err, *val;
     Obj *v2 = op->v2;
-    if (op->op == &o_LAND) {
+    if (op->op == O_LAND) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((Float(op->v1)->real != 0.0) ? v2 : op->v1);
     }
-    if (op->op == &o_LOR) {
+    if (op->op == O_LOR) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((Float(op->v1)->real != 0.0) ? op->v1 : v2);
     }
@@ -384,12 +384,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BITS:
     case T_STR:
     case T_BYTES:
-        if (op->op == &o_LSHIFT || op->op == &o_RSHIFT) {
+        if (op->op == O_LSHIFT || op->op == O_RSHIFT) {
             ival_t shift;
             err = Obj(v2->obj->ival(v2, &shift, 8 * sizeof shift, op->epoint2));
             if (err != NULL) return err;
             if (shift == 0) return val_reference(op->v1);
-            if (op->op == &o_RSHIFT) shift = -shift;
+            if (op->op == O_RSHIFT) shift = -shift;
             return float_from_double_inplace(ldexp(Float(op->v1)->real, shift), op);
         }
         err = float_from_obj(v2, op->epoint2);
@@ -401,7 +401,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         val_destroy(err);
         return val;
     default:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
+        if (op->op != O_MEMBER && op->op != O_X) {
             return v2->obj->rcalc2(op);
         }
         if (v2 == none_value || v2->obj == ERROR_OBJ) return val_reference(v2);
@@ -433,7 +433,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void floatobj_init(void) {
     new_type(&obj, T_FLOAT, "float", sizeof(Float));
-    obj.create = create;
+    obj.convert = convert;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
@@ -450,7 +450,15 @@ void floatobj_init(void) {
     obj.rcalc2 = rcalc2;
 }
 
+static Float pi_value = { { &obj, 2 }, M_PI };
+
 void floatobj_names(void) {
     new_builtin("float", val_reference(Obj(FLOAT_OBJ)));
-    new_builtin("pi", new_float(M_PI));
+    new_builtin("pi", &pi_value.v);
+}
+
+void floatobj_destroy(void) {
+#ifdef DEBUG
+    if (pi_value.v.refcount != 1) fprintf(stderr, "pi %" PRIuSIZE "\n", pi_value.v.refcount - 1);
+#endif
 }

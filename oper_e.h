@@ -1,5 +1,5 @@
 /*
-    $Id: oper_e.h 2480 2021-03-07 11:41:17Z soci $
+    $Id: oper_e.h 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,12 @@
 #define OPER_TYPES_E_H
 
 typedef enum Oper_types {
+    O_TUPLE,         /* )     */
+    O_LIST,          /* ]     */
+    O_DICT,          /* }     */
+    O_RPARENT,       /* )     */
+    O_RBRACKET,      /* ]     */
+    O_RBRACE,        /* }     */
     O_FUNC,          /* a(    */
     O_INDEX,         /* a[    */
     O_BRACE,         /* {a}   */
@@ -47,23 +53,14 @@ typedef enum Oper_types {
     O_LOR_ASSIGN,    /* ||=   */
     O_LAND_ASSIGN,   /* &&=   */
     O_COND_ASSIGN,   /* :?=   */
+    O_QUEST,         /* ?     */
+    O_DQUEST,        /* ??    */
+    O_COLON,         /* :     */
     O_COND,          /* ?     */
     O_DCOND,         /* ??    */
     O_COLON2,        /* :     */
-    O_LOR,           /* ||    */
-    O_LXOR,          /* ^^    */
-    O_LAND,          /* &&    */
-
-    O_HASH,          /* #     */ /*                      */
-    O_HASH_SIGNED,   /* #+    */ /* NOTE:                */
-    O_COMMAX,        /* ,x    */ /* there's a check for  */
-    O_COMMAY,        /* ,y    */ /* O_COMMAX to O_COMMAK */
-    O_COMMAZ,        /* ,z    */ /* in eval.c            */
-    O_COMMAR,        /* ,r    */
-    O_COMMAS,        /* ,s    */
-    O_COMMAD,        /* ,d    */
-    O_COMMAB,        /* ,b    */
-    O_COMMAK,        /* ,k    */
+    O_HASH,          /* #     */
+    O_HASH_SIGNED,   /* #+    */
     O_WORD,          /* <>    */
     O_HWORD,         /* >`    */
     O_BSWORD,        /* ><    */
@@ -71,13 +68,11 @@ typedef enum Oper_types {
     O_HIGHER,        /* >     */
     O_BANK,          /* `     */
     O_STRING,        /* ^     */
-    O_SPLAT,         /* *     */
-    O_NEG,           /* -     */
-    O_POS,           /* +     */
-    O_INV,           /* ~     */
-    O_LNOT,          /* !     */
-
+    O_LOR,           /* ||    */
+    O_LXOR,          /* ^^    */
+    O_LAND,          /* &&    */
     O_IDENTITY,      /* ===   */
+    O_IN,            /* in    */
     O_CMP,           /* <=>   */
     O_EQ,            /* ==    */
     O_NE,            /* !=    */
@@ -98,21 +93,23 @@ typedef enum Oper_types {
     O_DIV,           /* /     */
     O_MOD,           /* %     */
     O_EXP,           /* **    */
-    O_MEMBER,        /* .     */
+    O_NEG,           /* -     */
+    O_POS,           /* +     */
+    O_INV,           /* ~     */
+    O_LNOT,          /* !     */
+    O_SPLAT,         /* *     */
     O_CONCAT,        /* ..    */
-
     O_X,             /* x     */
-    O_IN,            /* in    */
-
-    O_TUPLE,         /* )     */
-    O_LIST,          /* ]     */
-    O_DICT,          /* }     */
-    O_RPARENT,       /* )     */
-    O_RBRACKET,      /* ]     */
-    O_RBRACE,        /* }     */
-    O_QUEST,         /* ?     */
-    O_DQUEST,        /* ??    */
-    O_COLON          /* :     */
+    O_COMMAX,        /* ,x    */ /* there's a check for  */
+    O_COMMAY,        /* ,y    */ /* O_COMMAX to O_COMMAK */
+    O_COMMAZ,        /* ,z    */ /* in eval.c            */
+    O_COMMAS,        /* ,s    */
+    O_COMMAR,        /* ,r    */
+    O_COMMAD,        /* ,d    */
+    O_COMMAB,        /* ,b    */
+    O_COMMAK,        /* ,k    */
+    O_MEMBER,        /* .     */
+    O_NONE
 } Oper_types;
 
 #endif

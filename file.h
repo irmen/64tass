@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2547 2021-03-19 23:40:46Z soci $
+    $Id: file.h 2578 2021-04-17 13:33:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ struct file_s {
     Encoding_types encoding;
 };
 
-#define not_in_file(a, b) ((size_t)((a) - (1 ? (b) : (struct file_s *)(b))->data) >= (b)->len)
+#define not_in_file(a, b) ((size_t)((a) - (1 ? (b) : (struct file_s *)(void *)(b))->data) >= (b)->len)
 
 struct star_s {
     linenum_t line, vline;

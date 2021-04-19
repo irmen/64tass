@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2544 2021-03-19 23:01:43Z soci $
+    $Id: error.c 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ static void error_extend(void) {
     if (error_list.members.root != NULL) error_list.members.root = (struct avltree_node *)((dir ? ((uint8_t *)error_list.members.root + diff) : ((uint8_t *)error_list.members.root - diff)));
 }
 
-static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len, size_t pos) {
+static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len, linecpos_t pos) {
     struct errorentry_s *err;
     close_error();
     error_list.len = error_list.header_pos + sizeof *err;
@@ -836,8 +836,8 @@ static bool err_msg_cant_broadcast(const Error *err) {
     return more;
 }
 
-static void err_msg_invalid_oper2(const Oper *op, Obj *v1, Obj *v2) {
-    adderror(op->name);
+static void err_msg_invalid_oper2(Oper_types op, Obj *v1, Obj *v2) {
+    adderror(operators[op].name);
     adderror("' of ");
     err_msg_variable(v1);
     if (v2 != NULL) {
@@ -1213,15 +1213,6 @@ void err_msg_unused_variable(Label *l) {
     adderror(" [-Wunused-variable]");
 }
 
-void err_msg_invalid_oper(const Oper *op, Obj *v1, Obj *v2, linepos_t epoint) {
-    Error *err = new_error(ERROR__INVALID_OPER, epoint);
-    err->u.invoper.op = op;
-    err->u.invoper.v1 = (v1 != NULL) ? ((v1->refcount != 0) ? val_reference(v1) : v1) : NULL;
-    err->u.invoper.v2 = (v2 != NULL) ? ((v2->refcount != 0) ? val_reference(v2) : v2) : NULL;
-    err_msg_invalid_oper3(err);
-    val_destroy(Obj(err));
-}
-
 void err_msg_argnum(argcount_t num, argcount_t min, argcount_t max, linepos_t epoint) {
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
     err_msg_argnum2(num, min, max);
@@ -1238,7 +1229,7 @@ void err_msg_bool(Error_types no, Obj *o, linepos_t epoint) {
 void err_msg_bool_oper(oper_t op) {
     Obj *v2;
     new_error_msg2(diagnostic_errors.strict_bool, op->epoint3);
-    switch (op->op->op) {
+    switch (op->op) {
     case O_WORD:
     case O_HWORD:
     case O_BSWORD:

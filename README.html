@@ -750,6 +750,10 @@ key but the value can be anything.
         <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
 <i>; 16 element "fader" table 1-&gt;15-&gt;12-&gt;11-&gt;0</i>
         <b class="d">.byte</b> {<span>1</span>:<span>15</span>, <span>15</span>:<span>12</span>, <span>12</span>:<span>11</span>, :<span>0</span>}[<span class="k">range</span>(<span>16</span>)]
+<i>; Symbol accessible values. May be useful as a function return value too.</i>
+coords  <b>=</b> {.<u>x</u>: <span>24</span>, .<u>y</u>: <span>50</span>}
+        <b>ldx</b> #<u>coords</u>.<u>x</u>
+        <b>ldy</b> #<u>coords</u>.<u>y</u>
 </pre>
 
 <h3>Code<a name="code" href="#code"></a></h3>
@@ -985,6 +989,17 @@ used for conversions or type checks.
 <tr><td><code><a name="t_tuple"><u>tuple</u></a></code><td>Tuple type
 <tr><td><code><a name="t_type"><u>type</u></a></code><td>Type type
 </table></div>
+
+<p>Bit and byte string conversions can take a second parameter to specify and
+exact size. Values which can fit in shorter space will be padded but longer ones
+give an error.
+
+<dl class="dir">
+<dt><code><b>bits(</b>&lt;expression&gt;, &lt;bits count expression&gt;<b>)</b></code>
+<dd>Convert to the specific number of bits. If the number of bits is negative then it's a signed.
+<dt><code><b>bytes(</b>&lt;expression&gt;, &lt;byte count expression&gt;<b>)</b></code>
+<dd>Convert to the specific number of bytes. If the number of bits is negative then it's a signed.
+</dl>
 
 <pre width="80">
         <b class="k">.cerror</b> <span class="k">type</span>(<u>var</u>) != <span class="k">str</span>, <span class="s">"Not a string!"</span>
@@ -1834,7 +1849,7 @@ control <b class="d">.byte</b> <span>?</span>         <i>; control</i>
 ad      <b class="d">.byte</b> <span>?</span>         <i>; attack/decay</i>
 sr      <b class="d">.byte</b> <span>?</span>         <i>; sustain/release</i>
         <b class="k">.bend</b>
-        <b class="k">.endv</b>
+        <b class="k">.endvirtual</b>
 </pre>
 
 <p>Or to define stack "allocated" variables on 65816.</p>
@@ -1843,7 +1858,7 @@ sr      <b class="d">.byte</b> <span>?</span>         <i>; sustain/release</i>
         <b class="k">.virtual</b> #<span>1</span>,s
 p1      <b class="d">.addr</b> <span>?</span>         <i>; at #1,s</i>
 tmp     <b class="d">.byte</b> <span>?</span>         <i>; at #3,s</i>
-        <b class="k">.endv</b>
+        <b class="k">.endvirtual</b>
         <b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
 </pre>
 
@@ -2188,12 +2203,12 @@ is the sum of lengths of all items.
         <b class="k">.struct</b>         <i>;anonymous structure</i>
 x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.byte</b> <span>0</span>         <i>;content compiled here</i>
-        <b class="k">.ends</b>           <i>;useful inside unions</i>
+        <b class="k">.endstruct</b>      <i>;useful inside unions</i>
 
 nn_s    <b class="k">.struct</b> <u>col</u>, <u>row</u><i>;named structure</i>
 x       <b class="d">.byte</b> <span class="k">\col</span>      <i>;labels are not visible</i>
 y       <b class="d">.byte</b> <span class="k">\row</span>      <i>;no content is compiled here</i>
-        <b class="k">.ends</b>           <i>;it's just a definition</i>
+        <b class="k">.endstruct</b>      <i>;it's just a definition</i>
 
 nn      <b class="d">.dstruct</b> <u>nn_s</u>, <span>1</span>, <span>2</span><i>;structure instance, content here</i>
 
@@ -2226,12 +2241,12 @@ length of it's longest item.
         <b class="k">.union</b>          <i>;anonymous union</i>
 x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.word</b> <span>0</span>         <i>;content compiled here</i>
-        <b class="k">.endu</b>
+        <b class="k">.endunion</b>
 
 nn_u    <b class="k">.union</b>          <i>;named union</i>
 x       <b class="d">.byte</b> <span>?</span>         <i>;labels are not visible</i>
 y       <b class="d">.word</b> <span class="k">\1</span>        <i>;no content is compiled here</i>
-        <b class="k">.endu</b>           <i>;it's just a definition</i>
+        <b class="k">.endunion</b>       <i>;it's just a definition</i>
 
 nn      <b class="d">.dunion</b> <u>nn_u</u>, <span>1</span> <i>;union instance here</i>
 
@@ -2252,8 +2267,8 @@ color   <b class="d">.fill</b> <span>1024</span>
 screen  <b class="d">.fill</b> <span>1024</span>
 bitmap  <b class="d">.fill</b> <span>8000</span>
 backg   <b class="d">.byte</b> <span>?</span>
-        <b class="k">.ends</b>
-        <b class="k">.endu</b>
+        <b class="k">.endstruct</b>
+        <b class="k">.endunion</b>
 </pre>
 
 <p>Anonymous structures and unions in combination with sections are useful for
@@ -2266,11 +2281,11 @@ are assigned after in the <q>zp</q> section.
         <b class="k">.union</b>          <i>;spare some memory</i>
          <b class="k">.struct</b>
           <b class="d">.dsection</b> <u>zp1</u> <i>;declare zp1 section</i>
-         <b class="k">.ends</b>
+         <b class="k">.endstruct</b>
          <b class="k">.struct</b>
           <b class="d">.dsection</b> <u>zp2</u> <i>;declare zp2 section</i>
-         <b class="k">.ends</b>
-        <b class="k">.endu</b>
+         <b class="k">.endstruct</b>
+        <b class="k">.endunion</b>
         <b class="d">.dsection</b> <u>zp</u>    <i>;declare zp section</i>
 </pre>
 
@@ -2283,7 +2298,6 @@ replaced by the parameter texts.
 <dl class="dir">
 <dt><code><b class="k">.segment</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_segment" href="#d_segment"></a>
 <dd>Start of segment block
-<dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endm" href="#d_endm"></a>
 <dt><code><b class="k">.endsegment</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endsegment" href="#d_endsegment"></a>
 <dd>End of segment block
 
@@ -2293,7 +2307,6 @@ unless anonymous labels are used.</p>
 
 <dt><code><b class="k">.macro</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_macro" href="#d_macro"></a>
 <dd>Start of macro block
-<dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
 <dt><code><b class="k">.endmacro</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endmacro" href="#d_endmacro"></a>
 <dd>End of macro block
 
@@ -2305,6 +2318,10 @@ labels can be accessed through that label.</p>
 <dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke the macro after <q>#</q> or <q>.</q> with the parameters. Normally the name of
 the macro is used, but it can be any expression.
+
+<dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endm" href="#d_endm"></a>
+<dd>Closing directive of <a href="#d_macro"><code>.macro</code></a>
+and <a href="#d_segment"><code>.segment</code></a> for compatibility.
 </dl>
 
 <pre width="80">
@@ -2315,7 +2332,7 @@ lp      <b>lda</b> <span class="k">\1</span>,x
         <b>sta</b> <span class="k">\2</span>,x
         <b>dex</b>
         <b>bpl</b> <u>lp</u>
-        <b class="k">.endm</b>
+        <b class="k">.endmacro</b>
 
         <b class="k">#copy</b> <u>label</u>, <span>$500</span>
 
@@ -2323,7 +2340,7 @@ lp      <b>lda</b> <span class="k">\1</span>,x
 lohi    <b class="k">.macro</b>
 lo      <b class="d">.byte</b> &lt;(<span class="k">\@</span>)
 hi      <b class="d">.byte</b> &gt;(<span class="k">\@</span>)
-        <b class="k">.endm</b>
+        <b class="k">.endmacro</b>
 
 var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
 
@@ -2339,7 +2356,7 @@ The entire parameter list including separators is <q><code>\@</code></q>.
 <pre width="80">
 name    <b class="k">.macro</b>
         <b>lda</b> #<span class="k">\1</span>         <i>;first parameter 23+1</i>
-        <b class="k">.endm</b>
+        <b class="k">.endmacro</b>
 
         <b class="k">#name</b> <span>23</span>+<span>1</span>      <i>;call macro</i>
 </pre>
@@ -2357,7 +2374,7 @@ name    <b class="k">.macro</b> first, b=<span>2</span>, , last
         <b>lda</b> #<span class="k">\b</span>         <i>;second parameter</i>
         <b>lda</b> #<span class="k">\3</span>         <i>;third parameter</i>
         <b>lda</b> #<span class="k">\last</span>      <i>;fourth parameter</i>
-        <b class="k">.endm</b>
+        <b class="k">.endmacro</b>
 
         <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span> <i>;call macro</i>
 </pre>
@@ -2426,7 +2443,7 @@ nothing is returned then it's used as regular label.
 mva     <b class="k">.function</b> <u>value</u>, <u>target</u>
         <b>lda</b> <u>value</u>
         <b>sta</b> <u>target</u>
-        <b class="k">.endf</b>
+        <b class="k">.endfunction</b>
 
         <b class="k">mva</b> #<span>1</span>, <u>label</u>
 </pre>
@@ -2449,9 +2466,6 @@ across conditionally compiled areas with such labels.
 <dd>Compile if previous conditions were not met and the condition is true
 <dt><code><b class="k">.else</b></code><a name="d_else" href="#d_else"></a>
 <dd>Compile if previous conditions were not met
-<dt><code><b class="k">.fi</b></code><a name="d_fi" href="#d_fi"></a>
-<dt><code><b class="k">.endif</b></code><a name="d_endif" href="#d_endif"></a>
-<dd>End of conditional compilation.
 <dt><code><b class="k">.ifne</b></code> &lt;value&gt;<a name="d_ifne" href="#d_ifne"></a>
 <dd>Compile if value is not zero
 <dt><code><b class="k">.ifeq</b></code> &lt;value&gt;<a name="d_ifeq" href="#d_ifeq"></a>
@@ -2460,7 +2474,6 @@ across conditionally compiled areas with such labels.
 <dd>Compile if value is greater or equal zero
 <dt><code><b class="k">.ifmi</b></code> &lt;value&gt;<a name="d_ifmi" href="#d_ifmi"></a>
 <dd>Compile if value is less than zero
-</dl>
 
 <p>The <a href="#d_ifne"><code>.ifne</code></a>, <a href="#d_ifeq"><code>.ifeq</code></a>, <a href="#d_ifpl"><code>.ifpl</code></a> and
 <a href="#d_ifmi"><code>.ifmi</code></a> directives exists for compatibility only, in practice it's
@@ -2475,12 +2488,17 @@ better to use comparison operators instead.
         <b>bit</b> <span>$eaea</span>
         <b class="k">.else</b>           <i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
-        <b class="k">.fi</b>
+        <b class="k">.endif</b>
 </pre>
+
+<dt><code><b class="k">.fi</b></code><a name="d_fi" href="#d_fi"></a>
+<dt><code><b class="k">.endif</b></code><a name="d_endif" href="#d_endif"></a>
+<dd>End of conditional compilation.
+</dl>
 
 <h4>Switch, case, default<a name="conditional-switch" href="#conditional-switch"></a></h4>
 
-<p>Similar to the <a href="#d_if"><code>.if</code></a>/<a href="#d_elsif"><code>.elsif</code></a>/<a href="#d_else"><code>.else</code></a>/<a href="#d_fi"><code>.fi</code></a>
+<p>Similar to the <a href="#d_if"><code>.if</code></a>, <a href="#d_elsif"><code>.elsif</code></a>, <a href="#d_else"><code>.else</code></a>, <a href="#d_endif"><code>.endif</code></a>
 construct, but the compared value needs to be written only once in the switch
 statement.
 
@@ -2491,9 +2509,6 @@ statement.
 <dd>Compile if the previous conditions were all skipped and one of the values equals
 <dt><code><b class="k">.default</b></code><a name="d_default" href="#d_default"></a>
 <dd>Compile if the previous conditions were all skipped
-<dt><code><b class="k">.endswitch</b></code><a name="d_endswitch" href="#d_endswitch"></a>
-<dd>End of conditional compilation.
-</dl>
 
 <pre width="80">
         <b class="k">.switch</b> <u>wait</u>
@@ -2508,21 +2523,26 @@ statement.
         <b class="k">.endswitch</b>
 </pre>
 
+<dt><code><b class="k">.endswitch</b></code><a name="d_endswitch" href="#d_endswitch"></a>
+<dd>End of <a href="#d_switch"><code>.switch</code></a> conditional compilation block.
+</dl>
+
 <h4>Comment<a name="conditional-comment" href="#conditional-comment"></a></h4>
 <dl class="dir">
 <dt><code><b class="k">.comment</b></code><a name="d_comment" href="#d_comment"></a>
 <dd>Never compile.
-<dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
-<dt><code><b class="k">.endcomment</b></code><a name="d_endcomment" href="#d_endcomment"></a>
-<dd>End of conditional compilation.
-</dl>
 
 <pre width="80">
         <b class="k">.comment</b>
 <i>        lda #1          ;this won't be compiled</i>
 <i>        sta $d020</i>
-        <b class="k">.endc</b>
+        <b class="k">.endcomment</b>
 </pre>
+
+<dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
+<dt><code><b class="k">.endcomment</b></code><a name="d_endcomment" href="#d_endcomment"></a>
+<dd>End of <a href="#d_comment"><code>.comment</code></a> block.
+</dl>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
 
@@ -2541,7 +2561,6 @@ each iteration will be assigned to it. This allows accessing labels within.
 <dl class="dir">
 <dt><code><b class="k">.for</b></code> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_for" href="#d_for"></a>
 <dt><code><b class="k">.bfor</b></code> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_bfor" href="#d_bfor"></a>
-<dt><code><b class="k">.next</b></code>
 <dd>Assign initial value, loop while the condition is true and modify value.
 
 <p>First a variable is set, usually this is used for counting. This is optional, the variable may be set already before the loop.</p>
@@ -2555,14 +2574,13 @@ each iteration will be assigned to it. This allows accessing labels within.
         <b>lda</b> #<span>32</span>
 lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <span>$800</span>, <u>ue</u> += <span>$100</span>
         <b>sta</b> <u>ue</u>,x         <i>;do $400, $500, $600 and $700</i>
-        <b class="k">.next</b>
+        <b class="k">.endfor</b>
         <b>dex</b>
         <b>bne</b> <u>lp</u>
 </pre>
 
 <dt><code><b class="k">.for</b></code> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
 <dt><code><b class="k">.bfor</b></code> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
-<dt><code><b class="k">.next</b></code>
 <dd>Assign variable(s) to values in sequence one-by-one in order.
 
 <p>The expression is usually the <a href="#f_range"><code>range</code></a> function or some sort of <a href="#list-tuples">list</a>.</p>
@@ -2571,33 +2589,40 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
         <b class="k">.for</b> <u>col</u> <span class="k">in</span> <span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>
         <b>lda</b> #<u>col</u>         <i>;0, 11, 12, 15 and 1</i>
         <b>sta</b> <span>$d020</span>
-        <b class="k">.next</b>
+        <b class="k">.endfor</b>
 </pre>
+
+<dt><code><b class="k">.endfor</b></code><a name="d_endfor" href="#d_endfor"></a>
+<dd>End of a <a href="#d_for"><code>.for</code></a> or <a href="#d_bfor"><code>.bfor</code></a> loop block
 
 <dt><code><b class="k">.rept</b></code> &lt;expression&gt;<a name="d_rept" href="#d_rept"></a>
 <dt><code><b class="k">.brept</b></code> &lt;expression&gt;<a name="d_brept" href="#d_brept"></a>
-<dt><code><b class="k">.next</b></code>
 <dd>Repeat enclosed lines the specified number of times.
 
 <pre width="80">
         <b class="k">.rept</b> <span>100</span>
 -       <b>inx</b>
         <b>bne</b> <u>-</u>
-        <b class="k">.next</b>
+        <b class="k">.endrept</b>
 
 lst     <b class="k">.brept</b> <span>100</span>       <i>;each iteration into a tuple</i>
 label   <b>jmp</b> <u>label</u>        <i>;not a duplicate definition</i>
-        <b class="k">.next</b>
+        <b class="k">.endrept</b>
         <b>jmp</b> <u>lst</u>[<span>5</span>].<u>label</u> <i>;use label of 6th iteration</i>
 </pre>
 
+<dt><code><b class="k">.endrept</b></code><a name="d_endrept" href="#d_endrept"></a>
+<dd>End of a <a href="#d_rept"><code>.rept</code></a> or <a href="#d_brept"><code>.brept</code></a> block
+
 <dt><code><b class="k">.while</b></code> &lt;condition&gt;<a name="d_while" href="#d_while"></a>
 <dt><code><b class="k">.bwhile</b></code> &lt;condition&gt;<a name="d_bwhile" href="#d_bwhile"></a>
-<dt><code><b class="k">.next</b></code>
 <dd>Repeat enclosed lines until the condition holds.
 
 <p>Works as expected however the scoped variant might be tricky to use as
 variables in the condition might not be in the same scope as the loop body.</p>
+
+<dt><code><b class="k">.endwhile</b></code><a name="d_endwhile" href="#d_endwhile"></a>
+<dd>End of a <a href="#d_while"><code>.while</code></a> or <a href="#d_bwhile"><code>.bwhile</code></a> loop block
 
 <dt><code><b class="k">.break</b></code><a name="d_break" href="#d_break"></a>
 <dd>Exit current repetition loop immediately.
@@ -2605,7 +2630,7 @@ variables in the condition might not be in the same scope as the loop body.</p>
 <dt><code><b class="k">.breakif</b> &lt;condition&gt;</code><a name="d_breakif" href="#d_breakif"></a>
 <dd>Exit current repetition loop immediately if the condition holds.
 
-<p>It's a shorthand for a <code>.if .break .fi</code> sequence.</p>
+<p>It's a shorthand for a <a href="#d_if"><code>.if</code></a>, <a href="#d_break"><code>.break</code></a>, <a href="#d_endif"><code>.endif</code></a> sequence.</p>
 
 <dt><code><b class="k">.continue</b></code><a name="d_continue" href="#d_continue"></a>
 <dd>Continue current repetition loop's next iteration.
@@ -2613,13 +2638,13 @@ variables in the condition might not be in the same scope as the loop body.</p>
 <dt><code><b class="k">.continueif</b> &lt;condition&gt;</code><a name="d_continueif" href="#d_continueif"></a>
 <dd>Continue current repetition loop's next iteration if the condition holds.
 
-<p>It's a shorthand for a <code>.if .continue .fi</code> sequence.</p>
+<p>It's a shorthand for a <a href="#d_if"><code>.if</code></a>, <a href="#d_continue"><code>.continue</code></a>, <a href="#d_endif"><code>.endif</code></a> sequence.</p>
 
 <dt><code><b class="k">.next</b></code><a name="d_next" href="#d_next"></a>
 <dd>Closing directive of <a href="#d_for"><code>.for</code></a>,
 <a href="#d_bfor"><code>.bfor</code></a>, <a href="#d_rept"><code>.rept</code></a>,
 <a href="#d_brept"><code>.brept</code></a>, <a href="#d_while"><code>.while</code></a>
-and <a href="#d_while"><code>.bwhile</code></a> loop.
+and <a href="#d_while"><code>.bwhile</code></a> loop for compatibility.
 
 <dt><code><b class="k">.lbl</b></code><a name="d_lbl" href="#d_lbl"></a>
 <dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
@@ -2635,7 +2660,7 @@ loop    <b class="k">.lbl</b>
 i       <b class="k">.var</b> <u>i</u> - <span>1</span>
         <b class="k">.ifne</b> <u>i</u>
         <b class="k">.goto</b> <u>loop</u>       <i>;generates 100 nops</i>
-        <b class="k">.fi</b>              <i>;the hard way ;)</i>
+        <b class="k">.endif</b>           <i>;the hard way ;)</i>
 </pre>
 
 </dl>
@@ -2718,7 +2743,7 @@ whole procedure of course.</p>
 ize     <b class="k">.proc</b>
         <b>nop</b>
 cucc    <b>nop</b>
-        <b class="k">.pend</b>
+        <b class="k">.endproc</b>
 
         <b>jsr</b> <u>ize</u>
         <b>jmp</b> <u>ize</u>.<u>cucc</u>
@@ -2796,7 +2821,7 @@ symbol  <b>=</b> <span>0</span>            <i>;default value if the one above do
 replace stub functions and data structures.</p>
 
 <p>If these stubs are defined using
-<a href="#d_proc"><code>.proc</code></a>/<a href="#d_pend"><code>.pend</code></a> then their default implementations will
+<a href="#d_proc"><code>.proc</code></a>/<a href="#d_endproc"><code>.endproc</code></a> then their default implementations will
 not even exists in the output at all when a stronger symbol overrides them.</p>
 
 <p>Multiple definition of a symbol with the same <q>strength</q> in the same
@@ -3052,7 +3077,7 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <pre width="80">
         <b class="k">.page</b>
 table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
-        <b class="k">.endp</b>
+        <b class="k">.endpage</b>
 </pre>
 
 <dt><code><b class="k">.option</b></code> allow_branch_across_page<a name="d_option" href="#d_option"></a>
@@ -4222,7 +4247,7 @@ include.</p>
 <p>The difference to normal symbol listing is that 64tass assumes these
 symbols will be used in another source. In practice this means that any
 <a href="#d_proc"><code>.proc</code></a>/<a
-href="#d_pend"><code>.pend</code></a> blocks appearing in the symbol file will
+href="#d_endproc"><code>.endproc</code></a> blocks appearing in the symbol file will
 always be compiled even if unused otherwise.</p>
 
 <dt><b>--vice-labels</b><a name="o_vice-labels" href="#o_vice-labels"></a>
@@ -4533,6 +4558,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
+
 <dl class="errorlist">
 <dt>'?' expected<dd>something is missing
 <dt>? argument is missing<dd>not enough arguments supplied
@@ -4612,6 +4638,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 </dl>
 
 <h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
+
 <dl class="errorlist">
 <dt>can't open file<dd>cannot open file
 <dt>can't write error file<dd>cannot write the error file
@@ -5712,6 +5739,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_endc">.endc</a>
 <a href="#d_endcomment">.endcomment</a>
 <a href="#d_endf">.endf</a>
+<a href="#d_endfor">.endfor</a>
 <a href="#d_endfunction">.endfunction</a>
 <a href="#d_endif">.endif</a>
 <a href="#d_endlogical">.endlogical</a>
@@ -5722,6 +5750,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_endp">.endp</a>
 <a href="#d_endpage">.endpage</a>
 <a href="#d_endproc">.endproc</a>
+<a href="#d_endrept">.endrept</a>
 <a href="#d_ends">.ends</a>
 <a href="#d_endsection">.endsection</a>
 <a href="#d_endsegment">.endsegment</a>
@@ -5732,6 +5761,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_endv">.endv</a>
 <a href="#d_endvirtual">.endvirtual</a>
 <a href="#d_endweak">.endweak</a>
+<a href="#d_endwhile">.endwhile</a>
 <a href="#d_endwith">.endwith</a>
 <a href="#d_eor">.eor</a>
 <a href="#d_error">.error</a>

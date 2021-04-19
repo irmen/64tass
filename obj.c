@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: obj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ Obj *const default_value = &defaultval.v;
 MUST_CHECK Obj *obj_oper_error(oper_t op) {
     Obj *v1, *v2;
     Error *err;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_EQ: return truth_reference(op->v1 == op->v2 || op->v1->obj->same(op->v1, op->v2));
     case O_NE: return truth_reference(op->v1 != op->v2 && !op->v1->obj->same(op->v1, op->v2));
     case O_WORD:
@@ -92,7 +92,7 @@ MUST_CHECK Obj *obj_oper_error(oper_t op) {
 
 MUST_CHECK Obj *obj_oper_compare(oper_t op, int val) {
     bool result;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_CMP: return val_reference(val < 0 ? minus1_value : int_value[(val > 0) ? 1 : 0]);
     case O_EQ: result = (val == 0); break;
     case O_NE: result = (val != 0); break;
@@ -107,7 +107,7 @@ MUST_CHECK Obj *obj_oper_compare(oper_t op, int val) {
     return truth_reference(result);
 }
 
-static MUST_CHECK Obj *invalid_create(oper_t op) {
+static MUST_CHECK Obj *invalid_convert(oper_t op) {
     Obj *v1 = op->v2;
     if (v1->obj == Type(op->v1)) return val_reference(v1);
     switch (v1->obj->type) {
@@ -119,6 +119,10 @@ static MUST_CHECK Obj *invalid_create(oper_t op) {
     default: break;
     }
     return new_error_conv(v1, Type(op->v1), op->epoint2);
+}
+
+static MUST_CHECK Obj *invalid_convert2(oper_t op) {
+    return new_error_argnum(Funcargs(op->v2)->len, 1, 1, op->epoint2);
 }
 
 static FAST_CALL bool invalid_same(const Obj *o1, const Obj *o2) {
@@ -284,7 +288,8 @@ static FAST_CALL bool funcargs_same(const Obj *o1, const Obj *o2) {
 
 void obj_init(Type *obj) {
     obj->iterable = false;
-    obj->create = invalid_create;
+    obj->convert = invalid_convert;
+    obj->convert2 = invalid_convert2;
     obj->destroy = NULL;
     obj->garbage = NULL;
     obj->same = invalid_same;
@@ -355,6 +360,8 @@ void objects_destroy(void) {
     gapobj_destroy();
     noneobj_destroy();
     foldobj_destroy();
+    functionobj_destroy();
+    floatobj_destroy();
 
 #ifdef DEBUG
     if (default_value->refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->refcount - 1);

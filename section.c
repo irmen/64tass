@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2523 2021-03-14 20:58:12Z soci $
+    $Id: section.c 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ struct section_s *find_this_section(const char *here) {
     do {
         labelname.data = pline + lpoint.pos; labelname.len = get_label(labelname.data);
         if (labelname.len == 0) return NULL;
-        lpoint.pos += labelname.len;
+        lpoint.pos += (linecpos_t)labelname.len;
         space = find_section(&labelname, space);
         if (space == NULL) return NULL;
         lpoint.pos++;

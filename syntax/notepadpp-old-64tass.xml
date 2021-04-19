@@ -8,7 +8,7 @@
         <KeywordLists>
             <Keywords name="Delimiters">&quot;&apos;0&quot;&apos;0</Keywords>
             <Keywords name="Folder+">.proc .if .ifeq .ifne .ifpl .ifmi .switch .segment .macro .namespace .section .function .struct .union .weak .rept .brept .for .bfor .while .bwhile .with .virtual .logical .page .block</Keywords>
-            <Keywords name="Folder-">.pend .endproc .fi .endif .endswitch .endm .endmacro .endsegment .endn .endnamespace .send .endsection .endf .endfunction .ends .endstruct .endu .endunion .endweak .next .endwith .endv .endvirtual .here .endlogical .endp .endpage .bend .endblock</Keywords>
+            <Keywords name="Folder-">.pend .endproc .fi .endif .endswitch .endm .endmacro .endsegment .endn .endnamespace .send .endsection .endf .endfunction .ends .endstruct .endu .endunion .endweak .next .endfor .endrept .endwhile .endwith .endv .endvirtual .here .endlogical .endp .endpage .bend .endblock</Keywords>
             <Keywords name="Operators">- ! # &amp; ( ) * , / : ? [ ] { } ^ ` | ~ + &lt; = &gt;</Keywords>
             <Keywords name="Comment"> 1 1.comment 2.endc 0;</Keywords>
             <Keywords name="Words1">adc and asl bcc bcs beq bge bit blt bmi bne bpl brk bvc bvs clc cld cli clv cmp cpa cpx cpy dec dex dey eor gcc gcs geq gge glt gmi gne gpl gvc gvs inc inx iny jmp jsr lda ldx ldy lsr nop ora pha php pla plp rol ror rti rts sbc sec sed sei shl shr sta stx sty tax tay tsx txa txs tya ahx alr anc ane arr asr axs dcm dcp ins isb isc jam lae las lax lds lxa rla rra sax sbx sha shs shx shy slo sre tas xaa</Keywords>

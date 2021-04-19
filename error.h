@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2533 2021-03-17 20:28:24Z soci $
+    $Id: error.h 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@ struct Str;
 struct Type;
 struct Label;
 struct Symbol;
-struct Oper;
 struct Error;
 struct Namespace;
 struct oper_s;
@@ -53,7 +52,6 @@ extern void err_msg_cant_unpack(size_t, size_t, linepos_t);
 extern void err_msg_cant_calculate(const struct str_t *, linepos_t);
 extern void err_msg_cant_calculate2(const struct str_t *, const struct file_list_s *, linepos_t);
 extern void err_msg_still_none(const struct str_t *, linepos_t);
-extern void err_msg_invalid_oper(const struct Oper *, struct Obj *, struct Obj *, linepos_t);
 extern void err_msg_double_definedo(const struct file_list_s *, linepos_t, const struct str_t *, linepos_t);
 extern void err_msg_not_variable(struct Label *, const struct str_t *, linepos_t);
 extern void err_msg_double_defined(struct Label *, const struct str_t *, linepos_t);

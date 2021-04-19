@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: intobj.c 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,14 +32,13 @@
 #include "strobj.h"
 #include "bytesobj.h"
 #include "bitsobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
 #include "functionobj.h"
 
-#define SHIFT (8 * sizeof(digit_t))
+#define SHIFT (8 * (unsigned int)sizeof(digit_t))
 #define MASK (~(digit_t)0)
 #define DSHIFT 9
 #define DMUL ((digit_t)1000000000)
@@ -60,7 +59,7 @@ static inline Int *ref_int(Int *v1) {
 
 static inline size_t intlen(const Int *v1) {
     ssize_t len = v1->len;
-    return (len < 0) ? (size_t)-len : (size_t)len;
+    return (size_t)(len < 0 ? -len : len);
 }
 
 MUST_CHECK Obj *int_from_obj(Obj *v1, linepos_t epoint) {
@@ -80,7 +79,7 @@ MUST_CHECK Obj *int_from_obj(Obj *v1, linepos_t epoint) {
     return new_error_conv(v1, INT_OBJ, epoint);
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return int_from_obj(op->v2, op->epoint2);
 }
 
@@ -143,7 +142,7 @@ static FAST_CALL MUST_CHECK Obj *normalize(Int *v, size_t sz, bool neg) {
     digit_t *d = v->data;
     while (sz != 0 && d[sz - 1] == 0) sz--;
     /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
-    v->len = neg ? -(ssize_t)sz : (ssize_t)sz;
+    v->len = (ssize_t)(neg ? -sz : sz);
     if (v->val != d && sz <= lenof(v->val)) {
         return normalize2(v, sz);
     }
@@ -390,14 +389,14 @@ static inline unsigned int ldigit(const Int *v1) {
 
 static MUST_CHECK Obj *calc1(oper_t op) {
     Int *v1 = Int(op->v1), *v;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-        return bits_calc1(op->op->op, ldigit(v1));
+        return bits_calc1(op->op, ldigit(v1));
     case O_INV:
         v = new_int();
         if (v1->len < 0) isub(v1, Int(int_value[1]), v);
@@ -539,7 +538,7 @@ static void isub(const Int *vv1, const Int *vv2, Int *vv) {
     }
     if (vv == vv1 || vv == vv2) destroy(Obj(vv));
     vv->data = v;
-    vv->len = neg ? -(ssize_t)i : (ssize_t)i;
+    vv->len = (ssize_t)(neg ? -i : i);
 }
 
 static void imul(const Int *vv1, const Int *vv2, Int *vv) {
@@ -1307,7 +1306,7 @@ MUST_CHECK Obj *int_from_float(const Float *v1, linepos_t epoint) {
     v = new_int();
     v->data = d = inew2(v, sz);
     if (d == NULL) goto failed2;
-    v->len = neg ? -(ssize_t)sz : (ssize_t)sz;
+    v->len = (ssize_t)(neg ? -sz : sz);
 
     frac = ldexp(frac, (int)((expo - 1) % SHIFT + 1));
 
@@ -1337,7 +1336,7 @@ MUST_CHECK Obj *int_from_bytes(const Bytes *v1, linepos_t epoint) {
     }
 
     inv = v1->len < 0;
-    len1 = inv ? (size_t)-v1->len : (size_t)v1->len; /* it's - for the additional length  */
+    len1 = (size_t)(inv ? -v1->len : v1->len); /* it's - for the additional length  */
     sz = len1 / sizeof *d;
     if ((len1 % sizeof *d) != 0) sz++;
 
@@ -1396,7 +1395,7 @@ MUST_CHECK Obj *int_from_bits(const Bits *v1, linepos_t epoint) {
     }
 
     inv = v1->len < 0;
-    sz = inv ? (size_t)-v1->len : (size_t)v1->len; /* it's - for the additional length  */
+    sz = (size_t)(inv ? -v1->len : v1->len); /* it's - for the additional length  */
     if (sz == 0 && inv) goto failed; /* overflow */
     v = new_int();
     v->data = d = inew2(v, sz);
@@ -1511,9 +1510,10 @@ failed2:
     return new_error_mem(epoint);
 }
 
-MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
+MUST_CHECK Obj *int_from_decstr(const uint8_t *s, linecpos_t *ln, linecpos_t *ln2) {
     const uint8_t *end;
-    size_t i, j, k, sz;
+    linecpos_t i, k;
+    size_t sz;
     digit_t *d, *end2, val;
     Int *v;
 
@@ -1556,7 +1556,9 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     end2 = d;
     while (s < end) {
         digit_t *d2, mul;
-        for (val = j = 0; j < 9 && s < end; s++) {
+        int j;
+        val = 0;
+        for (j = 0; j < 9 && s < end; s++) {
             uint8_t c = *s ^ 0x30;
             if (c < 10) {
                 val = val * 10 + c;
@@ -1610,7 +1612,7 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
     Obj *val;
     ival_t shift;
     ssize_t cmp;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_CMP:
         cmp = icmp(op);
         return val_reference(cmp < 0 ? minus1_value : int_value[(cmp > 0) ? 1 : 0]);
@@ -1715,11 +1717,11 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *tmp, *ret, *v2 = op->v2;
 
-    if (op->op == &o_LAND) {
+    if (op->op == O_LAND) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((Int(op->v1)->len != 0) ? v2 : op->v1);
     }
-    if (op->op == &o_LOR) {
+    if (op->op == O_LOR) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((Int(op->v1)->len != 0) ? op->v1 : v2);
     }
@@ -1748,7 +1750,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         val_destroy(tmp);
         return ret;
     default:
-        if (op->op != &o_MEMBER && op->op != &o_X) {
+        if (op->op != O_MEMBER && op->op != O_X) {
             return v2->obj->rcalc2(op);
         }
         if (v2 == none_value || v2->obj == ERROR_OBJ) return val_reference(v2);
@@ -1760,7 +1762,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *tmp, *v1 = op->v1;
     if (v1->obj == BOOL_OBJ) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        switch (op->op->op) {
+        switch (op->op) {
         case O_LSHIFT:
         case O_RSHIFT: tmp = bits_value[v1 == true_value ? 1 : 0]; break;
         default: tmp = int_value[v1 == true_value ? 1 : 0]; break;
@@ -1774,7 +1776,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void intobj_init(void) {
     new_type(&obj, T_INT, "int", sizeof(Int));
-    obj.create = create;
+    obj.convert = convert;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;

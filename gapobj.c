@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: gapobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "values.h"
 
 #include "strobj.h"
-#include "operobj.h"
 #include "boolobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
@@ -64,7 +63,7 @@ static MUST_CHECK Obj *function(oper_t op) {
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
-    switch (op->op->op) {
+    switch (op->op) {
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -84,7 +83,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
     switch (v2->obj->type) {
     case T_GAP:
-        switch (op->op->op) {
+        switch (op->op) {
         case O_ADD:
         case O_SUB:
         case O_MUL:
@@ -108,7 +107,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ADDRESS:
     case T_BYTES:
     case T_REGISTER:
-        switch (op->op->op) {
+        switch (op->op) {
         case O_EQ: return ref_false();
         case O_NE: return ref_true();
         case O_ADD:
@@ -129,7 +128,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(v2);
     default:
-        if (v2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        if (v2->obj->iterable && op->op != O_MEMBER && op->op != O_X) {
             return v2->obj->rcalc2(op);
         }
         break;
@@ -150,7 +149,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_ADDRESS:
     case T_BYTES:
     case T_REGISTER:
-        switch (op->op->op) {
+        switch (op->op) {
         case O_EQ: return ref_false();
         case O_NE: return ref_true();
         case O_ADD:
@@ -172,7 +171,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != &o_IN) {
+        if (op->op != O_IN) {
             return v1->obj->calc2(op);
         }
         break;

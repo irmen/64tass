@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: boolobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include "strobj.h"
 #include "bitsobj.h"
 #include "intobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
 #include "noneobj.h"
@@ -58,7 +57,7 @@ static MUST_CHECK Obj *bool_from_obj(Obj *v1, linepos_t epoint) {
     return new_error_conv(v1, BOOL_OBJ, epoint);
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return bool_from_obj(op->v2, op->epoint2);
 }
 
@@ -129,15 +128,15 @@ static MUST_CHECK Obj *function(oper_t op) {
 static MUST_CHECK Obj *calc1(oper_t op) {
     bool v1 = op->v1 == true_value;
     Str *v;
-    if (diagnostics.strict_bool && op->op != &o_LNOT) err_msg_bool_oper(op);
-    switch (op->op->op) {
+    if (diagnostics.strict_bool && op->op != O_LNOT) err_msg_bool_oper(op);
+    switch (op->op) {
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-        return bits_calc1(op->op->op, v1 ? 1U : 0U);
+        return bits_calc1(op->op, v1 ? 1U : 0U);
     case O_INV: return val_reference(ibits_value[v1 ? 1 : 0]);
     case O_NEG: return val_reference(v1 ? ibits_value[0] : bits_value[0]);
     case O_POS: return val_reference(bits_value[v1 ? 1 : 0]);
@@ -156,7 +155,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 static MUST_CHECK Obj *calc2_bool(oper_t op) {
     bool v1 = op->v1 == true_value;
     bool v2 = op->v2 == true_value;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_SUB:
     case O_CMP:
         if (!v1 && v2) return val_reference(minus1_value);
@@ -197,13 +196,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o1 = op->v1;
     Obj *o2 = op->v2;
     bool is_bool = o2->obj == BOOL_OBJ;
-    Oper *oper = op->op;
 
-    if (oper == &o_LAND) {
+    if (op->op == O_LAND) {
         if (diagnostics.strict_bool && !is_bool) err_msg_bool_oper(op);
         return val_reference(o1 == true_value ? o2 : o1);
     }
-    if (oper == &o_LOR) {
+    if (op->op == O_LOR) {
         if (diagnostics.strict_bool && !is_bool) err_msg_bool_oper(op);
         return val_reference(o1 == true_value ? o1 : o2);
     }
@@ -211,7 +209,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return calc2_bool(op);
     }
-    if (oper != &o_MEMBER && oper != &o_X) {
+    if (op->op != O_MEMBER && op->op != O_X) {
         return o2->obj->rcalc2(op);
     }
     if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
@@ -220,7 +218,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void boolobj_init(void) {
     new_type(&obj, T_BOOL, "bool", sizeof(Bool));
-    obj.create = create;
+    obj.convert = convert;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

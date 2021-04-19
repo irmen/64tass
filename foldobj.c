@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: foldobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "error.h"
 
 #include "typeobj.h"
-#include "operobj.h"
 #include "strobj.h"
 #include "errorobj.h"
 #include "boolobj.h"
@@ -61,8 +60,8 @@ static MUST_CHECK Obj *repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint), size_t ma
 
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
-    if (v2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
-        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+    if (v2->obj->iterable && op->op != O_MEMBER && op->op != O_X) {
+        bool minmax = (op->op == O_MIN) || (op->op == O_MAX);
         struct iter_s iter;
         Obj *ret = NULL;
         iter.data = v2; v2->obj->getiter(&iter);
@@ -99,8 +98,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *v1 = op->v1;
     if (v1->obj->iterable) {
-        if (op->op != &o_IN) {
-            bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+        if (op->op != O_IN) {
+            bool minmax = (op->op == O_MIN) || (op->op == O_MAX);
             struct iter_s iter;
             Obj *ret = NULL;
             iter.data = v1; v1->obj->getriter(&iter);

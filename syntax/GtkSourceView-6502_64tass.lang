@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- ex:set ts=2 et:
 
- $Id: GtkSourceView-6502_64tass.lang 2317 2021-01-31 22:46:47Z soci $
+ $Id: GtkSourceView-6502_64tass.lang 2590 2021-04-18 08:46:50Z soci $
 
  GtkSourceView language definition file for 64tass
  Usable with gedit
@@ -205,7 +205,7 @@
     </context>
 
     <context id="preprocessor-loop" end-at-line-end="true">
-      <start>\.(b?for|b?rept|b?while|next|lbl|goto)(\s|(?=;)|$)</start>
+      <start>\.(b?for|b?rept|b?while|next|endfor|endrept|endwhile|lbl|goto)(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>

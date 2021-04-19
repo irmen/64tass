@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2570 2021-04-11 22:11:00Z soci $
+    $Id: 64tass.c 2598 2021-04-18 23:44:52Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -209,6 +209,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x1c" "endc",
     "\x1c" "endcomment",
     "\x52" "endf",
+    "\x6c" "endfor",
     "\x52" "endfunction",
     "\x16" "endif",
     "\x20" "endlogical",
@@ -219,6 +220,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x1e" "endp",
     "\x1e" "endpage",
     "\x27" "endproc",
+    "\x6d" "endrept",
     "\x46" "ends",
     "\x4d" "endsection",
     "\x6b" "endsegment",
@@ -229,6 +231,7 @@ static const char * const command[] = { /* must be sorted, first char is the ID 
     "\x61" "endv",
     "\x61" "endvirtual",
     "\x58" "endweak",
+    "\x6e" "endwhile",
     "\x69" "endwith",
     "\x40" "eor",
     "\x25" "error",
@@ -305,7 +308,8 @@ typedef enum Command_types {
     CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
     CMD_MANSIZ, CMD_SEED, CMD_NAMESPACE, CMD_ENDN, CMD_VIRTUAL, CMD_ENDV,
     CMD_BREPT, CMD_BFOR, CMD_WHILE, CMD_BWHILE, CMD_BREAKIF, CMD_CONTINUEIF,
-    CMD_WITH, CMD_ENDWITH, CMD_ENDMACRO, CMD_ENDSEGMENT
+    CMD_WITH, CMD_ENDWITH, CMD_ENDMACRO, CMD_ENDSEGMENT, CMD_ENDFOR,
+    CMD_ENDREPT, CMD_ENDWHILE
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
@@ -404,8 +408,11 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     return error;
 }
 
-static MUST_CHECK bool touval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    Error *err = v1->obj->uval2(v1, uv, bits, epoint);
+static MUST_CHECK bool touval2(const struct values_s *vals, uval_t *uv, unsigned int bits) {
+    Error *err;
+    Obj *val = vals->val;
+    if (val == none_value && (constcreated || !fixeddig) && pass < max_pass) return true;
+    err = val->obj->uval2(val, uv, bits, &vals->epoint);
     if (err == NULL) return false;
     err_msg_output_and_destroy(err);
     return true;
@@ -514,8 +521,8 @@ static int get_command(void) {
                     if ((uint8_t)(label[l] - 'a') <= ('z' - 'a')) break;
                     if ((label[l] & 0x80) != 0) {
                         if (arguments.to_ascii) {
-                            uint32_t ch;
-                            utf8in(label + l, &ch);
+                            uchar_t ch;
+                            utf8in(pline + lpoint.pos + l, &ch);
                             if ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) return lenof(command);
                         }
                     } else if (label[l] <= '9' || (uint8_t)(label[l] - 'A') <= ('Z' - 'A') || label[l] == '_') return lenof(command);
@@ -578,8 +585,10 @@ static void textrecursion_gaps(struct textrecursion_s *trec) {
 static void textdump(struct textrecursion_s *trec, unsigned int uval) {
     switch (trec->prm) {
     case CMD_SHIFT:
-        if ((uval & 0x80) != 0) trec->error = ERROR___NO_HIGH_BIT;
-        uval &= 0x7f;
+        if ((uval & 0x80) != 0) {
+            uval ^= 0x80;
+            trec->error = ERROR___NO_HIGH_BIT;
+        }
         break;
     case CMD_SHIFTL:
         if ((uval & 0x80) != 0) trec->error = ERROR___NO_HIGH_BIT;
@@ -587,12 +596,79 @@ static void textdump(struct textrecursion_s *trec, unsigned int uval) {
         break;
     case CMD_NULL:
         if (uval == 0) trec->error = ERROR_NO_ZERO_VALUE;
-        /* fall through */
+        break;
     default:
         break;
     }
     if (trec->p >= sizeof trec->buff) textrecursion_flush(trec);
     trec->buff[trec->p++] = (uint8_t)(uval ^ outputeor);
+}
+
+static void textdump_bytes(struct textrecursion_s *trec, const Bytes *bytes) {
+    size_t len2;
+    address_t i, ln;
+    unsigned int inv;
+    if (bytes->len > 0) {
+        len2 = (size_t)bytes->len;
+        inv = 0;
+    } else if (bytes->len == 0) {
+        return;
+    } else {
+        inv = 0xff;
+        len2 = (size_t)~bytes->len;
+    }
+    ln = trec->max - trec->sum;
+    if (len2 < ln) ln = (address_t)len2;
+    trec->sum += ln;
+    if (trec->gaps > 0) textrecursion_gaps(trec);
+    if (ln > sizeof trec->buff) {
+        uint8_t *d;
+        if (trec->p > 0) textrecursion_flush(trec);
+        if (trec->prm == CMD_SHIFT || trec->prm == CMD_SHIFTL) ln--;
+        d = pokealloc(ln, trec->epoint);
+        switch (trec->prm) {
+        case CMD_SHIFT:
+            for (i = 0; i < ln; i++) {
+                unsigned int uval = bytes->data[i] ^ inv;
+                if ((uval & 0x80) != 0) {
+                    uval ^= 0x80;
+                    trec->error = ERROR___NO_HIGH_BIT;
+                }
+                d[i] = (uint8_t)(uval ^ outputeor);
+            }
+            textdump(trec, bytes->data[i] ^ inv);
+            return;
+        case CMD_SHIFTL:
+            for (i = 0; i < ln; i++) {
+                unsigned int uval = bytes->data[i] ^ inv;
+                if ((uval & 0x80) != 0) trec->error = ERROR___NO_HIGH_BIT;
+                uval <<= 1;
+                d[i] = (uint8_t)(uval ^ outputeor);
+            }
+            textdump(trec, bytes->data[i] ^ inv);
+            return;
+        case CMD_NULL:
+            for (i = 0; i < ln; i++) {
+                unsigned int uval = bytes->data[i] ^ inv;
+                if (uval == 0) trec->error = ERROR_NO_ZERO_VALUE;
+                d[i] = (uint8_t)(uval ^ outputeor);
+            }
+            return;
+        default:
+            if (inv == 0 && outputeor == 0) {
+                memcpy(d, bytes->data, ln);
+                return;
+            }
+            for (i = 0; i < ln; i++) {
+                unsigned int uval = bytes->data[i] ^ inv;
+                d[i] = (uint8_t)(uval ^ outputeor);
+            }
+            return;
+        }
+    } 
+    for (i = 0; i < ln; i++) {
+        textdump(trec, bytes->data[i] ^ inv);
+    }
 }
 
 static void textrecursion(struct textrecursion_s *trec, Obj *val) {
@@ -693,33 +769,12 @@ retry:
             break;
         case T_BYTES:
         dobytes:
-            {
-                Bytes *bytes = Bytes(val2);
-                ssize_t len = bytes->len;
-                if (len != 0) {
-                    size_t i, len2, len3;
-                    unsigned int inv;
-                    if (len < 0) {
-                        inv = ~0U;
-                        len2 = (size_t)~len;
-                    } else {
-                        inv = 0;
-                        len2 = (size_t)len;
-                    }
-                    len3 = trec->max - trec->sum;
-                    if (len2 > len3) len2 = len3;
-                    trec->sum += len2;
-                    if (trec->gaps > 0) textrecursion_gaps(trec);
-                    for (i = 0; i < len2; i++) {
-                        textdump(trec, bytes->data[i] ^ inv);
-                    }
-                }
-            }
+            textdump_bytes(trec, Bytes(val2));
             if (iter.data == NULL) return;
             break;
         default:
         doit:
-            if (touval(val2, &uval, 8, trec->epoint)) uval = 256 + '?';
+            if (touval(val2, &uval, 8, trec->epoint)) uval = 256 + '?'; else uval &= 0xff;
             trec->sum++;
             if (trec->gaps > 0) textrecursion_gaps(trec);
             textdump(trec, uval);
@@ -939,7 +994,7 @@ static void union_close(linepos_t epoint) {
 static const char *check_waitfor(void) {
     switch (waitfor->what) {
     case W_FI2:
-    case W_FI: return ".fi";
+    case W_FI: return ".endif";
     case W_SWITCH2:
     case W_SWITCH:
         if (waitfor->u.cmd_switch.val != NULL) val_destroy(waitfor->u.cmd_switch.val);
@@ -952,7 +1007,7 @@ static const char *check_waitfor(void) {
     case W_ENDP2:
         if (waitfor->u.cmd_page.label != NULL) {set_size(waitfor->u.cmd_page.label, current_address->address - waitfor->u.cmd_page.addr, current_address->mem, waitfor->u.cmd_page.addr, waitfor->u.cmd_page.membp);val_destroy(Obj(waitfor->u.cmd_page.label));}
         /* fall through */
-    case W_ENDP: return ".endp";
+    case W_ENDP: return ".endpage";
     case W_ENDSEGMENT:
         if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
         return ".endsegment";
@@ -961,58 +1016,68 @@ static const char *check_waitfor(void) {
         return ".endmacro";
     case W_ENDF: 
         if (waitfor->u.cmd_function.val != NULL) val_destroy(waitfor->u.cmd_function.val);
-        return ".endf";
-    case W_NEXT3:
+        return ".endfunction";
+    case W_ENDFOR3:
         pop_context();
         /* fall through */
-    case W_NEXT: return ".next";
+    case W_ENDFOR: return ".endfor";
+    case W_ENDREPT3:
+        pop_context();
+        /* fall through */
+    case W_ENDREPT: return ".endrept";
+    case W_ENDWHILE3:
+        pop_context();
+        /* fall through */
+    case W_ENDWHILE: return ".endwhile";
     case W_PEND:
         pop_context();
         if (waitfor->u.cmd_proc.label != NULL) {set_size(waitfor->u.cmd_proc.label, current_address->address - waitfor->u.cmd_proc.addr, current_address->mem, waitfor->u.cmd_proc.addr, waitfor->u.cmd_proc.membp);val_destroy(Obj(waitfor->u.cmd_proc.label));}
-        return ".pend";
+        return ".endproc";
     case W_BEND2:
         if (waitfor->u.cmd_block.label != NULL) {set_size(waitfor->u.cmd_block.label, current_address->address - waitfor->u.cmd_block.addr, current_address->mem, waitfor->u.cmd_block.addr, waitfor->u.cmd_block.membp);val_destroy(Obj(waitfor->u.cmd_block.label));}
         /* fall through */
     case W_BEND:
         pop_context();
-        return ".bend";
+        return ".endblock";
     case W_ENDN2:
     case W_ENDN:
         pop_context();
-        return ".endn";
+        return ".endnamespace";
     case W_ENDWITH2:
         pop_context2();
         /* fall through */
     case W_ENDWITH:
         if (waitfor->u.cmd_with.label != NULL) {set_size(waitfor->u.cmd_with.label, current_address->address - waitfor->u.cmd_with.addr, current_address->mem, waitfor->u.cmd_with.addr, waitfor->u.cmd_with.membp);val_destroy(Obj(waitfor->u.cmd_with.label));}
         return ".endwith";
-    case W_ENDC: return ".endc";
+    case W_ENDC: return ".endcomment";
     case W_ENDS:
         if ((waitfor->skip & 1) != 0) current_address->unionmode = waitfor->u.cmd_struct.unionmode;
         /* fall through */
-    case W_ENDS2: return ".ends";
+    case W_ENDS2: return ".endstruct";
     case W_SEND2:
         section_close(NULL);
         /* fall through */
-    case W_SEND: return ".send";
+    case W_SEND: return ".endsection";
     case W_ENDU:
         if ((waitfor->skip & 1) != 0) union_close(&lpoint);
         /* fall through */
-    case W_ENDU2: return ".endu";
+    case W_ENDU2: return ".endunion";
     case W_HERE2:
         logical_close(NULL);
         /* fall through */
-    case W_HERE: return ".here";
+    case W_HERE: return ".endlogical";
     case W_ENDV2:
         virtual_close(NULL);
         /* fall through */
-    case W_ENDV: return ".endv";
+    case W_ENDV: return ".endvirtual";
     case W_ENDU3:
     case W_ENDS3:
     case W_ENDSEGMENT2:
     case W_ENDMACRO2:
     case W_ENDF3:
-    case W_NEXT2:
+    case W_ENDFOR2:
+    case W_ENDREPT2:
+    case W_ENDWHILE2:
     case W_NONE:
         break;
     }
@@ -1028,7 +1093,7 @@ static bool section_start(linepos_t epoint) {
     opoint = lpoint;
     sectionname.data = pline + lpoint.pos; sectionname.len = get_label(sectionname.data);
     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); return true;}
-    lpoint.pos += sectionname.len;
+    lpoint.pos += (linecpos_t)sectionname.len;
     tmp = find_new_section(&sectionname);
     if (tmp->usepass == 0 || tmp->defpass < pass - 1) {
         address_t ln = tmp->address.mem->mem.p;
@@ -1184,48 +1249,48 @@ static void starhandle(Obj *val, linepos_t epoint, linepos_t epoint2) {
     val_destroy(val);
 }
 
-static MUST_CHECK Oper *oper_from_token(int wht) {
+static Oper_types oper_from_token(int wht) {
     switch (wht) {
     case 'X':
         if (arguments.caseinsensitive == 0) {
-            return NULL;
+            return O_NONE;
         }
         /* fall through */
-    case 'x': return &o_X;
-    case '*': return &o_MUL;
-    case '+': return &o_ADD;
-    case '-': return &o_SUB;
-    case '/': return &o_DIV;
-    case '%': return &o_MOD;
-    case '|': return &o_OR;
-    case '&': return &o_AND;
-    case '^': return &o_XOR;
-    case '.': return &o_MEMBER;
-    default: return NULL;
+    case 'x': return O_X;
+    case '*': return O_MUL;
+    case '+': return O_ADD;
+    case '-': return O_SUB;
+    case '/': return O_DIV;
+    case '%': return O_MOD;
+    case '|': return O_OR;
+    case '&': return O_AND;
+    case '^': return O_XOR;
+    case '.': return O_MEMBER;
+    default: return O_NONE;
     }
 }
 
-static MUST_CHECK Oper *oper_from_token2(int wht, int wht2) {
+static Oper_types oper_from_token2(int wht, int wht2) {
     if (wht == wht2) {
         switch (wht) {
-        case '&': return &o_LAND;
-        case '|': return &o_LOR;
-        case '>': return &o_RSHIFT;
-        case '<': return &o_LSHIFT;
-        case '.': return &o_CONCAT;
-        case '*': return &o_EXP;
-        default: return NULL;
+        case '&': return O_LAND;
+        case '|': return O_LOR;
+        case '>': return O_RSHIFT;
+        case '<': return O_LSHIFT;
+        case '.': return O_CONCAT;
+        case '*': return O_EXP;
+        default: return O_NONE;
         }
     }
     if (wht2 == '?') {
         switch (wht) {
-        case '<': return &o_MIN;
-        case '>': return &o_MAX;
-        case ':': return &o_COND;
-        default: return NULL;
+        case '<': return O_MIN;
+        case '>': return O_MAX;
+        case ':': return O_COND;
+        default: return O_NONE;
         }
     }
-    return NULL;
+    return O_NONE;
 }
 
 static MUST_CHECK Obj *tuple_scope_light(Obj **o, linepos_t epoint) {
@@ -1360,7 +1425,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
 
         varname.data = pline + lpoint.pos; varname.len = get_label(varname.data);
         if (varname.len == 0) break;
-        lpoint.pos += varname.len;
+        lpoint.pos += (linecpos_t)varname.len;
         if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint2); goto error;}
         ignore(); wht = here();
         if (wht == ',') {
@@ -1450,7 +1515,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         if (here() != ',') {err_msg(ERROR______EXPECTED, "','");
         error:
             if (labels.p != 0 && labels.data != labels.val) free(labels.data);
-            new_waitfor(W_NEXT, epoint); waitfor->skip = 0;
+            new_waitfor(W_ENDFOR, epoint); waitfor->skip = 0;
             return i;
         }
         lpoint.pos++;ignore();
@@ -1465,7 +1530,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     star_tree->vline = vline; star_tree = s; vline = s->vline;
     lin = lpoint.line;
 
-    new_waitfor(W_NEXT2, epoint);
+    new_waitfor(W_ENDFOR2, epoint);
     if (foreach) {
         waitfor->u.cmd_rept.breakout = false;
         if (iter.data != NULL) {
@@ -1519,7 +1584,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         } else expr = (uint8_t *)oldpline;
         label = NULL;
         waitfor->u.cmd_rept.breakout = false;
-        tmp.op = NULL;
+        tmp.op = O_NONE;
         for (;;) {
             if (here() != ',' && here() != 0) {
                 bool truth;
@@ -1559,25 +1624,29 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 lpoint = bpoint;
                 varname.data = pline + lpoint.pos; varname.len = get_label(varname.data);
                 if (varname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &bpoint);break;}
-                lpoint.pos += varname.len;
+                lpoint.pos += (linecpos_t)varname.len;
                 if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &bpoint); break;}
                 ignore(); wht = here();
                 while (wht != 0 && !arguments.tasmcomp) {
                     int wht2 = pline[lpoint.pos + 1];
                     if (wht2 == '=') {
+                        Oper_types op;
                         if (wht == ':') {
                             wht = '=';
                             lpoint.pos++;
                             break;
                         }
-                        tmp.op = oper_from_token(wht);
-                        if (tmp.op == NULL) break;
+                        op = oper_from_token(wht);
+                        if (op == O_NONE) break;
+                        tmp.op = op;
                         epoint3 = lpoint;
                         lpoint.pos += 2;
                     } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
+                        Oper_types op;
                         if (wht == '?') break;
-                        tmp.op = oper_from_token2(wht, wht2);
-                        if (tmp.op == NULL) break;
+                        op = oper_from_token2(wht, wht2);
+                        if (op == O_NONE) break;
+                        tmp.op = op;
                         epoint3 = lpoint;
                         lpoint.pos += 3;
                     } else break;
@@ -1590,7 +1659,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                     break;
                 }
                 context = (varname.data[0] == '_') ? cheap_context : current_context;
-                if (tmp.op == NULL) {
+                if (tmp.op == O_NONE) {
                     if (wht != '=') {err_msg(ERROR______EXPECTED, "':='"); break;}
                     lpoint.pos++;ignore();
                     label = new_label(&varname, context, strength, &labelexists, current_file_list);
@@ -1628,8 +1697,8 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 lpoint = bpoint;
                 if (!get_exp(0, 0, 0, &bpoint)) break;
                 val = get_vals_addrlist(epoints);
-                if (tmp.op != NULL) {
-                    bool minmax = (tmp.op == &o_MIN) || (tmp.op == &o_MAX);
+                if (tmp.op != O_NONE) {
+                    bool minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
                     Obj *result2, *val1 = label->value;
                     tmp.v1 = val1;
                     tmp.v2 = val;
@@ -1657,9 +1726,9 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (nf != NULL) {
         if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
         else listing_line_cut2(listing, waitfor->epoint.pos);
-        close_waitfor(W_NEXT2);
+        close_waitfor(W_ENDFOR2);
     } else {
-        waitfor->what = W_NEXT; waitfor->skip = 0;
+        waitfor->what = W_ENDFOR; waitfor->skip = 0;
     }
     free(expr);
     free(expr2);
@@ -1677,11 +1746,10 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
     else listing_line(listing, epoint->pos);
     if (!get_exp(0, 1, 1, epoint)) cnt = 0;
     else {
-        struct values_s *vs = get_val();
-        if (touval2(vs->val, &cnt, 8 * sizeof cnt, &vs->epoint)) cnt = 0;
+        if (touval2(get_val(), &cnt, 8 * sizeof cnt)) cnt = 0;
     }
     if (cnt == 0) {
-        new_waitfor(W_NEXT, epoint); waitfor->skip = 0;
+        new_waitfor(W_ENDREPT, epoint); waitfor->skip = 0;
     } else {
         linenum_t lin = lpoint.line;
         bool starexists;
@@ -1694,7 +1762,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
         }
         s->addr = star;
         star_tree->vline = vline; star_tree = s; vline = s->vline;
-        new_waitfor(W_NEXT2, epoint);
+        new_waitfor(W_ENDREPT2, epoint);
         waitfor->u.cmd_rept.breakout = false;
         for (;;) {
             lpoint.line = lin;
@@ -1713,9 +1781,9 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
         if (nf != NULL) {
             if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
             else listing_line_cut2(listing, waitfor->epoint.pos);
-            close_waitfor(W_NEXT2);
+            close_waitfor(W_ENDREPT2);
         } else {
-            waitfor->what = W_NEXT; waitfor->skip = 0;
+            waitfor->what = W_ENDREPT; waitfor->skip = 0;
         }
         s->vline = vline; star_tree = stree_old; vline = star_tree->vline + lpoint.line - lin;
     }
@@ -1754,7 +1822,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
         memcpy(expr, pline, lentmp);
         pline = expr;
     } else expr = (uint8_t *)oldpline;
-    new_waitfor(W_NEXT2, epoint);
+    new_waitfor(W_ENDWHILE2, epoint);
     waitfor->u.cmd_rept.breakout = false;
     for (;;) {
         bool truth;
@@ -1782,9 +1850,9 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (nf != NULL) {
         if ((waitfor->skip & 1) != 0) listing_line(listing, waitfor->epoint.pos);
         else listing_line_cut2(listing, waitfor->epoint.pos);
-        close_waitfor(W_NEXT2);
+        close_waitfor(W_ENDWHILE2);
     } else {
-        waitfor->what = W_NEXT; waitfor->skip = 0;
+        waitfor->what = W_ENDWHILE; waitfor->skip = 0;
     }
     if (expr != oldpline) free(expr);
     s->vline = vline; star_tree = stree_old; vline = star_tree->vline + lpoint.line - apoint.line;
@@ -1894,7 +1962,7 @@ MUST_CHECK Obj *compile(void)
             if (labelname.len != 0) {
                 struct linepos_s cmdpoint;
                 bool islabel, error;
-                lpoint.pos += labelname.len;
+                lpoint.pos += (linecpos_t)labelname.len;
                 islabel = false; error = (waitfor->skip & 1) == 0;
                 while (here() == '.' && pline[lpoint.pos+1] != '.') {
                     if (!error) {
@@ -1921,7 +1989,7 @@ MUST_CHECK Obj *compile(void)
                         if (!error) err_msg2(ERROR______EXPECTED, "a symbol is", &lpoint);
                         goto breakerr;
                     }
-                    lpoint.pos += labelname.len;
+                    lpoint.pos += (linecpos_t)labelname.len;
                     if (!error) {
                         Namespace *context = get_namespace(tmp2->value);
                         if (context == NULL) {
@@ -1929,9 +1997,11 @@ MUST_CHECK Obj *compile(void)
                             if (tmp2->value == none_value) err_msg_still_none(NULL, &epoint);
                             else if (tmp2->value->obj == ERROR_OBJ) err_msg_output(Error(tmp2->value));
                             else {
-                                Obj *symbol = new_symbol(&labelname, &epoint);
-                                err_msg_invalid_oper(&o_MEMBER, tmp2->value, symbol, &epoint);
-                                val_destroy(symbol);
+                                Error *err = new_error(ERROR__INVALID_OPER, &epoint);
+                                err->u.invoper.op = O_MEMBER;
+                                err->u.invoper.v1 = val_reference(tmp2->value);
+                                err->u.invoper.v2 = new_symbol(&labelname, &epoint);
+                                err_msg_output_and_destroy(err);
                             }
                             error = true;
                         } else mycontext = context;
@@ -1959,6 +2029,7 @@ MUST_CHECK Obj *compile(void)
                     int wht2 = pline[lpoint.pos + 1];
 
                     if (wht2 == '=') {
+                        Oper_types op;
                         if (wht == ':') {
                             if (labelname.data[0] == '*') {
                                 lpoint.pos++;
@@ -1968,13 +2039,15 @@ MUST_CHECK Obj *compile(void)
                             ignore();
                             goto itsvar;
                         }
-                        tmp.op = oper_from_token(wht);
-                        if (tmp.op == NULL) break;
+                        op = oper_from_token(wht);
+                        if (op == O_NONE) break;
+                        tmp.op = op;
                         epoint3 = lpoint;
                         lpoint.pos += 2;
                     } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
-                        tmp.op = oper_from_token2(wht, wht2);
-                        if (tmp.op == NULL) break;
+                        Oper_types op = oper_from_token2(wht, wht2);
+                        if (op == O_NONE) break;
+                        tmp.op = op;
                         epoint3 = lpoint;
                         lpoint.pos += 3;
                     } else break;
@@ -1995,12 +2068,12 @@ MUST_CHECK Obj *compile(void)
                         label = NULL;
                         if (diagnostics.optimize) cpu_opt_invalidate();
                         val = get_star();
-                    } else if (tmp.op == &o_COND) {
+                    } else if (tmp.op == O_COND) {
                         label = NULL; val = NULL;
                     } else {
                         label = find_label3(&labelname, mycontext, strength);
                         if (label == NULL) {
-                            if (tmp.op == &o_MUL) {
+                            if (tmp.op == O_MUL) {
                                 if (diagnostics.star_assign) {
                                     err_msg_star_assign(&epoint3);
                                     if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
@@ -2017,7 +2090,7 @@ MUST_CHECK Obj *compile(void)
                             goto breakerr;
                         }
                         if (label->constant) {
-                            if (tmp.op == &o_MUL) {
+                            if (tmp.op == O_MUL) {
                                 if (diagnostics.star_assign) {
                                     err_msg_star_assign(&epoint3);
                                     if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
@@ -2077,7 +2150,7 @@ MUST_CHECK Obj *compile(void)
                         }
                         goto finish;
                     }
-                    minmax = (tmp.op == &o_MIN) || (tmp.op == &o_MAX);
+                    minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
                     tmp.v1 = val;
                     tmp.v2 = val2;
                     tmp.epoint = &epoint;
@@ -3102,7 +3175,7 @@ MUST_CHECK Obj *compile(void)
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
                     if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED, "'.endswitch'", &epoint); goto breakerr;}
                     if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR__MISSING_OPEN, ".switch", &epoint); goto breakerr;}
-                    waitfor->skip = waitfor->skip >> 1;
+                    waitfor->skip = (uint8_t)(waitfor->skip >> 1);
                     waitfor->what = W_SWITCH;waitfor->epoint = epoint;
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
@@ -3110,9 +3183,9 @@ MUST_CHECK Obj *compile(void)
             case CMD_ELSE: /* .else */
                 {
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what==W_FI) { err_msg2(ERROR______EXPECTED, "'.fi'", &epoint); goto breakerr; }
+                    if (waitfor->what==W_FI) { err_msg2(ERROR______EXPECTED, "'.endif'", &epoint); goto breakerr; }
                     if (waitfor->what!=W_FI2) { err_msg2(ERROR__MISSING_OPEN, ".if", &epoint); goto breakerr; }
-                    waitfor->skip = waitfor->skip >> 1;
+                    waitfor->skip = (uint8_t)(waitfor->skip >> 1);
                     waitfor->what = W_FI;waitfor->epoint = epoint;
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
@@ -3174,7 +3247,7 @@ MUST_CHECK Obj *compile(void)
                 {
                     bool truth;
                     if ((waitfor->skip & 1) != 0) listing_line_cut(listing, epoint.pos);
-                    if (waitfor->what == W_FI) {err_msg2(ERROR______EXPECTED, "'.fi'", &epoint); goto breakerr; }
+                    if (waitfor->what == W_FI) {err_msg2(ERROR______EXPECTED, "'.endif'", &epoint); goto breakerr; }
                     if (waitfor->what != W_FI2) {err_msg2(ERROR__MISSING_OPEN, ".if", &epoint); goto breakerr;}
                     waitfor->epoint = epoint;
                     if (waitfor->skip != 2) { waitfor->skip = 0; break; }
@@ -3215,7 +3288,7 @@ MUST_CHECK Obj *compile(void)
                         struct oper_s tmp;
                         waitfor->skip = 1;
                         if (!get_exp(0, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
-                        tmp.op = &o_EQ;
+                        tmp.op = O_EQ;
                         tmp.epoint = tmp.epoint3 = &epoint;
                         while (!truth && (vs = get_val()) != NULL) {
                             val = vs->val;
@@ -3230,7 +3303,7 @@ MUST_CHECK Obj *compile(void)
                             val_destroy(result2);
                         }
                     }
-                    waitfor->skip = truth ? (skwait >> 1) : (skwait & 2);
+                    waitfor->skip = truth ? (uint8_t)(skwait >> 1) : (skwait & 2);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
                 }
                 break;
@@ -3269,15 +3342,58 @@ MUST_CHECK Obj *compile(void)
                 } else err_msg2(ERROR__MISSING_OPEN, ".function", &epoint);
                 goto breakerr;
             case CMD_NEXT: /* .next */
+                switch (waitfor->what) {
+                case W_ENDFOR:
+                case W_ENDFOR2:
+                case W_ENDFOR3:
+                    goto cmd_endfor;
+                case W_ENDREPT:
+                case W_ENDREPT2:
+                case W_ENDREPT3:
+                    goto cmd_endrept;
+                case W_ENDWHILE:
+                case W_ENDWHILE2:
+                case W_ENDWHILE3:
+                    goto cmd_endwhile;
+                default:
+                    err_msg2(ERROR__MISSING_OPEN, ".for', '.rept' or '.while", &epoint);
+                    goto breakerr;
+                }
+            case CMD_ENDFOR: /* .endfor */
+            cmd_endfor:
                 waitfor->epoint = epoint;
-                if (close_waitfor(W_NEXT)) {
+                if (close_waitfor(W_ENDFOR)) {
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
-                } else if (waitfor->what == W_NEXT2) {
+                } else if (waitfor->what == W_ENDFOR2) {
                     retval = true_value; /* anything non-null */
                     nobreak = false;
-                } else if (close_waitfor(W_NEXT3)) {
+                } else if (close_waitfor(W_ENDFOR3)) {
                     pop_context();
-                } else {err_msg2(ERROR__MISSING_OPEN, ".for', '.rept' or '.while", &epoint); goto breakerr;}
+                } else {err_msg2(ERROR__MISSING_OPEN, ".for", &epoint); goto breakerr;}
+                break;
+            case CMD_ENDREPT: /* .endrept */
+            cmd_endrept:
+                waitfor->epoint = epoint;
+                if (close_waitfor(W_ENDREPT)) {
+                    if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
+                } else if (waitfor->what == W_ENDREPT2) {
+                    retval = true_value; /* anything non-null */
+                    nobreak = false;
+                } else if (close_waitfor(W_ENDREPT3)) {
+                    pop_context();
+                } else {err_msg2(ERROR__MISSING_OPEN, ".rept", &epoint); goto breakerr;}
+                break;
+            case CMD_ENDWHILE: /* .endwhile */
+            cmd_endwhile:
+                waitfor->epoint = epoint;
+                if (close_waitfor(W_ENDWHILE)) {
+                    if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);
+                } else if (waitfor->what == W_ENDWHILE2) {
+                    retval = true_value; /* anything non-null */
+                    nobreak = false;
+                } else if (close_waitfor(W_ENDWHILE3)) {
+                    pop_context();
+                } else {err_msg2(ERROR__MISSING_OPEN, ".while", &epoint); goto breakerr;}
                 break;
             case CMD_PEND: /* .pend */
                 if (waitfor->what==W_PEND) {
@@ -3310,14 +3426,14 @@ MUST_CHECK Obj *compile(void)
             case CMD_SEND: /* .send */
                 if ((waitfor->skip & 1) != 0) listing_line(listing, epoint.pos);
                 if (close_waitfor(W_SEND)) {
-                    lpoint.pos += get_label(pline + lpoint.pos);
+                    lpoint.pos += (linecpos_t)get_label(pline + lpoint.pos);
                 } else if (waitfor->what==W_SEND2) {
                     str_t sectionname;
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label(sectionname.data);
                     if (sectionname.len != 0) {
                         str_t cf;
-                        lpoint.pos += sectionname.len;
+                        lpoint.pos += (linecpos_t)sectionname.len;
                         str_cfcpy(&cf, &sectionname);
                         if (str_cmp(&cf, &current_section->cfname) != 0) {
                             char *s = (char *)mallocx(current_section->name.len + 1);
@@ -3564,7 +3680,7 @@ MUST_CHECK Obj *compile(void)
                             else foffs = ival;
                             if ((vs = get_val()) != NULL) {
                                 uval_t uval;
-                                if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                                if (touval2(vs, &uval, 8 * sizeof uval)) {}
                                 else fsize = uval;
                             }
                         }
@@ -3791,16 +3907,16 @@ MUST_CHECK Obj *compile(void)
                     switch (prm) {
                     case CMD_DATABANK:
                         if (vs->val == gap_value) databank = 256;
-                        else if (touval(vs->val, &uval, 8, &vs->epoint)) {}
+                        else if (touval2(vs, &uval, 8)) {}
                         else databank = uval & 0xff;
                         break;
                     case CMD_DPAGE:
                         if (vs->val == gap_value) dpage = 65536;
-                        else if (touval(vs->val, &uval, 16, &vs->epoint)) {}
+                        else if (touval2(vs, &uval, 16)) {}
                         else dpage = uval & 0xffff;
                         break;
                     case CMD_EOR:
-                        if (touval(vs->val, &uval, 8, &vs->epoint)) {}
+                        if (touval2(vs, &uval, 8)) {}
                         else outputeor = (uval & 0xff) * 0x01010101;
                         break;
                     case CMD_SEED:
@@ -3826,7 +3942,7 @@ MUST_CHECK Obj *compile(void)
                     vs = get_val();
                     if (prm == CMD_ALIGN) {
                         address_t max = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? all_mem2 : all_mem;
-                        if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                        if (touval2(vs, &uval, 8 * sizeof uval)) {}
                         else if (uval == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else if (uval > 1) {
                             address_t itt = (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? current_address->address : ((current_address->l_address - current_address->l_start) & all_mem);
@@ -3838,7 +3954,7 @@ MUST_CHECK Obj *compile(void)
                             }
                         }
                     } else {
-                        if (touval2(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                        if (touval2(vs, &uval, 8 * sizeof uval)) {}
                         else db = uval;
                     }
                     mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
@@ -3902,13 +4018,11 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, epoint.pos);
                     if (!get_exp(0, 3, 3, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->provides = ~(uval_t)0;
+                    if (touval2(vs, &uval, 8 * sizeof uval)) current_section->provides = ~(uval_t)0;
                     else current_section->provides = uval;
-                    vs++;
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->requires = 0;
+                    if (touval2(vs + 1, &uval, 8 * sizeof uval)) current_section->requires = 0;
                     else current_section->requires = uval;
-                    vs++;
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) current_section->conflicts = 0;
+                    if (touval2(vs + 2, &uval, 8 * sizeof uval)) current_section->conflicts = 0;
                     else current_section->conflicts = uval;
                 }
                 break;
@@ -3919,10 +4033,9 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, epoint.pos);
                     if (!get_exp(0, 2, 2, &epoint)) goto breakerr;
                     vs = get_val();
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                    if (touval2(vs, &uval, 8 * sizeof uval)) {}
                     else if ((uval & current_section->provides) != uval) err_msg2(ERROR_REQUIREMENTS_, NULL, &epoint);
-                    vs++;
-                    if (touval(vs->val, &uval, 8 * sizeof uval, &vs->epoint)) {}
+                    if (touval2(vs + 1, &uval, 8 * sizeof uval)) {}
                     else if ((uval & current_section->provides) != 0) err_msg2(ERROR______CONFLICT, NULL, &epoint);
                 }
                 break;
@@ -3995,7 +4108,7 @@ MUST_CHECK Obj *compile(void)
                     if (pline[lpoint.pos] != '"' && pline[lpoint.pos] != '\'') { /* will be removed to allow variables */
                         if (diagnostics.deprecated) err_msg2(ERROR_______OLD_ENC, NULL, &lpoint);
                         encname.data = pline + lpoint.pos; encname.len = get_label(encname.data);
-                        lpoint.pos += encname.len;
+                        lpoint.pos += (linecpos_t)encname.len;
                     }
                     if (encname.len == 0) {
                         struct values_s *vs;
@@ -4048,8 +4161,8 @@ MUST_CHECK Obj *compile(void)
                                 }
                             }
                         } else {
-                            if (touval2(val, &uval, 24, &vs->epoint)) tryit = false;
-                            tmp.start = uval;
+                            if (touval2(vs, &uval, 24)) tryit = false;
+                            tmp.start = uval & 0xffffff;
                         }
                         if (!endok) {
                             vs = get_val();
@@ -4066,13 +4179,13 @@ MUST_CHECK Obj *compile(void)
                                     if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
                                 }
                             } else {
-                                if (touval2(val, &uval, 24, &vs->epoint)) tryit = false;
+                                if (touval2(vs, &uval, 24)) tryit = false;
                                 tmp.end = uval & 0xffffff;
                             }
                         }
                         vs = get_val();
                         if (vs == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr;}
-                        if (touval(vs->val, &uval, 8, &vs->epoint)) {}
+                        if (touval2(vs, &uval, 8)) {}
                         else if (tryit) {
                             tmp.offset = uval & 0xff;
                             if (tmp.start > tmp.end) {
@@ -4274,25 +4387,25 @@ MUST_CHECK Obj *compile(void)
                     if (lst->len > i) list_shrink(lst, i);
                     const_assign(label, Obj(lst));
                     goto breakerr;
-                } else {push_dummy_context(); new_waitfor(W_NEXT3, &epoint);}
+                } else {push_dummy_context(); new_waitfor(prm == CMD_FOR ? W_ENDFOR3 : prm == CMD_REPT ? W_ENDREPT3 : W_ENDWHILE3, &epoint);}
                 break;
             case CMD_FOR: if ((waitfor->skip & 1) != 0)
                 { /* .for */
                     for_command(NULL, NULL, &epoint);
                     goto breakerr;
-                } else new_waitfor(W_NEXT, &epoint);
+                } else new_waitfor(W_ENDFOR, &epoint);
                 break;
             case CMD_REPT: if ((waitfor->skip & 1) != 0)
                 { /* .rept */
                     rept_command(NULL, NULL, &epoint);
                     goto breakerr;
-                } else new_waitfor(W_NEXT, &epoint);
+                } else new_waitfor(W_ENDREPT, &epoint);
                 break;
             case CMD_WHILE: if ((waitfor->skip & 1) != 0)
                 { /* .while */
                     while_command(NULL, NULL, &epoint);
                     goto breakerr;
-                } else new_waitfor(W_NEXT, &epoint);
+                } else new_waitfor(W_ENDWHILE, &epoint);
                 break;
             case CMD_CONTINUEIF:
             case CMD_BREAKIF:
@@ -4314,14 +4427,20 @@ MUST_CHECK Obj *compile(void)
                         }
                     }
                     while ((wp--) != 0) {
-                        if (waitfors[wp].what == W_NEXT2) {
-                            if (doit) {
-                                if (wp != 0 && (prm == CMD_BREAK || prm == CMD_BREAKIF)) waitfors[wp].u.cmd_rept.breakout = true;
-                                for (;wp <= waitfor_p; wp++) waitfors[wp].skip = 0;
-                            }
-                            nok = false;
+                        switch (waitfors[wp].what) {
+                        case W_ENDFOR2:
+                        case W_ENDREPT2:
+                        case W_ENDWHILE2:
                             break;
+                        default:
+                            continue;
                         }
+                        if (doit) {
+                            if (wp != 0 && (prm == CMD_BREAK || prm == CMD_BREAKIF)) waitfors[wp].u.cmd_rept.breakout = true;
+                            for (;wp <= waitfor_p; wp++) waitfors[wp].skip = 0;
+                        }
+                        nok = false;
+                        break;
                     }
                     if (nok) err_msg2(ERROR__MISSING_LOOP, NULL, &epoint);
                 }
@@ -4348,7 +4467,7 @@ MUST_CHECK Obj *compile(void)
                     listing_line(listing, epoint.pos);
                     optname.data = pline + lpoint.pos; optname.len = get_label(optname.data);
                     if (optname.len == 0) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    lpoint.pos += optname.len;
+                    lpoint.pos += (linecpos_t)optname.len;
                     ignore();if (here() != '=') {err_msg(ERROR______EXPECTED, "'='"); goto breakerr;}
                     epoint = lpoint;
                     lpoint.pos++;
@@ -4507,7 +4626,7 @@ MUST_CHECK Obj *compile(void)
                     epoint = lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label(sectionname.data);
                     if (sectionname.len == 0) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
-                    lpoint.pos += sectionname.len;
+                    lpoint.pos += (linecpos_t)sectionname.len;
                     tmp3=new_section(&sectionname);
                     if (tmp3->defpass == pass) {
                         err_msg_double_definedo(tmp3->file_list, &tmp3->epoint, &sectionname, &epoint);
@@ -4674,7 +4793,7 @@ MUST_CHECK Obj *compile(void)
 
                 if (newlabel != NULL && newlabel->value->obj == CODE_OBJ && labelname.len != 0 && labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(Obj(cheap_context));cheap_context = ref_namespace(Code(newlabel->value)->names);}
                 opname.data = pline + lpoint.pos; opname.len = get_label(opname.data);
-                lpoint.pos += opname.len;
+                lpoint.pos += (linecpos_t)opname.len;
                 if (opname.len == 3 && (prm = lookup_opcode(opname.data)) >= 0) {
                     Error *err;
                     struct linepos_s oldlpoint;

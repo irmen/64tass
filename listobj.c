@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: listobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include "codeobj.h"
 #include "strobj.h"
 #include "intobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
@@ -205,11 +204,11 @@ static MUST_CHECK Obj *list_from_obj(Obj *o1, Type *typ, linepos_t epoint) {
     return new_error_conv(o1, typ, epoint);
 }
 
-static MUST_CHECK Obj *list_create(oper_t op) {
+static MUST_CHECK Obj *list_convert(oper_t op) {
     return list_from_obj(op->v2, LIST_OBJ, op->epoint2);
 }
 
-static MUST_CHECK Obj *tuple_create(oper_t op) {
+static MUST_CHECK Obj *tuple_convert(oper_t op) {
     return list_from_obj(op->v2, TUPLE_OBJ, op->epoint2);
 }
 
@@ -444,7 +443,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
     size_t i;
     Error *err;
 
-    switch (op->op->op) {
+    switch (op->op) {
     case O_CMP:
     case O_EQ:
     case O_NE:
@@ -472,7 +471,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             if (v1->len == v2->len) {
                 if (v1->len != 0) {
                     Obj **vals;
-                    bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX);
+                    bool minmax = (op->op == O_MIN) || (op->op == O_MAX);
                     List *v, *inplace;
                     if (op->inplace == Obj(v1)) {
                         v = ref_list(v1);
@@ -629,7 +628,7 @@ MUST_CHECK Obj *sliceparams(struct sliceparam_s *s, const struct indexoffs_s *io
     if (io->len >= (1U << (8 * sizeof(ival_t) - 1))) return new_error_mem(io->epoint); /* overflow */
     len = (ival_t)io->len;
     if (v2->len > 3 || v2->len < 1) {
-        return new_error_argnum(v2->len, 1, 3, io->epoint);
+        return new_error_argnum(v2->len <= ~(argcount_t)0 ? (argcount_t)v2->len : ~(argcount_t)0, 1, 3, io->epoint);
     }
     end = len;
     if (v2->len > 2) {
@@ -774,11 +773,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     size_t i;
     Obj **vals;
 
-    if (op->op == &o_X) {
+    if (op->op == O_X) {
         if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
         return repeat(op);
     }
-    if (op->op == &o_IN || o2 == fold_value) {
+    if (op->op == O_IN || o2 == fold_value) {
         return o2->obj->rcalc2(op);
     }
     if (o2->obj == TUPLE_OBJ || o2->obj == LIST_OBJ) {
@@ -788,7 +787,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return val_reference(o2);
     }
     if (v1->len != 0) {
-        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX), inplace = (op->inplace == o1);
+        bool minmax = (op->op == O_MIN) || (op->op == O_MAX), inplace = (op->inplace == o1);
         List *list;
         if (inplace) {
             list = ref_list(List(o1));
@@ -824,8 +823,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     size_t i;
     Obj **vals;
 
-    if (op->op == &o_IN) {
-        op->op = &o_EQ;
+    if (op->op == O_IN) {
+        op->op = O_EQ;
         for (i = 0; i < v2->len; i++) {
             Obj *result;
             op->v1 = o1;
@@ -833,12 +832,12 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             op->inplace = NULL;
             result = o1->obj->calc2(op);
             if (result == true_value) {
-                op->op = &o_IN;
+                op->op = O_IN;
                 return result;
             }
             val_destroy(result);
         }
-        op->op = &o_IN;
+        op->op = O_IN;
         return ref_false();
     }
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
@@ -848,7 +847,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         return o1->obj->calc2(op);
     }
     if (v2->len != 0) {
-        bool minmax = (op->op == &o_MIN) || (op->op == &o_MAX), inplace = (op->inplace == o2);
+        bool minmax = (op->op == O_MIN) || (op->op == O_MAX), inplace = (op->inplace == o2);
         List *v;
         if (inplace) {
             v = ref_list(List(o2));
@@ -897,10 +896,10 @@ static void init(Type *obj) {
 void listobj_init(void) {
     new_type(&list_obj, T_LIST, "list", sizeof(List));
     init(&list_obj);
-    list_obj.create = list_create;
+    list_obj.convert = list_convert;
     new_type(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
     init(&tuple_obj);
-    tuple_obj.create = tuple_create;
+    tuple_obj.convert = tuple_convert;
     new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
     addrlist_obj.destroy = destroy;
     addrlist_obj.garbage = garbage;

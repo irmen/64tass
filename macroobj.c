@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.c 2542 2021-03-19 21:35:06Z soci $
+    $Id: macroobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "error.h"
 #include "file.h"
 
-#include "operobj.h"
 #include "typeobj.h"
 #include "namespaceobj.h"
 #include "intobj.h"
@@ -105,7 +104,7 @@ static MUST_CHECK Obj *struct_size(oper_t op) {
 }
 
 static MUST_CHECK Obj *struct_calc2(oper_t op) {
-    if (op->op == &o_MEMBER) {
+    if (op->op == O_MEMBER) {
         return namespace_member(op, Struct(op->v1)->names);
     }
     if (op->v2 == none_value || op->v2->obj == ERROR_OBJ) return val_reference(op->v2);

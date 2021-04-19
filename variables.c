@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2547 2021-03-19 23:40:46Z soci $
+    $Id: variables.c 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -682,7 +682,7 @@ static Namespace *find_space(const char *here, bool use) {
     do {
         labelname.data = pline + lpoint.pos; labelname.len = get_label(labelname.data);
         if (labelname.len == 0) return NULL;
-        lpoint.pos += labelname.len;
+        lpoint.pos += (linecpos_t)labelname.len;
         l = find_label2(&labelname, space);
         if (l == NULL) return NULL;
         space = get_namespace(l->value);

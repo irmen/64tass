@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: typeobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "error.h"
 
 #include "strobj.h"
-#include "operobj.h"
 #include "errorobj.h"
 #include "functionobj.h"
 
@@ -54,7 +53,7 @@ static MUST_CHECK Obj *type_from_obj(Obj *v1, linepos_t UNUSED(epoint)) {
     return val_reference((Obj *)Obj(v1->obj));
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return type_from_obj(op->v2, op->epoint2);
 }
 
@@ -103,17 +102,17 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_TYPE:
         return obj_oper_compare(op, icmp(op));
     case T_FUNCARGS:
-        if (op->op->op == O_FUNC) {
+        if (op->op == O_FUNC) {
             const Type *v1 = Type(op->v1);
             Funcargs *v2 = Funcargs(o2);
             argcount_t args = v2->len;
             if (args != 1) {
-                return new_error_argnum(args, 1, 1, op->epoint2);
+                return apply_convert2(op);
             }
             op->v2 = v2->val->val;
             op->inplace = op->v2->refcount == 1 ? op->v2 : NULL;
             if (v1->iterable || v1 == TYPE_OBJ) {
-                return v1->create(op);
+                return v1->convert(op);
             }
             return apply_convert(op);
         }
@@ -122,7 +121,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(o2);
     default:
-        if (o2->obj->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        if (o2->obj->iterable && op->op != O_MEMBER && op->op != O_X) {
             return o2->obj->rcalc2(op);
         }
         break;
@@ -133,7 +132,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 void typeobj_init(void) {
     new_type(&obj, T_TYPE, "type", sizeof(Type));
-    obj.create = create;
+    obj.convert = convert;
     obj.same = same;
     obj.hash = hash;
     obj.repr = repr;

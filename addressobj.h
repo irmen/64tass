@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.h 2562 2021-03-28 17:19:17Z soci $
+    $Id: addressobj.h 2576 2021-04-14 20:29:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,5 +66,5 @@ extern MUST_CHECK Obj *float_from_address(Address *, linepos_t);
 extern MUST_CHECK Obj *bits_from_address(Address *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_address(Address *, linepos_t);
 extern bool check_addr(atype_t);
-extern Address_types register_to_indexing(char);
+extern Address_types register_to_indexing(unsigned int);
 #endif

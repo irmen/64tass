@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2547 2021-03-19 23:40:46Z soci $
+    $Id: macro.c 2597 2021-04-18 19:57:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 static int functionrecursion;
 
 struct macro_rpos_s {
-    size_t opos, olen, pos, len;
+    linecpos_t opos, olen, pos, len;
     argcount_t param;
 };
 
@@ -55,7 +55,7 @@ struct macro_pline_s {
 struct macro_value_s {
     const uint8_t *data;
     size_t len;
-    size_t pos;
+    linecpos_t pos;
     bool init;
 };
 
@@ -76,7 +76,7 @@ bool in_macro;
 
 #define ALL_MACRO_PARAMS (~(argcount_t)0)
 
-const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t pos) {
+const struct file_list_s *macro_error_translate(struct linepos_s *opoint, linecpos_t pos) {
     const struct file_list_s *ret = NULL;
     if (pline == macro_parameters.current->pline.data) {
         const struct file_list_s *flist = current_file_list;
@@ -87,7 +87,7 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
             p--;
             mline = &macro_parameters.params[p].pline;
             for (i = 0; i < mline->rp; i++) {
-                size_t c = pos - mline->rpositions[i].pos;
+                linecpos_t c = pos - mline->rpositions[i].pos;
                 if (c < mline->rpositions[i].len) {
                     argcount_t param = mline->rpositions[i].param;
                     if (param < macro_parameters.params[p].len) {
@@ -111,11 +111,11 @@ const struct file_list_s *macro_error_translate(struct linepos_s *opoint, size_t
     return ret;
 }
 
-size_t macro_error_translate2(size_t pos) {
+linecpos_t macro_error_translate2(linecpos_t pos) {
     if (macro_parameters.p != 0) {
         const struct macro_pline_s *mline = &macro_parameters.current->pline;
         if (pline == mline->data) {
-            size_t pos2 = pos;
+            linecpos_t pos2 = pos;
             argcount_t i;
             for (i = 0; i < mline->rp; i++) {
                 const struct macro_rpos_s *rpositions = &mline->rpositions[i];
@@ -135,8 +135,8 @@ size_t macro_error_translate2(size_t pos) {
 bool mtranslate(void) {
     unsigned int q;
     argcount_t j, n;
-    size_t p, p2, op;
-    size_t last, last2;
+    linecpos_t p, p2, op;
+    linecpos_t last, last2;
     struct macro_pline_s *mline;
     bool changed, fault;
     struct file_s *cfile = current_file_list->file;
@@ -191,14 +191,14 @@ bool mtranslate(void) {
                 lpoint.pos = p2 + 2;
                 param.data = pline + lpoint.pos;
                 param.len = get_label(param.data);
-                lpoint.pos += param.len;
+                lpoint.pos += (linecpos_t)param.len;
                 if (pline[lpoint.pos] == '}') lpoint.pos++;
                 else param.len = 0;
             } else {
                 lpoint.pos = p2 + 1;
                 param.data = pline + lpoint.pos;
                 param.len = get_label(param.data);
-                lpoint.pos += param.len;
+                lpoint.pos += (linecpos_t)param.len;
             }
             if (param.len != 0) {
                 Macro *macro = Macro(macro_parameters.current->macro);
@@ -215,7 +215,7 @@ bool mtranslate(void) {
                     if (memcmp(data, cf.data, cf.len) == 0) break;
                 }
                 if (j < macro->argc) break;
-                lpoint.pos -= param.len + 1;
+                lpoint.pos -= (linecpos_t)param.len + 1;
                 if (pline[lpoint.pos] != '\\') lpoint.pos -= 2;
                 err_msg_unknown_argument(&param, &lpoint);
                 p = last; last2 = p2; fault = true;
@@ -275,7 +275,7 @@ bool mtranslate(void) {
         mline->rpositions[n].olen = p2 - op;
         mline->rpositions[n].pos = p;
         mline->rpositions[n].param = j;
-        mline->rpositions[n++].len = param.len;
+        mline->rpositions[n++].len = (linecpos_t)param.len;
         switch (param.len) {
         case 0: 
             if (param.data == NULL) {
@@ -289,7 +289,7 @@ bool mtranslate(void) {
             break;
         default:
             memcpy(mline->data + p, param.data, param.len);
-            p += param.len;
+            p += (linecpos_t)param.len;
         }
         last = p; last2 = p2;
     }
@@ -435,9 +435,11 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
     if (t == W_ENDS) {
+        enterfile(macro->file_list->file, epoint);
         if (context != NULL) push_context(context);
         val = compile();
         if (context != NULL) pop_context();
+        exitfile();
     } else {
         linenum_t lin = lpoint.line;
         bool starexists;
@@ -606,7 +608,7 @@ bool get_func_params(Mfunc *v, bool single) {
                 }
             }
             if (label.len != 0) {
-                lpoint.pos += label.len;
+                lpoint.pos += (linecpos_t)label.len;
                 if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {
                     err_msg2(ERROR_RESERVED_LABL, &label, &param->epoint);
                     ret = true;
@@ -712,7 +714,7 @@ void get_macro_params(Obj *v) {
         label.len = get_label(label.data);
         if (label.len != 0) {
             str_t cf;
-            lpoint.pos += label.len;
+            lpoint.pos += (linecpos_t)label.len;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);param->cfname.len = 0; param->cfname.data = NULL;}
             str_cfcpy(&cf, &label);
             if (cf.data == label.data) {

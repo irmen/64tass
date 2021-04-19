@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 2317 2021-01-31 22:46:47Z soci $
+	$Id: jedit-assembly-64tass.xml 2590 2021-04-18 08:46:50Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -74,6 +74,7 @@
                         <KEYWORD3>.endc</KEYWORD3>
                         <KEYWORD3>.endcomment</KEYWORD3>
                         <KEYWORD3>.endf</KEYWORD3>
+                        <KEYWORD3>.endfor</KEYWORD3>
                         <KEYWORD3>.endfunction</KEYWORD3>
                         <KEYWORD3>.endif</KEYWORD3>
                         <KEYWORD3>.endlogical</KEYWORD3>
@@ -84,6 +85,7 @@
                         <KEYWORD3>.endp</KEYWORD3>
                         <KEYWORD3>.endpage</KEYWORD3>
                         <KEYWORD3>.endproc</KEYWORD3>
+                        <KEYWORD3>.endrept</KEYWORD3>
                         <KEYWORD3>.ends</KEYWORD3>
                         <KEYWORD3>.endsection</KEYWORD3>
                         <KEYWORD3>.endsegment</KEYWORD3>
@@ -94,6 +96,7 @@
                         <KEYWORD3>.endv</KEYWORD3>
                         <KEYWORD3>.endvirtual</KEYWORD3>
                         <KEYWORD3>.endweak</KEYWORD3>
+                        <KEYWORD3>.endwhile</KEYWORD3>
                         <KEYWORD3>.endwith</KEYWORD3>
                         <KEYWORD3>.eor</KEYWORD3>
                         <KEYWORD3>.error</KEYWORD3>

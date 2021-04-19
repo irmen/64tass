@@ -571,6 +571,10 @@ y in x is a key             1 in {1:2} is true
         .text {1:"one", 2:"two"}[2]; "two"
 ; 16 element "fader" table 1->15->12->11->0
         .byte {1:15, 15:12, 12:11, :0}[range(16)]
+; Symbol accessible values. May be useful as a function return value too.
+coords  = {.x: 24, .y: 50}
+        ldx #coords.x
+        ldy #coords.y
 
 Code
 
@@ -779,6 +783,17 @@ list    List type
 str     Character string type
 tuple   Tuple type
 type    Type type
+
+Bit and byte string conversions can take a second parameter to specify and
+exact size. Values which can fit in shorter space will be padded but longer
+ones give an error.
+
+bits(<expression>, <bits count expression>)
+    Convert to the specific number of bits. If the number of bits is negative
+    then it's a signed.
+bytes(<expression>, <byte count expression>)
+    Convert to the specific number of bytes. If the number of bits is negative
+    then it's a signed.
 
         .cerror type(var) != str, "Not a string!"
         .text str(year)   ; convert to string
@@ -1476,14 +1491,14 @@ it does not need to be.
     ad      .byte ?         ; attack/decay
     sr      .byte ?         ; sustain/release
             .bend
-            .endv
+            .endvirtual
 
     Or to define stack "allocated" variables on 65816.
 
             .virtual #1,s
     p1      .addr ?         ; at #1,s
     tmp     .byte ?         ; at #3,s
-            .endv
+            .endvirtual
             lda (p1),y      ; lda ($01,s),y
 
 .align <expression>[, <fill>]
@@ -1798,12 +1813,12 @@ the sum of lengths of all items.
         .struct         ;anonymous structure
 x       .byte 0         ;labels are visible
 y       .byte 0         ;content compiled here
-        .ends           ;useful inside unions
+        .endstruct      ;useful inside unions
 
 nn_s    .struct col, row;named structure
 x       .byte \col      ;labels are not visible
 y       .byte \row      ;no content is compiled here
-        .ends           ;it's just a definition
+        .endstruct      ;it's just a definition
 
 nn      .dstruct nn_s, 1, 2;structure instance, content here
 
@@ -1832,12 +1847,12 @@ length of it's longest item.
         .union          ;anonymous union
 x       .byte 0         ;labels are visible
 y       .word 0         ;content compiled here
-        .endu
+        .endunion
 
 nn_u    .union          ;named union
 x       .byte ?         ;labels are not visible
 y       .word \1        ;no content is compiled here
-        .endu           ;it's just a definition
+        .endunion       ;it's just a definition
 
 nn      .dunion nn_u, 1 ;union instance here
 
@@ -1856,8 +1871,8 @@ color   .fill 1024
 screen  .fill 1024
 bitmap  .fill 8000
 backg   .byte ?
-        .ends
-        .endu
+        .endstruct
+        .endunion
 
 Anonymous structures and unions in combination with sections are useful for
 overlapping memory assignment. The example below shares zero page allocations
@@ -1868,11 +1883,11 @@ assigned after in the `zp' section.
         .union          ;spare some memory
          .struct
           .dsection zp1 ;declare zp1 section
-         .ends
+         .endstruct
          .struct
           .dsection zp2 ;declare zp2 section
-         .ends
-        .endu
+         .endstruct
+        .endunion
         .dsection zp    ;declare zp section
 
 Macros
@@ -1883,7 +1898,6 @@ by the parameter texts.
 
 .segment [<name>][=<default>]][, [<name>][=<default>] ...]
     Start of segment block
-.endm [<result>][, <result> ...]
 .endsegment [<result>][, <result> ...]
     End of segment block
 
@@ -1893,7 +1907,6 @@ by the parameter texts.
 
 .macro [<name>][=<default>]][, [<name>][=<default>] ...]
     Start of macro block
-.endm [<result>][, <result> ...]
 .endmacro [<result>][, <result> ...]
     End of macro block
 
@@ -1905,6 +1918,8 @@ by the parameter texts.
 .<name> [<param>][[,][<param>] ...]
     Invoke the macro after `#' or `.' with the parameters. Normally the name of
     the macro is used, but it can be any expression.
+.endm [<result>][, <result> ...]
+    Closing directive of .macro and .segment for compatibility.
 
 ;A simple macro
 copy    .macro
@@ -1913,7 +1928,7 @@ lp      lda \1,x
         sta \2,x
         dex
         bpl lp
-        .endm
+        .endmacro
 
         #copy label, $500
 
@@ -1921,7 +1936,7 @@ lp      lda \1,x
 lohi    .macro
 lo      .byte <(\@)
 hi      .byte >(\@)
-        .endm
+        .endmacro
 
 var     .lohi 1234, 5678
 
@@ -1935,7 +1950,7 @@ list including separators is `\@'.
 
 name    .macro
         lda #\1         ;first parameter 23+1
-        .endm
+        .endmacro
 
         #name 23+1      ;call macro
 
@@ -1950,7 +1965,7 @@ name    .macro first, b=2, , last
         lda #\b         ;second parameter
         lda #\3         ;third parameter
         lda #\last      ;fourth parameter
-        .endm
+        .endmacro
 
         #name 1, , 3, 4 ;call macro
 
@@ -2010,7 +2025,7 @@ is returned then it's used as regular label.
 mva     .function value, target
         lda value
         sta target
-        .endf
+        .endfunction
 
         mva #1, label
 
@@ -2032,9 +2047,6 @@ If, else if, else
     Compile if previous conditions were not met and the condition is true
 .else
     Compile if previous conditions were not met
-.fi
-.endif
-    End of conditional compilation.
 .ifne <value>
     Compile if value is not zero
 .ifeq <value>
@@ -2044,23 +2056,27 @@ If, else if, else
 .ifmi <value>
     Compile if value is less than zero
 
-The .ifne, .ifeq, .ifpl and .ifmi directives exists for compatibility only, in
-practice it's better to use comparison operators instead.
+    The .ifne, .ifeq, .ifpl and .ifmi directives exists for compatibility only,
+    in practice it's better to use comparison operators instead.
 
-        .if wait==2     ;2 cycles
-        nop
-        .elsif wait==3  ;3 cycles
-        bit $ea
-        .elsif wait==4  ;4 cycles
-        bit $eaea
-        .else           ;else 5 cycles
-        inc $2
-        .fi
+            .if wait==2     ;2 cycles
+            nop
+            .elsif wait==3  ;3 cycles
+            bit $ea
+            .elsif wait==4  ;4 cycles
+            bit $eaea
+            .else           ;else 5 cycles
+            inc $2
+            .endif
+
+.fi
+.endif
+    End of conditional compilation.
 
 Switch, case, default
 
-Similar to the .if/.elsif/.else/.fi construct, but the compared value needs to
-be written only once in the switch statement.
+Similar to the .if, .elsif, .else, .endif construct, but the compared value
+needs to be written only once in the switch statement.
 
 .switch <expression>
     Evaluate expression and remember it
@@ -2069,32 +2085,34 @@ be written only once in the switch statement.
     equals
 .default
     Compile if the previous conditions were all skipped
-.endswitch
-    End of conditional compilation.
 
-        .switch wait
-        .case 2         ;2 cycles
-        nop
-        .case 3         ;3 cycles
-        bit $ea
-        .case 4         ;4 cycles
-        bit $eaea
-        .default        ;else 5 cycles
-        inc $2
-        .endswitch
+            .switch wait
+            .case 2         ;2 cycles
+            nop
+            .case 3         ;3 cycles
+            bit $ea
+            .case 4         ;4 cycles
+            bit $eaea
+            .default        ;else 5 cycles
+            inc $2
+            .endswitch
+
+.endswitch
+    End of .switch conditional compilation block.
 
 Comment
 
 .comment
     Never compile.
+
+            .comment
+            lda #1          ;this won't be compiled
+            sta $d020
+            .endcomment
+
 .endc
 .endcomment
-    End of conditional compilation.
-
-        .comment
-        lda #1          ;this won't be compiled
-        sta $d020
-        .endc
+    End of .comment block.
 
 Repetitions
 
@@ -2113,7 +2131,6 @@ within.
 
 .for [<assignment>], [<condition>], [<assignment>]
 .bfor [<assignment>], [<condition>], [<assignment>]
-.next
     Assign initial value, loop while the condition is true and modify value.
 
     First a variable is set, usually this is used for counting. This is
@@ -2130,13 +2147,12 @@ within.
             lda #32
     lp      .for ue := $400, ue < $800, ue += $100
             sta ue,x         ;do $400, $500, $600 and $700
-            .next
+            .endfor
             dex
             bne lp
 
 .for <variable>[, <variable>, ...] in <expression>
 .bfor <variable>[, <variable>, ...] in <expression>
-.next
     Assign variable(s) to values in sequence one-by-one in order.
 
     The expression is usually the range function or some sort of list.
@@ -2144,47 +2160,52 @@ within.
             .for col in 0, 11, 12, 15, 1
             lda #col         ;0, 11, 12, 15 and 1
             sta $d020
-            .next
+            .endfor
 
+.endfor
+    End of a .for or .bfor loop block
 .rept <expression>
 .brept <expression>
-.next
     Repeat enclosed lines the specified number of times.
 
             .rept 100
     -       inx
             bne -
-            .next
+            .endrept
 
     lst     .brept 100       ;each iteration into a tuple
     label   jmp label        ;not a duplicate definition
-            .next
+            .endrept
             jmp lst[5].label ;use label of 6th iteration
 
+.endrept
+    End of a .rept or .brept block
 .while <condition>
 .bwhile <condition>
-.next
     Repeat enclosed lines until the condition holds.
 
     Works as expected however the scoped variant might be tricky to use as
     variables in the condition might not be in the same scope as the loop body.
 
+.endwhile
+    End of a .while or .bwhile loop block
 .break
     Exit current repetition loop immediately.
 .breakif <condition>
     Exit current repetition loop immediately if the condition holds.
 
-    It's a shorthand for a .if .break .fi sequence.
+    It's a shorthand for a .if, .break, .endif sequence.
 
 .continue
     Continue current repetition loop's next iteration.
 .continueif <condition>
     Continue current repetition loop's next iteration if the condition holds.
 
-    It's a shorthand for a .if .continue .fi sequence.
+    It's a shorthand for a .if, .continue, .endif sequence.
 
 .next
-    Closing directive of .for, .bfor, .rept, .brept, .while and .bwhile loop.
+    Closing directive of .for, .bfor, .rept, .brept, .while and .bwhile loop
+    for compatibility.
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
@@ -2198,7 +2219,7 @@ within.
     i       .var i - 1
             .ifne i
             .goto loop       ;generates 100 nops
-            .fi              ;the hard way ;)
+            .endif           ;the hard way ;)
 
 Including files
 
@@ -2271,7 +2292,7 @@ ctable  .byte colors.(red, green, blue)
     ize     .proc
             nop
     cucc    nop
-            .pend
+            .endproc
 
             jsr ize
             jmp ize.cucc
@@ -2345,7 +2366,7 @@ ctable  .byte colors.(red, green, blue)
     Other use of weak symbols might be in included libraries to change default
     values or replace stub functions and data structures.
 
-    If these stubs are defined using .proc/.pend then their default
+    If these stubs are defined using .proc/.endproc then their default
     implementations will not even exists in the output at all when a stronger
     symbol overrides them.
 
@@ -2580,7 +2601,7 @@ Controlling errors
 
             .page
     table   .byte 0, 1, 2, 3, 4, 5, 6, 7
-            .endp
+            .endpage
 
 .option allow_branch_across_page
     Switches error generation on page boundary crossing during relative branch.
@@ -3638,7 +3659,7 @@ Symbol listing
 
     The difference to normal symbol listing is that 64tass assumes these
     symbols will be used in another source. In practice this means that any
-    .proc/.pend blocks appearing in the symbol file will always be compiled
+    .proc/.endproc blocks appearing in the symbol file will always be compiled
     even if unused otherwise.
 
 --vice-labels
@@ -4716,14 +4737,14 @@ Assembler directives
 .break .breakif .brept .bwhile .byte .case .cdef .cerror .char .check .comment
 .continue .continueif .cpu .cwarn .databank .default .dint .dpage .dsection
 .dstruct .dunion .dword .edef .else .elsif .enc .end .endblock .endc
-.endcomment .endf .endfunction .endif .endlogical .endm .endmacro .endn
-.endnamespace .endp .endpage .endproc .ends .endsection .endsegment .endstruct
-.endswitch .endu .endunion .endv .endvirtual .endweak .endwith .eor .error .fi
-.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
-.lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs .option
-.page .pend .proc .proff .pron .ptext .rept .rta .section .seed .segment .send
-.sfunction .shift .shiftl .showmac .sint .struct .switch .text .union .var
-.virtual .warn .weak .while .with .word .xl .xs
+.endcomment .endf .endfor .endfunction .endif .endlogical .endm .endmacro .endn
+.endnamespace .endp .endpage .endproc .endrept .ends .endsection .endsegment
+.endstruct .endswitch .endu .endunion .endv .endvirtual .endweak .endwhile
+.endwith .eor .error .fi .fill .for .function .goto .here .hidemac .if .ifeq
+.ifmi .ifne .ifpl .include .lbl .lint .logical .long .macro .mansiz .namespace
+.next .null .offs .option .page .pend .proc .proff .pron .ptext .rept .rta
+.section .seed .segment .send .sfunction .shift .shiftl .showmac .sint .struct
+.switch .text .union .var .virtual .warn .weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 

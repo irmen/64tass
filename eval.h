@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 2507 2021-03-14 16:10:18Z soci $
+    $Id: eval.h 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,13 +21,14 @@
 #include "attributes.h"
 #include "inttypes.h"
 #include "stdbool.h"
+#include "oper_e.h"
 
 struct Label;
 struct Oper;
 struct Obj;
 
 struct oper_s {
-    struct Oper *op;
+    Oper_types op;
     struct Obj *v1;
     struct Obj *v2;
     linepos_t epoint;

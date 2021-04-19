@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: codeobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 #include "intobj.h"
 #include "bitsobj.h"
 #include "bytesobj.h"
-#include "operobj.h"
 #include "gapobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
@@ -486,7 +485,7 @@ static inline address_t ldigit(Code *v1, linepos_t epoint) {
 static MUST_CHECK Obj *calc1(oper_t op) {
     Obj *v, *result;
     Code *v1 = Code(op->v1);
-    switch (op->op->op) {
+    switch (op->op) {
     case O_LNOT:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         v = get_code_address(v1, op->epoint);
@@ -496,14 +495,14 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         val_destroy(v);
         return result;
     case O_BANK:
-        if (all_mem < 0xffffff) return bits_calc1(op->op->op, ldigit(v1, op->epoint));
+        if (all_mem < 0xffffff) return bits_calc1(op->op, ldigit(v1, op->epoint));
         /* fall through */
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-        return bits_calc1(op->op->op, code_address(v1) & all_mem);
+        return bits_calc1(op->op, code_address(v1) & all_mem);
     case O_STRING:
     case O_INV:
     case O_NEG:
@@ -524,7 +523,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     Code *v1 = Code(op->v1), *v;
     Obj *o2 = op->v2;
-    if (op->op == &o_MEMBER) {
+    if (op->op == O_MEMBER) {
         if (o2->obj == SYMBOL_OBJ) {
             Symbol *v2 = Symbol(o2);
             if (v2->name.len == 10 && v2->name.data[0] == '_' && v2->name.data[1] == '_') {
@@ -539,15 +538,15 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
         return namespace_member(op, v1->names);
     }
-    if (op->op == &o_X) {
+    if (op->op == O_X) {
         if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
         return obj_oper_error(op);
     }
-    if (op->op == &o_LAND || op->op == &o_LOR) {
+    if (op->op == O_LAND || op->op == O_LOR) {
         Obj *result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         bool i;
         if (result->obj != BOOL_OBJ) return result;
-        i = (result == true_value) != (op->op == &o_LOR);
+        i = (result == true_value) != (op->op == O_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? o2 : Obj(v1));
@@ -561,7 +560,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (result != NULL) return result;
             result = access_check(v2, op->epoint2);
             if (result != NULL) return result;
-            if (op->op->op == O_SUB) {
+            if (op->op == O_SUB) {
                 address_t addr1 = ldigit(v1, op->epoint);
                 address_t addr2 = ldigit(v2, op->epoint2);
                 return int_from_ival((ival_t)addr1 - (ival_t)addr2);
@@ -586,7 +585,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_REGISTER:
         {
             Obj *tmp, *result;
-            switch (op->op->op) {
+            switch (op->op) {
             case O_ADD:
             case O_SUB:
                 {
@@ -605,7 +604,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         v->names = ref_namespace(v1->names);
                         v->typ = val_reference(v1->typ);
                     }
-                    if (op->op->op == O_ADD) { v->offs += iv; } else { v->offs -= iv; }
+                    if (op->op == O_ADD) { v->offs += iv; } else { v->offs -= iv; }
                     if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
                     if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
                     return Obj(v);
@@ -630,7 +629,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Code *v2 = Code(op->v2), *v;
     Obj *o1 = op->v1;
-    if (op->op == &o_IN) {
+    if (op->op == O_IN) {
         struct oper_s oper;
         address_t ln;
         Obj *tmp, *result;
@@ -642,7 +641,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             return ref_false();
         }
 
-        oper.op = &o_EQ;
+        oper.op = O_EQ;
         oper.epoint = op->epoint;
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
@@ -666,7 +665,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_ADDRESS:
         {
             Obj *tmp, *result;
-            if (op->op == &o_ADD) {
+            if (op->op == O_ADD) {
                 ival_t iv;
                 Error *err = o1->obj->ival(o1, &iv, 30, op->epoint);
                 if (err != NULL) { val_destroy(Obj(err)); break; }

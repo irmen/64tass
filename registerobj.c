@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: registerobj.c 2593 2021-04-18 13:00:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "values.h"
 
 #include "strobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
@@ -74,7 +73,7 @@ static MUST_CHECK Obj *register_from_obj(Obj *o1, linepos_t epoint) {
     return new_error_conv(o1, REGISTER_OBJ, epoint);
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return register_from_obj(op->v2, op->epoint2);
 }
 
@@ -169,10 +168,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (Register(op->v1)->len == 1) {
             Address_types am = register_to_indexing(Register(op->v1)->data[0]);
             if (am == A_NONE) break;
-            if (op->op->op == O_ADD) {
+            if (op->op == O_ADD) {
                 return new_address(val_reference(op->v2), am);
             }
-            if (op->op->op == O_SUB) {
+            if (op->op == O_SUB) {
                 op->v1 = int_value[0];
                 op->inplace = NULL;
                 return new_address(INT_OBJ->calc2(op), am);
@@ -185,7 +184,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_ERROR:
         return val_reference(op->v2);
     default:
-        if (t2->iterable && op->op != &o_MEMBER && op->op != &o_X) {
+        if (t2->iterable && op->op != O_MEMBER && op->op != O_X) {
             return t2->rcalc2(op);
         }
         break;
@@ -202,7 +201,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_FLOAT:
     case T_BYTES:
         if (Register(op->v2)->len == 1) {
-            if (op->op->op == O_ADD) {
+            if (op->op == O_ADD) {
                 Address_types am = register_to_indexing(Register(op->v2)->data[0]);
                 if (am != A_NONE) {
                     return new_address(val_reference(op->v1), am);
@@ -217,7 +216,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != &o_IN) {
+        if (op->op != O_IN) {
             return t1->calc2(op);
         }
         break;
@@ -227,7 +226,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void registerobj_init(void) {
     new_type(&obj, T_REGISTER, "register", sizeof(Register));
-    obj.create = create;
+    obj.convert = convert;
     obj.destroy = destroy;
     obj.same = same;
     obj.hash = hash;

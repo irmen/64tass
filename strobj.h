@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 2570 2021-04-11 22:11:00Z soci $
+    $Id: strobj.h 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ struct str_t;
 
 extern MALLOC Str *new_str(size_t);
 extern MALLOC Str *new_str2(size_t);
-extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *, linepos_t);
+extern MUST_CHECK Obj *str_from_str(const uint8_t *, linecpos_t *, linepos_t);
 extern MUST_CHECK Obj *str_from_obj(Obj *, linepos_t);
 extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
 extern size_t str_quoting(const uint8_t *, size_t, uint8_t *);

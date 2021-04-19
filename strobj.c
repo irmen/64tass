@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: strobj.c 2596 2021-04-18 18:52:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include "intobj.h"
 #include "bitsobj.h"
 #include "listobj.h"
-#include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
@@ -60,7 +59,7 @@ MUST_CHECK Obj *str_from_obj(Obj *v1, linepos_t epoint) {
     }
 }
 
-static MUST_CHECK Obj *create(oper_t op) {
+static MUST_CHECK Obj *convert(oper_t op) {
     return str_from_obj(op->v2, op->epoint2);
 }
 
@@ -331,11 +330,11 @@ static void getriter(struct iter_s *v) {
     v->len = Str(v->data)->chars;
 }
 
-MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln, linepos_t epoint) {
+MUST_CHECK Obj *str_from_str(const uint8_t *s, linecpos_t *ln, linepos_t epoint) {
     Str *v;
-    size_t i2 = 0;
-    size_t i, j;
-    size_t r = 0;
+    linecpos_t i2 = 0;
+    linecpos_t i, j;
+    linecpos_t r = 0;
     uint8_t ch2, ch = s[0];
 
     i = 1;
@@ -363,7 +362,7 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln, linepos_t epoint) {
         while (j != 0) {
             p2 = (const uint8_t *)memchr(p, ch, j);
             if (p2 != NULL) {
-                size_t l = (size_t)(p2 - p);
+                linecpos_t l = (linecpos_t)(p2 - p);
                 memcpy(d, p, l + 1);
                 j -= l + 2;
                 d += l + 1; p = p2 + 2;
@@ -402,7 +401,7 @@ static int icmp(oper_t op) {
 static MUST_CHECK Obj *calc1(oper_t op) {
     Str *v1 = Str(op->v1);
     Obj *v, *tmp;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_LNOT:
     case O_BANK:
     case O_HIGHER:
@@ -426,7 +425,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 static MUST_CHECK Obj *calc2_str(oper_t op) {
     Str *v1 = Str(op->v1), *v2 = Str(op->v2), *v;
     int val;
-    switch (op->op->op) {
+    switch (op->op) {
     case O_ADD:
     case O_SUB:
     case O_MUL:
@@ -876,21 +875,21 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *v2 = op->v2;
     Obj *tmp;
 
-    if (op->op == &o_X) {
+    if (op->op == O_X) {
         if (v2 == none_value || v2->obj == ERROR_OBJ) return val_reference(v2);
         return repeat(op);
     }
-    if (op->op == &o_LAND || op->op == &o_LOR) {
+    if (op->op == O_LAND || op->op == O_LOR) {
         Obj *result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         bool i;
         if (result->obj != BOOL_OBJ) return result;
-        i = (result == true_value) != (op->op == &o_LOR);
+        i = (result == true_value) != (op->op == O_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? v2 : Obj(v1));
     }
     if (v2->obj->iterable) {
-        if (op->op != &o_MEMBER) {
+        if (op->op != O_MEMBER) {
             return v2->obj->rcalc2(op);
         }
     }
@@ -907,7 +906,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_REGISTER:
         {
             Obj *result;
-            switch (op->op->op) {
+            switch (op->op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
@@ -935,7 +934,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             return result;
         }
     case T_GAP:
-        if (op->op != &o_MEMBER) {
+        if (op->op != O_MEMBER) {
             return v2->obj->rcalc2(op);
         }
         break;
@@ -962,7 +961,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_ADDRESS:
         {
             Obj *result;
-            switch (op->op->op) {
+            switch (op->op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
@@ -994,7 +993,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != &o_IN) {
+        if (op->op != O_IN) {
             return t1->calc2(op);
         }
         break;
@@ -1004,7 +1003,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void strobj_init(void) {
     new_type(&obj, T_STR, "str", sizeof(Str));
-    obj.create = create;
+    obj.convert = convert;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;

@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.h 2570 2021-04-11 22:11:00Z soci $
+    $Id: floatobj.h 2575 2021-04-12 20:49:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ typedef struct Float {
 
 extern void floatobj_init(void);
 extern void floatobj_names(void);
+extern void floatobj_destroy(void);
 
 static inline MUST_CHECK Obj *new_float(double d) {
     Float *v = Float(val_alloc(FLOAT_OBJ));
