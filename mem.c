@@ -276,6 +276,36 @@ static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
     }
 }
 
+static void output_mem_c256_pgz(FILE *fout, const Memblocks *memblocks) {
+    size_t i;
+    char sig = 'Z';
+    uint8_t header[6];
+
+    fwrite(&sig, 1, 1, fout);
+
+    for (i = 0; i < memblocks->p; i++) {
+        const struct memblock_s *block = &memblocks->data[i];
+        header[0] = (uint8_t)block->addr;
+        header[1] = (uint8_t)(block->addr >> 8);
+        header[2] = (uint8_t)(block->addr >> 16);
+        header[3] = (uint8_t)block->len;
+        header[4] = (uint8_t)(block->len >> 8);
+        header[5] = (uint8_t)(block->len >> 16);
+        fwrite(header, 6, 1, fout);
+        fwrite(&memblocks->mem.data[block->p], block->len, 1, fout);
+    }
+
+    // Write zero header, for no more segments
+    memset(header, 0, 6);
+    fwrite(header, 6, 1, fout);
+
+    // Write Entry Point Address
+    header[0] = (uint8_t)arguments.entry_point;
+    header[1] = (uint8_t)(arguments.entry_point >> 8);
+    header[2] = (uint8_t)(arguments.entry_point >> 16);
+    fwrite(header, 3, 1, fout);
+}
+
 static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
     size_t i, j;
     unsigned char header[6];
@@ -504,6 +534,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
     case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
     case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
+    case OUTPUT_PGZ: output_mem_c256_pgz(fout, memblocks); break;
     case OUTPUT_RAW:
     case OUTPUT_APPLE:
     case OUTPUT_CBM: output_mem_c64(fout, memblocks, output); break;

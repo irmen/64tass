@@ -23,7 +23,7 @@
 
 typedef enum Output_types {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX,
-    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC
+    OUTPUT_PGZ, OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC
 } Output_types;
 
 typedef enum Symbollist_types {
@@ -82,6 +82,7 @@ struct arguments_s {
     const char *make;
     struct error_output_s error;
     unsigned int tab_size;
+    uint32_t entry_point;
 };
 
 struct diagnostics_s {

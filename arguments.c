@@ -56,6 +56,7 @@ struct arguments_s arguments = {
         false    /* append */
     },
     8,           /* tab_size */
+    0,           /* entry_point */
 };
 
 struct diagnostics_s diagnostics = {
@@ -332,7 +333,7 @@ enum {
     VICE_LABELS_NUMERIC, VICE_LABELS, EXPORT_LABELS, NORMAL_LABELS,
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
-    INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
+    INTEL_HEX, APPLE_II, ATARI_XEX, C256_PGZ, NO_LONG_ADDRESS, NO_QUIET, WARN,
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR
 };
 
@@ -348,6 +349,7 @@ static const struct my_option long_options[] = {
     {"long-address"     , my_no_argument      , NULL, 'X'},
     {"atari-xex"        , my_no_argument      , NULL,  ATARI_XEX},
     {"apple-ii"         , my_no_argument      , NULL,  APPLE_II},
+    {"c256-pgz"         , my_required_argument, NULL,  C256_PGZ},
     {"intel-hex"        , my_no_argument      , NULL,  INTEL_HEX},
     {"s-record"         , my_no_argument      , NULL,  S_RECORD},
     {"cbm-prg"          , my_no_argument      , NULL,  CBM_PRG},
@@ -485,6 +487,7 @@ static address_t get_all_mem2(void) {
         switch (output->mode) {
         case OUTPUT_RAW:
         case OUTPUT_NONLINEAR:
+        case OUTPUT_PGZ: min &= 0xffffff; break;
         case OUTPUT_CBM: min &= output->longaddr ? 0xffffff : 0xffff; break;
         case OUTPUT_IHEX:
         case OUTPUT_SREC:
@@ -529,6 +532,13 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case 'n':output.mode = OUTPUT_NONLINEAR;break;
             case ATARI_XEX:output.mode = OUTPUT_XEX;break;
             case APPLE_II:output.mode = OUTPUT_APPLE;break;
+            case C256_PGZ:
+                {
+                    long int number = strtol(my_optarg, NULL, 16);
+                    arguments.entry_point = number;
+                    output.mode = OUTPUT_PGZ;
+                    break;
+                }                
             case INTEL_HEX:output.mode = OUTPUT_IHEX;break;
             case S_RECORD:output.mode = OUTPUT_SREC;break;
             case CBM_PRG:output.mode = OUTPUT_CBM;break;
@@ -631,7 +641,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
-               "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
+               "        [--atari-xex] [--apple-ii] [--c256-pgz] [--intel-hex] [--s-record] [--nonlinear]\n"
                "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
                "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
@@ -718,6 +728,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "      --cbm-prg          Output CBM program file\n"
                "      --atari-xex        Output Atari XEX file\n"
                "      --apple-ii         Output Apple II file\n"
+               "      --c256-pgz=<a>     Output Foenix C256 file, <a>=Starting Address in hex\n"
                "      --intel-hex        Output Intel HEX file\n"
                "      --s-record         Output Motorola S-record file\n"
                "\n"
