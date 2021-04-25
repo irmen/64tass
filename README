@@ -2881,13 +2881,13 @@ Output options
     selected formats. Using the same name multiple times is not a good idea.
 
 --output-append <filename>
-    Same as output but appends instead of overwrites.
+    Same as the --output option but appends instead of overwrites.
 
     Normally output files are overwritten but in some cases it's useful to
     append them instead.
 
 --no-output
-    Same as output but no file will be written.
+    No output file will be written.
 
     Useful for test compiles.
 
@@ -3173,7 +3173,7 @@ default, the others are disabled.
     as the file name.
 
 --error-append <filename>
-    Same as the error option but appends instead of overwrites.
+    Same as the --error option but appends instead of overwrites.
 --no-error
     Do not output any error messages, just count them.
 -w, --no-warn
@@ -3642,6 +3642,8 @@ Symbol listing
     This writes symbols for VICE into `all.l' and symbols from scope `export'
     into `myexport.inc'.
 
+--labels-append=<file>
+    Same as the --labels option but appends instead of overwrites.
 --labels-root=<path>
     Specify the scope to list labels from
 

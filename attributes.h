@@ -1,5 +1,5 @@
 /*
-    $Id: attributes.h 1408 2017-03-30 15:28:02Z soci $
+    $Id: attributes.h 2602 2021-04-25 10:44:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 #ifdef UNUSED
 #elif defined(__GNUC__)
 # define UNUSED(x) UNUSED_ ## x __attribute__((unused))
-#elif defined(__LCLINT__)
-# define UNUSED(x) /*@unused@*/ x
 #else
 # define UNUSED(x) x
 #endif

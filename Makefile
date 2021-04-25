@@ -8,7 +8,8 @@ OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  foldobj.o main.o console.o encodings.o
 LDLIBS = -lm
 LANG = C
-REVISION != svnversion | grep --color=none "^[1-9]" || echo "2200?"
+SVNVERSION != svnversion
+REVISION != echo $(SVNVERSION) | grep -q "^[1-9]" && echo $(SVNVERSION) || echo "2200?"
 CFLAGS = -g -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS =
 TARGET = 64tass

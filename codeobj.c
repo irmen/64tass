@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: codeobj.c 2624 2021-04-25 16:55:06Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -230,7 +230,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
 }
 
 static FAST_CALL uint32_t address(const Obj *o1) {
-    Code *v1 = Code(o1);
+    const Code *v1 = Code(o1);
     Obj *v = v1->typ;
     return v->obj->address(v);
 }

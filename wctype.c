@@ -1,5 +1,5 @@
 /*
-    $Id: wctype.c 1095 2016-05-12 14:24:08Z soci $
+    $Id: wctype.c 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include "wctype.h"
 
 #ifdef __DJGPP__
-#elif defined __GNUC__ || _MSC_VER >= 1400 || __WATCOMC__
+#elif defined __GNUC__ || _MSC_VER >= 1400 || defined __WATCOMC__
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #else
 #include <ctype.h>

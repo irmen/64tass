@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2596 2021-04-18 18:52:11Z soci $
+    $Id: strobj.c 2601 2021-04-25 10:43:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ static Type obj;
 
 Type *const STR_OBJ = &obj;
 
-static Str null_strval = { { &obj, 1 }, 0, 0, null_strval.u.val, {} };
+static Str null_strval = { { &obj, 1 }, 0, 0, null_strval.u.val, { { 0 } } };
 
 Obj *const null_str = &null_strval.v;
 

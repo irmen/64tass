@@ -1,5 +1,5 @@
 /*
-    $Id: console.h 2200 2020-04-07 19:18:23Z soci $
+    $Id: console.h 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,10 +18,12 @@
 */
 #ifndef CONSOLE_H
 #define CONSOLE_H
+#ifndef _MSC_VER
 #include "unistd.h"
+#endif
 #include "stdbool.h"
 
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX_VERSION || _POSIX2_VERSION || defined _WIN32
+#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || _POSIX_VERSION || _POSIX2_VERSION || defined _WIN32 || defined __WATCOMC__
 #include <stdio.h>
 
 #define COLOR_OUTPUT

@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.c 1626 2018-08-31 16:41:21Z soci $
+    $Id: wchar.c 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -411,7 +411,7 @@ size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
     errno = EILSEQ;
     return (size_t)-1;
 }
-#elif defined __GNUC__ || _MSC_VER >= 1400 || __WATCOMC__
+#elif defined __GNUC__ || _MSC_VER >= 1400 || defined __WATCOMC__
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #else
 #include <errno.h>

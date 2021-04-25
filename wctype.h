@@ -1,5 +1,5 @@
 /*
-    $Id: wctype.h 1095 2016-05-12 14:24:08Z soci $
+    $Id: wctype.h 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #ifdef __DJGPP__
 #include <wctype.h>
 extern int iswprint(wint_t wc);
-#elif defined __GNUC__ || _MSC_VER >= 1400 || __WATCOMC__
+#elif defined __GNUC__ || _MSC_VER >= 1400 || defined __WATCOMC__
 #include <wctype.h>
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #include <wctype.h>

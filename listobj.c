@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: listobj.c 2601 2021-04-25 10:43:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,9 +42,9 @@ Type *const TUPLE_OBJ = &tuple_obj;
 Type *const ADDRLIST_OBJ = &addrlist_obj;
 Type *const COLONLIST_OBJ = &colonlist_obj;
 
-static Tuple null_tupleval = { { &tuple_obj, 1 }, 0, null_tupleval.u.val, {} };
-static List null_listval = { { &list_obj, 1 }, 0, null_listval.u.val, {} };
-static Addrlist null_addrlistval = { { &addrlist_obj, 1 }, 0, null_addrlistval.u.val, {} };
+static Tuple null_tupleval = { { &tuple_obj, 1 }, 0, null_tupleval.u.val, { { 0 } } };
+static List null_listval = { { &list_obj, 1 }, 0, null_listval.u.val, { { 0 } } };
+static Addrlist null_addrlistval = { { &addrlist_obj, 1 }, 0, null_addrlistval.u.val, { { 0 } } };
 
 Obj *const null_tuple = &null_tupleval.v;
 Obj *const null_list = &null_listval.v;

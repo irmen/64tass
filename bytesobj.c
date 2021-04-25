@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2598 2021-04-18 23:44:52Z soci $
+    $Id: bytesobj.c 2606 2021-04-25 10:49:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ static Type obj;
 
 Type *const BYTES_OBJ = &obj;
 
-static Bytes null_bytesval = { { &obj, 1 }, 0, null_bytesval.u.val, {} };
-static Bytes inv_bytesval = { { &obj, 1 }, ~0, inv_bytesval.u.val, {} };
+static Bytes null_bytesval = { { &obj, 1 }, 0, null_bytesval.u.val, { { 0 } } };
+static Bytes inv_bytesval = { { &obj, 1 }, ~0, inv_bytesval.u.val, { { 0 } } };
 
 Obj *const null_bytes = &null_bytesval.v;
 Obj *const inv_bytes = &inv_bytesval.v;
@@ -702,9 +702,10 @@ failed:
 }
 
 static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
-    bool inv;
-    size_t i, j, sz, bits;
+    bool inv, c;
+    size_t i, sz;
     uint8_t *d;
+    digit_t b2;
     const digit_t *b;
     Bytes *v;
 
@@ -730,32 +731,17 @@ static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
     d = v->data;
 
     b = v1->data;
-    if (inv) {
-        bool c = (b[0] == 0);
-        digit_t b2 = b[0] - 1;
-        bits = j = 0;
-        for (i = 0; i < sz; i++) {
-            d[i] = (uint8_t)(b2 >> bits);
-            if (bits == (8 * sizeof b2) - 8) {
-                j++;
-                if (c) {
-                    c = (b[j] == 0);
-                    b2 = b[j] - 1;
-                } else b2 = b[j];
-                bits = 0;
-            } else bits += 8;
-        }
-    } else {
-        digit_t b2 = b[0];
-        bits = j = 0;
-        for (i = 0; i < sz; i++) {
-            d[i] = (uint8_t)(b2 >> bits);
-            if (bits == (8 * sizeof b2) - 8) {
-                j++;
-                b2 = b[j];
-                bits = 0;
-            } else bits += 8;
-        }
+    c = inv;
+    b2 = 0;
+    for (i = 0; i < sz; i++) {
+        if (i % sizeof *b == 0) {
+            b2 = b[i / sizeof *b];
+            if (c) {
+                c = (b2 == 0);
+                b2--;
+            }
+        } else b2 >>= 8;
+        d[i] = (uint8_t)b2;
     }
 
     while (sz != 0 && d[sz - 1] == 0) sz--;

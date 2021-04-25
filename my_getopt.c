@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 2464 2021-03-06 18:30:11Z soci $
+ *  $Id: my_getopt.c 2623 2021-04-25 15:21:43Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -207,15 +207,19 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
         (argv[my_optind][charind] != '\0') &&
           (argv[my_optind][charind] != '=');
         charind++);
-    for (ind = 0; longopts[ind].name != NULL && hits == 0; ind++)
+    for (ind = 0; longopts[ind].name != NULL && hits == 0; ind++) {
       if ((strlen(longopts[ind].name) == charind - offset) &&
          (strncmp(longopts[ind].name,
-                  argv[my_optind] + offset, charind - offset) == 0))
-        found = ind, hits++;
-    if (hits == 0) for (ind = 0; longopts[ind].name != NULL; ind++)
+                  argv[my_optind] + offset, charind - offset) == 0)) {
+        found = ind; hits++;
+      }
+    }
+    if (hits == 0) for (ind = 0; longopts[ind].name != NULL; ind++) {
       if (strncmp(longopts[ind].name,
-                 argv[my_optind] + offset, charind - offset) == 0)
-        found = ind, hits++;
+                 argv[my_optind] + offset, charind - offset) == 0) {
+        found = ind; hits++;
+      }
+    }
     if (hits == 1) {
       opt = 0;
 

@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2530 2021-03-15 22:31:01Z soci $
+    $Id: values.c 2610 2021-04-25 10:53:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -172,7 +172,7 @@ void destroy_values(void)
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals; vals = vals->next) {
             Obj *val = (Obj *)(vals + 1);
-            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((char *)val) + size)) {
                 if (val->obj != NULL) {
                     val_print(val, stderr, SIZE_MAX);
                     fprintf(stderr, " %s %" PRIuSIZE " %" PRIxPTR "\n", val->obj->name, val->refcount, (uintptr_t)val);

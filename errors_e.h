@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2453 2021-03-01 01:08:22Z soci $
+    $Id: errors_e.h 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ typedef enum Error_types {
 #ifdef _WIN32
     ERROR___INSENSITIVE,
 #endif
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     ERROR_____BACKSLASH,
 #else
     ERROR__RESERVED_CHR,

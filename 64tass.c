@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2598 2021-04-18 23:44:52Z soci $
+    $Id: 64tass.c 2622 2021-04-25 15:16:03Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -2099,7 +2099,7 @@ MUST_CHECK Obj *compile(void)
                                 wht = '*';
                                 break;
                             }
-                            err_msg_not_variable(label, &labelname, &epoint); goto breakerr;
+                            err_msg_not_variable(label, &labelname, &epoint);
                             goto breakerr;
                         }
                         if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
@@ -4162,7 +4162,7 @@ MUST_CHECK Obj *compile(void)
                             }
                         } else {
                             if (touval2(vs, &uval, 24)) tryit = false;
-                            tmp.start = uval & 0xffffff;
+                            else tmp.start = uval & 0xffffff;
                         }
                         if (!endok) {
                             vs = get_val();
@@ -4180,7 +4180,7 @@ MUST_CHECK Obj *compile(void)
                                 }
                             } else {
                                 if (touval2(vs, &uval, 24)) tryit = false;
-                                tmp.end = uval & 0xffffff;
+                                else tmp.end = uval & 0xffffff;
                             }
                         }
                         vs = get_val();
@@ -4220,8 +4220,8 @@ MUST_CHECK Obj *compile(void)
                         if (vs == NULL) break;
                         tryit = !tostr(vs, &escape);
 
-                        if (tryit && escape.len == 0) {
-                            err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
+                        if (tryit && (escape.len == 0 || escape.len > 1024)) {
+                            err_msg2(escape.len == 0 ? ERROR__EMPTY_STRING : ERROR_OUT_OF_MEMORY, NULL, &vs->epoint);
                             tryit = false;
                         }
                         vs2 = get_val();
@@ -4970,6 +4970,7 @@ int main2(int *argc2, char **argv2[]) {
         puts("64tass Turbo Assembler Macro V" VERSION "\n"
              "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
              "are welcome to redistribute it under certain conditions; See LICENSE!\n");
+        fflush(stdout);
     }
 
     /* assemble the input file(s) */
@@ -4999,13 +5000,7 @@ int main2(int *argc2, char **argv2[]) {
         }
 
         for (j = 0; j < arguments.symbol_output_len; j++) {
-            const struct symbol_output_s *s = &arguments.symbol_output[j];
-            size_t k;
-            for (k = 0; k < j; k++) {
-                const struct symbol_output_s *s2 = &arguments.symbol_output[k];
-                if (strcmp(s->name, s2->name) == 0) break;
-            }
-            if (labelprint(s, k != j)) break;
+            labelprint(&arguments.symbol_output[j]);
         }
         if (arguments.make != NULL) makefile(argc - opts, argv + opts, arguments.make_phony);
 
@@ -5036,6 +5031,7 @@ int main2(int *argc2, char **argv2[]) {
         error_status();
         printf("Passes: %12u\n",pass);
         if (!failed) sectionprint(stdout);
+        fflush(stdout);
     }
     tfree();
     return failed ? EXIT_FAILURE : EXIT_SUCCESS;

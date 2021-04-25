@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2596 2021-04-18 18:52:11Z soci $
+    $Id: variables.c 2618 2021-04-25 11:11:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -699,16 +699,16 @@ static Namespace *find_space(const char *here, bool use) {
     return space;
 }
 
-bool labelprint(const struct symbol_output_s *output, bool append) {
+void labelprint(const struct symbol_output_s *output) {
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
     int err;
     Namespace *space;
 
-    flab = dash_name(output->name) ? stdout : file_open(output->name, append ? "at" : "wt");
+    flab = dash_name(output->name) ? stdout : file_open(output->name, output->append ? "at" : "wt");
     if (flab == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
-        return true;
+        return;
     }
     clearerr(flab); errno = 0;
     label_stack.stack = NULL;
@@ -729,9 +729,7 @@ bool labelprint(const struct symbol_output_s *output, bool append) {
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
     if (err != 0 && errno != 0) {
         err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
-        return true;
     }
-    return false;
 }
 
 void ref_labels(void) {

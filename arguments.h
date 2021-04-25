@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2415 2021-02-25 19:51:54Z soci $
+    $Id: arguments.h 2618 2021-04-25 11:11:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -54,8 +54,9 @@ struct error_output_s {
 
 struct symbol_output_s {
     const char *name;
-    Symbollist_types mode;
     const char *space;
+    Symbollist_types mode;
+    bool append;
 };
 
 struct list_output_s {

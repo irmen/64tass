@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2578 2021-04-17 13:33:35Z soci $
+    $Id: file.c 2622 2021-04-25 15:16:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ void include_list_add(const char *path)
     size_t i, j, len;
     j = i = strlen(path);
     if (i == 0) return;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     if (path[i - 1] != '/' && path[i-1] != '\\') j++;
 #else
     if (path[i - 1] != '/') j++;
@@ -115,14 +115,14 @@ void include_list_add(const char *path)
     if (i != j) memcpy(include_list_last->path + i, "/", 2);
 }
 
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
 static inline bool is_driveletter(const char *name) {
     return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
 
 size_t get_base(const char *base) {
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     size_t i, j = is_driveletter(base) ? 2 : 0;
     for (i = j; base[i] != '\0'; i++) {
         if (base[i] == '/' || base[i] == '\\') j = i + 1;
@@ -138,7 +138,7 @@ char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
 
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = is_driveletter(base) ? 2 : 0;
     else i = (v->len > 1 && is_driveletter((const char *)v->data)) ? 0 : get_base(base);
 #else
@@ -193,7 +193,7 @@ failed:
 static bool portability(const str_t *name, linepos_t epoint) {
     struct linepos_s epoint2;
     const uint8_t *pos;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     if (name->len == 0) return true;
     pos = (const uint8_t *)memchr(name->data, '\\', name->len);
     if (pos != NULL) {
@@ -503,6 +503,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 fputs((ftype == 1) ? "Reading file:      " : "Assembling file:   ", stdout);
                 argv_print(path, stdout);
                 putchar('\n');
+                fflush(stdout);
             }
             if (f == NULL) goto openerr;
             tmp->read_error = true;

@@ -1,5 +1,5 @@
 /*
-    $Id: math.h 1408 2017-03-30 15:28:02Z soci $
+    $Id: math.h 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 199901L && !defined __VBCC__
-#elif defined __GNUC__ || _MSC_VER > 1800
+#elif defined __GNUC__ || _MSC_VER > 1800 || defined __WATCOMC__
 #elif defined __VBCC__
 extern double cbrt(double);
 extern double round(double);
@@ -45,7 +45,6 @@ static inline double trunc(double a) {
 }
 #ifdef _MSC_VER
 #define hypot(x,y) _hypot((x),(y))
-#elif defined __WATCOMC__
 #else
 static inline double hypot(double a, double b) {
     return sqrt(a * a + b * b);

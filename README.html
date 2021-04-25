@@ -3404,12 +3404,12 @@ output. The maximum image size will be the smallest of all selected
 formats. Using the same name multiple times is not a good idea.</p>
 
 <dt><b>--output-append</b> &lt;filename&gt;<a name="o_output-append" href="#o_output-append"></a>
-<dd>Same as output but appends instead of overwrites.
+<dd>Same as the --output option but appends instead of overwrites.
 
 <p>Normally output files are overwritten but in some cases it's useful to append them instead.</p>
 
 <dt><b>--no-output</b><a name="o_no-output" href="#o_no-output"></a>
-<dd>Same as output but no file will be written.
+<dd>No output file will be written.
 
 <p>Useful for test compiles.</p>
 
@@ -3723,7 +3723,7 @@ It's possible to redirect them to a file or to the standard output by
 using <q>-</q> as the file name.</p>
 
 <dt><b>--error-append</b> &lt;filename&gt;<a name="o_error-append" href="#o_error-append"></a>
-<dd>Same as the error option but appends instead of overwrites.
+<dd>Same as the --error option but appends instead of overwrites.
 
 <dt><b>--no-error</b><a name="o_no_error" href="#o_no_error"></a>
 <dd>Do not output any error messages, just count them.
@@ -4228,6 +4228,9 @@ options must be placed before this option. Using the same name multiple times is
 
 <p>This writes symbols for VICE into <q>all.l</q> and symbols from scope
 <q>export</q> into <q>myexport.inc</q>.</p>
+
+<dt><b>--labels-append</b>=&lt;file&gt;<a name="o_labels-append" href="#o_labels-append"></a>
+<dd>Same as the --labels option but appends instead of overwrites. 
 
 <dt><b>--labels-root</b>=&lt;path&gt;<a name="o_labels-root" href="#o_labels-root"></a>
 <dd>Specify the scope to list labels from

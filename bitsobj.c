@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2598 2021-04-18 23:44:52Z soci $
+    $Id: bitsobj.c 2604 2021-04-25 10:47:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,11 +44,11 @@ static Type obj;
 
 Type *const BITS_OBJ = &obj;
 
-static Bits null_bitsval = { { &obj, 1 }, 0, 0, null_bitsval.u.val, {} };
-static Bits inv_bitsval = { { &obj, 1 }, ~0, 0, inv_bitsval.u.val, {} };
-static Bits zero_bitsval = { { &obj, 1 }, 0, 1, zero_bitsval.u.val, {} };
+static Bits null_bitsval = { { &obj, 1 }, 0, 0, null_bitsval.u.val, { {0, 0} } };
+static Bits inv_bitsval = { { &obj, 1 }, ~0, 0, inv_bitsval.u.val, { {0, 0} } };
+static Bits zero_bitsval = { { &obj, 1 }, 0, 1, zero_bitsval.u.val, { {0, 0} } };
 static Bits one_bitsval = { { &obj, 1 }, 1, 1, one_bitsval.u.val, { {1, 0} } };
-static Bits zero_ibitsval = { { &obj, 1 }, ~0, 1, zero_ibitsval.u.val, {} };
+static Bits zero_ibitsval = { { &obj, 1 }, ~0, 1, zero_ibitsval.u.val, { {0, 0} } };
 static Bits one_ibitsval = { { &obj, 1 }, ~1, 1, one_ibitsval.u.val, { {1, 0} } };
 
 Obj *const null_bits = &null_bitsval.v;
@@ -505,9 +505,8 @@ MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, linecpos_t *ln) {
     bdigit_t *d, uv;
     Bits *v;
 
-    i = k = 0;
+    i = k = 0; uv = 0;
     if (s[0] != '_') {
-        uv = 0;
         for (;;k++) {
             uint8_t c2, c = s[k] ^ 0x30;
             if (c < 10) {
@@ -533,6 +532,8 @@ MUST_CHECK Obj *bits_from_hexstr(const uint8_t *s, linecpos_t *ln) {
     if (i <= 2 * sizeof *d) {
         return (i == 0) ? val_reference(null_bits) : return_bits(uv, (unsigned int)i * 4);
     }
+
+    if ((size_t)i + 0 > SIZE_MAX / 4) return NULL; /* overflow */
 
     v = new_bits2(i / (2 * sizeof *d) + ((i % (2 * sizeof *d)) != 0 ? 1 :0));
     if (v == NULL) return NULL;
@@ -561,9 +562,8 @@ MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, linecpos_t *ln) {
     bdigit_t *d, uv;
     Bits *v;
 
-    i = k = 0;
+    i = k = 0; uv = 0;
     if (s[0] != '_') {
-        uv = 0;
         for (;;k++) {
             uint8_t c = s[k] ^ 0x30;
             if (c < 2) {

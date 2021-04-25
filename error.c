@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2596 2021-04-18 18:52:11Z soci $
+    $Id: error.c 2620 2021-04-25 12:05:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -329,7 +329,7 @@ static const char * const terr_warning[] = {
 #ifdef _WIN32
     "the file's real name is not '",
 #endif
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     "use '/' as path separation '",
 #else
     "this name uses reserved characters '",
@@ -516,7 +516,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
 #ifdef _WIN32
         case ERROR___INSENSITIVE:
 #endif
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
         case ERROR_____BACKSLASH:
 #else
         case ERROR__RESERVED_CHR:
