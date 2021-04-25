@@ -296,14 +296,13 @@ static void output_mem_c256_pgz(FILE *fout, const Memblocks *memblocks) {
     }
 
     // Write zero header, for no more segments
-    memset(header, 0, 6);
-    fwrite(header, 6, 1, fout);
-
-    // Write Entry Point Address
     header[0] = (uint8_t)arguments.entry_point;
     header[1] = (uint8_t)(arguments.entry_point >> 8);
     header[2] = (uint8_t)(arguments.entry_point >> 16);
-    fwrite(header, 3, 1, fout);
+    header[3] = 0;
+    header[4] = 0;
+    header[5] = 0;
+    fwrite(header, 6, 1, fout);
 }
 
 static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
