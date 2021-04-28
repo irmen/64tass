@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.h 2580 2021-04-17 16:09:46Z soci $
+    $Id: functionobj.h 2625 2021-04-25 21:09:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifndef FUNCTIONOBJ_H
 #define FUNCTIONOBJ_H
 #include "obj.h"
-#include "str.h"
 
 extern struct Type *const FUNCTION_OBJ;
 
@@ -34,9 +33,10 @@ typedef enum Function_types {
 
 typedef struct Function {
     Obj v;
-    str_t name;
+    const char name[7];
+    const uint8_t name_len;
     int name_hash;
-    Function_types func;
+    const Function_types func;
 } Function;
 
 #define Function(a) ((Function *)(1 ? (a) : (Obj *)(Function *)(a)))

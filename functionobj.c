@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: functionobj.c 2625 2021-04-25 21:09:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -53,7 +53,12 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     Function *v1 = Function(o1);
     int h = v1->name_hash;
-    if (h < 0) v1->name_hash = h = str_hash(&v1->name);
+    if (h < 0) {
+        str_t s;
+        s.data = (const uint8_t *)v1->name;
+        s.len = v1->name_len;
+        v1->name_hash = h = str_hash(&s);
+    }
     *hs = h;
     return NULL;
 }
@@ -62,9 +67,11 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     const Function *v1 = Function(o1);
     uint8_t *s;
     size_t len;
+    size_t name_len;
     Str *v;
     if (epoint == NULL) return NULL;
-    len = v1->name.len + 20;
+    name_len = v1->name_len;
+    len = name_len + 20;
     if (len < 20) return NULL; /* overflow */
     if (len > maxsize) return NULL;
     v = new_str2(len);
@@ -73,8 +80,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     s = v->data;
     memcpy(s, "<native_function '", 18);
     s += 18;
-    memcpy(s, v1->name.data, v1->name.len);
-    s += v1->name.len;
+    memcpy(s, v1->name, name_len);
+    s += name_len;
     *s = '\'';
     s[1] = '>';
     return Obj(v);
@@ -83,11 +90,12 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     const Function *v1 = Function(o1);
     Str *v;
-    if (v1->name.len > maxsize) return NULL;
-    v = new_str2(v1->name.len);
+    size_t name_len = v1->name_len;
+    if (name_len > maxsize) return NULL;
+    v = new_str2(name_len);
     if (v == NULL) return NULL;
-    v->chars = v1->name.len;
-    memcpy(v->data, v1->name.data, v1->name.len);
+    v->chars = name_len;
+    memcpy(v->data, v1->name, name_len);
     return Obj(v);
 }
 
@@ -865,60 +873,60 @@ void functionobj_init(void) {
     obj.calc2 = calc2;
 }
 
-static Function builtin_functions[] = {
-    { {NULL, 2}, { (const uint8_t *)"abs", 3 }, -1, F_ABS},
-    { {NULL, 2}, { (const uint8_t *)"acos", 4 }, -1, F_ACOS},
-    { {NULL, 2}, { (const uint8_t *)"addr", 4 }, -1, F_ADDR},
-    { {NULL, 2}, { (const uint8_t *)"all", 3 }, -1, F_ALL},
-    { {NULL, 2}, { (const uint8_t *)"any", 3 }, -1, F_ANY},
-    { {NULL, 2}, { (const uint8_t *)"asin", 4 }, -1, F_ASIN},
-    { {NULL, 2}, { (const uint8_t *)"atan", 4 }, -1, F_ATAN},
-    { {NULL, 2}, { (const uint8_t *)"atan2", 5 }, -1, F_ATAN2},
-    { {NULL, 2}, { (const uint8_t *)"binary", 6}, -1, F_BINARY},
-    { {NULL, 2}, { (const uint8_t *)"byte", 4 }, -1, F_BYTE},
-    { {NULL, 2}, { (const uint8_t *)"cbrt", 4 }, -1, F_CBRT},
-    { {NULL, 2}, { (const uint8_t *)"ceil", 4 }, -1, F_CEIL},
-    { {NULL, 2}, { (const uint8_t *)"char", 4 }, -1, F_CHAR},
-    { {NULL, 2}, { (const uint8_t *)"cos", 3 }, -1, F_COS},
-    { {NULL, 2}, { (const uint8_t *)"cosh", 4 }, -1, F_COSH},
-    { {NULL, 2}, { (const uint8_t *)"deg", 3 }, -1, F_DEG},
-    { {NULL, 2}, { (const uint8_t *)"dint", 4 }, -1, F_DINT},
-    { {NULL, 2}, { (const uint8_t *)"dword", 5 }, -1, F_DWORD},
-    { {NULL, 2}, { (const uint8_t *)"exp", 3 }, -1, F_EXP},
-    { {NULL, 2}, { (const uint8_t *)"floor", 5 }, -1, F_FLOOR},
-    { {NULL, 2}, { (const uint8_t *)"format", 6}, -1, F_FORMAT},
-    { {NULL, 2}, { (const uint8_t *)"frac", 4 }, -1, F_FRAC},
-    { {NULL, 2}, { (const uint8_t *)"hypot", 5 }, -1, F_HYPOT},
-    { {NULL, 2}, { (const uint8_t *)"len", 3 }, -1, F_LEN},
-    { {NULL, 2}, { (const uint8_t *)"lint", 4 }, -1, F_LINT},
-    { {NULL, 2}, { (const uint8_t *)"log", 3 }, -1, F_LOG},
-    { {NULL, 2}, { (const uint8_t *)"log10", 5 }, -1, F_LOG10},
-    { {NULL, 2}, { (const uint8_t *)"long", 4 }, -1, F_LONG},
-    { {NULL, 2}, { (const uint8_t *)"pow", 3 }, -1, F_POW},
-    { {NULL, 2}, { (const uint8_t *)"rad", 3 }, -1, F_RAD},
-    { {NULL, 2}, { (const uint8_t *)"random", 6}, -1, F_RANDOM},
-    { {NULL, 2}, { (const uint8_t *)"range", 5 }, -1, F_RANGE},
-    { {NULL, 2}, { (const uint8_t *)"repr", 4 }, -1, F_REPR},
-    { {NULL, 2}, { (const uint8_t *)"round", 5 }, -1, F_ROUND},
-    { {NULL, 2}, { (const uint8_t *)"rta", 3 }, -1, F_RTA},
-    { {NULL, 2}, { (const uint8_t *)"sign", 4 }, -1, F_SIGN},
-    { {NULL, 2}, { (const uint8_t *)"sin", 3 }, -1, F_SIN},
-    { {NULL, 2}, { (const uint8_t *)"sinh", 4 }, -1, F_SINH},
-    { {NULL, 2}, { (const uint8_t *)"sint", 4 }, -1, F_SINT},
-    { {NULL, 2}, { (const uint8_t *)"size", 4 }, -1, F_SIZE},
-    { {NULL, 2}, { (const uint8_t *)"sort", 4 }, -1, F_SORT},
-    { {NULL, 2}, { (const uint8_t *)"sqrt", 4 }, -1, F_SQRT},
-    { {NULL, 2}, { (const uint8_t *)"tan", 3 }, -1, F_TAN},
-    { {NULL, 2}, { (const uint8_t *)"tanh", 4 }, -1, F_TANH},
-    { {NULL, 2}, { (const uint8_t *)"trunc", 5 }, -1, F_TRUNC},
-    { {NULL, 2}, { (const uint8_t *)"word", 4 }, -1, F_WORD},
+static Function builtin_functions[] = { /* maximum name length of 6 chars */
+    { {NULL, 2}, {'a', 'b', 's'}, 3, -1, F_ABS},
+    { {NULL, 2}, {'a', 'c', 'o', 's'}, 4, -1, F_ACOS},
+    { {NULL, 2}, {'a', 'd', 'd', 'r'}, 4, -1, F_ADDR},
+    { {NULL, 2}, {'a', 'l', 'l'}, 3, -1, F_ALL},
+    { {NULL, 2}, {'a', 'n', 'y'}, 3, -1, F_ANY},
+    { {NULL, 2}, {'a', 's', 'i', 'n'}, 4, -1, F_ASIN},
+    { {NULL, 2}, {'a', 't', 'a', 'n'}, 4, -1, F_ATAN},
+    { {NULL, 2}, {'a', 't', 'a', 'n', '2'}, 5, -1, F_ATAN2},
+    { {NULL, 2}, {'b', 'i', 'n', 'a', 'r', 'y'}, 6, -1, F_BINARY},
+    { {NULL, 2}, {'b', 'y', 't', 'e'}, 4, -1, F_BYTE},
+    { {NULL, 2}, {'c', 'b', 'r', 't'}, 4, -1, F_CBRT},
+    { {NULL, 2}, {'c', 'e', 'i', 'l'}, 4, -1, F_CEIL},
+    { {NULL, 2}, {'c', 'h', 'a', 'r'}, 4, -1, F_CHAR},
+    { {NULL, 2}, {'c', 'o', 's'}, 3, -1, F_COS},
+    { {NULL, 2}, {'c', 'o', 's', 'h'}, 4, -1, F_COSH},
+    { {NULL, 2}, {'d', 'e', 'g'}, 3, -1, F_DEG},
+    { {NULL, 2}, {'d', 'i', 'n', 't'}, 4, -1, F_DINT},
+    { {NULL, 2}, {'d', 'w', 'o', 'r', 'd'}, 5, -1, F_DWORD},
+    { {NULL, 2}, {'e', 'x', 'p'}, 3, -1, F_EXP},
+    { {NULL, 2}, {'f', 'l', 'o', 'o', 'r'}, 5, -1, F_FLOOR},
+    { {NULL, 2}, {'f', 'o', 'r', 'm', 'a', 't'}, 6, -1, F_FORMAT},
+    { {NULL, 2}, {'f', 'r', 'a', 'c'}, 4, -1, F_FRAC},
+    { {NULL, 2}, {'h', 'y', 'p', 'o', 't'}, 5, -1, F_HYPOT},
+    { {NULL, 2}, {'l', 'e', 'n'}, 3, -1, F_LEN},
+    { {NULL, 2}, {'l', 'i', 'n', 't'}, 4, -1, F_LINT},
+    { {NULL, 2}, {'l', 'o', 'g'}, 3, -1, F_LOG},
+    { {NULL, 2}, {'l', 'o', 'g', '1', '0'}, 5, -1, F_LOG10},
+    { {NULL, 2}, {'l', 'o', 'n', 'g'}, 4, -1, F_LONG},
+    { {NULL, 2}, {'p', 'o', 'w'}, 3, -1, F_POW},
+    { {NULL, 2}, {'r', 'a', 'd'}, 3, -1, F_RAD},
+    { {NULL, 2}, {'r', 'a', 'n', 'd', 'o', 'm'}, 6, -1, F_RANDOM},
+    { {NULL, 2}, {'r', 'a', 'n', 'g', 'e'}, 5, -1, F_RANGE},
+    { {NULL, 2}, {'r', 'e', 'p', 'r'}, 4, -1, F_REPR},
+    { {NULL, 2}, {'r', 'o', 'u', 'n', 'd'}, 5, -1, F_ROUND},
+    { {NULL, 2}, {'r', 't', 'a'}, 3, -1, F_RTA},
+    { {NULL, 2}, {'s', 'i', 'g', 'n'}, 4, -1, F_SIGN},
+    { {NULL, 2}, {'s', 'i', 'n'}, 3, -1, F_SIN},
+    { {NULL, 2}, {'s', 'i', 'n', 'h'}, 4, -1, F_SINH},
+    { {NULL, 2}, {'s', 'i', 'n', 't'}, 4, -1, F_SINT},
+    { {NULL, 2}, {'s', 'i', 'z', 'e'}, 4, -1, F_SIZE},
+    { {NULL, 2}, {'s', 'o', 'r', 't'}, 4, -1, F_SORT},
+    { {NULL, 2}, {'s', 'q', 'r', 't'}, 4, -1, F_SQRT},
+    { {NULL, 2}, {'t', 'a', 'n'}, 3, -1, F_TAN},
+    { {NULL, 2}, {'t', 'a', 'n', 'h'}, 4, -1, F_TANH},
+    { {NULL, 2}, {'t', 'r', 'u', 'n', 'c'}, 5, -1, F_TRUNC},
+    { {NULL, 2}, {'w', 'o', 'r', 'd'}, 4, -1, F_WORD},
 };
 
 void functionobj_names(void) {
     unsigned int i;
     for (i = 0; i < lenof(builtin_functions); i++) {
         builtin_functions[i].v.obj = &obj;
-        new_builtin((const char *)builtin_functions[i].name.data, Obj(builtin_functions + i));
+        new_builtin(builtin_functions[i].name, Obj(builtin_functions + i));
     }
 }
 

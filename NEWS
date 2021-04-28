@@ -1,3 +1,119 @@
+r2625 (2021-04-25)
+==================
+
+The last release got more than a year old now and there were
+plenty of pending corrections to be released. Some planned
+features still didn't made it in. Maybe next time.
+
+**Fixes**
+
+* .fill/.align multi byte pattern fix
+  Broke due to changes in r1845.
+* Wrong diagnostic for incomplete byte string
+  The missing closing quote was pointed at the wrong place
+* Incomplete diagnostic message
+  The opcode was not displayed in some cases
+* Diagnostic locations fixed
+  In some cases the location was wrong
+* Duplicate diagnostic messages avoided
+  In some cases redundant diagnostics was output
+* Crash while .function declaration and macro init parameters
+  Found by Pierre
+* Improved filename portability checks
+  In some cases case insensitive filenames were not recognized
+* Diagnostics of non-portable filename characters improved
+  Now points at the problematic character.
+* Functions did not execute as loop and other conditions
+  Now they do.
+* Can't calculate errors related to functions
+  In some cases these were incorrectly reported
+* 4510 missed had () instead of (),z addressing mode
+  Now same as 65CE02 in this regard
+* Improved format() diagnostics
+  It's more strict now
+* Floating point bitops didn't work as intended
+  Actually in some cases they did work but mostly not
+* Dot eor operator works again in TASM compatible mode
+  Got broken due to syntax clash with hexadecimal floats
+* Wrong message text for invalid unary operators
+  Tried to diagnose them like binary by mistake
+* Improved syntax highlighting
+  In some case it didn't highlight well on vim
+* Byte string compare didn't work properly
+  In case a byte string was inverted.
+* In some cases .null failed to detect zeros
+  For example for ~$ff
+
+**Changes**
+
+* Comment nesting
+  Directives are not recognized now in commented block
+* Negative size an error now, size extension a warning
+  If an offset reduces a memory area beyond 0 it's a fault now
+  (instead of 0) and extension beyond the original size a warning.
+  Controllable through -Wsize-large.
+* PC bank wrapping gone now
+  Seemed like a good idea but crossing banks with long data gave
+  unexpected results for many people.
+* VICE label de-duplication is gone now
+  Was intended to avoid warnings on import but actually breaks
+  symbolic breakpoints if the needed label gets deduplicated...
+* -Wswitch-case gone now
+  Could cause unexpected side effects which is a no-no for diagnostics
+* Ident renamed to symbol
+  For less confusing diagnostic messages
+* Long values not displayed in listing by default
+  They cluttered up the listing. They are still displayed in verbose
+  mode.
+* Dictionary keys must be identical and not equal
+  Otherwise bit strings can't be matched properly for example.
+* Hex float format from format() gone now
+  Seemed like it's easy to add without much effort but it was not cross
+  platform.
+* Bit string extraction operators now return bit string
+  Did return bytes for a long while but now I realized those may not
+  compare as expected in some cases.
+* Multi line expressions are gone now
+  Seemed like a good idea back then but they cause more problems than
+  they solve. They were never documented due to all the unsolved edge
+  cases anyway.
+* Duplicated label files do not append automatically
+  It must be done now explicitly with --labels-append
+* Unnamed values not listed in listing any more
+  There's no label so makes no sense
+
+**New**
+
+* Immediate operand to branches
+  It's now possible to write 'bne #0' (for self modifying code)
+* Hexadecimal byte string literal separation with spaces
+  Space is accepted now in hexadecimal byte strings like x'ab cd'
+* Various byte string functions added
+  Like byte(), word() and friends
+* New --output-append parameter
+  For appending the output to a file instead of overwriting it
+* New --no-output option
+  For cases where no output file is needed
+* Symbol definition syntax
+  May be defined with a dot prefix. Useful as dictionary keys.
+* New .sfunction directive
+  For defining single line functions which only do calculations
+* Alternative end directives
+  Bit more verbose but more consistent and easier to remember.
+  E.g. .endpage vs. .endp
+* Identity operator (===)
+  For exact matching
+* --no-error and --error-append
+  To not save or append error messages
+* Broadcasting conditional operator is '??'
+  Sometimes broadcasting is needed but that's not compatible with the
+  regular '?' conditional operator
+* Diagnostics for interrupted compilation
+  Now it's displayed where it happened for improved infinite loop
+  debugging.
+* --labels-append
+  For appending to label files.
+
 r2200 (2020-04-07)
 ==================
 
