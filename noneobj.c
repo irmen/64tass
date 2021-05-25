@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.c 2509 2021-03-14 16:15:17Z soci $
+    $Id: noneobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#ifdef DEBUG
+#include <stdio.h>
+#endif
 #include "noneobj.h"
 #include "eval.h"
-#include "values.h"
 
 #include "typeobj.h"
 #include "errorobj.h"
@@ -92,25 +94,25 @@ static MUST_CHECK Obj *size(oper_t op) {
 }
 
 void noneobj_init(void) {
-    new_type(&obj, T_NONE, "none", sizeof(None));
-    obj.same = same;
-    obj.truth = truth;
-    obj.repr = repr;
-    obj.str = str;
-    obj.hash = hash;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval;
-    obj.iaddress = ival;
-    obj.uaddress = uval;
-    obj.sign = sign;
-    obj.function = function;
-    obj.len = len;
-    obj.size = size;
+    Type *type = new_type(&obj, T_NONE, "none", sizeof(None));
+    type->same = same;
+    type->truth = truth;
+    type->repr = repr;
+    type->str = str;
+    type->hash = hash;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = function;
+    type->len = len;
+    type->size = size;
 }
 
 void noneobj_destroy(void) {

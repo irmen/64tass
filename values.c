@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2610 2021-04-25 10:53:35Z soci $
+    $Id: values.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,10 +48,12 @@ static void value_free(Obj *val) {
 
 static FAST_CALL NO_INLINE Obj *value_alloc(const Type *obj) {
     size_t p = obj->length;
-    size_t i, size = p * ALIGN;
+    size_t size = p * ALIGN;
     Slot *slot, *slot2;
     Slotcoll **s = &slotcoll[p];
-    Slotcoll *n = (Slotcoll *)mallocx(size * SLOTS + sizeof *n);
+    size_t i = size * SLOTS + sizeof(Slotcoll);
+    Slotcoll *n = (Slotcoll *)allocate_array(uint8_t, i);
+    if (n == NULL) err_msg_out_of_memory();
     n->next = *s; *s = n;
     slot2 = slot = (Slot *)(n + 1);
     for (i = 0; i < (SLOTS - 1); i++, slot2 = slot2->next) {

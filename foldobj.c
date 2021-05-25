@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: foldobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include <string.h>
 #include "values.h"
 #include "eval.h"
-#include "error.h"
 
 #include "typeobj.h"
 #include "strobj.h"
@@ -135,12 +134,12 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void foldobj_init(void) {
-    new_type(&obj, T_FOLD, "fold", sizeof(Fold));
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_FOLD, "fold", sizeof(Fold));
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }
 
 void foldobj_destroy(void) {

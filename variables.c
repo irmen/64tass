@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2618 2021-04-25 11:11:11Z soci $
+    $Id: variables.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,12 +70,12 @@ struct context_stack_s {
 
 static struct context_stack_s context_stack;
 
+static void extend_context_stack(void) {
+    extend_array(&context_stack.stack, &context_stack.len, 8);
+}
+
 void push_context(Namespace *name) {
-    if (context_stack.p >= context_stack.len) {
-        context_stack.len += 8;
-        if (/*context_stack.len < 8 ||*/ context_stack.len > SIZE_MAX / sizeof *context_stack.stack) err_msg_out_of_memory(); /* overflow */
-        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof *context_stack.stack);
-    }
+    if (context_stack.p >= context_stack.len) extend_context_stack();
     context_stack.stack[context_stack.p].normal = ref_namespace(name);
     current_context = name;
     context_stack.stack[context_stack.p].cheap = cheap_context;
@@ -101,11 +101,7 @@ bool pop_context(void) {
 }
 
 void push_context2(Namespace *name) {
-    if (context_stack.p >= context_stack.len) {
-        context_stack.len += 8;
-        if (/*context_stack.len < 8 ||*/ context_stack.len > SIZE_MAX / sizeof *context_stack.stack) err_msg_out_of_memory(); /* overflow */
-        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof *context_stack.stack);
-    }
+    if (context_stack.p >= context_stack.len) extend_context_stack();
     context_stack.stack[context_stack.p].normal = context_stack.stack[context_stack.p - 1].normal;
     context_stack.stack[context_stack.p - 1].normal = ref_namespace(name);
     context_stack.stack[context_stack.p].cheap = ref_namespace(name);
@@ -144,11 +140,7 @@ struct label_stack_s {
 static struct label_stack_s label_stack;
 
 static void push_label(Label *name) {
-    if (label_stack.p >= label_stack.len) {
-        label_stack.len += 8;
-        if (/*label_stack.len < 8 ||*/ label_stack.len > SIZE_MAX / sizeof(*label_stack.stack)) err_msg_out_of_memory(); /* overflow */
-        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(*label_stack.stack));
-    }
+    if (label_stack.p >= label_stack.len) extend_array(&label_stack.stack, &label_stack.len, 8);
     label_stack.stack[label_stack.p] = name;
     label_stack.p++;
 }
@@ -159,9 +151,8 @@ static void pop_label(void) {
 
 void get_namespaces(Mfunc *mfunc) {
     size_t i, len = context_stack.p - context_stack.bottom;
-    if (len > SIZE_MAX / sizeof *mfunc->namespaces) err_msg_out_of_memory(); /* overflow */
     mfunc->nslen = len;
-    mfunc->namespaces = (Namespace **)mallocx(len * sizeof *mfunc->namespaces);
+    new_array(&mfunc->namespaces, len);
     for (i = 0; i < len; i++) {
         mfunc->namespaces[i] = ref_namespace(context_stack.stack[context_stack.bottom + i].normal);
     }
@@ -183,8 +174,9 @@ static Label *namespace_update(Namespace *ns, Label *p) {
     size_t mask, hash, offs;
     if (ns->len * 3 / 2 >= ns->mask) {
         size_t i, max = (ns->data == NULL) ? 8 : (ns->mask + 1) << 1;
-        Label **n = (Label **)calloc(max, sizeof *n);
-        if (n == NULL) err_msg_out_of_memory();
+        Label **n;
+        new_array(&n, max);
+        memset(n, 0, max * sizeof *n);
         mask = max - 1;
         if (ns->data != NULL) {
             for (i = 0; i <= ns->mask; i++) if (ns->data[i] != NULL) {

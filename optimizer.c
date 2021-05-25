@@ -1,5 +1,5 @@
 /*
-    $Id: optimizer.c 2432 2021-02-28 13:18:37Z soci $
+    $Id: optimizer.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -641,11 +641,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto adc;
     case 0x61: /* ADC ($12,x) */
         if (!cputype_65c02) goto adc;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x7D: /* ADC $1234,x */
     case 0x75: /* ADC $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x6D: /* ADC $1234 */
     case 0x65: /* ADC $12 */
         adc:
@@ -670,11 +670,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto sbc;
     case 0xE1: /* SBC ($12,x) */
         if (!cputype_65c02) goto sbc;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xFD: /* SBC $1234,x */
     case 0xF5: /* SBC $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xED: /* SBC $1234 */
     case 0xE5: /* SBC $12 */
         sbc:
@@ -703,11 +703,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto anda;
     case 0x21: /* AND ($12,x) */
         if (!cputype_65c02) goto anda;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x3D: /* AND $1234,x */
     case 0x35: /* AND $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x2D: /* AND $1234 */
     case 0x25: /* AND $12 */
     anda:
@@ -738,11 +738,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto ora;
     case 0x01: /* ORA ($12,x) */
         if (!cputype_65c02) goto ora;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x1D: /* ORA $1234,x */
     case 0x15: /* ORA $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x0D: /* ORA $1234 */
     case 0x05: /* ORA $12 */
     ora:
@@ -773,11 +773,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto eor;
     case 0x41: /* EOR ($12,x) */
         if (!cputype_65c02) goto eor;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x5D: /* EOR $1234,x */
     case 0x55: /* EOR $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x4D: /* EOR $1234 */
     case 0x45: /* EOR $12 */
     eor:
@@ -809,11 +809,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto lda;
     case 0xA1: /* LDA ($12,x) */
         if (!cputype_65c02) goto lda;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xBD: /* LDA $1234,x */
     case 0xB5: /* LDA $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xAD: /* LDA $1234 */
     case 0xA5: /* LDA $12 */
     lda:
@@ -851,11 +851,11 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         goto cmp;
     case 0xC1: /* CMP ($12,x) */
         if (!cputype_65c02) goto cmp;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xDD: /* CMP $1234,x */
     case 0xD5: /* CMP $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xCD: /* CMP $1234 */
     case 0xC5: /* CMP $12 */
     cmp:
@@ -886,7 +886,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0x1E: /* ASL $1234,x */
     case 0x16: /* ASL $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x0E: /* ASL $1234 */
     case 0x06: /* ASL $12 */
         load_mem(&alu);
@@ -897,7 +897,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0x3E: /* ROL $1234,x */
     case 0x36: /* ROL $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x2E: /* ROL $1234 */
     case 0x26: /* ROL $12 */
         load_mem(&alu);
@@ -910,7 +910,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0x5E: /* LSR $1234,x */
     case 0x56: /* LSR $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x4E: /* LSR $1234 */
     case 0x46: /* LSR $12 */
         load_mem(&alu);
@@ -921,7 +921,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0x7E: /* ROR $1234,x */
     case 0x76: /* ROR $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x6E: /* ROR $1234 */
     case 0x66: /* ROR $12 */
         load_mem(&alu);
@@ -1131,7 +1131,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0xDE: /* DEC $1234,x */
     case 0xD6: /* DEC $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xCE: /* DEC $1234 */
     case 0xC6: /* DEC $12 */
         load_mem(&alu);
@@ -1142,7 +1142,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0xFE: /* INC $1234,x */
     case 0xF6: /* INC $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xEE: /* INC $1234 */
     case 0xE6: /* INC $12 */
         load_mem(&alu);
@@ -1175,7 +1175,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0xBE: /* LDX $1234,y */
     case 0xB6: /* LDX $12,y */
         altmode = is_known(&cpu->y);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xAE: /* LDX $1234 */
     case 0xA6: /* LDX $12 */
     ldx:
@@ -1197,7 +1197,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0xBC: /* LDY $1234,x */
     case 0xB4: /* LDY $12,x */
         altmode = is_known(&cpu->x);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0xAC: /* LDY $1234 */
     case 0xA4: /* LDY $12 */
     ldy:
@@ -1221,7 +1221,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
     case 0x9D: /* STA $1234,x */
     case 0x95: /* STA $12,x */
         if (is_known(&cpu->x)) goto constind;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x8D: /* STA $1234 */
     case 0x85: /* STA $12 */
         if (cputype_65c02 && is_zero(&cpu->a)) {optname = "stz"; goto simplify;}
@@ -1232,7 +1232,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         break;
     case 0x94: /* STY $12,x */
         if (is_known(&cpu->x)) goto constind;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0x8C: /* STY $1234 */
     case 0x84: /* STY $12 */
         if (cputype_65c02 && is_zero(&cpu->y)) {optname = "stz"; goto simplify;}
@@ -1333,7 +1333,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0xBF: /* LAX $1234,y */
             case 0xB7: /* LAX $12,y */
                 altmode = is_known(&cpu->y);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0xAB: /* LAX #$12 */
             case 0xAF: /* LAX $1234 */
             case 0xA7: /* LAX $12 */
@@ -1373,7 +1373,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0xDF: /* DCP $1234,x */
             case 0xD7: /* DCP $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0xCF: /* DCP $1234 */
             case 0xC7: /* DCP $12 */
             case 0xC3: /* DCP ($12,x) */
@@ -1393,7 +1393,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x7F: /* RRA $1234,x */
             case 0x77: /* RRA $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0xEF: /* ISB $1234 */
             case 0xE7: /* ISB $12 */
             case 0xE3: /* ISB ($12,x) */
@@ -1409,7 +1409,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x3F: /* RLA $1234,x */
             case 0x37: /* RLA $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x2F: /* RLA $1234 */
             case 0x27: /* RLA $12 */
             case 0x23: /* RLA ($12,x) */
@@ -1425,7 +1425,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x1F: /* SLO $1234,x */
             case 0x17: /* SLO $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x0F: /* SLO $1234 */
             case 0x07: /* SLO $12 */
             case 0x03: /* SLO ($12,x) */
@@ -1440,7 +1440,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0x5F: /* SRE $1234,x */
             case 0x57: /* SRE $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x4F: /* SRE $1234 */
             case 0x47: /* SRE $12 */
             case 0x43: /* SRE ($12,x) */
@@ -1451,7 +1451,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                 goto eor2;
             case 0x97: /* SAX $12,y */
                 altmode = is_known(&cpu->y);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x8F: /* SAX $1234 */
             case 0x87: /* SAX $12 */
             case 0x83: /* SAX ($12,x) */
@@ -1504,7 +1504,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                     /*case 0xD4:*/ /* NOP $12,x */
                     /*case 0xF4:*/ /* NOP $12,x */
                         altmode = is_known(&cpu->x);
-                        /* fall through */
+                        FALL_THROUGH; /* fall through */
                     case 0x80: /* NOP #$12 */
                     /*case 0x82:*/ /* NOP #$12 */
                     /*case 0xC2:*/ /* NOP #$12 */
@@ -1629,7 +1629,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
         case 0x9E: /* STZ $1234,x */
         case 0x74: /* STZ $12,x */
             if (is_known(&cpu->x)) goto constind;
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case 0x9C: /* STZ $1234 */
         case 0x64: /* STZ $12 */
             break;
@@ -1678,7 +1678,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                 break;
             case 0x54: /* ASR $12,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x44: /* ASR $12 */
             case 0xCB: /* ASW $1234 */
                 load_mem(&alu);
@@ -1736,7 +1736,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                 goto lda;
             case 0x23: /* JSR ($1234,x) */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0x63: /* BSR *+$1234 */
             case 0x22: /* JSR ($1234) */
                 goto jsr;
@@ -1752,7 +1752,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                 break;
             case 0xBB: /* LDZ $1234,x */
                 altmode = is_known(&cpu->x);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0xAB: /* LDZ $1234 */
             ldz:
                 load_mem(&alu);
@@ -1766,7 +1766,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
             case 0xF4: /* PHW #$12 */
             case 0xFC: /* PHW $1234 */
                 incdec(cpu, &cpu->s, false);
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case 0xDB: /* PHZ */
                 goto push;
             case 0xFB: /* PLZ */
@@ -1855,7 +1855,7 @@ void cpu_opt_invalidate(void) {
     unsigned int i;
 
     if (cpu == NULL) {
-        cpu = (struct optimizer_s *)mallocx(sizeof *cpu);
+        new_instance(&cpu);
         current_section->optimizer = cpu;
         for (i = 0; i < 8; i++) {
             cpu->a.a[i] = new_bitu();

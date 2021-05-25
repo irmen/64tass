@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2596 2021-04-18 18:52:11Z soci $
+    $Id: addressobj.c 2676 2021-05-20 21:16:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -163,8 +163,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     tmp = v1->val->obj->repr(v1->val, epoint, maxsize - chars);
     if (tmp == NULL || tmp->obj != STR_OBJ) return tmp;
     str = Str(tmp);
-    len = chars + str->len;
-    if (len < chars) goto error; /* overflow */
+    if (add_overflow(str->len, chars, &len)) goto error;
     chars += str->chars;
     if (chars > maxsize) {
     error:
@@ -367,7 +366,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_LNOT:
     case O_STRING:
         if (am != A_NONE) break;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -405,7 +404,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         bool i;
         result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         if (result->obj != BOOL_OBJ) return result;
-        i = (result == true_value) != (op->op == O_LOR);
+        i = Bool(result)->value != (op->op == O_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? o2 : Obj(v1));
@@ -644,27 +643,27 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void addressobj_init(void) {
-    new_type(&obj, T_ADDRESS, "address", sizeof(Address));
-    obj.convert = convert;
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.address = address;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval2;
-    obj.iaddress = iaddress;
-    obj.uaddress = uaddress;
-    obj.sign = sign;
-    obj.function = function;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_ADDRESS, "address", sizeof(Address));
+    type->convert = convert;
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
+    type->address = address;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval2;
+    type->iaddress = iaddress;
+    type->uaddress = uaddress;
+    type->sign = sign;
+    type->function = function;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void addressobj_names(void) {

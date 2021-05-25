@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: registerobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ typedef struct Register {
     uint8_t val[4];
 } Register;
 
-#define Register(a) ((Register *)(1 ? (a) : (Obj *)(Register *)(a)))
+#define Register(a) OBJ_CAST(Register, a)
 
 extern void registerobj_init(void);
 extern void registerobj_names(void);

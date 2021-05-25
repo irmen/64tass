@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: error.h 2672 2021-05-15 22:41:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -91,7 +91,8 @@ extern void err_msg_branch_page(int, linepos_t);
 extern void err_msg_page(address_t, address_t, linepos_t);
 extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
-extern void err_msg_unknown_char(uchar_t, const struct str_t *, linepos_t);
+extern void err_msg_unknown_char(unichar_t, linepos_t);
+extern void err_msg_encode_definition_note(const struct file_list_s *, linepos_t);
 extern void err_msg_star_assign(linepos_t);
 extern void err_msg_compound_note(linepos_t);
 extern void err_msg_byte_note(linepos_t);
@@ -106,23 +107,46 @@ extern void exitfile(void);
 extern void err_init(const char *);
 extern void err_destroy(void);
 extern void fatal_error(const char *);
-extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void err_msg_signal(void);
 extern void error_status(void);
 extern bool error_serious(void);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
 
-static inline MALLOC void *mallocx(size_t l) {
-    void *m = malloc(l);
-    if (m == NULL) err_msg_out_of_memory();
-    return m;
+#if __has_builtin(__builtin_mul_overflow)
+static inline void *malloc_array(size_t size, size_t nmemb) {
+    return __builtin_mul_overflow(size, nmemb, &size) ? NULL : malloc(size);
 }
+static inline void *realloc_array(void *old, size_t size, size_t nmemb) {
+    return __builtin_mul_overflow(size, nmemb, &size) ? NULL : realloc(old, size);
+}
+#else
+#define malloc_array(size, nmemb) ((size) != 1 && (nmemb) > SIZE_MAX / (size) ? NULL : malloc((size) * (nmemb)))
+#define realloc_array(old, size, nmemb) ((size) != 1 && (nmemb) > SIZE_MAX / (size) ? NULL : realloc((old), (size) * (nmemb)))
+#endif
 
-static inline MUST_CHECK void *reallocx(void *o, size_t l) {
-    void *m = realloc(o, l);
-    if (m == NULL) err_msg_out_of_memory();
-    return m;
-}
+#define allocate_instance(type) ((type *)malloc(sizeof(type)))
+#define allocate_array(type, count) ((type *)malloc_array(sizeof(type), (count)))
+
+#ifdef __cplusplus
+#include <type_traits>
+#define new_instance(old) if ((*old = (std::remove_pointer<decltype(old)>::type)malloc(sizeof(**old))) == NULL) err_msg_out_of_memory()
+#define new_array(old, count) if ((*old = (std::remove_pointer<decltype(old)>::type)malloc_array(sizeof(**old), (count))) == NULL) err_msg_out_of_memory()
+#define resize_array(old, count) if ((*old = (std::remove_pointer<decltype(old)>::type)realloc_array(*old, sizeof(**old), (count))) == NULL) err_msg_out_of_memory()
+#define extend_array(old, len, count) if (inc_overflow(len, (count)) || (*old = (std::remove_pointer<decltype(old)>::type)realloc_array(*old, sizeof(**old), (*len))) == NULL) err_msg_out_of_memory()
+#else
+#define new_instance(old) if ((*old = malloc(sizeof(**old))) == NULL) err_msg_out_of_memory()
+#define new_array(old, count) if ((*old = malloc_array(sizeof(**old), (count))) == NULL) err_msg_out_of_memory()
+#define resize_array(old, count) if ((*old = realloc_array(*old, sizeof(**old), (count))) == NULL) err_msg_out_of_memory()
+#define extend_array(old, len, count) if (inc_overflow(len, (count)) || (*old = realloc_array(*old, sizeof(**old), (*len))) == NULL) err_msg_out_of_memory()
+#endif
+
+#ifdef __cplusplus
+#define reallocate_array(old, count) ((decltype(old))realloc_array(old, sizeof(*old), (count)))
+#elif defined __GNUC__
+#define reallocate_array(old, count) ((__typeof__(old))realloc_array(old, sizeof(*old), (count)))
+#else
+#define reallocate_array(old, count) (realloc_array(old, sizeof(*old), (count)))
+#endif
 
 #endif

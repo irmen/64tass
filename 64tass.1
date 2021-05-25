@@ -1,4 +1,5 @@
 .TH 64tass 1 "Apr 25 2021" "64tass 1.56" "64tass 1.56"
+\" $Id: 64tass.1 2641 2021-05-08 22:27:24Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -13,7 +14,7 @@ only describing the command line options. The many features are described in the
 .SS Output options
 .TP 0.5i
 \fB\-o\fR \fIfilename\fR, \fB\--output\fR \fIfilename\fR
-Place output into \fIfilename\fR. The default output filename is "a.out",
+Place output into \fIfilename\fR. The default output filename is \(aqa.out\(aq,
 this option changes it. May be used multiple times. The format is remembered but section reverts to global after each file.
 .TP 0.5i
 \fB\-\-output\-append\fR \fIfilename\fR
@@ -84,8 +85,8 @@ Use ASCII/Unicode text encoding instead of raw 8-bit.
 Normally no conversion takes place, this is for backwards compatibility with a
 DOS based Turbo Assembler editor, which could create PETSCII files for
 6502tass. (including control characters of course)
-Using this option will change the default "none" and "screen" encodings to map
-\'a\'\-\'z\' and \'A\'\-\'Z\' into the correct PETSCII range of $41\-$5A and $C1\-$DA,
+Using this option will change the default \(aqnone\(aq and \(aqscreen\(aq encodings to map
+\(aqa\(aq\-\(aqz\(aq and \(aqA\(aq\-\(aqZ\(aq into the correct PETSCII range of $41\-$5A and $C1\-$DA,
 which is more suitable for an ASCII editor. It also adds predefined petcat
 style PETSCII literals to the default encodings, and enables Unicode letters in symbol names.
 For writing sources in UTF-8/UTF-16 encodings this option is required!
@@ -110,9 +111,9 @@ Suppress messages. Disables header and summary messages.
 \fB\-T\fR, \fB\-\-tasm\-compatible\fR
 Enable TASM compatible operators and precedence
 Switches the expression evaluator into compatibility mode. This enables
-".", ":" and "!" operators and disables 64tass specific extensions,
+\(aq.\(aq, \(aq:\(aq and \(aq!\(aq operators and disables 64tass specific extensions,
 disables precedence handling and forces 16 bit unsigned evaluation (see
-"differences to original Turbo Assembler" below)
+\(aqdifferences to original Turbo Assembler\(aq below)
 .TP 0.5i
 \fB\-I\fR \fIpath\fR
 Specify include search \fIpath\fR.
@@ -123,7 +124,7 @@ one is used.
 .TP 0.5i
 \fB\-M\fR \fIfile\fR, \fB\-\-dependencies\fR \fIfile\fR
 Specify make rule output \fIfile\fR.
-Writes a dependency rule suitable for 'make' from the list of files
+Writes a dependency rule suitable for \(aqmake\(aq from the list of files
 used during compilation.
 .TP 0.5i
 \fB\-\-make\-phony\fR
@@ -133,7 +134,7 @@ Enable phony target generation for dependencies.
 \fB\-E\fR \fIfile\fR, \fB\-\-error\fR \fIfile\fR
 Specify error output \fIfile\fR.
 Normally compilation errors a written to the standard error output. It's
-possible to redirect them to a file or to the standard output by using '-'
+possible to redirect them to a file or to the standard output by using \(aq-\(aq
 as the file name.
 .TP 0.5i
 \fB\-\-error\-append\fR \fIfile\fR
@@ -153,14 +154,14 @@ messages.
 Restrict source line and fault position display to macro expansions only.
 .TP 0.5i
 \fB\-Wall\fR
-Enable most diagnostic warnings, except those individually disabled. Or with the 'no-' prefix disable all except those enabled.
+Enable most diagnostic warnings, except those individually disabled. Or with the \(aqno-\(aq prefix disable all except those enabled.
 .TP 0.5i
 \fB\-Werror\fR
 Make all diagnostic warnings to an error, except those individually set to a warning. 
 .TP 0.5i
 \fB\-Werror\fR=\fI<name>\fR
 Change a diagnostic warning to an error.
-For example "-Werror=implied-reg" makes this check an error. The "-Wno-error=" variant is useful with "-Werror" to set some to warnings.
+For example \(aq-Werror=implied-reg\(aq makes this check an error. The \(aq-Wno-error=\(aq variant is useful with \(aq-Werror\(aq to set some to warnings.
 .TP 0.5i
 \fB\-Walias\fR
 Warns about alias opcodes.
@@ -183,7 +184,7 @@ Warn if symbol letter case is used inconsistently.
 Warns for cases where immediate addressing is more likely.
 \fB\-Wimplied\-reg\fR
 Warns if implied addressing is used instead of register.
-Some instructions have implied aliases like 'asl' for 'asl a' for
+Some instructions have implied aliases like \(aqasl\(aq for \(aqasl a\(aq for
 compatibility reasons, but this shorthand not the preferred form.
 .TP 0.5i
 \fB\-Wleading\-zeros\fR
@@ -223,7 +224,7 @@ Don't warn about ignored directives.
 .TP 0.5i
 \fB\-Wno\-jmp\-bug\fR
 Don't warn about the jmp ($xxff) bug.
-It's fine that the high byte is read from the 'wrong' address on 6502,
+It's fine that the high byte is read from the \(aqwrong\(aq address on 6502,
 NMOS 6502 and 65DTV02.
 .TP 0.5i
 \fB\-Wno\-label\-left\fR
@@ -272,8 +273,8 @@ If it's data only and the programmer deals with it then this might be ok.
 .TP 0.5i
 \fB\-Wold\-equal\fR
 Warn about old equal operator.
-The single '=' operator is only there for compatibility reasons and should
-be written as '==' normally.
+The single \(aq=\(aq operator is only there for compatibility reasons and should
+be written as \(aq==\(aq normally.
 .TP 0.5i
 \fB\-Woptimize\fR
 Warn about optimizable code.
@@ -282,7 +283,7 @@ analysis done.
 .TP 0.5i
 \fB\-Wshadow\fR
 Warn about symbol shadowing.
-Checks if local variables 'shadow' other variables of same name in upper
+Checks if local variables \(aqshadow\(aq other variables of same name in upper
 scopes in ambiguous ways.
 .TP 0.5i
 \fB\-Wstrict\-bool\fR
@@ -325,7 +326,7 @@ NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64, disk d
 W65C816. Enables extra opcodes. Useful for SuperCPU projects.
 .TP 0.5i
 \fB\-e\fR, \fB\-\-m65el02\fR
-65EL02. Enables extra opcodes, useful RedPower CPU projects. Probably you'll need "\-\-nostart" as well.
+65EL02. Enables extra opcodes, useful RedPower CPU projects. Probably you'll need \(aq\-\-nostart\(aq as well.
 .TP 0.5i
 \fB\-\-mr65c02\fR
 R65C02. Enables extra opcodes and addressing modes specific to this CPU.
@@ -387,7 +388,7 @@ effect on the source code on the right hand side.
 .TP 0.5i
 \fB\-\-verbose\-list\fR
 Normally the assembler tries to minimize listing output by omitting
-"unimportant" lines. But sometimes it's better to just list everything
+\(aqunimportant\(aq lines. But sometimes it's better to just list everything
 including comments and empty lines.
 .SS Other options
 .TP 0.5i
@@ -400,7 +401,7 @@ Give a short usage message. Prints short help about command line options.
 \fB\-V\fR, \fB\-\-version\fR
 Print program version.
 .SH "EXIT STATUS"
-Normally the exit status is 0 if no error occured.
+Normally the exit status is 0 if no error occurred.
 .SH AUTHOR
 Written by Zsolt Kajtar.
 .SH "REPORTING BUGS"

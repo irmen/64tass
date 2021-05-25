@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: intobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ typedef struct Int {
     digit_t *data;
 } Int;
 
-#define Int(a) ((Int *)(1 ? (a) : (Obj *)(Int *)(a)))
+#define Int(a) OBJ_CAST(Int, a)
 
 extern Obj *const int_value[2];
 extern Obj *const minus1_value;

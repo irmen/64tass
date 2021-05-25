@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: errorobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ typedef struct Error {
     } u;
 } Error;
 
-#define Error(a) ((Error *)(1 ? (a) : (Obj *)(Error *)(a)))
+#define Error(a) OBJ_CAST(Error, a)
 
 extern void errorobj_init(void);
 

@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.h 2547 2021-03-19 23:40:46Z soci $
+    $Id: macroobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,8 +43,8 @@ typedef struct Macro {
 } Macro;
 typedef struct Macro Segment;
 
-#define Macro(a) ((Macro *)(1 ? (a) : (Obj *)(Macro *)(a)))
-#define Segment(a) ((Segment *)(1 ? (a) : (Obj *)(Segment *)(a)))
+#define Macro(a) OBJ_CAST(Macro, a)
+#define Segment(a) OBJ_CAST(Segment, a)
 
 typedef struct Struct {
     Obj v;
@@ -59,8 +59,8 @@ typedef struct Struct {
 } Struct;
 typedef struct Struct Union;
 
-#define Struct(a) ((Struct *)(1 ? (a) : (Obj *)(Struct *)(a)))
-#define Union(a) ((Union *)(1 ? (a) : (Obj *)(Union *)(a)))
+#define Struct(a) OBJ_CAST(Struct, a)
+#define Union(a) OBJ_CAST(Union, a)
 
 extern void macroobj_init(void);
 

@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 2625 2021-04-25 21:09:11Z soci $
+    $Id: 64tass.h 2627 2021-05-02 11:03:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,11 +22,7 @@
 #include "stdbool.h"
 #include "inttypes.h"
 #include "wait_e.h"
-#ifndef REVISION
-#define REVISION "2625?"
-#endif
-#undef VERSION
-#define VERSION "1.56." REVISION
+
 #define MAX_PASS 20
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++

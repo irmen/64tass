@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2551 2021-03-20 01:14:37Z soci $
+    $Id: unicode.c 2678 2021-05-22 22:35:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,16 +21,16 @@
 #include "wctype.h"
 #include <ctype.h>
 #include <string.h>
-#include "error.h"
 #include "unicodedata.h"
 #include "str.h"
 #include "console.h"
+#include "error.h"
 
 enum { U_CASEFOLD = 1, U_COMPAT = 2 };
 
-FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for internal use with validated utf-8! */
+FAST_CALL unsigned int utf8in(const uint8_t *c, unichar_t *out) { /* only for internal use with validated utf-8! */
     unsigned int i, j;
-    uchar_t ch = c[0];
+    unichar_t ch = c[0];
 
     if (ch < 0xe0) {
         *out = (ch << 6) ^ c[1] ^ 0x3080;
@@ -53,7 +53,7 @@ FAST_CALL unsigned int utf8in(const uint8_t *c, uchar_t *out) { /* only for inte
     return i;
 }
 
-FAST_CALL unsigned int utf8out(uchar_t i, uint8_t *c) {
+FAST_CALL unsigned int utf8out(unichar_t i, uint8_t *c) {
     if (i < 0x800) {
         c[0] = (uint8_t)(0xc0 | (i >> 6));
         c[1] = (uint8_t)(0x80 | (i & 0x3f));
@@ -80,7 +80,7 @@ FAST_CALL unsigned int utf8out(uchar_t i, uint8_t *c) {
         c[4] = (uint8_t)(0x80 | (i & 0x3f));
         return 5;
     }
-    if ((i & ~(uchar_t)0x7fffffff) != 0) return 0;
+    if ((i & ~(unichar_t)0x7fffffff) != 0) return 0;
     c[0] = (uint8_t)(0xfc | (i >> 30));
     c[1] = (uint8_t)(0x80 | ((i >> 24) & 0x3f));
     c[2] = (uint8_t)(0x80 | ((i >> 18) & 0x3f));
@@ -90,7 +90,7 @@ FAST_CALL unsigned int utf8out(uchar_t i, uint8_t *c) {
     return 6;
 }
 
-static inline unsigned int utf8outlen(uchar_t i) {
+static inline unsigned int utf8outlen(unichar_t i) {
     if (i < 0x800) return 2;
     if (i < 0x10000) return 3;
     if (i < 0x200000) return 4;
@@ -99,20 +99,20 @@ static inline unsigned int utf8outlen(uchar_t i) {
 }
 
 MUST_CHECK bool extend_ubuff(struct ubuff_s *d) {
-    uint32_t len = d->len + 16;
-    uchar_t *data;
-    if (len < 16 || ((size_t)len + 0) > SIZE_MAX / sizeof *data) return true;
-    data = (uchar_t *)realloc(d->data, len * sizeof *data);
+    uint32_t len;
+    unichar_t *data;
+    if (add_overflow(d->len, 16, &len)) return true;
+    data = reallocate_array(d->data, len);
     if (data == NULL) return true;
     d->data = data;
     d->len = len;
     return false;
 }
 
-static MUST_CHECK bool udecompose(uchar_t ch, struct ubuff_s *d, int options) {
+static MUST_CHECK bool udecompose(unichar_t ch, struct ubuff_s *d, int options) {
     const struct properties_s *prop;
     if (ch >= 0xac00 && ch <= 0xd7a3) {
-        uchar_t ht, hs = ch - 0xac00;
+        unichar_t ht, hs = ch - 0xac00;
         if (d->p + 3 > d->len && extend_ubuff(d)) return true;
         d->data[d->p++] = 0x1100 + hs / 588;
         d->data[d->p++] = 0x1161 + (hs % 588) / 28;
@@ -153,7 +153,7 @@ static MUST_CHECK bool udecompose(uchar_t ch, struct ubuff_s *d, int options) {
             if (prop->decompose > -16384) {
                 const int16_t *p;
                 for (p = &usequences[-prop->decompose];; p++) {
-                    uchar_t ch2 = (uint16_t)abs(*p);
+                    unichar_t ch2 = (uint16_t)abs(*p);
                     if (ch2 < 0x80 || (uint16_t)(ch2 - 0x300) < 0x40U) {
                         if (d->p >= d->len && extend_ubuff(d)) return true;
                         d->data[d->p++] = ch2;
@@ -180,11 +180,11 @@ static void unormalize(struct ubuff_s *d) {
     pos = 0;
     max = d->p - 1;
     while (pos < max) {
-        uchar_t ch2 = d->data[pos + 1];
+        unichar_t ch2 = d->data[pos + 1];
         if (ch2 >= 0x300) {
             uint8_t cc2 = uget_property(ch2)->combclass;
             if (cc2 != 0) {
-                uchar_t ch1 = d->data[pos];
+                unichar_t ch1 = d->data[pos];
                 uint8_t cc1 = uget_property(ch1)->combclass;
                 if (cc1 > cc2) {
                     d->data[pos] = ch2;
@@ -202,7 +202,7 @@ static void unormalize(struct ubuff_s *d) {
 
 static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
     const struct properties_s *prop, *sprop = NULL;
-    uchar_t ch;
+    unichar_t ch;
     int mclass = -1;
     uint32_t i, sp = ~(uint32_t)0;
     d->p = 0;
@@ -210,9 +210,9 @@ static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
         ch = buff->data[i];
         prop = uget_property(ch);
         if (sp != ~(uint32_t)0 && prop->combclass > mclass) {
-            uchar_t sc = d->data[sp];
+            unichar_t sc = d->data[sp];
             if (sc >= 0xac00) {
-                uchar_t hs = sc - 0xac00;
+                unichar_t hs = sc - 0xac00;
                 if (hs < 588*19 && (hs % 28) == 0) {
                     if (ch >= 0x11a7 && ch < 0x11a7 + 28) {
                         d->data[sp] = sc + ch - 0x11a7;
@@ -279,7 +279,7 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     d = s2->data;
     dbuf.p = 0;
     for (i = 0; i < s2->len;) {
-        uchar_t ch = d[i];
+        unichar_t ch = d[i];
         if ((ch & 0x80) != 0) {
             i += utf8in(d + i, &ch);
             if (udecompose(ch, &dbuf, mode)) return true;
@@ -294,18 +294,18 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     if (ucompose(&dbuf, &dbuf2)) return true;
     l = 0;
     for (j = 0; j < dbuf2.p; j++) {
-        uchar_t ch = dbuf2.data[j];
+        unichar_t ch = dbuf2.data[j];
         l += (ch != 0 && ch < 0x80) ? 1 : utf8outlen(ch);
     }
     s = (uint8_t *)s1->data;
     if (l > s1->len) {
-        s = (uint8_t *)realloc(s, l);
+        s = reallocate_array(s, l);
         if (s == NULL) return true;
         s1->data = s;
     }
     s1->len = l;
     for (j = 0; j < dbuf2.p; j++) {
-        uchar_t ch = dbuf2.data[j];
+        unichar_t ch = dbuf2.data[j];
         if (ch != 0 && ch < 0x80) {
             *s++ = (uint8_t)ch;
             continue;
@@ -340,7 +340,7 @@ size_t argv_print(const char *line, FILE *f) {
     for (;;) {
         int ch = line[i];
         if ((ch & 0x80) != 0) {
-            uchar_t ch2 = (uint8_t)ch;
+            unichar_t ch2 = (uint8_t)ch;
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
                 int ln2;
@@ -410,7 +410,7 @@ size_t argv_print(const char *line, FILE *f) {
     for (;;) {
         int ch = line[i];
         if ((ch & 0x80) != 0) {
-            uchar_t ch2 = (uint8_t)ch;
+            unichar_t ch2 = (uint8_t)ch;
             int ln2;
             i += utf8in((const uint8_t *)line + i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
@@ -457,7 +457,7 @@ size_t makefile_print(const char *line, FILE *f) {
     for (;;) {
         int ch = line[i];
         if ((ch & 0x80) != 0) {
-            uchar_t ch2 = (uint8_t)ch;
+            unichar_t ch2 = (uint8_t)ch;
 #ifdef _WIN32
             unsigned int ln = utf8in((const uint8_t *)line + i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
@@ -509,7 +509,7 @@ size_t makefile_print(const char *line, FILE *f) {
             break;
         case '$':
             len++; putc('$', f);
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         default:
             bl = 0;
             break;
@@ -522,7 +522,7 @@ size_t makefile_print(const char *line, FILE *f) {
     return len;
 }
 
-static int unknown_print(FILE *f, uchar_t ch) {
+static int unknown_print(FILE *f, unichar_t ch) {
     char temp[64];
     const char *format = (ch >= 256) ? "<U+%" PRIX32 ">" : "<%02" PRIX32 ">";
     if (f != NULL) {
@@ -541,7 +541,7 @@ void printable_print(const uint8_t *line, FILE *f) {
 #ifdef _WIN32
     size_t i = 0, l = 0;
     for (;;) {
-        uchar_t ch = line[i];
+        unichar_t ch = line[i];
         if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
             i++;
             continue;
@@ -568,8 +568,8 @@ void printable_print(const uint8_t *line, FILE *f) {
 #else
     size_t i = 0, l = 0;
     for (;;) {
-        uchar_t ch = line[i];
-        if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
+        unichar_t ch = line[i];
+        if likely((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
             i++;
             continue;
         }
@@ -601,7 +601,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
-        uchar_t ch = line[i];
+        unichar_t ch = line[i];
         if ((ch & 0x80) != 0) {
             unsigned int ln;
             if (l != i) len += fwrite(line + l, 1, i - l, f);
@@ -639,7 +639,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
-        uchar_t ch = line[i];
+        unichar_t ch = line[i];
         if ((ch & 0x80) != 0) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
@@ -678,7 +678,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0;
     int err;
     for (i = 0; i < max;) {
-        uchar_t ch = line[i];
+        unichar_t ch = line[i];
         if ((ch & 0x80) != 0) {
 #ifdef _WIN32
             unsigned int ln = utf8in(line + i, &ch);

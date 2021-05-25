@@ -1,5 +1,5 @@
 /*
-    $Id: str.c 2521 2021-03-14 19:37:04Z soci $
+    $Id: str.c 2670 2021-05-15 18:44:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     if (s2 == NULL) {
         if (s1 != NULL) {
             if (s1->len != cache.len) {
-                s1->data = (uint8_t *)reallocx((uint8_t *)s1->data, s1->len);
+                d = reallocate_array((uint8_t *)s1->data, s1->len);
+                if (d != NULL) s1->data = d;
             }
         } else free((uint8_t *)cache.data);
         memset(&cache, 0, sizeof cache);
@@ -77,7 +78,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
             return;
         }
         if (l > cache.len) {
-            cache.data = (uint8_t *)reallocx((uint8_t *)cache.data, l);
+            resize_array((uint8_t **)&cache.data, l);
             cache.len = l;
         }
         s = (uint8_t *)cache.data;
@@ -111,7 +112,8 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
 void str_cpy(str_t *s1, const str_t *s2) {
     s1->len = s2->len;
     if (s2->data != NULL) {
-        uint8_t *s = (uint8_t *)mallocx(s2->len);
+        uint8_t *s;
+        new_array(&s, s2->len);
         memcpy(s, s2->data, s2->len);
         s1->data = s;
     } else s1->data = NULL;

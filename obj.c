@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2616 2021-04-25 11:08:26Z soci $
+    $Id: obj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include "obj.h"
 #include <string.h>
 #include "eval.h"
-#include "error.h"
 #include "values.h"
 
 #include "boolobj.h"
@@ -47,6 +46,7 @@
 #include "anonsymbolobj.h"
 #include "memblocksobj.h"
 #include "foldobj.h"
+#include "encobj.h"
 
 static Type lbl_obj;
 static Type default_obj;
@@ -316,6 +316,7 @@ void obj_init(Type *obj) {
 }
 
 void objects_init(void) {
+    Type *type;
     boolobj_init();
     floatobj_init();
     addressobj_init();
@@ -341,13 +342,16 @@ void objects_init(void) {
     symbolobj_init();
     anonsymbolobj_init();
     foldobj_init();
+    encobj_init();
 
-    new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
-    lbl_obj.same = lbl_same;
-    new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
-    default_obj.same = default_same;
-    new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
-    funcargs_obj.same = funcargs_same;
+    type = new_type(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
+    type->same = lbl_same;
+
+    type = new_type(&default_obj, T_DEFAULT, "default", sizeof(Default));
+    type->same = default_same;
+
+    type = new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
+    type->same = funcargs_same;
 }
 
 void objects_destroy(void) {
@@ -362,6 +366,7 @@ void objects_destroy(void) {
     foldobj_destroy();
     functionobj_destroy();
     floatobj_destroy();
+    encobj_destroy();
 
 #ifdef DEBUG
     if (default_value->refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->refcount - 1);

@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2601 2021-04-25 10:43:31Z soci $
+    $Id: listobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "eval.h"
 #include "variables.h"
 #include "error.h"
-#include "arguments.h"
 
 #include "boolobj.h"
 #include "codeobj.h"
@@ -93,19 +92,18 @@ static FAST_CALL void garbage(Obj *o1, int j) {
 }
 
 static Obj **lnew(List *v, size_t len) {
+    Obj **n;
     v->len = len;
     if (len <= lenof(v->u.val)) {
         v->data = v->u.val;
         return v->u.val;
     }
-    if (len <= SIZE_MAX / sizeof *v->data) { /* overflow */
-        Obj **n = (Obj **)malloc(len * sizeof *v->data);
-        if (n != NULL) {
-            v->data = n;
-            v->u.s.max = len;
-            v->u.s.hash = -1;
-            return n;
-        }
+    n = allocate_array(Obj *, len);
+    if (n != NULL) {
+        v->data = n;
+        v->u.s.max = len;
+        v->u.s.hash = -1;
+        return n;
     }
     v->len = 0;
     v->data = v->u.val;
@@ -118,13 +116,12 @@ static Obj **lextend(List *v, size_t len) {
     if (len <= lenof(v->u.val)) {
         return v->u.val;
     }
-    if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
     if (v->u.val != v->data) {
         size_t len2;
         if (len <= v->u.s.max) return v->data;
         len2 = len + (len < 1024 ? len : 1024);
         if (len2 > len) len = len2;
-        tmp = (Obj **)realloc(v->data, len * sizeof *v->data);
+        tmp = reallocate_array(v->data, len);
         if (tmp != NULL) {
             v->data = tmp;
             v->u.s.max = len;
@@ -132,7 +129,7 @@ static Obj **lextend(List *v, size_t len) {
         }
         return tmp;
     }
-    tmp = (Obj **)malloc(len * sizeof *v->data);
+    tmp = allocate_array(Obj *, len);
     if (tmp != NULL) {
         memcpy(tmp, v->u.val, v->len * sizeof *v->data);
         v->data = tmp;
@@ -258,8 +255,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     size_t llen = v1->len;
     if (llen != 0) {
         i = (llen != 1 || o1->obj != TUPLE_OBJ) ? (llen - 1) : llen;
-        len += i;
-        if (len < i) return NULL; /* overflow */
+        if (inc_overflow(&len, i)) return NULL;
         chars = len;
         if (chars > maxsize) return NULL;
         list = Tuple(val_alloc(TUPLE_OBJ));
@@ -274,8 +270,7 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
                 if (val == NULL || val->obj != STR_OBJ) goto error;
             }
             v = Str(val);
-            len += v->len;
-            if (len < v->len) goto error2; /* overflow */
+            if (inc_overflow(&len, v->len)) goto error2;
             chars += v->chars;
             if (chars > maxsize) {
             error2:
@@ -344,11 +339,12 @@ static void getriter(struct iter_s *v) {
 }
 
 Obj **list_create_elements(List *v, size_t n) {
+    Obj **d;
     if (n <= lenof(v->u.val)) return v->u.val;
-    if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
     v->u.s.max = n;
     v->u.s.hash = -1;
-    return (Obj **)mallocx(n * sizeof *v->data);
+    new_array(&d, n);
+    return d;
 }
 
 MUST_CHECK bool list_extend(List *lst) {
@@ -356,16 +352,15 @@ MUST_CHECK bool list_extend(List *lst) {
     size_t o = lst->len, n;
     if (lst->data == lst->u.val) {
         n = 16;
-        vals = (Obj **)malloc(n * sizeof *lst->data);
+        vals = allocate_array(Obj *, 16);
         if (vals == NULL) return true;
         memcpy(vals, lst->u.val, o * sizeof *lst->data);
     } else {
         if (o < 256) n = o * 2;
         else {
-            n = o + 256;
-            if (/*n < 256 ||*/ n > SIZE_MAX / sizeof *lst->data) return true; /* overflow */
+            if (add_overflow(o, 256, &n)) return true;
         }
-        vals = (Obj **)realloc(lst->data, n * sizeof *lst->data);
+        vals = reallocate_array(lst->data, n);
         if (vals == NULL) return true;
     }
     lst->data = vals;
@@ -384,7 +379,7 @@ void list_shrink(List *lst, size_t i) {
             free(lst->data);
             lst->data = lst->u.val;
         } else {
-            Obj **v = (Obj **)realloc(lst->data, lst->len * sizeof *lst->data);
+            Obj **v = reallocate_array(lst->data, lst->len);
             if (v != NULL) {
                 lst->data = v;
                 lst->u.s.max = lst->len;
@@ -401,10 +396,9 @@ MUST_CHECK Tuple *new_tuple(size_t n) {
          v->data = v->u.val;
          return v;
      }
-     if (n > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
      v->u.s.max = n;
      v->u.s.hash = -1;
-     v->data = (Obj **)mallocx(n * sizeof *v->data);
+     new_array(&v->data, n);
      return v;
 }
 
@@ -533,8 +527,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             if (v2->len == 0) {
                 return val_reference(o1);
             }
-            ln = v1->len + v2->len;
-            if (ln < v2->len) goto failed; /* overflow */
+            if (add_overflow(v1->len, v2->len, &ln)) goto failed;
             if (op->inplace == Obj(v1)) {
                 vals = lextend(v1, ln);
                 if (vals == NULL) goto failed;
@@ -894,22 +887,25 @@ static void init(Type *obj) {
 }
 
 void listobj_init(void) {
-    new_type(&list_obj, T_LIST, "list", sizeof(List));
-    init(&list_obj);
-    list_obj.convert = list_convert;
-    new_type(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
-    init(&tuple_obj);
-    tuple_obj.convert = tuple_convert;
-    new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
-    addrlist_obj.destroy = destroy;
-    addrlist_obj.garbage = garbage;
-    addrlist_obj.same = same;
-    addrlist_obj.repr = repr_listtuple;
-    new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
-    colonlist_obj.destroy = destroy;
-    colonlist_obj.garbage = garbage;
-    colonlist_obj.same = same;
-    colonlist_obj.repr = repr_listtuple;
+    Type *type = new_type(&list_obj, T_LIST, "list", sizeof(List));
+    init(type);
+    type->convert = list_convert;
+
+    type = new_type(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
+    init(type);
+    type->convert = tuple_convert;
+
+    type = new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->repr = repr_listtuple;
+
+    type = new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->repr = repr_listtuple;
 }
 
 void listobj_names(void) {

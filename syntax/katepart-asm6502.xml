@@ -8,7 +8,7 @@
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 2590 2021-04-18 08:46:50Z soci $
+ $Id: katepart-asm6502.xml 2640 2021-05-08 06:44:21Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -87,7 +87,7 @@
       <context name="Miscparam2" attribute="Normal Text" lineEndContext="Base">
         <RegExpr String=",[xyzrsdbk]\b"  attribute="Operator" context="#stay"/>
         <RegExpr String="[)}\]]"  attribute="Operator" context="#stay"/>
-        <RegExpr String="&amp;&amp;|\|\||^^|\*\*|\.\.|[=!]=|&lt;=&gt;|&lt;[&lt;=?]|&gt;[&gt;=?]|\bx\b|\bin\b"  attribute="Operator" context="Miscparam"/>
+        <RegExpr String="&amp;&amp;|\|\||^^|\*\*|\.\.|===|[=!]=|&lt;=&gt;|&lt;[&lt;=?]|&gt;[&gt;=?]|\bx\b|\bin\b"  attribute="Operator" context="Miscparam"/>
         <RegExpr String="[,({\[&amp;|^*%/\-+.?:=&lt;&gt;]"  attribute="Operator" context="Miscparam"/>
         <RegExpr String=";.*$" attribute="Comment" context="#pop"/>
         <RegExpr String="[^ \t]" attribute="Error" context="#stay"/>

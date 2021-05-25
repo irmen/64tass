@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: operobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -144,8 +144,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
 
 void operobj_init(void) {
     unsigned int i;
-    new_type(&obj, T_OPER, "oper", sizeof(Oper));
-    obj.repr = repr;
+    Type *type = new_type(&obj, T_OPER, "oper", sizeof(Oper));
+    type->repr = repr;
     for (i = 0; i < lenof(operators); i++) {
         operators[i].v.obj = &obj;
     }

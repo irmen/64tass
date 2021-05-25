@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2620 2021-04-25 12:05:16Z soci $
+    $Id: mem.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,9 +57,8 @@ static void memcomp(Memblocks *memblocks, bool nomerge) {
                 rest = memblocks->p - j - 1;
                 memblocks->p += b->p - 1;
                 if (memblocks->p >= memblocks->len) {
-                    memblocks->len = memblocks->p + 64;
-                    if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
-                    memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
+                    if (add_overflow(memblocks->p, 64, &memblocks->len)) err_msg_out_of_memory();
+                    resize_array(&memblocks->data, memblocks->len);
                 }
                 memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof *memblocks->data);
                 for (k = 0; k < b->p; k++) {
@@ -70,9 +69,8 @@ static void memcomp(Memblocks *memblocks, bool nomerge) {
                     b2->addr = b->data[k].addr;
                     memblocks->mem.p += b2->len;
                     if (memblocks->mem.p >= memblocks->mem.len) {
-                        memblocks->mem.len = memblocks->mem.p + 0x1000;
-                        if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
-                        memblocks->mem.data = (uint8_t *)reallocx(memblocks->mem.data, memblocks->mem.len);
+                        if (add_overflow(memblocks->mem.p, 0x1000, &memblocks->mem.len)) err_msg_out_of_memory();
+                        resize_array(&memblocks->mem.data, memblocks->mem.len);
                     }
                     memcpy(&memblocks->mem.data[b2->p], &b->mem.data[b->data[k].p], b2->len);
                 }
@@ -123,11 +121,7 @@ void memjmp(Memblocks *memblocks, address_t adr) {
         memblocks->lastaddr = adr;
         return;
     }
-    if (memblocks->p >= memblocks->len) {
-        memblocks->len += 64;
-        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
-        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
-    }
+    if (memblocks->p >= memblocks->len) extend_array(&memblocks->data, &memblocks->len, 64);
     block = &memblocks->data[memblocks->p++];
     block->len = memblocks->mem.p - memblocks->lastp;
     block->p = memblocks->lastp;
@@ -139,11 +133,7 @@ void memjmp(Memblocks *memblocks, address_t adr) {
 
 void memref(Memblocks *memblocks, Memblocks *ref) {
     struct memblock_s *block;
-    if (memblocks->p >= memblocks->len) {
-        memblocks->len += 64;
-        if (/*memblocks->len < 64 ||*/ memblocks->len > SIZE_MAX / sizeof *memblocks->data) err_msg_out_of_memory(); /* overflow */
-        memblocks->data = (struct memblock_s *)reallocx(memblocks->data, memblocks->len * sizeof *memblocks->data);
-    }
+    if (memblocks->p >= memblocks->len) extend_array(&memblocks->data, &memblocks->len, 64);
     block = &memblocks->data[memblocks->p++];
     block->len = 0;
     block->p = memblocks->lastp;
@@ -566,13 +556,12 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 }
 
 FAST_CALL uint8_t *alloc_mem(Memblocks *memblocks, address_t len) {
-    address_t p = memblocks->mem.p + len;
+    address_t p;
     uint8_t *d;
-    if (p < len) err_msg_out_of_memory(); /* overflow */
+    if (add_overflow(memblocks->mem.p, len, &p)) err_msg_out_of_memory();
     if (p > memblocks->mem.len) {
-        memblocks->mem.len = p + 0x1000;
-        if (memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
-        memblocks->mem.data = (uint8_t *)reallocx(memblocks->mem.data, memblocks->mem.len);
+        if (add_overflow(p, 0x1000, &memblocks->mem.len)) err_msg_out_of_memory();
+        resize_array(&memblocks->mem.data, memblocks->mem.len);
     }
     d = memblocks->mem.data + memblocks->mem.p;
     do {

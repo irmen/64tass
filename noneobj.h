@@ -1,5 +1,5 @@
 /*
-    $Id: noneobj.h 2476 2021-03-07 02:25:57Z soci $
+    $Id: noneobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ typedef struct None {
     Obj v;
 } None;
 
-#define None(a) ((None *)(1 ? (a) : (Obj *)(None *)(a)))
+#define None(a) OBJ_CAST(None, a)
 
 extern Obj *const none_value;
 

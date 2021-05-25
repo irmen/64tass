@@ -1,6 +1,6 @@
 /*
  * avl.h - this file is part of Libtree.
- * $Id: avl.h 2600 2021-04-25 10:39:54Z soci $
+ * $Id: avl.h 2632 2021-05-03 06:38:18Z soci $
  *
  * Copyright (C) 2010 Franck Bui-Huu <fbuihuu@gmail.com>
  *
@@ -47,25 +47,25 @@
  */
 
 struct avltree_node {
-        struct avltree_node *left, *right;
-        struct avltree_node *parent;
-        signed char balance;            /* balance factor [-2:+2] */
+    struct avltree_node *left, *right;
+    struct avltree_node *parent;
+    signed char balance;            /* balance factor [-2:+2] */
 };
 
 typedef FAST_CALL int (*avltree_cmp_fn_t)(const struct avltree_node *, const struct avltree_node *);
 typedef void (*avltree_free_fn_t)(struct avltree_node *);
 
 struct avltree {
-        struct avltree_node *root;
+    struct avltree_node *root;
 };
 
-static inline void avltree_init(struct avltree *tree)
-{
-        tree->root = NULL;
+static inline void avltree_init(struct avltree *tree) {
+    tree->root = NULL;
 }
 
 extern FAST_CALL struct avltree_node *avltree_lookup(const struct avltree_node *, const struct avltree *, avltree_cmp_fn_t);
 extern struct avltree_node *avltree_insert(struct avltree_node *, struct avltree *, avltree_cmp_fn_t);
+extern void avltree_remove(struct avltree_node *, struct avltree *);
 extern void avltree_destroy(struct avltree *, avltree_free_fn_t);
 
 #endif

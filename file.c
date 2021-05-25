@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2622 2021-04-25 15:16:03Z soci $
+    $Id: file.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,8 +59,9 @@ static struct file_s *file_table_update(struct file_s *p) {
     size_t mask, hash, offs;
     if (file_table.len * 3 / 2 >= file_table.mask) {
         size_t i, max = (file_table.data == NULL) ? 8 : (file_table.mask + 1) << 1;
-        struct file_s **n = (struct file_s **)calloc(max, sizeof *n);
-        if (n == NULL) err_msg_out_of_memory();
+        struct file_s **n;
+        new_array(&n, max);
+        memset(n, 0, max * sizeof *n);
         mask = max - 1;
         if (file_table.data != NULL) {
             for (i = 0; i <= file_table.mask; i++) if (file_table.data[i] != NULL) {
@@ -106,9 +107,10 @@ void include_list_add(const char *path)
 #else
     if (path[i - 1] != '/') j++;
 #endif
-    len = j + 1 + sizeof(struct include_list_s);
-    if (len <= sizeof(struct include_list_s)) err_msg_out_of_memory();
-    include_list_last->next = (struct include_list_s *)mallocx(len);
+    len = j + 1;
+    if (inc_overflow(&len, sizeof(struct include_list_s))) err_msg_out_of_memory();
+    include_list_last->next = (struct include_list_s *)allocate_array(uint8_t, len);
+    if (include_list_last->next == NULL) err_msg_out_of_memory();
     include_list_last = include_list_last->next;
     include_list_last->next = NULL;
     memcpy(include_list_last->path, path, i + 1);
@@ -144,9 +146,9 @@ char *get_path(const str_t *v, const char *base) {
 #else
     i = (v->len != 0 && v->data[0] == '/') ? 0 : get_base(base);
 #endif
-    len = i + 1 + v->len;
-    if (len <= i) err_msg_out_of_memory(); /* overflow */
-    path = (char *)mallocx(len);
+    len = i + 1;
+    if (inc_overflow(&len, v->len)) err_msg_out_of_memory();
+    new_array(&path, len);
     memcpy(path, base, i);
     memcpy(path + i, v->data, v->len);
     path[i + v->len] = 0;
@@ -156,10 +158,9 @@ char *get_path(const str_t *v, const char *base) {
 #ifdef _WIN32
 static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
     wchar_t *wname;
-    uchar_t ch;
+    unichar_t ch;
     size_t i = 0, j = 0, len = ((max != SIZE_MAX) ? max : strlen(name)) + 2;
-    if (len > SIZE_MAX / sizeof *wname) return NULL;
-    wname = (wchar_t *)malloc(len * sizeof *wname);
+    wname = allocate_array(wchar_t, len);
     if (wname == NULL) return NULL;
     while (name[i] != 0 && i < max) {
         ch = (uint8_t)name[i];
@@ -169,9 +170,8 @@ static MUST_CHECK wchar_t *convert_name(const char *name, size_t max) {
         } else i++;
         if (j + 3 > len) {
             wchar_t *d;
-            len += 64;
-            if (len > SIZE_MAX / sizeof *wname) goto failed;
-            d = (wchar_t *)realloc(wname, len * sizeof *wname);
+            if (inc_overflow(&len, 64)) goto failed;
+            d = reallocate_array(wname, len);
             if (d == NULL) goto failed;
             wname = d;
         }
@@ -232,7 +232,7 @@ static wchar_t *get_real_name(const wchar_t *name) {
     static HINSTANCE kernel_handle;
     DWORD ret;
     size_t len = wcslen(name) + 1;
-    wchar_t *real_name = (wchar_t *)malloc(len * sizeof *real_name);
+    wchar_t *real_name = allocate_array(wchar_t, len);
     if (real_name == NULL) return NULL;
     if (get_final_path_by_handle == NULL && kernel_handle == NULL) {
         kernel_handle = LoadLibrary("kernel32.dll");
@@ -243,7 +243,7 @@ static wchar_t *get_real_name(const wchar_t *name) {
         if (handle != INVALID_HANDLE_VALUE) {
             ret = get_final_path_by_handle(handle, real_name, len, 12);
             if (ret > len) {
-                wchar_t *tmp = (wchar_t *)realloc(real_name, ret * sizeof *real_name);
+                wchar_t *tmp = reallocate_array(real_name, ret);
                 if (tmp != NULL) {
                     real_name = tmp;
                     len = ret;
@@ -258,7 +258,7 @@ static wchar_t *get_real_name(const wchar_t *name) {
     }
     ret = GetLongPathNameW(name, real_name, len);
     if (ret > len) {
-        wchar_t *tmp = (wchar_t *)realloc(real_name, ret * sizeof *real_name);
+        wchar_t *tmp = reallocate_array(real_name, ret);
         if (tmp != NULL) {
             real_name = tmp;
             len = ret;
@@ -321,9 +321,9 @@ FILE *file_open(const char *name, const char *mode) {
     free(wname);
 #else
     size_t len = 0, max = strlen(name) + 1;
-    char *newname = (char *)malloc(max);
+    char *newname = allocate_array(char, max);
     const uint8_t *c = (const uint8_t *)name;
-    uchar_t ch;
+    unichar_t ch;
     mbstate_t ps;
     errno = ENOMEM;
     f = NULL;
@@ -343,9 +343,8 @@ FILE *file_open(const char *name, const char *mode) {
         if (len < (size_t)l) goto failed;
         if (len > max) {
             char *d;
-            max = len + 64;
-            if (max < 64) goto failed;
-            d = (char *)realloc(newname, max);
+            if (add_overflow(len, 64, &max)) goto failed;
+            d = reallocate_array(newname, max);
             if (d == NULL) goto failed;
             newname = d;
         }
@@ -372,9 +371,9 @@ static void file_free(struct file_s *a)
 
 static bool extendfile(struct file_s *tmp) {
     uint8_t *d;
-    filesize_t len2 = tmp->len + 4096;
-    if (len2 < 4096) return true; /* overflow */
-    d = (uint8_t *)realloc(tmp->data, len2);
+    filesize_t len2;
+    if (add_overflow(tmp->len, 4096, &len2)) return true;
+    d = reallocate_array(tmp->data, len2);
     if (d == NULL) return true;
     tmp->data = d;
     tmp->len = len2;
@@ -385,7 +384,7 @@ static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_s *tm
     uint32_t i;
     filesize_t p = *p2;
     for (i = 0; i < ubuff->p; i++) {
-        uchar_t ch;
+        unichar_t ch;
         if (p + 6*6 + 1 > tmp->len && extendfile(tmp)) return true;
         ch = ubuff->data[i];
         if (ch != 0 && ch < 0x80) tmp->data[p++] = (uint8_t)ch; else p += utf8out(ch, tmp->data + p);
@@ -394,7 +393,7 @@ static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_s *tm
     return false;
 }
 
-static uchar_t fromiso2(uchar_t c) {
+static unichar_t fromiso2(unichar_t c) {
     mbstate_t ps;
     wchar_t w;
     int olderrno;
@@ -406,11 +405,11 @@ static uchar_t fromiso2(uchar_t c) {
     l = (ssize_t)mbrtowc(&w, (char *)&c2, 1,  &ps);
     errno = olderrno;
     if (l < 0) return c2;
-    return (uchar_t)w;
+    return (unichar_t)w;
 }
 
-static inline uchar_t fromiso(uchar_t c) {
-    static uchar_t conv[128];
+static inline unichar_t fromiso(unichar_t c) {
+    static unichar_t conv[128];
     c &= 0x7f;
     if (conv[c] == 0) conv[c] = fromiso2(c);
     return conv[c];
@@ -443,9 +442,7 @@ static uint16_t curfnum;
 struct file_s *openfile(const char *name, const char *base, unsigned int ftype, const str_t *val, linepos_t epoint) {
     struct file_s *tmp;
     char *s;
-    if (lastfi == NULL) {
-        lastfi = (struct file_s *)mallocx(sizeof *lastfi);
-    }
+    if (lastfi == NULL) new_instance(&lastfi);
     lastfi->base.data = (const uint8_t *)base;
     lastfi->base.len = get_base(base);
     lastfi->type = ftype;
@@ -463,7 +460,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
     if (tmp == NULL) { /* new file */
         Encoding_types encoding = E_UNKNOWN;
         FILE *f;
-        uchar_t c = 0;
+        unichar_t c = 0;
         filesize_t fp = 0;
 
         lastfi->nomacro = NULL;
@@ -483,7 +480,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
             int err = 1;
             char *path = NULL;
             size_t namelen = strlen(name) + 1;
-            s = (char *)mallocx(namelen);
+            new_array(&s, namelen);
             memcpy(s, name, namelen); tmp->name = s;
             if (val != NULL) {
                 struct include_list_s *i = include_list.next;
@@ -511,7 +508,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 bool check;
                 filesize_t fs = fsize(f);
                 if (fs > 0) {
-                    tmp->data = (uint8_t *)malloc(fs);
+                    tmp->data = allocate_array(uint8_t, fs);
                     if (tmp->data != NULL) tmp->len = fs;
                 }
                 check = (tmp->data != NULL);
@@ -519,7 +516,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 if (tmp->len != 0 || !extendfile(tmp)) {
                     for (;;) {
                         fp += (filesize_t)fread(tmp->data + fp, 1, tmp->len - fp, f);
-                        if (feof(f) == 0 && fp >= tmp->len) {
+                        if (feof(f) == 0 && fp >= tmp->len && !signal_received) {
                             if (check) {
                                 int c2 = getc(f);
                                 check = false;
@@ -546,13 +543,12 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 unsigned int qr = 1;
                 filesize_t fs = fsize(f);
                 if (fs > 0) {
-                    filesize_t len2 = fs + 4096;
-                    if (len2 < 4096) len2 = ~(filesize_t)0; /* overflow */
-                    tmp->data = (uint8_t *)malloc(len2);
+                    filesize_t len2;
+                    if (add_overflow(fs, 4096, &len2)) len2 = ~(filesize_t)0;
+                    tmp->data = allocate_array(uint8_t, len2);
                     if (tmp->data != NULL) tmp->len = len2;
                     max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
-                    if (max_lines > SIZE_MAX / sizeof *tmp->line) max_lines = SIZE_MAX / sizeof *tmp->line; /* overflow */
-                    tmp->line = (filesize_t *)malloc(max_lines * sizeof *tmp->line);
+                    tmp->line = allocate_array(filesize_t, max_lines);
                     if (tmp->line == NULL) max_lines = 0;
                 }
                 clearerr(f); errno = 0;
@@ -564,21 +560,21 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 ubuff.p = 0;
                 do {
                     filesize_t p;
-                    uchar_t lastchar;
+                    unichar_t lastchar;
                     bool qc = true;
                     uint8_t cclass = 0;
 
                     if (lines >= max_lines) {
                         filesize_t *d;
-                        size_t len2 = max_lines + 1024;
-                        if (/*len2 < 1024 ||*/ len2 > SIZE_MAX / sizeof *tmp->line) goto failed; /* overflow */
-                        d = (filesize_t *)realloc(tmp->line, len2 * sizeof *tmp->line);
+                        size_t len2;
+                        if (add_overflow(max_lines, 1024, &len2)) goto failed;
+                        d = reallocate_array(tmp->line, len2);
                         if (d == NULL) goto failed;
                         tmp->line = d;
                         max_lines = len2;
                     }
-                    tmp->line[lines++] = fp;
-                    if (lines == 0) { lines = ~(linenum_t)0; goto failed; } /* overflow */
+                    tmp->line[lines] = fp;
+                    if (inc_overflow(&lines, 1)) goto failed;
                     p = fp;
                     for (;;) {
                         unsigned int i, j;
@@ -592,6 +588,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                                 qr = 1;
                                 if (feof(f) == 0) bl = fread(buffer, 1, BUFSIZ, f);
                             }
+                            if (signal_received) bl = bp;
                         }
                         if (bp == bl) break;
                         lastchar = c;
@@ -675,7 +672,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                             break;
                         case E_UTF16LE:
                             if (bp == bl) goto invalid;
-                            c |= (uchar_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
+                            c |= (unichar_t)buffer[bp] << 8; bp = (bp + 1) % (BUFSIZ * 2);
                             if (c == 0xfffe) {
                                 encoding = E_UTF16BE;
                                 continue;
@@ -772,7 +769,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 last_ubuff = ubuff;
                 tmp->lines = lines;
                 if (lines != max_lines) {
-                    filesize_t *d = (filesize_t *)realloc(tmp->line, lines * sizeof *tmp->line);
+                    filesize_t *d = reallocate_array(tmp->line, lines);
                     if (lines == 0 || d != NULL) tmp->line = d;
                 }
             }
@@ -780,7 +777,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
                 free(tmp->data);
                 tmp->data = NULL;
             } else if (tmp->len != fp) {
-                uint8_t *d = (uint8_t *)realloc(tmp->data, fp);
+                uint8_t *d = reallocate_array(tmp->data, fp);
                 if (d != NULL) tmp->data = d;
             }
             tmp->len = fp;
@@ -788,6 +785,7 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
             err |= ferror(f);
             if (f != stdin) err |= fclose(f);
         openerr:
+            if (signal_received) err = errno = EINTR;
             if (err != 0 && errno != 0) {
                 tmp->err_no = errno;
                 free(tmp->data);
@@ -800,9 +798,9 @@ struct file_s *openfile(const char *name, const char *base, unsigned int ftype, 
         } else {
             const char *cmd_name = "<command line>";
             size_t cmdlen = strlen(cmd_name) + 1;
-            s = (char *)mallocx(1);
+            new_array(&s, 1);
             s[0] = 0; tmp->name = s;
-            s = (char *)mallocx(cmdlen);
+            new_array(&s, cmdlen);
             memcpy(s, cmd_name, cmdlen); tmp->realname = s;
         }
 
@@ -864,7 +862,7 @@ struct star_s *new_star(linenum_t line, bool *exists) {
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
-            stars = (struct stars_s *)mallocx(sizeof *stars);
+            new_instance(&stars);
             stars->next = old;
             starsp = 0;
         } else starsp++;
@@ -928,11 +926,11 @@ void init_file(void) {
     file_table.len = 0;
     file_table.mask = 0;
     file_table.data = NULL;
-    stars = (struct stars_s *)mallocx(sizeof *stars);
+    new_instance(&stars);
     stars->next = NULL;
     starsp = 0;
     lastst = &stars->stars[starsp];
-    last_ubuff.data = (uchar_t *)mallocx(16 * sizeof *last_ubuff.data);
+    new_array(&last_ubuff.data, 16);
     last_ubuff.len = 16;
     avltree_init(&star_root.tree);
 }

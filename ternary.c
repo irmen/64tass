@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 2428 2021-02-28 11:48:36Z soci $
+   $Id: ternary.c 2666 2021-05-15 15:23:42Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -26,7 +26,11 @@
 
 #ifdef DEBUG
 #define tern_free(tern) free(tern)
-#define tern_alloc() (ternary_node *)mallocx(sizeof(ternary_node))
+static MALLOC ternary_node *tern_alloc(void) {
+    ternary_node *r;
+    new_instance(&r);
+    return r;
+}
 #else
 static union tern_u {
     ternary_node tern;
@@ -46,7 +50,7 @@ static void tern_free(union tern_u *tern) {
 static union tern_u *terns_alloc(void) {
     size_t i;
     struct terns_s *old = terns;
-    terns = (struct terns_s *)mallocx(sizeof *terns);
+    new_instance(&terns);
     for (i = 0; i < 254; i++) {
         terns->terns[i].next = &terns->terns[i + 1];
     }
@@ -69,7 +73,7 @@ static MALLOC ternary_node *tern_alloc(void) {
 
 ternary_tree *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_t *end)
 {
-    uchar_t spchar;
+    unichar_t spchar;
     ternary_tree curr;
   
     spchar = *s;
@@ -85,7 +89,7 @@ ternary_tree *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_
             {
                 return &curr->eqkid;
             }
-            if (s == end) spchar = ~(uchar_t)0;
+            if (s == end) spchar = ~(unichar_t)0;
             else {
                 spchar = *s;
                 if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
@@ -110,7 +114,7 @@ ternary_tree *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_
         if ((~spchar) == 0) {
             return pcurr;
         }
-        if (s == end) spchar = ~(uchar_t)0;
+        if (s == end) spchar = ~(unichar_t)0;
         else {
             spchar = *s;
             if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
@@ -132,7 +136,7 @@ void ternary_cleanup(ternary_tree p, ternary_free_fn_t f)
 /* Non-recursive find of a string in the ternary tree */
 void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
 {
-    uchar_t spchar;
+    unichar_t spchar;
     const ternary_node *last = NULL;
     const uint8_t *start = s, *end = s + *len, *prev = s;
 
@@ -142,7 +146,7 @@ void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
     do {
         if (spchar == curr->splitchar) {
             if ((~spchar) == 0) return (void *)curr->eqkid;
-            if (s == end) spchar = ~(uchar_t)0;
+            if (s == end) spchar = ~(unichar_t)0;
             else {
                 prev = s;
                 spchar = *s;

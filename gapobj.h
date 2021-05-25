@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: gapobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef struct Gap {
     struct Str *repr;
 } Gap;
 
-#define Gap(a) ((Gap *)(1 ? (a) : (Obj *)(Gap *)(a)))
+#define Gap(a) OBJ_CAST(Gap, a)
 
 extern Obj *const gap_value;
 

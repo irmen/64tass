@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: symbolobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 
 #include "typeobj.h"
 #include "strobj.h"
-#include "errorobj.h"
 
 static Type obj;
 
@@ -78,8 +77,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
 
     chars = calcpos(v1->name.data, v1->name.len) + 1;
     if (chars < 1 || chars > maxsize) return NULL;/* overflow */
-    len = v1->name.len + 1;
-    if (len < 1) return NULL;/* overflow */
+    if (add_overflow(v1->name.len, 1, &len)) return NULL;
     v = new_str2(len);
     if (v == NULL) return NULL;
     v->chars = chars;
@@ -187,12 +185,12 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void symbolobj_init(void) {
-    new_type(&obj, T_SYMBOL, "symbol", sizeof(Symbol));
-    obj.destroy = destroy;
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_SYMBOL, "symbol", sizeof(Symbol));
+    type->destroy = destroy;
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }

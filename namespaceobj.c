@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: namespaceobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -161,8 +161,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     if (v1->len != 0) {
         size_t n;
         ln = v1->len;
-        chars = ln + 12;
-        if (chars < 12) return NULL; /* overflow */
+        if (add_overflow(ln, 12, &chars)) return NULL;
         if (chars > maxsize) return NULL;
         tuple = new_tuple(ln);
         vals = tuple->data;
@@ -179,8 +178,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
             v = p->v.obj->repr(Obj(p), epoint, maxsize - chars);
             if (v == NULL || v->obj != STR_OBJ) goto error;
             str = Str(v);
-            ln += str->len;
-            if (ln < str->len) goto error2; /* overflow */
+            if (inc_overflow(&ln, str->len)) goto error2;
             chars += str->chars;
             if (chars > maxsize) {
             error2:
@@ -291,13 +289,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 void namespaceobj_init(void) {
-    new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
-    obj.convert = convert;
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.repr = repr;
-    obj.calc2 = calc2;
+    Type *type = new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
+    type->convert = convert;
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->repr = repr;
+    type->calc2 = calc2;
 }
 
 void namespaceobj_names(void) {

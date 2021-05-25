@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.h 2550 2021-03-20 01:04:25Z soci $
+    $Id: unicode.h 2626 2021-05-02 07:08:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,14 +24,14 @@
 #include "stdbool.h"
 
 struct ubuff_s {
-    uchar_t *data;
+    unichar_t *data;
     uint32_t len, p;
 };
 
 struct str_t;
 
-extern FAST_CALL unsigned int utf8in(const uint8_t *, uchar_t *);
-extern FAST_CALL unsigned int utf8out(uchar_t, uint8_t *);
+extern FAST_CALL unsigned int utf8in(const uint8_t *, unichar_t *);
+extern FAST_CALL unsigned int utf8out(unichar_t, uint8_t *);
 extern MUST_CHECK bool extend_ubuff(struct ubuff_s *);
 extern MUST_CHECK bool unfc(struct ubuff_s *);
 extern MUST_CHECK bool unfkc(struct str_t *, const struct str_t *, int);
@@ -42,7 +42,7 @@ extern size_t printable_print2(const uint8_t *, FILE *, size_t);
 extern void caret_print(const uint8_t *, FILE *, size_t);
 extern size_t calcpos(const uint8_t *, size_t);
 
-static inline unsigned int utf8len(uchar_t ch) {
+static inline unsigned int utf8len(unichar_t ch) {
     if (ch < 0x80) return 1;
     if (ch < 0xe0) return 2;
     if (ch < 0xf0) return 3;

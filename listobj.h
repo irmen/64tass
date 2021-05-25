@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 2526 2021-03-14 23:02:07Z soci $
+    $Id: listobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,10 +43,10 @@ typedef struct List Tuple;
 typedef struct List Addrlist;
 typedef struct List Colonlist;
 
-#define List(a) ((List *)(1 ? (a) : (Obj *)(List *)(a)))
-#define Tuple(a) ((Tuple *)(1 ? (a) : (Obj *)(Tuple *)(a)))
-#define Addrlist(a) ((Addrlist *)(1 ? (a) : (Obj *)(Addrlist *)(a)))
-#define Colonlist(a) ((Colonlist *)(1 ? (a) : (Obj *)(Colonlist *)(a)))
+#define List(a) OBJ_CAST(List, a)
+#define Tuple(a) OBJ_CAST(Tuple, a)
+#define Addrlist(a) OBJ_CAST(Addrlist, a)
+#define Colonlist(a) OBJ_CAST(Colonlist, a)
 
 extern Obj *const null_tuple;
 extern Obj *const null_list;

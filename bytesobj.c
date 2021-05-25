@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2606 2021-04-25 10:49:01Z soci $
+    $Id: bytesobj.c 2676 2021-05-20 21:16:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include "math.h"
 #include "eval.h"
 #include "unicode.h"
-#include "encoding.h"
 #include "variables.h"
 #include "arguments.h"
 #include "error.h"
@@ -37,6 +36,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
+#include "encobj.h"
 
 static Type obj;
 
@@ -67,7 +67,7 @@ MUST_CHECK Obj *bytes_from_obj(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_BYTES: return val_reference(v1);
-    case T_BOOL: return bytes_from_u8(v1 == true_value ? 1 : 0);
+    case T_BOOL: return bytes_from_u8(Bool(v1)->value ? 1 : 0);
     case T_BITS: return bytes_from_bits(Bits(v1), epoint);
     case T_STR: return bytes_from_str(Str(v1), epoint, BYTES_MODE_TEXT);
     case T_INT: return bytes_from_int(Int(v1), epoint);
@@ -94,7 +94,7 @@ static FAST_CALL NO_INLINE void bytes_destroy(Bytes *v1) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Bytes *v1 = Bytes(o1);
-    if (v1->u.val != v1->data) bytes_destroy(v1);
+    if unlikely(v1->u.val != v1->data) bytes_destroy(v1);
 }
 
 MALLOC Bytes *new_bytes(size_t ln) {
@@ -102,7 +102,7 @@ MALLOC Bytes *new_bytes(size_t ln) {
     if (ln > sizeof v->u.val) {
         v->u.s.max = ln;
         v->u.s.hash = -1;
-        v->data = (uint8_t *)mallocx(ln);
+        new_array(&v->data, ln);
     } else {
         v->data = v->u.val;
     }
@@ -114,7 +114,7 @@ static MALLOC Bytes *new_bytes2(size_t ln) {
     if (ln > sizeof v->u.val) {
         v->u.s.max = ln;
         v->u.s.hash = -1;
-        v->data = (uint8_t *)malloc(ln);
+        v->data = allocate_array(uint8_t, ln);
         if (v->data == NULL) {
             val_destroy(Obj(v));
             v = NULL;
@@ -135,10 +135,10 @@ static uint8_t *extend_bytes(Bytes *v, size_t ln) {
             v->u.s.hash = -1;
             return v->data;
         }
-        tmp = (uint8_t *)realloc(v->data, ln);
+        tmp = reallocate_array(v->data, ln);
         if (tmp == NULL) return tmp;
     } else {
-        tmp = (uint8_t *)malloc(ln);
+        tmp = allocate_array(uint8_t, ln);
         if (tmp == NULL) return tmp;
         memcpy(tmp, v->u.val, byteslen(v));
     }
@@ -280,7 +280,7 @@ static bool to_bool(const Bytes *v1) {
     return false;
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t UNUSED(epoint)) {
     const Bytes *v1 = Bytes(o1);
     size_t i, sz;
     uint8_t inv;
@@ -294,11 +294,10 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
         return ref_true();
     case TRUTH_ANY:
         if (v1->len == 0 || v1->len == ~0) return ref_false();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     default:
         return truth_reference(to_bool(v1));
     }
-    return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
 static uint8_t *z85_encode(uint8_t *dest, const uint8_t *src, size_t len) {
@@ -359,10 +358,9 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     uint8_t *s, b;
     Str *v;
     sz = byteslen(v1);
-    len2 = sz * 2;
+    if (add_overflow(sz, sz, &len2)) return NULL;
     len = (v1->len < 0) ? 4 : 3;
-    len += len2;
-    if (len < len2 || sz > SIZE_MAX / 2) return NULL; /* overflow */
+    if (inc_overflow(&len, len2)) return NULL;
     if (len > maxsize) return NULL;
     v = new_str2(len);
     if (v == NULL) return NULL;
@@ -391,8 +389,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     len2 = sz / 4 * 5;
     if ((sz & 3) != 0) len2 += (sz & 3) + 1;
     len = (v1->len < 0) ? 4 : 3;
-    len += len2;
-    if (len < len2 || sz > SIZE_MAX / 2) return NULL; /* overflow */
+    if (inc_overflow(&len, len2) || sz > SIZE_MAX / 2) return NULL; /* overflow */
     if (len > maxsize) return NULL;
     v = new_str2(len);
     if (v == NULL) return NULL;
@@ -554,7 +551,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         int ch;
         if (actual_encoding == NULL) {
             if (v1->chars == 1) {
-                uchar_t ch2 = v1->data[0];
+                unichar_t ch2 = v1->data[0];
                 if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
                 return bytes_from_uval(ch2, 3);
             }
@@ -567,20 +564,19 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         v = new_bytes2(len);
         if (v == NULL) goto failed;
         s = v->data;
-        encoder = encode_string_init(v1, epoint);
-        while ((ch = encode_string(encoder)) != EOF) {
+        encoder = enc_string_init(actual_encoding, v1, epoint);
+        while ((ch = enc_string(encoder)) != EOF) {
             if (len2 >= len) {
                 if (v->u.val == s) {
                     len = 32;
-                    s = (uint8_t *)malloc(len);
+                    s = allocate_array(uint8_t, 32);
                     if (s == NULL) goto failed2;
                     v->data = s;
                     memcpy(s, v->u.val, len2);
                     v->u.s.hash = -1;
                 } else {
-                    len += 1024;
-                    if (len < 1024) goto failed2; /* overflow */
-                    s = (uint8_t *)realloc(s, len);
+                    if (inc_overflow(&len, 1024)) goto failed2;
+                    s = reallocate_array(s, len);
                     if (s == NULL) goto failed2;
                     v->data = s;
                 }
@@ -588,10 +584,10 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
             }
             switch (mode) {
             case BYTES_MODE_SHIFT_CHECK:
-            case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) encode_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
-            case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) encode_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
-            case BYTES_MODE_NULL_CHECK:if (ch == 0) {encode_error(encoder, ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
-            case BYTES_MODE_NULL: if (ch == 0) encode_error(encoder, ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
+            case BYTES_MODE_SHIFT: if ((ch & 0x80) != 0) enc_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = ch & 0x7f; break;
+            case BYTES_MODE_SHIFTL: if ((ch & 0x80) != 0) enc_error(encoder, ERROR___NO_HIGH_BIT); s[len2] = (uint8_t)(ch << 1); break;
+            case BYTES_MODE_NULL_CHECK:if (ch == 0) {enc_error(encoder, ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = (uint8_t)ch; break;
+            case BYTES_MODE_NULL: if (ch == 0) enc_error(encoder, ERROR_NO_ZERO_VALUE); s[len2 - 1] = (uint8_t)ch; break;
             case BYTES_MODE_PTEXT:
             case BYTES_MODE_TEXT: s[len2] = (uint8_t)ch; break;
             }
@@ -612,7 +608,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
                 free(s);
                 v->data = v->u.val;
             } else if (len2 < len) {
-                uint8_t *s2 = (uint8_t *)realloc(s, len2);
+                uint8_t *s2 = reallocate_array(s, len2);
                 v->data = (s2 != NULL) ? s2 : s;
                 v->u.s.max = len2;
             }
@@ -648,10 +644,10 @@ MUST_CHECK Obj *bytes_from_uval(uval_t i, unsigned int bytes) {
     Bytes *v = new_bytes(bytes);
     v->len = (ssize_t)bytes;
     switch (bytes) {
-    default: v->data[3] = (uint8_t)(i >> 24); /* fall through */
-    case 3: v->data[2] = (uint8_t)(i >> 16); /* fall through */
-    case 2: v->data[1] = (uint8_t)(i >> 8); /* fall through */
-    case 1: v->data[0] = (uint8_t)i; /* fall through */
+    default: v->data[3] = (uint8_t)(i >> 24); FALL_THROUGH; /* fall through */
+    case 3: v->data[2] = (uint8_t)(i >> 16); FALL_THROUGH; /* fall through */
+    case 2: v->data[1] = (uint8_t)(i >> 8); FALL_THROUGH; /* fall through */
+    case 1: v->data[0] = (uint8_t)i; FALL_THROUGH; /* fall through */
     case 0: break;
     }
     return Obj(v);
@@ -753,7 +749,7 @@ static MUST_CHECK Obj *bytes_from_int(const Int *v1, linepos_t epoint) {
             free(d);
             v->data = v->u.val;
         } else if (sz < i) {
-            uint8_t *d2 = (uint8_t *)realloc(d, sz);
+            uint8_t *d2 = reallocate_array(d, sz);
             v->data = (d2 != NULL) ? d2 : d;
             v->u.s.max = sz;
         }
@@ -990,8 +986,7 @@ static MUST_CHECK Obj *concat(oper_t op) {
     }
     len1 = byteslen(v1);
     len2 = byteslen(v2);
-    ln = len1 + len2;
-    if (ln < len2 || ln > SSIZE_MAX) goto failed; /* overflow */
+    if (add_overflow(len1, len2, &ln) || ln > SSIZE_MAX) goto failed; /* overflow */
     if (op->inplace == Obj(v1)) {
         size_t ln2;
         if (ln > sizeof v1->u.val && v1->u.val != v1->data && ln > v1->u.s.max) {
@@ -1060,7 +1055,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
         v = negate(v1, op->epoint3);
         if (v != NULL) return v;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case O_STRING:
         tmp = int_from_bytes(v1, op->epoint);
         op->v1 = tmp;
@@ -1328,7 +1323,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -1375,7 +1370,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     switch (o1->obj->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
     case T_BITS:
     case T_FLOAT:
@@ -1401,7 +1396,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (!o1->obj->iterable) {
             break;
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
         if (op->op != O_IN) {
@@ -1413,29 +1408,29 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void bytesobj_init(void) {
-    new_type(&obj, T_BYTES, "bytes", sizeof(Bytes));
-    obj.convert = convert;
-    obj.convert2 = convert2;
-    obj.destroy = destroy;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval2;
-    obj.iaddress = ival;
-    obj.uaddress = uval;
-    obj.sign = sign;
-    obj.function = function;
-    obj.len = len;
-    obj.getiter = getiter;
-    obj.getriter = getriter;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_BYTES, "bytes", sizeof(Bytes));
+    type->convert = convert;
+    type->convert2 = convert2;
+    type->destroy = destroy;
+    type->same = same;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval2;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = function;
+    type->len = len;
+    type->getiter = getiter;
+    type->getriter = getriter;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void bytesobj_names(void) {

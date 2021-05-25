@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.h 2541 2021-03-19 19:48:02Z soci $
+    $Id: anonsymbolobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef struct Anonsymbol {
     ssize_t count;
 } Anonsymbol;
 
-#define Anonsymbol(a) ((Anonsymbol *)(1 ? (a) : (Obj *)(Anonsymbol *)(a)))
+#define Anonsymbol(a) OBJ_CAST(Anonsymbol, a)
 
 extern void anonsymbolobj_init(void);
 

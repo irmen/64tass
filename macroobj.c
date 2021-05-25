@@ -1,5 +1,5 @@
 /*
-    $Id: macroobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: macroobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,22 +112,25 @@ static MUST_CHECK Obj *struct_calc2(oper_t op) {
 }
 
 void macroobj_init(void) {
-    new_type(&macro_obj, T_MACRO, "macro", sizeof(Macro));
-    macro_obj.destroy = macro_destroy;
-    macro_obj.same = macro_same;
-    new_type(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
-    segment_obj.destroy = macro_destroy;
-    segment_obj.same = macro_same;
-    new_type(&struct_obj, T_STRUCT, "struct", sizeof(Struct));
-    struct_obj.destroy = struct_destroy;
-    struct_obj.garbage = struct_garbage;
-    struct_obj.same = struct_same;
-    struct_obj.size = struct_size;
-    struct_obj.calc2 = struct_calc2;
-    new_type(&union_obj, T_UNION, "union", sizeof(Union));
-    union_obj.destroy = struct_destroy;
-    union_obj.garbage = struct_garbage;
-    union_obj.same = struct_same;
-    union_obj.size = struct_size;
-    union_obj.calc2 = struct_calc2;
+    Type *type = new_type(&macro_obj, T_MACRO, "macro", sizeof(Macro));
+    type->destroy = macro_destroy;
+    type->same = macro_same;
+
+    type = new_type(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
+    type->destroy = macro_destroy;
+    type->same = macro_same;
+
+    type = new_type(&struct_obj, T_STRUCT, "struct", sizeof(Struct));
+    type->destroy = struct_destroy;
+    type->garbage = struct_garbage;
+    type->same = struct_same;
+    type->size = struct_size;
+    type->calc2 = struct_calc2;
+
+    type = new_type(&union_obj, T_UNION, "union", sizeof(Union));
+    type->destroy = struct_destroy;
+    type->garbage = struct_garbage;
+    type->same = struct_same;
+    type->size = struct_size;
+    type->calc2 = struct_calc2;
 }

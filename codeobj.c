@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2624 2021-04-25 16:55:06Z soci $
+    $Id: codeobj.c 2676 2021-05-20 21:16:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -290,8 +290,7 @@ static MUST_CHECK Obj *len(oper_t op) {
         s = v1->size - (uval_t)v1->offs;
         if (s > v1->size) return Obj(new_error(ERROR_NEGATIVE_SIZE, op->epoint2));
     } else {
-        s = v1->size + (uval_t)-v1->offs;
-        if (s < v1->size) err_msg_out_of_memory(); /* overflow */
+        if (add_overflow((uval_t)-v1->offs, v1->size, &s)) err_msg_out_of_memory();
         if (diagnostics.size_larger) err_msg_size_larger(op->epoint2);
     }
     ln = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
@@ -310,8 +309,7 @@ static MUST_CHECK Obj *size(oper_t op) {
         s = v1->size - (uval_t)v1->offs;
         if (s > v1->size) return Obj(new_error(ERROR_NEGATIVE_SIZE, op->epoint2));
     } else {
-        s = v1->size + (uval_t)-v1->offs;
-        if (s < v1->size) err_msg_out_of_memory(); /* overflow */
+        if (add_overflow((uval_t)-v1->offs, v1->size, &s)) err_msg_out_of_memory();
         if (diagnostics.size_larger) err_msg_size_larger(op->epoint2);
     }
     return int_from_size(s);
@@ -371,7 +369,7 @@ static MUST_CHECK Obj *code_item(const struct code_item_s *ci) {
 }
 
 static address_t code_item_prepare(struct code_item_s *ci, const Code *v1) {
-    address_t ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
+    address_t ln, ln2 = (v1->dtype < 0) ? (address_t)-v1->dtype : (address_t)v1->dtype;
     if (ln2 == 0) ln2 = 1;
     ci->ln2 = ln2;
     ci->v1 = v1;
@@ -382,8 +380,8 @@ static address_t code_item_prepare(struct code_item_s *ci, const Code *v1) {
         return (v1->size - (uval_t)v1->offs) / ln2;
     } 
     ci->offs0 = -(ival_t)(((uval_t)-v1->offs + ln2 - 1) / ln2);
-    if (v1->size + (uval_t)-v1->offs < v1->size) err_msg_out_of_memory(); /* overflow */
-    return (v1->size + (uval_t)-v1->offs) / ln2;
+    if (add_overflow((uval_t)-v1->offs, v1->size, &ln)) err_msg_out_of_memory();
+    return ln / ln2;
 }
 
 MUST_CHECK Obj *tuple_from_code(const Code *v1, const Type *typ) {
@@ -496,7 +494,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         return result;
     case O_BANK:
         if (all_mem < 0xffffff) return bits_calc1(op->op, ldigit(v1, op->epoint));
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
@@ -546,7 +544,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         Obj *result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         bool i;
         if (result->obj != BOOL_OBJ) return result;
-        i = (result == true_value) != (op->op == O_LOR);
+        i = Bool(result)->value != (op->op == O_LOR);
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(i ? o2 : Obj(v1));
@@ -623,7 +621,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     default:
         return o2->obj->rcalc2(op);
     }
-    return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
@@ -694,27 +691,27 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void codeobj_init(void) {
-    new_type(&obj, T_CODE, "code", sizeof(Code));
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.truth = truth;
-    obj.repr = repr;
-    obj.str = str;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval;
-    obj.address = address;
-    obj.iaddress = iaddress;
-    obj.uaddress = uaddress;
-    obj.sign = sign;
-    obj.function = function;
-    obj.len = len;
-    obj.size = size;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_CODE, "code", sizeof(Code));
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->truth = truth;
+    type->repr = repr;
+    type->str = str;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval;
+    type->address = address;
+    type->iaddress = iaddress;
+    type->uaddress = uaddress;
+    type->sign = sign;
+    type->function = function;
+    type->len = len;
+    type->size = size;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void codeobj_names(void) {

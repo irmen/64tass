@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: gapobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "strobj.h"
 #include "boolobj.h"
 #include "typeobj.h"
-#include "errorobj.h"
 
 static Type obj;
 
@@ -168,7 +167,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (!v1->obj->iterable) {
             break;
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
         if (op->op != O_IN) {
@@ -180,14 +179,14 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void gapobj_init(void) {
-    new_type(&obj, T_GAP, "gap", sizeof(Gap));
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.function = function;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_GAP, "gap", sizeof(Gap));
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->function = function;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }
 
 void gapobj_names(void) {

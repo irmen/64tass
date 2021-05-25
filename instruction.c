@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2469 2021-03-06 22:39:25Z soci $
+    $Id: instruction.c 2643 2021-05-09 07:47:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -139,10 +139,10 @@ static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)
         d = pokealloc((unsigned int)(ln + 1), epoint);
         temp = adr ^ outputeor;
         switch (ln) {
-        case 4: d[4] = (uint8_t)(temp >> 24); /* fall through */
-        case 3: d[3] = (uint8_t)(temp >> 16); /* fall through */
-        case 2: d[2] = (uint8_t)(temp >> 8); /* fall through */
-        case 1: d[1] = (uint8_t)temp; /* fall through */
+        case 4: d[4] = (uint8_t)(temp >> 24); FALL_THROUGH; /* fall through */
+        case 3: d[3] = (uint8_t)(temp >> 16); FALL_THROUGH; /* fall through */
+        case 2: d[2] = (uint8_t)(temp >> 8); FALL_THROUGH; /* fall through */
+        case 1: d[1] = (uint8_t)temp; FALL_THROUGH; /* fall through */
         default: d[0] = (uint8_t)(cod ^ outputeor);
         }
     }
@@ -190,7 +190,7 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
                 adrgen = AG_BYTE;
                 break;
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case 0x00:
         case 0x02: /* brk cop */
             adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
@@ -822,7 +822,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 }
                 goto justrel;
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         default:
             addrlist = Addrlist(vals);
             if (addrlist->data[0] == none_value) {
@@ -1039,7 +1039,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                         break;
                     }
-                    /* fall through */
+                    FALL_THROUGH; /* fall through */
                 default: 
                     return err_addressize(ERROR__NO_LONG_ADDR, epoint2, prm);
                 }

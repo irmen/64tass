@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2620 2021-04-25 12:05:16Z soci $
+    $Id: errors_e.h 2637 2021-05-03 12:28:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -104,7 +104,6 @@ typedef enum Error_types {
     ERROR_____NOT_BANK0,
     ERROR_OUT_OF_MEMORY,
     ERROR__ADDR_COMPLEX,
-    ERROR__EMPTY_ENCODI,
     ERROR_MISSING_CLOSE,
     ERROR__MISSING_OPEN,
     ERROR__MISSING_LOOP,

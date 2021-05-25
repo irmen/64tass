@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2596 2021-04-18 18:52:11Z soci $
+    $Id: eval.c 2678 2021-05-22 22:35:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,11 +21,9 @@
 #include <string.h>
 #include "math.h"
 #include "section.h"
-#include "macro.h"
 #include "variables.h"
 #include "64tass.h"
 #include "unicode.h"
-#include "listing.h"
 #include "error.h"
 #include "values.h"
 #include "arguments.h"
@@ -58,7 +56,7 @@
 
 static FAST_CALL NO_INLINE unsigned int get_label_start(const uint8_t *s) {
     unsigned int l;
-    uchar_t ch;
+    unichar_t ch;
     if (!arguments.to_ascii) return 0;
     l = utf8in(s, &ch);
     return ((uget_property(ch)->property & id_Start) != 0) ? l : 0;
@@ -66,7 +64,7 @@ static FAST_CALL NO_INLINE unsigned int get_label_start(const uint8_t *s) {
 
 static FAST_CALL NO_INLINE unsigned int get_label_continue(const uint8_t *s) {
     unsigned int l;
-    uchar_t ch;
+    unichar_t ch;
     if (!arguments.to_ascii) return 0;
     l = utf8in(s, &ch);
     return ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) ? l : 0;
@@ -81,7 +79,7 @@ FAST_CALL size_t get_label(const uint8_t *s) {
     } else i = 1;
     for (;;) {
         unsigned int l;
-        if (((uint8_t)((s[i] | 0x20) - 'a')) <= 'z' - 'a' || (s[i] ^ 0x30) < 10 || s[i] == '_') {
+        if likely(((uint8_t)((s[i] | 0x20) - 'a')) <= 'z' - 'a' || (s[i] ^ 0x30) < 10 || s[i] == '_') {
             i++;
             continue;
         }
@@ -101,7 +99,16 @@ static MUST_CHECK Obj *get_dec(linepos_t epoint) {
 
 static double ldexp10(double d, unsigned int expo, bool neg) {
     static const double nums[10] = {1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9};
-    double scal = expo < 10 ? nums[expo] : pow(10.0, (double)expo);
+    double scal;
+    if (expo < lenof(nums)) {
+        scal = nums[expo];
+    } else {
+#ifdef __APPLE__
+        scal = pow(10.0+d*0.0, (double)expo);
+#else
+        scal = pow(10.0, (double)expo);
+#endif
+    }
     return neg ? d / scal : d * scal;
 }
 
@@ -408,15 +415,11 @@ static struct eval_context_s {
 static struct eval_context_s *eval;
 
 static NO_INLINE void extend_out(struct out_list_s *out) {
-    out->size += 64;
-    if (out->size < 64 || out->size > ARGCOUNT_MAX / sizeof *out->data) err_msg_out_of_memory(); /* overflow */
-    out->data = (struct out_s *)reallocx(out->data, out->size * sizeof *out->data);
+    extend_array(&out->data, &out->size, 64);
 }
 
 static NO_INLINE void extend_opr(struct opr_list_s *opr) {
-    opr->size += 64;
-    if (opr->size < 64 || opr->size > ARGCOUNT_MAX / sizeof *opr->data) err_msg_out_of_memory(); /* overflow */
-    opr->data = (struct opr_s *)reallocx(opr->data, opr->size * sizeof *opr->data);
+    extend_array(&opr->data, &opr->size, 64);
 }
 
 static inline void clean_out(struct eval_context_s *ev) {
@@ -471,7 +474,7 @@ rest:
         case '*': lpoint.pos++;val = get_star(); goto push_other;
         case '0':
             if (diagnostics.leading_zeros && pline[lpoint.pos + 1] >= '0' && pline[lpoint.pos + 1] <= '9') err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             val = get_dec(&epoint); goto push_other;
         default:
@@ -614,12 +617,11 @@ rest:
 
 static struct values_s *extend_values(struct eval_context_s *ev, size_t by) {
     argcount_t j = ev->values_size;
-    struct values_s *values;
     ev->values_size += (argcount_t)by;
-    if (ev->values_size < by || ev->values_size > ARGCOUNT_MAX / sizeof *values) err_msg_out_of_memory(); /* overflow */
-    ev->values = values = (struct values_s *)reallocx(ev->values, ev->values_size * sizeof *values);
-    for (; j < ev->values_size; j++) values[j].val = NULL;
-    return values;
+    if (ev->values_size < by) err_msg_out_of_memory(); /* overflow */
+    resize_array(&ev->values, ev->values_size);
+    for (; j < ev->values_size; j++) ev->values[j].val = NULL;
+    return ev->values;
 }
 
 static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
@@ -1065,8 +1067,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 Colonlist *list = new_colonlist();
                 if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
                     Colonlist *l2 = Colonlist(v2->val);
-                    list->len = l1->len + l2->len;
-                    if (list->len < l2->len) err_msg_out_of_memory(); /* overflow */
+                    if (add_overflow(l1->len, l2->len, &list->len)) err_msg_out_of_memory();
                     list->data = list_create_elements(list, list->len);
                     memcpy(list->data, l1->data, l1->len * sizeof *list->data);
                     memcpy(list->data + l1->len, l2->data, l2->len * sizeof *list->data);
@@ -1075,8 +1076,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     val_destroy(v1->val); v1->val = Obj(list);
                     continue;
                 }
-                list->len = l1->len + 1;
-                if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                if (add_overflow(l1->len, 1, &list->len)) err_msg_out_of_memory();
                 list->data = list_create_elements(list, list->len);
                 memcpy(list->data, l1->data, l1->len * sizeof *list->data);
                 list->data[l1->len] = v2->val;
@@ -1088,8 +1088,7 @@ static bool get_val2(struct eval_context_s *ev) {
             if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
                 Colonlist *l2 = Colonlist(v2->val);
                 Colonlist *list = new_colonlist();
-                list->len = l2->len + 1;
-                if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                if (add_overflow(l2->len, 1, &list->len)) err_msg_out_of_memory();
                 list->data = list_create_elements(list, list->len);
                 list->data[0] = v1->val;
                 memcpy(&list->data[1], l2->data, l2->len * sizeof *list->data);
@@ -1176,8 +1175,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     list->data[0] = ref_default();
                     list->data[1] = val_reference(Dict(v1->val)->def);
                     def = Obj(list);
-                    len++;
-                    if (len < 1) err_msg_out_of_memory(); /* overflow */
+                    if (inc_overflow(&len, 1)) err_msg_out_of_memory();
                 } else def = NULL;
 
                 len2 = vsp + (argcount_t)len;
@@ -1472,7 +1470,7 @@ static bool get_exp2(int stop) {
                         val = ref_fold(); 
                         goto push_other;
                     }
-                    /* fall through */
+                    FALL_THROUGH; /* fall through */
                 default:
                     goto tryanon;
                 }
@@ -1481,7 +1479,7 @@ static bool get_exp2(int stop) {
             goto push_other;
         case '0':
             if (diagnostics.leading_zeros && (pline[lpoint.pos + 1] ^ 0x30) < 10) err_msg2(ERROR_LEADING_ZEROS, NULL, &lpoint);
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             val = get_float(&epoint);
             goto push_other;
@@ -1787,7 +1785,7 @@ static bool get_exp2(int stop) {
                     switch (opr.data[opr.p - 1].op) {
                     case O_FUNC:
                         val = &operators[O_FUNC].v;
-                        /* fall through */
+                        FALL_THROUGH; /* fall through */
                     case O_PARENT:
                         lpoint.pos++;
                         epoint.pos = opr.data[--opr.p].pos;
@@ -1814,7 +1812,7 @@ static bool get_exp2(int stop) {
                     switch (opr.data[opr.p - 1].op) {
                     case O_INDEX:
                         val = &operators[O_INDEX].v;
-                        /* fall through */
+                        FALL_THROUGH; /* fall through */
                     case O_BRACKET:
                         lpoint.pos++;
                         epoint.pos = opr.data[--opr.p].pos;
@@ -1976,17 +1974,15 @@ Obj *get_vals_addrlist(struct linepos_s *epoints) {
 void eval_enter(void) {
     evx_p++;
     if (evx_p >= evxnum) {
-        evxnum++;
-        if (/*evxnum < 1 ||*/ evxnum > SIZE_MAX / sizeof *evx) err_msg_out_of_memory(); /* overflow */
-        evx = (struct eval_context_s **)reallocx(evx, evxnum * sizeof *evx);
-        eval = (struct eval_context_s *)mallocx(sizeof *eval);
+        extend_array(&evx, &evxnum, 1);
+        new_instance(&eval);
         eval->values = NULL;
         eval->values_size = 0;
         eval->out.size = 16;
-        eval->out.data = (struct out_s *)mallocx(16 * sizeof *eval->out.data);
+        new_array(&eval->out.data, 16);
         eval->out.p = 0;
         eval->opr.size = 16;
-        eval->opr.data = (struct opr_s *)mallocx(16 * sizeof *eval->opr.data);
+        new_array(&eval->opr.data, 16);
         eval->opr.p = 0;
         eval->outp2 = 0;
         evx[evx_p] = eval;

@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2570 2021-04-11 22:11:00Z soci $
+   $Id: isnprintf.c 2665 2021-05-15 14:02:57Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -51,7 +51,6 @@
 #include "unicode.h"
 #include "eval.h"
 #include "error.h"
-#include "str.h"
 
 #include "floatobj.h"
 #include "strobj.h"
@@ -79,7 +78,7 @@ typedef struct Data {
     const uint8_t *pfend;
     /* FLAGS */
     int width, precision;
-    uchar_t pad;
+    unichar_t pad;
     bool left, square, space, plus, star_w, star_p, dot;
 } Data;
 
@@ -112,14 +111,12 @@ static const struct values_s *next_arg(void) {
     return ret;
 }
 
-static void put_char(uchar_t c) {
+static void put_char(unichar_t c) {
     uint8_t *p;
     return_value.chars++;
     p = return_value.data;
     if (return_value.len + 6 >= returnsize) {
-        returnsize += 256;
-        if (returnsize < 256) err_msg_out_of_memory(); /* overflow */
-        p = (uint8_t *)reallocx(p, returnsize);
+        extend_array(&p, &returnsize, 256);
         return_value.data = p;
     }
     if (c != 0 && c < 0x80) {
@@ -360,7 +357,7 @@ static inline void strings(Data *p)
     const struct values_s *v = next_arg();
     size_t i;
     const uint8_t *tmp;
-    uchar_t ch;
+    unichar_t ch;
     Str *str;
     Obj *err = NULL;
 
@@ -458,7 +455,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
     case T_STR: break;
     case T_ADDRESS:
         if (Address(val)->val == none_value || Address(val)->val->obj == ERROR_OBJ) return val_reference(Address(val)->val);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     default:
         err_msg_wrong_type(val, STR_OBJ, &v[0].epoint);
         return ref_none();
@@ -479,7 +476,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
 
     for (; data.pf < data.pfend; data.pf++) {
         const uint8_t *pf = data.pf;
-        uchar_t c = *data.pf;
+        unichar_t c = *data.pf;
         if (c != '%') {
             if ((c & 0x80) != 0) data.pf += utf8in(data.pf, &c) - 1;
             put_char(c);  /* add the char the string */
@@ -564,7 +561,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
                     data.pad = '0';
                     continue;
                 }
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             case '1':
             case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9':
@@ -578,7 +575,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
                     data.width = ((data.width == NOT_FOUND) ? 0 : data.width * 10) + (int)c;
                     if (data.width < 100000) continue;
                 }
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             default:
             error:
                 data.pf += err_msg_unknown_formatchar(Str(val), (size_t)(data.pf - Str(val)->data), &v[0].epoint);
@@ -610,7 +607,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
         str->u.s.max = return_value.len;
         str->u.s.hash = -1;
         if (returnsize > return_value.len) {
-            uint8_t *d = (uint8_t *)realloc(return_value.data, return_value.len);
+            uint8_t *d = reallocate_array(return_value.data, return_value.len);
             if (d != NULL) {
                 str->data = d;
                 return Obj(str);

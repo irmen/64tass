@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: namespaceobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ typedef struct Namespace {
     uint32_t backr, forwr;
 } Namespace;
 
-#define Namespace(a) ((Namespace *)(1 ? (a) : (Obj *)(Namespace *)(a)))
+#define Namespace(a) OBJ_CAST(Namespace, a)
 
 extern void namespaceobj_init(void);
 extern void namespaceobj_names(void);

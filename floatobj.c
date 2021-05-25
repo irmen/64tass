@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: floatobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -379,7 +379,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_FLOAT: return calc2_double(op);
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
     case T_BITS:
     case T_STR:
@@ -415,7 +415,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     switch (v1->obj->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
     case T_BITS:
         err = float_from_obj(v1, op->epoint);
@@ -432,22 +432,22 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void floatobj_init(void) {
-    new_type(&obj, T_FLOAT, "float", sizeof(Float));
-    obj.convert = convert;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval;
-    obj.iaddress = ival;
-    obj.uaddress = uval;
-    obj.sign = sign;
-    obj.function = function;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_FLOAT, "float", sizeof(Float));
+    type->convert = convert;
+    type->same = same;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = function;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }
 
 static Float pi_value = { { &obj, 2 }, M_PI };

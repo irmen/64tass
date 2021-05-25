@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: boolobj.h 2676 2021-05-20 21:16:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,9 +28,10 @@ struct Str;
 typedef struct Bool {
     Obj v;
     struct Str *repr;
+    bool value;
 } Bool;
 
-#define Bool(a) ((Bool *)(1 ? (a) : (Obj *)(Bool *)(a)))
+#define Bool(a) OBJ_CAST(Bool, a)
 
 extern Obj *const true_value;
 extern Obj *const false_value;

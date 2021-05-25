@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: bitsobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ typedef struct Bits {
     } u;
 } Bits;
 
-#define Bits(a) ((Bits *)(1 ? (a) : (Obj *)(Bits *)(a)))
+#define Bits(a) OBJ_CAST(Bits, a)
 
 extern Obj *const null_bits;
 extern Obj *const inv_bits;

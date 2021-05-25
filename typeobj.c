@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: typeobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,10 +20,8 @@
 #include <string.h>
 #include "variables.h"
 #include "eval.h"
-#include "error.h"
 
 #include "strobj.h"
-#include "errorobj.h"
 #include "functionobj.h"
 
 static Type obj;
@@ -34,7 +32,7 @@ static struct Slot *values_free[32];
 
 #define ALIGN sizeof(int *)
 
-void new_type(Type *t, Type_types type, const char *name, size_t length) {
+Type *new_type(Type *t, Type_types type, const char *name, size_t length) {
     t->v.obj = TYPE_OBJ;
     t->v.refcount = 1;
     t->type = type;
@@ -42,6 +40,7 @@ void new_type(Type *t, Type_types type, const char *name, size_t length) {
     t->slot = &values_free[t->length];
     t->name = name;
     obj_init(t);
+    return t;
 }
 
 static MUST_CHECK Obj *type_from_obj(Obj *v1, linepos_t UNUSED(epoint)) {
@@ -131,12 +130,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 
 
 void typeobj_init(void) {
-    new_type(&obj, T_TYPE, "type", sizeof(Type));
-    obj.convert = convert;
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.calc2 = calc2;
+    Type *type = new_type(&obj, T_TYPE, "type", sizeof(Type));
+    type->convert = convert;
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->calc2 = calc2;
 }
 
 void typeobj_names(void) {

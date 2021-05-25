@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2597 2021-04-18 19:57:41Z soci $
+    $Id: macro.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -258,19 +258,14 @@ bool mtranslate(void) {
         } 
         if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
         if (p + param.len > mline->len) {
-            mline->len = p + param.len + 1024;
-            if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-            mline->data = (uint8_t *)reallocx(mline->data, mline->len);
+            mline->len = p + param.len;
+            extend_array(&mline->data, &mline->len, 1024);
         }
         if (last != p) {
             if (p < last) err_msg_out_of_memory(); /* overflow */
             memcpy(mline->data + last, pline + last2, p - last);
         }
-        if (n >= mline->rlen) {
-            mline->rlen += 8;
-            if (mline->rlen < 8 || mline->rlen > ARGCOUNT_MAX / sizeof *mline->rpositions) err_msg_out_of_memory(); /* overflow */
-            mline->rpositions = (struct macro_rpos_s *)reallocx(mline->rpositions, mline->rlen * sizeof *mline->rpositions);
-        }
+        if (n >= mline->rlen) extend_array(&mline->rpositions, &mline->rlen, 8);
         mline->rpositions[n].opos = op;
         mline->rpositions[n].olen = p2 - op;
         mline->rpositions[n].pos = p;
@@ -299,9 +294,8 @@ bool mtranslate(void) {
         p += p2 - last2;
         if (p + 1 < p) err_msg_out_of_memory(); /* overflow */
         if (p + 1 > mline->len) {
-            mline->len = p + 1024;
-            if (mline->len < 1024) err_msg_out_of_memory(); /* overflow */
-            mline->data = (uint8_t *)reallocx(mline->data, mline->len);
+            if (add_overflow(p, 1024, &mline->len)) err_msg_out_of_memory();
+            resize_array(&mline->data, mline->len);
         }
         if (p != last) memcpy(mline->data + last, pline + last2, p - last);
         mline->data[p] = 0;
@@ -309,8 +303,9 @@ bool mtranslate(void) {
     } else {
         linenum_t lnum;
         if (cfile->nomacro == NULL) {
-            cfile->nomacro = (uint8_t *)calloc((cfile->lines + 7) / 8, sizeof *cfile->nomacro);
-            if (cfile->nomacro == NULL) err_msg_out_of_memory();
+            size_t l = (cfile->lines + 7) / 8;
+            new_array(&cfile->nomacro, l);
+            memset(cfile->nomacro, 0, l * sizeof *cfile->nomacro);
         }
         lnum = lpoint.line - 1;
         cfile->nomacro[lnum / 8] |= (uint8_t)(1U << (lnum & 7));
@@ -333,12 +328,13 @@ static size_t macro_param_find(void) {
         if (q == 0) {
             if (ch == '(' || ch == '[' || ch == '{') {
                 if (pp >= pl) {
-                    pl += 256;
-                    if (pl < 256) err_msg_out_of_memory();
+                    if (inc_overflow(&pl, 256)) err_msg_out_of_memory();
                     if (par == pbuf) {
-                        par = (uint8_t *)mallocx(pl);
+                        new_array(&par, pl);
                         memcpy(par, pbuf, pp);
-                    } else par = (uint8_t *)reallocx(par, pl);
+                    } else {
+                        resize_array(&par, pl);
+                    }
                 }
                 par[pp++] = ch;
             } else if (pp != 0 && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
@@ -363,9 +359,7 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
     }
     if (macro_parameters.p >= macro_parameters.len) {
         struct macro_params_s *params = macro_parameters.params;
-        macro_parameters.len += 1;
-        if (/*macro_parameters.len < 1 ||*/ macro_parameters.len > SIZE_MAX / sizeof *params) err_msg_out_of_memory();
-        params = (struct macro_params_s *)reallocx(params, macro_parameters.len * sizeof *params);
+        extend_array(&params, &macro_parameters.len, 1);
         macro_parameters.params = params;
         macro_parameters.current = &params[macro_parameters.p];
         macro_parameters.current->param = NULL;
@@ -395,11 +389,9 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
             if (p >= macro_parameters.current->size) {
                 if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
                 else {
-                    macro_parameters.current->size += 4;
-                    if (macro_parameters.current->size < 4) err_msg_out_of_memory(); /* overflow */
+                    if (inc_overflow(&macro_parameters.current->size, 4)) err_msg_out_of_memory();
                 }
-                if (macro_parameters.current->size > ARGCOUNT_MAX / sizeof *params) err_msg_out_of_memory();
-                params = (struct macro_value_s *)reallocx(params, macro_parameters.current->size * sizeof *params);
+                resize_array(&params, macro_parameters.current->size);
                 macro_parameters.current->param = params;
             }
             param = params + p;
@@ -581,7 +573,7 @@ bool get_func_params(Mfunc *v, bool single) {
     str_t label;
     bool stard = false, ret = false;
 
-    params = (len != 0) ? (struct mfunc_param_s *)mallocx(len * sizeof *params) : NULL;
+    if (len == 0) params = NULL; else new_array(&params, len);
     if (here() != 0 && here() != ';') {
         for (;;) {
             struct mfunc_param_s *param;
@@ -591,9 +583,7 @@ bool get_func_params(Mfunc *v, bool single) {
                 lpoint.pos++;ignore();
             }
             if (i >= len) {
-                len += 16;
-                if (len < 16 || len > ARGCOUNT_MAX / sizeof *params) err_msg_out_of_memory(); /* overflow */
-                params = (struct mfunc_param_s *)reallocx(params, len * sizeof *params);
+                extend_array(&params, &len, 16);
             }
             param = params + i;
             param->epoint = lpoint;
@@ -671,7 +661,7 @@ bool get_func_params(Mfunc *v, bool single) {
     }
     if (i < len) {
         if (i != 0) {
-            struct mfunc_param_s *p = (struct mfunc_param_s *)realloc(params, i * sizeof *params);
+            struct mfunc_param_s *p = reallocate_array(params, i);
             if (p != NULL) params = p;
         } else {
             free(params);
@@ -692,20 +682,22 @@ void get_macro_params(Obj *v) {
     struct linepos_s vepoints[4];
     const struct file_s *cfile = macro->file_list->file;
 
-    params = (len != 0) ? (struct macro_param_s *)mallocx(len * sizeof *params) : NULL;
-    epoints = (len <= lenof(vepoints)) ? vepoints : (struct linepos_s *)mallocx(len * sizeof *epoints);
+    if (len == 0) params = NULL; else new_array(&params, len);
+    if (len <= lenof(vepoints)) {
+        epoints = vepoints;
+    } else {
+        new_array(&epoints, len);
+    }
     for (;;) {
         struct macro_param_s *param;
         ignore();if (here() == 0 || here() == ';') break;
         if (i >= len) {
-            len += 16;
-            if (len < 16 || len > ARGCOUNT_MAX / (sizeof *params > sizeof *epoints ? sizeof *params : sizeof *epoints)) err_msg_out_of_memory(); /* overflow */
-            params = (struct macro_param_s *)reallocx(params, len * sizeof *params);
+            extend_array(&params, &len, 16);
             if (epoints == vepoints) {
-                epoints = (struct linepos_s *)mallocx(len * sizeof *epoints);
+                new_array(&epoints, len);
                 memcpy(epoints, vepoints, sizeof vepoints);
             } else {
-                epoints = (struct linepos_s *)reallocx(epoints, len * sizeof *epoints);
+                resize_array(&epoints, len);
             }
         }
         param = params + i;
@@ -749,7 +741,7 @@ void get_macro_params(Obj *v) {
     }
     if (i < len) {
         if (i != 0) {
-            struct macro_param_s *p = (struct macro_param_s *)realloc(params, i * sizeof *params);
+            struct macro_param_s *p = reallocate_array(params, i);
             if (p != NULL) params = p;
         } else {
             free(params);

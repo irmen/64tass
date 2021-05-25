@@ -4055,9 +4055,6 @@ double defined range
     ranges can't overlap
 duplicate definition
     symbol defined more than once
-empty encoding, add something or correct name
-    probably a typo in the name of encoding but if not then use .cdef/.edef to
-    define something
 empty list not allowed
     at least one element is required
 empty range not allowed

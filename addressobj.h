@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.h 2576 2021-04-14 20:29:14Z soci $
+    $Id: addressobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ typedef struct Address {
     Obj *val;
 } Address;
 
-#define Address(a) ((Address *)(1 ? (a) : (Obj *)(Address *)(a)))
+#define Address(a) OBJ_CAST(Address, a)
 
 extern void addressobj_init(void);
 extern void addressobj_names(void);

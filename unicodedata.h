@@ -1,5 +1,5 @@
 /*
-    $Id: unicodedata.h 1412 2017-03-30 18:14:47Z soci $
+    $Id: unicodedata.h 2648 2021-05-09 17:10:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 */
 #ifndef UNICODEDATA_H
 #define UNICODEDATA_H
-#include "attributes.h"
 #include "inttypes.h"
 
 #define pr_compat 1
@@ -44,7 +43,7 @@ extern const struct properties_s uproperties[];
 extern const uint32_t ucomposed[];
 extern const int16_t ucomposing[];
 
-static inline const struct properties_s *uget_property(uchar_t c) {
+static inline const struct properties_s *uget_property(unichar_t c) {
     return (c < 256 * sizeof upropshash1) ? &uproperties[upropshash2[upropshash1[c >> 8]][c & 0xff]] : uproperties;
 }
 #endif

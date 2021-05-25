@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: bytesobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ typedef struct Bytes {
     } u;
 } Bytes;
 
-#define Bytes(a) ((Bytes *)(1 ? (a) : (Obj *)(Bytes *)(a)))
+#define Bytes(a) OBJ_CAST(Bytes, a)
 
 extern Obj *const null_bytes;
 extern Obj *const inv_bytes;

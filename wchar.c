@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.c 2620 2021-04-25 12:05:16Z soci $
+    $Id: wchar.c 2626 2021-05-02 07:08:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -595,7 +595,7 @@ static const struct w32_s dw32[] = {
 };
 
 static int compw16(const void *aa, const void *bb) {
-    uchar_t key = *(const uchar_t *)aa;
+    unichar_t key = *(const unichar_t *)aa;
     const struct w16_s *b = (const struct w16_s *)bb;
 
     if (key > b->end) return 1;
@@ -604,7 +604,7 @@ static int compw16(const void *aa, const void *bb) {
 }
 
 static int compw32(const void *aa, const void *bb) {
-    uchar_t key = *(const uchar_t *)aa;
+    unichar_t key = *(const unichar_t *)aa;
     const struct w32_s *b = (const struct w32_s *)bb;
 
     if (key > b->end) return 1;
@@ -612,7 +612,7 @@ static int compw32(const void *aa, const void *bb) {
     return 0;
 }
 
-int wcwidth_v9(uchar_t ch) {
+int wcwidth_v9(unichar_t ch) {
     if (ch < 0x300) return 1;
 
     if (ch < 0x10000) {

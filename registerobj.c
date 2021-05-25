@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: registerobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "errorobj.h"
 #include "addressobj.h"
 #include "intobj.h"
+#include "error.h"
 
 static Type obj;
 
@@ -38,7 +39,7 @@ static FAST_CALL NO_INLINE void register_destroy(Register *v1) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Register *v1 = Register(o1);
-    if (v1->val != v1->data) register_destroy(v1);
+    if unlikely(v1->val != v1->data) register_destroy(v1);
 }
 
 static inline MALLOC Register *new_register(void) {
@@ -60,7 +61,7 @@ static MUST_CHECK Obj *register_from_obj(Obj *o1, linepos_t epoint) {
             v->len = v1->len;
             if (v->len != 0) {
                 if (v->len > sizeof v->val) {
-                    s = (uint8_t *)malloc(v->len);
+                    s = allocate_array(uint8_t, v->len);
                     if (s == NULL) return new_error_mem(epoint);
                 } else s = v->val;
                 memcpy(s, v1->data, v->len);
@@ -109,8 +110,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     Str *v;
     i = str_quoting(v1->data, v1->len, &q);
 
-    i2 = i + 12;
-    if (i2 < 12) return NULL; /* overflow */
+    if (add_overflow(i, 12, &i2)) return NULL;
     chars = i2 - (v1->len - v1->chars);
     if (chars > maxsize) return NULL;
     v = new_str2(i2);
@@ -213,7 +213,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (!t1->iterable) {
             break;
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
         if (op->op != O_IN) {
@@ -225,15 +225,15 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void registerobj_init(void) {
-    new_type(&obj, T_REGISTER, "register", sizeof(Register));
-    obj.convert = convert;
-    obj.destroy = destroy;
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_REGISTER, "register", sizeof(Register));
+    type->convert = convert;
+    type->destroy = destroy;
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }
 
 void registerobj_names(void) {

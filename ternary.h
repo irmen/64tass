@@ -1,5 +1,5 @@
 /* ternary.h - Ternary Search Trees
-   $Id: ternary.h 1948 2019-08-31 12:48:50Z soci $
+   $Id: ternary.h 2626 2021-05-02 07:08:22Z soci $
 
    Copyright 2001 Free Software Foundation, Inc.
 
@@ -30,7 +30,7 @@ typedef struct ternary_node_def *ternary_tree;
 
 typedef struct ternary_node_def
 {
-  uchar_t splitchar;
+  unichar_t splitchar;
   ternary_tree lokid;
   ternary_tree eqkid;
   ternary_tree hikid;

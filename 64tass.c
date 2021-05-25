@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2622 2021-04-25 15:16:03Z soci $
+    $Id: 64tass.c 2676 2021-05-20 21:16:34Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -49,6 +49,7 @@
 #include "longjump.h"
 #include "mem.h"
 #include "unicodedata.h"
+#include "version.h"
 
 #include "listobj.h"
 #include "codeobj.h"
@@ -72,6 +73,7 @@
 #include "memblocksobj.h"
 #include "symbolobj.h"
 #include "dictobj.h"
+#include "encobj.h"
 
 struct Listing *listing = NULL;
 int temporary_label_branch; /* function declaration in function context, not good */
@@ -321,6 +323,7 @@ static void tfree(void) {
     destroy_longjump();
     destroy_encoding();
     destroy_values();
+    destroy_transs();
     err_destroy();
     destroy_file();
     destroy_ternary();
@@ -337,11 +340,7 @@ static void tfree(void) {
 void new_waitfor(Wait_types what, linepos_t epoint) {
     uint8_t skwait = waitfor->skip;
     waitfor_p++;
-    if (waitfor_p >= waitfor_len) {
-        waitfor_len += 8;
-        if (/*waitfor_len < 8 ||*/ waitfor_len > SIZE_MAX / sizeof *waitfors) err_msg_out_of_memory(); /* overflow */
-        waitfors = (struct waitfor_s *)reallocx(waitfors, waitfor_len * sizeof *waitfors);
-    }
+    if (waitfor_p >= waitfor_len) extend_array(&waitfors, &waitfor_len, 8);
     waitfor = &waitfors[waitfor_p];
     waitfor->what = what;
     waitfor->skip = skwait;
@@ -391,7 +390,7 @@ static bool tobool(const struct values_s *v1, bool *truth) {
     const Type *obj = val->obj;
     bool error;
     if (obj == BOOL_OBJ) {
-        *truth = val == true_value;
+        *truth = Bool(val)->value;
         return false;
     }
     err = obj->truth(val, TRUTH_BOOL, &v1->epoint);
@@ -401,7 +400,7 @@ static bool tobool(const struct values_s *v1, bool *truth) {
             err_msg_output(Error(err));
         }
     } else {
-        *truth = err == true_value;
+        *truth = Bool(err)->value;
         if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, val, &v1->epoint);
     }
     val_destroy(err);
@@ -521,7 +520,7 @@ static int get_command(void) {
                     if ((uint8_t)(label[l] - 'a') <= ('z' - 'a')) break;
                     if ((label[l] & 0x80) != 0) {
                         if (arguments.to_ascii) {
-                            uchar_t ch;
+                            unichar_t ch;
                             utf8in(pline + lpoint.pos + l, &ch);
                             if ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) return lenof(command);
                         }
@@ -753,7 +752,7 @@ retry:
                 if (bits == 0) break;
                 if (bits <= 8) goto doit;
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case T_STR:
         case T_CODE:
         case T_ADDRESS:
@@ -1002,11 +1001,11 @@ static const char *check_waitfor(void) {
     case W_WEAK2:
         if (waitfor->u.cmd_weak.label != NULL) {set_size(waitfor->u.cmd_weak.label, current_address->address - waitfor->u.cmd_weak.addr, current_address->mem, waitfor->u.cmd_weak.addr, waitfor->u.cmd_weak.membp);val_destroy(Obj(waitfor->u.cmd_weak.label));}
         strength--;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_WEAK: return ".endweak";
     case W_ENDP2:
         if (waitfor->u.cmd_page.label != NULL) {set_size(waitfor->u.cmd_page.label, current_address->address - waitfor->u.cmd_page.addr, current_address->mem, waitfor->u.cmd_page.addr, waitfor->u.cmd_page.membp);val_destroy(Obj(waitfor->u.cmd_page.label));}
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDP: return ".endpage";
     case W_ENDSEGMENT:
         if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
@@ -1019,15 +1018,15 @@ static const char *check_waitfor(void) {
         return ".endfunction";
     case W_ENDFOR3:
         pop_context();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDFOR: return ".endfor";
     case W_ENDREPT3:
         pop_context();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDREPT: return ".endrept";
     case W_ENDWHILE3:
         pop_context();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDWHILE: return ".endwhile";
     case W_PEND:
         pop_context();
@@ -1035,7 +1034,7 @@ static const char *check_waitfor(void) {
         return ".endproc";
     case W_BEND2:
         if (waitfor->u.cmd_block.label != NULL) {set_size(waitfor->u.cmd_block.label, current_address->address - waitfor->u.cmd_block.addr, current_address->mem, waitfor->u.cmd_block.addr, waitfor->u.cmd_block.membp);val_destroy(Obj(waitfor->u.cmd_block.label));}
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_BEND:
         pop_context();
         return ".endblock";
@@ -1045,30 +1044,30 @@ static const char *check_waitfor(void) {
         return ".endnamespace";
     case W_ENDWITH2:
         pop_context2();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDWITH:
         if (waitfor->u.cmd_with.label != NULL) {set_size(waitfor->u.cmd_with.label, current_address->address - waitfor->u.cmd_with.addr, current_address->mem, waitfor->u.cmd_with.addr, waitfor->u.cmd_with.membp);val_destroy(Obj(waitfor->u.cmd_with.label));}
         return ".endwith";
     case W_ENDC: return ".endcomment";
     case W_ENDS:
         if ((waitfor->skip & 1) != 0) current_address->unionmode = waitfor->u.cmd_struct.unionmode;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDS2: return ".endstruct";
     case W_SEND2:
         section_close(NULL);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_SEND: return ".endsection";
     case W_ENDU:
         if ((waitfor->skip & 1) != 0) union_close(&lpoint);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDU2: return ".endunion";
     case W_HERE2:
         logical_close(NULL);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_HERE: return ".endlogical";
     case W_ENDV2:
         virtual_close(NULL);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case W_ENDV: return ".endvirtual";
     case W_ENDU3:
     case W_ENDS3:
@@ -1154,7 +1153,7 @@ static bool virtual_start(linepos_t epoint) {
     if (diagnostics.optimize) cpu_opt_invalidate();
     listing_line(listing, epoint->pos);
     new_waitfor(W_ENDV2, epoint); waitfor->u.cmd_virtual.section_address = current_address; waitfor->u.cmd_virtual.label = NULL;
-    section_address = (struct section_address_s *)mallocx(sizeof *section_address);
+    new_instance(&section_address);
     section_address->wrapwarn = section_address->moved = false;
     section_address->bankwarn = false;
 
@@ -1255,7 +1254,7 @@ static Oper_types oper_from_token(int wht) {
         if (arguments.caseinsensitive == 0) {
             return O_NONE;
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 'x': return O_X;
     case '*': return O_MUL;
     case '+': return O_ADD;
@@ -1471,12 +1470,13 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 labels.len = lenof(labels.val);
                 labels.data = labels.val;
             } else if (labels.p >= labels.len) {
-                labels.len += 16;
-                if (/*labels.len < 16 ||*/ labels.len > SIZE_MAX / sizeof *labels.data) err_msg_out_of_memory(); /* overflow */
+                if (inc_overflow(&labels.len, 16)) err_msg_out_of_memory();
                 if (labels.data == labels.val) {
-                    labels.data = (Label **)mallocx(labels.len * sizeof *labels.data);
+                    new_array(&labels.data, labels.len);
                     memcpy(labels.data, labels.val, sizeof labels.val);
-                } else labels.data = (Label **)reallocx(labels.data, labels.len * sizeof *labels.data);
+                } else {
+                    resize_array(&labels.data, labels.len);
+                }
             }
             labels.data[labels.p++] = label;
         }
@@ -1578,7 +1578,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         expr2 = (uint8_t *)oldpline2;
         if (not_in_file(pline, current_file_list->file)) {
             size_t lentmp = strlen((const char *)pline) + 1;
-            expr = (uint8_t *)mallocx(lentmp);
+            new_array(&expr, lentmp);
             memcpy(expr, pline, lentmp);
             pline = expr;
         } else expr = (uint8_t *)oldpline;
@@ -1599,7 +1599,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 oldpline2 = pline;
                 if (pline != expr && not_in_file(pline, current_file_list->file)) {
                     size_t lentmp = strlen((const char *)pline) + 1;
-                    expr2 = (uint8_t *)mallocx(lentmp);
+                    new_array(&expr2, lentmp);
                     memcpy(expr2, pline, lentmp);
                     pline = expr2;
                 } else expr2 = (uint8_t *)oldpline2;
@@ -1818,7 +1818,7 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     oldpline = pline;
     if (not_in_file(pline, current_file_list->file)) {
         size_t lentmp = strlen((const char *)pline) + 1;
-        expr = (uint8_t *)mallocx(lentmp);
+        new_array(&expr, lentmp);
         memcpy(expr, pline, lentmp);
         pline = expr;
     } else expr = (uint8_t *)oldpline;
@@ -2488,7 +2488,7 @@ MUST_CHECK Obj *compile(void)
                             mfunc->ipoint = 0;
                             if (prm == CMD_SFUNCTION && not_in_file(pline, current_file_list->file)) {
                                 size_t ln = strlen((const char *)pline) + 1;
-                                uint8_t *l = (uint8_t *)malloc(ln);
+                                uint8_t *l = allocate_array(uint8_t, ln);
                                 if (l != NULL) memcpy(l, pline, ln);
                                 mfunc->line = l;
                             } else mfunc->line = NULL;
@@ -3116,7 +3116,7 @@ MUST_CHECK Obj *compile(void)
                     goto breakerr;
                 }
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case '+':
         case '-':
         case '/':
@@ -3129,7 +3129,7 @@ MUST_CHECK Obj *compile(void)
                     goto breakerr;
                 }
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         case '=':
             if ((waitfor->skip & 1) != 0) {if (labelname.len == 0) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
             break;
@@ -3436,7 +3436,8 @@ MUST_CHECK Obj *compile(void)
                         lpoint.pos += (linecpos_t)sectionname.len;
                         str_cfcpy(&cf, &sectionname);
                         if (str_cmp(&cf, &current_section->cfname) != 0) {
-                            char *s = (char *)mallocx(current_section->name.len + 1);
+                            char *s;
+                            new_array(&s, current_section->name.len + 1);
                             memcpy(s, current_section->name.data, current_section->name.len);
                             s[current_section->name.len] = '\0';
                             err_msg2(ERROR______EXPECTED, s, &epoint);
@@ -4077,8 +4078,7 @@ MUST_CHECK Obj *compile(void)
                             val = val_reference(null_str);
                         } else {
                             Str *str = Str(val);
-                            len2 += str->len;
-                            if (len2 < str->len) err_msg_out_of_memory(); /* overflow */
+                            if (inc_overflow(&len2, str->len)) err_msg_out_of_memory();
                             chars += str->chars;
                         }
                         vals[i] = val;
@@ -4117,13 +4117,14 @@ MUST_CHECK Obj *compile(void)
                         if (tostr(vs, &encname)) break;
                         if (encname.len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); break;}
                     }
-                    actual_encoding = new_encoding(&encname, &epoint);
+                    val_destroy(Obj(actual_encoding));
+                    actual_encoding = ref_enc(new_encoding(&encname, &epoint));
                 }
                 break;
             case CMD_CDEF: if ((waitfor->skip & 1) != 0)
                 { /* .cdef */
                     struct character_range_s tmp;
-                    struct encoding_s *old = actual_encoding;
+                    Enc *old = actual_encoding;
                     bool rc;
                     argcount_t len;
                     listing_line(listing, epoint.pos);
@@ -4149,7 +4150,7 @@ MUST_CHECK Obj *compile(void)
                             Str *str = Str(val);
                             if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                             else {
-                                uchar_t ch = str->data[0];
+                                unichar_t ch = str->data[0];
                                 if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                 tmp.start = ch;
                                 if (str->len > i) {
@@ -4173,7 +4174,7 @@ MUST_CHECK Obj *compile(void)
                                 Str *str = Str(val);
                                 if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
                                 else {
-                                    uchar_t ch = str->data[0];
+                                    unichar_t ch = str->data[0];
                                     if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
                                     tmp.end = ch & 0xffffff;
                                     if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
@@ -4189,11 +4190,11 @@ MUST_CHECK Obj *compile(void)
                         else if (tryit) {
                             tmp.offset = uval & 0xff;
                             if (tmp.start > tmp.end) {
-                                uchar_t tmpe = tmp.start;
+                                unichar_t tmpe = tmp.start;
                                 tmp.start = tmp.end;
                                 tmp.end = tmpe & 0xffffff;
                             }
-                            if (new_trans(actual_encoding, &tmp, &epoint)) {
+                            if (enc_trans_add(actual_encoding, &tmp, &epoint)) {
                                 err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
                             }
                         }
@@ -4202,7 +4203,7 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_EDEF: if ((waitfor->skip & 1) != 0)
                 { /* .edef */
-                    struct encoding_s *old = actual_encoding;
+                    Enc *old = actual_encoding;
                     bool rc;
                     argcount_t len;
                     listing_line(listing, epoint.pos);
@@ -4228,7 +4229,7 @@ MUST_CHECK Obj *compile(void)
                         if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr; }
                         val = vs2->val;
                         if (val == none_value) err_msg_still_none(NULL, &vs2->epoint);
-                        else if (tryit && new_escape(actual_encoding, &escape, val, &vs2->epoint)) {
+                        else if (tryit && enc_escape_add(actual_encoding, &escape, val, &vs2->epoint)) {
                             err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); goto breakerr;
                         }
                     }
@@ -4902,7 +4903,9 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
     if (diagnostics.optimize) cpu_opt_invalidate();
     for (i = opts - 1; i < argc; i++) {
         set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
-        star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;actual_encoding = new_encoding(&none_enc, &nopoint);
+        star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;
+        val_destroy(Obj(actual_encoding));
+        actual_encoding = ref_enc(new_encoding(&none_enc, &nopoint));
         allowslowbranch = true; longbranchasjmp = false; temporary_label_branch = 0;
         reset_waitfor();lpoint.line = vline = 0;outputeor = 0; pline = (const uint8_t *)"";
         reset_context();

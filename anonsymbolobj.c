@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: anonsymbolobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 
 #include "typeobj.h"
 #include "strobj.h"
-#include "errorobj.h"
 
 static Type obj;
 
@@ -56,7 +55,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     if (v == NULL) return NULL;
     v->chars = len;
     v->data[0] = '.';
-    memset(v->data + 1, v1->count >= 0 ? '+' : '-', len - 1);
+    memset(v->data + 1, (v1->count >= 0) ? '+' : '-', len - 1);
     return Obj(v);
 }
 
@@ -68,7 +67,7 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     v = new_str2(len);
     if (v == NULL) return NULL;
     v->chars = len;
-    memset(v->data, v1->count >= 0 ? '+' : '-', len);
+    memset(v->data, (v1->count >= 0) ? '+' : '-', len);
     return Obj(v);
 }
 
@@ -102,11 +101,11 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void anonsymbolobj_init(void) {
-    new_type(&obj, T_ANONSYMBOL, "anonsymbol", sizeof(Anonsymbol));
-    obj.same = same;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_ANONSYMBOL, "anonsymbol", sizeof(Anonsymbol));
+    type->same = same;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }

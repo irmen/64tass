@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2609 2021-04-25 10:52:48Z soci $
+    $Id: intobj.c 2677 2021-05-20 21:17:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include <string.h>
 #include "math.h"
 #include "unicode.h"
-#include "encoding.h"
 #include "error.h"
 #include "eval.h"
 #include "variables.h"
@@ -37,6 +36,7 @@
 #include "errorobj.h"
 #include "addressobj.h"
 #include "functionobj.h"
+#include "encobj.h"
 
 #define SHIFT (8 * (unsigned int)sizeof(digit_t))
 #define MASK (~(digit_t)0)
@@ -89,7 +89,7 @@ static FAST_CALL NO_INLINE void int_destroy(Int *v1) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Int *v1 = Int(o1);
-    if (v1->val != v1->data) int_destroy(v1);
+    if unlikely(v1->val != v1->data) int_destroy(v1);
 }
 
 static inline MALLOC Int *new_int(void) {
@@ -97,15 +97,15 @@ static inline MALLOC Int *new_int(void) {
 }
 
 static digit_t *inew(Int *v, size_t len) {
+    digit_t *d;
     if (len <= lenof(v->val))  return v->val;
-    if (len > SIZE_MAX / sizeof *v->data) err_msg_out_of_memory(); /* overflow */
-    return (digit_t *)mallocx(len * sizeof *v->data);
+    new_array(&d, len);
+    return d;
 }
 
 static digit_t *inew2(Int *v, size_t len) {
     if (len <= lenof(v->val))  return v->val;
-    if (len > SIZE_MAX / sizeof *v->data) return NULL; /* overflow */
-    return (digit_t *)malloc(len * sizeof *v->data);
+    return allocate_array(digit_t, len);
 }
 
 static MUST_CHECK Obj *negate(Int *v1, linepos_t epoint) {
@@ -280,8 +280,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         slen++;
     }
     len2 = sz * DSHIFT;
-    slen += len2;
-    if (slen < len2 || sz > SIZE_MAX / DSHIFT) goto error; /* overflow */
+    if (inc_overflow(&slen, len2) || sz > SIZE_MAX / DSHIFT) goto error; /* overflow */
     if (slen > maxsize) {
     error:
         if (tmp.val != out) free(out);
@@ -549,8 +548,7 @@ static void imul(const Int *vv1, const Int *vv2, Int *vv) {
     Int tmp;
     len1 = intlen(vv1);
     len2 = intlen(vv2);
-    sz = len1 + len2;
-    if (sz < len2) err_msg_out_of_memory(); /* overflow */
+    if (add_overflow(len1, len2, &sz)) err_msg_out_of_memory();
     if (sz <= 2) {
         twodigits_t c = (twodigits_t)vv1->val[0] * vv2->val[0];
         v = vv->val;
@@ -787,8 +785,7 @@ static MUST_CHECK Obj *lshift(oper_t op, uval_t s) {
     bit = s % SHIFT;
     if (bit != 0) sz++;
     len1 = intlen(vv1);
-    sz += len1;
-    if (sz < len1) goto failed; /* overflow */
+    if (inc_overflow(&sz, len1)) goto failed;
     if (op->inplace == Obj(vv1) && sz <= lenof(vv->val)) {
         vv = ref_int(vv1);
         v = vv->data;
@@ -831,7 +828,7 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
             digit_t d = vv1->val[0] >> s;
             return op->inplace == Obj(vv1) ? return_int_inplace(vv1, d, false) : return_int(d, false);
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 0: 
         return val_reference(int_value[0]);
     default: break;
@@ -1430,7 +1427,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
 
     if (actual_encoding == NULL) {
         if (v1->chars == 1) {
-            uchar_t ch2 = v1->data[0];
+            unichar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return int_from_uval(ch2);
         }
@@ -1449,21 +1446,20 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     if (d == NULL) goto failed2;
 
     uv = 0; bits = 0; j = 0;
-    encoder = encode_string_init(v1, epoint);
-    while ((ch = encode_string(encoder)) != EOF) {
+    encoder = enc_string_init(actual_encoding, v1, epoint);
+    while ((ch = enc_string(encoder)) != EOF) {
         uv |= (digit_t)(ch & 0xff) << bits;
         if (bits == SHIFT - 8) {
             if (j >= sz) {
                 if (v->val == d) {
                     sz = 16 / sizeof *d;
-                    d = (digit_t *)malloc(sz * sizeof *d);
+                    d = allocate_array(digit_t, 16 / sizeof *d);
                     if (d == NULL) goto failed2;
                     v->data = d;
                     memcpy(d, v->val, j * sizeof *d);
                 } else {
-                    sz += 1024 / sizeof *d;
-                    if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
-                    d = (digit_t *)realloc(d, sz * sizeof *d);
+                    if (inc_overflow(&sz, 1024 / sizeof *d)) goto failed2;
+                    d = reallocate_array(d, sz);
                     if (d == NULL) goto failed2;
                     v->data = d;
                 }
@@ -1476,13 +1472,12 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
         if (j >= sz) {
             sz++;
             if (v->val == d) {
-                d = (digit_t *)malloc(sz * sizeof *d);
+                d = allocate_array(digit_t, sz);
                 if (d == NULL) goto failed2;
                 v->data = d;
                 memcpy(d, v->val, j * sizeof *d);
             } else {
-                if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
-                d = (digit_t *)realloc(d, sz * sizeof *d);
+                d = reallocate_array(d, sz);
                 if (d == NULL) goto failed2;
                 v->data = d;
             }
@@ -1497,7 +1492,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     if (v->val != d) {
         if (osz <= lenof(v->val)) return normalize2(v, osz);
         if (osz < sz) {
-            digit_t *d2 = (digit_t *)realloc(d, osz * sizeof *d);
+            digit_t *d2 = reallocate_array(d, osz);
             v->data = (d2 != NULL) ? d2 : d;
         }
     }
@@ -1553,20 +1548,13 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, linecpos_t *ln, linecpos_t *ln
     end2 = d;
     while (s < end) {
         digit_t *d2, mul;
-        int j;
         val = 0;
-        for (j = 0; j < 9 && s < end; s++) {
+        for (mul = 1; mul < 1000000000 && s < end; s++) {
             uint8_t c = *s ^ 0x30;
             if (c < 10) {
                 val = val * 10 + c;
-                j++;
-                continue;
+                mul *= 10;
             }
-        }
-        if (j == 9) mul = 1000000000;
-        else {
-            mul = 10;
-            while ((--j) != 0) mul *= 10;
         }
         d2 = d;
         while (d2 < end2) {
@@ -1579,13 +1567,12 @@ MUST_CHECK Obj *int_from_decstr(const uint8_t *s, linecpos_t *ln, linecpos_t *ln
                 sz++;
                 if (sz > lenof(v->val)) {
                     if (d == v->val) {
-                        d = (digit_t *)malloc(sz * sizeof *d);
+                        d = allocate_array(digit_t, sz);
                         if (d == NULL) goto failed2;
                         v->data = d;
                         memcpy(d, v->val, sizeof v->val);
                     } else {
-                        if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
-                        d = (digit_t *)realloc(d, sz * sizeof *d);
+                        d = reallocate_array(d, sz);
                         if (d == NULL) goto failed2;
                         v->data = d;
                     }
@@ -1726,7 +1713,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        tmp = int_value[v2 == true_value ? 1 : 0];
+        tmp = int_value[Bool(v2)->value ? 1 : 0];
         op->v2 = tmp;
         ret = calc2_int(op);
         if (ret->obj == ERROR_OBJ) error_obj_update(Error(ret), tmp, v2);
@@ -1761,8 +1748,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         switch (op->op) {
         case O_LSHIFT:
-        case O_RSHIFT: tmp = bits_value[v1 == true_value ? 1 : 0]; break;
-        default: tmp = int_value[v1 == true_value ? 1 : 0]; break;
+        case O_RSHIFT: tmp = bits_value[Bool(v1)->value ? 1 : 0]; break;
+        default: tmp = int_value[Bool(v1)->value ? 1 : 0]; break;
         }
         op->v1 = tmp;
         op->inplace = NULL;
@@ -1772,23 +1759,23 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void intobj_init(void) {
-    new_type(&obj, T_INT, "int", sizeof(Int));
-    obj.convert = convert;
-    obj.destroy = destroy;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval;
-    obj.iaddress = ival;
-    obj.uaddress = uval;
-    obj.sign = sign;
-    obj.function = function;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
+    Type *type = new_type(&obj, T_INT, "int", sizeof(Int));
+    type->convert = convert;
+    type->destroy = destroy;
+    type->same = same;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = function;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
 }
 
 void intobj_names(void) {

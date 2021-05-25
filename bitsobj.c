@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2604 2021-04-25 10:47:25Z soci $
+    $Id: bitsobj.c 2676 2021-05-20 21:16:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "eval.h"
 #include "variables.h"
 #include "unicode.h"
-#include "encoding.h"
 #include "error.h"
 #include "arguments.h"
 
@@ -37,6 +36,7 @@
 #include "noneobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
+#include "encobj.h"
 
 #define SHIFT (8 * (unsigned int)sizeof(bdigit_t))
 
@@ -68,7 +68,7 @@ MUST_CHECK Obj *bits_from_obj(Obj *v1, linepos_t epoint) {
     case T_NONE:
     case T_ERROR:
     case T_BITS: return val_reference(v1);
-    case T_BOOL: return val_reference(bits_value[v1 == true_value ? 1 : 0]);
+    case T_BOOL: return val_reference(bits_value[Bool(v1)->value ? 1 : 0]);
     case T_STR: return bits_from_str(Str(v1), epoint);
     case T_BYTES: return bits_from_bytes(Bytes(v1), epoint);
     case T_INT: return bits_from_int(Int(v1), epoint);
@@ -100,14 +100,14 @@ static FAST_CALL NO_INLINE void bits_destroy(Bits *v1) {
 
 static FAST_CALL void destroy(Obj *o1) {
     Bits *v1 = Bits(o1);
-    if (v1->u.val != v1->data) bits_destroy(v1);
+    if unlikely(v1->u.val != v1->data) bits_destroy(v1);
 }
 
 static MALLOC Bits *new_bits2(size_t len) {
     Bits *v = Bits(val_alloc(BITS_OBJ));
     if (len > lenof(v->u.val)) {
         v->u.hash = -1;
-        v->data = (len <= SIZE_MAX / sizeof *v->data) ? (bdigit_t *)malloc(len * sizeof *v->data) : NULL;
+        v->data = allocate_array(bdigit_t, len);
         if (v->data == NULL) {
             val_destroy(Obj(v));
             v = NULL;
@@ -294,7 +294,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     }
 }
 
-static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
+static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t UNUSED(epoint)) {
     const Bits *v1 = Bits(o1);
     size_t i, sz, sz2;
     bdigit_t b, inv;
@@ -314,11 +314,10 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t epoint) {
         return truth_reference(b == 0);
     case TRUTH_ANY:
         if (v1->bits == 0) return ref_false();
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     default:
         return truth_reference(v1->len != 0);
     }
-    return DEFAULT_OBJ->truth(o1, type, epoint);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
@@ -333,8 +332,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     inv = (v1->len < 0);
     len = inv ? 2 : 1;
     if ((len2 & 3) != 0) {
-        len += len2;
-        if (len < len2) return NULL; /* overflow */
+        if (inc_overflow(&len, len2)) return NULL;
         if (len > maxsize) return NULL;
         v = new_str2(len);
         if (v == NULL) return NULL;
@@ -350,8 +348,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
         return Obj(v);
     }
     len2 /= 4;
-    len += len2;
-    if (len < len2) return NULL; /* overflow */
+    if (inc_overflow(&len, len2)) return NULL;
     if (len > maxsize) return NULL;
     v = new_str2(len);
     if (v == NULL) return NULL;
@@ -616,7 +613,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
 
     if (actual_encoding == NULL) {
         if (v1->chars == 1) {
-            uchar_t ch2 = v1->data[0];
+            unichar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return return_bits(ch2 & 0xffffff, 24);
         }
@@ -637,22 +634,21 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     d = v->data;
 
     uv = 0; bits = 0; j = 0;
-    encoder = encode_string_init(v1, epoint);
-    while ((ch = encode_string(encoder)) != EOF) {
+    encoder = enc_string_init(actual_encoding, v1, epoint);
+    while ((ch = enc_string(encoder)) != EOF) {
         uv |= (bdigit_t)(ch & 0xff) << bits;
         if (bits == SHIFT - 8) {
             if (j >= sz) {
                 if (v->u.val == d) {
                     sz = 16 / sizeof *d;
-                    d = (bdigit_t *)malloc(sz * sizeof *d);
+                    d = allocate_array(bdigit_t, 16 / sizeof *d);
                     if (d == NULL) goto failed2;
                     v->data = d;
                     memcpy(d, v->u.val, j * sizeof *d);
                     v->u.hash = -1;
                 } else {
-                    sz += 1024 / sizeof *d;
-                    if (/*sz < 1024 / sizeof *d ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
-                    d = (bdigit_t *)realloc(d, sz * sizeof *d);
+                    if (inc_overflow(&sz, 1024 / sizeof *d)) goto failed2;
+                    d = reallocate_array(d, sz);
                     if (d == NULL) goto failed2;
                     v->data = d;
                 }
@@ -665,14 +661,13 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         if (j >= sz) {
             sz++;
             if (v->u.val == d) {
-                d = (bdigit_t *)malloc(sz * sizeof *d);
+                d = allocate_array(bdigit_t, sz);
                 if (d == NULL) goto failed2;
                 v->data = d;
                 memcpy(d, v->u.val, j * sizeof *d);
                 v->u.hash = -1;
             } else {
-                if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof *d) goto failed2; /* overflow */
-                d = (bdigit_t *)realloc(d, sz * sizeof *d);
+                d = reallocate_array(d, sz);
                 if (d == NULL) goto failed2;
                 v->data = d;
             }
@@ -692,7 +687,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
             free(d);
             v->data = v->u.val;
         } else if (osz < sz) {
-            bdigit_t *d2 = (bdigit_t *)realloc(d, osz * sizeof *d);
+            bdigit_t *d2 = reallocate_array(d, osz);
             v->data = (d2 != NULL) ? d2 : d;
         }
     }
@@ -779,12 +774,12 @@ static MUST_CHECK Obj *bits_from_int(const Int *v1, linepos_t epoint) {
 
 MUST_CHECK Obj *bits_calc1(Oper_types op, unsigned int val) {
     switch (op) {
-    case O_BANK: val >>= 8; /* fall through */
-    case O_HIGHER: val >>= 8; /* fall through */
+    case O_BANK: val >>= 8; FALL_THROUGH; /* fall through */
+    case O_HIGHER: val >>= 8; FALL_THROUGH; /* fall through */
     case O_LOWER: 
     default: return return_bits((uint8_t)val, 8);
-    case O_BSWORD: val = (uint16_t)val | (val << 16); /* fall through */
-    case O_HWORD: val >>= 8; /* fall through */
+    case O_BSWORD: val = (uint16_t)val | (val << 16); FALL_THROUGH; /* fall through */
+    case O_HWORD: val >>= 8; FALL_THROUGH; /* fall through */
     case O_WORD: return return_bits((uint16_t)val, 16);
     }
 }
@@ -834,7 +829,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_NEG:
         v = negate(v1, op->epoint3);
         if (v != NULL) return v;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case O_STRING:
         tmp = int_from_bits(v1, op->epoint);
         op->v1 = tmp;
@@ -963,8 +958,7 @@ static inline MUST_CHECK Obj *concat(oper_t op) {
     if (vv2->bits == 0) {
         return Obj(ref_bits(vv1));
     }
-    blen = vv1->bits + vv2->bits;
-    if (blen < vv2->bits) goto failed; /* overflow */
+    if (add_overflow(vv1->bits, vv2->bits, &blen)) goto failed;
     sz = blen / SHIFT;
     if ((blen % SHIFT) != 0) sz++;
     i = vv2->bits / SHIFT + bitslen(vv1);
@@ -1013,11 +1007,9 @@ static MUST_CHECK Obj *lshift(oper_t op, uval_t s) {
     sz = word = s / SHIFT;
     bit = s % SHIFT;
     if (bit != 0) sz++;
-    bits = vv1->bits + s;
-    if (bits < s) goto failed; /* overflow */
+    if (add_overflow(vv1->bits, s, &bits)) goto failed;
     len1 = bitslen(vv1);
-    sz += len1;
-    if (sz < len1) goto failed; /* overflow */
+    if (inc_overflow(&sz, len1)) goto failed;
     if (op->inplace == Obj(vv1) && sz <= lenof(vv->u.val)) {
         vv = ref_bits(vv1);
     } else {
@@ -1347,7 +1339,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     switch (o2->obj->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        op->v2 = tmp = val_reference(bits_value[o2 == true_value ? 1 : 0]);
+        op->v2 = tmp = val_reference(bits_value[Bool(o2)->value ? 1 : 0]);
         if (op->inplace != NULL && op->inplace->refcount != 1) op->inplace = NULL;
         result = calc2(op);
         val_destroy(tmp);
@@ -1355,7 +1347,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BITS:
         result = calc2_bits(op);
         if (result != NULL) return result;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
         switch (op->op) {
         case O_LSHIFT:
@@ -1394,7 +1386,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     switch (o1->obj->type) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        op->v1 = tmp = val_reference(bits_value[o1 == true_value ? 1 : 0]);
+        op->v1 = tmp = val_reference(bits_value[Bool(o1)->value ? 1 : 0]);
         op->inplace = NULL;
         result = calc2(op);
         val_destroy(tmp);
@@ -1402,7 +1394,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BITS:
         result = calc2_bits(op);
         if (result != NULL) return result;
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_INT:
         tmp = int_from_bits(v2, op->epoint2);
         op->v2 = tmp;
@@ -1417,26 +1409,26 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void bitsobj_init(void) {
-    new_type(&obj, T_BITS, "bits", sizeof(Bits));
-    obj.convert = convert;
-    obj.convert2 = convert2;
-    obj.destroy = destroy;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.uval2 = uval2;
-    obj.iaddress = ival;
-    obj.uaddress = uval;
-    obj.sign = sign;
-    obj.function = function;
-    obj.len = len;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_BITS, "bits", sizeof(Bits));
+    type->convert = convert;
+    type->convert2 = convert2;
+    type->destroy = destroy;
+    type->same = same;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval2;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = function;
+    type->len = len;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void bitsobj_names(void) {

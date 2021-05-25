@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2625 2021-04-25 21:09:11Z soci $
+    $Id: functionobj.c 2680 2021-05-23 20:03:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -71,8 +71,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     Str *v;
     if (epoint == NULL) return NULL;
     name_len = v1->name_len;
-    len = name_len + 20;
-    if (len < 20) return NULL; /* overflow */
+    if (add_overflow(name_len, 20, &len)) return NULL;
     if (len > maxsize) return NULL;
     v = new_str2(len);
     if (v == NULL) return NULL;
@@ -122,8 +121,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
                 if (args <= lenof(elements3)) {
                     elements = elements3; 
                 } else {
-                    if (args > ARGCOUNT_MAX / sizeof *elements) goto failed; /* overflow */
-                    elements = (struct elements_s *)malloc(args * sizeof *elements);
+                    elements = allocate_array(struct elements_s, args);
                     if (elements == NULL) goto failed;
                 }
                 k = j;
@@ -199,7 +197,7 @@ static MUST_CHECK Obj *function_range(oper_t op) {
     case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
         if (err != NULL) return Obj(err);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
         if (err != NULL) return Obj(err);
@@ -254,10 +252,10 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         state[1] = (((uint64_t)0xc03bbc75) << 32) | (uint64_t)0x3f671f6f;
 
         switch (v1->len) {
-        case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof *v1->data)); /* fall through */
-        case 3: state[1] ^= v1->data[2]; /* fall through */
-        case 2: state[0] ^= ((uint64_t)v1->data[1] << (8 * sizeof *v1->data)); /* fall through */
-        case 1: state[0] ^= v1->data[0]; /* fall through */
+        case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof *v1->data)); FALL_THROUGH; /* fall through */
+        case 3: state[1] ^= v1->data[2]; FALL_THROUGH; /* fall through */
+        case 2: state[0] ^= ((uint64_t)v1->data[1] << (8 * sizeof *v1->data)); FALL_THROUGH; /* fall through */
+        case 1: state[0] ^= v1->data[0]; FALL_THROUGH; /* fall through */
         case 0: break;
         default:
             err = new_error(v1->len < 0 ? ERROR______NOT_UVAL : ERROR_____CANT_UVAL, epoint);
@@ -286,7 +284,7 @@ static MUST_CHECK Obj *function_random(oper_t op) {
     case 3:
         err = v[2].val->obj->ival(v[2].val, &step, 8 * sizeof step, &v[2].epoint);
         if (err != NULL) return Obj(err);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 2:
         err = v[0].val->obj->ival(v[0].val, &start, 8 * sizeof start, &v[0].epoint);
         if (err != NULL) return Obj(err);
@@ -394,8 +392,7 @@ static MUST_CHECK Obj *function_sort(Obj *o1, linepos_t epoint) {
             size_t i;
             Obj **vals;
             size_t *sort_index;
-            if (ln > SIZE_MAX / sizeof *sort_index) goto failed; /* overflow */
-            sort_index = (size_t *)malloc(ln * sizeof *sort_index);
+            sort_index = allocate_array(size_t, ln);
             if (sort_index == NULL) goto failed;
             for (i = 0; i < ln; i++) sort_index[i] = i;
             sort_val = o1;
@@ -444,11 +441,11 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
     case 3:
         err = v[2].val->obj->uval(v[2].val, &length, 8 * sizeof length, &v[2].epoint);
         if (err != NULL) return Obj(err);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case 2:
         err = v[1].val->obj->ival(v[1].val, &offs, 8 * sizeof offs, &v[1].epoint);
         if (err != NULL) return Obj(err);
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     default:
         break;
     }
@@ -740,11 +737,11 @@ static MUST_CHECK Obj *function_condition(oper_t op) {
     bool cond;
 
     if (v->val->obj == BOOL_OBJ) {
-        cond = (v->val == true_value);
+        cond = Bool(v->val)->value;
     } else {
         Obj *val = v->val->obj->truth(v->val, TRUTH_BOOL, &v->epoint);
         if (val->obj != BOOL_OBJ) return val;
-        cond = (val == true_value);
+        cond = Bool(val)->value;
         if (diagnostics.strict_bool) err_msg_bool(ERROR_____CANT_BOOL, v->val, &v->epoint);
         val_destroy(val);
     } 
@@ -865,61 +862,61 @@ MUST_CHECK Obj *apply_condition(oper_t op) {
 }
 
 void functionobj_init(void) {
-    new_type(&obj, T_FUNCTION, "function", sizeof(Function));
-    obj.hash = hash;
-    obj.same = same;
-    obj.repr = repr;
-    obj.str = str;
-    obj.calc2 = calc2;
+    Type *type = new_type(&obj, T_FUNCTION, "function", sizeof(Function));
+    type->hash = hash;
+    type->same = same;
+    type->repr = repr;
+    type->str = str;
+    type->calc2 = calc2;
 }
 
 static Function builtin_functions[] = { /* maximum name length of 6 chars */
-    { {NULL, 2}, {'a', 'b', 's'}, 3, -1, F_ABS},
-    { {NULL, 2}, {'a', 'c', 'o', 's'}, 4, -1, F_ACOS},
-    { {NULL, 2}, {'a', 'd', 'd', 'r'}, 4, -1, F_ADDR},
-    { {NULL, 2}, {'a', 'l', 'l'}, 3, -1, F_ALL},
-    { {NULL, 2}, {'a', 'n', 'y'}, 3, -1, F_ANY},
-    { {NULL, 2}, {'a', 's', 'i', 'n'}, 4, -1, F_ASIN},
-    { {NULL, 2}, {'a', 't', 'a', 'n'}, 4, -1, F_ATAN},
-    { {NULL, 2}, {'a', 't', 'a', 'n', '2'}, 5, -1, F_ATAN2},
-    { {NULL, 2}, {'b', 'i', 'n', 'a', 'r', 'y'}, 6, -1, F_BINARY},
-    { {NULL, 2}, {'b', 'y', 't', 'e'}, 4, -1, F_BYTE},
-    { {NULL, 2}, {'c', 'b', 'r', 't'}, 4, -1, F_CBRT},
-    { {NULL, 2}, {'c', 'e', 'i', 'l'}, 4, -1, F_CEIL},
-    { {NULL, 2}, {'c', 'h', 'a', 'r'}, 4, -1, F_CHAR},
-    { {NULL, 2}, {'c', 'o', 's'}, 3, -1, F_COS},
-    { {NULL, 2}, {'c', 'o', 's', 'h'}, 4, -1, F_COSH},
-    { {NULL, 2}, {'d', 'e', 'g'}, 3, -1, F_DEG},
-    { {NULL, 2}, {'d', 'i', 'n', 't'}, 4, -1, F_DINT},
-    { {NULL, 2}, {'d', 'w', 'o', 'r', 'd'}, 5, -1, F_DWORD},
-    { {NULL, 2}, {'e', 'x', 'p'}, 3, -1, F_EXP},
-    { {NULL, 2}, {'f', 'l', 'o', 'o', 'r'}, 5, -1, F_FLOOR},
-    { {NULL, 2}, {'f', 'o', 'r', 'm', 'a', 't'}, 6, -1, F_FORMAT},
-    { {NULL, 2}, {'f', 'r', 'a', 'c'}, 4, -1, F_FRAC},
-    { {NULL, 2}, {'h', 'y', 'p', 'o', 't'}, 5, -1, F_HYPOT},
-    { {NULL, 2}, {'l', 'e', 'n'}, 3, -1, F_LEN},
-    { {NULL, 2}, {'l', 'i', 'n', 't'}, 4, -1, F_LINT},
-    { {NULL, 2}, {'l', 'o', 'g'}, 3, -1, F_LOG},
-    { {NULL, 2}, {'l', 'o', 'g', '1', '0'}, 5, -1, F_LOG10},
-    { {NULL, 2}, {'l', 'o', 'n', 'g'}, 4, -1, F_LONG},
-    { {NULL, 2}, {'p', 'o', 'w'}, 3, -1, F_POW},
-    { {NULL, 2}, {'r', 'a', 'd'}, 3, -1, F_RAD},
-    { {NULL, 2}, {'r', 'a', 'n', 'd', 'o', 'm'}, 6, -1, F_RANDOM},
-    { {NULL, 2}, {'r', 'a', 'n', 'g', 'e'}, 5, -1, F_RANGE},
-    { {NULL, 2}, {'r', 'e', 'p', 'r'}, 4, -1, F_REPR},
-    { {NULL, 2}, {'r', 'o', 'u', 'n', 'd'}, 5, -1, F_ROUND},
-    { {NULL, 2}, {'r', 't', 'a'}, 3, -1, F_RTA},
-    { {NULL, 2}, {'s', 'i', 'g', 'n'}, 4, -1, F_SIGN},
-    { {NULL, 2}, {'s', 'i', 'n'}, 3, -1, F_SIN},
-    { {NULL, 2}, {'s', 'i', 'n', 'h'}, 4, -1, F_SINH},
-    { {NULL, 2}, {'s', 'i', 'n', 't'}, 4, -1, F_SINT},
-    { {NULL, 2}, {'s', 'i', 'z', 'e'}, 4, -1, F_SIZE},
-    { {NULL, 2}, {'s', 'o', 'r', 't'}, 4, -1, F_SORT},
-    { {NULL, 2}, {'s', 'q', 'r', 't'}, 4, -1, F_SQRT},
-    { {NULL, 2}, {'t', 'a', 'n'}, 3, -1, F_TAN},
-    { {NULL, 2}, {'t', 'a', 'n', 'h'}, 4, -1, F_TANH},
-    { {NULL, 2}, {'t', 'r', 'u', 'n', 'c'}, 5, -1, F_TRUNC},
-    { {NULL, 2}, {'w', 'o', 'r', 'd'}, 4, -1, F_WORD},
+    { {NULL, 2}, "abs", 3, -1, F_ABS},
+    { {NULL, 2}, "acos", 4, -1, F_ACOS},
+    { {NULL, 2}, "addr", 4, -1, F_ADDR},
+    { {NULL, 2}, "all", 3, -1, F_ALL},
+    { {NULL, 2}, "any", 3, -1, F_ANY},
+    { {NULL, 2}, "asin", 4, -1, F_ASIN},
+    { {NULL, 2}, "atan", 4, -1, F_ATAN},
+    { {NULL, 2}, "atan2", 5, -1, F_ATAN2},
+    { {NULL, 2}, "binary", 6, -1, F_BINARY},
+    { {NULL, 2}, "byte", 4, -1, F_BYTE},
+    { {NULL, 2}, "cbrt", 4, -1, F_CBRT},
+    { {NULL, 2}, "ceil", 4, -1, F_CEIL},
+    { {NULL, 2}, "char", 4, -1, F_CHAR},
+    { {NULL, 2}, "cos", 3, -1, F_COS},
+    { {NULL, 2}, "cosh", 4, -1, F_COSH},
+    { {NULL, 2}, "deg", 3, -1, F_DEG},
+    { {NULL, 2}, "dint", 4, -1, F_DINT},
+    { {NULL, 2}, "dword", 5, -1, F_DWORD},
+    { {NULL, 2}, "exp", 3, -1, F_EXP},
+    { {NULL, 2}, "floor", 5, -1, F_FLOOR},
+    { {NULL, 2}, "format", 6, -1, F_FORMAT},
+    { {NULL, 2}, "frac", 4, -1, F_FRAC},
+    { {NULL, 2}, "hypot", 5, -1, F_HYPOT},
+    { {NULL, 2}, "len", 3, -1, F_LEN},
+    { {NULL, 2}, "lint", 4, -1, F_LINT},
+    { {NULL, 2}, "log", 3, -1, F_LOG},
+    { {NULL, 2}, "log10", 5, -1, F_LOG10},
+    { {NULL, 2}, "long", 4, -1, F_LONG},
+    { {NULL, 2}, "pow", 3, -1, F_POW},
+    { {NULL, 2}, "rad", 3, -1, F_RAD},
+    { {NULL, 2}, "random", 6, -1, F_RANDOM},
+    { {NULL, 2}, "range", 5, -1, F_RANGE},
+    { {NULL, 2}, "repr", 4, -1, F_REPR},
+    { {NULL, 2}, "round", 5, -1, F_ROUND},
+    { {NULL, 2}, "rta", 3, -1, F_RTA},
+    { {NULL, 2}, "sign", 4, -1, F_SIGN},
+    { {NULL, 2}, "sin", 3, -1, F_SIN},
+    { {NULL, 2}, "sinh", 4, -1, F_SINH},
+    { {NULL, 2}, "sint", 4, -1, F_SINT},
+    { {NULL, 2}, "size", 4, -1, F_SIZE},
+    { {NULL, 2}, "sort", 4, -1, F_SORT},
+    { {NULL, 2}, "sqrt", 4, -1, F_SQRT},
+    { {NULL, 2}, "tan", 3, -1, F_TAN},
+    { {NULL, 2}, "tanh", 4, -1, F_TANH},
+    { {NULL, 2}, "trunc", 5, -1, F_TRUNC},
+    { {NULL, 2}, "word",  4, -1, F_WORD},
 };
 
 void functionobj_names(void) {
@@ -935,7 +932,7 @@ void functionobj_destroy(void) {
     unsigned int i;
     for (i = 0; i < lenof(builtin_functions); i++) {
         if (builtin_functions[i].v.refcount != 1) {
-            fprintf(stderr, "%s %" PRIuSIZE "\n", (const char *)builtin_functions[i].name.data, builtin_functions[i].v.refcount - 1);
+            fprintf(stderr, "%s %" PRIuSIZE "\n", builtin_functions[i].name, builtin_functions[i].v.refcount - 1);
         }
     }
 #endif

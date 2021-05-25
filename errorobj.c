@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2616 2021-04-25 11:08:26Z soci $
+    $Id: errorobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     v->epoint.pos = macro_error_translate2(epoint->pos);
     if (not_in_file(pline, current_file_list->file)) {
         size_t ln = strlen((const char *)pline) + 1;
-        uint8_t *l = (uint8_t *)malloc(ln);
+        uint8_t *l = allocate_array(uint8_t, ln);
         if (l != NULL) memcpy(l, pline, ln);
         v->line = l;
     } else v->line = NULL;
@@ -203,13 +203,13 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t UNUSED(indx)) {
 }
 
 void errorobj_init(void) {
-    new_type(&obj, T_ERROR, "error", sizeof(Error));
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_ERROR, "error", sizeof(Error));
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->calc1 = calc1;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void error_obj_update(Error *err, const Obj *v1, Obj *v2) {

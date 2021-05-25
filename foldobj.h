@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.h 2475 2021-03-07 01:34:55Z soci $
+    $Id: foldobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef struct Fold {
     struct Str *repr;
 } Fold;
 
-#define Fold(a) ((Fold *)(1 ? (a) : (Obj *)(Fold *)(a)))
+#define Fold(a) OBJ_CAST(Fold, a)
 
 extern Obj *const fold_value;
 

@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2620 2021-04-25 12:05:16Z soci $
+    $Id: error.c 2672 2021-05-15 22:41:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -157,9 +157,16 @@ static void close_error(void) {
     }
 }
 
+static NO_RETURN void err_msg_out_of_memory2(void)
+{
+    fatal_error("out of memory");
+    fatal_error(NULL);
+    exit(EXIT_FAILURE);
+}
+
 static void error_extend(void) {
     struct errorentry_s *err;
-    uint8_t *data = (uint8_t *)realloc(error_list.data, error_list.max);
+    uint8_t *data = reallocate_array(error_list.data, error_list.max);
     size_t diff, pos;
     bool dir;
     if (data == NULL) err_msg_out_of_memory2();
@@ -179,13 +186,10 @@ static void error_extend(void) {
 static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len, linecpos_t pos) {
     struct errorentry_s *err;
     close_error();
-    error_list.len = error_list.header_pos + sizeof *err;
-    if (error_list.len < sizeof *err) err_msg_out_of_memory2(); /* overflow */
-    error_list.len += line_len;
-    if (error_list.len < line_len) err_msg_out_of_memory2(); /* overflow */
+    if (add_overflow(error_list.header_pos, sizeof *err, &error_list.len)) err_msg_out_of_memory2();
+    if (inc_overflow(&error_list.len, line_len)) err_msg_out_of_memory2();
     if (error_list.len > error_list.max) {
-        error_list.max = error_list.len + 0x200;
-        if (error_list.max < 0x200) err_msg_out_of_memory2(); /* overflow */
+        if (add_overflow(error_list.len, 0x200, &error_list.max)) err_msg_out_of_memory2();
         error_extend();
     }
     err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
@@ -288,7 +292,7 @@ void enterfile(struct file_s *file, linepos_t epoint) {
         cflist = lastfl;
         if (file_listsp == 89) {
             struct file_lists_s *old = file_lists;
-            file_lists = (struct file_lists_s *)mallocx(sizeof *file_lists);
+            new_instance(&file_lists);
             file_lists->next = old;
             file_listsp = 0;
         } else file_listsp++;
@@ -388,7 +392,6 @@ static const char * const terr_error[] = {
     "not a bank 0 address ",
     "out of memory",
     "addressing mode too complex",
-    "empty encoding, add something or correct name",
     "closing directive '",
     "opening directive '",
     "must be used within a loop",
@@ -677,7 +680,7 @@ static bool err_msg_invalid_conv(const Error *err) {
     bool more;
     Obj *v1 = err->u.conv.val;
     if (v1->obj == ERROR_OBJ) {
-        err_msg_output((const Error *)v1);
+        err_msg_output(Error(v1));
         return false;
     }
     more = new_error_msg_err(err);
@@ -714,9 +717,7 @@ static void err_msg_not_defined3(const Error *err) {
 
     if (constcreated && pass < max_pass) return;
 
-    if (lastnd == NULL) {
-        lastnd = (struct notdefines_s *)mallocx(sizeof *lastnd);
-    }
+    if (lastnd == NULL) new_instance(&lastnd);
 
     if (err->u.notdef.symbol->obj == SYMBOL_OBJ) {
         const str_t *name = &Symbol(err->u.notdef.symbol)->name;
@@ -851,12 +852,12 @@ static void err_msg_invalid_oper3(const Error *err) {
     Obj *v1 = err->u.invoper.v1, *v2;
     bool more;
     if (v1->obj == ERROR_OBJ) {
-        err_msg_output((const Error *)v1);
+        err_msg_output(Error(v1));
         return;
     }
     v2 = err->u.invoper.v2;
     if (v2 != NULL && v2->obj == ERROR_OBJ) {
-        err_msg_output((const Error *)v2);
+        err_msg_output(Error(v2));
         return;
     }
 
@@ -1029,6 +1030,11 @@ static void err_msg_double_note(const struct file_list_s *cflist, linepos_t epoi
     adderror("original definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
+}
+
+void err_msg_encode_definition_note(const struct file_list_s *cflist, linepos_t epoint) {
+    new_error_msg(SV_NOTE, cflist, epoint);
+    adderror("definition of encoding was here");
 }
 
 void err_msg_star_assign(linepos_t epoint) {
@@ -1340,14 +1346,13 @@ void err_msg_alias(uint32_t a, uint32_t b, linepos_t epoint) {
     adderror("' [-Walias]");
 }
 
-void err_msg_unknown_char(uchar_t ch, const str_t *name, linepos_t epoint) {
+void err_msg_unknown_char(unichar_t ch, linepos_t epoint) {
     uint8_t line[256], *s = line;
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
     adderror("can't encode character '");
     if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s += utf8out(ch, s);
-    sprintf((char *)s, "' ($%02" PRIx32 ") in encoding '", ch); adderror((char *)line);
-    adderror2(name->data, name->len);
-    adderror("'");
+    sprintf((char *)s, "' ($%02" PRIx32 ")", ch); 
+    adderror((char *)line);
     if (more) new_error_msg_more();
 }
 
@@ -1520,7 +1525,7 @@ void error_print(const struct error_output_s *output) {
                 usenote = false;
                 continue;
             }
-            /* fall through */
+            FALL_THROUGH; /* fall through */
         default:
             errors++;
             break;
@@ -1550,7 +1555,7 @@ void err_init(const char *name) {
     prgname = name;
     setvbuf(stderr, NULL, _IOLBF, 1024);
     console_use(stderr);
-    file_lists = (struct file_lists_s *)mallocx(sizeof *file_lists);
+    new_instance(&file_lists);
     file_lists->next = NULL;
     file_listsp = 0;
     lastfl = &file_lists->file_lists[file_listsp];
@@ -1596,13 +1601,6 @@ void fatal_error(const char *txt) {
     }
     if (console_use_color) console_default(stderr);
     putc('\n', stderr);
-}
-
-NO_RETURN void err_msg_out_of_memory2(void)
-{
-    fatal_error("out of memory");
-    fatal_error(NULL);
-    exit(EXIT_FAILURE);
 }
 
 NO_RETURN void err_msg_out_of_memory(void)
@@ -1651,7 +1649,7 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
             if (w == 0 || l == 0) break;
             l = 1;
         }
-        s2[utf8out((uchar_t)w, s2)] = 0;
+        s2[utf8out((unichar_t)w, s2)] = 0;
         adderror((char *)s2);
         i += (size_t)l;
     }

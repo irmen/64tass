@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.h 2625 2021-04-25 21:09:11Z soci $
+    $Id: functionobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ typedef struct Function {
     const Function_types func;
 } Function;
 
-#define Function(a) ((Function *)(1 ? (a) : (Obj *)(Function *)(a)))
+#define Function(a) OBJ_CAST(Function, a)
 
 struct oper_s;
 

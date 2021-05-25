@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2432 2021-02-28 13:18:37Z soci $
+    $Id: listing.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "obj.h"
 #include "values.h"
 #include "arguments.h"
+#include "version.h"
 
 #define LINE_WIDTH 8
 #define ADDR_WIDTH 8
@@ -146,7 +147,7 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     }
     clearerr(flist); errno = 0;
 
-    ls = (Listing *)mallocx(sizeof *ls);
+    new_instance(&ls);
 
     memcpy(ls->hex, "0123456789abcdef", 16);
     ls->filename = filename;

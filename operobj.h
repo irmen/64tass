@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.h 2593 2021-04-18 13:00:11Z soci $
+    $Id: operobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ typedef struct Oper {
     const unsigned int len;
 } Oper;
 
-#define Oper(a) ((Oper *)(1 ? (a) : (Obj *)(Oper *)(a)))
+#define Oper(a) OBJ_CAST(Oper, a)
 
 extern void operobj_init(void);
 

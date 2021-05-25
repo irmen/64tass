@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2623 2021-04-25 15:21:43Z soci $
+    $Id: arguments.c 2666 2021-05-15 15:23:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "error.h"
 #include "unicode.h"
 #include "wchar.h"
+#include "version.h"
 
 struct arguments_s arguments = {
     true,        /* quiet */
@@ -429,38 +430,27 @@ static MUST_CHECK char *read_one(FILE *f) {
         else if (!q3 && !q && c == '\'') q2 = !q2;
         else {
             q3 = false;
-            if (i >= ln) {
-                ln += 16;
-                line = (char *)realloc(line, ln);
-                if (ln < 16 || line == NULL) err_msg_out_of_memory2();
-            }
+            if (i >= ln) extend_array(&line, &ln, 16);
             line[i++] = (char)c;
         }
         c = getc(f);
         if (c == EOF || c == 0) break;
     } while (q || q2 || q3 || isspace(c) == 0);
     if (i >= ln) {
-        ln++;
-        line = (char *)realloc(line, ln);
-        if (ln < 1 || line == NULL) err_msg_out_of_memory2();
+        extend_array(&line, &ln, 1);
     }
     line[i] = 0;
 
-    len = i + 64;
-    data = (uint8_t *)malloc(len);
-    if (data == NULL || len < 64) err_msg_out_of_memory2();
+    if (add_overflow(i, 64, &len)) err_msg_out_of_memory();
+    new_array(&data, len);
 
     memset(&ps, 0, sizeof ps);
     p = 0; j = 0;
     for (;;) {
         ssize_t l;
         wchar_t w;
-        uchar_t ch;
-        if (p + 6*6 + 1 > len) {
-            len += 1024;
-            data = (uint8_t*)realloc(data, len);
-            if (data == NULL) err_msg_out_of_memory2();
-        }
+        unichar_t ch;
+        if (p + 6*6 + 1 > len) extend_array(&data, &len, 1024);
         l = (ssize_t)mbrtowc(&w, line + j, i - j,  &ps);
         if (l < 1) {
             w = (uint8_t)line[j];
@@ -468,7 +458,7 @@ static MUST_CHECK char *read_one(FILE *f) {
             l = 1;
         }
         j += (size_t)l;
-        ch = (uchar_t)w;
+        ch = (unichar_t)w;
         if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
     }
     data[p] = 0;
@@ -542,9 +532,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case OUTPUT_APPEND:
             case 'o': output.name = (opt == NO_OUTPUT) ? NULL : my_optarg;
                       output.append = (opt == OUTPUT_APPEND);
-                      arguments.output_len++;
-                      arguments.output = (struct output_s *)realloc(arguments.output, arguments.output_len * sizeof *arguments.output);
-                      if (arguments.output == NULL) err_msg_out_of_memory2();
+                      extend_array(&arguments.output, &arguments.output_len, 1);
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;
                       break;
@@ -556,22 +544,14 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 {
                     size_t len;
 
-                    if (fin->lines >= max_lines) {
-                        max_lines += 1024;
-                        if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof *fin->line) err_msg_out_of_memory2(); /* overflow */
-                        fin->line = (filesize_t *)realloc(fin->line, max_lines * sizeof *fin->line);
-                        if (fin->line == NULL) err_msg_out_of_memory2();
-                    }
+                    if (fin->lines >= max_lines) extend_array(&fin->line, &max_lines, 1024);
                     fin->line[fin->lines++] = fp;
 
                     len = strlen(my_optarg) + 1;
-                    fp += (filesize_t)len;
-                    if (fp < len) err_msg_out_of_memory2();
+                    if (inc_overflow(&fp, len)) err_msg_out_of_memory();
                     if (fp > fin->len) {
-                        fin->len = fp + 1024;
-                        if (fin->len < 1024) err_msg_out_of_memory2();
-                        fin->data = (uint8_t*)realloc(fin->data, fin->len);
-                        if (fin->data == NULL) err_msg_out_of_memory2();
+                        if (add_overflow(fp, 1024, &fin->len)) err_msg_out_of_memory();
+                        resize_array(&fin->data, fin->len);
                     }
                     memcpy(fin->data + fp - len, my_optarg, len);
                 }
@@ -591,9 +571,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case LABELS_APPEND:
             case 'l': symbol_output.name = my_optarg;
                       symbol_output.append = (opt == LABELS_APPEND);
-                      arguments.symbol_output_len++;
-                      arguments.symbol_output = (struct symbol_output_s *)realloc(arguments.symbol_output, arguments.symbol_output_len * sizeof *arguments.symbol_output);
-                      if (arguments.symbol_output == NULL) err_msg_out_of_memory2();
+                      extend_array(&arguments.symbol_output, &arguments.symbol_output_len, 1);
                       arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
                       symbol_output.space = NULL;
                       break;
@@ -762,7 +740,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                "Report bugs to <soci" "\x40" "c64.rulez.org>.");
                return 0;
             }
-                /* fall through */
+                FALL_THROUGH; /* fall through */
             default:
             exit:
                 fputs("Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
@@ -777,10 +755,12 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
                 FILE *f = file_open(arg + 1, "rb");
                 if (f == NULL) continue;
                 while (feof(f) == 0) {
+                    size_t l;
                     char *onepar = read_one(f);
                     if (onepar == NULL) break;
-                    *argv2 = argv = (char **)realloc(argv, ((size_t)argc + 1) * sizeof *argv);
-                    if (argv == NULL) err_msg_out_of_memory2();
+                    l = (size_t)argc + 1;
+                    resize_array(&argv, l);
+                    *argv2 = argv;
                     if (arg != NULL) {
                         free(arg);
                         arg = NULL;
@@ -814,7 +794,7 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     }
 
     if (arguments.output == NULL) {
-        arguments.output = (struct output_s *)mallocx(sizeof *arguments.output);
+        new_instance(&arguments.output);
         arguments.output[0] = output;
         arguments.output_len = 1;
     } else {
@@ -828,14 +808,14 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
         diagnostics.case_symbol = false;
     }
     if (fin->lines != max_lines) {
-        filesize_t *d = (filesize_t *)realloc(fin->line, fin->lines * sizeof *fin->line);
+        filesize_t *d = reallocate_array(fin->line, fin->lines);
         if (fin->lines == 0 || d != NULL) fin->line = d;
     }
     closefile(fin);
     if (fp != fin->len) {
         fin->len = fp;
         if (fp != 0) {
-            uint8_t *d = (uint8_t *)realloc(fin->data, fp);
+            uint8_t *d = reallocate_array(fin->data, fp);
             if (d != NULL) fin->data = d;
         }
     }

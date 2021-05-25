@@ -1,5 +1,5 @@
 /*
-    $Id: labelobj.c 2573 2021-04-12 00:12:54Z soci $
+    $Id: labelobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 
 #include "strobj.h"
 #include "typeobj.h"
-#include "errorobj.h"
 
 static Type obj;
 
@@ -121,10 +120,10 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxlen) {
 }
 
 void labelobj_init(void) {
-    new_type(&obj, T_LABEL, "label", sizeof(Label));
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.repr = repr;
-    obj.str = str;
+    Type *type = new_type(&obj, T_LABEL, "label", sizeof(Label));
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->repr = repr;
+    type->str = str;
 }

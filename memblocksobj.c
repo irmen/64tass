@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2523 2021-03-14 20:58:12Z soci $
+    $Id: memblocksobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,12 +57,12 @@ MALLOC Memblocks *new_memblocks(address_t ln, size_t ln2) {
     Memblocks *val = Memblocks(val_alloc(MEMBLOCKS_OBJ));
     val->mem.p = 0;
     val->mem.len = ln;
-    val->mem.data = (ln == 0) ? NULL : (uint8_t*)mallocx(ln);
+    if (ln == 0) val->mem.data = NULL; else new_array(&val->mem.data, ln);
     val->p = 0;
     val->len = ln2;
     val->lastp = 0;
     val->lastaddr = 0;
-    val->data = (ln2 == 0) ? NULL : (struct memblock_s *)mallocx(ln2 * sizeof *val->data);
+    if (ln2 == 0) val->data = NULL; else new_array(&val->data, ln2);
     val->flattened = false;
     val->merged = false;
     val->enumeration = false;
@@ -74,13 +74,16 @@ MALLOC Memblocks *copy_memblocks(Memblocks *m) {
     size_t i;
     val->mem.p = m->mem.p;
     val->mem.len = m->mem.len;
-    val->mem.data = (m->mem.len == 0) ? NULL : (uint8_t*)mallocx(m->mem.len);
-    if (m->mem.len != 0) memcpy(val->mem.data, m->mem.data, m->mem.len);
+    if (m->mem.len == 0) val->mem.data = NULL; 
+    else {
+        new_array(&val->mem.data, m->mem.len);
+        memcpy(val->mem.data, m->mem.data, m->mem.len);
+    }
     val->p = m->p;
     val->len = m->len;
     val->lastp = m->lastp;
     val->lastaddr = m->lastaddr;
-    val->data = (m->len == 0) ? NULL : (struct memblock_s *)mallocx(m->len * sizeof *val->data);
+    if (m->len == 0) val->data = NULL; else new_array(&val->data, m->len);
     val->flattened = m->flattened;
     val->merged = m->merged;
     for (i = 0; i < m->len; i++) {
@@ -92,7 +95,7 @@ MALLOC Memblocks *copy_memblocks(Memblocks *m) {
 }
 
 void memblocksobj_init(void) {
-    new_type(&obj, T_MEMBLOCKS, "memblocks", sizeof(Memblocks));
-    obj.destroy = destroy;
-    obj.same = same;
+    Type *type = new_type(&obj, T_MEMBLOCKS, "memblocks", sizeof(Memblocks));
+    type->destroy = destroy;
+    type->same = same;
 }

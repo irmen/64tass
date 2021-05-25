@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: strobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ typedef struct Str {
     } u;
 } Str;
 
-#define Str(a) ((Str *)(1 ? (a) : (Obj *)(Str *)(a)))
+#define Str(a) OBJ_CAST(Str, a)
 
 extern Obj *const null_str;
 

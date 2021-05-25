@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2593 2021-04-18 13:00:11Z soci $
+    $Id: dictobj.c 2675 2021-05-20 20:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ static Dict *new_dict(size_t ln) {
         ln1 = ln * 3 / 2;
         ln2 = 8; while (ln1 > ln2) ln2 <<= 1;
         ln3 = ln2 * ((ln2 <= (1 << (sizeof(uint8_t)*8))) ? sizeof(uint8_t) : sizeof(size_t));
-        p = (struct pair_s *)malloc(ln * sizeof(struct pair_s) + ln3);
+        ln1 = ln * sizeof(struct pair_s) + ln3;
+        p = (struct pair_s *)allocate_array(uint8_t, ln1);
         if (p == NULL) return NULL; /* out of memory */
         memset(&p[ln], 255, ln3);
     } else {
@@ -240,7 +241,8 @@ static bool resize(Dict *dict, size_t ln) {
     while (ln1 > ln2) ln2 <<= 1;
     ln3 = ln2 * ((ln2 <= (1 << (sizeof(uint8_t)*8))) ? sizeof(uint8_t) : sizeof(size_t));
     if (dict->u.val == dict->data) {
-        p = (struct pair_s *)malloc(ln * sizeof *dict->data + ln3);
+        ln1 = ln * sizeof *dict->data + ln3;
+        p = (struct pair_s *)allocate_array(uint8_t, ln1);
         if (p == NULL) return true;
         if (dict->len != 0) p[0] = dict->u.val[0];
         dict->u.s.hash = -1;
@@ -251,7 +253,8 @@ static bool resize(Dict *dict, size_t ln) {
             memmove(&dict->data[ln], &dict->data[dict->u.s.max], ln3);
             dict->u.s.max = ln;
         }
-        p = (struct pair_s *)realloc(dict->data, ln * sizeof *dict->data + ln3);
+        ln1 = ln * sizeof *dict->data + ln3;
+        p = (struct pair_s *)reallocate_array((uint8_t *)dict->data, ln1);
         if (p == NULL) return true;
         if (same) {
             if (dict->u.s.max < ln) {
@@ -393,12 +396,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
     uint8_t *s;
     size_t def = (v1->def != NULL) ? 1 : 0;
     if (v1->len != 0 || def != 0) {
-        ln = v1->len * 2;
-        if (ln < v1->len) return NULL; /* overflow */
-        ln += def;
-        if (ln < def) return NULL; /* overflow */
-        chars = ln + 1 + def;
-        if (chars < ln) return NULL; /* overflow */
+        if (add_overflow(v1->len, v1->len, &ln)) return NULL;
+        if (inc_overflow(&ln, def)) return NULL;
+        if (add_overflow(1 + def, ln, &chars)) return NULL;
         if (chars > maxsize) return NULL;
         list = new_tuple(ln);
         vals = list->data;
@@ -410,8 +410,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                 v = p->key->obj->repr(p->key, epoint, maxsize - chars);
                 if (v == NULL || v->obj != STR_OBJ) goto error;
                 str = Str(v);
-                ln += str->len;
-                if (ln < str->len) goto error2; /* overflow */
+                if (inc_overflow(&ln, str->len)) goto error2;
                 chars += str->chars;
                 if (chars > maxsize) goto error2;
                 vals[i++] = v;
@@ -419,8 +418,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
                     v = p->data->obj->repr(p->data, epoint, maxsize - chars);
                     if (v == NULL || v->obj != STR_OBJ) goto error;
                     str = Str(v);
-                    ln += str->len;
-                    if (ln < str->len) goto error2; /* overflow */
+                    if (inc_overflow(&ln, str->len)) goto error2;
                     chars += str->chars;
                     if (chars > maxsize) goto error2;
                 } else {
@@ -435,8 +433,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
             v = v1->def->obj->repr(v1->def, epoint, maxsize - chars);
             if (v == NULL || v->obj != STR_OBJ) goto error;
             str = Str(v);
-            ln += str->len;
-            if (ln < str->len) goto error2; /* overflow */
+            if (inc_overflow(&ln, str->len)) goto error2;
             chars += str->chars;
             if (chars > maxsize) {
             error2:
@@ -690,8 +687,7 @@ static MUST_CHECK Obj *concat(oper_t op) {
     if (v2->len == 0 && v2->def == NULL) return val_reference(Obj(v1));
     if (v1->len == 0 && (v1->def == NULL || v2->def != NULL)) return val_reference(Obj(v2));
 
-    ln = v1->len + v2->len;
-    if (ln < v1->len) goto failed; /* overflow */
+    if (add_overflow(v1->len, v2->len, &ln)) goto failed;
     if (op->inplace == Obj(v1)) {
         if (ln > ((v1->u.val == v1->data) ? lenof(v1->u.val) : v1->u.s.max)) {
             size_t ln2 = ln + (ln < 1024 ? ln : 1024);
@@ -729,7 +725,7 @@ static MUST_CHECK Obj *concat(oper_t op) {
     if (dict == v1) return Obj(dict);
     return normalize(dict);
 failed:
-    return new_error_mem(op->epoint3); /* overflow */
+    return new_error_mem(op->epoint3);
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -777,7 +773,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         if (!o1->obj->iterable) {
             break;
         }
-        /* fall through */
+        FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
         return o1->obj->calc2(op);
@@ -830,19 +826,19 @@ Obj *dictobj_parse(struct values_s *values, size_t args) {
 }
 
 void dictobj_init(void) {
-    new_type(&obj, T_DICT, "dict", sizeof(Dict));
-    obj.iterable = true;
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.hash = hash;
-    obj.len = len;
-    obj.getiter = getiter;
-    obj.getriter = getriter;
-    obj.repr = repr;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.slice = slice;
+    Type *type = new_type(&obj, T_DICT, "dict", sizeof(Dict));
+    type->iterable = true;
+    type->destroy = destroy;
+    type->garbage = garbage;
+    type->same = same;
+    type->hash = hash;
+    type->len = len;
+    type->getiter = getiter;
+    type->getriter = getriter;
+    type->repr = repr;
+    type->calc2 = calc2;
+    type->rcalc2 = rcalc2;
+    type->slice = slice;
 }
 
 void dictobj_names(void) {

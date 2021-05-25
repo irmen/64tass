@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2620 2021-04-25 12:05:16Z soci $
+    $Id: main.c 2666 2021-05-15 15:23:42Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -30,11 +30,7 @@
 #include "64tass.h"
 #include <string.h>
 #include <signal.h>
-#if defined _MSC_VER || defined __VBCC__ || defined __WATCOMC__
-#define alarm(a)
-#elif defined __MINGW32__
-extern unsigned int alarm(unsigned int);
-#else
+#ifdef SIGALRM
 #include <unistd.h>
 #endif
 
@@ -43,42 +39,58 @@ extern unsigned int alarm(unsigned int);
 #include "unicode.h"
 #include "console.h"
 
-static void signal_handler(int signum) {
+static void signal_reset(int signum) {
 #if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L
+#ifdef SA_RESETHAND
+    (void)signum;
+#else
     struct sigaction sa;
     sa.sa_handler = SIG_DFL;
     sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
     sigaction(signum, &sa, NULL);
+#define SA_RESETHAND 0
+#endif
 #else
     signal(signum, SIG_DFL);
 #endif
-    signal_received = true;
+}
+
+static void signal_set(int signum, void (*handler)(int)) {
+#if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L
+    struct sigaction sa, osa;
+    sa.sa_handler = handler;
+    sa.sa_flags = (int)SA_RESETHAND;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(signum, NULL, &osa) == 0 && osa.sa_handler != SIG_IGN) {
+        sigaction(signum, &sa, NULL);
+    }
+#else
+    if (signal(signum, handler) == SIG_IGN) signal(signum, SIG_IGN);
+#endif
+}
+
+static void signal_handler(int signum) {
+#ifdef SIGALRM
+    static int signal_number;
+    signal_reset(signum);
+    if (signum == SIGALRM) {
+        if (raise(signal_number) != 0) abort();
+    }
+    signal_set(SIGALRM, signal_handler);
+    signal_number = signum;
     alarm(1);
+#else
+    signal_reset(signum);
+#endif
+    signal_received = true;
 }
 
 static inline void install_signal_handler(void) {
-#if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L
-    struct sigaction sa, osa;
-    sa.sa_handler = signal_handler;
-    sa.sa_flags = 0;
-    sigemptyset(&sa.sa_mask);
-    if (sigaction(SIGINT, NULL, &osa) == 0 && osa.sa_handler != SIG_IGN) {
-        sigaction(SIGINT, &sa, NULL);
-    }
-    if (sigaction(SIGTERM, NULL, &osa) == 0 && osa.sa_handler != SIG_IGN) {
-        sigaction(SIGTERM, &sa, NULL);
-    }
-    if (sigaction(SIGPIPE, NULL, &osa) == 0 && osa.sa_handler != SIG_IGN) {
-        sa.sa_handler = SIG_IGN;
-        sigaction(SIGPIPE, &sa, NULL);
-    }
-#else
-    if (signal(SIGINT, signal_handler) == SIG_IGN) signal(SIGINT, SIG_IGN);
-    if (signal(SIGTERM, signal_handler) == SIG_IGN) signal(SIGTERM, SIG_IGN);
+    signal_set(SIGINT, signal_handler);
+    signal_set(SIGTERM, signal_handler);
 #ifdef SIGPIPE
-    signal(SIGPIPE, SIG_IGN);
-#endif
+    signal_set(SIGPIPE, SIG_IGN);
 #endif
 }
 
@@ -104,17 +116,22 @@ int wmain(int argc, wchar_t *argv2[]) {
     console_init();
     atexit(console_destroy);
 
-    argv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *argv);
-    if (argv == NULL) err_msg_out_of_memory2();
+    if (argc < 1) {
+        static wchar_t *argvd[1] = { (wchar_t *)L"64tass" };
+        argv2 = argvd;
+        argc = 1;
+    }
+    new_array(&argv, (unsigned int)argc);
     for (i = 0; i < argc; i++) {
-        uchar_t c = 0, lastchar;
+        unichar_t c = 0, lastchar;
         const wchar_t *s = (i == 0) ? prgname(*argv2) : argv2[i];
         const wchar_t *p = s;
         uint8_t *c2;
+        size_t l;
 
         while (*p != 0) p++;
-        c2 = (uint8_t *)malloc((size_t)(p - s) * 4 / (sizeof *p) + 1);
-        if (c2 == NULL) err_msg_out_of_memory2();
+        l = (size_t)(p - s) * 4 / (sizeof *p) + 1;
+        new_array(&c2, l);
         p = s;
         argv[i] = (char *)c2;
 
@@ -136,14 +153,8 @@ int wmain(int argc, wchar_t *argv2[]) {
             if (c != 0 && c < 0x80) *c2++ = (uint8_t)c; else c2 += utf8out(c, c2);
         }
         *c2++ = 0;
-        argv[i] = (char *)realloc(argv[i], (size_t)((char *)c2 - argv[i]));
-        if (argv[i] == NULL) err_msg_out_of_memory2();
-    }
-    if (argc < 1) {
-        argv[0] = (char *)malloc(7);
-        if (argv[0] == NULL) err_msg_out_of_memory2();
-        memcpy(argv[0], "64tass", 7);
-        argc = 1;
+        l = (size_t)((char *)c2 - argv[i]);
+        resize_array(&argv[i], l);
     }
     r = main2(&argc, &argv);
 
@@ -205,27 +216,31 @@ int main(int argc, char *argv[]) {
     install_signal_handler();
     setlocale(LC_CTYPE, "");
 
-    uargv = (char **)malloc((argc < 1 ? 1 : (unsigned int)argc) * sizeof *uargv);
-    if (uargv == NULL) err_msg_out_of_memory2();
+    if (argc < 1) {
+        static char *argvd[1] = { (char *)"64tass" };
+        argv = argvd;
+        argc = 1;
+    }
+    new_array(&uargv, (unsigned int)argc);
     for (i = 0; i < argc; i++) {
         const char *s = (i == 0) ? prgname(*argv) : argv[i];
         mbstate_t ps;
         size_t p;
         size_t n = strlen(s), j = 0;
-        size_t len = n + 64;
-        uint8_t *data = (uint8_t *)malloc(len);
-        if (data == NULL || len < 64) err_msg_out_of_memory2();
+        size_t len;
+        uint8_t *data;
+        if (add_overflow(n, 64, &len)) err_msg_out_of_memory();
+        new_array(&data, len);
 
         memset(&ps, 0, sizeof ps);
         p = 0;
         for (;;) {
             ssize_t l;
             wchar_t w;
-            uchar_t ch;
+            unichar_t ch;
             if (p + 6*6 + 1 > len) {
-                len += 1024;
-                data = (uint8_t*)realloc(data, len);
-                if (data == NULL) err_msg_out_of_memory2();
+                if (add_overflow(n, 1024, &len)) err_msg_out_of_memory();
+                resize_array(&data, len);
             }
             l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
             if (l < 1) {
@@ -234,17 +249,11 @@ int main(int argc, char *argv[]) {
                 l = 1;
             }
             j += (size_t)l;
-            ch = (uchar_t)w;
+            ch = (unichar_t)w;
             if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
         }
         data[p] = 0;
         uargv[i] = (char *)data;
-    }
-    if (argc < 1) {
-        argv[0] = (char *)malloc(7);
-        if (argv[0] == NULL) err_msg_out_of_memory2();
-        memcpy(argv[0], "64tass", 7);
-        argc = 1;
     }
     r = main2(&argc, &uargv);
 

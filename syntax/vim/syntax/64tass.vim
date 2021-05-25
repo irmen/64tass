@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2590 2021-04-18 08:46:50Z soci $
+" $Id: 64tass.vim 2640 2021-05-08 06:44:21Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -233,7 +233,7 @@ syn match tass64Oper1   /\v[)\]}]/ skipwhite contained nextgroup=@tass64Expressi
 syn match tass64Oper1   /\v\.[-+(\*[:lower:][:upper:]_]@=/ contained nextgroup=@tass64Expression
 
 syn match tass64Oper2   /\v[<>&^|*.]{2}|[>=<!]\=|[><?]\?|[-+/*%^|&,.?:<>=[(]|%(in|x)>/ skipwhite contained nextgroup=@tass64Expression
-syn match tass64Oper2   /\v[<>&|*.<>]{2}\=|[><]\?\=|[-+/*%^|&:x]\=/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Oper2   /\v[<>&|*.<>]{2}\=|\=\=\=|[><]\?\=|[-+/*%^|&:x]\=/ skipwhite contained nextgroup=@tass64Expression
 syn match tass64Oper2   /\v,[xyzrsdbk]>|[\])}]/ skipwhite contained nextgroup=@tass64Expression2
 
 " Functions

@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 2523 2021-03-14 20:58:12Z soci $
+    $Id: memblocksobj.h 2651 2021-05-09 19:33:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ typedef struct Memblocks {
     struct memblock_s *data;
 } Memblocks;
 
-#define Memblocks(a) ((Memblocks *)(1 ? (a) : (Obj *)(Memblocks *)(a)))
+#define Memblocks(a) OBJ_CAST(Memblocks, a)
 
 extern void memblocksobj_init(void);
 
