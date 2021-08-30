@@ -1,4 +1,4 @@
-# $Id: Makefile.win 2666 2021-05-15 15:23:42Z soci $
+# $Id: Makefile.win 2687 2021-06-28 04:17:13Z soci $
 CC = i686-w64-mingw32-gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -127,7 +127,7 @@ listobj.o: listobj.c listobj.h obj.h attributes.h inttypes.h values.h \
  stdbool.h eval.h oper_e.h variables.h error.h errors_e.h boolobj.h \
  codeobj.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h foldobj.h
 longjump.o: longjump.c longjump.h avl.h attributes.h stdbool.h inttypes.h \
- section.h str.h error.h errors_e.h
+ error.h errors_e.h
 macro.o: macro.c macro.h inttypes.h wait_e.h stdbool.h file.h \
  attributes.h str.h eval.h oper_e.h values.h section.h avl.h variables.h \
  64tass.h listing.h error.h errors_e.h arguments.h optimizer.h listobj.h \

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2641 2021-05-08 22:27:24Z soci $ -->
+<!-- $Id: README.html 2682 2021-06-12 20:02:39Z soci $ -->
 <head>
 <title>64tass v1.56 r2625 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -38,7 +38,6 @@ table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
 dl.errorlist > dt, dl.dir > dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, tt {font-family:monospace,monospace;}
 dl.errorlist > dt {font-weight:bold;}
-dl.dir code b { color: inherit; }
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
 a[href], a:visited { text-decoration: none; color: blue; }
@@ -996,9 +995,9 @@ exact size. Values which can fit in shorter space will be padded but longer ones
 give an error.
 
 <dl class="dir">
-<dt><code><b>bits(</b>&lt;expression&gt;, &lt;bits count expression&gt;<b>)</b></code>
+<dt><b>bits(</b>&lt;expression&gt;, &lt;bits count expression&gt;<b>)</b>
 <dd>Convert to the specific number of bits. If the number of bits is negative then it's a signed.
-<dt><code><b>bytes(</b>&lt;expression&gt;, &lt;byte count expression&gt;<b>)</b></code>
+<dt><b>bytes(</b>&lt;expression&gt;, &lt;byte count expression&gt;<b>)</b>
 <dd>Convert to the specific number of bytes. If the number of bits is negative then it's a signed.
 </dl>
 
@@ -1187,107 +1186,107 @@ parameters to functions.
 <h4>Mathematical functions<a name="math-functions" href="#math-functions"></a></h4>
 
 <dl class="dir">
-<dt><code><b>floor(</b>&lt;expression&gt;<b>)</b></code><a name="f_floor" href="#f_floor"></a>
+<dt><b>floor(</b>&lt;expression&gt;<b>)</b><a name="f_floor" href="#f_floor"></a>
 <dd>Round down. E.g.
 <code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
 
-<dt><code><b>round(</b>&lt;expression&gt;<b>)</b></code><a name="f_round" href="#f_round"></a>
+<dt><b>round(</b>&lt;expression&gt;<b>)</b><a name="f_round" href="#f_round"></a>
 <dd>Round to nearest away from zero. E.g.
 <code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
 
-<dt><code><b>ceil(</b>&lt;expression&gt;<b>)</b></code><a name="f_ceil" href="#f_ceil"></a>
+<dt><b>ceil(</b>&lt;expression&gt;<b>)</b><a name="f_ceil" href="#f_ceil"></a>
 <dd>Round up. E.g.
 <code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
 
-<dt><code><b>trunc(</b>&lt;expression&gt;<b>)</b></code><a name="f_trunc" href="#f_trunc"></a>
+<dt><b>trunc(</b>&lt;expression&gt;<b>)</b><a name="f_trunc" href="#f_trunc"></a>
 <dd>Round down towards zero. E.g.
 <code><span class="k">trunc</span>(<span>&minus;1.9</span>)</code> is <code><span>&minus;1</span></code>
 
-<dt><code><b>frac(</b>&lt;expression&gt;<b>)</b></code><a name="f_frac" href="#f_frac"></a>
+<dt><b>frac(</b>&lt;expression&gt;<b>)</b><a name="f_frac" href="#f_frac"></a>
 <dd>Fractional part. E.g.
 <code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
 
-<dt><code><b>sqrt(</b>&lt;expression&gt;<b>)</b></code><a name="f_sqrt" href="#f_sqrt"></a>
+<dt><b>sqrt(</b>&lt;expression&gt;<b>)</b><a name="f_sqrt" href="#f_sqrt"></a>
 <dd>Square root. E.g.
 <code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
 
-<dt><code><b>cbrt(</b>&lt;expression&gt;<b>)</b></code><a name="f_cbrt" href="#f_cbrt"></a>
+<dt><b>cbrt(</b>&lt;expression&gt;<b>)</b><a name="f_cbrt" href="#f_cbrt"></a>
 <dd>Cube root. E.g.
 <code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
 
-<dt><code><b>log10(</b>&lt;expression&gt;<b>)</b></code><a name="f_log10" href="#f_log10"></a>
+<dt><b>log10(</b>&lt;expression&gt;<b>)</b><a name="f_log10" href="#f_log10"></a>
 <dd>Common logarithm. E.g.
 <code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
 
-<dt><code><b>log(</b>&lt;expression&gt;<b>)</b></code><a name="f_log" href="#f_log"></a>
+<dt><b>log(</b>&lt;expression&gt;<b>)</b><a name="f_log" href="#f_log"></a>
 <dd>Natural logarithm. E.g.
 <code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>exp(</b>&lt;expression&gt;<b>)</b></code><a name="f_exp" href="#f_exp"></a>
+<dt><b>exp(</b>&lt;expression&gt;<b>)</b><a name="f_exp" href="#f_exp"></a>
 <dd>Exponential. E.g.
 <code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
 
-<dt><code><b>pow(</b>&lt;expression a&gt;, &lt;expression b&gt;<b>)</b></code><a name="f_pow" href="#f_pow"></a>
+<dt><b>pow(</b>&lt;expression a&gt;, &lt;expression b&gt;<b>)</b><a name="f_pow" href="#f_pow"></a>
 <dd>A raised to power of B. E.g.
 <code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
 
-<dt><code><b>sin(</b>&lt;expression&gt;<b>)</b></code><a name="f_sin" href="#f_sin"></a>
+<dt><b>sin(</b>&lt;expression&gt;<b>)</b><a name="f_sin" href="#f_sin"></a>
 <dd>Sine. E.g.
 <code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>asin(</b>&lt;expression&gt;<b>)</b></code><a name="f_asin" href="#f_asin"></a>
+<dt><b>asin(</b>&lt;expression&gt;<b>)</b><a name="f_asin" href="#f_asin"></a>
 <dd>Arc sine. E.g.
 <code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>sinh(</b>&lt;expression&gt;<b>)</b></code><a name="f_sinh" href="#f_sinh"></a>
+<dt><b>sinh(</b>&lt;expression&gt;<b>)</b><a name="f_sinh" href="#f_sinh"></a>
 <dd>Hyperbolic sine. E.g.
 <code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>cos(</b>&lt;expression&gt;<b>)</b></code><a name="f_cos" href="#f_cos"></a>
+<dt><b>cos(</b>&lt;expression&gt;<b>)</b><a name="f_cos" href="#f_cos"></a>
 <dd>Cosine. E.g.
 <code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
 
-<dt><code><b>acos(</b>&lt;expression&gt;<b>)</b></code><a name="f_acos" href="#f_acos"></a>
+<dt><b>acos(</b>&lt;expression&gt;<b>)</b><a name="f_acos" href="#f_acos"></a>
 <dd>Arc cosine. E.g.
 <code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>cosh(</b>&lt;expression&gt;<b>)</b></code><a name="f_cosh" href="#f_cosh"></a>
+<dt><b>cosh(</b>&lt;expression&gt;<b>)</b><a name="f_cosh" href="#f_cosh"></a>
 <dd>Hyperbolic cosine. E.g.
 <code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
 
-<dt><code><b>tan(</b>&lt;expression&gt;<b>)</b></code><a name="f_tan" href="#f_tan"></a>
+<dt><b>tan(</b>&lt;expression&gt;<b>)</b><a name="f_tan" href="#f_tan"></a>
 <dd>Tangent. E.g.
 <code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>atan(</b>&lt;expression&gt;<b>)</b></code><a name="f_atan" href="#f_atan"></a>
+<dt><b>atan(</b>&lt;expression&gt;<b>)</b><a name="f_atan" href="#f_atan"></a>
 <dd>Arc tangent. E.g.
 <code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>tanh(</b>&lt;expression&gt;<b>)</b></code><a name="f_tanh" href="#f_tanh"></a>
+<dt><b>tanh(</b>&lt;expression&gt;<b>)</b><a name="f_tanh" href="#f_tanh"></a>
 <dd>Hyperbolic tangent. E.g.
 <code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>rad(</b>&lt;expression&gt;<b>)</b></code><a name="f_rad" href="#f_rad"></a>
+<dt><b>rad(</b>&lt;expression&gt;<b>)</b><a name="f_rad" href="#f_rad"></a>
 <dd>Degrees to radian. E.g.
 <code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>deg(</b>&lt;expression&gt;<b>)</b></code><a name="f_deg" href="#f_deg"></a>
+<dt><b>deg(</b>&lt;expression&gt;<b>)</b><a name="f_deg" href="#f_deg"></a>
 <dd>Radian to degrees. E.g.
 <code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>hypot(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b></code><a name="f_hypot" href="#f_hypot"></a>
+<dt><b>hypot(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b><a name="f_hypot" href="#f_hypot"></a>
 <dd>Polar distance. E.g.
 <code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
 
-<dt><code><b>atan2(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b></code><a name="f_atan2" href="#f_atan2"></a>
+<dt><b>atan2(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b><a name="f_atan2" href="#f_atan2"></a>
 <dd>Polar angle in &minus;pi to +pi range. E.g.
 <code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
 
-<dt><code><b>abs(</b>&lt;expression&gt;<b>)</b></code><a name="f_abs" href="#f_abs"></a>
+<dt><b>abs(</b>&lt;expression&gt;<b>)</b><a name="f_abs" href="#f_abs"></a>
 <dd>Absolute value. E.g.
 <code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
 
-<dt><code><b>sign(</b>&lt;expression&gt;<b>)</b></code><a name="f_sign" href="#f_sign"></a>
+<dt><b>sign(</b>&lt;expression&gt;<b>)</b><a name="f_sign" href="#f_sign"></a>
 <dd>Returns the sign of value as &minus;1, 0 or 1 for negative, zero and positive. E.g.
 <code><span class="k">sign</span>(<span>&minus;5</span>)</code> is <code><span>&minus;1</span></code>
 
@@ -1302,35 +1301,35 @@ unsigned numbers and addresses.
 the <a href="#data-dumping">data directives</a> with the same names normally emit.
 
 <dl class="dir">
-<dt><code><b>byte(</b>&lt;expression&gt;<b>)</b></code><a name="f_byte" href="#f_byte"></a>
-<dt><code><b>char(</b>&lt;expression&gt;<b>)</b></code><a name="f_char" href="#f_char"></a>
+<dt><b>byte(</b>&lt;expression&gt;<b>)</b><a name="f_byte" href="#f_byte"></a>
+<dt><b>char(</b>&lt;expression&gt;<b>)</b><a name="f_char" href="#f_char"></a>
 <dd>Return a single byte string from a 8&nbsp;bit unsigned (0&ndash;255) or signed number (&minus;128&ndash;127). E.g.
 <code><span class="k">byte</span>(<span>0</span>)</code> is <code><span class="s">x"00"</span></code> and
 <code><span class="k">char</span>(<span>-1</span>)</code> is <code><span class="s">x"ff"</span></code>
 
-<dt><code><b>word(</b>&lt;expression&gt;<b>)</b></code><a name="f_word" href="#f_word"></a>
-<dt><code><b>sint(</b>&lt;expression&gt;<b>)</b></code><a name="f_sint" href="#f_sint"></a>
+<dt><b>word(</b>&lt;expression&gt;<b>)</b><a name="f_word" href="#f_word"></a>
+<dt><b>sint(</b>&lt;expression&gt;<b>)</b><a name="f_sint" href="#f_sint"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from a 16&nbsp;bit unsigned (0&ndash;65535) or signed number (&minus;32768&ndash;32767). E.g.
 <code><span class="k">word</span>(<span>1024</span>)</code> is <code><span class="s">x"0004"</span></code> and
 <code><span class="k">sint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffff"</span></code>
 
-<dt><code><b>long(</b>&lt;expression&gt;<b>)</b></code><a name="f_long" href="#f_long"></a>
-<dt><code><b>lint(</b>&lt;expression&gt;<b>)</b></code><a name="f_lint" href="#f_lint"></a>
+<dt><b>long(</b>&lt;expression&gt;<b>)</b><a name="f_long" href="#f_long"></a>
+<dt><b>lint(</b>&lt;expression&gt;<b>)</b><a name="f_lint" href="#f_lint"></a>
 <dd>Return a little endian byte string of 3&nbsp;bytes from a 24&nbsp;bit unsigned (0&ndash;16777216) or signed number (&minus;8388608&ndash;8388607). E.g.
 <code><span class="k">long</span>(<span>123456</span>)</code> is <code><span class="s">x"40E201"</span></code> and
 <code><span class="k">lint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffffff"</span></code>
 
-<dt><code><b>dword(</b>&lt;expression&gt;<b>)</b></code><a name="f_dword" href="#f_dword"></a>
-<dt><code><b>dint(</b>&lt;expression&gt;<b>)</b></code><a name="f_dint" href="#f_dint"></a>
+<dt><b>dword(</b>&lt;expression&gt;<b>)</b><a name="f_dword" href="#f_dword"></a>
+<dt><b>dint(</b>&lt;expression&gt;<b>)</b><a name="f_dint" href="#f_dint"></a>
 <dd>Return a little endian byte string of 4&nbsp;bytes from a 32&nbsp;bit unsigned (0&ndash;4294967296) or signed number (&minus;2147483648&ndash;2147483647). E.g.
 <code><span class="k">dword</span>(<span>123456789</span>)</code> is <code><span class="s">x"15CD5B07"</span></code> and
 <code><span class="k">dint</span>(<span>-1</span>)</code> is <code><span class="s">x"ffffffff"</span></code>
 
-<dt><code><b>addr(</b>&lt;expression&gt;<b>)</b></code><a name="f_addr" href="#f_addr"></a>
+<dt><b>addr(</b>&lt;expression&gt;<b>)</b><a name="f_addr" href="#f_addr"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from an address in the current program bank. E.g.
 <code><span class="k">addr</span>(start)</code> is <code><span class="s">x"0d08"</span></code>
 
-<dt><code><b>rta(</b>&lt;expression&gt;<b>)</b></code><a name="f_rta" href="#f_rta"></a>
+<dt><b>rta(</b>&lt;expression&gt;<b>)</b><a name="f_rta" href="#f_rta"></a>
 <dd>Return a little endian byte string of 2&nbsp;bytes from a return address in the current program bank. E.g.
 <code><span class="k">rta</span>(<span>4096</span>)</code> is <code><span class="s">x"ff0f"</span></code>
 
@@ -1340,7 +1339,7 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 
 <dl class="dir">
 
-<dt><code><b>all(</b>&lt;expression&gt;<b>)</b></code><a name="f_all" href="#f_all"></a>
+<dt><b>all(</b>&lt;expression&gt;<b>)</b><a name="f_all" href="#f_all"></a>
 <dd>Return truth for various definitions of <q>all</q>.
 
 <div><table border="0">
@@ -1353,7 +1352,7 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 
 <p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option.</p>
 
-<dt><code><b>any(</b>&lt;expression&gt;<b>)</b></code><a name="f_any" href="#f_any"></a>
+<dt><b>any(</b>&lt;expression&gt;<b>)</b><a name="f_any" href="#f_any"></a>
 <dd>Return truth for various definitions of <q>any</q>.
 
 <div><table border="0">
@@ -1366,7 +1365,7 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 
 <p>Only booleans in a list are accepted with the <q><a href="#o_Wstrict-bool"><code>-Wstrict-bool</code></a></q> command line option.</p>
 
-<dt><code><b>binary(</b>&lt;string expression&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<b>)</b></code><a name="f_binary" href="#f_binary"></a>
+<dt><b>binary(</b>&lt;string expression&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<b>)</b><a name="f_binary" href="#f_binary"></a>
 <dd>Returns the binary file content as bytes.
 
 <p>This function reads the content of a binary file as a <a href="#byte-string">byte string</a>. It also accepts optional offset and length parameters.
@@ -1388,7 +1387,7 @@ play    <b>=</b> <u>header</u>[<span>$d</span>:<span>$b</span>:<span>-1</span>] 
         <b class="d">.binary</b> <u>sidfile</u>, <span>$7e</span> <i>; load music data</i>
 </pre>
 
-<dt><code><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_format" href="#f_format"></a>
+<dt><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b><a name="f_format" href="#f_format"></a>
 <dd>Create string from values according to a format string.
 <p>The <code>format</code> function converts a list of values into a character string.
 The converted values are inserted in place of the <code>%</code> sign. Optional
@@ -1426,7 +1425,7 @@ type character. These flags can be used:</p>
         <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
 </pre>
 
-<dt><code><b>len(</b>&lt;expression&gt;<b>)</b></code><a name="f_len" href="#f_len"></a>
+<dt><b>len(</b>&lt;expression&gt;<b>)</b><a name="f_len" href="#f_len"></a>
 <dd>Returns the number of elements.
 
 <div><table border="0">
@@ -1439,7 +1438,7 @@ type character. These flags can be used:</p>
 <tr><td>code<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
 </table></div>
 
-<dt><code><b>random(</b>[&lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_random" href="#f_random"></a>
+<dt><b>random(</b>[&lt;expression&gt;, &hellip;]<b>)</b><a name="f_random" href="#f_random"></a>
 <dd>Returns a pseudo random number.
 
 <p>The sequence does not change across compilations and is the same every time.
@@ -1458,7 +1457,7 @@ Different sequences can be generated by seeding with <a href="#d_seed"><code>.se
         <b class="d">.byte</b> <span class="k">random</span>([<span>16</span>] x <span>8</span>)<i>; 8 pseudo random bytes (0&ndash;15)</i>
 </pre>
 
-<dt><code><b>range(</b>&lt;expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code><a name="f_range" href="#f_range"></a>
+<dt><b>range(</b>&lt;expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b><a name="f_range" href="#f_range"></a>
 <dd>Returns a list of integers in a range, with optional stepping.
 
 <div><table border="0">
@@ -1474,13 +1473,13 @@ Different sequences can be generated by seeding with <a href="#d_seed"><code>.se
 mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <span>-2</span>)<i>; [10, 8, 6, 4, 2]</i>
 </pre>
 
-<dt><code><b>repr(</b>&lt;expression&gt;<b>)</b></code><a name="f_repr" href="#f_repr"></a>
+<dt><b>repr(</b>&lt;expression&gt;<b>)</b><a name="f_repr" href="#f_repr"></a>
 <dd>Returns a string representation of value.
 <pre width="80">
         <b class="k">.warn</b> <span class="k">repr</span>(<u>var</u>) <i>; pretty print value, for debugging</i>
 </pre>
 
-<dt><code><b>size(</b>&lt;expression&gt;<b>)</b></code><a name="f_size" href="#f_size"></a>
+<dt><b>size(</b>&lt;expression&gt;<b>)</b><a name="f_size" href="#f_size"></a>
 <dd>Returns the size of code, structure or union in bytes.
 <pre width="80">
 var     <b class="d">.word</b> <span>0</span>, <span>0</span>, <span>0</span>
@@ -1489,7 +1488,7 @@ var2    <b>=</b> <u>var</u> + <span>2</span>       <i>; start 2 bytes later</i>
         <b>ldx</b> #<span class="k">size</span>(<u>var2</u>) <i>; what remains is 4 bytes</i>
 </pre>
 
-<dt><code><b>sort(</b>&lt;list expression&gt;<b>)</b></code><a name="f_sort" href="#f_sort"></a>
+<dt><b>sort(</b>&lt;list expression&gt;<b>)</b><a name="f_sort" href="#f_sort"></a>
 <dd>Returns a sorted list or tuple.
 
 <p>If the original list contains further lists then these must
@@ -1780,7 +1779,7 @@ label refers to.
 but it does not need to be.
 
 <dl class="dir">
-<dt><code><b>&lowast;=</b></code> &lt;expression&gt;<a name="d_star" href="#d_star"></a>
+<dt><b>&lowast;=</b> &lt;expression&gt;<a name="d_star" href="#d_star"></a>
 <dd>The compile offset is adjusted so that the program counter
 will match the requested address in the expression.
 
@@ -1796,7 +1795,7 @@ will match the requested address in the expression.
 .0a00                                           label4
 </pre>
 
-<dt><code><b class="k">.offs</b></code> &lt;expression&gt;<a name="d_offs" href="#d_offs"></a>
+<dt><b>.offs</b> &lt;expression&gt;<a name="d_offs" href="#d_offs"></a>
 <dd>Sets the compile offset relative to the program counter.
 
 <p>Popular in old TASM code where this was the only way to create
@@ -1810,10 +1809,10 @@ to use alternatives below.</p>
                                                         <b class="k">.offs</b> <span>100</span>
 .1065   1001    ea              nop                     <b>nop</b>
 </pre>
-<dt><code><b class="k">.logical</b></code> &lt;expression&gt;<a name="d_logical" href="#d_logical"></a>
+<dt><b>.logical</b> &lt;expression&gt;<a name="d_logical" href="#d_logical"></a>
 <dd>Starts a relocation block
-<dt><code><b class="k">.here</b></code><a name="d_here" href="#d_here"></a>
-<dt><code><b class="k">.endlogical</b></code><a name="d_endlogical" href="#d_endlogical"></a>
+<dt><b>.here</b><a name="d_here" href="#d_here"></a>
+<dt><b>.endlogical</b><a name="d_endlogical" href="#d_endlogical"></a>
 <dd>Ends a relocation block
 
 <p>Changes the program counter only, the compile offset is not changed. When finished all continues where it was left off before.</p>
@@ -1832,10 +1831,10 @@ to use alternatives below.</p>
                                                         <b class="k">.here</b>
 </pre>
 
-<dt><code><b class="k">.virtual</b></code> [&lt;expression&gt;]<a name="d_virtual" href="#d_virtual"></a>
+<dt><b>.virtual</b> [&lt;expression&gt;]<a name="d_virtual" href="#d_virtual"></a>
 <dd>Starts a virtual block
-<dt><code><b class="k">.endv</b></code><a name="d_endv" href="#d_endv"></a>
-<dt><code><b class="k">.endvirtual</b></code><a name="d_endvirtual" href="#d_endvirtual"></a>
+<dt><b>.endv</b><a name="d_endv" href="#d_endv"></a>
+<dt><b>.endvirtual</b><a name="d_endvirtual" href="#d_endvirtual"></a>
 <dd>Ends a virtual block
 
 <p>Changes the program counter to the expression (if given) and discards the result of compilation.
@@ -1863,7 +1862,7 @@ tmp     <b class="d">.byte</b> <span>?</span>         <i>; at #3,s</i>
         <b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
 </pre>
 
-<dt><code><b class="k">.align</b></code> &lt;expression&gt;[, &lt;fill&gt;]<a name="d_align" href="#d_align"></a>
+<dt><b>.align</b> &lt;expression&gt;[, &lt;fill&gt;]<a name="d_align" href="#d_align"></a>
 <dd>Align the program counter to a dividable address by inserting uninitialized memory or repeated bytes.
 
 <p>Usually used to page align data or code to avoid penalty cycles when indexing or branching.</p>
@@ -1900,9 +1899,9 @@ and therefore the <a href="#d_byte"><code>.byte</code></a> directive is not appr
 Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of any length.
 
 <dl class="dir">
-<dt><code><b class="d">.byte</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_byte" href="#d_byte"></a>
+<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_byte" href="#d_byte"></a>
 <dd>Create bytes from 8&nbsp;bit unsigned constants (0&ndash;255)
-<dt><code><b class="d">.char</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_char" href="#d_char"></a>
+<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_char" href="#d_char"></a>
 <dd>Create bytes from 8&nbsp;bit signed constants (&minus;128&ndash;127)
 
 <pre width="80">
@@ -1920,9 +1919,9 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;1010  23 49                     jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span>
 </pre>
 
-<dt><code><b class="d">.word</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_word" href="#d_word"></a>
+<dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_word" href="#d_word"></a>
 <dd>Create bytes from 16&nbsp;bit unsigned constants (0&ndash;65535)
-<dt><code><b class="d">.sint</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_int" href="#d_int"></a>
+<dt><b>.sint</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_int" href="#d_int"></a>
 <dd>Create bytes from 16&nbsp;bit signed constants (&minus;32768&ndash;32767)
 
 <pre width="80">
@@ -1937,9 +1936,9 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;1019  33 10 59 10               texts   <b class="d">.word</b> <u>text1</u>, <u>text2</u>
 </pre>
 
-<dt><code><b class="d">.addr</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_addr" href="#d_addr"></a>
+<dt><b>.addr</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_addr" href="#d_addr"></a>
 <dd>Create 16&nbsp;bit address constants for addresses (in current program bank)
-<dt><code><b class="d">.rta</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_rta" href="#d_rta"></a>
+<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_rta" href="#d_rta"></a>
 <dd>Create 16&nbsp;bit return address constants for addresses (in current program bank)
 
 <pre width="80">
@@ -1956,9 +1955,9 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;10300b  ff ef a1 36 f3 42              rets    <b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
 </pre>
 
-<dt><code><b class="d">.long</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_long" href="#d_long"></a>
+<dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_long" href="#d_long"></a>
 <dd>Create bytes from 24&nbsp;bit unsigned constants (0&ndash;16777215)
-<dt><code><b class="d">.lint</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_lint" href="#d_lint"></a>
+<dt><b>.lint</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_lint" href="#d_lint"></a>
 <dd>Create bytes from 24&nbsp;bit signed constants (&minus;8388608&ndash;8388607)
 
 <pre width="80">
@@ -1979,9 +1978,9 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;102a  32 03 01 92 05 02         jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 </pre>
 
-<dt><code><b class="d">.dword</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dword" href="#d_dword"></a>
+<dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dword" href="#d_dword"></a>
 <dd>Create bytes from 32&nbsp;bit constants (0&ndash;4294967295)
-<dt><code><b class="d">.dint</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dint" href="#d_dint"></a>
+<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dint" href="#d_dint"></a>
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 
 <pre width="80">
@@ -2004,7 +2003,7 @@ Uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>) creates 
 are converted using the current encoding.
 
 <dl class="dir">
-<dt><code><b class="d">.text</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_text" href="#d_text"></a>
+<dt><b>.text</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_text" href="#d_text"></a>
 <dd>Assemble strings into 8&nbsp;bit bytes.
 
 <pre width="80">
@@ -2015,7 +2014,7 @@ are converted using the current encoding.
 &gt;100a  1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
 </pre>
 
-<dt><code><b class="d">.fill</b></code> &lt;length&gt;[, &lt;fill&gt;]<a name="d_fill" href="#d_fill"></a>
+<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]<a name="d_fill" href="#d_fill"></a>
 <dd>Reserve space (using uninitialized data), or fill with repeated bytes.
 
 <pre width="80">
@@ -2028,7 +2027,7 @@ are converted using the current encoding.
 ...
 </pre>
 
-<dt><code><b class="d">.shift</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shift" href="#d_shift"></a>
+<dt><b>.shift</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shift" href="#d_shift"></a>
 <dd>Assemble strings of 7&nbsp;bit bytes and mark the last byte by setting it's most significant bit.
 
 <p>Any byte which already has the most significant bit set will cause an error.
@@ -2050,7 +2049,7 @@ The last byte can't be uninitialized or missing of course.</p>
 &gt;1018  54 52 49 4e c7
 </pre>
 
-<dt><code><b class="d">.shiftl</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shiftl" href="#d_shiftl"></a>
+<dt><b>.shiftl</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shiftl" href="#d_shiftl"></a>
 <dd>Assemble strings of 7&nbsp;bit bytes shifted to the left once with the last byte's least significant bit set.
 
 <p>Any byte which already has the most significant
@@ -2072,7 +2071,7 @@ The last byte can't be uninitialized or missing of course.</p>
 &gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> <span class="s">"none"</span>
 </pre>
 
-<dt><code><b class="d">.null</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_null" href="#d_null"></a>
+<dt><b>.null</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_null" href="#d_null"></a>
 <dd>Same as <a href="#d_text"><code>.text</code></a>, but adds a zero byte to the end. An existing
 zero byte is an error as it'd cause a false end marker.
 
@@ -2084,7 +2083,7 @@ zero byte is an error as it'd cause a false end marker.
 &gt;100f  54 52 49 4e 47 00
 </pre>
 
-<dt><code><b class="d">.ptext</b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_ptext" href="#d_ptext"></a>
+<dt><b>.ptext</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_ptext" href="#d_ptext"></a>
 <dd>Same as <a href="#d_text"><code>.text</code></a>, but prepend the number of bytes in front of the
 string (pascal style string). Therefore it can't do more than 255 bytes.
 
@@ -2118,10 +2117,11 @@ advantage of this capability custom encodings can be defined to map Unicode char
 to 8&nbsp;bit values in strings.
 
 <dl class="dir">
-<dt><code><b class="k">.enc</b></code> "&lt;name&gt;"<a name="d_enc" href="#d_enc"></a>
+<dt><b>.enc</b> "&lt;name&gt;"<a name="d_enc" href="#d_enc"></a>
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
+
 <pre width="80">
                                 <b class="k">.enc</b> <span class="s">"screen"</span><i>;screen code mode</i>
 &gt;1000  13 03 12 05 05 0e 20 03  <b class="d">.text</b> <span class="s">"screen codes"</span>
@@ -2130,8 +2130,9 @@ start without any character or escape definitions, add some as required.
                                 <b class="k">.enc</b> <span class="s">"none"</span> <i>;normal mode again</i>
 .100e  c9 55     cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
 </pre>
-<dt><code><b class="k">.cdef</b></code> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]<a name="d_cdef" href="#d_cdef"></a>
-<dt><code><b class="k">.cdef</b></code> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
+
+<dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]<a name="d_cdef" href="#d_cdef"></a>
+<dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
 <dd>Assigns characters in a range to single bytes.
 
 <p>This is a simple single character to byte translation definition. It is
@@ -2143,7 +2144,8 @@ typing them. Overlapping ranges are not allowed.</p>
         <b class="k">.enc</b> <span class="s">"ascii"</span>    <i>;define an ascii encoding</i>
         <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity for printable</i>
 </pre>
-<dt><code><b class="k">.edef</b></code> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
+
+<dt><b>.edef</b> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
 <dd>Assigns strings to byte sequences as a translated value.
 
 <p>When these substrings are found in a text they are replaced by bytes defined here.
@@ -2187,16 +2189,16 @@ instead of an error.
 is the sum of lengths of all items.
 
 <dl class="dir">
-<dt><code><b class="k">.struct</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_struct" href="#d_struct"></a>
+<dt><b>.struct</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_struct" href="#d_struct"></a>
 <dd>Begins a structure block
-<dt><code><b class="k">.ends</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_ends" href="#d_ends"></a>
-<dt><code><b class="k">.endstruct</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endstruct" href="#d_endstruct"></a>
+<dt><b>.ends</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_ends" href="#d_ends"></a>
+<dt><b>.endstruct</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endstruct" href="#d_endstruct"></a>
 <dd>Ends a structure block
 
 <p>Structure definition, with named parameters and default values</p>
 
-<dt><code><b class="d">.dstruct</b></code> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dstruct" href="#d_dstruct"></a>
-<dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
+<dt><b>.dstruct</b> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dstruct" href="#d_dstruct"></a>
+<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of structure with initialization values
 </dl>
 
@@ -2225,16 +2227,16 @@ counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.
 
 <dl class="dir">
-<dt><code><b class="k">.union</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_union" href="#d_union"></a>
+<dt><b>.union</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_union" href="#d_union"></a>
 <dd>Begins a union block
-<dt><code><b class="k">.endu</b></code><a name="d_endu" href="#d_endu"></a>
-<dt><code><b class="k">.endunion</b></code><a name="d_endunion" href="#d_endunion"></a>
+<dt><b>.endu</b><a name="d_endu" href="#d_endu"></a>
+<dt><b>.endunion</b><a name="d_endunion" href="#d_endunion"></a>
 <dd>Ends a union block
 
 <p>Union definition, with named parameters and default values</p>
 
-<dt><code><b class="d">.dunion</b></code> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dunion" href="#d_dunion"></a>
-<dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
+<dt><b>.dunion</b> &lt;name&gt;[, &lt;initialization values&gt;]<a name="d_dunion" href="#d_dunion"></a>
+<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of union with initialization values
 </dl>
 
@@ -2297,30 +2299,30 @@ Each invocation is a copy of the macro's content with parameter references
 replaced by the parameter texts.
 
 <dl class="dir">
-<dt><code><b class="k">.segment</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_segment" href="#d_segment"></a>
+<dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_segment" href="#d_segment"></a>
 <dd>Start of segment block
-<dt><code><b class="k">.endsegment</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endsegment" href="#d_endsegment"></a>
+<dt><b>.endsegment</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endsegment" href="#d_endsegment"></a>
 <dd>End of segment block
 
 <p>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.</p>
 
-<dt><code><b class="k">.macro</b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_macro" href="#d_macro"></a>
+<dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]<a name="d_macro" href="#d_macro"></a>
 <dd>Start of macro block
-<dt><code><b class="k">.endmacro</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endmacro" href="#d_endmacro"></a>
+<dt><b>.endmacro</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endmacro" href="#d_endmacro"></a>
 <dd>End of macro block
 
 <p>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
 labels can be accessed through that label.</p>
 
-<dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke the macro after <q>#</q> or <q>.</q> with the parameters. Normally the name of
 the macro is used, but it can be any expression.
 
-<dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endm" href="#d_endm"></a>
+<dt><b>.endm</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endm" href="#d_endm"></a>
 <dd>Closing directive of <a href="#d_macro"><code>.macro</code></a>
 and <a href="#d_segment"><code>.segment</code></a> for compatibility.
 </dl>
@@ -2403,16 +2405,16 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.
 
 <dl class="dir">
-<dt><code><b class="k">.sfunction</b></code> [&lt;name&gt;[=&lt;default&gt;], &hellip;][&lowast;&lt;name&gt;,] &lt;expression&gt;<a name="d_sfunction" href="#d_sfunction"></a>
+<dt><b>.sfunction</b> [&lt;name&gt;[=&lt;default&gt;], &hellip;][&lowast;&lt;name&gt;,] &lt;expression&gt;<a name="d_sfunction" href="#d_sfunction"></a>
 <dd>Defines a simple function to return the result of a parametrised expression
-<dt><code><b class="k">.function</b></code> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]<a name="d_function" href="#d_function"></a>
+<dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]<a name="d_function" href="#d_function"></a>
 <dd>Defines a multi line function
-<dt><code><b class="k">.endf</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endf" href="#d_endf"></a>
-<dt><code><b class="k">.endfunction</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endfunction" href="#d_endfunction"></a>
+<dt><b>.endf</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endf" href="#d_endf"></a>
+<dt><b>.endfunction</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endfunction" href="#d_endfunction"></a>
 <dd>End of a multi line function
-<dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><code><b class="k">&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><b>&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke a multi line function like a macro, directive or pseudo instruction
 </dl>
 
@@ -2461,19 +2463,19 @@ across conditionally compiled areas with such labels.
 
 <h4>If, else if, else<a name="conditional-if" href="#conditional-if"></a></h4>
 <dl class="dir">
-<dt><code><b class="k">.if</b></code> &lt;condition&gt;<a name="d_if" href="#d_if"></a>
+<dt><b>.if</b> &lt;condition&gt;<a name="d_if" href="#d_if"></a>
 <dd>Compile if condition is true
-<dt><code><b class="k">.elsif</b></code> &lt;condition&gt;<a name="d_elsif" href="#d_elsif"></a>
+<dt><b>.elsif</b> &lt;condition&gt;<a name="d_elsif" href="#d_elsif"></a>
 <dd>Compile if previous conditions were not met and the condition is true
-<dt><code><b class="k">.else</b></code><a name="d_else" href="#d_else"></a>
+<dt><b>.else</b><a name="d_else" href="#d_else"></a>
 <dd>Compile if previous conditions were not met
-<dt><code><b class="k">.ifne</b></code> &lt;value&gt;<a name="d_ifne" href="#d_ifne"></a>
+<dt><b>.ifne</b> &lt;value&gt;<a name="d_ifne" href="#d_ifne"></a>
 <dd>Compile if value is not zero
-<dt><code><b class="k">.ifeq</b></code> &lt;value&gt;<a name="d_ifeq" href="#d_ifeq"></a>
+<dt><b>.ifeq</b> &lt;value&gt;<a name="d_ifeq" href="#d_ifeq"></a>
 <dd>Compile if value is zero
-<dt><code><b class="k">.ifpl</b></code> &lt;value&gt;<a name="d_ifpl" href="#d_ifpl"></a>
+<dt><b>.ifpl</b> &lt;value&gt;<a name="d_ifpl" href="#d_ifpl"></a>
 <dd>Compile if value is greater or equal zero
-<dt><code><b class="k">.ifmi</b></code> &lt;value&gt;<a name="d_ifmi" href="#d_ifmi"></a>
+<dt><b>.ifmi</b> &lt;value&gt;<a name="d_ifmi" href="#d_ifmi"></a>
 <dd>Compile if value is less than zero
 
 <p>The <a href="#d_ifne"><code>.ifne</code></a>, <a href="#d_ifeq"><code>.ifeq</code></a>, <a href="#d_ifpl"><code>.ifpl</code></a> and
@@ -2492,8 +2494,8 @@ better to use comparison operators instead.
         <b class="k">.endif</b>
 </pre>
 
-<dt><code><b class="k">.fi</b></code><a name="d_fi" href="#d_fi"></a>
-<dt><code><b class="k">.endif</b></code><a name="d_endif" href="#d_endif"></a>
+<dt><b>.fi</b><a name="d_fi" href="#d_fi"></a>
+<dt><b>.endif</b><a name="d_endif" href="#d_endif"></a>
 <dd>End of conditional compilation.
 </dl>
 
@@ -2504,11 +2506,11 @@ construct, but the compared value needs to be written only once in the switch
 statement.
 
 <dl class="dir">
-<dt><code><b class="k">.switch</b></code> &lt;expression&gt;<a name="d_switch" href="#d_switch"></a>
+<dt><b>.switch</b> &lt;expression&gt;<a name="d_switch" href="#d_switch"></a>
 <dd>Evaluate expression and remember it
-<dt><code><b class="k">.case</b></code> &lt;expression&gt;[, &lt;expression&gt; &hellip;]<a name="d_case" href="#d_case"></a>
+<dt><b>.case</b> &lt;expression&gt;[, &lt;expression&gt; &hellip;]<a name="d_case" href="#d_case"></a>
 <dd>Compile if the previous conditions were all skipped and one of the values equals
-<dt><code><b class="k">.default</b></code><a name="d_default" href="#d_default"></a>
+<dt><b>.default</b><a name="d_default" href="#d_default"></a>
 <dd>Compile if the previous conditions were all skipped
 
 <pre width="80">
@@ -2524,13 +2526,14 @@ statement.
         <b class="k">.endswitch</b>
 </pre>
 
-<dt><code><b class="k">.endswitch</b></code><a name="d_endswitch" href="#d_endswitch"></a>
+<dt><b>.endswitch</b><a name="d_endswitch" href="#d_endswitch"></a>
 <dd>End of <a href="#d_switch"><code>.switch</code></a> conditional compilation block.
 </dl>
 
 <h4>Comment<a name="conditional-comment" href="#conditional-comment"></a></h4>
+
 <dl class="dir">
-<dt><code><b class="k">.comment</b></code><a name="d_comment" href="#d_comment"></a>
+<dt><b>.comment</b><a name="d_comment" href="#d_comment"></a>
 <dd>Never compile.
 
 <pre width="80">
@@ -2540,8 +2543,8 @@ statement.
         <b class="k">.endcomment</b>
 </pre>
 
-<dt><code><b class="k">.endc</b></code><a name="d_endc" href="#d_endc"></a>
-<dt><code><b class="k">.endcomment</b></code><a name="d_endcomment" href="#d_endcomment"></a>
+<dt><b>.endc</b><a name="d_endc" href="#d_endc"></a>
+<dt><b>.endcomment</b><a name="d_endcomment" href="#d_endcomment"></a>
 <dd>End of <a href="#d_comment"><code>.comment</code></a> block.
 </dl>
 
@@ -2560,8 +2563,8 @@ resource intensive.
 each iteration will be assigned to it. This allows accessing labels within.
 
 <dl class="dir">
-<dt><code><b class="k">.for</b></code> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_for" href="#d_for"></a>
-<dt><code><b class="k">.bfor</b></code> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_bfor" href="#d_bfor"></a>
+<dt><b>.for</b> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_for" href="#d_for"></a>
+<dt><b>.bfor</b> [&lt;assignment&gt;], [&lt;condition&gt;], [&lt;assignment&gt;]<a name="d_bfor" href="#d_bfor"></a>
 <dd>Assign initial value, loop while the condition is true and modify value.
 
 <p>First a variable is set, usually this is used for counting. This is optional, the variable may be set already before the loop.</p>
@@ -2580,8 +2583,8 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
         <b>bne</b> <u>lp</u>
 </pre>
 
-<dt><code><b class="k">.for</b></code> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
-<dt><code><b class="k">.bfor</b></code> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
+<dt><b>.for</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
+<dt><b>.bfor</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
 <dd>Assign variable(s) to values in sequence one-by-one in order.
 
 <p>The expression is usually the <a href="#f_range"><code>range</code></a> function or some sort of <a href="#list-tuples">list</a>.</p>
@@ -2593,11 +2596,11 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
         <b class="k">.endfor</b>
 </pre>
 
-<dt><code><b class="k">.endfor</b></code><a name="d_endfor" href="#d_endfor"></a>
+<dt><b>.endfor</b><a name="d_endfor" href="#d_endfor"></a>
 <dd>End of a <a href="#d_for"><code>.for</code></a> or <a href="#d_bfor"><code>.bfor</code></a> loop block
 
-<dt><code><b class="k">.rept</b></code> &lt;expression&gt;<a name="d_rept" href="#d_rept"></a>
-<dt><code><b class="k">.brept</b></code> &lt;expression&gt;<a name="d_brept" href="#d_brept"></a>
+<dt><b>.rept</b> &lt;expression&gt;<a name="d_rept" href="#d_rept"></a>
+<dt><b>.brept</b> &lt;expression&gt;<a name="d_brept" href="#d_brept"></a>
 <dd>Repeat enclosed lines the specified number of times.
 
 <pre width="80">
@@ -2612,44 +2615,44 @@ label   <b>jmp</b> <u>label</u>        <i>;not a duplicate definition</i>
         <b>jmp</b> <u>lst</u>[<span>5</span>].<u>label</u> <i>;use label of 6th iteration</i>
 </pre>
 
-<dt><code><b class="k">.endrept</b></code><a name="d_endrept" href="#d_endrept"></a>
+<dt><b>.endrept</b><a name="d_endrept" href="#d_endrept"></a>
 <dd>End of a <a href="#d_rept"><code>.rept</code></a> or <a href="#d_brept"><code>.brept</code></a> block
 
-<dt><code><b class="k">.while</b></code> &lt;condition&gt;<a name="d_while" href="#d_while"></a>
-<dt><code><b class="k">.bwhile</b></code> &lt;condition&gt;<a name="d_bwhile" href="#d_bwhile"></a>
+<dt><b>.while</b> &lt;condition&gt;<a name="d_while" href="#d_while"></a>
+<dt><b>.bwhile</b> &lt;condition&gt;<a name="d_bwhile" href="#d_bwhile"></a>
 <dd>Repeat enclosed lines until the condition holds.
 
 <p>Works as expected however the scoped variant might be tricky to use as
 variables in the condition might not be in the same scope as the loop body.</p>
 
-<dt><code><b class="k">.endwhile</b></code><a name="d_endwhile" href="#d_endwhile"></a>
+<dt><b>.endwhile</b><a name="d_endwhile" href="#d_endwhile"></a>
 <dd>End of a <a href="#d_while"><code>.while</code></a> or <a href="#d_bwhile"><code>.bwhile</code></a> loop block
 
-<dt><code><b class="k">.break</b></code><a name="d_break" href="#d_break"></a>
+<dt><b>.break</b><a name="d_break" href="#d_break"></a>
 <dd>Exit current repetition loop immediately.
 
-<dt><code><b class="k">.breakif</b> &lt;condition&gt;</code><a name="d_breakif" href="#d_breakif"></a>
+<dt><b>.breakif</b> &lt;condition&gt;<a name="d_breakif" href="#d_breakif"></a>
 <dd>Exit current repetition loop immediately if the condition holds.
 
 <p>It's a shorthand for a <a href="#d_if"><code>.if</code></a>, <a href="#d_break"><code>.break</code></a>, <a href="#d_endif"><code>.endif</code></a> sequence.</p>
 
-<dt><code><b class="k">.continue</b></code><a name="d_continue" href="#d_continue"></a>
+<dt><b>.continue</b><a name="d_continue" href="#d_continue"></a>
 <dd>Continue current repetition loop's next iteration.
 
-<dt><code><b class="k">.continueif</b> &lt;condition&gt;</code><a name="d_continueif" href="#d_continueif"></a>
+<dt><b>.continueif</b> &lt;condition&gt;<a name="d_continueif" href="#d_continueif"></a>
 <dd>Continue current repetition loop's next iteration if the condition holds.
 
 <p>It's a shorthand for a <a href="#d_if"><code>.if</code></a>, <a href="#d_continue"><code>.continue</code></a>, <a href="#d_endif"><code>.endif</code></a> sequence.</p>
 
-<dt><code><b class="k">.next</b></code><a name="d_next" href="#d_next"></a>
+<dt><b>.next</b><a name="d_next" href="#d_next"></a>
 <dd>Closing directive of <a href="#d_for"><code>.for</code></a>,
 <a href="#d_bfor"><code>.bfor</code></a>, <a href="#d_rept"><code>.rept</code></a>,
 <a href="#d_brept"><code>.brept</code></a>, <a href="#d_while"><code>.while</code></a>
 and <a href="#d_while"><code>.bwhile</code></a> loop for compatibility.
 
-<dt><code><b class="k">.lbl</b></code><a name="d_lbl" href="#d_lbl"></a>
+<dt><b>.lbl</b><a name="d_lbl" href="#d_lbl"></a>
 <dd>Creates a special jump label that can be referenced by <a href="#d_goto"><code>.goto</code></a>
-<dt><code><b class="k">.goto</b></code> &lt;labelname&gt;<a name="d_goto" href="#d_goto"></a>
+<dt><b>.goto</b> &lt;labelname&gt;<a name="d_goto" href="#d_goto"></a>
 <dd>Causes assembler to continue assembling from the jump label. No
 forward references of course, handle with care. Should only be used in
 classic TASM sources for creating loops.
@@ -2680,9 +2683,9 @@ locations.
 in file names!
 
 <dl class="dir">
-<dt><code><b class="k">.include</b></code> &lt;filename&gt;<a name="d_include" href="#d_include"></a>
+<dt><b>.include</b> &lt;filename&gt;<a name="d_include" href="#d_include"></a>
 <dd>Include source file here.
-<dt><code><b class="k">.binclude</b></code> &lt;filename&gt;<a name="d_binclude" href="#d_binclude"></a>
+<dt><b>.binclude</b> &lt;filename&gt;<a name="d_binclude" href="#d_binclude"></a>
 <dd>Include source file here in it's local block. If the directive is prefixed
 with a label then all labels are local and are accessible through that label
 only, otherwise not reachable at all.
@@ -2693,7 +2696,7 @@ menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;
         <b>jmp</b> <u>menu</u>.<u>start</u>
 </pre>
 
-<dt><code><b class="d">.binary</b></code> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<a name="d_binary" href="#d_binary"></a>
+<dt><b>.binary</b> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]<a name="d_binary" href="#d_binary"></a>
 <dd>Include raw binary data from file.
 
 <p>By using offset and length it's possible to break out chunks of data from a
@@ -2726,11 +2729,12 @@ will be a list or tuple.
 <i>; same as .byte colors.red, colors.green, colors.blue</i>
 ctable  <b class="d">.byte</b> <u>colors</u>.(<u>red</u>, <u>green</u>, <u>blue</u>)
 </pre>
+
 <dl class="dir">
-<dt><code><b class="k">.proc</b></code><a name="d_proc" href="#d_proc"></a>
+<dt><b>.proc</b><a name="d_proc" href="#d_proc"></a>
 <dd>Start of a procedure block
-<dt><code><b class="k">.pend</b></code><a name="d_pend" href="#d_pend"></a>
-<dt><code><b class="k">.endproc</b></code><a name="d_endproc" href="#d_endproc"></a>
+<dt><b>.pend</b><a name="d_pend" href="#d_pend"></a>
+<dt><b>.endproc</b><a name="d_endproc" href="#d_endproc"></a>
 <dd>End of a procedure block
 
 <p>If the symbol in front is not referenced anywhere then the enclosed source
@@ -2771,10 +2775,10 @@ somewhere to <q>include</q> that part. Much better than conditional compilation
 but these macro calls still need to be manually managed.
 </dl>
 
-<dt><code><b class="k">.block</b></code><a name="d_block" href="#d_block"></a>
+<dt><b>.block</b><a name="d_block" href="#d_block"></a>
 <dd>Block scoping area start
-<dt><code><b class="k">.bend</b></code><a name="d_bend" href="#d_bend"></a>
-<dt><code><b class="k">.endblock</b></code><a name="d_endblock" href="#d_endblock"></a>
+<dt><b>.bend</b><a name="d_bend" href="#d_bend"></a>
+<dt><b>.endblock</b><a name="d_endblock" href="#d_endblock"></a>
 <dd>Block scoping area end
 
 <p>All symbols inside a block are enclosed in a scope. If the block had a symbol
@@ -2787,10 +2791,10 @@ count   <b>ldx</b> #<span>0</span>
         <b class="k">.bend</b>
 </pre>
 
-<dt><code><b class="k">.namespace</b> [&lt;symbol&gt;]</code><a name="d_namespace" href="#d_namespace"></a>
+<dt><b>.namespace</b> [&lt;symbol&gt;]<a name="d_namespace" href="#d_namespace"></a>
 <dd>Namespace area start
-<dt><code><b class="k">.endn</b></code><a name="d_endn" href="#d_endn"></a>
-<dt><code><b class="k">.endnamespace</b></code><a name="d_endnamespace" href="#d_endnamespace"></a>
+<dt><b>.endn</b><a name="d_endn" href="#d_endn"></a>
+<dt><b>.endnamespace</b><a name="d_endnamespace" href="#d_endnamespace"></a>
 <dd>Namespace area end
 
 <p>This directive either creates a new scope (if used without a parameter) or activates the one in the parameter.</p>
@@ -2799,8 +2803,8 @@ count   <b>ldx</b> #<span>0</span>
 
 <p>This enabled label definitions into the same scope in different files.</p>
 
-<dt><code><b class="k">.weak</b></code><a name="d_weak" href="#d_weak"></a>
-<dt><code><b class="k">.endweak</b></code><a name="d_endweak" href="#d_endweak"></a>
+<dt><b>.weak</b><a name="d_weak" href="#d_weak"></a>
+<dt><b>.endweak</b><a name="d_endweak" href="#d_endweak"></a>
 <dd>Weak symbol area
 
 <p>Any symbols defined inside can be overridden by <q>stronger</q> symbols in
@@ -2832,8 +2836,8 @@ scope is of course not allowed and it results in double definition error.</p>
 left out from 64tass for of technical reasons, so don't wait for them to appear
 anytime soon.</p>
 
-<dt><code><b class="k">.with</b> &lt;symbol&gt;</code><a name="d_with" href="#d_with"></a>
-<dt><code><b class="k">.endwith</b></code><a name="d_endwith" href="#d_endwith"></a>
+<dt><b>.with</b> &lt;symbol&gt;<a name="d_with" href="#d_with"></a>
+<dt><b>.endwith</b><a name="d_endwith" href="#d_endwith"></a>
 <dd>Namespace access
 
 <p>This directive is similar to <a href="#d_namespace"><code>.namespace</code></a> but it gives access to
@@ -2851,16 +2855,16 @@ without moving source code lines around. This is achieved by having separate
 compile offset and program counters for each defined section.
 
 <dl class="dir">
-<dt><code><b class="k">.section</b></code> &lt;name&gt;<a name="d_section" href="#d_section"></a>
+<dt><b>.section</b> &lt;name&gt;<a name="d_section" href="#d_section"></a>
 <dd>Starts a segment block
-<dt><code><b class="k">.send</b></code> [&lt;name&gt;]<a name="d_send" href="#d_send"></a>
-<dt><code><b class="k">.endsection</b></code> [&lt;name&gt;]<a name="d_endsection" href="#d_endsection"></a>
+<dt><b>.send</b> [&lt;name&gt;]<a name="d_send" href="#d_send"></a>
+<dt><b>.endsection</b> [&lt;name&gt;]<a name="d_endsection" href="#d_endsection"></a>
 <dd>Ends a segment block
 
 <p>Defines a section fragment. The name at <code>.send</code> must match but
 it's optional.</p>
 
-<dt><code><b class="d">.dsection</b></code> &lt;name&gt;<a name="d_dsection" href="#d_dsection"></a>
+<dt><b>.dsection</b> &lt;name&gt;<a name="d_dsection" href="#d_dsection"></a>
 <dd>Collect the section fragments here.
 </dl>
 
@@ -3006,9 +3010,10 @@ routine <b class="d">.addr</b> <u>print</u>
 </pre>
 
 <h3>65816 related<a name="w65816" href="#w65816"></a></h3>
+
 <dl class="dir">
-<dt><code><b class="k">.as</b></code><a name="d_as" href="#d_as"></a>
-<dt><code><b class="k">.al</b></code><a name="d_al" href="#d_al"></a>
+<dt><b>.as</b><a name="d_as" href="#d_as"></a>
+<dt><b>.al</b><a name="d_al" href="#d_al"></a>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) accumulator immediate constants.
 
 <pre width="80">
@@ -3016,16 +3021,16 @@ routine <b class="d">.addr</b> <u>print</u>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
-<dt><code><b class="k">.xs</b></code><a name="d_xs" href="#d_xs"></a>
-<dt><code><b class="k">.xl</b></code><a name="d_xl" href="#d_xl"></a>
+<dt><b>.xs</b><a name="d_xs" href="#d_xs"></a>
+<dt><b>.xl</b><a name="d_xl" href="#d_xl"></a>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) index register immediate constants.
 <pre width="80">
         <b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
-<dt><code><b class="k">.autsiz</b></code><a name="d_autsiz" href="#d_autsiz"></a>
-<dt><code><b class="k">.mansiz</b></code><a name="d_mansiz" href="#d_mansiz"></a>
+<dt><b>.autsiz</b><a name="d_autsiz" href="#d_autsiz"></a>
+<dt><b>.mansiz</b><a name="d_mansiz" href="#d_mansiz"></a>
 <dd>Select automatic adjustment of immediate constant sizes based on
 <code>SEP</code>/<code>REP</code> instructions.
 
@@ -3035,7 +3040,7 @@ routine <b class="d">.addr</b> <u>print</u>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
-<dt><code><b class="k">.databank</b></code> &lt;expression&gt;<a name="d_databank" href="#d_databank"></a>
+<dt><b>.databank</b> &lt;expression&gt;<a name="d_databank" href="#d_databank"></a>
 <dd>Data bank (absolute) addressing is only used for addresses falling into this 64&nbsp;KiB
 bank. The default is 0, which means addresses in bank zero.
 
@@ -3049,7 +3054,7 @@ bank. The default is 0, which means addresses in bank zero.
         <b>lda</b> #<span>$1234</span>,b    <i>;results in $ad, $34, $12</i>
 </pre>
 
-<dt><code><b class="k">.dpage</b></code> &lt;expression&gt;<a name="d_dpage" href="#d_dpage"></a>
+<dt><b>.dpage</b> &lt;expression&gt;<a name="d_dpage" href="#d_dpage"></a>
 <dd>Direct (zero) page addressing is only used for addresses falling
 into a specific 256 byte address range. The default is 0, which is the first page of bank zero.
 
@@ -3067,10 +3072,10 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <h3>Controlling errors<a name="compiletime-checks" href="#compiletime-checks"></a></h3>
 
 <dl class="dir">
-<dt><code><b class="k">.page</b></code><a name="d_page" href="#d_page"></a>
+<dt><b>.page</b><a name="d_page" href="#d_page"></a>
 <dd>Start of page check block
-<dt><code><b class="k">.endp</b></code><a name="d_endp" href="#d_endp"></a>
-<dt><code><b class="k">.endpage</b></code><a name="d_endpage" href="#d_endpage"></a>
+<dt><b>.endp</b><a name="d_endp" href="#d_endp"></a>
+<dt><b>.endpage</b><a name="d_endpage" href="#d_endpage"></a>
 <dd>End of page check block
 
 <p>Gives an error on page boundary crossing, e.g. for timing sensitive code.</p>
@@ -3081,7 +3086,7 @@ table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <
         <b class="k">.endpage</b>
 </pre>
 
-<dt><code><b class="k">.option</b></code> allow_branch_across_page<a name="d_option" href="#d_option"></a>
+<dt><b>.option</b> allow_branch_across_page<a name="d_option" href="#d_option"></a>
 <dd>Switches error generation on page boundary crossing during relative branch.
 Such a condition on 6502 adds 1 extra cycle to the execution time, which
 can ruin the timing of a carefully cycle counted code.
@@ -3094,8 +3099,8 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
-<dt><code><b class="k">.error</b></code> &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_error" href="#d_error"></a>
-<dt><code><b class="k">.cerror</b></code> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_cerror" href="#d_cerror"></a>
+<dt><b>.error</b> &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_error" href="#d_error"></a>
+<dt><b>.cerror</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_cerror" href="#d_cerror"></a>
 <dd>Exit with error or conditionally exit with error
 
 <pre width="80">
@@ -3103,8 +3108,8 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"Program too long by "</span>, <u>*</u> - <span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
-<dt><code><b class="k">.warn</b></code> &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_warn" href="#d_warn"></a>
-<dt><code><b class="k">.cwarn</b></code> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_cwarn" href="#d_cwarn"></a>
+<dt><b>.warn</b> &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_warn" href="#d_warn"></a>
+<dt><b>.cwarn</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_cwarn" href="#d_cwarn"></a>
 <dd>Display a warning message always or depending on a condition
 
 <pre width="80">
@@ -3117,7 +3122,7 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Target<a name="target-cpu" href="#target-cpu"></a></h3>
 
 <dl class="dir">
-<dt><code><b class="k">.cpu</b></code> &lt;expression&gt;<a name="d_cpu" href="#d_cpu"></a>
+<dt><b>.cpu</b> &lt;expression&gt;<a name="d_cpu" href="#d_cpu"></a>
 <dd>Selects CPU according to the string argument.
 
 <pre width="80">
@@ -3138,31 +3143,31 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Misc<a name="misc" href="#misc"></a></h3>
 
 <dl class="dir">
-<dt><code><b class="k">.end</b></code><a name="d_end" href="#d_end"></a>
+<dt><b>.end</b><a name="d_end" href="#d_end"></a>
 <dd>Terminate assembly. Any content after this directive is ignored.
 
-<dt><code><b class="k">.eor</b></code> &lt;expression&gt;<a name="d_eor" href="#d_eor"></a>
+<dt><b>.eor</b> &lt;expression&gt;<a name="d_eor" href="#d_eor"></a>
 <dd>XOR output with an 8&nbsp;bit value. Useful for reverse screen code text for example,
 or for silly <q>encryption</q>.
 
-<dt><code><b class="k">.seed</b></code> &lt;expression&gt;<a name="d_seed" href="#d_seed"></a>
+<dt><b>.seed</b> &lt;expression&gt;<a name="d_seed" href="#d_seed"></a>
 <dd>Seed the pseudo random number generator with an unsigned integer of
 maximum 128 bits to make the generated numbers less boring.
 
-<dt><code><b class="k">.var</b></code> &lt;expression&gt;<a name="d_var" href="#d_var"></a>
+<dt><b>.var</b> &lt;expression&gt;<a name="d_var" href="#d_var"></a>
 <dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
 
-<dt><code><b class="k">.assert</b></code><a name="d_assert" href="#d_assert"></a>
-<dt><code><b class="k">.check</b></code><a name="d_check" href="#d_check"></a>
+<dt><b>.assert</b><a name="d_assert" href="#d_assert"></a>
+<dt><b>.check</b><a name="d_check" href="#d_check"></a>
 <dd>Do not use these, the syntax will change in next version!
 </dl>
 
 <h3>Printer control<a name="listing-control" href="#listing-control"></a></h3>
 
 <dl class="dir">
-<dt><code><b class="k">.pron</b></code><a name="d_pron" href="#d_pron"></a>
-<dt><code><b class="k">.proff</b></code><a name="d_proff" href="#d_proff"></a>
+<dt><b>.pron</b><a name="d_pron" href="#d_pron"></a>
+<dt><b>.proff</b><a name="d_proff" href="#d_proff"></a>
 <dd>Turn on or off source listing on part of the file.
 
 <pre width="80">
@@ -3176,8 +3181,8 @@ is set to the value of expression or reference of variable.
 reset   <b>cld</b>
 </pre>
 
-<dt><code><b class="k">.hidemac</b></code><a name="d_hidemac" href="#d_hidemac"></a>
-<dt><code><b class="k">.showmac</b></code><a name="d_showmac" href="#d_showmac"></a>
+<dt><b>.hidemac</b><a name="d_hidemac" href="#d_hidemac"></a>
+<dt><b>.showmac</b><a name="d_showmac" href="#d_showmac"></a>
 <dd>Ignored for compatibility.
 </dl>
 

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: macro.c 2688 2021-06-28 04:32:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -434,12 +434,11 @@ Obj *macro_recurse(Wait_types t, Obj *tmp2, Namespace *context, linepos_t epoint
         exitfile();
     } else {
         linenum_t lin = lpoint.line;
-        bool starexists;
-        struct star_s *s = new_star(vline, &starexists);
+        struct star_s *s = new_star(vline);
         struct star_s *stree_old = star_tree;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
-        if (starexists && s->addr != star) {
+        if (s->pass != 0 && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }
@@ -527,15 +526,14 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     if (max != 0) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
         linenum_t lin = lpoint.line;
-        bool starexists;
-        struct star_s *s = new_star(vline, &starexists);
+        struct star_s *s = new_star(vline);
         struct star_s *stree_old = star_tree;
         size_t oldbottom;
         bool in_macro_old = in_macro;
         in_macro = false;
 
         if (diagnostics.optimize) cpu_opt_invalidate();
-        if (starexists && s->addr != star) {
+        if (s->pass != 0 && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }
@@ -877,12 +875,11 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
         size_t oldbottom;
         bool in_macro_old = in_macro;
         struct section_address_s section_address, *oldsection_address = current_address;
-        bool starexists;
-        struct star_s *s = new_star(vline, &starexists);
+        struct star_s *s = new_star(vline);
         struct star_s *stree_old = star_tree;
         size_t j;
 
-        if (starexists && s->addr != star) {
+        if (s->pass != 0 && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
             fixeddig = false;
         }

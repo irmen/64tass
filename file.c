@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: file.c 2688 2021-06-28 04:32:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -852,13 +852,12 @@ static struct stars_s {
 
 static struct starnode_s *lastst;
 static int starsp;
-struct star_s *new_star(linenum_t line, bool *exists) {
+struct star_s *new_star(linenum_t line) {
     struct avltree_node *b;
     struct starnode_s *tmp;
     lastst->star.line = line;
     b = avltree_insert(&lastst->node, &((struct starnode_s *)star_tree)->tree, star_compare);
     if (b == NULL) { /* new label */
-        *exists = false;
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
@@ -872,7 +871,6 @@ struct star_s *new_star(linenum_t line, bool *exists) {
         tmp->star.vline = 0;
         return &tmp->star;
     }
-    *exists = true;
     tmp = avltree_container_of(b, struct starnode_s, node);
     if (tmp->star.pass != pass) {
         tmp->star.pass = pass;
@@ -884,10 +882,9 @@ struct star_s *new_star(linenum_t line, bool *exists) {
 static struct starnode_s star_root;
 
 struct star_s *init_star(linenum_t i) {
-    bool starexists;
     struct star_s *s;
     star_tree = &star_root.star;
-    s = new_star(i, &starexists);
+    s = new_star(i);
     s->addr = 0;
     return s;
 }

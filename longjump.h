@@ -1,5 +1,5 @@
 /*
-    $Id: longjump.h 1093 2016-05-12 10:50:04Z soci $
+    $Id: longjump.h 2687 2021-06-28 04:17:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ struct longjump_s {
     uint8_t defpass;
 };
 
-extern struct longjump_s *new_longjump(address_t, bool *);
+extern struct longjump_s *new_longjump(struct avltree *, address_t);
 extern void destroy_longjump(void);
 extern void longjump_destroy(struct avltree *);
 #endif

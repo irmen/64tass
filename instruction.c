@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2643 2021-05-09 07:47:02Z soci $
+    $Id: instruction.c 2689 2021-08-01 19:34:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -150,8 +150,8 @@ static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)
 }
 
 typedef enum Adrgen { 
-    AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_SBYTE, AG_CHAR, AG_DB3, AG_DB2,
-    AG_WORD, AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE 
+    AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_SBYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD,
+    AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE 
 } Adrgen;
 
 static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned int w, Adr_types *opr) {
@@ -502,7 +502,6 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             }
             if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
-                bool starexists;
                 uint16_t xadr;
                 uval_t oadr;
                 bool crossbank, invalid;
@@ -532,10 +531,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                 oadr = uval;
                 oval = val->obj == ADDRESS_OBJ ? Address(val)->val : val;
                 if (oval->obj == CODE_OBJ && pass != Code(oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
-                    s = new_star(vline + 1, &starexists);
-                    adr = starexists ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
+                    s = new_star(vline + 1);
+                    adr = s->pass != 0 ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
                 } else {
-                    s = invalid ? new_star(vline + 1, &starexists) : NULL;
+                    s = invalid ? new_star(vline + 1) : NULL;
                     adr = (uint16_t)(uval - current_address->l_address - 1 - ln);
                 }
                 if (false) {
@@ -553,7 +552,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                     uval |= current_address->l_address & ~(uval_t)0xffff;
                     crossbank = false;
                     xadr = (uint16_t)adr;
-                    starexists = false; s = NULL;
+                    s = NULL;
                     oadr = uval;
                     adr = (uint16_t)uval;
                 }
@@ -563,9 +562,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                         ln = 2;
                     } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____) && w == 3) { /* fake long branches */
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
-                            bool exists;
-                            struct longjump_s *lj = new_longjump(uval, &exists);
-                            if (exists && lj->defpass == pass) {
+                            struct longjump_s *lj = new_longjump(&current_section->longjump, uval);
+                            if (lj->defpass == pass) {
                                 if ((current_address->l_address ^ lj->dest) <= 0xffff) {
                                     uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address - 2);
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
@@ -575,8 +573,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                                 }
                             }
                             cpu_opt_long_branch(cnmemonic[ADR_REL]);
-                            if (s == NULL) s = new_star(vline + 1, &starexists);
-                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, starexists ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
+                            if (s == NULL) s = new_star(vline + 1);
+                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, s->pass != 0 ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
                             lj->dest = current_address->l_address;
                             lj->defpass = pass;
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
@@ -586,13 +584,13 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             goto branchend;
                         }
                         if (opr == ADR_BIT_ZP_REL) {
-                            bool exists;
-                            struct longjump_s *lj = new_longjump(uval, &exists);
+                            struct longjump_s *lj;
                             if (crossbank) {
                                 err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
                                 goto branchok;
                             }
-                            if (exists && lj->defpass == pass) {
+                            lj = new_longjump(&current_section->longjump, uval);
+                            if (lj->defpass == pass) {
                                 if ((current_address->l_address ^ lj->dest) <= 0xffff) {
                                     uint32_t adrk = (uint16_t)(lj->dest - current_address->l_address - 3);
                                     if (adrk >= 0xFF80 || adrk <= 0x007F) {
@@ -632,7 +630,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
                             branchend:
                                 if (s != NULL) {
                                     address_t st = current_address->l_address;
-                                    if (starexists && s->addr != st) {
+                                    if (s != NULL && s->pass != 0 && s->addr != st) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                         fixeddig = false;
                                     }
@@ -697,7 +695,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             branchok:
                 if (s != NULL) {
                     address_t st = (current_address->l_address + 1 + ln) & all_mem;
-                    if (starexists && s->addr != st) {
+                    if (s != NULL && s->pass != 0 && s->addr != st) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = false;
                     }
@@ -708,10 +706,6 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             }
             if (cnmemonic[ADR_REL_L] != ____) {
                 adrgen = AG_RELL; opr = ADR_REL_L; /* brl */
-                break;
-            }
-            if (cnmemonic[ADR_LONG] == 0x5C) {
-                adrgen = AG_PB2; opr = ADR_ZP; /* jml */
                 break;
             }
             if (cnmemonic[ADR_ADDR] == 0x20 || cnmemonic[ADR_ADDR] == 0x4C) {
@@ -1087,33 +1081,6 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Obj *vals, linepos_t epoi
             break;
         }
         err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
-        break;
-    case AG_PB2:
-        if (w == 3) {/* auto length */
-            if (touaddress(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) ? 2 : 1;
-            else {
-                uval &= all_mem;
-                if (cnmemonic[ADR_ADDR] != ____ && (current_address->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
-                else {adr = uval; w = 2;}
-            }
-        } else {
-            switch (w) {
-            case 1:
-                if (cnmemonic[opr - 1] == ____) return err_addressize(ERROR__NO_WORD_ADDR, epoint2, prm);
-                if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
-                uval &= all_mem;
-                if ((current_address->l_address ^ uval) <= 0xffff) adr = uval;
-                else err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
-                break;
-            case 2:
-                if (cnmemonic[opr - 2] == ____) return err_addressize(ERROR__NO_LONG_ADDR, epoint2, prm);
-                if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
-                adr = uval & all_mem;
-                break;
-            default: return err_addressize(ERROR__NO_BYTE_ADDR, epoint2, prm);
-            }
-        }
-        opr = (Adr_types)(opr - w); ln = w + 1;
         break;
     case AG_IMP:
         ln = 0;

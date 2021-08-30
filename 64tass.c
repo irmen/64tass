@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: 64tass.c 2688 2021-06-28 04:32:29Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1309,6 +1309,51 @@ static MUST_CHECK Obj *tuple_scope_light(Obj **o, linepos_t epoint) {
     return nf;
 }
 
+static void update_code(Label *newlabel, Code *code) {
+    Obj *tmp;
+    if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
+    tmp = current_address->l_address_val;
+    if (!tmp->obj->same(tmp, code->typ)) {
+        val_destroy(code->typ); code->typ = val_reference(tmp);
+        if (newlabel->usepass >= pass) {
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+            fixeddig = false;
+        }
+    }
+    if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+        code->addr = star;
+        code->requires = current_section->requires;
+        code->conflicts = current_section->conflicts;
+        code->offs = 0;
+        if (newlabel->usepass >= pass) {
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
+            fixeddig = false;
+        }
+    }
+    code->names->backr = code->names->forwr = 0;
+    code->names->file_list = current_file_list;
+    code->names->epoint = newlabel->epoint;
+    code->apass = pass;
+}
+
+static MUST_CHECK Code *create_code(linepos_t epoint) {
+    Code *code;
+    if (current_address->bankwarn) {err_msg_pc_bank(epoint);current_address->bankwarn = false;}
+    code = new_code();
+    code->addr = star;
+    code->typ = val_reference(current_address->l_address_val);
+    code->size = 0;
+    code->offs = 0;
+    code->dtype = D_NONE;
+    code->pass = 0;
+    code->apass = pass;
+    code->memblocks = ref_memblocks(current_address->mem);
+    code->names = new_namespace(current_file_list, epoint);
+    code->requires = current_section->requires;
+    code->conflicts = current_section->conflicts;
+    return code;
+}
+
 static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
     Obj *nf;
     address_t size;
@@ -1320,48 +1365,15 @@ static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
     if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
     oaddr = current_address->address;
     if (val->obj == CODE_OBJ) {
-        Obj *tmp = current_address->l_address_val;
         code = Code(val);
-        if (!tmp->obj->same(tmp, code->typ)) {
-            val_destroy(code->typ); code->typ = val_reference(tmp);
-            if (newlabel->usepass >= pass) {
-                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
-                fixeddig = false;
-            }
-        }
-        if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
-        if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
-            code->addr = star;
-            code->requires = current_section->requires;
-            code->conflicts = current_section->conflicts;
-            code->offs = 0;
-            if (newlabel->usepass >= pass) {
-                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
-                fixeddig = false;
-            }
-        }
-        code->names->backr = code->names->forwr = 0;
-        code->names->file_list = current_file_list;
-        code->names->epoint = newlabel->epoint;
+        update_code(newlabel, code);
     } else {
-        code = new_code();
-        if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
-        code->addr = star;
-        code->typ = val_reference(current_address->l_address_val);
-        code->size = 0;
-        code->offs = 0;
-        code->dtype = D_NONE;
-        code->pass = 0;
-        code->memblocks = ref_memblocks(current_address->mem);
-        code->names = new_namespace(current_file_list, &newlabel->epoint);
-        code->requires = current_section->requires;
-        code->conflicts = current_section->conflicts;
         val_destroy(val);
-        *o = val = Obj(code);
+        code = create_code(&newlabel->epoint);
+        *o = Obj(code);
     }
     newmembp = get_mem(current_address->mem);
-    code->apass = pass;
-    push_context(Code(val)->names);
+    push_context(code->names);
     nf = compile();
     pop_context();
     size = (current_address->address - oaddr) & all_mem2;
@@ -1407,7 +1419,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     Label *label;
     Obj *val, *nf = NULL;
     struct star_s *s, *stree_old;
-    bool starexists, foreach = false;
+    bool foreach = false;
     struct iter_s iter;
     size_t i = 0;
     labels.p = 0;
@@ -1521,8 +1533,8 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
         lpoint.pos++;ignore();
     }
 
-    s = new_star(vline, &starexists); stree_old = star_tree;
-    if (starexists && s->addr != star) {
+    s = new_star(vline); stree_old = star_tree;
+    if (s->pass != 0 && s->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
     }
@@ -1752,11 +1764,10 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
         new_waitfor(W_ENDREPT, epoint); waitfor->skip = 0;
     } else {
         linenum_t lin = lpoint.line;
-        bool starexists;
-        struct star_s *s = new_star(vline, &starexists);
+        struct star_s *s = new_star(vline);
         struct star_s *stree_old = star_tree;
 
-        if (starexists && s->addr != star) {
+        if (s->pass != 0 && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
             fixeddig = false;
         }
@@ -1794,7 +1805,6 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     uint8_t *expr;
     Obj *nf = NULL;
     struct star_s *s, *stree_old;
-    bool starexists;
     size_t i = 0;
     struct linepos_s apoint;
     linenum_t xlin;
@@ -1805,8 +1815,8 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     if (lst != NULL && newlabel != NULL) listing_equal2(listing, Obj(lst), epoint->pos);
     else listing_line(listing, epoint->pos);
 
-    s = new_star(vline, &starexists); stree_old = star_tree;
-    if (starexists && s->addr != star) {
+    s = new_star(vline); stree_old = star_tree;
+    if (s->pass != 0 && s->addr != star) {
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
     }
@@ -2798,46 +2808,13 @@ MUST_CHECK Obj *compile(void)
 
                             if (!ret && !doubledef) {
                                 Code *code = Code(label->value);
-                                if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
                                 if (labelexists && code->v.obj == CODE_OBJ) {
-                                    Obj *tmp = current_address->l_address_val;
-                                    if (!tmp->obj->same(tmp, code->typ)) {
-                                        val_destroy(code->typ); code->typ = val_reference(tmp);
-                                        if (label->usepass >= pass) {
-                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
-                                            fixeddig = false;
-                                        }
-                                    }
-                                    if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
-                                        code->addr = star;
-                                        code->requires = current_section->requires;
-                                        code->conflicts = current_section->conflicts;
-                                        code->offs = 0;
-                                        if (label->usepass >= pass) {
-                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
-                                            fixeddig = false;
-                                        }
-                                    }
-                                    code->apass = pass;
+                                    update_code(label, code);
                                     label->defpass = pass;
-                                    code->names->backr = code->names->forwr = 0;
-                                    code->names->file_list = current_file_list;
-                                    code->names->epoint = epoint;
                                 } else {
                                     val_destroy(Obj(code));
-                                    code = new_code();
+                                    code = create_code(&epoint);
                                     label->value = Obj(code);
-                                    code->addr = star;
-                                    code->typ = val_reference(current_address->l_address_val);
-                                    code->size = 0;
-                                    code->offs = 0;
-                                    code->dtype = D_NONE;
-                                    code->pass = 0;
-                                    code->apass = pass;
-                                    code->memblocks = ref_memblocks(current_address->mem);
-                                    code->names = new_namespace(current_file_list, &epoint);
-                                    code->requires = current_section->requires;
-                                    code->conflicts = current_section->conflicts;
                                 }
                                 context = code->names;
                             } else {
@@ -2870,7 +2847,6 @@ MUST_CHECK Obj *compile(void)
                 }
                 {
                     bool labelexists = false;
-                    Code *code;
                     if (labelname.data[0] == '*') {
                         err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint);
                         newlabel = NULL;
@@ -2940,54 +2916,17 @@ MUST_CHECK Obj *compile(void)
                         if (newlabel->update_after) {
                             newlabel->update_after = false;
                         } else {
-                            Obj *tmp;
                             if (diagnostics.optimize && newlabel->ref) cpu_opt_invalidate();
-                            tmp = current_address->l_address_val;
-                            code = Code(newlabel->value);
-                            if (!tmp->obj->same(tmp, code->typ)) {
-                                val_destroy(code->typ); code->typ = val_reference(tmp);
-                                if (newlabel->usepass >= pass) {
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
-                                    fixeddig = false;
-                                }
-                            }
-                            if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
-                            if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
-                                code->addr = star;
-                                code->requires = current_section->requires;
-                                code->conflicts = current_section->conflicts;
-                                code->offs = 0;
-                                if (newlabel->usepass >= pass) {
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &epoint);
-                                    fixeddig = false;
-                                }
-                            }
+                            update_code(newlabel, Code(newlabel->value));
                             newmembp = get_mem(current_address->mem);
-                            code->apass = pass;
                             newlabel->defpass = pass;
-                            code->names->backr = code->names->forwr = 0;
-                            code->names->file_list = current_file_list;
-                            code->names->epoint = epoint;
                         }
                     } else {
                         if (diagnostics.optimize) cpu_opt_invalidate();
-                        code = new_code();
+                        newlabel->value = Obj(create_code(&epoint));
                         newlabel->constant = true;
                         newlabel->owner = true;
-                        newlabel->value = Obj(code);
                         newlabel->epoint = epoint;
-                        if (current_address->bankwarn) {err_msg_pc_bank(&epoint);current_address->bankwarn = false;}
-                        code->addr = star;
-                        code->typ = val_reference(current_address->l_address_val);
-                        code->size = 0;
-                        code->offs = 0;
-                        code->dtype = D_NONE;
-                        code->pass = 0;
-                        code->apass = pass;
-                        code->memblocks = ref_memblocks(current_address->mem);
-                        code->names = new_namespace(current_file_list, &epoint);
-                        code->requires = current_section->requires;
-                        code->conflicts = current_section->conflicts;
                         newmembp = get_mem(current_address->mem);
                     }
                 }
@@ -4315,12 +4254,11 @@ MUST_CHECK Obj *compile(void)
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
                     } else {
                         Wait_types what;
-                        bool starexists;
-                        struct star_s *s = new_star(vline, &starexists);
+                        struct star_s *s = new_star(vline);
                         struct star_s *stree_old = star_tree;
                         linenum_t lin = lpoint.line;
 
-                        if (starexists && s->addr != star) {
+                        if (s->pass != 0 && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
                         }
