@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: dictobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -660,6 +660,20 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     return vv;
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1;
+    Dict *v2 = Dict(op->v2);
+    struct pair_s p;
+    Obj *err;
+
+    if (v2->len == 0) return ref_false();
+    if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
+    p.key = o1;
+    err = o1->obj->hash(o1, &p.hash, op->epoint);
+    if (err != NULL) return err;
+    return truth_reference(dict_lookup(v2, &p) != NULL);
+}
+
 MUST_CHECK Obj *dict_sort(Dict *v1, const size_t *sort_index) {
     size_t i;
     Dict *v = new_dict(v1->len);
@@ -756,18 +770,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 static MUST_CHECK Obj *rcalc2(oper_t op) {
-    Dict *v2 = Dict(op->v2);
     Obj *o1 = op->v1;
-    if (op->op == O_IN) {
-        struct pair_s p;
-        Obj *err;
-
-        if (v2->len == 0) return ref_false();
-        p.key = o1;
-        err = o1->obj->hash(o1, &p.hash, op->epoint);
-        if (err != NULL) return err;
-        return truth_reference(dict_lookup(v2, &p) != NULL);
-    }
     switch (o1->obj->type) {
     default:
         if (!o1->obj->iterable) {
@@ -839,6 +842,7 @@ void dictobj_init(void) {
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
     type->slice = slice;
+    type->contains = contains;
 }
 
 void dictobj_names(void) {

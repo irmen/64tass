@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2688 2021-06-28 04:32:29Z soci $
+    $Id: macro.c 2696 2021-09-12 20:35:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "macroobj.h"
 #include "mfuncobj.h"
 #include "memblocksobj.h"
+#include "functionobj.h"
 
 static int functionrecursion;
 
@@ -485,21 +486,46 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
             for (j = 0; j < len; j++) {
                 tuple->data[j] = pull_val(NULL);
             }
-            val = Obj(tuple);
+            val = val_reference(Obj(tuple));
         } else {
             struct values_s *vs;
             vs = get_val();
             if (vs == NULL) {
                 val = param->init;
                 if (val == NULL) { max = i + 1; val = none_value; }
+                val = val_reference(val);
             } else {
                 val = vs->val;
+                if (param->type != NULL && val->obj != Type(param->type)) {
+                    struct oper_s oper;
+                    oper.v1 = param->type;
+                    oper.op = O_FUNC;
+                    oper.epoint3 = oper.epoint2 = oper.epoint = &vs->epoint;
+                    oper.inplace = NULL;
+                    if (oper.v1->obj->type == T_TYPE) {
+                        oper.v2 = val;
+                        if (Type(oper.v1)->iterable || Type(oper.v1) == TYPE_OBJ) {
+                            val = Type(oper.v1)->convert(&oper);
+                        } else {
+                            val = apply_convert(&oper);
+                        }
+                    } else {
+                        Funcargs tmp;
+                        tmp.val = vs;
+                        tmp.len = 1; /* assumes no referencing */
+                        tmp.v.obj = FUNCARGS_OBJ;
+                        oper.v2 = &tmp.v;
+                        val = oper.v1->obj->calc2(&oper);
+                    }
+                } else val = val_reference(val);
             }
         }
         label = new_label(&param->name, context, strength, &labelexists, mfunc->file_list);
         if (labelexists) {
-            if (label->constant) err_msg_double_defined(label, &param->name, &param->epoint); /* not possible in theory */
-            else {
+            if (label->constant) {
+                err_msg_double_defined(label, &param->name, &param->epoint); /* not possible in theory */
+                val_destroy(val);
+            } else {
                 if (label->defpass != pass) {
                     label->ref = false;
                     label->defpass = pass;
@@ -511,13 +537,13 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
                     label_move(label, &param->name, mfunc->file_list);
                 }
                 label->epoint = param->epoint;
-                val_replace(&label->value, val);
+                val_destroy(label->value); label->value = val;
                 label->usepass = 0;
             }
         } else {
             label->constant = false;
             label->owner = false;
-            label->value = val_reference(val);
+            label->value = val;
             label->epoint = param->epoint;
         }
     }
@@ -587,16 +613,18 @@ bool get_func_params(Mfunc *v, bool single) {
             param->epoint = lpoint;
             label.data = pline + lpoint.pos;
             label.len = get_label(label.data);
+            lpoint.pos += (linecpos_t)label.len;
+            ignore();
             if (single) {
-                const uint8_t *s = pline + lpoint.pos + label.len;
-                if (!stard && s[0] != ',' && (s[0] != '=' || s[1] == '=')) {
+                const uint8_t *s = pline + lpoint.pos;
+                if (!stard && s[0] != ',' && s[0] != ':' && (s[0] != '=' || s[1] == '=')) {
                     v->epoint.line = lpoint.line - 1;
+                    lpoint.pos = param->epoint.pos;
                     v->epoint.pos = lpoint.pos;
                     break;
                 }
             }
             if (label.len != 0) {
-                lpoint.pos += (linecpos_t)label.len;
                 if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {
                     err_msg2(ERROR_RESERVED_LABL, &label, &param->epoint);
                     ret = true;
@@ -621,7 +649,7 @@ bool get_func_params(Mfunc *v, bool single) {
                 break;
             }
             i++;
-            ignore();
+            param->type = NULL;
             if (stard) {
                 param->init = ref_default();
                 if (single) {
@@ -638,6 +666,14 @@ bool get_func_params(Mfunc *v, bool single) {
                 break;
             }
             param->init = NULL;
+            if (here() == ':') {
+                lpoint.pos++;
+                if (!get_exp(5, 1, 1, &lpoint)) {
+                    ret = true;
+                    break;
+                }
+                param->type = pull_val(NULL);
+            }
             if (here() == '=') {
                 lpoint.pos++;
                 if (!get_exp(1, 1, 1, &lpoint)) {
@@ -777,7 +813,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
     argcount_t args = v2->len;
     argcount_t i;
     Label *label;
-    Obj *val;
     Tuple *tuple;
     Obj *retval = NULL;
     Namespace *context;
@@ -817,9 +852,9 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
     }
     mfunc->ipoint++;
 
-    enterfile(mfunc->file_list->file, epoint);
     tuple = NULL;
     for (i = 0; i < mfunc->argc; i++) {
+        Obj *val;
         const struct mfunc_param_s *param = &mfunc->param[i];
         bool labelexists;
         if (param->init == default_value) {
@@ -835,14 +870,46 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
             } else {
                 tuple = Tuple(val_reference(null_tuple));
             }
-            val = Obj(tuple);
+            val = val_reference(Obj(tuple));
         } else {
-            val = (i < args) ? vals[i].val : (param->init != NULL) ? param->init : none_value;
+            if (i >= args) {
+                val = val_reference((param->init != NULL) ? param->init : none_value);
+            } else {
+                val = vals[i].val;
+                if (param->type != NULL && val->obj != Type(param->type)) {
+                    struct oper_s oper;
+                    oper.v1 = param->type;
+                    oper.op = O_FUNC;
+                    oper.epoint3 = oper.epoint2 = oper.epoint = &vals[i].epoint;
+                    oper.inplace = NULL;
+                    if (oper.v1->obj->type == T_TYPE) {
+                        oper.v2 = val;
+                        if (Type(oper.v1)->iterable || Type(oper.v1) == TYPE_OBJ) {
+                            val = Type(oper.v1)->convert(&oper);
+                        } else {
+                            val = apply_convert(&oper);
+                        }
+                    } else {
+                        Funcargs tmp;
+                        struct values_s vs;
+                        vs.val = val;
+                        vs.epoint = *oper.epoint;
+                        tmp.val = &vs;
+                        tmp.len = 1; /* assumes no referencing */
+                        tmp.v.obj = FUNCARGS_OBJ;
+                        oper.v2 = &tmp.v;
+                        functionrecursion++;
+                        val = oper.v1->obj->calc2(&oper);
+                        functionrecursion--;
+                    }
+                } else val_reference(val);
+            }
         }
         label = new_label(&param->name, context, 0, &labelexists, mfunc->file_list);
         if (labelexists) {
             if (label->constant) {
                 err_msg_double_defined(label, &param->name, &param->epoint);
+                val_destroy(val);
             } else {
                 if (label->defpass != pass) {
                     label->ref = false;
@@ -856,18 +923,19 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
                 }
                 label->epoint = param->epoint;
                 val_destroy(label->value);
-                label->value = val_reference(val);
+                label->value = val;
                 label->usepass = 0;
             }
         } else {
             label->constant = false;
             label->owner = false;
-            label->value = val_reference(val);
+            label->value = val;
             label->epoint = param->epoint;
         }
     }
     if (tuple != NULL) val_destroy(Obj(tuple));
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
+    enterfile(mfunc->file_list->file, epoint);
     {
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;

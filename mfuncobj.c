@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: mfuncobj.c 2696 2021-09-12 20:35:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ static FAST_CALL void destroy(Obj *o1) {
         if (not_in_file(param->name.data, cfile)) free((char *)param->name.data);
         if (param->name.data != param->cfname.data) free((char *)param->cfname.data);
         if (param->init != NULL) val_destroy(param->init);
+        if (param->type != NULL) val_destroy(param->type);
     }
     k = v1->nslen;
     while ((k--) != 0) {
@@ -66,6 +67,8 @@ static FAST_CALL void garbage(Obj *o1, int j) {
     case -1:
         while ((i--) != 0) {
             v = v1->param[i].init;
+            if (v != NULL) v->refcount--;
+            v = v1->param[i].type;
             if (v != NULL) v->refcount--;
         }
         k = v1->nslen;
@@ -92,6 +95,13 @@ static FAST_CALL void garbage(Obj *o1, int j) {
     case 1:
         while ((i--) != 0) {
             v = v1->param[i].init;
+            if (v != NULL) {
+                if ((v->refcount & SIZE_MSB) != 0) {
+                    v->refcount -= SIZE_MSB - 1;
+                    v->obj->garbage(v, 1);
+                } else v->refcount++;
+            }
+            v = v1->param[i].type;
             if (v != NULL) {
                 if ((v->refcount & SIZE_MSB) != 0) {
                     v->refcount -= SIZE_MSB - 1;
@@ -131,6 +141,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
         if (str_cmp(&v1->param[i].name, &v2->param[i].name) != 0) return false;
         if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname) != 0) return false;
         if (v1->param[i].init != v2->param[i].init && (v1->param[i].init == NULL || v2->param[i].init == NULL || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return false;
+        if (v1->param[i].type != v2->param[i].type && (v1->param[i].type == NULL || v2->param[i].type == NULL || !v1->param[i].type->obj->same(v1->param[i].type, v2->param[i].type))) return false;
         if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return false;
     }
     for (k = 0; k < v1->nslen; k++) {
@@ -139,6 +150,23 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     if (v1->names != v2->names && !v1->names->v.obj->same(Obj(v1->names), Obj(v2->names))) return false;
     if (v1->line != v2->line && (v1->line == NULL || v2->line == NULL || strcmp((const char *)v1->line, (const char *)v2->line) != 0)) return false;
     return true;
+}
+
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1;
+    Mfunc *v2 = Mfunc(op->v2);
+
+    switch (o1->obj->type) {
+    case T_SYMBOL:
+    case T_ANONSYMBOL:
+        op->v2 = Obj(v2->names);
+        return v2->names->v.obj->contains(op);
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(o1);
+    default:
+        return obj_oper_error(op);
+    }
 }
 
 static MUST_CHECK Obj *calc2(oper_t op) {
@@ -179,11 +207,13 @@ void mfuncobj_init(void) {
     type->garbage = garbage;
     type->same = same;
     type->calc2 = calc2;
+    type->contains = contains;
 
     type = new_type(&sfunc_obj, T_SFUNC, "sfunction", sizeof(Sfunc));
     type->destroy = destroy;
     type->garbage = garbage;
     type->same = same;
     type->calc2 = calc2;
+    type->contains = contains;
 }
 

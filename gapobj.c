@@ -1,5 +1,5 @@
 /*
-    $Id: gapobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: gapobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -170,10 +170,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != O_IN) {
-            return v1->obj->calc2(op);
-        }
-        break;
+        return v1->obj->calc2(op);
     }
     return obj_oper_error(op);
 }

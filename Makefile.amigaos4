@@ -1,4 +1,4 @@
-# $Id: Makefile.amigaos4 2687 2021-06-28 04:17:13Z soci $
+# $Id: Makefile.amigaos4 2696 2021-09-12 20:35:03Z soci $
 CC = SDK:gcc/bin/gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -57,7 +57,8 @@ codeobj.o: codeobj.c codeobj.h obj.h attributes.h inttypes.h values.h \
  eval.h stdbool.h oper_e.h mem.h 64tass.h wait_e.h section.h avl.h str.h \
  variables.h error.h errors_e.h arguments.h boolobj.h floatobj.h \
  namespaceobj.h listobj.h intobj.h bitsobj.h bytesobj.h gapobj.h \
- typeobj.h noneobj.h errorobj.h memblocksobj.h symbolobj.h addressobj.h
+ typeobj.h noneobj.h errorobj.h memblocksobj.h symbolobj.h addressobj.h \
+ strobj.h
 console.o: console.c console.h stdbool.h
 dictobj.o: dictobj.c dictobj.h obj.h attributes.h inttypes.h eval.h \
  stdbool.h oper_e.h error.h errors_e.h variables.h intobj.h listobj.h \
@@ -131,7 +132,7 @@ macro.o: macro.c macro.h inttypes.h wait_e.h stdbool.h file.h \
  attributes.h str.h eval.h oper_e.h values.h section.h avl.h variables.h \
  64tass.h listing.h error.h errors_e.h arguments.h optimizer.h listobj.h \
  obj.h typeobj.h noneobj.h namespaceobj.h labelobj.h macroobj.h \
- mfuncobj.h memblocksobj.h
+ mfuncobj.h memblocksobj.h functionobj.h
 macroobj.o: macroobj.c macroobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h eval.h oper_e.h error.h errors_e.h file.h typeobj.h \
  namespaceobj.h intobj.h noneobj.h errorobj.h
@@ -152,7 +153,7 @@ namespaceobj.o: namespaceobj.c namespaceobj.h obj.h attributes.h \
  inttypes.h variables.h stdbool.h eval.h oper_e.h error.h errors_e.h \
  arguments.h 64tass.h wait_e.h listobj.h values.h strobj.h typeobj.h \
  noneobj.h labelobj.h str.h errorobj.h symbolobj.h anonsymbolobj.h \
- codeobj.h macroobj.h mfuncobj.h
+ codeobj.h macroobj.h mfuncobj.h boolobj.h
 noneobj.o: noneobj.c noneobj.h obj.h attributes.h inttypes.h eval.h \
  stdbool.h oper_e.h typeobj.h errorobj.h errors_e.h
 obj.o: obj.c obj.h attributes.h inttypes.h eval.h stdbool.h oper_e.h \

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2682 2021-06-12 20:02:39Z soci $ -->
+<!-- $Id: README.html 2696 2021-09-12 20:35:03Z soci $ -->
 <head>
 <title>64tass v1.56 r2625 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -768,7 +768,8 @@ risk for now, you might need to update your code later.</b>
 
 <div><table border="0">
 <caption>Label operators and functions</caption>
-<tr><td><code><u>a</u>.<u>b</u></code><td>member<td><code><u>label</u>.<u>locallabel</u></code>
+<tr><td><code><u>a</u>.<u>b</u></code><td>b member of a<td><code><u>label</u>.<u>locallabel</u></code>
+<tr><td><code>.<u>b</u> <span class="k">in</span> <u>a</u></code><td>if a has symbol b<td><code>.<u>locallabel</u> <span class="k">in</span> <u>label</u></code>
 <tr><td><code><u>a</u>[<u>i</u>]</code><td>element from start<td><code><u>label</u>[<span>1</span>]</code>
 <tr><td><code><u>a</u>[&minus;<u>i</u>]</code><td>element from end<td><code><u>label</u>[<span>&minus;1</span>]</code>
 <tr><td><code><u>a</u>[<u>:</u>]</code><td>copy as tuple<td><code><u>label</u>[:]</code>
@@ -2405,9 +2406,9 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.
 
 <dl class="dir">
-<dt><b>.sfunction</b> [&lt;name&gt;[=&lt;default&gt;], &hellip;][&lowast;&lt;name&gt;,] &lt;expression&gt;<a name="d_sfunction" href="#d_sfunction"></a>
+<dt><b>.sfunction</b> [&lt;name&gt;[:&lt;expression&gt;][=&lt;default&gt;], &hellip;][&lowast;&lt;name&gt;,] &lt;expression&gt;<a name="d_sfunction" href="#d_sfunction"></a>
 <dd>Defines a simple function to return the result of a parametrised expression
-<dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]<a name="d_function" href="#d_function"></a>
+<dt><b>.function</b> &lt;name&gt;[:&lt;expression&gt;][=&lt;default&gt;]], &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]<a name="d_function" href="#d_function"></a>
 <dd>Defines a multi line function
 <dt><b>.endf</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endf" href="#d_endf"></a>
 <dt><b>.endfunction</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]<a name="d_endfunction" href="#d_endfunction"></a>
@@ -2418,9 +2419,15 @@ custom ones for frequently used calculations.
 <dd>Invoke a multi line function like a macro, directive or pseudo instruction
 </dl>
 
-<p>Parameters are assigned to variables in the function scope on
-invocation. The default values are calculated at function definition time only,
-and these values are used at invocation time when a parameter is missing.
+<p>Function parameters are assigned to comma separated variable names on
+invocation. These variables are visible in the function scope.
+
+<p>Parameter values may be converted using a function whose name can be given
+after a colon following the variable name.
+
+<p>Default values may be supplied for each parameter after an equal sign. These
+values are calculated at function definition time only and are used when a
+parameter was not specified.
 
 <p>Extra parameters are not accepted, unless the last parameter symbol is
 preceded with a star, in this case these parameters are collected into a tuple.

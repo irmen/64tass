@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2678 2021-05-22 22:35:38Z soci $
+    $Id: eval.c 2696 2021-09-12 20:35:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1042,6 +1042,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 oper.epoint = &epoint;
                 oper.epoint2 = &v1->epoint;
                 oper.epoint3 = &epoint;
+                oper.inplace = NULL;
                 val = apply_condition(&oper);
                 val_destroy(v1->val); v1->val = val;
                 val_destroy(v1[1].val);
@@ -1260,6 +1261,19 @@ static bool get_val2(struct eval_context_s *ev) {
             }
             val_destroy(val);
             continue;
+        case O_IN:
+            v2 = v1; v1 = &values[--vsp - 1];
+            if (vsp == 0) goto syntaxe;
+            epoint.pos = out->pos;
+            oper.v1 = v1->val;
+            oper.v2 = v2->val;
+            oper.epoint = &v1->epoint;
+            oper.epoint2 = &v2->epoint;
+            oper.epoint3 = &epoint;
+            oper.inplace = (oper.v1->refcount == 1) ? v1->val : NULL;
+            val = oper.v2->obj->contains(&oper);
+            val_destroy(v1->val); v1->val = val;
+            continue;
         default: break;
         }
         v2 = v1; v1 = &values[--vsp - 1];
@@ -1309,6 +1323,7 @@ argcount_t get_val_remaining(void) {
 /* 2 - 1 only, till space  */
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
+/* 5 - 1 only, till comma/equal  */
 
 static bool get_exp2(int stop) {
     uint8_t ch;
@@ -1654,7 +1669,7 @@ static bool get_exp2(int stop) {
                 if (out.p >= out.size) extend_out(&out);
             }
             if (opr.p == 0) {
-                if (stop == 1) {lpoint.pos = epoint.pos;break;}
+                if (stop == 1 || stop == 5) {lpoint.pos = epoint.pos;break;}
             }
             out.data[out.p].val = &operators[O_COMMA].v;
             out.data[out.p++].pos = epoint.pos;
@@ -1731,12 +1746,26 @@ static bool get_exp2(int stop) {
             continue;
         case '=':
             if (pline[lpoint.pos + 1] != '=') {
-                if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint);
-                lpoint.pos--;
                 op = O_EQ;
-            } else {
-                op = pline[lpoint.pos + 2] != '=' ? O_EQ : O_IDENTITY;
-            }
+                prec = operators[O_EQ].prio;
+                while (opr.p != 0) {
+                    Oper_types o = opr.data[opr.p - 1].op;
+                    if (prec > operators[o].prio) break;
+                    out.data[out.p].val = &operators[o].v;
+                    out.data[out.p++].pos = opr.data[--opr.p].pos;
+                    if (out.p >= out.size) extend_out(&out);
+                }
+                if (opr.p == 0) {
+                    if (stop == 5) break;
+                }
+                if (diagnostics.old_equal) err_msg2(ERROR_____OLD_EQUAL, NULL, &lpoint);
+                lpoint.pos++;
+                opr.data[opr.p].op = op;
+                opr.data[opr.p++].pos = epoint.pos;
+                if (opr.p >= opr.size) extend_opr(&opr);
+                continue;
+            } 
+            op = pline[lpoint.pos + 2] != '=' ? O_EQ : O_IDENTITY;
         push2:
             lpoint.pos += operators[op].len;
         push2a:

@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: listobj.c 2693 2021-09-08 13:09:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -760,6 +760,35 @@ failed:
     return new_error_mem(op->epoint3);
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1, *o2 = op->v2;
+    List *v2 = List(o2);
+    Obj *result2;
+    size_t i;
+    if (v2->len == 0) return ref_false();
+    if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
+    op->op = O_EQ;
+    result2 = ref_false();
+    for (i = 0; i < v2->len; i++) {
+        Obj *result;
+        op->v1 = o1;
+        op->v2 = v2->data[i];
+        op->inplace = NULL;
+        result = o1->obj->calc2(op);
+        if (result == false_value) {
+            val_destroy(result);
+            continue;
+        }
+        val_destroy(result2);
+        result2 = result;
+        if (result == true_value) {
+            break;
+        }
+    }
+    op->op = O_IN;
+    return result2;
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o1 = op->v1, *o2 = op->v2;
     List *v1 = List(o1);
@@ -770,7 +799,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
         return repeat(op);
     }
-    if (op->op == O_IN || o2 == fold_value) {
+    if (o2 == fold_value) {
         return o2->obj->rcalc2(op);
     }
     if (o2->obj == TUPLE_OBJ || o2->obj == LIST_OBJ) {
@@ -816,23 +845,6 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     size_t i;
     Obj **vals;
 
-    if (op->op == O_IN) {
-        op->op = O_EQ;
-        for (i = 0; i < v2->len; i++) {
-            Obj *result;
-            op->v1 = o1;
-            op->v2 = v2->data[i];
-            op->inplace = NULL;
-            result = o1->obj->calc2(op);
-            if (result == true_value) {
-                op->op = O_IN;
-                return result;
-            }
-            val_destroy(result);
-        }
-        op->op = O_IN;
-        return ref_false();
-    }
     if (o1->obj == TUPLE_OBJ || o1->obj == LIST_OBJ) {
         return calc2_list(op);
     }
@@ -883,6 +895,7 @@ static void init(Type *obj) {
     obj->calc2 = calc2;
     obj->rcalc2 = rcalc2;
     obj->slice = slice;
+    obj->contains = contains;
     obj->repr = repr_listtuple;
 }
 

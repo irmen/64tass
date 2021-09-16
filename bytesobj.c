@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: bytesobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1124,33 +1124,6 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
     case O_GT: return truth_reference(icmp(op) > 0);
     case O_GE: return truth_reference(icmp(op) >= 0);
     case O_CONCAT: return concat(op);
-    case O_IN:
-        {
-            const uint8_t *c, *c2, *e;
-            size_t len1 = byteslen(v1), len2 = byteslen(v2), i;
-            if (len1 == 0) return ref_true();
-            if (len1 > len2) return ref_false();
-            c2 = v2->data;
-            e = c2 + len2 - len1;
-            if ((v1->len ^ v2->len) < 0) {
-                for (;;) {
-                    c = (const uint8_t *)memchr(c2, ~v1->data[0], (size_t)(e - c2) + 1);
-                    if (c == NULL) return ref_false();
-                    for (i = 1; i < len1; i++) {
-                        if (c[i] != (0xff - v1->data[i])) break;
-                    }
-                    if (i == len1) return ref_true();
-                    c2 = c + 1;
-                }
-            } else {
-                for (;;) {
-                    c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
-                    if (c == NULL) return ref_false();
-                    if (memcmp(c, v1->data, len1) == 0) return ref_true();
-                    c2 = c + 1;
-                }
-            }
-        }
     default: break;
     }
     return obj_oper_error(op);
@@ -1297,6 +1270,40 @@ failed:
     return new_error_mem(op->epoint3);
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1;
+    if (o1->obj == BYTES_OBJ) {
+        Bytes *v1 = Bytes(o1);
+        Bytes *v2 = Bytes(op->v2);
+        const uint8_t *c, *c2, *e;
+        size_t len1 = byteslen(v1), len2 = byteslen(v2), i;
+        if (len1 == 0) return ref_true();
+        if (len1 > len2) return ref_false();
+        c2 = v2->data;
+        e = c2 + len2 - len1;
+        if ((v1->len ^ v2->len) < 0) {
+            for (;;) {
+                c = (const uint8_t *)memchr(c2, ~v1->data[0], (size_t)(e - c2) + 1);
+                if (c == NULL) return ref_false();
+                for (i = 1; i < len1; i++) {
+                    if (c[i] != (0xff - v1->data[i])) break;
+                }
+                if (i == len1) return ref_true();
+                c2 = c + 1;
+            }
+        } else {
+            for (;;) {
+                c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
+                if (c == NULL) return ref_false();
+                if (memcmp(c, v1->data, len1) == 0) return ref_true();
+                c2 = c + 1;
+            }
+        }
+    }
+    if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Bytes *v1 = Bytes(op->v1);
     Obj *o2 = op->v2;
@@ -1399,10 +1406,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != O_IN) {
-            return o1->obj->calc2(op);
-        }
-        break;
+        return o1->obj->calc2(op);
     }
     return obj_oper_error(op);
 }
@@ -1431,6 +1435,7 @@ void bytesobj_init(void) {
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
     type->slice = slice;
+    type->contains = contains;
 }
 
 void bytesobj_names(void) {

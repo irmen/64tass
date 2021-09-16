@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: namespaceobj.c 2691 2021-09-08 10:39:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "codeobj.h"
 #include "macroobj.h"
 #include "mfuncobj.h"
+#include "boolobj.h"
 
 static Type obj;
 
@@ -288,6 +289,31 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Namespace *v2 = Namespace(op->v2);
+    Obj *o1 = op->v1;
+    Label *l;
+    switch (o1->obj->type) {
+    case T_SYMBOL:
+        {
+            Symbol *v1 = Symbol(o1);
+            l = find_label2(&v1->name, v2);
+            if (l != NULL && diagnostics.case_symbol && str_cmp(&v1->name, &l->name) != 0) err_msg_symbol_case(&v1->name, l, op->epoint);
+        }
+        break;
+    case T_ANONSYMBOL:
+        l = find_anonlabel2(Anonsymbol(o1)->count, v2);
+        break;
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(o1);
+    default:
+        return obj_oper_error(op);
+    }
+    if (l != NULL) touch_label(l);
+    return truth_reference(l != NULL);
+}
+
 void namespaceobj_init(void) {
     Type *type = new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
     type->convert = convert;
@@ -296,6 +322,7 @@ void namespaceobj_init(void) {
     type->same = same;
     type->repr = repr;
     type->calc2 = calc2;
+    type->contains = contains;
 }
 
 void namespaceobj_names(void) {

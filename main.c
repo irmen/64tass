@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: main.c 2697 2021-09-16 08:59:25Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -170,12 +170,10 @@ int wmain(int argc, wchar_t *argv2[]) {
 int main(void)
 {
   LPWSTR commandLine = GetCommandLineW();
-  int argcw = 0;
+  int result, argcw = 0;
   LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
-  if (!argvw)
-    return EXIT_FAILURE;
-
-  int result = wmain(argcw, argvw);
+  if (argvw == NULL) return EXIT_FAILURE;
+  result = wmain(argcw, argvw);
   LocalFree(argvw);
   return result;
 }

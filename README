@@ -587,14 +587,15 @@ Indexing and slicing of code to access the compiled content might be
 implemented differently in future releases. Use this feature at your own risk
 for now, you might need to update your code later.
 
-         Label operators and functions
-a.b    member                  label.locallabel
-a[i]   element from start      label[1]
-a[-i]  element from end        label[-1]
-a[:]   copy as tuple           label[:]
-a[s:]  cut off start, as tuple label[1:]
-a[:-s] cut off end, as tuple   label[:-1]
-a[s]   reverse, as tuple       label[::-1]
+           Label operators and functions
+a.b     b member of a           label.locallabel
+.b in a if a has symbol b       .locallabel in label
+a[i]    element from start      label[1]
+a[-i]   element from end        label[-1]
+a[:]    copy as tuple           label[:]
+a[s:]   cut off start, as tuple label[1:]
+a[:-s]  cut off end, as tuple   label[:-1]
+a[s]    reverse, as tuple       label[::-1]
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -1988,9 +1989,10 @@ Custom functions
 Beyond the built-in functions mentioned earlier it's possible to define custom
 ones for frequently used calculations.
 
-.sfunction [<name>[=<default>], ...][*<name>,] <expression>
+.sfunction [<name>[:<expression>][=<default>], ...][*<name>,] <expression>
     Defines a simple function to return the result of a parametrised expression
-.function <name>[=<default>]][, <name>[=<default>] ...][, *<name>]
+.function <name>[:<expression>][=<default>]], <name>[=<default>] ...][, *
+    <name>]
     Defines a multi line function
 .endf [<result>][, <result> ...]
 .endfunction [<result>][, <result> ...]
@@ -2000,9 +2002,15 @@ ones for frequently used calculations.
 <name> [<param>][[,][<param>] ...]
     Invoke a multi line function like a macro, directive or pseudo instruction
 
-Parameters are assigned to variables in the function scope on invocation. The
-default values are calculated at function definition time only, and these
-values are used at invocation time when a parameter is missing.
+Function parameters are assigned to comma separated variable names on
+invocation. These variables are visible in the function scope.
+
+Parameter values may be converted using a function whose name can be given
+after a colon following the variable name.
+
+Default values may be supplied for each parameter after an equal sign. These
+values are calculated at function definition time only and are used when a
+parameter was not specified.
 
 Extra parameters are not accepted, unless the last parameter symbol is preceded
 with a star, in this case these parameters are collected into a tuple.

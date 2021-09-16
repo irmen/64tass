@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: foldobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -97,31 +97,29 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Obj *v1 = op->v1;
     if (v1->obj->iterable) {
-        if (op->op != O_IN) {
-            bool minmax = (op->op == O_MIN) || (op->op == O_MAX);
-            struct iter_s iter;
-            Obj *ret = NULL;
-            iter.data = v1; v1->obj->getriter(&iter);
+        bool minmax = (op->op == O_MIN) || (op->op == O_MAX);
+        struct iter_s iter;
+        Obj *ret = NULL;
+        iter.data = v1; v1->obj->getriter(&iter);
 
-            while ((v1 = iter.next(&iter)) != NULL) {
-                Obj *val;
-                if (ret == NULL) {
-                    ret = val_reference(v1);
-                    continue;
-                }
-                op->v1 = v1;
-                op->v2 = ret;
-                op->inplace = (ret->refcount == 1 && !minmax) ? ret : NULL;
-                val = v1->obj->calc2(op);
-                if (minmax) {
-                    if (val == true_value) val_replace(&val, v1);
-                    else if (val == false_value) val_replace(&val, ret);
-                }
-                val_destroy(ret); ret = val;
+        while ((v1 = iter.next(&iter)) != NULL) {
+            Obj *val;
+            if (ret == NULL) {
+                ret = val_reference(v1);
+                continue;
             }
-            iter_destroy(&iter);
-            return ret != NULL ? ret : Obj(new_error(ERROR____EMPTY_LIST, op->epoint));
+            op->v1 = v1;
+            op->v2 = ret;
+            op->inplace = (ret->refcount == 1 && !minmax) ? ret : NULL;
+            val = v1->obj->calc2(op);
+            if (minmax) {
+                if (val == true_value) val_replace(&val, v1);
+                else if (val == false_value) val_replace(&val, ret);
+            }
+            val_destroy(ret); ret = val;
         }
+        iter_destroy(&iter);
+        return ret != NULL ? ret : Obj(new_error(ERROR____EMPTY_LIST, op->epoint));
     }
     switch (v1->obj->type) {
     case T_NONE:

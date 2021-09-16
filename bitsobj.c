@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: bitsobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1096,7 +1096,6 @@ static MUST_CHECK Obj *calc2_bits(oper_t op) {
     case O_OR:
     case O_XOR: return binary(op);
     case O_CONCAT: return concat(op);
-    case O_IN: return obj_oper_error(op); /* TODO */
     default: return NULL;
     }
 }

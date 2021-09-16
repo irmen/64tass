@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: codeobj.c 2691 2021-09-08 10:39:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "memblocksobj.h"
 #include "symbolobj.h"
 #include "addressobj.h"
+#include "strobj.h"
 
 static Type obj;
 
@@ -473,6 +474,58 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     return code_item(&ci);
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1;
+    Code *v2 = Code(op->v2);
+    struct oper_s oper;
+    address_t ln;
+    Obj *tmp, *result;
+    struct code_item_s ci;
+
+    switch (o1->obj->type) {
+    case T_SYMBOL:
+    case T_ANONSYMBOL:
+        op->v2 = Obj(v2->names);
+        return v2->names->v.obj->contains(op);
+    case T_NONE:
+    case T_ERROR:
+        return val_reference(o1);
+    case T_GAP:
+        o1 = val_reference(o1);
+        break;
+    default:
+        o1 = int_from_obj(o1, op->epoint);
+        if (o1->obj != INT_OBJ) return o1;
+        break;
+    }
+    ln = code_item_prepare(&ci, v2);
+
+    if (ln == 0) {
+        val_destroy(o1);
+        return ref_false();
+    }
+
+    oper.op = O_EQ;
+    oper.epoint = op->epoint;
+    oper.epoint2 = op->epoint2;
+    oper.epoint3 = op->epoint3;
+    for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
+        tmp = code_item(&ci);
+        oper.v1 = tmp;
+        oper.v2 = o1;
+        oper.inplace = NULL;
+        result = tmp->obj->calc2(&oper);
+        val_destroy(tmp);
+        if (result == true_value) {
+            val_destroy(o1);
+            return result;
+        }
+        val_destroy(result);
+    }
+    val_destroy(o1);
+    return ref_false();
+}
+
 static inline address_t ldigit(Code *v1, linepos_t epoint) {
     address_t addr2 = code_address(v1);
     address_t addr = addr2 & all_mem;
@@ -626,34 +679,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 static MUST_CHECK Obj *rcalc2(oper_t op) {
     Code *v2 = Code(op->v2), *v;
     Obj *o1 = op->v1;
-    if (op->op == O_IN) {
-        struct oper_s oper;
-        address_t ln;
-        Obj *tmp, *result;
-        struct code_item_s ci;
-
-        ln = code_item_prepare(&ci, v2);
-
-        if (ln == 0) {
-            return ref_false();
-        }
-
-        oper.op = O_EQ;
-        oper.epoint = op->epoint;
-        oper.epoint2 = op->epoint2;
-        oper.epoint3 = op->epoint3;
-        for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
-            tmp = code_item(&ci);
-            oper.v1 = tmp;
-            oper.v2 = o1;
-            oper.inplace = NULL;
-            result = tmp->obj->calc2(&oper);
-            val_destroy(tmp);
-            if (result == true_value) return result;
-            val_destroy(result);
-        }
-        return ref_false();
-    }
     switch (o1->obj->type) {
     case T_BOOL:
     case T_INT:
@@ -712,6 +737,7 @@ void codeobj_init(void) {
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
     type->slice = slice;
+    type->contains = contains;
 }
 
 void codeobj_names(void) {

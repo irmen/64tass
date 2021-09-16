@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2688 2021-06-28 04:32:29Z soci $
+    $Id: 64tass.c 2694 2021-09-08 13:32:28Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -3222,25 +3222,38 @@ MUST_CHECK Obj *compile(void)
                     if (waitfor->what != W_SWITCH2) { err_msg2(ERROR__MISSING_OPEN, ".switch", &epoint); goto breakerr; }
                     waitfor->epoint = epoint;
                     if (skwait == 2) {
+                        struct linepos_s epoint2;
                         struct values_s *vs;
                         Obj *result2;
                         struct oper_s tmp;
                         waitfor->skip = 1;
                         if (!get_exp(0, 1, 0, &epoint)) { waitfor->skip = 0; goto breakerr; }
+                        result2 = ref_false();
                         tmp.op = O_EQ;
                         tmp.epoint = tmp.epoint3 = &epoint;
-                        while (!truth && (vs = get_val()) != NULL) {
-                            val = vs->val;
-                            if (val->obj == ERROR_OBJ) { if (skwait == 2) err_msg_output(Error(val)); continue; }
-                            if (val == none_value) { if (skwait == 2) err_msg_still_none(NULL, &vs->epoint);continue; }
+                        while ((vs = get_val()) != NULL) {
+                            Obj *result;
                             tmp.v1 = waitfor->u.cmd_switch.val;
-                            tmp.v2 = val;
+                            tmp.v2 = vs->val;
                             tmp.epoint2 = &vs->epoint;
                             tmp.inplace = NULL;
-                            result2 = tmp.v1->obj->calc2(&tmp);
-                            truth = result2 == true_value;
+                            result = tmp.v1->obj->calc2(&tmp);
+                            if (result == false_value) {
+                                val_destroy(result);
+                                continue;
+                            }
                             val_destroy(result2);
+                            result2 = result;
+                            if (result == true_value) {
+                                break;
+                            } else if (result == none_value) {
+                                epoint2 = vs->epoint;
+                            }
                         }
+                        if (result2 == none_value) err_msg_still_none(NULL, &epoint2);
+                        else if (result2->obj == ERROR_OBJ) err_msg_output(Error(result2));
+                        else truth = (result2 == true_value);
+                        val_destroy(result2);
                     }
                     waitfor->skip = truth ? (uint8_t)(skwait >> 1) : (skwait & 2);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(listing, epoint.pos);

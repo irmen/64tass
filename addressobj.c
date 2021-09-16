@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: addressobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -615,10 +615,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         }
         break;
     case T_CODE:
-        if (op->op != O_IN) {
-            return t1->calc2(op);
-        }
-        break;
+        return t1->calc2(op);
     case T_REGISTER:
         if (Register(op->v1)->len == 1) {
             am = register_to_indexing(Register(op->v1)->data[0]);

@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: obj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -301,6 +301,7 @@ void obj_init(Type *obj) {
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
     obj->slice = invalid_slice;
+    obj->contains = invalid_rcalc2;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
     obj->uval2 = invalid_uval2;

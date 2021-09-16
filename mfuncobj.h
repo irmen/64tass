@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: mfuncobj.h 2696 2021-09-12 20:35:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ struct mfunc_param_s {
     str_t name;
     str_t cfname;
     Obj *init;
+    Obj *type;
     struct linepos_s epoint;
 };
 

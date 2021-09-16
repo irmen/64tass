@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: errorobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -210,6 +210,7 @@ void errorobj_init(void) {
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
     type->slice = slice;
+    type->contains = rcalc2;
 }
 
 void error_obj_update(Error *err, const Obj *v1, Obj *v2) {

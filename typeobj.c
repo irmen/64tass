@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: typeobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ static Type obj;
 
 Type *const TYPE_OBJ = &obj;
 
-static struct Slot *values_free[32];
+static struct Slot *values_free[33];
 
 #define ALIGN sizeof(int *)
 

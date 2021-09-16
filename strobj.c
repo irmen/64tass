@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2676 2021-05-20 21:16:34Z soci $
+    $Id: strobj.c 2690 2021-09-08 09:56:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -531,20 +531,6 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             return Obj(v);
         } while (false);
         return new_error_mem(op->epoint3);
-    case O_IN:
-        {
-            const uint8_t *c, *c2, *e;
-            if (v1->len == 0) return ref_true();
-            if (v1->len > v2->len) return ref_false();
-            c2 = v2->data;
-            e = c2 + v2->len - v1->len;
-            for (;;) {
-                c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
-                if (c == NULL) return ref_false();
-                if (memcmp(c, v1->data, v1->len) == 0) return ref_true();
-                c2 = c + 1;
-            }
-        }
     default: break;
     }
     return obj_oper_error(op);
@@ -866,6 +852,27 @@ failed:
     return new_error_mem(op->epoint3);
 }
 
+static MUST_CHECK Obj *contains(oper_t op) {
+    Obj *o1 = op->v1;
+    if (o1->obj == STR_OBJ) {
+        Str *v1 = Str(o1);
+        Str *v2 = Str(op->v2);
+        const uint8_t *c, *c2, *e;
+        if (v1->len == 0) return ref_true();
+        if (v1->len > v2->len) return ref_false();
+        c2 = v2->data;
+        e = c2 + v2->len - v1->len;
+        for (;;) {
+            c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
+            if (c == NULL) return ref_false();
+            if (memcmp(c, v1->data, v1->len) == 0) return ref_true();
+            c2 = c + 1;
+        }
+    }
+    if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Str *v1 = Str(op->v1);
     Obj *v2 = op->v2;
@@ -989,10 +996,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         FALL_THROUGH; /* fall through */
     case T_NONE:
     case T_ERROR:
-        if (op->op != O_IN) {
-            return t1->calc2(op);
-        }
-        break;
+        return t1->calc2(op);
     }
     return obj_oper_error(op);
 }
@@ -1020,6 +1024,7 @@ void strobj_init(void) {
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
     type->slice = slice;
+    type->contains = contains;
 }
 
 void strobj_names(void) {
