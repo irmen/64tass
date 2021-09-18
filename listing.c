@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: listing.c 2703 2021-09-17 11:20:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     int i;
     FILE *flist;
 
-    flist = dash_name(filename) ? stdout : file_open(filename, "wt");
+    flist = dash_name(filename) ? stdout : fopen_utf8(filename, "wt");
     if (flist == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
         return NULL;

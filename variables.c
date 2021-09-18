@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: variables.c 2703 2021-09-17 11:20:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -697,7 +697,7 @@ void labelprint(const struct symbol_output_s *output) {
     int err;
     Namespace *space;
 
-    flab = dash_name(output->name) ? stdout : file_open(output->name, output->append ? "at" : "wt");
+    flab = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
     if (flab == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
         return;

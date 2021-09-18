@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2688 2021-06-28 04:32:29Z soci $
+    $Id: file.h 2703 2021-09-17 11:20:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,17 +59,12 @@ struct star_s {
     uint8_t pass;
 };
 
-static inline bool dash_name(const char *name) {
-    return (name[0] == '-' && name[1] == 0);
-}
-
-extern struct file_s *openfile(const char *, const char *, unsigned int, const struct str_t *, linepos_t);
-extern void closefile(struct file_s*);
+extern struct file_s *file_open(const char *, const char *, unsigned int, const struct str_t *, linepos_t);
+extern void file_close(struct file_s*);
 extern struct star_s *new_star(linenum_t);
 extern struct star_s *init_star(linenum_t);
 extern void destroy_file(void);
 extern void init_file(void);
-extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
 extern size_t get_base(const char *);
 extern char *get_path(const struct str_t *, const char *);

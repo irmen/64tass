@@ -1,4 +1,4 @@
-# $Id: Makefile.amigaos 2696 2021-09-12 20:35:03Z soci $
+# $Id: Makefile.amigaos 2703 2021-09-17 11:20:53Z soci $
 CC = vc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -144,7 +144,7 @@ math.o: math.c math.h
 memblocksobj.o: memblocksobj.c memblocksobj.h obj.h attributes.h \
  inttypes.h stdbool.h values.h error.h errors_e.h typeobj.h
 mem.o: mem.c mem.h attributes.h stdbool.h inttypes.h error.h errors_e.h \
- file.h str.h 64tass.h wait_e.h listing.h arguments.h values.h \
+ unicode.h 64tass.h wait_e.h listing.h arguments.h values.h \
  memblocksobj.h obj.h
 mfuncobj.o: mfuncobj.c mfuncobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h eval.h oper_e.h error.h errors_e.h macro.h wait_e.h \

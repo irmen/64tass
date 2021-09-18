@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2694 2021-09-08 13:32:28Z soci $
+    $Id: 64tass.c 2703 2021-09-17 11:20:53Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -315,7 +315,16 @@ typedef enum Command_types {
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
-static void tfree(void) {
+static void compile_init(const char *name) {
+    err_init(name);
+    objects_init();
+    init_section();
+    init_file();
+    init_variables();
+    init_eval();
+}
+
+static void compile_destroy(void) {
     destroy_lastlb();
     destroy_eval();
     destroy_variables();
@@ -3624,7 +3633,7 @@ MUST_CHECK Obj *compile(void)
                         vs = get_val();
                         if (!tostr(vs, &filename)) {
                             char *path = get_path(&filename, current_file_list->file->realname);
-                            cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, &vs->epoint);
+                            cfile2 = file_open(path, current_file_list->file->realname, 1, &filename, &vs->epoint);
                             free(path);
                         }
                         if ((vs = get_val()) != NULL) {
@@ -4253,7 +4262,7 @@ MUST_CHECK Obj *compile(void)
                     vs = get_val();
                     if (!tostr(vs, &filename)) {
                         char *path = get_path(&filename, current_file_list->file->realname);
-                        f = openfile(path, current_file_list->file->realname, 2, &filename, &vs->epoint);
+                        f = file_open(path, current_file_list->file->realname, 2, &filename, &vs->epoint);
                         free(path);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
@@ -4297,7 +4306,7 @@ MUST_CHECK Obj *compile(void)
                         exitfile();
                         listing_file(listing, ";******  Return to file: ", current_file_list->file);
                     }
-                    closefile(f);
+                    file_close(f);
                     goto breakerr;
                 }
                 break;
@@ -4880,13 +4889,13 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
             continue;
         }
 
-        cfile = openfile(argv[i], "", 0, NULL, &nopoint);
+        cfile = file_open(argv[i], "", 0, NULL, &nopoint);
         if (cfile != NULL) {
             enterfile(cfile, &nopoint);
             listing_file(listing, ";******  Processing input file: ", cfile);
             val = compile();
             if (val != NULL) val_destroy(val);
-            closefile(cfile);
+            file_close(cfile);
             exitfile();
         }
     }
@@ -4905,17 +4914,12 @@ int main2(int *argc2, char **argv2[]) {
     int argc;
     bool failed;
 
-    err_init(*argv2[0]);
-    objects_init();
-    init_section();
-    init_file();
-    init_variables();
-    init_eval();
+    compile_init(*argv2[0]);
 
-    fin = openfile(NULL, "", 0, NULL, &nopoint);
+    fin = file_open(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc2, argv2, fin); argc = *argc2; argv = *argv2;
     if (opts <= 0) {
-        tfree();
+        compile_destroy();
         return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     init_encoding(arguments.to_ascii);
@@ -4987,6 +4991,6 @@ int main2(int *argc2, char **argv2[]) {
         if (!failed) sectionprint(stdout);
         fflush(stdout);
     }
-    tfree();
+    compile_destroy();
     return failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2680 2021-05-23 20:03:26Z soci $
+    $Id: functionobj.c 2703 2021-09-17 11:20:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -433,7 +433,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
 
     if (!tostr(&v[0], &filename)) {
         char *path = get_path(&filename, current_file_list->file->realname);
-        cfile2 = openfile(path, current_file_list->file->realname, 1, &filename, &v[0].epoint);
+        cfile2 = file_open(path, current_file_list->file->realname, 1, &filename, &v[0].epoint);
         free(path);
     }
 

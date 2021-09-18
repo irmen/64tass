@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2672 2021-05-15 22:41:43Z soci $
+    $Id: error.c 2703 2021-09-17 11:20:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1465,7 +1465,7 @@ void error_print(const struct error_output_s *output) {
     }
 
     if (output->name != NULL) {
-        ferr = dash_name(output->name) ? stdout : file_open(output->name, output->append ? "at" : "wt");
+        ferr = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
         if (ferr == NULL) {
             err_msg_file(ERROR_CANT_WRTE_ERR, output->name, &nopoint);
             ferr = stderr;
