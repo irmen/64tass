@@ -1,5 +1,5 @@
 /*
-    $Id: opcodes.h 2156 2020-03-08 12:44:05Z soci $
+    $Id: opcodes.h 2709 2021-09-18 18:40:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ struct cpu_s {
 };
 
 extern const char *reg_names;
-extern const char * const addr_modes[ADR_LEN+1];
+extern const char *const addr_modes[ADR_LEN+1];
 extern const uint8_t regopcode_table[][REG_LEN];
 extern const uint8_t opcode_table[][ADR_LEN];
 

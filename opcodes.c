@@ -1,5 +1,5 @@
 /*
-    $Id: opcodes.c 2689 2021-08-01 19:34:32Z soci $
+    $Id: opcodes.c 2709 2021-09-18 18:40:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -849,7 +849,7 @@ const struct cpu_s c4510 = {
 
 const char *reg_names = "axysdrizbkp";
 
-const char * const addr_modes[ADR_LEN+1] = {
+const char *const addr_modes[ADR_LEN+1] = {
     "a",      /* ADR_REG */
     " ",      /* ADR_IMPLIED */
     "#",      /* ADR_IMMEDIATE */

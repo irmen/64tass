@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: arguments.c 2709 2021-09-18 18:40:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "64tass.h"
 #include "opcodes.h"
 #include "my_getopt.h"
-#include "file.h"
 #include "error.h"
 #include "unicode.h"
 #include "wchar.h"
@@ -41,6 +40,7 @@ struct arguments_s arguments = {
     &c6502,      /* cpumode */
     NULL,        /* symbol_output */
     0,           /* symbol_output_len */
+    NULL,        /* include */
     {            /* list */
         NULL,    /* name */
         true,    /* monitor */
@@ -49,6 +49,10 @@ struct arguments_s arguments = {
         false    /* verbose */
     },
     NULL,        /* make */
+    {
+        NULL,    /* data */
+        0,       /* len */
+    },
     {            /* error */
         NULL,    /* name */
         CARET_ALWAYS, /* caret */
@@ -226,8 +230,8 @@ static struct diagnostics_s diagnostic_error_all = {
 };
 
 struct w_options_s {
-    const char *name;
-    bool *opt;
+    const char *const name;
+    bool *const opt;
 };
 
 static const struct w_options_s w_options[] = {
@@ -324,7 +328,7 @@ static bool woption(const char *s) {
     return true;
 }
 
-static const char *short_options = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:W:";
+static const char short_options[] = "wqnbfXaTCBicxtel:L:I:M:msV?o:D:E:W:";
 
 enum {
     HELP = 256, USAGE, TAB_SIZE, CARET_DIAG, MACRO_CARET_DIAG, NO_CARET_DIAG,
@@ -489,12 +493,34 @@ static address_t get_all_mem2(void) {
     return min;
 }
 
-int testarg(int *argc2, char **argv2[], struct file_s *fin) {
+static void include_list_add(const char *path)
+{
+    static struct include_list_s **last = &arguments.include;
+    struct include_list_s *include; 
+    size_t i, j, len;
+    j = i = strlen(path);
+    if (i == 0) return;
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+    if (path[i - 1] != '/' && path[i-1] != '\\') j++;
+#else
+    if (path[i - 1] != '/') j++;
+#endif
+    len = j + 1;
+    if (inc_overflow(&len, sizeof(struct include_list_s))) err_msg_out_of_memory();
+    include = (struct include_list_s *)allocate_array(uint8_t, len);
+    if (include == NULL) err_msg_out_of_memory();
+    include->next = NULL;
+    memcpy(include->path, path, i + 1);
+    if (i != j) memcpy(include->path + i, "/", 2);
+    *last = include;
+    last = &include->next;
+}
+
+int testarg(int *argc2, char **argv2[]) {
     int argc = *argc2;
     char **argv = *argv2;
     int opt;
-    size_t max_lines = 0;
-    filesize_t fp = 0;
+    size_t defines_p = 0;
     int max = 10;
     bool again;
     struct symbol_output_s symbol_output = { NULL, NULL, LABEL_64TASS, false };
@@ -542,18 +568,14 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
             case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
             case 'D':
                 {
-                    size_t len;
-
-                    if (fin->lines >= max_lines) extend_array(&fin->line, &max_lines, 1024);
-                    fin->line[fin->lines++] = fp;
-
-                    len = strlen(my_optarg) + 1;
-                    if (inc_overflow(&fp, len)) err_msg_out_of_memory();
-                    if (fp > fin->len) {
-                        if (add_overflow(fp, 1024, &fin->len)) err_msg_out_of_memory();
-                        resize_array(&fin->data, fin->len);
+                    size_t len = strlen(my_optarg) + 1;
+                    if (inc_overflow(&defines_p, len)) err_msg_out_of_memory();
+                    if (defines_p > arguments.defines.len) {
+                        if (add_overflow(defines_p, 1024, &arguments.defines.len)) err_msg_out_of_memory();
+                        resize_array(&arguments.defines.data, arguments.defines.len);
                     }
-                    memcpy(fin->data + fp - len, my_optarg, len);
+                    memcpy(arguments.defines.data + defines_p - len, my_optarg, len - 1);
+                    arguments.defines.data[defines_p - 1] = '\n';
                 }
                 break;
             case 'B': arguments.longbranch = true;break;
@@ -807,23 +829,30 @@ int testarg(int *argc2, char **argv2[], struct file_s *fin) {
     if (arguments.caseinsensitive == 0) {
         diagnostics.case_symbol = false;
     }
-    if (fin->lines != max_lines) {
-        filesize_t *d = reallocate_array(fin->line, fin->lines);
-        if (fin->lines == 0 || d != NULL) fin->line = d;
-    }
-    file_close(fin);
-    if (fp != fin->len) {
-        fin->len = fp;
-        if (fp != 0) {
-            uint8_t *d = reallocate_array(fin->data, fp);
-            if (d != NULL) fin->data = d;
+    if (defines_p != arguments.defines.len) {
+        arguments.defines.len = defines_p;
+        if (defines_p != 0) {
+            char *d = reallocate_array(arguments.defines.data, defines_p);
+            if (d != NULL) arguments.defines.data = d;
         }
     }
-    fin->encoding = E_UTF8;
     if (argc <= my_optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try '64tass --help' or '64tass --usage' for more information.\n", stderr);
         return -1;
     }
     return my_optind;
+}
+
+void destroy_arguments(void) {
+    struct include_list_s *include;
+    free(arguments.output);
+    free(arguments.symbol_output);
+    free(arguments.defines.data);
+    include = arguments.include;
+    while (include != NULL) {
+        struct include_list_s *tmp = include;
+        include = tmp->next;
+        free(tmp);
+    }
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: variables.c 2708 2021-09-18 18:12:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@
 #include "errorobj.h"
 #include "mfuncobj.h"
 
-static Label *lastlb = NULL;
+static Label *lastlb;
 
 #define EQUAL_COLUMN 16
 
@@ -615,7 +615,7 @@ static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode
 }
 
 static inline const uint8_t *get_line(const struct file_s *file, linenum_t line) {
-    return &file->data[file->line[line - 1]];
+    return &file->source.data[file->line[line - 1]];
 }
 
 static void labeldump(Namespace *names, FILE *flab) {

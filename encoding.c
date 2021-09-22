@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: encoding.c 2709 2021-09-18 18:40:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@ static const struct translate_table_s petscii_trans[] = {
 };
 
 /* PETSCII codes, must be sorted */
-const char *petscii_esc =
+const char *const petscii_esc =
     "\x07" "{bell}\0"
     "\x90" "{black}\0"
     "\x90" "{blk}\0"
@@ -425,7 +425,7 @@ static const struct translate_table_s petscii_screen_trans[] = {
 };
 
 /* petscii screen codes, must be sorted */
-static const char *petscii_screen_esc =
+static const char petscii_screen_esc[] =
     "\x5f" "{cbm-*}\0"
     "\x66" "{cbm-+}\0"
     "\x5c" "{cbm--}\0"
@@ -558,7 +558,7 @@ static void encoding_free(struct avltree_node *aa)
 
 static Enc *enc_from_name(str_t *, linepos_t);
 
-static struct encoding_s *lasten = NULL;
+static struct encoding_s *lasten;
 Enc *new_encoding(const str_t *name, linepos_t epoint)
 {
     struct avltree_node *b;
@@ -643,6 +643,7 @@ void init_encoding(bool toascii)
 {
     avltree_init(&encoding_tree);
     ascii_mode = toascii;
+    lasten = NULL;
 }
 
 void destroy_encoding(void)

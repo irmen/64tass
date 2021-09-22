@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: error.c 2715 2021-09-19 08:31:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const stru
         } else if (a->epoint.line == 0) {
             aline = (const uint8_t *)"";
         } else {
-            aline = &a->file_list->file->data[a->file_list->file->line[a->epoint.line - 1]];
+            aline = &a->file_list->file->source.data[a->file_list->file->line[a->epoint.line - 1]];
         }
 
         if (b->line_len != 0) {
@@ -129,7 +129,7 @@ static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const stru
         } else if (a->epoint.line == 0) {
             bline = (const uint8_t *)"";
         } else {
-            bline = &a->file_list->file->data[a->file_list->file->line[a->epoint.line - 1]];
+            bline = &a->file_list->file->source.data[a->file_list->file->line[a->epoint.line - 1]];
         }
 
         i = strcmp((const char *)aline, (const char *)bline);
@@ -166,9 +166,11 @@ static NO_RETURN void err_msg_out_of_memory2(void)
 
 static void error_extend(void) {
     struct errorentry_s *err;
-    uint8_t *data = reallocate_array(error_list.data, error_list.max);
+    uint8_t *data;
     size_t diff, pos;
     bool dir;
+    if (add_overflow(error_list.len, 0x200, &error_list.max)) err_msg_out_of_memory2();
+    data = reallocate_array(error_list.data, error_list.max);
     if (data == NULL) err_msg_out_of_memory2();
     dir = data >= error_list.data;
     diff = dir ? (size_t)(data - error_list.data) : (size_t)(error_list.data - data);
@@ -183,23 +185,34 @@ static void error_extend(void) {
     if (error_list.members.root != NULL) error_list.members.root = (struct avltree_node *)((dir ? ((uint8_t *)error_list.members.root + diff) : ((uint8_t *)error_list.members.root - diff)));
 }
 
-static void new_error_msg_common(Severity_types severity, const struct file_list_s *flist, linepos_t epoint, size_t line_len, linecpos_t pos) {
+static struct errorentry_s *new_error_msg_common(const uint8_t *line) {
     struct errorentry_s *err;
+    size_t line_len;
     close_error();
     if (add_overflow(error_list.header_pos, sizeof *err, &error_list.len)) err_msg_out_of_memory2();
-    if (inc_overflow(&error_list.len, line_len)) err_msg_out_of_memory2();
-    if (error_list.len > error_list.max) {
-        if (add_overflow(error_list.len, 0x200, &error_list.max)) err_msg_out_of_memory2();
-        error_extend();
+    if (line == NULL) {
+        line_len = 0;
+    } else {
+        line_len = strlen((const char *)line) + 1;
+        if (inc_overflow(&error_list.len, line_len)) err_msg_out_of_memory2();
     }
+    if (error_list.len > error_list.max) error_extend();
+    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof *err], line, line_len);
     err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
-    err->severity = severity;
-    err->error_len = 0;
     err->line_len = line_len;
-    err->file_list = flist;
-    err->epoint.line = epoint->line;
-    err->epoint.pos = pos;
-    err->caret = epoint->pos;
+    err->error_len = 0;
+    return err;
+}
+
+static void adderror2(const uint8_t *s, size_t len) {
+    size_t pos = error_list.len;
+    if (inc_overflow(&error_list.len, len)) err_msg_out_of_memory2();
+    if (error_list.len > error_list.max) error_extend();
+    memcpy(error_list.data + pos, s, len);
+}
+
+static void adderror(const char *s) {
+    adderror2((const uint8_t *)s, strlen(s));
 }
 
 static struct {
@@ -208,49 +221,61 @@ static struct {
     linepos_t epoint;
 } new_error_msg_more_param;
 
-static void new_error_msg_more(void);
+static void new_error_msg_more(void) {
+    struct errorentry_s *err = new_error_msg_common((new_error_msg_more_param.severity != SV_NOTE && (new_error_msg_more_param.epoint->line == lpoint.line) && not_in_file(pline, new_error_msg_more_param.flist->file)) ? pline : NULL);
+    err->severity = SV_NOTE;
+    err->file_list = new_error_msg_more_param.flist;
+    err->epoint.line = new_error_msg_more_param.epoint->line;
+    err->epoint.pos = macro_error_translate2(new_error_msg_more_param.epoint->pos);
+    err->caret = new_error_msg_more_param.epoint->pos;
+    adderror("original location in an expanded macro was here");
+}
+
 static bool new_error_msg(Severity_types severity, const struct file_list_s *flist, linepos_t epoint) {
-    size_t line_len;
+    struct errorentry_s *err;
     if (in_macro && flist == current_file_list && epoint->line == lpoint.line) {
         struct linepos_s opoint;
         const struct file_list_s *eflist = macro_error_translate(&opoint, epoint->pos);
         if (eflist != NULL) {
-            new_error_msg_common(severity, eflist, &opoint, 0, opoint.pos);
+            err = new_error_msg_common(NULL);
+            err->file_list = eflist;
+            err->epoint = opoint;
+            err->caret = opoint.pos;
+            err->severity = severity;
             new_error_msg_more_param.severity = severity;
             new_error_msg_more_param.flist = flist;
             new_error_msg_more_param.epoint = epoint;
             return true;
         }
     }
-    switch (severity) {
-    case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && not_in_file(pline, flist->file)) ? (strlen((const char *)pline) + 1) : 0; break;
-    }
-    new_error_msg_common(severity, flist, epoint, line_len, macro_error_translate2(epoint->pos));
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
+    err = new_error_msg_common((severity != SV_NOTE && (epoint->line == lpoint.line) && not_in_file(pline, flist->file)) ? pline : NULL);
+    err->severity = severity;
+    err->file_list = flist;
+    err->epoint.line = epoint->line;
+    err->caret = epoint->pos;
+    err->epoint.pos = macro_error_translate2(epoint->pos);
     return false;
 }
 
 static bool new_error_msg_err(const Error *err) {
-    struct linepos_s opoint;
-    size_t line_len;
+    struct errorentry_s *tmp;
     if (in_macro && err->file_list == current_file_list && err->epoint.line == lpoint.line) {
+        struct linepos_s opoint;
         const struct file_list_s *eflist = macro_error_translate(&opoint, err->caret);
         if (eflist != NULL) {
-            new_error_msg_common(SV_ERROR, eflist, &opoint, 0, opoint.pos);
+            tmp = new_error_msg_common(NULL);
+            tmp->severity = SV_ERROR;
+            tmp->file_list = eflist;
+            tmp->epoint = opoint;
+            tmp->caret = opoint.pos;
             return true;
         }
     }
-    if (err->line == NULL) {
-        opoint = err->epoint;
-        line_len = 0;
-    } else {
-        opoint.line = err->epoint.line;
-        opoint.pos = err->caret;
-        line_len = strlen((const char *)err->line) + 1;
-    }
-    new_error_msg_common(SV_ERROR, err->file_list, &opoint, line_len, err->epoint.pos);
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], err->line, line_len);
+    tmp = new_error_msg_common(err->line);
+    tmp->severity = SV_ERROR;
+    tmp->file_list = err->file_list;
+    tmp->epoint = err->epoint;
+    tmp->caret = (err->line == NULL) ? err->epoint.pos : err->caret;
     return false;
 }
 
@@ -309,20 +334,7 @@ void exitfile(void) {
     if (cflist->parent != NULL) current_file_list = &cflist->parent->flist;
 }
 
-static void adderror2(const uint8_t *s, size_t len) {
-    if (len + error_list.len > error_list.max) {
-        error_list.max += (len > 0x200) ? len : 0x200;
-        error_extend();
-    }
-    memcpy(error_list.data + error_list.len, s, len);
-    error_list.len += len;
-}
-
-static void adderror(const char *s) {
-    adderror2((const uint8_t *)s, strlen(s));
-}
-
-static const char * const terr_warning[] = {
+static const char *const terr_warning[] = {
     "deprecated modulo operator, use '%' instead",
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
@@ -341,7 +353,7 @@ static const char * const terr_warning[] = {
     "use relative path for '"
 };
 
-static const char * const terr_error[] = {
+static const char *const terr_error[] = {
     "double defined range",
     "double defined escape",
     "extra characters on line",
@@ -398,7 +410,7 @@ static const char * const terr_error[] = {
     "not measurable as start offset beyond size of original"
 };
 
-static const char * const terr_fatal[] = {
+static const char *const terr_fatal[] = {
     "can't open file",
     "error reading file",
     "can't write object file",
@@ -648,31 +660,11 @@ static bool err_msg_big_integer(const Error *err) {
 }
 
 static void new_error_msg_err_more(const Error *err) {
-    size_t line_len;
-    struct linepos_s opoint;
-    if (err->line == NULL) {
-        opoint = err->epoint;
-        line_len = 0;
-    } else {
-        opoint.line = err->epoint.line;
-        opoint.pos = err->caret;
-        line_len = strlen((const char *)err->line) + 1;
-    }
-    new_error_msg_common(SV_NOTE, err->file_list, &opoint, line_len, err->epoint.pos);
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], err->line, line_len);
-    adderror("original location in an expanded macro was here");
-}
-
-static void new_error_msg_more(void) {
-    const struct file_list_s *flist = new_error_msg_more_param.flist;
-    linepos_t epoint = new_error_msg_more_param.epoint;
-    size_t line_len;
-    switch (new_error_msg_more_param.severity) {
-    case SV_NOTE: line_len = 0; break;
-    default: line_len = ((epoint->line == lpoint.line) && not_in_file(pline, flist->file)) ? (strlen((const char *)pline) + 1) : 0; break;
-    }
-    new_error_msg_common(SV_NOTE, flist, epoint, line_len, macro_error_translate2(epoint->pos));
-    if (line_len != 0) memcpy(&error_list.data[error_list.header_pos + sizeof(struct errorentry_s)], pline, line_len);
+    struct errorentry_s *tmp = new_error_msg_common(err->line);
+    tmp->severity = SV_NOTE;
+    tmp->file_list = err->file_list;
+    tmp->epoint = err->epoint;
+    tmp->caret = (err->line == NULL) ? err->epoint.pos : err->caret;
     adderror("original location in an expanded macro was here");
 }
 
@@ -708,7 +700,7 @@ static void notdefines_free(struct avltree_node *aa) {
     free(a);
 }
 
-static struct notdefines_s *lastnd = NULL;
+static struct notdefines_s *lastnd;
 static void err_msg_not_defined3(const Error *err) {
     Namespace *l = err->u.notdef.names;
     struct notdefines_s *tmp2;
@@ -1095,7 +1087,7 @@ void err_msg_macro_prefix(linepos_t epoint) {
     adderror("macro call without prefix [-Wmacro-prefix]");
 }
 
-static const char * const opr_names[ADR_LEN] = {
+static const char *const opr_names[ADR_LEN] = {
     "", /* ADR_REG */
     "", /* ADR_IMPLIED */
     "", /* ADR_IMMEDIATE */
@@ -1168,7 +1160,7 @@ void err_msg_shadow_defined2(Label *l) {
     adderror(" [-Wshadow]");
 }
 
-static const char * const order_suffix[4] = {
+static const char order_suffix[4][3] = {
     "st", "nd", "rd", "th"
 };
 
@@ -1360,7 +1352,7 @@ static const uint8_t *printline(const struct file_list_s *cfile, linepos_t epoin
     const struct file_s *file;
     if (epoint->line == 0) return NULL;
     file = cfile->file;
-    if (line == NULL) line = &file->data[file->line[epoint->line - 1]];
+    if (line == NULL) line = &file->source.data[file->line[epoint->line - 1]];
     fprintf(f, ":%" PRIuline ":%" PRIlinepos, epoint->line, ((file->encoding == E_UTF8) ? (linecpos_t)calcpos(line, epoint->pos) : epoint->pos) + 1);
     return line;
 }
@@ -1561,8 +1553,8 @@ void err_init(const char *name) {
     lastfl = &file_lists->file_lists[file_listsp];
     file_list_file.name = "";
     file_list_file.realname = file_list_file.name;
-    file_list_file.data = (uint8_t *)0;
-    file_list_file.len = ~(filesize_t)0;
+    file_list_file.source.data = (uint8_t *)0;
+    file_list_file.source.len = ~(filesize_t)0;
     file_list.flist.file = &file_list_file;
     avltree_init(&file_list.members);
     error_list.len = error_list.max = error_list.header_pos = 0;
@@ -1572,6 +1564,7 @@ void err_init(const char *name) {
     dummy_file_list = &file_list.flist;
     included_from = &file_list;
     avltree_init(&notdefines);
+    lastnd = NULL;
 }
 
 void err_destroy(void) {

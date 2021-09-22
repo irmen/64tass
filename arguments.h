@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2618 2021-04-25 11:11:11Z soci $
+    $Id: arguments.h 2706 2021-09-18 16:22:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,8 +34,6 @@ typedef enum Caret_types {
     CARET_ALWAYS, CARET_MACRO, CARET_NEVER
 } Caret_types;
 
-struct file_s;
-
 struct output_s {
     const char *name;
     const char *section;
@@ -67,6 +65,22 @@ struct list_output_s {
     bool verbose;
 };
 
+struct cmdline_defines_s {
+    char *data;
+    size_t len;
+};
+
+struct include_list_s {
+    struct include_list_s *next;
+#if __STDC_VERSION__ >= 199901L
+    char path[];
+#elif __GNUC__ >= 3
+    char path[];
+#else
+    char path[1];
+#endif
+};
+
 struct arguments_s {
     bool quiet;
     bool to_ascii;
@@ -79,8 +93,10 @@ struct arguments_s {
     const struct cpu_s *cpumode;
     struct symbol_output_s *symbol_output;
     size_t symbol_output_len;
+    struct include_list_s *include;
     struct list_output_s list;
     const char *make;
+    struct cmdline_defines_s defines;
     struct error_output_s error;
     unsigned int tab_size;
 };
@@ -126,7 +142,8 @@ struct diagnostics_s {
     bool size_larger;
 };
 
-extern int testarg(int *, char ***, struct file_s *);
+extern int testarg(int *, char ***);
+extern void destroy_arguments(void);
 extern struct arguments_s arguments;
 extern struct diagnostics_s diagnostics, diagnostic_errors;
 

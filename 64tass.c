@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: 64tass.c 2709 2021-09-18 18:40:01Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -167,7 +167,7 @@ static struct waitfor_s {
 
 struct star_s *star_tree = NULL;
 
-static const char * const command[] = { /* must be sorted, first char is the ID */
+static const char *const command[] = { /* must be sorted, first char is the ID */
     "\x08" "addr",
     "\x22" "al",
     "\x34" "align",
@@ -337,8 +337,7 @@ static void compile_destroy(void) {
     destroy_file();
     destroy_ternary();
     destroy_opt_bit();
-    free(arguments.output);
-    free(arguments.symbol_output);
+    destroy_arguments();
     if (unfc(NULL)) {}
     if (unfkc(NULL, NULL, 0)) {}
     str_cfcpy(NULL, NULL);
@@ -3632,9 +3631,7 @@ MUST_CHECK Obj *compile(void)
                         if (!get_exp(0, 1, 3, &epoint)) goto breakerr;
                         vs = get_val();
                         if (!tostr(vs, &filename)) {
-                            char *path = get_path(&filename, current_file_list->file->realname);
-                            cfile2 = file_open(path, current_file_list->file->realname, 1, &filename, &vs->epoint);
-                            free(path);
+                            cfile2 = file_open(&filename, current_file_list->file->realname, 1, &vs->epoint);
                         }
                         if ((vs = get_val()) != NULL) {
                             ival_t ival;
@@ -3650,11 +3647,11 @@ MUST_CHECK Obj *compile(void)
                         if (cfile2 != NULL) {
                             filesize_t foffset;
                             mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
-                            if (foffs < 0) foffset = (uval_t)-foffs < cfile2->len ? (cfile2->len - (uval_t)-foffs) : 0;
+                            if (foffs < 0) foffset = (uval_t)-foffs < cfile2->binary.len ? (cfile2->binary.len - (uval_t)-foffs) : 0;
                             else foffset = (uval_t)foffs;
-                            for (; fsize != 0 && foffset < cfile2->len;) {
-                                filesize_t i, ln = cfile2->len - foffset;
-                                uint8_t *d, *s = cfile2->data + foffset;
+                            for (; fsize != 0 && foffset < cfile2->binary.len;) {
+                                filesize_t i, ln = cfile2->binary.len - foffset;
+                                uint8_t *d, *s = cfile2->binary.data + foffset;
                                 if (ln > fsize) ln = fsize;
                                 d = pokealloc(ln, &epoint);
                                 if (outputeor != 0) {
@@ -4261,18 +4258,16 @@ MUST_CHECK Obj *compile(void)
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (!tostr(vs, &filename)) {
-                        char *path = get_path(&filename, current_file_list->file->realname);
-                        f = file_open(path, current_file_list->file->realname, 2, &filename, &vs->epoint);
-                        free(path);
+                        f = file_open(&filename, current_file_list->file->realname, 2, &vs->epoint);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
-                    if (newlabel != NULL && prm == CMD_BINCLUDE && (f == NULL || f->open > 1) && newlabel->value->obj == CODE_OBJ) {
+                    if (newlabel != NULL && prm == CMD_BINCLUDE && (f == NULL || f->open) && newlabel->value->obj == CODE_OBJ) {
                         newlabel->update_after = true;
                         const_assign(newlabel, ref_none());
                     }
                     if (f == NULL) goto breakerr;
-                    if (f->open>1) {
+                    if (f->open) {
                         err_msg2(ERROR_FILERECURSION, NULL, &epoint);
                     } else {
                         Wait_types what;
@@ -4293,6 +4288,7 @@ MUST_CHECK Obj *compile(void)
                                 push_context(anonlabel(mycontext, '.', &epoint));
                             }
                         }
+                        f->open = true;
                         enterfile(f, &epoint);
                         lpoint.line = 0;
                         star_tree->vline = vline; star_tree = s; vline = s->vline;
@@ -4304,9 +4300,9 @@ MUST_CHECK Obj *compile(void)
                         lpoint.line = lin; 
                         s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
                         exitfile();
+                        f->open = false;
                         listing_file(listing, ";******  Return to file: ", current_file_list->file);
                     }
-                    file_close(f);
                     goto breakerr;
                 }
                 break;
@@ -4848,14 +4844,16 @@ MUST_CHECK Obj *compile(void)
     return retval;
 }
 
-static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
+static void one_pass(int argc, char **argv, int opts) {
     static const str_t none_enc = {(const uint8_t *)"none", 4};
-    static struct linepos_s nopoint = {0, 0};
+    static const str_t cmdline_name = { (const uint8_t *)"<command line>", 14 };
+    static const struct linepos_s nopoint = {0, 0};
     struct file_s *cfile;
     Obj *val;
     int i;
     address_t ln = root_section.address.mem->mem.p;
     size_t ln2 = root_section.address.mem->p;
+    str_t filename;
 
     fixeddig = true;constcreated = false; fwcount = 0; efwcount = 0; error_reset();random_reseed(int_value[0], NULL);
     val_destroy(Obj(root_section.address.mem));
@@ -4876,27 +4874,36 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
         star_tree = init_star((linenum_t)i);
 
         if (i == opts - 1) {
-            if (fin->lines != 0) {
-                enterfile(fin, &nopoint);
+            cfile = file_open(&cmdline_name, NULL, 3, &nopoint);
+            if (cfile != NULL && cfile->source.len != 0) {
+                cfile->open = true;
+                enterfile(cfile, &nopoint);
                 listing_file(listing, ";******  Command line definitions", NULL);
                 val = compile();
                 if (val != NULL) val_destroy(val);
                 exitfile();
+                cfile->open = false;
+                val_destroy(Obj(root_section.address.mem));
+                root_section.address.mem = new_memblocks(ln, ln2);
+                if (diagnostics.optimize) cpu_opt_invalidate();
+                continue;
             }
-            val_destroy(Obj(root_section.address.mem));
-            root_section.address.mem = new_memblocks(ln, ln2);
-            if (diagnostics.optimize) cpu_opt_invalidate();
-            continue;
+            i++;
+            if (i >= argc) break;
         }
 
-        cfile = file_open(argv[i], "", 0, NULL, &nopoint);
+        filename.data = (const uint8_t *)argv[i];
+        filename.len = strlen(argv[i]);
+        cfile = file_open(&filename, NULL, dash_name(argv[i]) ? 0 : 2, &nopoint);
         if (cfile != NULL) {
+            cfile->cmdline = true;
+            cfile->open = true;
             enterfile(cfile, &nopoint);
             listing_file(listing, ";******  Processing input file: ", cfile);
             val = compile();
             if (val != NULL) val_destroy(val);
-            file_close(cfile);
             exitfile();
+            cfile->open = false;
         }
     }
     ref_labels();
@@ -4908,16 +4915,14 @@ static void one_pass(int argc, char **argv, int opts, struct file_s *fin) {
 int main2(int *argc2, char **argv2[]) {
     size_t j;
     int opts;
-    struct file_s *fin;
-    static struct linepos_s nopoint = {0, 0};
+    static const struct linepos_s nopoint = {0, 0};
     char **argv;
     int argc;
     bool failed;
 
     compile_init(*argv2[0]);
 
-    fin = file_open(NULL, "", 0, NULL, &nopoint);
-    opts = testarg(argc2, argv2, fin); argc = *argc2; argv = *argv2;
+    opts = testarg(argc2, argv2); argc = *argc2; argv = *argv2;
     if (opts <= 0) {
         compile_destroy();
         return (opts < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -4935,7 +4940,7 @@ int main2(int *argc2, char **argv2[]) {
     do {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         listing_pccolumn = false;
-        one_pass(argc, argv, opts, fin);
+        one_pass(argc, argv, opts);
         if (signal_received) { err_msg_signal(); break; }
     } while (!fixeddig || constcreated);
 
@@ -4950,7 +4955,7 @@ int main2(int *argc2, char **argv2[]) {
 
             max_pass = pass; pass++;
             listing = listing_open(arguments.list.name, argc, argv);
-            one_pass(argc, argv, opts, fin);
+            one_pass(argc, argv, opts);
             listing_close(listing);
             listing = NULL;
 

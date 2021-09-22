@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: encobj.c 2708 2021-09-18 18:12:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ static FAST_CALL int trans_compare(const struct avltree_node *aa, const struct a
     return 0;
 }
 
-static struct trans_s *lasttr = NULL;
+static struct trans_s *lasttr;
 bool enc_trans_add(Enc *enc, const struct character_range_s *range, linepos_t epoint)
 {
     struct avltree_node *b;
@@ -444,6 +444,7 @@ void encobj_init(void) {
     actual_encoding->escapes = NULL;
     actual_encoding->map = NULL;
     avltree_init(&actual_encoding->ranges);
+    lasttr = NULL;
 }
 
 void encobj_destroy(void) {

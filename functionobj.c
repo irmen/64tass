@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: functionobj.c 2706 2021-09-18 16:22:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -432,9 +432,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
     str_t filename;
 
     if (!tostr(&v[0], &filename)) {
-        char *path = get_path(&filename, current_file_list->file->realname);
-        cfile2 = file_open(path, current_file_list->file->realname, 1, &filename, &v[0].epoint);
-        free(path);
+        cfile2 = file_open(&filename, current_file_list->file->realname, 1, &v[0].epoint);
     }
 
     switch (vals->len) {
@@ -451,7 +449,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
     }
     
     if (cfile2 != NULL) {
-        filesize_t offset, ln = cfile2->len;
+        filesize_t offset, ln = cfile2->binary.len;
         Bytes *b;
         if (offs < 0) offset = ((uval_t)-offs < ln) ? (ln - (uval_t)-offs) : 0;
         else offset = (uval_t)offs;
@@ -461,7 +459,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
         if (((size_t)ln + 0) > SSIZE_MAX) return new_error_mem(op->epoint);
         b = new_bytes(ln);
         b->len = (ssize_t)ln;
-        memcpy(b->data, cfile2->data + offset, ln);
+        memcpy(b->data, cfile2->binary.data + offset, ln);
         return Obj(b);
     }
     return ref_none();

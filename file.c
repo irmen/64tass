@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: file.c 2712 2021-09-18 23:09:42Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,23 +34,10 @@
 #include "unicodedata.h"
 #include "avl.h"
 
-struct include_list_s {
-    struct include_list_s *next;
-#if __STDC_VERSION__ >= 199901L
-    char path[];
-#elif __GNUC__ >= 3
-    char path[];
-#else
-    char path[1];
-#endif
-};
-
-static struct include_list_s include_list;
-static struct include_list_s *include_list_last = &include_list;
-
 static struct {
     size_t len, mask;
     struct file_s **data;
+    uint16_t uid;
 } file_table;
 
 static struct file_s *file_table_update(struct file_s *p) {
@@ -81,7 +68,7 @@ static struct file_s *file_table_update(struct file_s *p) {
     offs = hash & mask;
     while (file_table.data[offs] != NULL) {
         struct file_s *d = file_table.data[offs];
-        if (p->hash == d->hash && p->type == d->type && strcmp(p->name, d->name) == 0) {
+        if (p->hash == d->hash && strcmp(p->name, d->name) == 0) {
             if (p->base.data == d->base.data) return d;
             if (p->base.len == d->base.len && memcmp(p->base.data, d->base.data, p->base.len) == 0) {
                 return d;
@@ -95,33 +82,13 @@ static struct file_s *file_table_update(struct file_s *p) {
     return NULL;
 }
 
-void include_list_add(const char *path)
-{
-    size_t i, j, len;
-    j = i = strlen(path);
-    if (i == 0) return;
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
-    if (path[i - 1] != '/' && path[i-1] != '\\') j++;
-#else
-    if (path[i - 1] != '/') j++;
-#endif
-    len = j + 1;
-    if (inc_overflow(&len, sizeof(struct include_list_s))) err_msg_out_of_memory();
-    include_list_last->next = (struct include_list_s *)allocate_array(uint8_t, len);
-    if (include_list_last->next == NULL) err_msg_out_of_memory();
-    include_list_last = include_list_last->next;
-    include_list_last->next = NULL;
-    memcpy(include_list_last->path, path, i + 1);
-    if (i != j) memcpy(include_list_last->path + i, "/", 2);
-}
-
 #if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
 static inline bool is_driveletter(const char *name) {
     return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
 
-size_t get_base(const char *base) {
+static size_t get_base(const char *base) {
 #if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     size_t i, j = is_driveletter(base) ? 2 : 0;
     for (i = j; base[i] != '\0'; i++) {
@@ -134,7 +101,7 @@ size_t get_base(const char *base) {
 #endif
 }
 
-char *get_path(const str_t *v, const char *base) {
+static char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
 
@@ -268,28 +235,34 @@ static bool portability2(const str_t *name, const char *realname, linepos_t epoi
 }
 #endif
 
-static void file_free(struct file_s *a)
+static void file_free_static(struct file_s *a)
 {
-    free(a->data);
+    free(a->source.data);
+    free(a->binary.data);
     free(a->line);
     free(a->nomacro);
+}
+
+static void file_free(struct file_s *a)
+{
+    file_free_static(a);
     if (a->name != a->realname) free((char *)a->name);
     free((char *)a->realname);
     free(a);
 }
 
-static bool file_extend(struct file_s *tmp) {
+static bool file_extend(struct file_data_s *file) {
     uint8_t *d;
     filesize_t len2;
-    if (add_overflow(tmp->len, 4096, &len2)) return true;
-    d = reallocate_array(tmp->data, len2);
+    if (add_overflow(file->len, 4096, &len2)) return true;
+    d = reallocate_array(file->data, len2);
     if (d == NULL) return true;
-    tmp->data = d;
-    tmp->len = len2;
+    file->data = d;
+    file->len = len2;
     return false;
 }
 
-static void file_normalize(struct file_s *file, filesize_t fp) {
+static void file_normalize(struct file_data_s *file, filesize_t fp) {
     if (fp == 0) {
         free(file->data);
         file->data = NULL;
@@ -298,9 +271,10 @@ static void file_normalize(struct file_s *file, filesize_t fp) {
         if (d != NULL) file->data = d;
     }
     file->len = fp;
+    file->read = true;
 }
 
-static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_s *tmp) {
+static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_data_s *tmp) {
     uint32_t i;
     filesize_t p = *p2;
     for (i = 0; i < ubuff->p; i++) {
@@ -360,25 +334,25 @@ static int read_binary(struct file_s *file, FILE *f) {
     int err = 1;
     filesize_t fs = fsize(f);
     if (fs > 0) {
-        file->data = allocate_array(uint8_t, fs);
-        if (file->data != NULL) file->len = fs;
+        file->binary.data = allocate_array(uint8_t, fs);
+        if (file->binary.data != NULL) file->binary.len = fs;
     }
     clearerr(f); errno = 0;
-    if (file->len != 0 || !file_extend(file)) {
-        bool check = (file->data != NULL);
+    if (file->binary.len != 0 || !file_extend(&file->binary)) {
+        bool check = (file->binary.data != NULL);
         for (;;) {
-            fp += (filesize_t)fread(file->data + fp, 1, file->len - fp, f);
-            if (feof(f) == 0 && fp >= file->len && !signal_received) {
+            fp += (filesize_t)fread(file->binary.data + fp, 1, file->binary.len - fp, f);
+            if (feof(f) == 0 && fp >= file->binary.len && !signal_received) {
                 if (check) {
                     int c2 = getc(f);
                     check = false;
                     if (c2 != EOF) {
-                        if (file_extend(file)) break;
-                        file->data[fp++] = (uint8_t)c2;
+                        if (file_extend(&file->binary)) break;
+                        file->binary.data[fp++] = (uint8_t)c2;
                         continue;
                     }
                 } else {
-                    if (file_extend(file)) break;
+                    if (file_extend(&file->binary)) break;
                     continue;
                 }
             }
@@ -386,36 +360,42 @@ static int read_binary(struct file_s *file, FILE *f) {
             break;
         }
     }
-    file_normalize(file, fp);
+    file_normalize(&file->binary, fp);
     return err;
 }
 
 static struct ubuff_s last_ubuff;
 static int read_source(struct file_s *file, FILE *f) {
     enum { REPLACEMENT_CHARACTER = 0xfffd };
-    Encoding_types encoding = E_UNKNOWN;
-    filesize_t fp = 0;
+    Encoding_types encoding = arguments.to_ascii ? E_UNKNOWN : E_RAW;
+    filesize_t fp = 0, bfp = 0;
     unichar_t c = 0;
     struct ubuff_s ubuff = last_ubuff;
     size_t max_lines = 0;
     linenum_t lines = 0;
     uint8_t buffer[BUFSIZ * 2];
-    size_t bp = 0, bl;
+    filesize_t bp = 0, bl;
     unsigned int qr = 1;
     int err = 1;
-    filesize_t fs = fsize(f);
+    filesize_t fs = (f == NULL) ? file->binary.len : fsize(f);
     if (fs > 0) {
         filesize_t len2;
         if (add_overflow(fs, 4096, &len2)) len2 = ~(filesize_t)0;
-        file->data = allocate_array(uint8_t, len2);
-        if (file->data != NULL) file->len = len2;
+        file->source.data = allocate_array(uint8_t, len2);
+        if (file->source.data != NULL) file->source.len = len2;
         max_lines = (len2 / 20 + 1024) & ~(size_t)1023;
         file->line = allocate_array(filesize_t, max_lines);
         if (file->line == NULL) max_lines = 0;
     }
-    clearerr(f); errno = 0;
-    bl = fread(buffer, 1, BUFSIZ, f);
-    if (bl != 0 && buffer[0] == 0) encoding = E_UTF16BE; /* most likely */
+    if (f == NULL) {
+        bfp = fs < BUFSIZ ? fs : BUFSIZ;
+        bl = bfp;
+        if (bl > 0) memcpy(buffer, file->binary.data, bl);
+    } else {
+        clearerr(f); errno = 0;
+        bl = (filesize_t)fread(buffer, 1, BUFSIZ, f);
+    }
+    if (encoding == E_UNKNOWN && bl != 0 && buffer[0] == 0) encoding = E_UTF16BE; /* most likely */
 #ifdef _WIN32
     setlocale(LC_CTYPE, "");
 #endif
@@ -441,32 +421,51 @@ static int read_source(struct file_s *file, FILE *f) {
         for (;;) {
             unsigned int i, j;
             uint8_t ch2;
-            if (p + 6*6 + 1 > file->len && file_extend(file)) goto failed;
+            if (p + 6*6 + 1 > file->source.len && file_extend(&file->source)) goto failed;
             if (bp / (BUFSIZ / 2) == qr) {
                 if (qr == 1) {
                     qr = 3;
-                    if (feof(f) == 0) bl = BUFSIZ + fread(buffer + BUFSIZ, 1, BUFSIZ, f);
+                    if (f == NULL) {
+                        filesize_t rl = fs - bfp;
+                        if (rl > BUFSIZ) rl = BUFSIZ;
+                        if (rl > 0) {
+                            memcpy(buffer + BUFSIZ, file->binary.data + bfp, rl);
+                            bfp += rl;
+                        }
+                        bl = BUFSIZ + rl;
+                    } else {
+                        if (feof(f) == 0) bl = BUFSIZ + (filesize_t)fread(buffer + BUFSIZ, 1, BUFSIZ, f);
+                    }
                 } else {
                     qr = 1;
-                    if (feof(f) == 0) bl = fread(buffer, 1, BUFSIZ, f);
+                    if (f == NULL) {
+                        filesize_t rl = fs - bfp;
+                        if (rl > BUFSIZ) rl = BUFSIZ;
+                        if (rl > 0) {
+                            memcpy(buffer, file->binary.data + bfp, rl);
+                            bfp += rl;
+                        }
+                        bl = rl;
+                    } else {
+                        if (feof(f) == 0) bl = (filesize_t)fread(buffer, 1, BUFSIZ, f);
+                    }
                 }
                 if (signal_received) bl = bp;
             }
             if (bp == bl) break;
             lastchar = c;
             c = buffer[bp]; bp = (bp + 1) % (BUFSIZ * 2);
-            if (!arguments.to_ascii) {
+            switch (encoding) {
+            case E_RAW:
                 if (c == 10) {
                     if (lastchar == 13) continue;
-                    break;
+                    goto eol;
                 }
                 if (c == 13) {
-                    break;
+                    goto eol;
                 }
-                if (c != 0 && c < 0x80) file->data[p++] = (uint8_t)c; else p += utf8out(c, file->data + p);
+                if (c != 0 && c < 0x80) file->source.data[p++] = (uint8_t)c; else p += utf8out(c, file->source.data + p);
                 continue;
-            }
-            switch (encoding) {
             case E_UNKNOWN:
             case E_UTF8:
                 if (c < 0x80) goto done;
@@ -524,7 +523,7 @@ static int read_source(struct file_s *file, FILE *f) {
                         if (ubuff.p >= ubuff.len && extend_ubuff(&ubuff)) goto failed;
                         ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                     }
-                    if (bp == bl) goto eof;
+                    if (bp == bl) goto eol;
                     c = (ch2 >= 0x80) ? fromiso(ch2) : ch2;
                     j = 0;
                     bp = (bp + 1) % (BUFSIZ * 2);
@@ -570,10 +569,10 @@ static int read_source(struct file_s *file, FILE *f) {
             if (c < 0xc0) {
                 if (c == 10) {
                     if (lastchar == 13) continue;
-                    break;
+                    goto eol;
                 }
                 if (c == 13) {
-                    break;
+                    goto eol;
                 }
                 cclass = 0;
                 if (!qc) {
@@ -581,9 +580,9 @@ static int read_source(struct file_s *file, FILE *f) {
                     qc = true;
                 }
                 if (ubuff.p == 1) {
-                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->data + p);
+                    if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->source.data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->source.data + p);
                 } else {
-                    if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, file)) goto failed;
+                    if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, &file->source)) goto failed;
                     ubuff.p = 1;
                 }
                 ubuff.data[0] = c;
@@ -600,9 +599,9 @@ static int read_source(struct file_s *file, FILE *f) {
                         qc = true;
                     }
                     if (ubuff.p == 1) {
-                        if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->data + p);
+                        if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->source.data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->source.data + p);
                     } else {
-                        if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, file)) goto failed;
+                        if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, &file->source)) goto failed;
                         ubuff.p = 1;
                     }
                     ubuff.data[0] = c;
@@ -610,17 +609,17 @@ static int read_source(struct file_s *file, FILE *f) {
                 cclass = ncclass;
             }
         }
-    eof:
+    eol:
         if (!qc && unfc(&ubuff)) goto failed;
         if (ubuff.p == 1) {
-            if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->data + p);
+            if (ubuff.data[0] != 0 && ubuff.data[0] < 0x80) file->source.data[p++] = (uint8_t)ubuff.data[0]; else p += utf8out(ubuff.data[0], file->source.data + p);
         } else {
-            if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, file)) goto failed;
+            if (ubuff.p != 0 && flush_ubuff(&ubuff, &p, &file->source)) goto failed;
         }
         ubuff.p = 0;
-        while (p > fp && (file->data[p - 1] == ' ' || file->data[p - 1] == '\t')) p--;
-        if (fp == 0 && p > 1 && file->data[0] == '#' && file->data[1] == '!') p = 0;
-        file->data[p++] = 0;
+        while (p > fp && (file->source.data[p - 1] == ' ' || file->source.data[p - 1] == '\t')) p--;
+        if (fp == 0 && p > 1 && file->source.data[0] == '#' && file->source.data[1] == '!') p = 0;
+        file->source.data[p++] = 0;
         fp = p;
     } while (bp != bl);
     err = 0;
@@ -635,72 +634,104 @@ failed:
         if (lines == 0 || d != NULL) file->line = d;
     }
     file->encoding = encoding;
-    file_normalize(file, fp);
+    file->uid = ++file_table.uid;
+    file_normalize(&file->source, fp);
     return err;
 }
 
-static struct file_s *command_line = NULL;
-static struct file_s *lastfi = NULL;
-static uint16_t curfnum;
-struct file_s *file_open(const char *name, const char *base, unsigned int ftype, const str_t *val, linepos_t epoint) {
+static struct file_s file_defines;
+static struct file_s file_stdin;
+static struct file_s *lastfi;
+struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype, linepos_t epoint) {
     struct file_s *file;
-    char *s;
-    if (lastfi == NULL) new_instance(&lastfi);
-    lastfi->base.data = (const uint8_t *)base;
-    lastfi->base.len = get_base(base);
-    lastfi->type = ftype;
-    if (name != NULL) {
-        str_t n;
-        lastfi->name = name;
-        n.data = (const uint8_t *)name;
-        n.len = strlen(name);
-        lastfi->hash = ((unsigned int)str_hash(&n) + (unsigned int)str_hash(&lastfi->base) + lastfi->type) & ((~0U) >> 1);
-        file = file_table_update(lastfi);
-    } else {
-        file = (command_line != NULL) ? command_line : NULL;
-        if (command_line == NULL) command_line = lastfi;
-    }
-    if (file == NULL) { /* new file */
-        file = lastfi;
-        lastfi = NULL;
-        file->nomacro = NULL;
-        file->line = NULL;
-        file->lines = 0;
-        file->data = NULL;
-        file->len = 0;
-        file->open = 0;
-        file->err_no = 0;
-        file->read_error = false;
-        file->portable = false;
-        file->pass = 0;
-        file->entercount = 0;
-        file->encoding = E_UNKNOWN;
-        if (name != NULL) {
-            FILE *f;
-            int err = 1;
-            char *path = NULL;
-            size_t namelen = strlen(name) + 1;
-            new_array(&s, namelen);
-            memcpy(s, name, namelen); file->name = s;
-            if (val != NULL) {
-                struct include_list_s *i = include_list.next;
-                f = fopen_utf8(name, "rb");
-                while (f == NULL && i != NULL) {
-                    free(path);
-                    path = get_path(val, i->path);
-                    f = fopen_utf8(path, "rb");
-                    i = i->next;
-                }
+    switch (ftype) {
+    case 0:
+        file = &file_stdin;
+        break;
+    case 3:
+        file = &file_defines;
+        break;
+    default:
+        {
+            str_t n;
+            if (lastfi == NULL) new_instance(&lastfi);
+            if (base == NULL) {
+                lastfi->name = get_path(name, "");
+                lastfi->base.data = (const uint8_t *)lastfi->name;
+                lastfi->base.len = get_base(lastfi->name);
             } else {
-                f = dash_name(name) ? stdin : fopen_utf8(name, "rb");
+                lastfi->name = get_path(name, base);
+                lastfi->base.data = (const uint8_t *)base;
+                lastfi->base.len = get_base(base);
             }
-            if (path == NULL) path = s;
-            file->realname = path;
-            if (arguments.quiet) {
-                fputs((ftype == 1) ? "Reading file:      " : "Assembling file:   ", stdout);
-                argv_print(path, stdout);
-                putchar('\n');
-                fflush(stdout);
+            n.data = (const uint8_t *)lastfi->name;
+            n.len = strlen(lastfi->name);
+            lastfi->hash = ((unsigned int)str_hash(&n) + (unsigned int)str_hash(&lastfi->base)) & ((~0U) >> 1);
+            file = file_table_update(lastfi);
+        }
+        if (file == NULL) { /* new file */
+            file = lastfi;
+            lastfi = NULL;
+            file->nomacro = NULL;
+            file->line = NULL;
+            file->lines = 0;
+            file->source.data = NULL;
+            file->source.len = 0;
+            file->source.read = false;
+            file->binary.data = NULL;
+            file->binary.len = 0;
+            file->binary.read = false;
+            file->open = 0;
+            file->err_no = 0;
+            file->read_error = false;
+            file->portable = false;
+            file->pass = 0;
+            file->uid = 0;
+            file->entercount = 0;
+            file->encoding = E_UNKNOWN;
+            file->realname = file->name;
+            file->cmdline = false;
+        } else {
+            free((char *)lastfi->name);
+        }
+    }
+
+    if (file->err_no == 0 && !(ftype == 1 ? file->binary.read : file->source.read)) {
+        int err = 1;
+        if (ftype == 3) { 
+            file->read_error = true;
+            file->binary.data = (uint8_t *)arguments.defines.data;
+            arguments.defines.data = NULL;
+            file->binary.len = (arguments.defines.len & ~(size_t)~(filesize_t)0) == 0 ? (filesize_t)arguments.defines.len : ~(filesize_t)0;
+            arguments.defines.len = 0;
+            file->binary.read = true;
+        } else if (arguments.quiet) {
+            fputs((ftype == 1) ? "Reading file:      " : "Assembling file:   ", stdout);
+            argv_print(file->realname, stdout);
+            putchar('\n');
+            fflush(stdout);
+        }
+        if (ftype != 1 && file->binary.read) {
+            err = read_source(file, NULL);
+            if (err != 0) errno = ENOMEM;
+        } else {
+            FILE *f;
+            if (ftype == 0) {
+                f = stdin;
+            } else {
+                f = fopen_utf8(file->realname, "rb");
+                if (f == NULL && base != NULL) {
+                    struct include_list_s *i;
+                    for (i = arguments.include; i != NULL; i = i->next) {
+                        char *path = get_path(name, i->path);
+                        f = fopen_utf8(path, "rb");
+                        if (f != NULL) {
+                            file->realname = path;
+                            break;
+                        }
+                        free(path);
+                    }
+                }
             }
             if (f != NULL) {
                 file->read_error = true;
@@ -713,50 +744,41 @@ struct file_s *file_open(const char *name, const char *base, unsigned int ftype,
                 err |= ferror(f);
                 if (f != stdin) err |= fclose(f);
             }
-            if (signal_received) err = errno = EINTR;
-            if (err != 0 && errno != 0) {
-                file->err_no = errno;
-                free(file->data);
-                file->data = NULL;
-                file->len = 0;
+        }
+        if (signal_received) err = errno = EINTR;
+        if (err != 0 && errno != 0) {
+            file->err_no = errno;
+            if (ftype == 1) {
+                free(file->binary.data);
+                file->binary.data = NULL;
+                file->binary.len = 0;
+            } else {
+                free(file->source.data);
+                file->source.data = NULL;
+                file->source.len = 0;
                 free(file->line);
                 file->line = NULL;
                 file->lines = 0;
             }
-        } else {
-            const char *cmd_name = "<command line>";
-            size_t cmdlen = strlen(cmd_name) + 1;
-            new_array(&s, 1);
-            s[0] = 0; file->name = s;
-            new_array(&s, cmdlen);
-            memcpy(s, cmd_name, cmdlen); file->realname = s;
         }
-
-        file->uid = (ftype != 1) ? curfnum++ : 0;
     }
+
     if (file->err_no != 0) {
         if (file->pass != pass) {
-            char *path = (val != NULL) ? get_path(val, "") : NULL;
             errno = file->err_no;
-            err_msg_file(file->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, (val != NULL) ? path : name, epoint);
-            free(path);
+            err_msg_file(file->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, file->realname, epoint);
             file->pass = pass;
         }
         return NULL;
     }
-    if (!file->portable && val != NULL && diagnostics.portable) {
+    if (!file->portable && base != NULL && diagnostics.portable) {
 #ifdef _WIN32
-        file->portable = portability2(val, file->realname, epoint);
+        file->portable = portability2(name, file->realname, epoint);
 #else
-        file->portable = portability(val, epoint);
+        file->portable = portability(name, epoint);
 #endif
     }
-    file->open++;
     return file;
-}
-
-void file_close(struct file_s *f) {
-    if (f->open != 0) f->open--;
 }
 
 struct starnode_s {
@@ -829,14 +851,8 @@ void destroy_file(void) {
     }
     free(lastfi);
     free(last_ubuff.data);
-    if (command_line != NULL) file_free(command_line);
-
-    include_list_last = include_list.next;
-    while (include_list_last != NULL) {
-        struct include_list_s *tmp = include_list_last;
-        include_list_last = tmp->next;
-        free(tmp);
-    }
+    file_free_static(&file_stdin);
+    file_free_static(&file_defines);
 
     while (stars != NULL) {
         old = stars;
@@ -846,16 +862,20 @@ void destroy_file(void) {
 }
 
 void init_file(void) {
-    curfnum = 1;
     file_table.len = 0;
     file_table.mask = 0;
     file_table.data = NULL;
+    file_table.uid = 0;
+    file_stdin.name = file_stdin.realname = "-";
+    file_defines.name = ""; 
+    file_defines.realname = "<command line>";
     new_instance(&stars);
     stars->next = NULL;
     starsp = 0;
     lastst = &stars->stars[starsp];
     new_array(&last_ubuff.data, 16);
     last_ubuff.len = 16;
+    lastfi = NULL;
     avltree_init(&star_root.tree);
 }
 
@@ -911,7 +931,7 @@ void makefile(int argc, char *argv[], bool make_phony) {
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
-                if (a->type == 0) continue;
+                if (a->cmdline) continue;
                 len = wrap_print(a->realname, f, len);
             }
         }
@@ -922,7 +942,7 @@ void makefile(int argc, char *argv[], bool make_phony) {
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
-                if (a->type == 0) continue;
+                if (a->cmdline) continue;
                 len = wrap_print(a->realname, f, len);
             }
             if (len != 0) fputs(":\n", f);

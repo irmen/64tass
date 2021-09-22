@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: section.c 2708 2021-09-18 18:12:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 struct section_s root_section;
 struct section_s *current_section = &root_section;
 struct section_address_s *current_address = &root_section.address;
-static struct section_s *prev_section = &root_section;
+static struct section_s *prev_section;
 
 static FAST_CALL int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
@@ -82,7 +82,7 @@ struct section_s *find_new_section(const str_t *name) {
     return (tmp2 != NULL) ? tmp2 : new_section(name);
 }
 
-static struct section_s *lastsc = NULL;
+static struct section_s *lastsc;
 struct section_s *new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *tmp;
@@ -154,6 +154,7 @@ void reset_section(struct section_s *section) {
 }
 
 void init_section(void) {
+    lastsc = NULL;
     root_section.parent = NULL;
     root_section.name.data = NULL;
     root_section.name.len = 0;

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2696 2021-09-12 20:35:03Z soci $
+    $Id: macro.c 2706 2021-09-18 16:22:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ bool mtranslate(void) {
     struct file_s *cfile = current_file_list->file;
 
     if (lpoint.line >= cfile->lines) return true;
-    llist = pline = &cfile->data[cfile->line[lpoint.line]];
+    llist = pline = &cfile->source.data[cfile->line[lpoint.line]];
     changed = !in_macro || (cfile->nomacro != NULL && (cfile->nomacro[lpoint.line / 8] & (1 << (lpoint.line & 7))) != 0);
     lpoint.pos = 0; lpoint.line++; vline++;
     if (changed) return signal_received;
