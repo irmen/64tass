@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2696 2021-09-12 20:35:03Z soci $ -->
+<!-- $Id: README.html 2728 2021-10-03 20:42:59Z soci $ -->
 <head>
 <title>64tass v1.56 r2625 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -1379,13 +1379,20 @@ the <a href="#data-dumping">data directives</a> with the same names normally emi
 </table></div>
 
 <pre width="80">
-sidfile <b>=</b> <span class="s">"music.sid"</span>        <i>; file name</i>
-header  <b>=</b> <span class="k">binary</span>(<u>sidfile</u>, <span>$00</span>, <span>$7e</span>)
-init    <b>=</b> <u>header</u>[<span>$b</span>:<span>$9</span>:<span>-1</span>]   <i>; init address (big endian)</i>
-play    <b>=</b> <u>header</u>[<span>$d</span>:<span>$b</span>:<span>-1</span>]   <i>; play address (big endian)</i>
+sid     <b>=</b> <span class="k">binary</span>(<span class="s">"music.sid"</span>)<i>; read in the SID file as bytes</i>
+offs    <b>:=</b> <u>sid</u>[[<span>$7</span>, <span>$6</span>]]     <i>; data offset (big endian)</i>
+load    <b>:=</b> <u>sid</u>[[<span>$9</span>, <span>$8</span>]]     <i>; load address (big endian)</i>
+init    <b>=</b> <u>sid</u>[[<span>$b</span>, <span>$a</span>]]      <i>; init address (big endian)</i>
+play    <b>=</b> <u>sid</u>[[<span>$d</span>, <span>$c</span>]]      <i>; play address (big endian)</i>
 
-*       <b>=</b> <u>header</u>[<span>$7c</span>:<span>$7e</span>]    <i>; use loading address (little endian)</i>
-        <b class="d">.binary</b> <u>sidfile</u>, <span>$7e</span> <i>; load music data</i>
+<i>; if load address is zero then it's the first 2 bytes of data</i>
+        <b class="k">.if</b> <u>load</u> == <span>0</span>
+load    := <u>sid</u>[<u>offs</u>:<u>offs</u>+<span>2</span>]  <i>; load address (little endian)</i>
+offs    += <span>2</span>                 <i>; skip load address bytes</i>
+        <b class="k">.endif</b>
+
+*       <b>=</b> <u>load</u>               <i>; set pc to load address</i>
+        <b class="d">.text</b> <u>sid</u>[<u>offs</u>:]     <i>; dump music data</i>
 </pre>
 
 <dt><b>format(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b><a name="f_format" href="#f_format"></a>
@@ -1543,7 +1550,7 @@ This is done to be in line with it's use in most other assemblers.
 <tr><td><code>..</code><td>concat
 <td><code>x</code><td>repeat
 <tr><td><code>in</code><td>contains
-<td>&nbsp;<td>&nbsp;
+<td><code>!in</code><td>excludes
 </table></div>
 
 <p>Spacing must be used for the <q>x</q> and <q>in</q> operators or else they won't
@@ -1566,13 +1573,15 @@ opcodes.
 <div><table width="100%" border="0">
 <caption>Comparison operators</caption>
 <tr><td width="6%"><code>&lt;=&gt;</code><td width="44%">compare
-<td width="6%"><code>===</code><td width="44%">identical
+<td width="6%">&nbsp;<td width="44%">&nbsp;
 <tr><td><code>==</code><td>equals
 <td><code>!=</code><td>not equal
 <tr><td><code>&lt;</code><td>less than
 <td><code>&gt;=</code><td>more than or equals
 <tr><td><code>&gt;</code><td>more than
 <td><code>&lt;=</code><td>less than or equals
+<tr><td><code>===</code><td>identical
+<td><code>!==</code><td>not identical
 </table></div>
 
 <h4>Bit string extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>

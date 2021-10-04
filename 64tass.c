@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2709 2021-09-18 18:40:01Z soci $
+    $Id: 64tass.c 2719 2021-10-03 08:10:14Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -4875,7 +4875,7 @@ static void one_pass(int argc, char **argv, int opts) {
 
         if (i == opts - 1) {
             cfile = file_open(&cmdline_name, NULL, 3, &nopoint);
-            if (cfile != NULL && cfile->source.len != 0) {
+            if (cfile != NULL) {
                 cfile->open = true;
                 enterfile(cfile, &nopoint);
                 listing_file(listing, ";******  Command line definitions", NULL);

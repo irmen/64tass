@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2696 2021-09-12 20:35:03Z soci $
+    $Id: eval.c 2731 2021-10-03 23:55:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1061,50 +1061,27 @@ static bool get_val2(struct eval_context_s *ev) {
             val_replace(&v1->val, none_value);
             continue;
         case O_COLON:
-            v2 = v1; v1 = &values[--vsp - 1];
-            if (vsp == 0) goto syntaxe;
-            if (v1->val->obj == COLONLIST_OBJ && v1->val->refcount == 1) {
-                Colonlist *l1 = Colonlist(v1->val);
-                Colonlist *list = new_colonlist();
-                if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
-                    Colonlist *l2 = Colonlist(v2->val);
-                    if (add_overflow(l1->len, l2->len, &list->len)) err_msg_out_of_memory();
-                    list->data = list_create_elements(list, list->len);
-                    memcpy(list->data, l1->data, l1->len * sizeof *list->data);
-                    memcpy(list->data + l1->len, l2->data, l2->len * sizeof *list->data);
-                    l1->len = 0;
-                    l2->len = 0;
-                    val_destroy(v1->val); v1->val = Obj(list);
-                    continue;
-                }
-                if (add_overflow(l1->len, 1, &list->len)) err_msg_out_of_memory();
-                list->data = list_create_elements(list, list->len);
-                memcpy(list->data, l1->data, l1->len * sizeof *list->data);
-                list->data[l1->len] = v2->val;
-                l1->len = 0;
-                v2->val = v1->val;
-                v1->val = Obj(list);
-                continue;
-            }
-            if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
-                Colonlist *l2 = Colonlist(v2->val);
-                Colonlist *list = new_colonlist();
-                if (add_overflow(l2->len, 1, &list->len)) err_msg_out_of_memory();
-                list->data = list_create_elements(list, list->len);
-                list->data[0] = v1->val;
-                memcpy(&list->data[1], l2->data, l2->len * sizeof *list->data);
-                v1->val = Obj(list);
-                l2->len = 0;
-                continue;
-            }
             {
-                Colonlist *list = new_colonlist();
-                list->len = 2;
-                list->data = list_create_elements(list, 2);
-                list->data[0] = v1->val;
-                list->data[1] = v2->val;
-                v1->val = Obj(list);
-                v2->val = NULL;
+                Colonlist *list;
+                argcount_t args, j;
+                for (args = i + 1; args < ev->out.p; args++) {
+                    Obj *v = ev->out.data[args].val;
+                    if (v->obj != OPER_OBJ) break;
+                    if (Oper(v)->op != O_COLON) break;
+                }
+                args -= i - 1;
+                if (vsp < args) goto syntaxe;
+                list = new_colonlist();
+                list->len = args;
+                list->data = list_create_elements(list, args);
+                for (j = 0; j < args; j++) {
+                    struct values_s *v = &values[vsp - args + j];
+                    list->data[j] = v->val;
+                    v->val = NULL;
+                }
+                vsp -= args - 1;
+                i += args - 2;
+                values[vsp - 1].val = Obj(list);
                 continue;
             }
         case O_WORD:    /* <> */
@@ -1226,6 +1203,7 @@ static bool get_val2(struct eval_context_s *ev) {
             val_destroy(val);
             continue;
         case O_IDENTITY: 
+        case O_NIDENTITY: 
             v2 = v1; v1 = &values[--vsp - 1];
             if (vsp == 0) goto syntaxe;
             val = v1->val;
@@ -1236,7 +1214,10 @@ static bool get_val2(struct eval_context_s *ev) {
                 v1->val = val;
                 continue;
             }
-            val = truth_reference(v1->val == v2->val || v1->val->obj->same(v1->val, v2->val));
+            {
+                bool result = v1->val == v2->val || v1->val->obj->same(v1->val, v2->val);
+                val = truth_reference(oper.op == O_IDENTITY ? result : !result);
+            }
             val_destroy(v1->val); v1->val = val;
             continue;
         case O_MIN: /* <? */
@@ -1262,6 +1243,7 @@ static bool get_val2(struct eval_context_s *ev) {
             val_destroy(val);
             continue;
         case O_IN:
+        case O_NOTIN:
             v2 = v1; v1 = &values[--vsp - 1];
             if (vsp == 0) goto syntaxe;
             epoint.pos = out->pos;
@@ -1801,7 +1783,10 @@ static bool get_exp2(int stop) {
             }
             goto push2;
         case '!':
-            if (pline[lpoint.pos + 1] == '=') {op = O_NE;goto push2;}
+            if (pline[lpoint.pos + 1] == '=') {op = pline[lpoint.pos + 2] != '=' ? O_NE : O_NIDENTITY;goto push2;}
+            if (get_label(pline + lpoint.pos + 1) == 2 && 
+                (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'i' &&
+                (pline[epoint.pos + 2] | arguments.caseinsensitive) == 'n') {op = O_NOTIN;goto push2;}
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         case ')':

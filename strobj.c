@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: strobj.c 2727 2021-10-03 20:21:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -852,22 +852,27 @@ failed:
     return new_error_mem(op->epoint3);
 }
 
+static bool str_contains(oper_t op) {
+    const Str *v1 = Str(op->v1);
+    const Str *v2 = Str(op->v2);
+    const uint8_t *c, *c2, *e;
+    if (v1->len == 0) return true;
+    if (v1->len > v2->len) return false;
+    c2 = v2->data;
+    e = c2 + v2->len - v1->len;
+    for (;;) {
+        c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
+        if (c == NULL) return false;
+        if (memcmp(c, v1->data, v1->len) == 0) return true;
+        c2 = c + 1;
+    }
+}
+
 static MUST_CHECK Obj *contains(oper_t op) {
     Obj *o1 = op->v1;
     if (o1->obj == STR_OBJ) {
-        Str *v1 = Str(o1);
-        Str *v2 = Str(op->v2);
-        const uint8_t *c, *c2, *e;
-        if (v1->len == 0) return ref_true();
-        if (v1->len > v2->len) return ref_false();
-        c2 = v2->data;
-        e = c2 + v2->len - v1->len;
-        for (;;) {
-            c = (const uint8_t *)memchr(c2, v1->data[0], (size_t)(e - c2) + 1);
-            if (c == NULL) return ref_false();
-            if (memcmp(c, v1->data, v1->len) == 0) return ref_true();
-            c2 = c + 1;
-        }
+        bool result = str_contains(op);
+        return truth_reference(op->op == O_IN ? result : !result);
     }
     if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
     return obj_oper_error(op);

@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2691 2021-09-08 10:39:32Z soci $
+    $Id: codeobj.c 2727 2021-10-03 20:21:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -477,10 +477,11 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
 static MUST_CHECK Obj *contains(oper_t op) {
     Obj *o1 = op->v1;
     Code *v2 = Code(op->v2);
-    struct oper_s oper;
     address_t ln;
-    Obj *tmp, *result;
+    Obj *result2;
+    Obj *good;
     struct code_item_s ci;
+    Oper_types oper;
 
     switch (o1->obj->type) {
     case T_SYMBOL:
@@ -500,30 +501,32 @@ static MUST_CHECK Obj *contains(oper_t op) {
     }
     ln = code_item_prepare(&ci, v2);
 
-    if (ln == 0) {
-        val_destroy(o1);
-        return ref_false();
-    }
-
-    oper.op = O_EQ;
-    oper.epoint = op->epoint;
-    oper.epoint2 = op->epoint2;
-    oper.epoint3 = op->epoint3;
-    for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
-        tmp = code_item(&ci);
-        oper.v1 = tmp;
-        oper.v2 = o1;
-        oper.inplace = NULL;
-        result = tmp->obj->calc2(&oper);
-        val_destroy(tmp);
-        if (result == true_value) {
-            val_destroy(o1);
-            return result;
+    oper = op->op;
+    good = (oper == O_IN) ? false_value : true_value;
+    result2 = val_reference(good);
+    if (ln != 0) {
+        Obj *result, *bad = (oper == O_IN) ? true_value : false_value;
+        op->op = (oper == O_IN) ? O_EQ : O_NE;
+        for (ci.offs2 = 0; ci.offs2 < ln; ci.offs2++) {
+            Obj *tmp = code_item(&ci);
+            op->v1 = tmp;
+            op->v2 = o1;
+            op->inplace = NULL;
+            result = tmp->obj->calc2(op);
+            if (result == good) {
+                val_destroy(result);
+                continue;
+            }
+            val_destroy(result2);
+            result2 = result;
+            if (result == bad) {
+                break;
+            }
         }
-        val_destroy(result);
+        op->op = oper;
     }
     val_destroy(o1);
-    return ref_false();
+    return result2;
 }
 
 static inline address_t ldigit(Code *v1, linepos_t epoint) {

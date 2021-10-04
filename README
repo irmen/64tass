@@ -1094,13 +1094,20 @@ binary(<string expression>[, <offset>[, <length>]])
     Skip starting bytes    binary(name, offset)
     Some bytes from offset binary(name, offset, length)
 
-    sidfile = "music.sid"        ; file name
-    header  = binary(sidfile, $00, $7e)
-    init    = header[$b:$9:-1]   ; init address (big endian)
-    play    = header[$d:$b:-1]   ; play address (big endian)
+    sid     = binary("music.sid"); read in the SID file as bytes
+    offs    := sid[[$7, $6]]     ; data offset (big endian)
+    load    := sid[[$9, $8]]     ; load address (big endian)
+    init    = sid[[$b, $a]]      ; init address (big endian)
+    play    = sid[[$d, $c]]      ; play address (big endian)
 
-    *       = header[$7c:$7e]    ; use loading address (little endian)
-            .binary sidfile, $7e ; load music data
+    ; if load address is zero then it's the first 2 bytes of data
+            .if load == 0
+    load    := sid[offs:offs+2]  ; load address (little endian)
+    offs    += 2                 ; skip load address bytes
+            .endif
+
+    *       = load               ; set pc to load address
+            .text sid[offs:]     ; dump music data
 
 format(<string expression>[, <expression>, ...])
     Create string from values according to a format string.
@@ -1224,7 +1231,7 @@ in line with it's use in most other assemblers.
 &     binary and                        <<    shift left
 >>    shift right                       .     member
 ..    concat                            x     repeat
-in    contains
+in    contains                          !in   excludes
 
 Spacing must be used for the `x' and `in' operators or else they won't be
 recognized as such. For example the expression `[1,2]x2' should be written as
@@ -1242,10 +1249,11 @@ Traditional comparison operators give false or true depending on the result.
 The compare operator (<=>) gives -1 for less, 0 for equal and 1 for more.
 
                              Comparison operators
-<=>   compare                           ===   identical
+<=>   compare
 ==    equals                            !=    not equal
 <     less than                         >=    more than or equals
 >     more than                         <=    less than or equals
+===   identical                         !==   not identical
 
 Bit string extraction operators
 

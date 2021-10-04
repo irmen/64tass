@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2693 2021-09-08 13:09:04Z soci $
+    $Id: listobj.c 2732 2021-10-04 00:13:19Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -244,9 +244,8 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t epoint) {
     return NULL;
 }
 
-static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize) {
+static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize, bool tupleorlist) {
     Tuple *v1 = List(o1);
-    bool tupleorlist = (o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ);
     size_t i, len = tupleorlist ? 2 : 0, chars = len;
     Tuple *list = NULL;
     Obj **vals = NULL, *val;
@@ -305,6 +304,14 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize)
     if (tupleorlist) *s = (o1->obj == LIST_OBJ) ? ']' : ')';
     if (list != NULL) val_destroy(Obj(list));
     return Obj(v);
+}
+
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
+    return repr_listtuple(o1, epoint, maxsize, o1->obj != ADDRLIST_OBJ);
+}
+
+static MUST_CHECK Obj *str(Obj *o1, linepos_t epoint, size_t maxsize) {
+    return repr_listtuple(o1, epoint, maxsize, o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ);
 }
 
 static MUST_CHECK Obj *len(oper_t op) {
@@ -763,29 +770,33 @@ failed:
 static MUST_CHECK Obj *contains(oper_t op) {
     Obj *o1 = op->v1, *o2 = op->v2;
     List *v2 = List(o2);
+    Oper_types oper = op->op;
+    Obj *good = (oper == O_IN) ? false_value : true_value;
+    Obj *bad;
     Obj *result2;
     size_t i;
-    if (v2->len == 0) return ref_false();
+    if (v2->len == 0) return val_reference(good);
     if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
-    op->op = O_EQ;
-    result2 = ref_false();
+    bad = (oper == O_IN) ? true_value : false_value;
+    op->op = (oper == O_IN) ? O_EQ : O_NE;
+    result2 = val_reference(good);
     for (i = 0; i < v2->len; i++) {
         Obj *result;
         op->v1 = o1;
         op->v2 = v2->data[i];
         op->inplace = NULL;
         result = o1->obj->calc2(op);
-        if (result == false_value) {
+        if (result == good) {
             val_destroy(result);
             continue;
         }
         val_destroy(result2);
         result2 = result;
-        if (result == true_value) {
+        if (result == bad) {
             break;
         }
     }
-    op->op = O_IN;
+    op->op = oper;
     return result2;
 }
 
@@ -896,7 +907,7 @@ static void init(Type *obj) {
     obj->rcalc2 = rcalc2;
     obj->slice = slice;
     obj->contains = contains;
-    obj->repr = repr_listtuple;
+    obj->repr = repr;
 }
 
 void listobj_init(void) {
@@ -912,13 +923,14 @@ void listobj_init(void) {
     type->destroy = destroy;
     type->garbage = garbage;
     type->same = same;
-    type->repr = repr_listtuple;
+    type->repr = repr;
 
     type = new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
     type->destroy = destroy;
     type->garbage = garbage;
     type->same = same;
-    type->repr = repr_listtuple;
+    type->repr = repr;
+    type->str = str;
 }
 
 void listobj_names(void) {

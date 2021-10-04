@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: operobj.c 2728 2021-10-03 20:42:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,8 +78,10 @@ Oper operators[] = {
     { {NULL, 0}, "logical or '||", O_LOR, 5, 2},
     { {NULL, 0}, "logical xor '^^", O_LXOR, 6, 2},
     { {NULL, 0}, "logical and '&&", O_LAND, 7, 2},
-    { {NULL, 0}, "identity '===", O_IDENTITY, 8, 3},
+    { {NULL, 0}, "identical '===", O_IDENTITY, 8, 3},
+    { {NULL, 0}, "not identical '!==", O_NIDENTITY, 8, 3},
     { {NULL, 0}, "contains 'in", O_IN, 8, 2},
+    { {NULL, 0}, "excludes '!in", O_NOTIN, 8, 3},
     { {NULL, 0}, "compare '<=>", O_CMP, 8, 3},
     { {NULL, 0}, "equal '==", O_EQ, 8, 2},
     { {NULL, 0}, "not equal '!=", O_NE, 8, 2},

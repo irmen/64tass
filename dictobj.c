@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: dictobj.c 2727 2021-10-03 20:21:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -665,13 +665,15 @@ static MUST_CHECK Obj *contains(oper_t op) {
     Dict *v2 = Dict(op->v2);
     struct pair_s p;
     Obj *err;
+    bool result;
 
-    if (v2->len == 0) return ref_false();
+    if (v2->len == 0) return truth_reference(op->op != O_IN);
     if (o1 == none_value || o1->obj == ERROR_OBJ) return val_reference(o1);
     p.key = o1;
     err = o1->obj->hash(o1, &p.hash, op->epoint);
     if (err != NULL) return err;
-    return truth_reference(dict_lookup(v2, &p) != NULL);
+    result = dict_lookup(v2, &p) != NULL;
+    return truth_reference(op->op == O_IN ? result : !result);
 }
 
 MUST_CHECK Obj *dict_sort(Dict *v1, const size_t *sort_index) {

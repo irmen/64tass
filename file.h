@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2712 2021-09-18 23:09:42Z soci $
+    $Id: file.h 2722 2021-10-03 15:14:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,8 @@
 #include <stdio.h>
 #include "stdbool.h"
 #include "inttypes.h"
-#include "str.h"
+
+struct str_t;
 
 typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO, E_RAW
@@ -38,7 +39,7 @@ struct file_data_s {
 struct file_s {
     const char *name;
     const char *realname;
-    str_t base;
+    size_t baselen;
     int hash;
     uint8_t *nomacro;
     filesize_t *line;

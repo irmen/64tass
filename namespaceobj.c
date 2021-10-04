@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2691 2021-09-08 10:39:32Z soci $
+    $Id: namespaceobj.c 2727 2021-10-03 20:21:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -298,11 +298,21 @@ static MUST_CHECK Obj *contains(oper_t op) {
         {
             Symbol *v1 = Symbol(o1);
             l = find_label2(&v1->name, v2);
-            if (l != NULL && diagnostics.case_symbol && str_cmp(&v1->name, &l->name) != 0) err_msg_symbol_case(&v1->name, l, op->epoint);
+            if (l != NULL) {
+                if (diagnostics.case_symbol && str_cmp(&v1->name, &l->name) != 0) err_msg_symbol_case(&v1->name, l, op->epoint);
+                if (l->constant) {
+                    err_msg_not_variable(l, &v1->name, op->epoint);
+                    l = NULL;
+                }
+            }
         }
         break;
     case T_ANONSYMBOL:
         l = find_anonlabel2(Anonsymbol(o1)->count, v2);
+        if (l != NULL && l->constant) {
+            err_msg_not_variable(l, &l->name, op->epoint);
+            l = NULL;
+        }
         break;
     case T_NONE:
     case T_ERROR:
@@ -311,7 +321,7 @@ static MUST_CHECK Obj *contains(oper_t op) {
         return obj_oper_error(op);
     }
     if (l != NULL) touch_label(l);
-    return truth_reference(l != NULL);
+    return truth_reference(op->op == O_IN ? (l != NULL) : (l == NULL));
 }
 
 void namespaceobj_init(void) {

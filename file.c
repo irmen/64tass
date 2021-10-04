@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2712 2021-09-18 23:09:42Z soci $
+    $Id: file.c 2724 2021-10-03 17:28:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "arguments.h"
 #include "unicodedata.h"
 #include "avl.h"
+#include "str.h"
 
 static struct {
     size_t len, mask;
@@ -68,11 +69,8 @@ static struct file_s *file_table_update(struct file_s *p) {
     offs = hash & mask;
     while (file_table.data[offs] != NULL) {
         struct file_s *d = file_table.data[offs];
-        if (p->hash == d->hash && strcmp(p->name, d->name) == 0) {
-            if (p->base.data == d->base.data) return d;
-            if (p->base.len == d->base.len && memcmp(p->base.data, d->base.data, p->base.len) == 0) {
-                return d;
-            }
+        if (p->hash == d->hash && p->baselen == d->baselen && strcmp(p->name, d->name) == 0) {
+            return d;
         }
         hash >>= 5;
         offs = (5 * offs + hash + 1) & mask;
@@ -87,6 +85,14 @@ static inline bool is_driveletter(const char *name) {
     return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
+
+static inline bool is_absolute(const str_t *v) {
+#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+    return (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) || (v->len > 1 && is_driveletter((const char *)v->data));
+#else
+    return v->len != 0 && v->data[0] == '/';
+#endif
+}
 
 static size_t get_base(const char *base) {
 #if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
@@ -132,10 +138,6 @@ static bool portability(const str_t *name, linepos_t epoint) {
         err_msg2(ERROR_____BACKSLASH, name, &epoint2);
         return false;
     }
-    if (name->data[0] == '/' || is_driveletter((const char *)name->data)) {
-        err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
-        return false;
-    }
 #else
     const char *c;
     if (name->len == 0) return true;
@@ -147,11 +149,11 @@ static bool portability(const str_t *name, linepos_t epoint) {
         err_msg2(ERROR__RESERVED_CHR, name, &epoint2);
         return false;
     }
-    if (name->data[0] == '/') {
+#endif
+    if (is_absolute(name)) {
         err_msg2(ERROR_ABSOLUTE_PATH, name, epoint);
         return false;
     }
-#endif
     return true;
 }
 
@@ -329,30 +331,30 @@ static filesize_t fsize(FILE *f) {
     return 0;
 }
 
-static int read_binary(struct file_s *file, FILE *f) {
+static int read_binary(struct file_data_s *file, FILE *f) {
     filesize_t fp = 0;
     int err = 1;
     filesize_t fs = fsize(f);
     if (fs > 0) {
-        file->binary.data = allocate_array(uint8_t, fs);
-        if (file->binary.data != NULL) file->binary.len = fs;
+        file->data = allocate_array(uint8_t, fs);
+        if (file->data != NULL) file->len = fs;
     }
     clearerr(f); errno = 0;
-    if (file->binary.len != 0 || !file_extend(&file->binary)) {
-        bool check = (file->binary.data != NULL);
+    if (file->len != 0 || !file_extend(file)) {
+        bool check = (file->data != NULL);
         for (;;) {
-            fp += (filesize_t)fread(file->binary.data + fp, 1, file->binary.len - fp, f);
-            if (feof(f) == 0 && fp >= file->binary.len && !signal_received) {
+            fp += (filesize_t)fread(file->data + fp, 1, file->len - fp, f);
+            if (feof(f) == 0 && fp >= file->len && !signal_received) {
                 if (check) {
                     int c2 = getc(f);
                     check = false;
                     if (c2 != EOF) {
-                        if (file_extend(&file->binary)) break;
-                        file->binary.data[fp++] = (uint8_t)c2;
+                        if (file_extend(file)) break;
+                        file->data[fp++] = (uint8_t)c2;
                         continue;
                     }
                 } else {
-                    if (file_extend(&file->binary)) break;
+                    if (file_extend(file)) break;
                     continue;
                 }
             }
@@ -360,7 +362,7 @@ static int read_binary(struct file_s *file, FILE *f) {
             break;
         }
     }
-    file_normalize(&file->binary, fp);
+    file_normalize(file, fp);
     return err;
 }
 
@@ -650,6 +652,7 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
         break;
     case 3:
         file = &file_defines;
+        if (!file->binary.read && arguments.defines.data == NULL) return NULL;
         break;
     default:
         {
@@ -657,16 +660,14 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
             if (lastfi == NULL) new_instance(&lastfi);
             if (base == NULL) {
                 lastfi->name = get_path(name, "");
-                lastfi->base.data = (const uint8_t *)lastfi->name;
-                lastfi->base.len = get_base(lastfi->name);
+                lastfi->baselen = get_base(lastfi->name);
             } else {
                 lastfi->name = get_path(name, base);
-                lastfi->base.data = (const uint8_t *)base;
-                lastfi->base.len = get_base(base);
+                lastfi->baselen = get_base(base);
             }
             n.data = (const uint8_t *)lastfi->name;
             n.len = strlen(lastfi->name);
-            lastfi->hash = ((unsigned int)str_hash(&n) + (unsigned int)str_hash(&lastfi->base)) & ((~0U) >> 1);
+            lastfi->hash = ((unsigned int)str_hash(&n) + (unsigned int)lastfi->baselen) & ((~0U) >> 1);
             file = file_table_update(lastfi);
         }
         if (file == NULL) { /* new file */
@@ -720,12 +721,12 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
                 f = stdin;
             } else {
                 f = fopen_utf8(file->realname, "rb");
-                if (f == NULL && base != NULL) {
+                if (f == NULL && (errno == ENOENT || errno == ENOTDIR) && base != NULL && !is_absolute(name)) {
                     struct include_list_s *i;
                     for (i = arguments.include; i != NULL; i = i->next) {
                         char *path = get_path(name, i->path);
                         f = fopen_utf8(path, "rb");
-                        if (f != NULL) {
+                        if (f != NULL || (errno != ENOENT && errno != ENOTDIR)) {
                             file->realname = path;
                             break;
                         }
@@ -736,7 +737,7 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
             if (f != NULL) {
                 file->read_error = true;
                 if (ftype == 1) {
-                    err = read_binary(file, f);
+                    err = read_binary(&file->binary, f);
                 } else {
                     err = read_source(file, f);
                 }
