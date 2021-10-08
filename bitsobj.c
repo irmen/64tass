@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: bitsobj.c 2733 2021-10-04 21:31:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1334,6 +1334,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (op->op == O_LOR) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((v1->len != 0) ? Obj(v1) : o2);
+    }
+    if (op->op == O_LXOR) {
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        return calc2_lxor(op, v1->len != 0);
     }
     switch (o2->obj->type) {
     case T_BOOL:

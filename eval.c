@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2731 2021-10-03 23:55:54Z soci $
+    $Id: eval.c 2737 2021-10-06 20:50:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1138,7 +1138,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     continue;
                 }
             }
-            if (v1->val->obj->iterable || v1->val->obj == ADDRLIST_OBJ) {
+            if (v1->val->obj->iterable) {
                 struct iter_s iter;
                 size_t k, len;
                 argcount_t len2;
@@ -1175,32 +1175,6 @@ static bool get_val2(struct eval_context_s *ev) {
                 }
                 continue;
             }
-            continue;
-        case O_LXOR: /* ^^ */
-            v2 = v1; v1 = &values[--vsp - 1];
-            if (vsp == 0) goto syntaxe;
-            val = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
-            if (val->obj != BOOL_OBJ) {
-                val_destroy(v1->val); v1->val = val;
-                continue;
-            }
-            if (diagnostics.strict_bool && v1->val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, v1->val, &v1->epoint); /* TODO */
-            {
-                Obj *val2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
-                if (val2->obj != BOOL_OBJ) {
-                    val_destroy(v1->val); v1->val = val2;
-                    val_destroy(val);
-                    continue;
-                }
-                if (diagnostics.strict_bool && v2->val->obj != BOOL_OBJ) err_msg_bool(ERROR_____CANT_BOOL, v2->val, &v2->epoint); /* TODO */
-                if (val == true_value) {
-                    if (val2 == true_value) val_replace(&v1->val, false_value);
-                } else {
-                    val_replace(&v1->val, val2 == true_value ? v2->val : false_value);
-                }
-                val_destroy(val2);
-            }
-            val_destroy(val);
             continue;
         case O_IDENTITY: 
         case O_NIDENTITY: 
@@ -1287,11 +1261,9 @@ struct values_s *get_val(void) {
     return &eval->values[eval->values_p++];
 }
 
-Obj *pull_val(struct linepos_s *epoint) {
-    Obj *val;
+Obj *pull_val(void) {
     struct values_s *value = &eval->values[eval->values_p++];
-    if (epoint != NULL) *epoint = value->epoint;
-    val = value->val;
+    Obj *val = value->val;
     value->val = NULL;
     return val;
 }
@@ -1920,8 +1892,7 @@ bool get_exp(int stop, argcount_t min, argcount_t max, linepos_t epoint) {/* len
     return true;
 }
 
-
-Obj *get_vals_tuple(void) {
+MUST_CHECK Obj *get_vals_tuple(void) {
     argcount_t i, len = get_val_remaining();
     Tuple *list;
 
@@ -1929,60 +1900,35 @@ Obj *get_vals_tuple(void) {
     case 0:
         return val_reference(null_tuple);
     case 1:
-        return pull_val(NULL);
+        return pull_val();
     default:
         break;
     }
     list = new_tuple(len);
     for (i = 0; i < len; i++) {
-        list->data[i] = pull_val(NULL);
+        list->data[i] = pull_val();
     }
     return Obj(list);
 }
 
-Obj *get_vals_addrlist(struct linepos_s *epoints) {
-    argcount_t i, j, len = get_val_remaining();
-    Addrlist *list;
-    Obj *val;
+void get_vals_funcargs(Funcargs *f) {
+    f->val = eval->values;
+    f->len = eval->values_len;
+}
 
-    switch (len) {
-    case 0:
-        return val_reference(null_addrlist);
-    case 1:
-        val = pull_val(&epoints[0]);
-        if (val->obj == ADDRLIST_OBJ) {
-            list = Addrlist(val);
-            i = list->len < 3 ? (argcount_t)list->len : 3;
-            for (j = 1; j < i; j++) epoints[j] = epoints[0];
+MUST_CHECK Obj *calc2_lxor(oper_t op, bool i) {
+    Obj *o2 = op->v2;
+    Obj *result = o2->obj->truth(o2, TRUTH_BOOL, op->epoint2);
+    if (result->obj != BOOL_OBJ) return result;
+    if (i == Bool(result)->value) {
+        if (i) {
+            val_destroy(result); 
+            result = ref_false();
         }
-        return val;
-    default:
-        break;
+        return result;
     }
-    list = new_addrlist();
-    list->data = list_create_elements(list, len);
-    for (i = j = 0; j < len; j++) {
-        Obj *val2 = pull_val((i < 3) ? &epoints[i] : NULL);
-        if (val2->obj == REGISTER_OBJ && Register(val2)->len == 1 && i != 0) {
-            Address_types am = register_to_indexing(Register(val2)->data[0]);
-            if (am != A_NONE) {
-                val_destroy(val2);
-                val2 = apply_addressing(list->data[i - 1], am, true);
-                val_destroy(list->data[i - 1]);
-                list->data[i - 1] = val2;
-                continue;
-            }
-        }
-        list->data[i++] = val2;
-    }
-    if (i == 1) {
-        Obj *val2 = list->data[0];
-        list->len = 0;
-        val_destroy(Obj(list));
-        return val2;
-    }
-    list->len = i;
-    return Obj(list);
+    val_destroy(result);
+    return val_reference(i ? op->v1 : o2);
 }
 
 void eval_enter(void) {

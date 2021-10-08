@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2677 2021-05-20 21:17:09Z soci $
+    $Id: intobj.c 2733 2021-10-04 21:31:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1708,6 +1708,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (op->op == O_LOR) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference((Int(op->v1)->len != 0) ? op->v1 : v2);
+    }
+    if (op->op == O_LXOR) {
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        return calc2_lxor(op, Int(op->v1)->len != 0);
     }
     switch (v2->obj->type) {
     case T_INT: return calc2_int(op);

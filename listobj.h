@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: listobj.h 2737 2021-10-06 20:50:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 
 extern struct Type *const LIST_OBJ;
 extern struct Type *const TUPLE_OBJ;
-extern struct Type *const ADDRLIST_OBJ;
 extern struct Type *const COLONLIST_OBJ;
 
 typedef struct List {
@@ -40,17 +39,14 @@ typedef struct List {
     } u;
 } List;
 typedef struct List Tuple;
-typedef struct List Addrlist;
 typedef struct List Colonlist;
 
 #define List(a) OBJ_CAST(List, a)
 #define Tuple(a) OBJ_CAST(Tuple, a)
-#define Addrlist(a) OBJ_CAST(Addrlist, a)
 #define Colonlist(a) OBJ_CAST(Colonlist, a)
 
 extern Obj *const null_tuple;
 extern Obj *const null_list;
-extern Obj *const null_addrlist;
 
 extern void listobj_init(void);
 extern void listobj_names(void);
@@ -58,9 +54,6 @@ extern void listobj_destroy(void);
 
 static inline MUST_CHECK List *new_list(void) {
     return List(val_alloc(LIST_OBJ));
-}
-static inline MUST_CHECK Addrlist *new_addrlist(void) {
-    return Addrlist(val_alloc(ADDRLIST_OBJ));
 }
 static inline MUST_CHECK Colonlist *new_colonlist(void) {
     return Colonlist(val_alloc(COLONLIST_OBJ));

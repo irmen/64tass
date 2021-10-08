@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2732 2021-10-04 00:13:19Z soci $
+    $Id: listobj.c 2737 2021-10-06 20:50:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,21 +33,17 @@
 
 static Type list_obj;
 static Type tuple_obj;
-static Type addrlist_obj;
 static Type colonlist_obj;
 
 Type *const LIST_OBJ = &list_obj;
 Type *const TUPLE_OBJ = &tuple_obj;
-Type *const ADDRLIST_OBJ = &addrlist_obj;
 Type *const COLONLIST_OBJ = &colonlist_obj;
 
 static Tuple null_tupleval = { { &tuple_obj, 1 }, 0, null_tupleval.u.val, { { 0 } } };
 static List null_listval = { { &list_obj, 1 }, 0, null_listval.u.val, { { 0 } } };
-static Addrlist null_addrlistval = { { &addrlist_obj, 1 }, 0, null_addrlistval.u.val, { { 0 } } };
 
 Obj *const null_tuple = &null_tupleval.v;
 Obj *const null_list = &null_listval.v;
-Obj *const null_addrlist = &null_addrlistval.v;
 
 static inline List *ref_list(List *v1) {
     v1->v.refcount++; return v1;
@@ -307,11 +303,11 @@ static MUST_CHECK Obj *repr_listtuple(Obj *o1, linepos_t epoint, size_t maxsize,
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
-    return repr_listtuple(o1, epoint, maxsize, o1->obj != ADDRLIST_OBJ);
+    return repr_listtuple(o1, epoint, maxsize, true);
 }
 
 static MUST_CHECK Obj *str(Obj *o1, linepos_t epoint, size_t maxsize) {
-    return repr_listtuple(o1, epoint, maxsize, o1->obj != ADDRLIST_OBJ && o1->obj != COLONLIST_OBJ);
+    return repr_listtuple(o1, epoint, maxsize, o1->obj != COLONLIST_OBJ);
 }
 
 static MUST_CHECK Obj *len(oper_t op) {
@@ -468,6 +464,7 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
     case O_MEMBER:
     case O_LAND:
     case O_LOR:
+    case O_LXOR:
         {
             if (v1->len == v2->len) {
                 if (v1->len != 0) {
@@ -919,12 +916,6 @@ void listobj_init(void) {
     init(type);
     type->convert = tuple_convert;
 
-    type = new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
-    type->destroy = destroy;
-    type->garbage = garbage;
-    type->same = same;
-    type->repr = repr;
-
     type = new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
     type->destroy = destroy;
     type->garbage = garbage;
@@ -942,6 +933,5 @@ void listobj_destroy(void) {
 #ifdef DEBUG
     if (null_tuple->refcount != 1) fprintf(stderr, "tuple %" PRIuSIZE "\n", null_tuple->refcount - 1);
     if (null_list->refcount != 1) fprintf(stderr, "list %" PRIuSIZE "\n", null_list->refcount - 1);
-    if (null_addrlist->refcount != 1) fprintf(stderr, "addrlist %" PRIuSIZE "\n", null_addrlist->refcount - 1);
 #endif
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: addressobj.c 2733 2021-10-04 21:31:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -400,14 +400,15 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2, *result;
     Address *v1 = Address(op->v1);
     atype_t am;
-    if (op->op == O_LAND || op->op == O_LOR) {
+    if (op->op == O_LAND || op->op == O_LOR || op->op == O_LXOR) {
         bool i;
         result = truth(Obj(v1), TRUTH_BOOL, op->epoint);
         if (result->obj != BOOL_OBJ) return result;
-        i = Bool(result)->value != (op->op == O_LOR);
+        i = Bool(result)->value;
         val_destroy(result);
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
-        return val_reference(i ? o2 : Obj(v1));
+        if (op->op == O_LXOR) return calc2_lxor(op, i);
+        return val_reference(i != (op->op == O_LOR) ? o2 : Obj(v1));
     }
     switch (o2->obj->type) {
     case T_ADDRESS:

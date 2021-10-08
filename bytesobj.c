@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2727 2021-10-03 20:21:13Z soci $
+    $Id: bytesobj.c 2733 2021-10-04 21:31:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1325,6 +1325,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     if (op->op == O_LOR) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         return val_reference(to_bool(v1) ? Obj(v1) : o2);
+    }
+    if (op->op == O_LXOR) {
+        if (diagnostics.strict_bool) err_msg_bool_oper(op);
+        return calc2_lxor(op, to_bool(v1));
     }
     if (o2->obj->iterable) {
         if (op->op != O_MEMBER) {

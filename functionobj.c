@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2706 2021-09-18 16:22:20Z soci $
+    $Id: functionobj.c 2739 2021-10-07 19:10:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
     List *vv;
     struct elements_s {
         Obj *oval;
-        struct iter_s iters;
+        struct iter_s iter;
     };
     struct elements_s elements3[3], *elements = NULL;
 
@@ -126,7 +126,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
                 }
                 k = j;
             }
-            iter = &elements[j].iters;
+            iter = &elements[j].iter;
             elements[j].oval = iter->data = v[j].val; objt->getiter(iter);
             if (iter->len == 1) {
                 v[j].val = iter->next(iter);
@@ -138,7 +138,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
                     for (; k < j + 1; k++) {
                         if (elements[k].oval == NULL) continue;
                         v[k].val = elements[k].oval;
-                        iter_destroy(&elements[k].iters);
+                        iter_destroy(&elements[k].iter);
                     }
                     if (elements != elements3) free(elements);
                     return Obj(err);
@@ -160,7 +160,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
         for (i = 0; i < ln; i++) {
             for (j = k; j < args; j++) {
                 if (elements[j].oval == NULL) continue;
-                if (elements[j].iters.len != 1) v[j].val = elements[j].iters.next(&elements[j].iters);
+                if (elements[j].iter.len != 1) v[j].val = elements[j].iter.next(&elements[j].iter);
             }
             vals2[i] = gen_broadcast(op, f);
         }
@@ -171,7 +171,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
     for (; k < args; k++) {
         if (elements[k].oval == NULL) continue;
         v[k].val = elements[k].oval;
-        iter_destroy(&elements[k].iters);
+        iter_destroy(&elements[k].iter);
     }
     if (elements != elements3) free(elements);
     return Obj(vv);

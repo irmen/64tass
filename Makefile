@@ -1,4 +1,4 @@
-# $Id: Makefile 2722 2021-10-03 15:14:03Z soci $
+# $Id: Makefile 2739 2021-10-07 19:10:13Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -128,7 +128,7 @@ instruction.o: instruction.c instruction.h attributes.h stdbool.h \
  inttypes.h opcodes.h 64tass.h wait_e.h section.h avl.h str.h file.h \
  listing.h error.h errors_e.h longjump.h arguments.h optimizer.h \
  addressobj.h obj.h values.h listobj.h registerobj.h codeobj.h typeobj.h \
- noneobj.h errorobj.h oper_e.h memblocksobj.h
+ noneobj.h errorobj.h oper_e.h memblocksobj.h eval.h
 intobj.o: intobj.c intobj.h obj.h attributes.h inttypes.h math.h \
  unicode.h stdbool.h error.h errors_e.h eval.h oper_e.h variables.h \
  arguments.h boolobj.h floatobj.h values.h codeobj.h strobj.h bytesobj.h \

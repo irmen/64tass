@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2719 2021-10-03 08:10:14Z soci $
+    $Id: 64tass.c 2740 2021-10-07 19:51:49Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -799,6 +799,8 @@ struct byterecursion_s {
     bool warn;
     linepos_t epoint;
     linepos_t epoint2;
+    int bits;
+    int prm;
 };
 
 static void byterecursion_flush(struct byterecursion_s *brec) {
@@ -811,7 +813,7 @@ static void byterecursion_gaps(struct byterecursion_s *brec) {
     brec->gaps = 0;
 }
 
-static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int bits) {
+static void byterecursion(struct byterecursion_s *brec, Obj *val) {
     struct iter_s iter;
     Obj *val2;
     uint32_t ch2;
@@ -822,7 +824,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
     if (!type->iterable) {
         if (type == GAP_OBJ) {
             if (brec->p > 0) byterecursion_flush(brec);
-            brec->gaps += (unsigned int)abs(bits) / 8;
+            brec->gaps += (unsigned int)abs(brec->bits) / 8;
             return;
         }
         iter.data = NULL;
@@ -833,17 +835,17 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
     iter.data = val; type->getiter(&iter);
     while ((val2 = iter.next(&iter)) != NULL) {
         if (val2->obj->iterable) {
-            byterecursion(val2, prm, brec, bits);
+            byterecursion(brec, val2);
             continue;
         }
         switch (val2->obj->type) {
         case T_GAP:
             if (brec->p > 0) byterecursion_flush(brec);
-            brec->gaps += (unsigned int)abs(bits) / 8;
+            brec->gaps += (unsigned int)abs(brec->bits) / 8;
             continue;
         default:
         doit:
-            if (prm == CMD_RTA || prm == CMD_ADDR) {
+            if (brec->prm == CMD_RTA || brec->prm == CMD_ADDR) {
                 atype_t am = val2->obj->address(val2);
                 if (touaddress(val2, &uv, (am == A_KR) ? 16 : all_mem_bits, brec->epoint)) {
                     ch2 = 0;
@@ -859,20 +861,20 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
                 default:
                     err_msg_output_and_destroy(err_addressing(am, brec->epoint, -1));
                 }
-                ch2 = (prm == CMD_RTA) ? (uv - 1) : uv;
+                ch2 = (brec->prm == CMD_RTA) ? (uv - 1) : uv;
                 break;
             }
-            if (bits >= 0) {
-                if (touval(val2, &uv, (unsigned int)bits, brec->epoint)) {
+            if (brec->bits >= 0) {
+                if (touval(val2, &uv, (unsigned int)brec->bits, brec->epoint)) {
                     if (diagnostics.pitfalls) {
                         static unsigned int once;
-                        if (prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(brec->epoint2);
-                        else if (prm != CMD_RTA && prm != CMD_ADDR && once != pass) {
-                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)bits, brec->epoint2);
+                        if (brec->prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(brec->epoint2);
+                        else if (brec->prm != CMD_RTA && brec->prm != CMD_ADDR && once != pass) {
+                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)brec->bits, brec->epoint2);
                             if (err != NULL) val_destroy(Obj(err));
                             else {
                                 const char *txt;
-                                switch (prm) {
+                                switch (brec->prm) {
                                 case CMD_BYTE:  txt = ".char"; break;
                                 case CMD_LONG:  txt = ".lint"; break;
                                 case CMD_DWORD: txt = ".dint"; break;
@@ -888,7 +890,7 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
                 }
                 ch2 = uv;
             } else {
-                if (toival(val2, &iv, (unsigned int)-bits, brec->epoint)) iv = 0;
+                if (toival(val2, &iv, (unsigned int)-brec->bits, brec->epoint)) iv = 0;
                 ch2 = (uint32_t)iv;
             }
             break;
@@ -901,33 +903,16 @@ static void byterecursion(Obj *val, int prm, struct byterecursion_s *brec, int b
         else if (brec->p >= (sizeof brec->buff) - 4) byterecursion_flush(brec);
         ch2 ^= outputeor;
         brec->buff[brec->p++] = (uint8_t)ch2;
-        if (prm >= CMD_RTA) {
+        if (brec->prm >= CMD_RTA) {
             brec->buff[brec->p++] = (uint8_t)(ch2 >> 8);
-            if (prm >= CMD_LINT) {
+            if (brec->prm >= CMD_LINT) {
                 brec->buff[brec->p++] = (uint8_t)(ch2 >> 16);
-                if (prm >= CMD_DINT) brec->buff[brec->p++] = (uint8_t)(ch2 >> 24);
+                if (brec->prm >= CMD_DINT) brec->buff[brec->p++] = (uint8_t)(ch2 >> 24);
             }
         }
         if (iter.data == NULL) return;
     }
     iter_destroy(&iter);
-}
-
-static bool instrecursion(Obj *o1, int prm, unsigned int w, linepos_t epoint, struct linepos_s *epoints) {
-    struct iter_s iter;
-    Error *err;
-    bool was = false;
-    iter.data = o1; o1->obj->getiter(&iter);
-    while ((o1 = iter.next(&iter)) != NULL) {
-        if (o1->obj->iterable) {
-            if (instrecursion(o1, prm, w, epoint, epoints)) was = true;
-        } else {
-            err = instruction(prm, w, o1, epoint, epoints);
-            if (err != NULL) err_msg_output_and_destroy(err); else was = true;
-        }
-    }
-    iter_destroy(&iter);
-    return was;
 }
 
 static void logical_close(linepos_t epoint) {
@@ -1481,7 +1466,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 val_destroy(val); val = ref_none();
             } else {
                 if (!get_exp(1, 1, 1, &lpoint)) goto error;
-                val = pull_val(NULL);
+                val = pull_val();
             }
         }
         label = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists, current_file_list);
@@ -1713,10 +1698,13 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
             skip = waitfor->skip;
             waitfor->skip = 1;
             if (nopos > 0) {
-                struct linepos_s epoints[3];
                 lpoint = bpoint;
-                if (!get_exp(0, 0, 0, &bpoint)) break;
-                val = get_vals_addrlist(epoints);
+                if (here() == 0 || here() == ';') {
+                    err_msg(ERROR______EXPECTED, "an expression is");
+                    break;
+                }
+                if (!get_exp(0, 1, 0, &bpoint)) break;
+                val = get_vals_tuple();
                 if (tmp.op != O_NONE) {
                     bool minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
                     Obj *result2, *val1 = label->value;
@@ -2124,16 +2112,18 @@ MUST_CHECK Obj *compile(void)
                         val = label->value;
                         label->usepass = 0;
                     }
-                    if (here() == 0 || here() == ';') val2 = val_reference(null_addrlist);
-                    else {
-                        struct linepos_s epoints[3];
+                    if (here() == 0 || here() == ';') {
+                        err_msg(ERROR______EXPECTED, "an expression is");
+                        goto breakerr;
+                    } else {
                         bool oldreferenceit = referenceit;
                         referenceit &= 1; /* not good... */
-                        if (!get_exp(0, 0, 0, NULL)) {
+                        if (!get_exp(0, 1, 0, NULL)) {
                             if (label == NULL && val != NULL) val_destroy(val);
+                            referenceit = oldreferenceit;
                             goto breakerr;
                         }
-                        val2 = get_vals_addrlist(epoints);
+                        val2 = get_vals_tuple();
                         referenceit = oldreferenceit;
                     }
                     if (val == NULL) {
@@ -2198,7 +2188,7 @@ MUST_CHECK Obj *compile(void)
                 switch (wht) {
                 case '=':
                     { /* variable */
-                        struct linepos_s epoints[3];
+                        struct linepos_s opoint;
                         Label *label;
                         bool labelexists;
                     starassign:
@@ -2207,24 +2197,24 @@ MUST_CHECK Obj *compile(void)
                             if (diagnostics.optimize) cpu_opt_invalidate();
                         } else label = find_label3(&labelname, mycontext, strength);
                         lpoint.pos++; ignore();
-                        epoints[0] = lpoint; /* for no elements! */
+                        opoint = lpoint; /* for no elements! */
                         if (here() == 0 || here() == ';') {
-                            if (labelname.data[0] == '*') {
-                                err_msg(ERROR______EXPECTED, "an expression is");
-                                goto breakerr;
-                            }
-                            val = val_reference(null_addrlist);
+                            err_msg(ERROR______EXPECTED, "an expression is");
+                            goto breakerr;
                         } else {
                             bool oldreferenceit = referenceit;
                             if (label != NULL && !label->ref) {
                                 referenceit = false;
                             }
-                            if (!get_exp(0, 0, 0, NULL)) goto breakerr;
-                            val = get_vals_addrlist(epoints);
+                            if (!get_exp(0, 1, 0, NULL)) {
+                                referenceit = oldreferenceit;
+                                goto breakerr;
+                            }
+                            val = get_vals_tuple();
                             referenceit = oldreferenceit;
                         }
                         if (labelname.data[0] == '*') {
-                            starhandle(val, &epoint, &epoints[0]);
+                            starhandle(val, &epoint, &opoint);
                             goto finish;
                         }
                         if (label != NULL) {
@@ -2278,13 +2268,17 @@ MUST_CHECK Obj *compile(void)
                             bool labelexists;
                         itsvar:
                             label = find_label3(&labelname, mycontext, strength);
-                            if (here() == 0 || here() == ';') val = val_reference(null_addrlist);
-                            else {
-                                struct linepos_s epoints[3];
+                            if (here() == 0 || here() == ';') {
+                                err_msg(ERROR______EXPECTED, "an expression is");
+                                goto breakerr;
+                            } else {
                                 bool oldreferenceit = referenceit;
                                 referenceit &= 1; /* not good... */
-                                if (!get_exp(0, 0, 0, NULL)) goto breakerr;
-                                val = get_vals_addrlist(epoints);
+                                if (!get_exp(0, 1, 0, NULL)) {
+                                    referenceit = oldreferenceit;
+                                    goto breakerr;
+                                }
+                                val = get_vals_tuple();
                                 referenceit = oldreferenceit;
                             }
                             if (label != NULL) {
@@ -3572,7 +3566,6 @@ MUST_CHECK Obj *compile(void)
                         }
                         if (nolisting == 0) list_mem(&mm, current_address->mem);
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
-                        int bits;
                         argcount_t ln;
                         struct values_s *vs;
                         struct byterecursion_s brec;
@@ -3595,24 +3588,25 @@ MUST_CHECK Obj *compile(void)
                         }
                         if (here() == 0 || here() == ';') { err_msg_argnum(0, 1, 0, &epoint); goto breakerr; }
                         switch (prm) {
-                        case CMD_CHAR: bits = -8; break;
-                        case CMD_SINT: bits = -16; break;
-                        case CMD_LINT: bits = -24; break;
-                        case CMD_DINT: bits = -32; break;
-                        case CMD_BYTE: bits = 8; break;
-                        default: bits = 16; break;
-                        case CMD_LONG: bits = 24; break;
-                        case CMD_DWORD: bits = 32; break;
+                        case CMD_CHAR: brec.bits = -8; break;
+                        case CMD_SINT: brec.bits = -16; break;
+                        case CMD_LINT: brec.bits = -24; break;
+                        case CMD_DINT: brec.bits = -32; break;
+                        case CMD_BYTE: brec.bits = 8; break;
+                        default: brec.bits = 16; break;
+                        case CMD_LONG: brec.bits = 24; break;
+                        case CMD_DWORD: brec.bits = 32; break;
                         }
                         if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         brec.p = 0;
                         brec.gaps = 0;
                         brec.warn = false;
                         brec.epoint2 = &epoint;
+                        brec.prm = prm;
                         mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
                         for (ln = get_val_remaining(), vs = get_val(); ln != 0; ln--, vs++) {
                             brec.epoint = &vs->epoint;
-                            byterecursion(vs->val, prm, &brec, bits);
+                            byterecursion(&brec, vs->val);
                             if (brec.warn) { err_msg_still_none(NULL, brec.epoint); brec.warn = false; }
                             if (brec.p > 0) byterecursion_flush(&brec);
                             else if (brec.gaps > 0) byterecursion_gaps(&brec);
@@ -4754,7 +4748,7 @@ MUST_CHECK Obj *compile(void)
                 if (opname.len == 3 && (prm = lookup_opcode(opname.data)) >= 0) {
                     Error *err;
                     struct linepos_s oldlpoint;
-                    struct linepos_s epoints[3];
+                    Funcargs tmp;
                     unsigned int w;
                     if (false) {
                 as_opcode:
@@ -4763,8 +4757,10 @@ MUST_CHECK Obj *compile(void)
                     ignore();
                     oldlpoint = lpoint;
                     w = 3; /* 0=byte 1=word 2=long 3=negative/too big */
-                    if (here() == 0 || here() == ';') {val = val_reference(null_addrlist);}
-                    else {
+                    if (here() == 0 || here() == ';') {
+                        tmp.len = 0;
+                        err = instruction(prm, w, &tmp, &epoint);
+                    } else {
                         if (arguments.tasmcomp) {
                             if (here() == '!') {w = 1; lpoint.pos++;}
                         } else {
@@ -4779,17 +4775,10 @@ MUST_CHECK Obj *compile(void)
                             }
                         }
                         if (!get_exp(3, 0, 0, NULL)) goto breakerr;
-                        val = get_vals_addrlist(epoints);
+                        get_vals_funcargs(&tmp);
+                        err = instruction(prm, w, &tmp, &epoint);
                     }
-                    if (val->obj->iterable) {
-                        epoints[1] = epoints[0];
-                        epoints[2] = epoints[0];
-                        if (!instrecursion(val, prm, w, &epoint, epoints)) {
-                            listing_instr(listing, 0, 0, -1);
-                        }
-                        err = NULL;
-                    } else err = instruction(prm, w, val, &epoint, epoints);
-                    val_destroy(val);
+                    if (llist != NULL) listing_instr(listing, 0, 0, -1);
                     if (err == NULL) {
                         if (diagnostics.alias && prm != current_cpu->alias[prm]) err_msg_alias(current_cpu->mnemonic[prm], current_cpu->mnemonic[current_cpu->alias[prm]], &epoint);
                         break;
