@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: errorobj.c 2742 2021-10-09 17:56:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -186,11 +186,35 @@ MALLOC Obj *new_error_argnum(argcount_t num, argcount_t min, argcount_t max, lin
     return Obj(v);
 }
 
-static MUST_CHECK Obj *calc1(oper_t op) {
-    return val_reference(op->v1);
+static MUST_CHECK Obj *truth(Obj *v1, Truth_types UNUSED(type), linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
 }
 
-static MUST_CHECK Obj *calc2(oper_t op) {
+static MUST_CHECK Obj *hash(Obj *v1, int *UNUSED(hash), linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
+}
+
+static MUST_CHECK Obj *repr(Obj *v1, linepos_t epoint, size_t UNUSED(maxsize)) {
+    return (epoint == NULL) ? NULL : val_reference(v1);
+}
+
+static MUST_CHECK Obj *str(Obj *v1, linepos_t UNUSED(epoint), size_t UNUSED(maxsize)) {
+    return val_reference(v1);
+}
+
+static MUST_CHECK Error *ival(Obj *v1, ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    return Error(val_reference(v1));
+}
+
+static MUST_CHECK Error *uval(Obj *v1, uval_t *UNUSED(uv), unsigned int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    return Error(val_reference(v1));
+}
+
+static MUST_CHECK Obj *sign(Obj *v1, linepos_t UNUSED(epoint)) {
+    return val_reference(v1);
+}
+
+static MUST_CHECK Obj *calc1(oper_t op) {
     return val_reference(op->v1);
 }
 
@@ -206,11 +230,24 @@ void errorobj_init(void) {
     Type *type = new_type(&obj, T_ERROR, "error", sizeof(Error));
     type->destroy = destroy;
     type->garbage = garbage;
+    type->truth = truth;
+    type->hash = hash;
+    type->repr = repr;
+    type->str = str;
     type->calc1 = calc1;
-    type->calc2 = calc2;
+    type->calc2 = calc1;
     type->rcalc2 = rcalc2;
     type->slice = slice;
     type->contains = rcalc2;
+    type->ival = ival;
+    type->uval = uval;
+    type->uval2 = uval;
+    type->iaddress = ival;
+    type->uaddress = uval;
+    type->sign = sign;
+    type->function = rcalc2;
+    type->len = rcalc2;
+    type->size = rcalc2;
 }
 
 void error_obj_update(Error *err, const Obj *v1, Obj *v2) {

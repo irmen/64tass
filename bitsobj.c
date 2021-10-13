@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2733 2021-10-04 21:31:55Z soci $
+    $Id: bitsobj.c 2742 2021-10-09 17:56:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1324,7 +1324,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     ival_t shift;
 
     if (op->op == O_X) {
-        if (o2 == none_value || o2->obj == ERROR_OBJ) return val_reference(o2);
+        if (o2 == none_value) return val_reference(o2);
         return repeat(op);
     }
     if (op->op == O_LAND) {

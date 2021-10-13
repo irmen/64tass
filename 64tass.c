@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2740 2021-10-07 19:51:49Z soci $
+    $Id: 64tass.c 2749 2021-10-10 13:13:46Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -2114,11 +2114,12 @@ MUST_CHECK Obj *compile(void)
                     }
                     if (here() == 0 || here() == ';') {
                         err_msg(ERROR______EXPECTED, "an expression is");
+                        if (label == NULL && val != NULL) val_destroy(val);
                         goto breakerr;
                     } else {
                         bool oldreferenceit = referenceit;
                         referenceit &= 1; /* not good... */
-                        if (!get_exp(0, 1, 0, NULL)) {
+                        if (!get_exp(0, 1, 0, &epoint2)) {
                             if (label == NULL && val != NULL) val_destroy(val);
                             referenceit = oldreferenceit;
                             goto breakerr;
@@ -2206,7 +2207,7 @@ MUST_CHECK Obj *compile(void)
                             if (label != NULL && !label->ref) {
                                 referenceit = false;
                             }
-                            if (!get_exp(0, 1, 0, NULL)) {
+                            if (!get_exp(0, 1, 0, &opoint)) {
                                 referenceit = oldreferenceit;
                                 goto breakerr;
                             }
@@ -2274,7 +2275,8 @@ MUST_CHECK Obj *compile(void)
                             } else {
                                 bool oldreferenceit = referenceit;
                                 referenceit &= 1; /* not good... */
-                                if (!get_exp(0, 1, 0, NULL)) {
+                                cmdpoint = lpoint;
+                                if (!get_exp(0, 1, 0, &cmdpoint)) {
                                     referenceit = oldreferenceit;
                                     goto breakerr;
                                 }

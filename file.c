@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2724 2021-10-03 17:28:29Z soci $
+    $Id: file.c 2751 2021-10-10 19:15:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -159,44 +159,39 @@ static bool portability(const str_t *name, linepos_t epoint) {
 
 #ifdef _WIN32
 static wchar_t *get_real_name(const wchar_t *name) {
-    typedef DWORD _stdcall (*Getfinalpathnamebyhandleptr)(HANDLE, LPWSTR, DWORD, DWORD);
-    static Getfinalpathnamebyhandleptr get_final_path_by_handle;
-    static HINSTANCE kernel_handle;
     DWORD ret;
     size_t len = wcslen(name) + 1;
-    wchar_t *real_name = allocate_array(wchar_t, len);
-    if (real_name == NULL) return NULL;
-    if (get_final_path_by_handle == NULL && kernel_handle == NULL) {
-        kernel_handle = LoadLibrary("kernel32.dll");
-        if (kernel_handle != NULL) get_final_path_by_handle = (Getfinalpathnamebyhandleptr)GetProcAddress(kernel_handle, "GetFinalPathNameByHandleW");
-    } 
-    if (get_final_path_by_handle != NULL) {
-        HANDLE handle = CreateFileW(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
-        if (handle != INVALID_HANDLE_VALUE) {
-            ret = get_final_path_by_handle(handle, real_name, len, 12);
-            if (ret > len) {
-                wchar_t *tmp = reallocate_array(real_name, ret);
-                if (tmp != NULL) {
-                    real_name = tmp;
-                    len = ret;
-                    ret = get_final_path_by_handle(handle, real_name, len, 12);
-                }
-            }
-            CloseHandle(handle);
-            if (ret < len && ret != 0) {
-                return real_name;
-            }
+    wchar_t *real_name;
+    wchar_t *short_name = allocate_array(wchar_t, len);
+    if (short_name == NULL) return NULL;
+    real_name = allocate_array(wchar_t, len);
+    if (real_name == NULL) {
+        free(short_name);
+        return NULL;
+    }
+    ret = GetShortPathNameW(name, short_name, len);
+    if (ret > len) {
+        wchar_t *tmp = reallocate_array(short_name, ret);
+        if (tmp != NULL) {
+            short_name = tmp;
+            len = ret;
+            ret = GetShortPathNameW(name, real_name, len);
         }
     }
-    ret = GetLongPathNameW(name, real_name, len);
+    if (ret >= len || ret == 0) {
+        free(short_name);
+        short_name = (wchar_t *)name;
+    } 
+    ret = GetLongPathNameW(short_name, real_name, len);
     if (ret > len) {
         wchar_t *tmp = reallocate_array(real_name, ret);
         if (tmp != NULL) {
             real_name = tmp;
             len = ret;
-            ret = GetLongPathNameW(name, real_name, len);
+            ret = GetLongPathNameW(short_name, real_name, len);
         }
     }
+    if (short_name != name) free(short_name);
     if (ret < len && ret != 0) {
         return real_name;
     }

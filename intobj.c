@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2733 2021-10-04 21:31:55Z soci $
+    $Id: intobj.c 2750 2021-10-10 14:40:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -169,6 +169,31 @@ static MUST_CHECK Obj *return_int_inplace(Int *vv, digit_t c, bool neg) {
     vv->val[0] = c;
     vv->len = c == 0 ? 0 : neg ? -1 : 1;
     return val_reference(Obj(vv));
+}
+
+static void iadd(const Int *, const Int *, Int *);
+static void isub(const Int *, const Int *, Int *);
+
+static MUST_CHECK Obj *invert(Int *v1) {
+    Int *v;
+    switch (v1->len) {
+    case 1:
+        if (~v1->data[0] == 0) break;
+        return return_int(v1->data[0] + 1, true);
+    case 0: 
+        return val_reference(minus1_value);
+    case -1:
+        return return_int(v1->data[0] - 1, false);
+    default:
+        break;
+    }
+    v = new_int();
+    if (v1->len < 0) isub(v1, Int(int_value[1]), v);
+    else {
+        iadd(v1, Int(int_value[1]), v);
+        v->len = -v->len;
+    }
+    return Obj(v);
 }
 
 static FAST_CALL NO_INLINE bool int_same(const Int *v1, const Int *v2) {
@@ -379,9 +404,6 @@ static MUST_CHECK Obj *function(oper_t op) {
     return negate(v1, op->epoint2);
 }
 
-static void iadd(const Int *, const Int *, Int *);
-static void isub(const Int *, const Int *, Int *);
-
 static inline unsigned int ldigit(const Int *v1) {
     ssize_t len = v1->len;
     if (len < 0) return ~v1->data[0] + 1U;
@@ -389,7 +411,7 @@ static inline unsigned int ldigit(const Int *v1) {
 }
 
 static MUST_CHECK Obj *calc1(oper_t op) {
-    Int *v1 = Int(op->v1), *v;
+    Int *v1 = Int(op->v1);
     switch (op->op) {
     case O_BANK:
     case O_HIGHER:
@@ -399,13 +421,23 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_BSWORD:
         return bits_calc1(op->op, ldigit(v1));
     case O_INV:
-        v = new_int();
-        if (v1->len < 0) isub(v1, Int(int_value[1]), v);
-        else {
-            iadd(v1, Int(int_value[1]), v);
-            v->len = -v->len;
+        if (op->inplace == Obj(v1)) {
+            switch (v1->len) {
+            case 1:
+                if (~v1->data[0] == 0) break;
+                v1->data[0]++; v1->len = -1;
+                return Obj(ref_int(v1));
+            case 0:
+                return val_reference(minus1_value);
+            case -1:
+                if (v1->data[0] == 1) return val_reference(int_value[0]);
+                v1->data[0]--; v1->len = 1;
+                return Obj(ref_int(v1));
+            default: 
+                break;
+            }
         }
-        return Obj(v);
+        return invert(v1);
     case O_NEG:
         if (op->inplace != Obj(v1)) return negate(v1, op->epoint3);
         v1->len = -v1->len;
@@ -831,7 +863,14 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
         FALL_THROUGH; /* fall through */
     case 0: 
         return val_reference(int_value[0]);
-    default: break;
+    case -1: 
+        if (s < SHIFT) {
+            digit_t d = ((vv1->val[0] - 1) >> s) + 1;
+            return op->inplace == Obj(vv1) ? return_int_inplace(vv1, d, true) : return_int(d, true);
+        }
+        return val_reference(minus1_value);
+    default: 
+        break;
     }
 
     word = s / SHIFT;

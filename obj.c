@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: obj.c 2742 2021-10-09 17:56:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -129,19 +129,12 @@ static FAST_CALL bool invalid_same(const Obj *o1, const Obj *o2) {
     return o1->obj == o2->obj;
 }
 
-static MUST_CHECK Obj *generic_invalid(Obj *v1, linepos_t epoint, Error_types num) {
-    if (v1->obj == ERROR_OBJ) {
-        return val_reference(v1);
-    }
-    return new_error_obj(num, v1, epoint);
-}
-
 static MUST_CHECK Obj *invalid_truth(Obj *v1, Truth_types UNUSED(type), linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR_____CANT_BOOL);
+    return new_error_obj(ERROR_____CANT_BOOL, v1, epoint);
 }
 
 static MUST_CHECK Obj *invalid_hash(Obj *v1, int *UNUSED(hash), linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR__NOT_HASHABLE);
+    return new_error_obj(ERROR__NOT_HASHABLE, v1, epoint);
 }
 
 static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
@@ -150,9 +143,6 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint, size_t maxsize) {
     const char *name;
     size_t len, len2;
     if (epoint == NULL) return NULL;
-    if (v1->obj == ERROR_OBJ) {
-        return val_reference(v1);
-    }
     name = v1->obj->name;
     len2 = strlen(name);
     len = len2 + 2;
@@ -219,11 +209,11 @@ static MUST_CHECK Obj *invalid_slice(oper_t op, argcount_t indx) {
 }
 
 static MUST_CHECK Error *invalid_ival(Obj *v1, ival_t *UNUSED(iv), unsigned int UNUSED(bits), linepos_t epoint) {
-    return Error(generic_invalid(v1, epoint, ERROR______CANT_INT));
+    return Error(new_error_obj(ERROR______CANT_INT, v1, epoint));
 }
 
 static MUST_CHECK Error *invalid_uval(Obj *v1, uval_t *UNUSED(uv), unsigned int UNUSED(bits), linepos_t epoint) {
-    return Error(generic_invalid(v1, epoint, ERROR______CANT_INT));
+    return Error(new_error_obj(ERROR______CANT_INT, v1, epoint));
 }
 
 static MUST_CHECK Error *invalid_uval2(Obj *v1, uval_t *uv, unsigned int bits, linepos_t epoint) {
@@ -243,19 +233,19 @@ static MUST_CHECK Error *invalid_uaddress(Obj *v1, uval_t *uv, unsigned int bits
 }
 
 static MUST_CHECK Obj *invalid_sign(Obj *v1, linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
+    return new_error_obj(ERROR_____CANT_SIGN, v1, epoint);
 }
 
 static MUST_CHECK Obj *invalid_function(oper_t op) {
-    return generic_invalid(op->v2, op->epoint2, (Function(op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT);
+    return new_error_obj((Function(op->v1)->func == F_ABS) ? ERROR______CANT_ABS : ERROR______CANT_INT, op->v2, op->epoint2);
 }
 
 static MUST_CHECK Obj *invalid_len(oper_t op) {
-    return generic_invalid(op->v2, op->epoint2, ERROR______CANT_LEN);
+    return new_error_obj(ERROR______CANT_LEN, op->v2, op->epoint2);
 }
 
 static MUST_CHECK Obj *invalid_size(oper_t op) {
-    return generic_invalid(op->v2, op->epoint2, ERROR_____CANT_SIZE);
+    return new_error_obj(ERROR_____CANT_SIZE, op->v2, op->epoint2);
 }
 
 static FAST_CALL MUST_CHECK Obj *invalid_next(struct iter_s *v1) {

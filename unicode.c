@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: unicode.c 2758 2021-10-12 00:22:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -533,22 +533,23 @@ static int unknown_print(FILE *f, unichar_t ch) {
     return sprintf(temp, format, ch);
 }
 
-void printable_print(const uint8_t *line, FILE *f) {
+void printable_print(const uint8_t *l, FILE *f) {
 #ifdef _WIN32
-    size_t i = 0, l = 0;
+    const uint8_t *i = l;
     for (;;) {
-        unichar_t ch = line[i];
-        if ((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
+        unichar_t ch;
+        if ((*i >= 0x20 && *i <= 0x7e) || *i == 0x09) {
             i++;
             continue;
         }
-        if (l != i) fwrite(line + l, 1, i - l, f);
-        if (ch == 0) break;
+        if (l != i) fwrite(l, 1, (size_t)(i - l), f);
+        if (*i == 0) break;
+        ch = *i;
         if ((ch & 0x80) != 0) {
-            unsigned int ln = utf8in(line + i, &ch);
+            unsigned int ln = utf8in(i, &ch);
             if (iswprint((wint_t)ch) != 0) {
                 char tmp[64];
-                memcpy(tmp, line + i, ln);
+                memcpy(tmp, i, ln);
                 tmp[ln] = 0;
                 if (fwprintf(f, L"%S", tmp) > 0) {
                     i += ln;
@@ -562,17 +563,18 @@ void printable_print(const uint8_t *line, FILE *f) {
         unknown_print(f, ch);
     }
 #else
-    size_t i = 0, l = 0;
+    const uint8_t *i = l;
     for (;;) {
-        unichar_t ch = line[i];
-        if likely((ch >= 0x20 && ch <= 0x7e) || ch == 0x09) {
+        unichar_t ch;
+        if likely((*i >= 0x20 && *i <= 0x7e) || *i == 0x09) {
             i++;
             continue;
         }
-        if (l != i) fwrite(line + l, 1, i - l, f);
-        if (ch == 0) break;
+        if (l != i) fwrite(l, 1, (size_t)(i - l), f);
+        if (*i == 0) break;
+        ch = *i;
         if ((ch & 0x80) != 0) {
-            i += utf8in(line + i, &ch);
+            i += utf8in(i, &ch);
             if (iswprint((wint_t)ch) != 0) {
                 mbstate_t ps;
                 char temp[64];

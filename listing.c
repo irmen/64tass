@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: listing.c 2753 2021-10-11 22:20:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,13 +45,13 @@ const uint8_t *llist = NULL;
 
 typedef struct Listing {
     size_t c;
-    unsigned int i;
-    char s[LINE_WIDTH + ADDR_WIDTH + LADDR_WIDTH + 3*16];
+    char *s;
+    char buf[LINE_WIDTH + ADDR_WIDTH + LADDR_WIDTH + 3*16];
     char hex[16];
     const uint16_t *disasm;
     const uint32_t *mnemonic;
     struct {
-        size_t addr, laddr, hex, monitor, source;
+        unsigned int addr, laddr, hex, monitor, source;
     } columns;
     FILE *flist;
     uint16_t lastfile;
@@ -61,8 +61,8 @@ typedef struct Listing {
 } Listing;
 
 static void flushbuf(Listing *ls) {
-    ls->c += fwrite(ls->s, 1, ls->i, ls->flist);
-    ls->i = 0;
+    ls->c += fwrite(ls->buf, 1, (size_t)(ls->s - ls->buf), ls->flist);
+    ls->s = ls->buf;
 }
 
 static void newline(Listing *ls) {
@@ -70,24 +70,27 @@ static void newline(Listing *ls) {
     ls->c = 0;
 }
 
-static void padding2(Listing *ls, size_t t) {
-    if (ls->c + ls->i >= t) {ls->s[ls->i++] = '\n'; flushbuf(ls); ls->c = 0;}
-    ls->c += ls->i;
-    if (ls->tab_size > 1) {
-        ls->c -= ls->c % ls->tab_size;
-        while (ls->c + ls->tab_size <= t) { ls->c += ls->tab_size; ls->s[ls->i++] = '\t'; }
+static void padding2(Listing *ls, unsigned int t) {
+    unsigned int ts;
+    size_t c = ls->c + (size_t)(ls->s - ls->buf);
+    if (c >= t) {*ls->s++ = '\n'; flushbuf(ls); c = 0;}
+    ts = ls->tab_size;
+    if (ts > 1) {
+        c -= c % ts;
+        while (c + ts <= t) { c += ts; *ls->s++ = '\t'; }
     }
-    while (ls->c < t) { ls->c++; ls->s[ls->i++] = ' '; }
-    ls->c -= ls->i;
+    while (c < t) { c++; *ls->s++ = ' '; }
+    ls->c = c - (size_t)(ls->s - ls->buf);
 }
 
 static inline void out_hex(Listing *ls, unsigned int c) {
-    ls->s[ls->i++] = ls->hex[(c >> 4) & 15];
-    ls->s[ls->i++] = ls->hex[c & 15];
+    ls->s[0] = ls->hex[(c >> 4) & 15];
+    ls->s[1] = ls->hex[c & 15];
+    ls->s += 2;
 }
 
 static void out_byte(Listing *ls, unsigned int adr) {
-    ls->s[ls->i++] = '$';
+    *ls->s++ = '$';
     out_hex(ls, adr);
 }
 
@@ -108,28 +111,29 @@ static void out_zp(Listing *ls, unsigned int adr) {
 }
 
 static void out_db(Listing *ls, unsigned int adr) {
-    ls->s[ls->i++] = '$';
+    *ls->s++ = '$';
     if (databank != 0) out_hex(ls, databank);
     out_hex(ls, adr >> 8);
     out_hex(ls, adr);
 }
 
 static void out_pb(Listing *ls, unsigned int adr) {
-    ls->s[ls->i++] = '$';
+    *ls->s++ = '$';
     if (current_address->l_address > 0xffff) out_hex(ls, current_address->l_address >> 16);
     out_hex(ls, adr >> 8);
     out_hex(ls, adr);
 }
 
 static void out_bit(Listing *ls, unsigned int cod, unsigned int c) {
-    ls->s[ls->i++] = (char)('0' + ((cod >> 4) & 7));
-    ls->s[ls->i++] = ',';
+    ls->s[0] = (char)('0' + ((cod >> 4) & 7));
+    ls->s[1] = ',';
+    ls->s += 2;
     out_zp(ls, c);
 }
 
 static void out_txt(Listing *ls, const char *s) {
     while (*s != '\0') {
-        ls->s[ls->i++] = *s++;
+        *ls->s++ = *s++;
     }
 }
 
@@ -164,7 +168,7 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     ls->monitor = arguments.list.monitor;
     ls->source = arguments.list.source;
     ls->lastfile = 0;
-    ls->i = 0;
+    ls->s = ls->buf;
 
     fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
     for (i = 0; i < argc; i++) {
@@ -233,13 +237,13 @@ static void printdec(Listing *ls, uint32_t dec) {
     for (; i < 9; i++) {
         uint32_t a = dec / d[i];
         dec = dec % d[i];
-        ls->s[ls->i++] = (char)('0' + a);
+        *ls->s++ = (char)('0' + a);
     }
-    ls->s[ls->i++] = (char)('0' + dec);
+    *ls->s++ = (char)('0' + dec);
 }
 
 static void printfile(Listing *ls) {
-    ls->s[ls->i++] = ':';
+    *ls->s++ = ':';
     printdec(ls, ls->lastfile - 1U);
 }
 
@@ -266,26 +270,27 @@ FAST_CALL void listing_equal(Listing *ls, Obj *val) {
     newline(ls);
 }
 
-static void printaddr(Listing *ls, char pre, address_t addr, address_t addr2) {
-    ls->s[ls->i++] = pre;
-    for (;;) {
-        if (addr > 0xffff) {
-            if (addr >> 24 != 0) out_hex(ls, addr >> 24);
-            out_hex(ls, addr >> 16);
-        }
-        out_hex(ls, addr >> 8);
-        out_hex(ls, addr);
-        if (addr2 == addr || !ls->pccolumn) return;
-        addr = addr2;
-        padding2(ls, ls->columns.laddr);
+static void printaddr(Listing *ls, address_t addr) {
+    if (addr > 0xffff) {
+        if (addr >> 24 != 0) out_hex(ls, addr >> 24);
+        out_hex(ls, addr >> 16);
     }
+    out_hex(ls, addr >> 8);
+    out_hex(ls, addr);
+}
+
+static void printaddr2(Listing *ls, address_t addr, address_t addr2) {
+    printaddr(ls, addr);
+    if (addr2 == addr || !ls->pccolumn) return;
+    padding2(ls, ls->columns.laddr);
+    printaddr(ls, addr2);
 }
 
 static void printhex(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
     padding2(ls, ls->columns.hex);
     out_hex(ls, cod);
     while (ln > 0) {
-        ls->s[ls->i++] = ' ';
+        *ls->s++ = ' ';
         out_hex(ls, adr);
         adr >>= 8;
         ln--;
@@ -298,7 +303,7 @@ static void printhex2(Listing *ls, unsigned int ln, const uint8_t *data) {
     for (;;) {
         out_hex(ls, data[i++]);
         if (i >= ln) break;
-        ls->s[ls->i++] = ' ';
+        *ls->s++ = ' ';
     }
 }
 
@@ -309,21 +314,22 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
 
     padding2(ls, ls->columns.monitor);
     mnem = ls->mnemonic[ls->disasm[cod] & 0xff];
-    ls->s[ls->i++] = (char)(mnem >> 16);
-    ls->s[ls->i++] = (char)(mnem >> 8);
-    ls->s[ls->i++] = (char)(mnem);
-    ls->s[ls->i++] = ' ';
+    ls->s[0] = (char)(mnem >> 16);
+    ls->s[1] = (char)(mnem >> 8);
+    ls->s[2] = (char)(mnem);
+    ls->s[3] = ' ';
+    ls->s += 4;
 
     type = (Adr_types)(ls->disasm[cod] >> 8);
     mode = addr_modes[type];
-    if (*mode != ' ') ls->s[ls->i++] = *mode;
+    if (*mode != ' ') *ls->s++ = *mode;
     mode++;
     switch (type) {
-    case ADR_IMPLIED: ls->i--; return;
+    case ADR_IMPLIED: ls->s--; return;
     case ADR_REG: return;
     case ADR_IMMEDIATE:
         switch (ln) {
-        default: ls->i -= 2; return;
+        default: ls->s -= 2; return;
         case 0: return;
         case 1: out_byte(ls, adr); return;
         case 2: out_word(ls, adr); return;
@@ -350,16 +356,16 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_ZP_Y: out_zp(ls, adr); break;
     case ADR_ADDR_I:
     case ADR_ADDR_LI: out_word(ls, adr); break;
-    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_address->l_address)); else ls->i--; return;
+    case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_address->l_address)); else ls->s--; return;
     case ADR_BIT_ZP_REL:
         out_bit(ls, cod, adr);
-        ls->s[ls->i++] = ',';
+        *ls->s++ = ',';
         out_pb(ls, (address_t)((int8_t)(adr >> 8) + (int)current_address->l_address));
         return;
-    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1U : 0) + current_address->l_address); else ls->i--; return;
-    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[ls->i++] = ','; ls->s[ls->i++] = '#'; out_byte(ls, adr); return;
+    case ADR_REL_L: if (ln > 0) out_pb(ls, adr + (((cod & 0x0F) == 3) ? -1U : 0) + current_address->l_address); else ls->s--; return;
+    case ADR_MOVE: out_byte(ls, adr >> 8); ls->s[0] = ','; ls->s[1] = '#'; ls->s += 2; out_byte(ls, adr); return;
     }
-    while (*mode != 0) ls->s[ls->i++] = *mode++;
+    while (*mode != 0) *ls->s++ = *mode++;
 }
 
 static void printsource(Listing *ls, linecpos_t pos) {
@@ -409,10 +415,11 @@ FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
             printline(ls);
             padding2(ls, ls->columns.addr);
         }
-        printaddr(ls, '.', current_address->address, current_address->l_address);
+        *ls->s++ = '.';
+        printaddr2(ls, current_address->address, current_address->l_address);
     }
     if (ls->verbose) {
-        if (ls->i != 0) flushbuf(ls);
+        if (ls->s != ls->buf) flushbuf(ls);
         if (llist[i] != 0) {
             if (ls->c == 0 && ls->linenum) printline(ls);
             padding2(ls, ls->columns.source);
@@ -421,8 +428,7 @@ FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
         }
         newline(ls);
     } else {
-        if (ls->c + ls->i != 0) printsource(ls, pos);
-        else if (ls->i != 0) flushbuf(ls);
+        if (ls->c != 0 || ls->s != ls->buf) printsource(ls, pos);
     }
     llist = NULL;
 }
@@ -445,7 +451,8 @@ FAST_CALL void listing_line_cut(Listing *ls, linecpos_t pos) {
             printline(ls);
             padding2(ls, ls->columns.addr);
         }
-        printaddr(ls, '.', current_address->address, current_address->l_address);
+        *ls->s++ = '.';
+        printaddr2(ls, current_address->address, current_address->l_address);
         printsource(ls, pos);
     }
     llist = NULL;
@@ -488,7 +495,8 @@ void listing_instr(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
     }
     addr = (current_address->l_address - (unsigned int)(ln + 1)) & all_mem;
     addr2 = (current_address->address - (unsigned int)(ln + 1)) & all_mem2;
-    printaddr(ls, '.', addr2, addr);
+    *ls->s++ = '.';
+    printaddr2(ls, addr2, addr);
     if (ln >= 0) {
         printhex(ls, cod ^ outputeor, adr ^ outputeor, ln);
         if (ls->monitor) {
@@ -528,11 +536,12 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
                     if (repeat != 0) {
                         if (ls->linenum) padding2(ls, ls->columns.addr);
                         if (repeat == 1) {
-                            printaddr(ls, '>', prev.addr, prev.addr2);
+                            *ls->s++ = '>';
+                            printaddr2(ls, prev.addr, prev.addr2);
                             printhex2(ls, prev.len, prev.data);
                             flushbuf(ls);
                         } else {
-                            ls->s[ls->i++] = ';';
+                            *ls->s++ = ';';
                             padding2(ls, ls->columns.hex);
                             flushbuf(ls);
                             fprintf(ls->flist, "...repeated %u times (%u bytes)...", repeat, repeat * 16);
@@ -545,7 +554,8 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
                             if (print) printline(ls);
                             padding2(ls, ls->columns.addr);
                         }
-                        printaddr(ls, '>', current.addr, current.addr2);
+                        *ls->s++ = '>';
+                        printaddr2(ls, current.addr, current.addr2);
                         if (current.len != 0) {
                             printhex2(ls, current.len, current.data);
                         }

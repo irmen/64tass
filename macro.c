@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2737 2021-10-06 20:50:52Z soci $
+    $Id: macro.c 2755 2021-10-11 23:39:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,11 +136,12 @@ linecpos_t macro_error_translate2(linecpos_t pos) {
 bool mtranslate(void) {
     unsigned int q;
     argcount_t j, n;
-    linecpos_t p, p2, op;
-    linecpos_t last, last2;
+    linecpos_t p;
+    linecpos_t last;
     struct macro_pline_s *mline;
     bool changed, fault;
     struct file_s *cfile = current_file_list->file;
+    const uint8_t *p2, *op, *last2;
 
     if (lpoint.line >= cfile->lines) return true;
     llist = pline = &cfile->source.data[cfile->line[lpoint.line]];
@@ -149,10 +150,10 @@ bool mtranslate(void) {
     if (changed) return signal_received;
     mline = &macro_parameters.current->pline;
 
-    q = 0; p = 0; p2 = 0; n = 0; last = 0; last2 = 0; fault = false;
-    while (pline[p2] != 0) {
+    q = 0; p = 0; p2 = pline; last2 = pline; n = 0; last = 0; fault = false;
+    while (*p2 != 0) {
         str_t param;
-        switch (pline[p2]) {
+        switch (*p2) {
         case '"':
             if ((q & 2) == 0) q ^= 1;
             p2++;
@@ -174,39 +175,35 @@ bool mtranslate(void) {
                 continue;
             }
             /* normal parameter reference */
-            j = (uint8_t)(pline[p2 + 1] - '1');
+            j = (uint8_t)(p2[1] - '1');
             if (j < 9) {   /* \1..\9 */
-                p += p2 - last2;
+                p += (linecpos_t)(p2 - last2);
                 op = p2;
                 p2 += 2;
                 break;
             }
             if (j == ('@' - '1')) { /* \@ gives complete parameter list */
                 j = ALL_MACRO_PARAMS;
-                p += p2 - last2;
+                p += (linecpos_t)(p2 - last2);
                 op = p2;
                 p2 += 2;
                 break;
             }
             if (j == ('{' - '1')) {
-                lpoint.pos = p2 + 2;
-                param.data = pline + lpoint.pos;
+                param.data = p2 + 2;
                 param.len = get_label(param.data);
-                lpoint.pos += (linecpos_t)param.len;
-                if (pline[lpoint.pos] == '}') lpoint.pos++;
-                else param.len = 0;
+                if (param.data[param.len] != '}') param.len = 0;
             } else {
-                lpoint.pos = p2 + 1;
-                param.data = pline + lpoint.pos;
+                param.data = p2 + 1;
                 param.len = get_label(param.data);
-                lpoint.pos += (linecpos_t)param.len;
             }
             if (param.len != 0) {
                 Macro *macro = Macro(macro_parameters.current->macro);
                 str_t cf;
-                p += p2 - last2;
+                p += (linecpos_t)(p2 - last2);
                 op = p2;
-                p2 = lpoint.pos;
+                p2 = param.data + param.len;
+                if (j == ('{' - '1')) p2++;
                 str_cfcpy(&cf, &param);
                 for (j = 0; j < macro->argc; j++) {
                     const uint8_t *data;
@@ -216,8 +213,7 @@ bool mtranslate(void) {
                     if (memcmp(data, cf.data, cf.len) == 0) break;
                 }
                 if (j < macro->argc) break;
-                lpoint.pos -= (linecpos_t)param.len + 1;
-                if (pline[lpoint.pos] != '\\') lpoint.pos -= 2;
+                lpoint.pos = (linecpos_t)(op - pline);
                 err_msg_unknown_argument(&param, &lpoint);
                 p = last; last2 = p2; fault = true;
                 continue;
@@ -227,9 +223,9 @@ bool mtranslate(void) {
         case '@':
             if (arguments.tasmcomp) {
                 /* text parameter reference */
-                j = (uint8_t)(pline[p2 + 1] - '1');
+                j = (uint8_t)(p2[1] - '1');
                 if (j < 9) { /* @1..@9 */
-                    p += p2 - last2;
+                    p += (linecpos_t)(p2 - last2);
                     op = p2;
                     p2 += 2;
                     break;
@@ -264,18 +260,18 @@ bool mtranslate(void) {
         }
         if (last != p) {
             if (p < last) err_msg_out_of_memory(); /* overflow */
-            memcpy(mline->data + last, pline + last2, p - last);
+            memcpy(mline->data + last, last2, p - last);
         }
         if (n >= mline->rlen) extend_array(&mline->rpositions, &mline->rlen, 8);
-        mline->rpositions[n].opos = op;
-        mline->rpositions[n].olen = p2 - op;
+        mline->rpositions[n].opos = (linecpos_t)(op - pline);
+        mline->rpositions[n].olen = (linecpos_t)(p2 - op);
         mline->rpositions[n].pos = p;
         mline->rpositions[n].param = j;
         mline->rpositions[n++].len = (linecpos_t)param.len;
         switch (param.len) {
         case 0: 
             if (param.data == NULL) {
-                lpoint.pos = last2 + p - last;
+                lpoint.pos = (linecpos_t)(last2 - pline) + p - last;
                 err_msg_missing_argument(&lpoint, j);
                 fault = true;
             }
@@ -290,15 +286,15 @@ bool mtranslate(void) {
         last = p; last2 = p2;
     }
     mline->rp = n;
-    if (last2 != 0) {
-        while (p2 != 0 && (pline[p2 - 1] == 0x20 || pline[p2 - 1] == 0x09)) p2--;
-        p += p2 - last2;
+    if (last2 != pline) {
+        while (p2 != pline && (p2[-1] == 0x20 || p2[-1] == 0x09)) p2--;
+        p += (linecpos_t)(p2 - last2);
         if (p + 1 < p) err_msg_out_of_memory(); /* overflow */
         if (p + 1 > mline->len) {
             if (add_overflow(p, 1024, &mline->len)) err_msg_out_of_memory();
             resize_array(&mline->data, mline->len);
         }
-        if (p != last) memcpy(mline->data + last, pline + last2, p - last);
+        if (p != last) memcpy(mline->data + last, last2, p - last);
         mline->data[p] = 0;
         llist = pline = fault ? (const uint8_t *)"" : mline->data;
     } else {
