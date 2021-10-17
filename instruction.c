@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2738 2021-10-07 19:06:15Z soci $
+    $Id: instruction.c 2767 2021-10-16 21:32:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -416,7 +416,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
     uint32_t adr;
     uval_t uval;
     Obj *val;
-    struct linepos_s *epoint2 = &vals->val[0].epoint;
+    struct linepos_s *epoint2;
     Error *err;
     atype_t am;
 
@@ -432,6 +432,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         }
         return err_addressing(A_NONE, epoint, prm);
     case 1:
+        epoint2 = &vals->val[0].epoint;
         val = vals->val[0].val;
         if (val->obj->iterable) {
             struct iter_s iter;
@@ -730,6 +731,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         }
         goto unknown;
     case 2:
+        epoint2 = &vals->val[0].epoint;
         if (vals->val[0].val->obj->iterable || vals->val[1].val->obj->iterable) {
             struct values_s *v;
             argcount_t args;
@@ -834,6 +836,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         }
         goto unknown;
     case 3:
+        epoint2 = &vals->val[0].epoint;
         if (vals->val[0].val->obj->iterable || vals->val[1].val->obj->iterable || vals->val[2].val->obj->iterable) {
             goto broadcast;
         }
@@ -877,6 +880,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         }
         FALL_THROUGH; /* fall through */
     default:
+        epoint2 = &vals->val[0].epoint;
     unknown:
         err = new_error(ERROR___NO_LOT_OPER, epoint2);
         err->u.opers.num = vals->len;

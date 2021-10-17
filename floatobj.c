@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2733 2021-10-04 21:31:55Z soci $
+    $Id: floatobj.c 2761 2021-10-16 08:27:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
         h1 = ~h1 + 1U;
         h2 = ~h2 + 1U;
     }
-    h = (expo < 0) ? ~((unsigned int)-expo) + 1U : (unsigned int)expo;
+    h = (unsigned int)expo;
     h ^= h1 ^ h2;
     *hs = h & ((~0U) >> 1);
     return NULL;

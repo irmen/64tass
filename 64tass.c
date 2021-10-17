@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2749 2021-10-10 13:13:46Z soci $
+    $Id: 64tass.c 2765 2021-10-16 18:51:35Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -3643,7 +3643,7 @@ MUST_CHECK Obj *compile(void)
                         if (cfile2 != NULL) {
                             filesize_t foffset;
                             mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
-                            if (foffs < 0) foffset = (uval_t)-foffs < cfile2->binary.len ? (cfile2->binary.len - (uval_t)-foffs) : 0;
+                            if (foffs < 0) foffset = -(uval_t)foffs < cfile2->binary.len ? (cfile2->binary.len - -(uval_t)foffs) : 0;
                             else foffset = (uval_t)foffs;
                             for (; fsize != 0 && foffset < cfile2->binary.len;) {
                                 filesize_t i, ln = cfile2->binary.len - foffset;
@@ -3677,7 +3677,7 @@ MUST_CHECK Obj *compile(void)
                         current_address->moved = true;
                     }
                     current_address->wrapwarn = false;
-                    addr = (ival < 0 ? current_address->l_address - (uval_t)-ival : current_address->l_address + (uval_t)ival) & all_mem2;
+                    addr = (ival < 0 ? current_address->l_address - -(uval_t)ival : current_address->l_address + (uval_t)ival) & all_mem2;
                     if (current_address->address != addr) {
                         current_address->address = addr;
                         memjmp(current_address->mem, current_address->address);
@@ -4340,7 +4340,7 @@ MUST_CHECK Obj *compile(void)
                     if (lst->len > i) list_shrink(lst, i);
                     const_assign(label, Obj(lst));
                     goto breakerr;
-                } else {push_dummy_context(); new_waitfor(prm == CMD_FOR ? W_ENDFOR3 : prm == CMD_REPT ? W_ENDREPT3 : W_ENDWHILE3, &epoint);}
+                } else {push_dummy_context(); new_waitfor(prm == CMD_BFOR ? W_ENDFOR3 : prm == CMD_BREPT ? W_ENDREPT3 : W_ENDWHILE3, &epoint);}
                 break;
             case CMD_FOR: if ((waitfor->skip & 1) != 0)
                 { /* .for */
@@ -4983,7 +4983,7 @@ int main2(int *argc2, char **argv2[]) {
     error_print(&arguments.error);
     if (arguments.quiet) {
         error_status();
-        printf("Passes: %12u\n",pass);
+        printf("Passes:            %u\n",pass);
         if (!failed) sectionprint(stdout);
         fflush(stdout);
     }

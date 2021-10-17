@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2742 2021-10-09 17:56:44Z soci $
+    $Id: bitsobj.c 2768 2021-10-17 00:03:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -615,7 +615,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         if (v1->chars == 1) {
             unichar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
-            return return_bits(ch2 & 0xffffff, 24);
+            return return_bits(ch2 & 0xffffff, ch2 < 256 ? 8 : ch2 < 65536 ? 16 : 24);
         }
         return Obj(new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint));
     }
@@ -1189,46 +1189,24 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
 
     if (io.val->obj->iterable) {
         struct iter_s iter;
+        List *l;
+        Obj **vals;
         iter.data = io.val; io.val->obj->getiter(&iter);
+        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
-            return val_reference(null_bits);
+            return val_reference(null_list);
         }
-        sz = (iter.len + SHIFT - 1) / SHIFT;
-
-        vv = new_bits2(sz);
-        if (vv == NULL) {
-            iter_destroy(&iter);
-            goto failed;
+        l = new_list();
+        l->data = vals = list_create_elements(l, iter.len);
+        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
+            vals[i] = slice(op, indx);
         }
-        v = vv->data;
-
-        uv = inv;
-        bits = 0; sz = 0;
-        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
-            err = indexoffs(&io);
-            if (err != NULL) {
-                val_destroy(Obj(vv));
-                iter_destroy(&iter);
-                return err;
-            }
-            o = io.offs / SHIFT;
-            if (o < bitslen(vv1) && ((vv1->data[o] >> (io.offs % SHIFT)) & 1) != 0) {
-                uv ^= 1U << bits;
-            }
-            bits++;
-            if (bits == SHIFT) {
-                v[sz++] = uv;
-                uv = inv;
-                bits = 0;
-            }
-        }
+        l->len = i;
+        args->val[indx].val = io.val;
         iter_destroy(&iter);
-        if (bits != 0) v[sz++] = uv & ((1U << bits) - 1);
-
-        vv->bits = i;
-        return normalize(vv, sz, false);
+        return Obj(l);
     }
     if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;
@@ -1357,12 +1335,12 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             err = o2->obj->ival(o2, &shift, 8 * sizeof shift, op->epoint2);
             if (err != NULL) return Obj(err);
             if (shift == 0) return val_reference(Obj(v1));
-            return (shift < 0) ? rshift(op, (uval_t)-shift) : lshift(op, (uval_t)shift);
+            return (shift < 0) ? rshift(op, -(uval_t)shift) : lshift(op, (uval_t)shift);
         case O_RSHIFT:
             err = o2->obj->ival(o2, &shift, 8 * sizeof shift, op->epoint2);
             if (err != NULL) return Obj(err);
             if (shift == 0) return val_reference(Obj(v1));
-            return (shift < 0) ? lshift(op, (uval_t)-shift) : rshift(op, (uval_t)shift);
+            return (shift < 0) ? lshift(op, -(uval_t)shift) : rshift(op, (uval_t)shift);
         default: break;
         }
         tmp = int_from_bits(v1, op->epoint);

@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2758 2021-10-12 00:22:27Z soci $
+    $Id: unicode.c 2764 2021-10-16 17:42:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -318,12 +318,13 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
 
 size_t argv_print(const char *line, FILE *f) {
     size_t len = 0;
+    const uint8_t *i = (const uint8_t *)line;
 #ifdef _WIN32
-    size_t i = 0, back;
+    size_t back;
     bool quote = false, space = false;
 
     for (;;i++) {
-        switch (line[i]) {
+        switch (*i) {
         case '%':
         case '"': quote = true; if (!space) continue; break;
         case ' ': space = true; if (!quote) continue; break;
@@ -337,16 +338,16 @@ size_t argv_print(const char *line, FILE *f) {
         if (quote) {len++;putc('^', f);}
         len++;putc('"', f);
     }
-    i = 0; back = 0;
+    i = (const uint8_t *)line; back = 0;
     for (;;) {
-        int ch = line[i];
+        int ch = *i;
         if ((ch & 0x80) != 0) {
             unichar_t ch2 = (uint8_t)ch;
-            unsigned int ln = utf8in((const uint8_t *)line + i, &ch2);
+            unsigned int ln = utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
                 int ln2;
                 char tmp[64];
-                memcpy(tmp, line + i, ln);
+                memcpy(tmp, i, ln);
                 tmp[ln] = 0;
                 ln2 = fwprintf(f, L"%S", tmp);
                 if (ln2 > 0) {
@@ -392,7 +393,6 @@ size_t argv_print(const char *line, FILE *f) {
         len++;putc('"', f);
     }
 #else
-    size_t i;
     bool quote = strchr(line, '!') == NULL && strpbrk(line, " \"$&()*;<>'?[\\]`{|}") != NULL;
 
     if (quote) {len++;putc('"', f);}
@@ -402,13 +402,12 @@ size_t argv_print(const char *line, FILE *f) {
         case '#': len++;putc('\\', f); break;
         }
     }
-    i = 0;
     for (;;) {
-        int ch = line[i];
+        int ch = *i;
         if ((ch & 0x80) != 0) {
             unichar_t ch2 = (uint8_t)ch;
             int ln2;
-            i += utf8in((const uint8_t *)line + i, &ch2);
+            i += utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
                 mbstate_t ps;
                 char temp[64];
@@ -421,7 +420,7 @@ size_t argv_print(const char *line, FILE *f) {
                 }
             }
             ln2 = fprintf(f, ch2 < 0x10000 ? "$'\\u%" PRIx32 "'" : "$'\\U%" PRIx32 "'", ch2);
-            if (ln2 > 0) len += (size_t)ln2;
+            if (ln2 > 0) len += (unsigned int)ln2;
             continue;
         }
         if (ch == 0) break;
@@ -437,7 +436,7 @@ size_t argv_print(const char *line, FILE *f) {
         i++;
         if (isprint(ch) == 0) {
             int ln = fprintf(f, "$'\\x%x'", ch);
-            if (ln > 0) len += (size_t)ln;
+            if (ln > 0) len += (unsigned int)ln;
             continue;
         }
         len++;putc(ch, f);
@@ -448,18 +447,19 @@ size_t argv_print(const char *line, FILE *f) {
 }
 
 size_t makefile_print(const char *line, FILE *f) {
-    size_t len = 0, i = 0, bl = 0;
+    const uint8_t *i = (const uint8_t *)line;
+    size_t len = 0, bl = 0;
 
     for (;;) {
-        int ch = line[i];
+        int ch = *i;
         if ((ch & 0x80) != 0) {
             unichar_t ch2 = (uint8_t)ch;
 #ifdef _WIN32
-            unsigned int ln = utf8in((const uint8_t *)line + i, &ch2);
+            unsigned int ln = utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
                 int ln2;
                 char tmp[64];
-                memcpy(tmp, line + i, ln);
+                memcpy(tmp, i, ln);
                 tmp[ln] = 0;
                 ln2 = fwprintf(f, L"%S", tmp);
                 if (ln2 > 0) {
@@ -471,7 +471,7 @@ size_t makefile_print(const char *line, FILE *f) {
             }
             i += ln;
 #else
-            i += utf8in((const uint8_t *)line + i, &ch2);
+            i += utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
                 mbstate_t ps;
                 char temp[64];
@@ -618,7 +618,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i += ln;
             l = i;
             err = unknown_print(f, ch);
-            if (err > 0) len += (size_t)err;
+            if (err > 0) len += (unsigned int)err;
             continue;
         }
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
@@ -626,7 +626,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i++;
             l = i;
             err = unknown_print(f, ch);
-            if (err > 0) len += (size_t)err;
+            if (err > 0) len += (unsigned int)err;
             continue;
         }
         i++;
@@ -654,7 +654,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
                 }
             }
             err = unknown_print(f, ch);
-            if (err > 0) len += (size_t)err;
+            if (err > 0) len += (unsigned int)err;
             continue;
         }
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
@@ -662,7 +662,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i++;
             l = i;
             err = unknown_print(f, ch);
-            if (err > 0) len += (size_t)err;
+            if (err > 0) len += (unsigned int)err;
             continue;
         }
         i++;
@@ -707,7 +707,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
             }
 #endif
             err = unknown_print(NULL, ch);
-            if (err > 0) l += (size_t)err;
+            if (err > 0) l += (unsigned int)err;
             continue;
         }
         if (ch == 0) break;
@@ -722,7 +722,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         }
         if (ch < 0x20 || ch > 0x7e) {
             err = unknown_print(NULL, ch);
-            if (err > 0) l += (size_t)err;
+            if (err > 0) l += (unsigned int)err;
         } else l++;
         i++;
     }

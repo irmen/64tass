@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 2708 2021-09-18 18:12:25Z soci $
+    $Id: encobj.c 2766 2021-10-16 20:57:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -281,6 +281,7 @@ bool enc_escape_add(Enc *enc, const str_t *v, Obj *val, linepos_t epoint)
             if (i != 0) memcpy(b->val, d, i);
             d = b->val;
         }
+        b->len = i;
         b->data = d;
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;

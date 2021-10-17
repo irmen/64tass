@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2727 2021-10-03 20:21:13Z soci $
+    $Id: dictobj.c 2768 2021-10-17 00:03:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -488,7 +488,7 @@ static MUST_CHECK Obj *findit(const Dict *v1, Obj *o2, linepos_t epoint) {
         err = o2->obj->hash(o2, &pair.hash, epoint);
         if (err != NULL) return err;
         p = dict_lookup(v1, &pair);
-        if (p != NULL && p->data != NULL) return val_reference(p->data);
+        if (p != NULL) return val_reference(p->data != NULL ? p->data : p->key);
     }
     if (v1->def != NULL) {
         return val_reference(v1->def);
@@ -554,7 +554,7 @@ static MUST_CHECK Obj *dictsliceparams(const Dict *v1, const Colonlist *v2, stru
         s->length = (uval_t)(end - offs + step - 1) / (uval_t)step;
     } else {
         if (end > offs) end = offs;
-        s->length = (uval_t)(offs - end - step - 1) / (uval_t)-step;
+        s->length = (uval_t)(offs - end - step - 1) / -(uval_t)step;
     }
 
     s->offset = offs;
@@ -584,6 +584,7 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         List *v;
         Obj **vals;
         iter.data = o2; o2->obj->getiter(&iter);
+        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -591,19 +592,12 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         }
         v = new_list();
         v->data = vals = list_create_elements(v, iter.len);
-        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
-            vv = findit(v1, o2, epoint2);
-            if (vv->obj != ERROR_OBJ && more) {
-                Obj *result;
-                op->v1 = vv;
-                result = vv->obj->slice(op, indx + 1);
-                val_destroy(vv);
-                vv = result;
-            }
-            vals[i] = vv;
+        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
+            vals[i] = slice(op, indx);
         }
-        iter_destroy(&iter);
         v->len = i;
+        args->val[indx].val = o2;
+        iter_destroy(&iter);
         return Obj(v);
     }
     if (o2->obj == COLONLIST_OBJ) {

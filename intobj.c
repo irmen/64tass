@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2750 2021-10-10 14:40:01Z soci $
+    $Id: intobj.c 2761 2021-10-16 08:27:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -175,19 +175,7 @@ static void iadd(const Int *, const Int *, Int *);
 static void isub(const Int *, const Int *, Int *);
 
 static MUST_CHECK Obj *invert(Int *v1) {
-    Int *v;
-    switch (v1->len) {
-    case 1:
-        if (~v1->data[0] == 0) break;
-        return return_int(v1->data[0] + 1, true);
-    case 0: 
-        return val_reference(minus1_value);
-    case -1:
-        return return_int(v1->data[0] - 1, false);
-    default:
-        break;
-    }
-    v = new_int();
+    Int *v = new_int();
     if (v1->len < 0) isub(v1, Int(int_value[1]), v);
     else {
         iadd(v1, Int(int_value[1]), v);
@@ -343,9 +331,9 @@ static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, unsigned int bits, linepos_t 
             if (bits <= SHIFT && (d >> (bits - 1)) != 0) break;
             return NULL;
     case 0: *iv = 0; return NULL;
-    case -1: d = v1->data[0];
-             *iv = -(ival_t)d;
-             if (bits <= SHIFT && ((d - 1) >> (bits - 1)) != 0) break;
+    case -1: d = v1->data[0] - 1;
+             *iv = ~(ival_t)d;
+             if (bits <= SHIFT && (d >> (bits - 1)) != 0) break;
              return NULL;
     default: break;
     }
@@ -421,21 +409,25 @@ static MUST_CHECK Obj *calc1(oper_t op) {
     case O_BSWORD:
         return bits_calc1(op->op, ldigit(v1));
     case O_INV:
-        if (op->inplace == Obj(v1)) {
-            switch (v1->len) {
-            case 1:
-                if (~v1->data[0] == 0) break;
+        switch (v1->len) {
+        case 1:
+            if (~v1->data[0] == 0) break;
+            if (op->inplace == Obj(v1)) {
                 v1->data[0]++; v1->len = -1;
                 return Obj(ref_int(v1));
-            case 0:
-                return val_reference(minus1_value);
-            case -1:
-                if (v1->data[0] == 1) return val_reference(int_value[0]);
+            }
+            return return_int(v1->data[0] + 1, true);
+        case 0:
+            return val_reference(minus1_value);
+        case -1:
+            if (v1->data[0] == 1) return val_reference(int_value[0]);
+            if (op->inplace == Obj(v1)) {
                 v1->data[0]--; v1->len = 1;
                 return Obj(ref_int(v1));
-            default: 
-                break;
             }
+            return return_int(v1->data[0] - 1, false);
+        default: 
+            break;
         }
         return invert(v1);
     case O_NEG:
@@ -850,7 +842,6 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
     Int *vv1 = Int(op->v1);
     size_t i, sz;
     unsigned int word, bit;
-    bool neg;
     digit_t *v1, *v;
     Int *vv;
 
@@ -875,45 +866,62 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
 
     word = s / SHIFT;
     bit = s % SHIFT;
-    neg = (vv1->len < 0);
-    if (neg) {
-        vv = new_int();
-        isub(vv1, Int(int_value[1]), vv);
-        vv1 = vv;
-        if ((size_t)vv->len <= word) {
-            val_destroy(Obj(vv));
-            return val_reference(minus1_value);
-        }
-        sz = (size_t)vv->len - word;
+    sz = intlen(vv1);
+    if (sz <= word) return val_reference(vv1->len < 0 ? minus1_value : int_value[0]);
+    sz -= word;
+    if (op->inplace == Obj(vv1)) {
+        vv = ref_int(vv1);
         v = vv->data;
     } else {
-        if ((size_t)vv1->len <= word) return val_reference(int_value[0]);
-        sz = (size_t)vv1->len - word;
-        if (op->inplace == Obj(vv1)) {
-            vv = ref_int(vv1);
-            v = vv->data;
-        }
-        else {
-            vv = new_int();
-            vv->data = v = inew2(vv, sz);
-            if (v == NULL) goto failed2;
-        }
+        vv = new_int();
+        vv->data = v = inew2(vv, sz);
+        if (v == NULL) goto failed2;
     }
     v1 = vv1->data + word;
+    if (vv1->len < 0) {
+        bool c;
+        for (i = 0; i < word; i++) {
+            if (vv1->data[i] != 0) break;
+        }
+        c = (i == word);
+        if (bit != 0) {
+            bool c2 = true;
+            for (i = 0; i < sz - 1; i++) {
+                if (c) {
+                    v[i] = (v1[i] - 1) >> bit;
+                    c = (v1[i] == 0);
+                } else v[i] = v1[i] >> bit;
+                if (c) v[i] |= (v1[i + 1] - 1) << (SHIFT - bit);
+                else v[i] |= v1[i + 1] << (SHIFT - bit);
+                if (c2) {
+                    v[i]++;
+                    c2 = (v[i] == 0);
+                }
+            }
+            if (c) v[i] = (v1[i] - 1) >> bit;
+            else v[i] = v1[i] >> bit;
+            if (c2) v[i]++;
+        } else {
+            if (c) {
+                memmove(v, v1, sz * sizeof *v);
+            } else {
+                c = true;
+                for (i = 0; c && i < sz; i++) {
+                    v[i] = v1[i] + 1;
+                    c = (v[i] == 0);
+                }
+                for (; i < sz; i++) v[i] = v1[i];
+            }
+        }
+        return normalize(vv, sz, true);
+    } 
     if (bit != 0) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;
             v[i] |= v1[i + 1] << (SHIFT - bit);
         }
         v[i] = v1[i] >> bit;
-    } else if (sz != 0) memmove(v, v1, sz * sizeof *v);
-
-    if (neg) {
-        vv->len = (ssize_t)sz;
-        iadd(Int(int_value[1]), vv, vv);
-        vv->len = -vv->len;
-        return Obj(vv);
-    }
+    } else memmove(v, v1, sz * sizeof *v);
     return normalize(vv, sz, false);
 failed2:
     val_destroy(Obj(vv));
@@ -1316,7 +1324,7 @@ MUST_CHECK Obj *int_from_ival(ival_t i) {
         v->val[0] = (uval_t)i;
         v->len = 1;
     } else {
-        v->val[0] = (uval_t)-i;
+        v->val[0] = -(uval_t)i;
         v->len = -1;
     }
     return Obj(v);
@@ -1723,12 +1731,12 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
         err = ival(Obj(v2), &shift, 8 * sizeof shift, op->epoint2);
         if (err != NULL) return Obj(err);
         if (shift == 0) return val_reference(Obj(v1));
-        return (shift < 0) ? rshift(op, (uval_t)-shift) : lshift(op, (uval_t)shift);
+        return (shift < 0) ? rshift(op, -(uval_t)shift) : lshift(op, (uval_t)shift);
     case O_RSHIFT:
         err = ival(Obj(v2), &shift, 8 * sizeof shift, op->epoint2);
         if (err != NULL) return Obj(err);
         if (shift == 0) return val_reference(Obj(v1));
-        return (shift < 0) ? lshift(op, (uval_t)-shift) : rshift(op, (uval_t)shift);
+        return (shift < 0) ? lshift(op, -(uval_t)shift) : rshift(op, (uval_t)shift);
     case O_AND: return and_(op);
     case O_OR: return or_(op);
     case O_XOR: return xor_(op);

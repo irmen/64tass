@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2708 2021-09-18 18:12:25Z soci $
+    $Id: variables.c 2761 2021-10-16 08:27:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -363,8 +363,8 @@ Label *find_anonlabel(ssize_t count) {
         uint32_t count2;
         context = context_stack.stack[--p].normal;
         if (count < 0) {
-            if (context->backr < (size_t)-count) continue;
-            count2 = context->backr - (uint32_t)-count;
+            if (context->backr < -(size_t)count) continue;
+            count2 = context->backr - -(uint32_t)count;
         } else {
             count2 = context->forwr + (uint32_t)count;
             if (count2 < (size_t)count) continue;
@@ -389,8 +389,8 @@ Label *find_anonlabel2(ssize_t count, Namespace *context) {
     struct anonsymbol_s anonsymbol;
 
     if (count < 0) {
-        if (context->backr < (size_t)-count) return NULL;
-        count2 = context->backr - (uint32_t)-count;
+        if (context->backr < -(size_t)count) return NULL;
+        count2 = context->backr - -(uint32_t)count;
         anonsymbol.dir = '-';
     } else {
         count2 = context->forwr + (uint32_t)count;

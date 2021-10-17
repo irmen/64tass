@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2665 2021-05-15 14:02:57Z soci $
+   $Id: isnprintf.c 2761 2021-10-16 08:27:15Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -269,7 +269,7 @@ static inline void hexa(Data *p)
 
     integer = Int(get_int(p));
     minus = (integer->len < 0);
-    bp2 = minus ? (size_t)-integer->len : (size_t)integer->len;
+    bp2 = minus ? -(size_t)integer->len : (size_t)integer->len;
     bp = b = 0;
     do {
         if (bp == 0) {
@@ -304,7 +304,7 @@ static inline void bin(Data *p)
 
     integer = Int(get_int(p));
     minus = (integer->len < 0);
-    bp2 = minus ? (size_t)-integer->len : (size_t)integer->len;
+    bp2 = minus ? -(size_t)integer->len : (size_t)integer->len;
     bp = b = 0;
     do {
         if (bp == 0) {

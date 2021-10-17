@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2739 2021-10-07 19:10:13Z soci $
+    $Id: functionobj.c 2761 2021-10-16 08:27:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -213,7 +213,7 @@ static MUST_CHECK Obj *function_range(oper_t op) {
         len2 = (uval_t)(end - start + step - 1) / (uval_t)step;
     } else {
         if (end > start) end = start;
-        len2 = (uval_t)(start - end - step - 1) / (uval_t)-step;
+        len2 = (uval_t)(start - end - step - 1) / -(uval_t)step;
     }
     new_value = new_list();
     val = list_create_elements(new_value, len2);
@@ -300,7 +300,7 @@ static MUST_CHECK Obj *function_random(oper_t op) {
         len2 = (uval_t)(end - start + step - 1) / (uval_t)step;
     } else {
         if (end > start) end = start;
-        len2 = (uval_t)(start - end - step - 1) / (uval_t)-step;
+        len2 = (uval_t)(start - end - step - 1) / -(uval_t)step;
     }
     if (len2 != 0) {
         if (step != 1 || (len2 & (len2 - 1)) != 0) {
@@ -451,7 +451,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
     if (cfile2 != NULL) {
         filesize_t offset, ln = cfile2->binary.len;
         Bytes *b;
-        if (offs < 0) offset = ((uval_t)-offs < ln) ? (ln - (uval_t)-offs) : 0;
+        if (offs < 0) offset = (-(uval_t)offs < ln) ? (ln - -(uval_t)offs) : 0;
         else offset = (uval_t)offs;
         if (offset < ln) ln -= offset; else ln = 0;
         if (length < ln) ln = length;

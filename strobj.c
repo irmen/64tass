@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2742 2021-10-09 17:56:44Z soci $
+    $Id: strobj.c 2769 2021-10-17 00:34:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -585,108 +585,24 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     if (io.val->obj->iterable) {
         struct iter_s iter;
         size_t i;
+        List *l;
+        Obj **vals;
         iter.data = io.val; io.val->obj->getiter(&iter);
+        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
-            return val_reference(null_str);
+            return val_reference(null_list);
         }
-
-        if (v1->len == v1->chars) {
-            v = new_str2(iter.len);
-            if (v == NULL) {
-                iter_destroy(&iter);
-                goto failed;
-            }
-            p2 = v->data;
-            for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
-                err = indexoffs(&io);
-                if (err != NULL) {
-                    val_destroy(Obj(v));
-                    iter_destroy(&iter);
-                    return err;
-                }
-                *p2++ = v1->data[io.offs];
-            }
-            iter_destroy(&iter);
-            len1 = i;
-        } else {
-            size_t m = v1->len;
-            uint8_t *o;
-            size_t j = 0;
-
-            v = new_str2(m);
-            if (v == NULL) {
-                iter_destroy(&iter);
-                goto failed;
-            }
-            o = p2 = v->data;
-            p = v1->data;
-
-            for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
-                unsigned int k;
-                err = indexoffs(&io);
-                if (err != NULL) {
-                    val_destroy(Obj(v));
-                    iter_destroy(&iter);
-                    return err;
-                }
-                while (io.offs != j) {
-                    if (io.offs > j) {
-                        p += utf8len(*p);
-                        j++;
-                    } else {
-                        do { p--; } while (*p >= 0x80 && *p < 0xc0);
-                        j--;
-                    }
-                }
-                k = utf8len(*p);
-                if ((size_t)(p2 - o) + k > m) {
-                    const uint8_t *r = o;
-                    if (inc_overflow(&m, 4096)) {
-                        iter_destroy(&iter);
-                        goto failed2; /* overflow */
-                    }
-                    if (o == v->u.val) {
-                        o = allocate_array(uint8_t, m);
-                        if (o == NULL) {
-                            iter_destroy(&iter);
-                            goto failed2;
-                        }
-                        v->data = o;
-                        memcpy(o, v->u.val, m - 4096);
-                        v->u.s.hash = -1;
-                    } else {
-                        o = reallocate_array(o, m);
-                        if (o == NULL) {
-                            iter_destroy(&iter);
-                            goto failed2;
-                        }
-                        v->data = o;
-                    }
-                    v->u.s.max = m;
-                    p2 += o - r;
-                }
-                memcpy(p2, p, k);p2 += k;
-            }
-            iter_destroy(&iter);
-            len1 = i;
-            len2 = (size_t)(p2 - o);
-            if (o != v->u.val) {
-                if (len2 <= sizeof v->u.val) {
-                    memcpy(v->u.val, o, len2);
-                    free(o);
-                    v->data = v->u.val;
-                } else {
-                    uint8_t *oo = reallocate_array(o, len2);
-                    v->data = (oo != NULL) ? oo : o;
-                    v->u.s.max = len2;
-                }
-            }
-            v->len = len2;
+        l = new_list();
+        l->data = vals = list_create_elements(l, iter.len);
+        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
+            vals[i] = slice(op, indx);
         }
-        v->chars = len1;
-        return Obj(v);
+        l->len = i;
+        args->val[indx].val = io.val;
+        iter_destroy(&iter);
+        return Obj(l);
     }
     if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;
@@ -777,7 +693,7 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
             if (s.step > 0) {
                 for (k = i; i < s.end; i++) {
                     j = utf8len(*p);
-                    if (i != k) {
+                    if (i == k) {
                         for (offs2 = 0; offs2 < j; offs2++) p2[offs2] = p[offs2];
                         p2 += j; k += s.step;
                     }
@@ -790,7 +706,10 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
                     do {
                         p--;j++;
                     } while (*p >= 0x80 && *p < 0xc0);
-                    if (i == k) {memcpy(p2, p, j);p2 += j; k += s.step;}
+                    if (i == k) {
+                        for (offs2 = 0; offs2 < j; offs2++) p2[offs2] = p[offs2];
+                        p2 += j; k += s.step;
+                    }
                 }
             }
             len2 = (size_t)(p2 - o);
@@ -846,8 +765,6 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         v->data = p2;
     }
     return Obj(v);
-failed2:
-    val_destroy(Obj(v));
 failed:
     return new_error_mem(op->epoint3);
 }
