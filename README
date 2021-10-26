@@ -1393,7 +1393,7 @@ Stepping through a[from:to:step]
     omitted in case it starts from the beginning or end at the end. If the
     `step' is negative then it's done in reverse.
 Extract multiple elements a[list]
-    Extract elements based on a list. So "abcd"[[1,3]] will be ["b", "d"].
+    Extract elements based on a list. So "abcd"[[1,3]] will be "bd".
 
 The fun start with nested lists and tuples, as these can be used to create a
 matrix. The examples will be given for a two dimensional matrix for easier

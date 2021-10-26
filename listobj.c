@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2773 2021-10-17 08:06:21Z soci $
+    $Id: listobj.c 2778 2021-10-17 21:11:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -698,7 +698,6 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     if (io.val->obj->iterable) {
         struct iter_s iter;
         iter.data = io.val; io.val->obj->getiter(&iter);
-        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -710,11 +709,20 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
             iter_destroy(&iter);
             goto failed;
         }
-        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
-            vals[i] = slice(op, indx);
+        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+            err = indexoffs(&io);
+            if (err != NULL) {
+                vals[i] = err;
+                continue;
+            }
+            if (more) {
+                op->v1 = v1->data[io.offs];
+                vals[i] = op->v1->obj->slice(op, indx + 1);
+            } else {
+                vals[i] = val_reference(v1->data[io.offs]);
+            }
         }
         v->len = i;
-        args->val[indx].val = io.val;
         iter_destroy(&iter);
         return Obj(v);
     }

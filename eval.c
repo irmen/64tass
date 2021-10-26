@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2756 2021-10-11 23:59:10Z soci $
+    $Id: eval.c 2774 2021-10-17 10:27:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1013,7 +1013,7 @@ static bool get_val2(struct eval_context_s *ev) {
                     v--;
                 }
                 args -= vsp;
-                v[0].val = dictobj_parse(v + 1, args);
+                v[0].val = (args == 0) ? val_reference(null_dict) : dictobj_parse(v + 1, args);
                 continue;
             }
         case O_COND:

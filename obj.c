@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2742 2021-10-09 17:56:44Z soci $
+    $Id: obj.c 2774 2021-10-17 10:27:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -346,6 +346,7 @@ void objects_init(void) {
 }
 
 void objects_destroy(void) {
+    dictobj_destroy();
     listobj_destroy();
     bitsobj_destroy();
     bytesobj_destroy();

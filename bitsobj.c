@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2768 2021-10-17 00:03:15Z soci $
+    $Id: bitsobj.c 2778 2021-10-17 21:11:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1189,24 +1189,46 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
 
     if (io.val->obj->iterable) {
         struct iter_s iter;
-        List *l;
-        Obj **vals;
         iter.data = io.val; io.val->obj->getiter(&iter);
-        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
-            return val_reference(null_list);
+            return val_reference(null_bits);
         }
-        l = new_list();
-        l->data = vals = list_create_elements(l, iter.len);
-        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
-            vals[i] = slice(op, indx);
+        sz = (iter.len + SHIFT - 1) / SHIFT;
+
+        vv = new_bits2(sz);
+        if (vv == NULL) {
+            iter_destroy(&iter);
+            goto failed;
         }
-        l->len = i;
-        args->val[indx].val = io.val;
+        v = vv->data;
+
+        uv = inv;
+        bits = 0; sz = 0;
+        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+            err = indexoffs(&io);
+            if (err != NULL) {
+                val_destroy(Obj(vv));
+                iter_destroy(&iter);
+                return err;
+            }
+            o = io.offs / SHIFT;
+            if (o < bitslen(vv1) && ((vv1->data[o] >> (io.offs % SHIFT)) & 1) != 0) {
+                uv ^= 1U << bits;
+            }
+            bits++;
+            if (bits == SHIFT) {
+                v[sz++] = uv;
+                uv = inv;
+                bits = 0;
+            }
+        }
         iter_destroy(&iter);
-        return Obj(l);
+        if (bits != 0) v[sz++] = uv & ((1U << bits) - 1);
+
+        vv->bits = i;
+        return normalize(vv, sz, false);
     }
     if (io.val->obj == COLONLIST_OBJ) {
         struct sliceparam_s s;

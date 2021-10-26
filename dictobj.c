@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2768 2021-10-17 00:03:15Z soci $
+    $Id: dictobj.c 2778 2021-10-17 21:11:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,10 @@
 static Type obj;
 
 Type *const DICT_OBJ = &obj;
+
+static Dict null_dictval = { { &obj, 1 }, 0, null_dictval.u.val, { { { 0 } } }, NULL };
+
+Obj *const null_dict = &null_dictval.v;
 
 static Dict *new_dict(size_t ln) {
     size_t ln1, ln2, ln3;
@@ -277,6 +281,79 @@ static MUST_CHECK Obj *normalize(Dict *dict) {
     if (dict->u.val == dict->data || dict->u.s.max - dict->len < 2) return Obj(dict);
     resize(dict, dict->len);
     return Obj(dict);
+}
+
+static MUST_CHECK Obj *dict_from_iterable(Obj *v1, linepos_t epoint) {
+    Obj *v;
+    struct iter_s iter;
+    iter.data = v1; v1->obj->getiter(&iter);
+
+    if (iter.len == 0) {
+        v = val_reference(null_dict);
+    } else {
+        Dict *dict = new_dict(iter.len);
+        if (dict == NULL) {
+            v = new_error_mem(epoint);
+        } else {
+            struct pair_s p;
+            size_t i;
+            dict->def = NULL;
+            for (i = 0; i < iter.len && (p.key = iter.next(&iter)) != NULL; i++) {
+                Obj *err;
+
+                if (p.key == none_value || p.key->obj == ERROR_OBJ) {
+                    v = val_reference(p.key);
+                error:
+                    val_destroy(Obj(dict));
+                    iter_destroy(&iter);
+                    return v;
+                }
+                if (p.key->obj != COLONLIST_OBJ) p.data = NULL;
+                else {
+                    Colonlist *list = Colonlist(p.key);
+                    if (list->len != 2 || (list->data[0] != default_value && list->data[1] == default_value)) {
+                        v = new_error_obj(ERROR__NOT_KEYVALUE, p.key, epoint);
+                        goto error;
+                    }
+                    p.key = list->data[0];
+                    p.data = list->data[1];
+                }
+                if (p.key == default_value) {
+                    if (dict->def != NULL) val_destroy(dict->def);
+                    dict->def = (p.data == NULL || p.data == default_value) ? NULL : val_reference(p.data);
+                    continue;
+                }
+                err = p.key->obj->hash(p.key, &p.hash, epoint);
+                if (err != NULL) {
+                    v = err;
+                    goto error;
+                }
+                dict_update(dict, &p);
+            }
+            v = normalize(dict);
+        }
+    } 
+    iter_destroy(&iter);
+    return v;
+}
+
+static MUST_CHECK Obj *dict_from_obj(Obj *o1, linepos_t epoint) {
+    switch (o1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_DICT:
+        return val_reference(o1);
+    default: 
+        if (o1->obj->iterable) {
+            return dict_from_iterable(o1, epoint);
+        }
+        break;
+    }
+    return new_error_conv(o1, DICT_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *convert(oper_t op) {
+    return dict_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -584,7 +661,6 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         List *v;
         Obj **vals;
         iter.data = o2; o2->obj->getiter(&iter);
-        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
@@ -592,11 +668,18 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         }
         v = new_list();
         v->data = vals = list_create_elements(v, iter.len);
-        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
-            vals[i] = slice(op, indx);
+        for (i = 0; i < iter.len && (o2 = iter.next(&iter)) != NULL; i++) {
+            vv = findit(v1, o2, epoint2);
+            if (vv->obj != ERROR_OBJ && more) {
+                Obj *result;
+                op->v1 = vv;
+                result = vv->obj->slice(op, indx + 1);
+                val_destroy(vv);
+                vv = result;
+            }
+            vals[i] = vv;
         }
         v->len = i;
-        args->val[indx].val = o2;
         iter_destroy(&iter);
         return Obj(v);
     }
@@ -608,11 +691,11 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
         if (err != NULL) return err;
 
         if (s.length == 0) {
-            return val_reference((v1->v.obj == TUPLE_OBJ) ? null_tuple : null_list);
+            return val_reference(null_dict);
         }
 
         if (s.step == 1 && s.length == v1->len && v1->def == NULL && !more) {
-            return val_reference(Obj(v1)); /* original tuple */
+            return val_reference(Obj(v1)); /* original dict */
         }
         v = new_dict(s.length);
         if (v == NULL) return new_error_mem(epoint2); /* overflow */
@@ -829,6 +912,7 @@ void dictobj_init(void) {
     type->iterable = true;
     type->destroy = destroy;
     type->garbage = garbage;
+    type->convert = convert;
     type->same = same;
     type->hash = hash;
     type->len = len;
@@ -845,3 +929,8 @@ void dictobj_names(void) {
     new_builtin("dict", val_reference(Obj(DICT_OBJ)));
 }
 
+void dictobj_destroy(void) {
+#ifdef DEBUG
+    if (null_dict->refcount != 1) fprintf(stderr, "dict %" PRIuSIZE "\n", null_dict->refcount - 1);
+#endif
+}

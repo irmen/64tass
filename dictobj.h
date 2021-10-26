@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: dictobj.h 2774 2021-10-17 10:27:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,8 +45,11 @@ typedef struct Dict {
 
 #define Dict(a) OBJ_CAST(Dict, a)
 
+extern Obj *const null_dict;
+
 extern void dictobj_init(void);
 extern void dictobj_names(void);
+extern void dictobj_destroy(void);
 
 extern Obj *dictobj_parse(struct values_s *, size_t);
 extern MUST_CHECK Obj *dict_sort(Dict *, const size_t *);

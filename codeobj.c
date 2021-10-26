@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2768 2021-10-17 00:03:15Z soci $
+    $Id: codeobj.c 2778 2021-10-17 21:11:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -423,22 +423,26 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
   
     if (io.val->obj->iterable) {
         struct iter_s iter;
+        Tuple *v;
         size_t i;
-        List *v;
         iter.data = io.val; io.val->obj->getiter(&iter);
-        op->inplace = NULL;
 
         if (iter.len == 0) {
             iter_destroy(&iter);
-            return val_reference(null_list);
+            return val_reference(null_tuple);
         }
-        v = new_list();
-        v->data = vals = list_create_elements(v, iter.len);
-        for (i = 0; i < iter.len && (args->val[indx].val = iter.next(&iter)) != NULL; i++) {
-            vals[i] = slice(op, indx);
+        v = new_tuple(iter.len);
+        vals = v->data;
+        for (i = 0; i < iter.len && (io.val = iter.next(&iter)) != NULL; i++) {
+            err = indexoffs(&io);
+            if (err != NULL) {
+                vals[i] = err;
+                continue;
+            }
+            ci.offs2 = (address_t)io.offs;
+            vals[i] = code_item(&ci);
         }
         v->len = i;
-        args->val[indx].val = io.val;
         iter_destroy(&iter);
         return Obj(v);
     }
