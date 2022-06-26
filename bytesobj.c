@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: bytesobj.c 2794 2022-05-26 15:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -856,9 +856,9 @@ static FAST_CALL MUST_CHECK Obj *iter_element(struct iter_s *v1, size_t i) {
         iter->v.refcount--;
         iter = new_bytes(1);
         v1->iter = Obj(iter);
-        iter->len = (vv1->len < 0) ? ~1 : 1;
+        iter->len = 1;
     }
-    iter->data[0] = vv1->data[i];
+    iter->data[0] = (vv1->len < 0) ? ~vv1->data[i] : vv1->data[i];
     return Obj(iter);
 }
 

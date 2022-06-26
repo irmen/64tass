@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2722 2021-10-03 15:14:03Z soci $
+    $Id: file.h 2781 2022-05-23 02:45:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@ struct str_t;
 typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO, E_RAW
 } Encoding_types;
+
+typedef enum File_open_type {
+    FILE_OPEN_STDIN, FILE_OPEN_BINARY, FILE_OPEN_SOURCE, FILE_OPEN_COMMAND_LINE
+} File_open_type;
 
 typedef uint32_t filesize_t;
 
@@ -65,7 +69,7 @@ struct star_s {
     uint8_t pass;
 };
 
-extern struct file_s *file_open(const struct str_t *, const char *, unsigned int, linepos_t);
+extern struct file_s *file_open(const struct str_t *, const char *, File_open_type, linepos_t);
 extern struct star_s *new_star(linenum_t);
 extern struct star_s *init_star(linenum_t);
 extern void destroy_file(void);

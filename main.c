@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2697 2021-09-16 08:59:25Z soci $
+    $Id: main.c 2786 2022-05-25 04:08:01Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -27,7 +27,7 @@
 
 */
 
-#include "64tass.h"
+#include "main.h"
 #include <string.h>
 #include <signal.h>
 #ifdef SIGALRM
@@ -38,6 +38,9 @@
 #include "error.h"
 #include "unicode.h"
 #include "console.h"
+#include "64tass.h"
+
+bool signal_received = false;
 
 static void signal_reset(int signum) {
 #if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L

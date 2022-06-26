@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2753 2021-10-11 22:20:50Z soci $
+    $Id: listing.c 2790 2022-05-25 06:31:18Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "obj.h"
 #include "values.h"
 #include "arguments.h"
+#include "macro.h"
 #include "version.h"
 
 #define LINE_WIDTH 8
@@ -137,7 +138,10 @@ static void out_txt(Listing *ls, const char *s) {
     }
 }
 
-MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
+static Listing *listing;
+
+void listing_open(const char *filename, int argc, char *argv[]) {
+    static Listing listing2;
     Listing *ls;
     struct linepos_s nopoint = {0, 0};
     time_t t;
@@ -147,11 +151,12 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     flist = dash_name(filename) ? stdout : fopen_utf8(filename, "wt");
     if (flist == NULL) {
         err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
-        return NULL;
+        listing = NULL;
+        return;
     }
     clearerr(flist); errno = 0;
 
-    new_instance(&ls);
+    ls = &listing2;
 
     memcpy(ls->hex, "0123456789abcdef", 16);
     ls->filename = filename;
@@ -199,10 +204,11 @@ MUST_CHECK Listing *listing_open(const char *filename, int argc, char *argv[]) {
     }
     flushbuf(ls);
     newline(ls);
-    return ls;
+    listing = ls;
 }
 
-void listing_close(Listing *ls) {
+void listing_close(void) {
+    Listing *const ls = listing;
     struct linepos_s nopoint = {0, 0};
     int err;
     if (ls == NULL) return;
@@ -211,7 +217,7 @@ void listing_close(Listing *ls) {
     err = ferror(ls->flist);
     err |= (ls->flist != stdout) ? fclose(ls->flist) : fflush(ls->flist);
     if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LST, ls->filename, &nopoint);
-    free(ls);
+    listing = NULL;
 }
 
 static bool printllist(Listing *ls) {
@@ -256,9 +262,10 @@ static void printline(Listing *ls) {
     printfile(ls);
 }
 
-FAST_CALL void listing_equal(Listing *ls, Obj *val) {
+FAST_CALL void listing_equal(Obj *val) {
+    Listing *const ls = listing;
     if (ls == NULL) return;
-    if (nolisting != 0 || !ls->source || temporary_label_branch != 0) return;
+    if (nolisting != 0 || !ls->source || in_function) return;
     if (ls->linenum) {
         printline(ls);
         padding2(ls, ls->columns.addr);
@@ -376,9 +383,10 @@ static void printsource(Listing *ls, linecpos_t pos) {
     newline(ls);
 }
 
-FAST_CALL void listing_equal2(Listing *ls, Obj *val, linecpos_t pos) {
+FAST_CALL void listing_equal2(Obj *val, linecpos_t pos) {
+    Listing *const ls = listing;
     if (ls == NULL) return;
-    if (nolisting != 0 || !ls->source || temporary_label_branch != 0) return;
+    if (nolisting != 0 || !ls->source || in_function) return;
     if (ls->linenum) {
         printline(ls);
         padding2(ls, ls->columns.addr);
@@ -395,9 +403,10 @@ FAST_CALL void listing_equal2(Listing *ls, Obj *val, linecpos_t pos) {
 }
 
 
-FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_line(linecpos_t pos) {
+    Listing *const ls = listing;
     size_t i;
-    if (nolisting != 0  || temporary_label_branch != 0 || llist == NULL) return;
+    if (nolisting != 0  || in_function || llist == NULL) return;
     if (ls == NULL) {
         address_t addr;
         if (!fixeddig || constcreated || listing_pccolumn || !arguments.list.source) return;
@@ -433,9 +442,10 @@ FAST_CALL void listing_line(Listing *ls, linecpos_t pos) {
     llist = NULL;
 }
 
-FAST_CALL void listing_line_cut(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_line_cut(linecpos_t pos) {
+    Listing *const ls = listing;
     size_t i;
-    if (nolisting != 0 || temporary_label_branch != 0 || llist == NULL) return;
+    if (nolisting != 0 || in_function || llist == NULL) return;
     if (ls == NULL) {
         if (!fixeddig || constcreated || listing_pccolumn || !arguments.list.source) return;
         i = 0;
@@ -458,9 +468,10 @@ FAST_CALL void listing_line_cut(Listing *ls, linecpos_t pos) {
     llist = NULL;
 }
 
-FAST_CALL void listing_line_cut2(Listing *ls, linecpos_t pos) {
+FAST_CALL void listing_line_cut2(linecpos_t pos) {
+    Listing *const ls = listing;
     if (ls == NULL || !ls->verbose || llist == NULL) return;
-    if (nolisting == 0 && ls->source && temporary_label_branch == 0) {
+    if (nolisting == 0 && ls->source && !in_function) {
         if (ls->linenum) printline(ls);
         padding2(ls, ls->columns.source);
         flushbuf(ls);
@@ -471,15 +482,17 @@ FAST_CALL void listing_line_cut2(Listing *ls, linecpos_t pos) {
     }
 }
 
-FAST_CALL void listing_set_cpumode(Listing *ls, const struct cpu_s *cpumode) {
+FAST_CALL void listing_set_cpumode(const struct cpu_s *cpumode) {
+    Listing *const ls = listing;
     if (ls == NULL) return;
     ls->disasm = cpumode->disasm;
     ls->mnemonic = cpumode->mnemonic;
 }
 
-void listing_instr(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
+void listing_instr(unsigned int cod, uint32_t adr, int ln) {
+    Listing *const ls = listing;
     address_t addr, addr2;
-    if (nolisting != 0 || temporary_label_branch != 0) return;
+    if (nolisting != 0 || in_function) return;
     if (ls == NULL) {
         if (!fixeddig || constcreated || listing_pccolumn) return;
         ln++;
@@ -507,7 +520,8 @@ void listing_instr(Listing *ls, unsigned int cod, uint32_t adr, int ln) {
     newline(ls);
 }
 
-void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) {
+void listing_mem(const uint8_t *data, size_t len, address_t myaddr, address_t myaddr2) {
+    Listing *const ls = listing;
     bool print, exitnow;
     int lcol;
     unsigned int repeat;
@@ -518,7 +532,7 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
     } prev, current;
     size_t p;
 
-    if (nolisting != 0 || temporary_label_branch != 0) return;
+    if (nolisting != 0 || in_function) return;
     if (ls == NULL) {
          if (myaddr != myaddr2) listing_pccolumn = true;
          return;
@@ -585,7 +599,8 @@ void listing_mem(Listing *ls, const uint8_t *data, size_t len, address_t myaddr,
     goto flush;
 }
 
-void listing_file(Listing *ls, const char *txt, const struct file_s *file) {
+void listing_file(const char *txt, const struct file_s *file) {
+    Listing *const ls = listing;
     if (ls == NULL) return;
     newline(ls);
     if (ls->linenum) {

@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2755 2021-10-11 23:39:41Z soci $
+    $Id: macro.c 2788 2022-05-25 04:29:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "error.h"
 #include "arguments.h"
 #include "optimizer.h"
+#include "main.h"
 
 #include "listobj.h"
 #include "typeobj.h"
@@ -38,6 +39,9 @@
 #include "mfuncobj.h"
 #include "memblocksobj.h"
 #include "functionobj.h"
+
+bool in_macro;
+bool in_function;
 
 static int functionrecursion;
 
@@ -72,8 +76,6 @@ static struct {
     size_t p, len;
     struct macro_params_s *params, *current;
 } macro_parameters = {0, 0, NULL, NULL};
-
-bool in_macro;
 
 #define ALL_MACRO_PARAMS (~(argcount_t)0)
 
@@ -938,6 +940,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
         const uint8_t *ollist = llist;
         size_t oldbottom;
         bool in_macro_old = in_macro;
+        bool in_function_old = in_function;
         struct section_address_s section_address, *oldsection_address = current_address;
         struct star_s *s = new_star(vline);
         struct star_s *stree_old = star_tree;
@@ -951,6 +954,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
         star_tree->vline = vline; star_tree = s; vline = s->vline;
 
         in_macro = false;
+        in_function = true;
 
         lpoint.line = mfunc->epoint.line;
         oldbottom = context_get_bottom();
@@ -958,7 +962,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
             push_context(mfunc->namespaces[j]);
         }
         push_context(context);
-        temporary_label_branch++;
         functionrecursion++;
         if (mfunc->v.obj == SFUNC_OBJ) {
             if (mtranslate()) {
@@ -1012,11 +1015,11 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
         for (j = 0; j < mfunc->nslen; j++) {
             pop_context();
         }
-        temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
         llist = ollist;
         in_macro = in_macro_old;
+        in_function = in_function_old;
     }
     exitfile();
     if (context->v.refcount == 1 && clean_namespace(context)) {
@@ -1028,6 +1031,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
 void init_macro(void) {
     macro_parameters.p = 0;
     in_macro = false;
+    in_function = false;
     functionrecursion = 0;
 }
 

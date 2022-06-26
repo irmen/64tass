@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2703 2021-09-17 11:20:53Z soci $
+    $Id: mem.c 2784 2022-05-25 03:44:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -656,6 +656,6 @@ void list_mem(const struct mem_mark_s *mm, const Memblocks *memblocks) {
         } else {
             if (len == 0) continue;
         }
-        listing_mem(listing, memblocks->mem.data + p, len, addr, (mm->oaddr2 + addr - addr2) & all_mem);
+        listing_mem(memblocks->mem.data + p, len, addr, (mm->oaddr2 + addr - addr2) & all_mem);
     }
 }

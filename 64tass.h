@@ -1,5 +1,5 @@
 /*
-    $Id: 64tass.h 2627 2021-05-02 11:03:15Z soci $
+    $Id: 64tass.h 2786 2022-05-25 04:08:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,13 +29,10 @@
 #define here() pline[lpoint.pos]
 
 struct Obj;
-struct Listing;
 
-extern struct Listing *listing;
 extern address_t all_mem, all_mem2;
 extern unsigned int all_mem_bits;
 extern uint32_t outputeor;
-extern int temporary_label_branch;
 extern linenum_t vline;
 extern struct linepos_s lpoint;
 extern struct star_s *star_tree;
@@ -44,7 +41,6 @@ extern address_t star;
 extern const uint8_t *pline;
 extern uint8_t pass, max_pass;
 extern bool referenceit;
-extern bool signal_received;
 extern const struct cpu_s *current_cpu;
 extern void new_waitfor(Wait_types, linepos_t);
 extern bool close_waitfor(Wait_types);

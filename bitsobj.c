@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: bitsobj.c 2793 2022-05-26 06:40:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -490,6 +490,44 @@ static MUST_CHECK Obj *function(oper_t op) {
 static MUST_CHECK Obj *len(oper_t op) {
     Bits *v1 = Bits(op->v2);
     return int_from_size(v1->bits);
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_element(struct iter_s *v1, size_t i) {
+    const Bits *vv1 = Bits(v1->data);
+    size_t o = i / SHIFT;
+    bdigit_t v;
+    if (vv1->len < 0) {
+        v = o < (size_t)~vv1->len ? ~vv1->data[o] : ~(bdigit_t)0;
+    } else {
+        v = o < (size_t)vv1->len ? vv1->data[o] : 0;
+    }
+    return bits_value[(v >> (i % SHIFT)) & 1];
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_forward(struct iter_s *v1) {
+    if (v1->val >= v1->len) return NULL;
+    return iter_element(v1, v1->val++);
+}
+
+static void getiter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
+    v->val = 0;
+    v->data = val_reference(v->data);
+    v->next = iter_forward;
+    v->len = Bits(v->data)->bits;
+}
+
+static FAST_CALL MUST_CHECK Obj *iter_reverse(struct iter_s *v1) {
+    if (v1->val >= v1->len) return NULL;
+    return iter_element(v1, v1->len - ++v1->val);
+}
+
+static void getriter(struct iter_s *v) {
+    v->iter = val_reference(v->data);
+    v->val = 0;
+    v->data = val_reference(v->data);
+    v->next = iter_reverse;
+    v->len = Bits(v->data)->bits;
 }
 
 MUST_CHECK Obj *bits_from_uval(uval_t i, unsigned int bits) {
@@ -1428,6 +1466,8 @@ void bitsobj_init(void) {
     type->sign = sign;
     type->function = function;
     type->len = len;
+    type->getiter = getiter;
+    type->getriter = getriter;
     type->calc1 = calc1;
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;

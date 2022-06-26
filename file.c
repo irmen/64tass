@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2751 2021-10-10 19:15:31Z soci $
+    $Id: file.c 2786 2022-05-25 04:08:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "unicodedata.h"
 #include "avl.h"
 #include "str.h"
+#include "main.h"
 
 static struct {
     size_t len, mask;
@@ -636,16 +637,25 @@ failed:
     return err;
 }
 
+static void file_read_message(const struct file_s *file, File_open_type ftype) {
+    if (arguments.quiet) {
+        fputs((ftype == FILE_OPEN_BINARY) ? "Reading file:      " : "Assembling file:   ", stdout);
+        argv_print(file->realname, stdout);
+        putchar('\n');
+        fflush(stdout);
+    }
+}
+
 static struct file_s file_defines;
 static struct file_s file_stdin;
 static struct file_s *lastfi;
-struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype, linepos_t epoint) {
+struct file_s *file_open(const str_t *name, const char *base, File_open_type ftype, linepos_t epoint) {
     struct file_s *file;
     switch (ftype) {
-    case 0:
+    case FILE_OPEN_STDIN:
         file = &file_stdin;
         break;
-    case 3:
+    case FILE_OPEN_COMMAND_LINE:
         file = &file_defines;
         if (!file->binary.read && arguments.defines.data == NULL) return NULL;
         break;
@@ -692,27 +702,23 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
         }
     }
 
-    if (file->err_no == 0 && !(ftype == 1 ? file->binary.read : file->source.read)) {
+    if (file->err_no == 0 && !(ftype == FILE_OPEN_BINARY ? file->binary.read : file->source.read)) {
         int err = 1;
-        if (ftype == 3) { 
+        if (ftype == FILE_OPEN_COMMAND_LINE) { 
             file->read_error = true;
             file->binary.data = (uint8_t *)arguments.defines.data;
             arguments.defines.data = NULL;
             file->binary.len = (arguments.defines.len & ~(size_t)~(filesize_t)0) == 0 ? (filesize_t)arguments.defines.len : ~(filesize_t)0;
             arguments.defines.len = 0;
             file->binary.read = true;
-        } else if (arguments.quiet) {
-            fputs((ftype == 1) ? "Reading file:      " : "Assembling file:   ", stdout);
-            argv_print(file->realname, stdout);
-            putchar('\n');
-            fflush(stdout);
         }
-        if (ftype != 1 && file->binary.read) {
+        if (ftype != FILE_OPEN_BINARY && file->binary.read) {
+            if (ftype != FILE_OPEN_COMMAND_LINE) file_read_message(file, ftype);
             err = read_source(file, NULL);
             if (err != 0) errno = ENOMEM;
         } else {
             FILE *f;
-            if (ftype == 0) {
+            if (ftype == FILE_OPEN_STDIN) {
                 f = stdin;
             } else {
                 f = fopen_utf8(file->realname, "rb");
@@ -729,9 +735,10 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
                     }
                 }
             }
+            file_read_message(file, ftype);
             if (f != NULL) {
                 file->read_error = true;
-                if (ftype == 1) {
+                if (ftype == FILE_OPEN_BINARY) {
                     err = read_binary(&file->binary, f);
                 } else {
                     err = read_source(file, f);
@@ -744,7 +751,7 @@ struct file_s *file_open(const str_t *name, const char *base, unsigned int ftype
         if (signal_received) err = errno = EINTR;
         if (err != 0 && errno != 0) {
             file->err_no = errno;
-            if (ftype == 1) {
+            if (ftype == FILE_OPEN_BINARY) {
                 free(file->binary.data);
                 file->binary.data = NULL;
                 file->binary.len = 0;

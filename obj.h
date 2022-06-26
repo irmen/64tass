@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: obj.h 2791 2022-05-25 17:55:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ typedef struct Obj {
 typedef struct Lbl {
     Obj v;
     linenum_t sline;
+    uint8_t pass;
     size_t waitforp;
     const struct file_list_s *file_list;
     struct Namespace *parent;

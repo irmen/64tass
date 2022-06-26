@@ -1,5 +1,5 @@
 /*
-    $Id: macro.h 2596 2021-04-18 18:52:11Z soci $
+    $Id: macro.h 2787 2022-05-25 04:26:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ struct Mfunc;
 struct Obj;
 
 extern bool in_macro;
+extern bool in_function;
 
 extern bool mtranslate(void);
 extern struct Obj *macro_recurse(Wait_types, struct Obj *, struct Namespace *, linepos_t);

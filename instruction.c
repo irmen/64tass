@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2767 2021-10-16 21:32:07Z soci $
+    $Id: instruction.c 2784 2022-05-25 03:44:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)
         default: d[0] = (uint8_t)(cod ^ outputeor);
         }
     }
-    listing_instr(listing, cod, adr, ln);
+    listing_instr(cod, adr, ln);
 }
 
 typedef enum Adrgen { 
