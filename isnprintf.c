@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2761 2021-10-16 08:27:15Z soci $
+   $Id: isnprintf.c 2795 2022-07-22 17:24:18Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -330,10 +330,11 @@ static inline void bin(Data *p)
 }
 
 /* %c chars */
-static inline void chars(void)
+static inline void chars(Data *p)
 {
     const struct values_s *v = next_arg();
     uval_t uval;
+    int i;
 
     if (v == NULL) {
         uval = 63;
@@ -348,7 +349,11 @@ static inline void chars(void)
         }
     }
 
-    put_char(uval);
+    i = (p->dot && p->precision <= 0) ? 0 : 1;
+    p->width = (p->width < 0 || i > p->width) ? -1 : p->width - i;
+    pad_right(p);
+    if (i != 0) put_char(uval);
+    pad_left(p);
 }
 
 /* %s strings */
@@ -512,7 +517,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
                 bin(&data);
                 break;
             case 'c': /* character */
-                chars();
+                chars(&data);
                 break;
             case 'r':  /* repr */
             case 's':  /* string */

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2779 2021-10-17 21:18:07Z soci $ -->
+<!-- $Id: README.html 2802 2022-08-13 08:27:16Z soci $ -->
 <head>
 <title>64tass v1.56 r2625 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -1153,6 +1153,10 @@ or <code>:=</code> construct. These are also called as variables. They
 don't carry their content over from the previous pass therefore it's not
 possible to use them before their definition.
 
+<p>If the variable already exists in the current scope it'll get updated.
+If an existing variable needs to be updated in a parent scope then the
+<code>::=</code> variable reassign operator is able to do that.
+
 <p>Variables can be conditionally defined using the <code>:?=</code> construct.
 If the variable was defined already then the original value is retained
 otherwise a new one is created with this value.
@@ -1675,9 +1679,13 @@ directly at the mnemonic.
 <h4>Compound assignment<a name="compound" href="#compound"></a></h4>
 
 <p>These assignment operators are short hands for updating variables.
+Constants can't be changed of course.
 
-<p>The variables on the left must be defined beforehand by <q><code>:=</code></q>
-or <q><a href="#d_var"><code>.var</code></a></q>. Constants can't be changed of course.
+<p>The variables on the left must be defined beforehand by
+<q><code>:=</code></q> or <q><a href="#d_var"><code>.var</code></a></q>.
+
+<p>Compound assignment operators can modify variables defined in parent
+scopes as well.
 
 <div><table width="100%" border="0">
 <caption>Compound assignments</caption>
@@ -1702,7 +1710,7 @@ or <q><a href="#d_var"><code>.var</code></a></q>. Constants can't be changed of 
 </table></div>
 
 <pre width="80">
-v       <b>+=</b> <span>1</span>            <i>; same as 'v .var v + 1'</i>
+v       <b>+=</b> <span>1</span>            <i>; same as 'v ::= v + 1'</i>
 </pre>
 
 <h4>Slicing and indexing<a name="slicing_indexing" href="#slicing_indexing"></a></h4>
@@ -2639,7 +2647,9 @@ label   <b>jmp</b> <u>label</u>        <i>;not a duplicate definition</i>
 <dd>Repeat enclosed lines until the condition holds.
 
 <p>Works as expected however the scoped variant might be tricky to use as
-variables in the condition might not be in the same scope as the loop body.</p>
+variables of the condition are usually part of the parent scope. So
+modifying them in the loop body should be done with compound assignments
+or the reassign operator (<code>::=</code>).</p>
 
 <dt><b>.endwhile</b><a name="d_endwhile" href="#d_endwhile"></a>
 <dd>End of a <a href="#d_while"><code>.while</code></a> or <a href="#d_bwhile"><code>.bwhile</code></a> loop block

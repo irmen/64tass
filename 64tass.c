@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2792 2022-05-25 18:37:50Z soci $
+    $Id: 64tass.c 2801 2022-08-13 07:51:28Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1280,6 +1280,7 @@ static Oper_types oper_from_token2(int wht, int wht2) {
         case '<': return O_LSHIFT;
         case '.': return O_CONCAT;
         case '*': return O_EXP;
+        case ':': return O_REASSIGN;
         default: return O_NONE;
         }
     }
@@ -1657,8 +1658,8 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                         lpoint.pos += 2;
                     } else if (wht2 != 0 && pline[lpoint.pos + 2] == '=') {
                         Oper_types op;
-                        if (wht == '?') break;
                         op = oper_from_token2(wht, wht2);
+                        if (op == O_COND) op = O_NONE;
                         if (op == O_NONE) break;
                         tmp.op = op;
                         epoint3 = lpoint;
@@ -1697,7 +1698,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                         label->epoint = bpoint;
                     }
                 } else {
-                    label = find_label3(&varname, context, strength);
+                    label = (varname.data[0] == '_') ? find_label2(&varname, context) : find_label(&varname, NULL);
                     if (label == NULL) {err_msg_not_defined2(&varname, context, false, &bpoint); break;}
                     if (label->constant) {err_msg_not_variable(label, &varname, &bpoint); break;}
                     if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &bpoint);
@@ -1714,7 +1715,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
                 }
                 if (!get_exp(0, 1, 0, &bpoint)) break;
                 val = get_vals_tuple();
-                if (tmp.op != O_NONE) {
+                if (tmp.op != O_NONE && tmp.op != O_REASSIGN) {
                     bool minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
                     Obj *result2, *val1 = label->value;
                     tmp.v1 = val1;
@@ -1976,7 +1977,7 @@ MUST_CHECK Obj *compile(void)
             labelname.len = get_label(labelname.data);
             if (labelname.len != 0) {
                 struct linepos_s cmdpoint;
-                bool islabel, error;
+                bool islabel, tcontext, error;
                 lpoint.pos += (linecpos_t)labelname.len;
                 islabel = false; error = (waitfor->skip & 1) == 0;
                 while (here() == '.' && pline[lpoint.pos+1] != '.') {
@@ -2023,14 +2024,15 @@ MUST_CHECK Obj *compile(void)
                     }
                 }
                 if (!islabel && labelname.data[0] == '_') {
+                    tcontext = true;
                     mycontext = cheap_context;
-                }
+                } else tcontext = islabel;
                 if (here() == ':' && pline[lpoint.pos + 1] != '=') {islabel = true; lpoint.pos++;}
                 if (!islabel && labelname.len == 3 && (prm = lookup_opcode(labelname.data)) >=0) {
                     if (!error) goto as_opcode; else continue;
                 }
                 if (false) {
-                hh: islabel = true; error = (waitfor->skip & 1) == 0;
+                hh: islabel = true; tcontext = false; error = (waitfor->skip & 1) == 0;
                 }
                 ignore();wht = here();
                 if (error) {epoint = lpoint; goto jn;} /* skip things if needed */
@@ -2067,16 +2069,6 @@ MUST_CHECK Obj *compile(void)
                         lpoint.pos += 3;
                     } else break;
 
-                    if (labelname.data == (const uint8_t *)&anonsymbol) {
-                        uint32_t count = (anonsymbol.dir == '-') ? --current_context->backr :  --current_context->forwr;
-                        count--;
-                        labelname.len = 2;
-                        while (count != 0) {
-                            anonsymbol.count[labelname.len - 2] = (uint8_t)count;
-                            labelname.len++;
-                            count >>= 8;
-                        }
-                    }
                     ignore();
                     epoint2 = lpoint;
                     if (labelname.data[0] == '*') {
@@ -2086,34 +2078,35 @@ MUST_CHECK Obj *compile(void)
                     } else if (tmp.op == O_COND) {
                         label = NULL; val = NULL;
                     } else {
-                        label = find_label3(&labelname, mycontext, strength);
-                        if (label == NULL) {
-                            if (tmp.op == O_MUL) {
-                                if (diagnostics.star_assign) {
-                                    err_msg_star_assign(&epoint3);
-                                    if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
-                                }
-                                lpoint.pos = epoint3.pos;
-                                wht = '*';
-                                break;
-                            }
-                            if (labelname.data == (const uint8_t *)&anonsymbol) {
-                                err_msg_not_defined2a((anonsymbol.dir == '-') ? -1 : 0, mycontext, false, &epoint);
+                        if (labelname.data == (const uint8_t *)&anonsymbol) {
+                            ssize_t cnt;
+                            if (anonsymbol.dir == '-') {
+                                cnt = -1; current_context->backr--;
                             } else {
-                                err_msg_not_defined2(&labelname, mycontext, false, &epoint);
+                                cnt = 0;  current_context->forwr--;
+                            }
+                            label = tcontext ? find_anonlabel2(cnt, mycontext) : find_anonlabel(cnt);
+                        } else {
+                            label = tcontext ? find_label2(&labelname, mycontext) : find_label(&labelname, NULL);
+                        }
+                        if (tmp.op == O_MUL && !islabel && (label == NULL || label->constant)) {
+                            if (diagnostics.star_assign) {
+                                err_msg_star_assign(&epoint3);
+                                if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
+                            }
+                            lpoint.pos = epoint3.pos;
+                            wht = '*';
+                            break;
+                        }
+                        if (label == NULL) {
+                            if (labelname.data == (const uint8_t *)&anonsymbol) {
+                                err_msg_not_defined2a((anonsymbol.dir == '-') ? -1 : 0, mycontext, !tcontext, &epoint);
+                            } else {
+                                err_msg_not_defined2(&labelname, mycontext, !tcontext, &epoint);
                             }
                             goto breakerr;
                         }
                         if (label->constant) {
-                            if (tmp.op == O_MUL) {
-                                if (diagnostics.star_assign) {
-                                    err_msg_star_assign(&epoint3);
-                                    if (pline[lpoint.pos] == '*') err_msg_compound_note(&epoint3);
-                                }
-                                lpoint.pos = epoint3.pos;
-                                wht = '*';
-                                break;
-                            }
                             err_msg_not_variable(label, &labelname, &epoint);
                             goto breakerr;
                         }
@@ -2137,8 +2130,34 @@ MUST_CHECK Obj *compile(void)
                         referenceit = oldreferenceit;
                     }
                     if (val == NULL) {
-                        bool labelexists;
-                        label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
+                        bool labelexists = false;
+                        if (labelname.data == (const uint8_t *)&anonsymbol) {
+                            str_t labelname2;
+                            struct anonsymbol_s anonsymbol3;
+                            uint32_t count = (anonsymbol.dir == '-') ? current_context->backr :  current_context->forwr;
+                            count -= 2;
+                            anonsymbol3.dir = anonsymbol.dir;
+                            anonsymbol3.pad = 0;
+                            labelname2.len = 2;
+                            while (count != 0) {
+                                anonsymbol3.count[labelname2.len - 2] = (uint8_t)count;
+                                labelname2.len++;
+                                count >>= 8;
+                            }
+                            labelname2.data = (const uint8_t *)&anonsymbol3;
+                            label = find_label3(&labelname2, mycontext, strength);
+                            if (label != NULL) {
+                                if (anonsymbol.dir == '-') {
+                                    current_context->backr--;
+                                } else {
+                                    current_context->forwr--;
+                                }
+                                labelexists = true;
+                            }
+                        }
+                        if (!labelexists) {
+                            label = new_label(&labelname, mycontext, strength, &labelexists, current_file_list);
+                        }
                         if (labelexists) {
                             if (label->constant) {
                                 err_msg_not_variable(label, &labelname, &epoint);
@@ -2168,19 +2187,23 @@ MUST_CHECK Obj *compile(void)
                         }
                         goto finish;
                     }
-                    minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
-                    tmp.v1 = val;
-                    tmp.v2 = val2;
-                    tmp.epoint = &epoint;
-                    tmp.epoint2 = &epoint2;
-                    tmp.epoint3 = &epoint3;
-                    tmp.inplace = (tmp.v1->refcount == 1 && !minmax) ? tmp.v1 : NULL;
-                    result2 = tmp.v1->obj->calc2(&tmp);
-                    if (minmax) {
-                        if (result2 == true_value) val_replace(&result2, val);
-                        else if (result2 == false_value) val_replace(&result2, val2);
+                    if (tmp.op == O_REASSIGN) {
+                        result2 = val2;
+                    } else {
+                        minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
+                        tmp.v1 = val;
+                        tmp.v2 = val2;
+                        tmp.epoint = &epoint;
+                        tmp.epoint2 = &epoint2;
+                        tmp.epoint3 = &epoint3;
+                        tmp.inplace = (tmp.v1->refcount == 1 && !minmax) ? tmp.v1 : NULL;
+                        result2 = tmp.v1->obj->calc2(&tmp);
+                        if (minmax) {
+                            if (result2 == true_value) val_replace(&result2, val);
+                            else if (result2 == false_value) val_replace(&result2, val2);
+                        }
+                        val_destroy(val2);
                     }
-                    val_destroy(val2);
                     if (label != NULL) {
                         listing_equal(result2);
                         if (label->file_list != current_file_list) {

@@ -1,5 +1,5 @@
 /*
-    $Id: operobj.c 2728 2021-10-03 20:42:59Z soci $
+    $Id: operobj.c 2799 2022-08-12 22:57:23Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ Oper operators[] = {
     { {NULL, 0}, "',", O_COMMA, 1, 1},
     { {NULL, 0}, "assign '=", O_ASSIGN, 2, 1},
     { {NULL, 0}, "variable assign ':=", O_COLON_ASSIGN, 2, 2},
+    { {NULL, 0}, "variable reassign '::=", O_REASSIGN, 2, 3},
     { {NULL, 0}, "smaller of assign '<?=", O_MIN_ASSIGN, 2, 3},
     { {NULL, 0}, "greater of assign '>?=", O_MAX_ASSIGN, 2, 3},
     { {NULL, 0}, "binary or assign '|=", O_OR_ASSIGN, 2, 2},

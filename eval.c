@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2774 2021-10-17 10:27:33Z soci $
+    $Id: eval.c 2803 2022-08-13 11:55:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -988,6 +988,21 @@ static bool get_val2(struct eval_context_s *ev) {
                         continue;
                     }
                 }
+                if (args == 2 && stop && !expc) {
+                    if (out + 1 == ev->out.end && v[2].val->obj == REGISTER_OBJ && Register(v[2].val)->len == 1) {
+                        am = (op == O_BRACKET) ? A_LI: A_I;
+                        am |= register_to_indexing(Register(v[2].val)->data[0]) << 4;
+                        val_destroy(v[2].val);
+                        if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
+                            v[0].val = new_address(v[1].val, am);
+                        } else {
+                            v[0].val = apply_addressing(v[1].val, am, true);
+                            val_destroy(v[1].val);
+                        }
+                        v[1].val = NULL;
+                        continue;
+                    }
+                }
                 if (args != 0) {
                     list = List(val_alloc((op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ));
                     list->len = args;
@@ -1711,6 +1726,7 @@ static bool get_exp2(int stop) {
         case '?': op = (pline[lpoint.pos + 1] == '?') ? O_DQUEST : O_QUEST; lpoint.pos += operators[op].len; prec = operators[O_COND].prio + 1; goto push3;
         case ':': if (pline[lpoint.pos + 1] == '=') {op = O_COLON_ASSIGN;goto push2;}
             if (pline[lpoint.pos + 1] == '?' && pline[lpoint.pos + 2] == '=') {op = O_COND_ASSIGN;goto push2;}
+            if (pline[lpoint.pos + 1] == ':' && pline[lpoint.pos + 2] == '=') {op = O_REASSIGN;goto push2;}
             lpoint.pos++;
             op = O_COLON;
             prec = operators[O_COLON].prio + 1;

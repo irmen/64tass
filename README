@@ -938,6 +938,10 @@ These are also called as variables. They don't carry their content over from
 the previous pass therefore it's not possible to use them before their
 definition.
 
+If the variable already exists in the current scope it'll get updated. If an
+existing variable needs to be updated in a parent scope then the ::= variable
+reassign operator is able to do that.
+
 Variables can be conditionally defined using the :?= construct. If the variable
 was defined already then the original value is retained otherwise a new one is
 created with this value.
@@ -1328,10 +1332,13 @@ used directly at the mnemonic.
 
 Compound assignment
 
-These assignment operators are short hands for updating variables.
+These assignment operators are short hands for updating variables. Constants
+can't be changed of course.
 
 The variables on the left must be defined beforehand by `:=' or `.var'.
-Constants can't be changed of course.
+
+Compound assignment operators can modify variables defined in parent scopes as
+well.
 
                              Compound assignments
 +=    add                               -=    subtract
@@ -1344,7 +1351,7 @@ Constants can't be changed of course.
 <?=   smaller                           >?=   greater
 x=    repeat                            .=    member
 
-v       += 1            ; same as 'v .var v + 1'
+v       += 1            ; same as 'v ::= v + 1'
 
 Slicing and indexing
 
@@ -2201,7 +2208,9 @@ within.
     Repeat enclosed lines until the condition holds.
 
     Works as expected however the scoped variant might be tricky to use as
-    variables in the condition might not be in the same scope as the loop body.
+    variables of the condition are usually part of the parent scope. So
+    modifying them in the loop body should be done with compound assignments or
+    the reassign operator (::=).
 
 .endwhile
     End of a .while or .bwhile loop block
