@@ -4167,12 +4167,17 @@ square root of negative number
     can't calculate the square root of a negative number
 too large for a ? bit signed/unsigned integer
     value out of range
+unexpected character '?'
+    unexpected control or unicode character
 unknown processor '?'
     unknown cpu name
 unknown argument name '?'
     no parameter argument known like this
 unknown format character '?'
     no format character known like this
+use '?' instead of '?'
+    wrong sort of character was used. For example a left double quotation mark
+    was used instead of a regular quotation mark.
 value needs to be non-negative
     only positive numbers or zero is accepted here
 wrong type <?>

@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2803 2022-08-13 11:55:55Z soci $
+    $Id: eval.c 2804 2022-09-09 14:04:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -499,6 +499,9 @@ rest:
             llen = (linecpos_t)get_label(pline + lpoint.pos);
             if (llen == 0) {
                 if (opr.p != opr.data) epoint.pos = opr.p[-1].pos;
+                if (ch < ' ' || ch > '~') {
+                    if (err_msg_wrong_character(&lpoint)) goto error;
+                }
                 err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
                 goto error;
             }
@@ -614,6 +617,9 @@ rest:
             }
             break;
         default:
+            if (ch < ' ' || ch > '~') {
+                if (err_msg_wrong_character(&epoint)) goto error;
+            }
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         }
@@ -1594,6 +1600,9 @@ static bool get_exp2(int stop) {
                 }
                 epoint.pos = opr.p[-1].pos;
             }
+            if (ch < ' ' || ch > '~') {
+                if (err_msg_wrong_character(&lpoint)) goto error;
+            }
             err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
             goto error;
         }
@@ -1809,6 +1818,9 @@ static bool get_exp2(int stop) {
             if (get_label(pline + lpoint.pos + 1) == 2 && 
                 (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'i' &&
                 (pline[epoint.pos + 2] | arguments.caseinsensitive) == 'n') {op = O_NOTIN;goto push2;}
+            if (ch < ' ' || ch > '~') {
+                if (err_msg_wrong_character(&epoint)) goto error;
+            }
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         case ')':
@@ -1906,6 +1918,9 @@ static bool get_exp2(int stop) {
             case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {if (pline[lpoint.pos] == '=') {lpoint.pos++; op = O_X_ASSIGN;} else op = O_X;goto push2a;} break;
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' &&
                         (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = O_IN;goto push2a;} break;
+            }
+            if (ch < ' ' || ch > '~') {
+                if (err_msg_wrong_character(&epoint)) goto error;
             }
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;

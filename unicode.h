@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.h 2703 2021-09-17 11:20:53Z soci $
+    $Id: unicode.h 2804 2022-09-09 14:04:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ extern void caret_print(const uint8_t *, FILE *, size_t);
 extern size_t calcpos(const uint8_t *, size_t);
 extern MUST_CHECK wchar_t *utf8_to_wchar(const char *, size_t);
 extern FILE *fopen_utf8(const char *, const char *);
+extern const char *unicode_character_name(unichar_t);
 
 static inline bool dash_name(const char *name) {
     return (name[0] == '-' && name[1] == 0);

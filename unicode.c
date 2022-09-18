@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2764 2021-10-16 17:42:48Z soci $
+    $Id: unicode.c 2804 2022-09-09 14:04:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -833,3 +833,30 @@ failed:
     return f;
 }
 
+const char *unicode_character_name(unichar_t ch) {
+    const char *txt;
+    switch (ch) {
+    case 0x20: txt = " space"; break;
+    case 0x22: txt = " quotation mark"; break;
+    case 0x27: txt = " apostrophe"; break;
+    case 0x2d: txt = " hyphen-minus"; break;
+    case 0xa0: txt = " no-break space"; break;
+    case 0x2010: txt = " hyphen"; break;
+    case 0x2011: txt = " non-breaking hyphen"; break;
+    case 0x2012: txt = " figure dash"; break;
+    case 0x2013: txt = " en dash"; break;
+    case 0x2014: txt = " em dash"; break;
+    case 0x2018: txt = " left single quotation mark"; break;
+    case 0x2019: txt = " right single quotation mark"; break;
+    case 0x201A: txt = " single low-9 quotation mark"; break;
+    case 0x201B: txt = " single high-reversed-9 quotation mark"; break;
+    case 0x201C: txt = " left double quotation mark"; break;
+    case 0x201D: txt = " right double quotation mark"; break;
+    case 0x201E: txt = " double low-9 quotation mark"; break;
+    case 0x201F: txt = " double high-reversed-9 quotation mark"; break;
+    case 0x2212: txt = " minus sign"; break;
+    case 0xFEFF: txt = " zero width no-break space"; break;
+    default: txt = NULL;
+    }
+    return txt;
+}

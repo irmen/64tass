@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2715 2021-09-19 08:31:23Z soci $
+    $Id: error.c 2805 2022-09-17 09:14:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1338,14 +1338,64 @@ void err_msg_alias(uint32_t a, uint32_t b, linepos_t epoint) {
     adderror("' [-Walias]");
 }
 
-void err_msg_unknown_char(unichar_t ch, linepos_t epoint) {
+static void err_unicode_character(unichar_t ch) {
     uint8_t line[256], *s = line;
-    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror("can't encode character '");
+    uint8_t quote = (ch == '\'' || (ch >= 0x2018 && ch <= 0x201b) || ch == 0xff07) ? '"' : '\'';
+    *s++ = ' ';
+    *s++ = quote;
     if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s += utf8out(ch, s);
-    sprintf((char *)s, "' ($%02" PRIx32 ")", ch); 
+    *s++ = quote;
+    sprintf((char *)s, " (U+%04" PRIX32 ")", ch); 
     adderror((char *)line);
+}
+
+static void err_unicode_character2(unichar_t ch) {
+    const char *txt = unicode_character_name(ch);
+    if (txt != NULL) adderror(txt);
+    err_unicode_character(ch);
+}
+
+static void err_msg_wrong_character2(unichar_t ch, unichar_t ch2, linepos_t epoint) {
+    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
+    if (ch == 0) {
+        adderror("unexpected character");
+    } else {
+        adderror("use");
+        err_unicode_character2(ch);
+        adderror(" instead of");
+    }
+    err_unicode_character2(ch2);
     if (more) new_error_msg_more();
+}
+
+void err_msg_unknown_char(unichar_t ch, linepos_t epoint) {
+    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("can't encode character");
+    err_unicode_character(ch);
+    if (more) new_error_msg_more();
+}
+
+bool err_msg_wrong_character(linepos_t epoint) {
+    unichar_t ch, ch2 = pline[epoint->pos];
+    if ((ch2 & 0x80) != 0) utf8in(pline + epoint->pos, &ch2);
+    switch (ch2) {
+    case 0xa0: case 0xFEFF:
+        ch = ' ';
+        break;
+    case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014: case 0x2212:
+        ch = '-';
+        break;
+    case 0x2018: case 0x2019: case 0x201A: case 0x201B:
+        ch = '\'';
+        break;
+    case 0x201C: case 0x201D: case 0x201E: case 0x201F:
+        ch = '"';
+        break;
+    default:
+        ch = 0;
+    }
+    err_msg_wrong_character2(ch, ch2, epoint);
+    return true;
 }
 
 static const uint8_t *printline(const struct file_list_s *cfile, linepos_t epoint, const uint8_t *line, FILE *f) {
