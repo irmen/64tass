@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2805 2022-09-17 09:14:55Z soci $
+    $Id: error.c 2808 2022-10-17 04:49:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -387,6 +387,8 @@ static const char *const terr_error[] = {
     "not a key and value pair ",
     "too large for a %u bit signed integer ",
     "too large for a %u bit unsigned integer ",
+    "too large for a %u byte signed integer ",
+    "too large for a %u byte unsigned integer ",
     "value needs to be non-negative ",
     "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE,
     "can't get sign of ",
@@ -888,6 +890,18 @@ static void err_msg_argnum2(argcount_t num, argcount_t min, argcount_t max) {
     }
 }
 
+static void err_msg_wrong_type(const Type *typ, const Type *expected, linepos_t epoint) {
+    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
+    adderror("wrong type '");
+    adderror(typ->name);
+    if (expected != NULL) {
+        adderror("', expected '");
+        adderror(expected->name);
+    }
+    adderror("'");
+    if (more) new_error_msg_more();
+}
+
 void err_msg_output(const Error *val) {
     bool more = false;
     switch (val->num) {
@@ -895,6 +909,8 @@ void err_msg_output(const Error *val) {
     case ERROR__INVALID_CONV: more = err_msg_invalid_conv(val);break;
     case ERROR__INVALID_OPER: err_msg_invalid_oper3(val);break;
     case ERROR____STILL_NONE: more = err_msg_still_none2(val); break;
+    case ERROR____CANT_IVAL2:
+    case ERROR____CANT_UVAL2:
     case ERROR_____CANT_IVAL:
     case ERROR_____CANT_UVAL:
     case ERROR______NOT_UVAL: more = err_msg_big_integer(val); break;
@@ -937,6 +953,7 @@ void err_msg_output(const Error *val) {
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj);break;
     case ERROR__WRONG_ARGNUM: more = new_error_msg_err(val); err_msg_argnum2(val->u.argnum.num, val->u.argnum.min, val->u.argnum.max); break;
+    case ERROR____WRONG_TYPE: err_msg_wrong_type(val->u.otype.t1, val->u.otype.t2, &val->epoint); break;
     default: break;
     }
     if (more) new_error_msg_err_more(val);
@@ -947,18 +964,6 @@ void err_msg_output_and_destroy(Error *val) {
     val_destroy(Obj(val));
 }
 
-void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
-    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
-    adderror("wrong type '");
-    adderror(val->obj->name);
-    if (expected != NULL) {
-        adderror("', expected '");
-        adderror(expected->name);
-    }
-    adderror("'");
-    if (more) new_error_msg_more();
-}
-
 void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
     if (val->obj == ADDRESS_OBJ) {
         const Obj *val2 = Address(val)->val;
@@ -966,7 +971,7 @@ void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
     }
     if (val->obj == ERROR_OBJ) err_msg_output(Error(val));
     else if (val == none_value) err_msg_still_none(NULL, epoint);
-    else err_msg_wrong_type(val, expected, epoint);
+    else err_msg_wrong_type(val->obj, expected, epoint);
 }
 
 void err_msg_cant_unpack(size_t expect, size_t got, linepos_t epoint) {

@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2801 2022-08-13 07:51:28Z soci $
+    $Id: 64tass.c 2810 2022-10-17 06:05:18Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -580,6 +580,7 @@ struct textrecursion_s {
     address_t gaps, p;
     address_t sum, max;
     int prm;
+    Textconv_types tconv;
     Error_types error;
     uint8_t buff[16];
     linepos_t epoint;
@@ -686,7 +687,6 @@ static void textdump_bytes(struct textrecursion_s *trec, const Bytes *bytes) {
 
 static void textrecursion(struct textrecursion_s *trec, Obj *val) {
     struct iter_s iter;
-    Obj *val2 = NULL;
     uval_t uval;
 
     if (trec->sum >= trec->max) return;
@@ -694,39 +694,25 @@ static void textrecursion(struct textrecursion_s *trec, Obj *val) {
 retry:
     switch (val->obj->type) {
     case T_STR:
-        {
-            Obj *tmp;
-            Textconv_types m;
-            switch (trec->prm) {
-            case CMD_SHIFTL:
-            case CMD_SHIFT: m = BYTES_MODE_SHIFT_CHECK; break;
-            case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
-            default: m = BYTES_MODE_TEXT; break;
-            }
-            tmp = bytes_from_str(Str(val), trec->epoint, m);
-            textrecursion(trec, tmp);
-            val_destroy(tmp);
-            return;
-        }
+        val = bytes_from_str(Str(val), trec->epoint, trec->tconv);
+        textrecursion(trec, val);
+        val_destroy(val);
+        return;
     case T_ERROR:
     case T_FLOAT:
     case T_INT:
     case T_BOOL:
     case T_NONE:
         iter.data = NULL;
-        val2 = val;
         goto doit;
     case T_CODE:
-        {
-            Obj *tmp = get_code_value(Code(val), trec->epoint);
-            textrecursion(trec, tmp);
-            val_destroy(tmp);
-            return;
-        }
+        val = get_code_value(Code(val), trec->epoint);
+        textrecursion(trec, val);
+        val_destroy(val);
+        return;
     case T_ADDRESS:
         if (Address(val)->type != A_NONE) {
             iter.data = NULL;
-            val2 = val;
             goto doit;
         }
         val = Address(val)->val;
@@ -735,43 +721,36 @@ retry:
         iter.data = NULL;
         goto dogap;
     case T_BITS:
-        {
-            Obj *tmp;
-            size_t bits = Bits(val)->bits;
-            if (bits == 0) return;
-            if (bits <= 8) {
-                iter.data = NULL;
-                val2 = val;
-                goto doit;
-            }
-            tmp = bytes_from_bits(Bits(val), trec->epoint);
-            textrecursion(trec, tmp);
-            val_destroy(tmp);
-            return;
+        if (Bits(val)->bits <= 8) {
+            if (Bits(val)->bits == 0) return;
+            iter.data = NULL;
+            goto doit;
         }
+        val = bytes_from_bits(Bits(val), trec->epoint);
+        textrecursion(trec, val);
+        val_destroy(val);
+        return;
     case T_BYTES:
         iter.data = NULL;
-        val2 = val;
         goto dobytes;
     default:
         iter.data = val; val->obj->getiter(&iter);
     }
 
-    while ((val2 = iter.next(&iter)) != NULL) {
-        if (val2->obj->iterable) goto rec;
-        switch (val2->obj->type) {
+    while ((val = iter.next(&iter)) != NULL) {
+        if (val->obj->iterable) goto rec;
+        switch (val->obj->type) {
         case T_BITS:
-            {
-                size_t bits = Bits(val2)->bits;
-                if (bits == 0) break;
-                if (bits <= 8) goto doit;
+            if (Bits(val)->bits <= 8) {
+                if (Bits(val)->bits == 0) break;
+                goto doit;
             }
             FALL_THROUGH; /* fall through */
         case T_STR:
         case T_CODE:
         case T_ADDRESS:
         rec:
-            textrecursion(trec, val2);
+            textrecursion(trec, val);
             break;
         case T_GAP:
         dogap:
@@ -782,12 +761,12 @@ retry:
             break;
         case T_BYTES:
         dobytes:
-            textdump_bytes(trec, Bytes(val2));
+            textdump_bytes(trec, Bytes(val));
             if (iter.data == NULL) return;
             break;
         default:
         doit:
-            if (touval(val2, &uval, 8, trec->epoint)) uval = 256 + '?'; else uval &= 0xff;
+            if (touval(val, &uval, 8, trec->epoint)) uval = 256 + '?'; else uval &= 0xff;
             trec->sum++;
             if (trec->gaps > 0) textrecursion_gaps(trec);
             textdump(trec, uval);
@@ -3578,6 +3557,12 @@ MUST_CHECK Obj *compile(void)
                         trec.gaps = 0;
                         trec.max = ~(address_t)0;
                         trec.prm = prm;
+                        switch (prm) {
+                        case CMD_SHIFTL:
+                        case CMD_SHIFT: trec.tconv = BYTES_MODE_SHIFT_CHECK; break;
+                        case CMD_NULL: trec.tconv = BYTES_MODE_NULL_CHECK; break;
+                        default: trec.tconv = BYTES_MODE_TEXT; break;
+                        }
                         trec.error = ERROR__USER_DEFINED;
                         trec.epoint = &epoint;
                         mark_mem(&mm, current_address->mem, current_address->address, current_address->l_address);
@@ -3968,6 +3953,7 @@ MUST_CHECK Obj *compile(void)
                         trec.sum = 0;
                         trec.max = db;
                         trec.prm = CMD_TEXT;
+                        trec.tconv = BYTES_MODE_TEXT;
                         trec.error = ERROR__USER_DEFINED;
                         trec.epoint = &vs->epoint;
                         textrecursion(&trec, vs->val);
@@ -4831,8 +4817,8 @@ MUST_CHECK Obj *compile(void)
                         get_vals_funcargs(&tmp);
                         err = instruction(prm, w, &tmp, &epoint);
                     }
-                    if (llist != NULL) listing_instr(0, 0, -1);
                     if (err == NULL) {
+                        if (llist != NULL) listing_instr(0, 0, -1);
                         if (diagnostics.alias && prm != current_cpu->alias[prm]) err_msg_alias(current_cpu->mnemonic[prm], current_cpu->mnemonic[current_cpu->alias[prm]], &epoint);
                         break;
                     }

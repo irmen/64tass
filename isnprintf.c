@@ -3,7 +3,7 @@
    Version 1.3
 
    Adapted for use in 64tass by Soci/Singular
-   $Id: isnprintf.c 2795 2022-07-22 17:24:18Z soci $
+   $Id: isnprintf.c 2808 2022-10-17 04:49:11Z soci $
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -51,6 +51,7 @@
 #include "unicode.h"
 #include "eval.h"
 #include "error.h"
+#include "str.h"
 
 #include "floatobj.h"
 #include "strobj.h"
@@ -58,7 +59,6 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
-#include "addressobj.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -448,25 +448,15 @@ MUST_CHECK Obj *isnprintf(oper_t op)
     Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     argcount_t args = vals->len;
-    Obj *val;
+    Obj *err;
     Str *str;
     Data data;
+    str_t fmt;
 
-    val = v[0].val;
-    switch (val->obj->type) {
-    case T_ERROR:
-    case T_NONE:
-        return val_reference(val);
-    case T_STR: break;
-    case T_ADDRESS:
-        if (Address(val)->val == none_value || Address(val)->val->obj == ERROR_OBJ) return val_reference(Address(val)->val);
-        FALL_THROUGH; /* fall through */
-    default:
-        err_msg_wrong_type(val, STR_OBJ, &v[0].epoint);
-        return ref_none();
-    }
-    data.pf = Str(val)->data;
-    data.pfend = data.pf + Str(val)->len;
+    err = tostr2(&v[0], &fmt);
+    if (err != NULL) return err;
+    data.pf = fmt.data;
+    data.pfend = data.pf + fmt.len;
 
     listp = 0;
     list = &v[1];
@@ -583,7 +573,7 @@ MUST_CHECK Obj *isnprintf(oper_t op)
                 FALL_THROUGH; /* fall through */
             default:
             error:
-                data.pf += err_msg_unknown_formatchar(Str(val), (size_t)(data.pf - Str(val)->data), &v[0].epoint);
+                data.pf += err_msg_unknown_formatchar(Str(v[0].val), (size_t)(data.pf - fmt.data), &v[0].epoint);
                 next_arg();
                 star_args(&data);
                 while (pf < data.pf) {

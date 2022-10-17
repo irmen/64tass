@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: strobj.c 2808 2022-10-17 04:49:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
+#include "addressobj.h"
 
 static Type obj;
 
@@ -120,6 +121,29 @@ bool tostr(const struct values_s *v1, str_t *out) {
     }
     err_msg_wrong_type2(val, STR_OBJ, &v1->epoint);
     return true;
+}
+
+MUST_CHECK Obj *tostr2(const struct values_s *v1, str_t *out) {
+    Error *err;
+    Obj *val = v1->val;
+
+    switch (val->obj->type) {
+    case T_ERROR:
+    case T_NONE:
+        return val_reference(val);
+    case T_STR:
+        out->len = Str(val)->len;
+        out->data = Str(val)->data;
+        return NULL;
+    case T_ADDRESS:
+        if (Address(val)->val == none_value || Address(val)->val->obj == ERROR_OBJ) return val_reference(Address(val)->val);
+        FALL_THROUGH; /* fall through */
+    default:
+        err = new_error(ERROR____WRONG_TYPE, &v1->epoint);
+        err->u.otype.t1 = val->obj;
+        err->u.otype.t2 = STR_OBJ;
+        return Obj(err);
+    }
 }
 
 MALLOC Str *new_str2(size_t ln) {

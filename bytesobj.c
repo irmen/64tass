@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2796 2022-07-24 10:41:28Z soci $
+    $Id: bytesobj.c 2807 2022-10-17 03:58:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -186,8 +186,8 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     blen = byteslen(bytes);
     if (blen > len2 || (ival < 0 && blen == len2 && bytes->data[len2 - 1] >= 0x80)) {
         if (!inplace) val_destroy(Obj(bytes));
-        err = new_error(ival < 0 ? ERROR_____CANT_IVAL : ERROR_____CANT_UVAL, &v2->val[0].epoint);
-        err->u.intconv.bits = len2 * 8;
+        err = new_error(ival < 0 ? ERROR____CANT_IVAL2 : ERROR____CANT_UVAL2, &v2->val[0].epoint);
+        err->u.intconv.bits = len2;
         err->u.intconv.val = val_reference(v2->val[0].val);
         return Obj(err);
     }

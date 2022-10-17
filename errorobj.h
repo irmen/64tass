@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: errorobj.h 2808 2022-10-17 04:49:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -73,6 +73,10 @@ typedef struct Error {
         struct {
             argcount_t num, min, max;
         } argnum;
+        struct {
+            const struct Type *t1;
+            const struct Type *t2;
+        } otype;
     } u;
 } Error;
 

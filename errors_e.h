@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2637 2021-05-03 12:28:33Z soci $
+    $Id: errors_e.h 2808 2022-10-17 04:49:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -87,6 +87,8 @@ typedef enum Error_types {
     ERROR__NOT_KEYVALUE,
     ERROR_____CANT_IVAL,
     ERROR_____CANT_UVAL,
+    ERROR____CANT_IVAL2,
+    ERROR____CANT_UVAL2,
     ERROR______NOT_UVAL,
     ERROR_CANT_BROADCAS,
     ERROR_____CANT_SIGN,
@@ -123,6 +125,7 @@ typedef enum Error_types {
     ERROR__INVALID_OPER,
     ERROR__INVALID_CONV,
     ERROR__WRONG_ARGNUM,
+    ERROR____WRONG_TYPE,
     ERROR____STILL_NONE,
 
     ERROR_CANT_FINDFILE = 0xc0,

@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2804 2022-09-09 14:04:26Z soci $
+    $Id: error.h 2808 2022-10-17 04:49:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ struct error_output_s;
 
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
-extern void err_msg_wrong_type(const struct Obj *, struct Type *, linepos_t);
 extern void err_msg_wrong_type2(const struct Obj *, struct Type *, linepos_t);
 extern void err_msg_cant_unpack(size_t, size_t, linepos_t);
 extern void err_msg_cant_calculate(const struct str_t *, linepos_t);

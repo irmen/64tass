@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 2742 2021-10-09 17:56:44Z soci $
+    $Id: errorobj.c 2807 2022-10-17 03:58:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,8 @@ static FAST_CALL void destroy(Obj *o1) {
     case ERROR___NO_REGISTER:
         val_destroy(Obj(v1->u.reg.reg));
         return;
+    case ERROR____CANT_UVAL2:
+    case ERROR____CANT_IVAL2:
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
     case ERROR______NOT_UVAL:
@@ -100,6 +102,8 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     case ERROR___NO_REGISTER:
         v = Obj(v1->u.reg.reg);
         break;
+    case ERROR____CANT_UVAL2:
+    case ERROR____CANT_IVAL2:
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
     case ERROR______NOT_UVAL:
@@ -260,6 +264,8 @@ void error_obj_update(Error *err, const Obj *v1, Obj *v2) {
             val_replace(&err->u.invoper.v2, v2);
         }
         return;
+    case ERROR____CANT_UVAL2:
+    case ERROR____CANT_IVAL2:
     case ERROR_____CANT_UVAL:
     case ERROR_____CANT_IVAL:
     case ERROR______NOT_UVAL:
