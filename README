@@ -3041,6 +3041,21 @@ Output options
     :010C00006093
     :00000001FF
 
+--mos-hex
+    Use MOS Technology output file format. Also known as Paper Tape Format.
+
+    Overlapping blocks are kept, data is stored in the definition order, and
+    uninitialized areas are skipped. Up to 64 KiB.
+
+    64tass --mos-hex a.asm
+    *       = $0c00
+            rts
+
+    Result of compilation:
+
+    ;010C0060006D
+    ;0000010001
+
 --s-record
     Use Motorola S-record output file format.
 

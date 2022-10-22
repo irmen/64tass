@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.h 2709 2021-09-18 18:40:01Z soci $
+    $Id: encoding.h 2828 2022-10-20 20:29:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ struct str_t;
 struct linepos_s;
 
 extern const char *const petscii_esc;
-#define identmap (const uint8_t *const)petscii_esc
+#define identmap (const uint8_t *)petscii_esc
 
 extern struct Enc *new_encoding(const struct str_t *, const struct linepos_s *);
 extern void init_encoding(bool);

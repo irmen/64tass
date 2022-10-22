@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2786 2022-05-25 04:08:01Z soci $
+    $Id: main.c 2837 2022-10-22 15:48:56Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -225,35 +225,40 @@ int main(int argc, char *argv[]) {
     new_array(&uargv, (unsigned int)argc);
     for (i = 0; i < argc; i++) {
         const char *s = (i == 0) ? prgname(*argv) : argv[i];
-        mbstate_t ps;
-        size_t p;
-        size_t n = strlen(s), j = 0;
-        size_t len;
+        size_t p = 65, n, len;
         uint8_t *data;
-        if (add_overflow(n, 64, &len)) err_msg_out_of_memory();
+        for (n = 0; s[n] != '\0'; n++) {
+            if ((uint8_t)s[n] > '~') p = 0;
+        }
+        if (add_overflow(n, p ^ 64, &len)) err_msg_out_of_memory();
         new_array(&data, len);
 
-        memset(&ps, 0, sizeof ps);
-        p = 0;
-        for (;;) {
-            ssize_t l;
-            wchar_t w;
-            unichar_t ch;
-            if (p + 6*6 + 1 > len) {
-                if (add_overflow(n, 1024, &len)) err_msg_out_of_memory();
-                resize_array(&data, len);
+        if (p == 0) {
+            mbstate_t ps;
+            size_t j = 0;
+            memset(&ps, 0, sizeof ps);
+            for (;;) {
+                ssize_t l;
+                wchar_t w;
+                unichar_t ch;
+                if (p + 6*6 + 1 > len) {
+                    if (inc_overflow(&len, 1024)) err_msg_out_of_memory();
+                    resize_array(&data, len);
+                }
+                l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
+                if (l < 1) {
+                    w = (uint8_t)s[j];
+                    if (w == 0 || l == 0) break;
+                    l = 1;
+                }
+                j += (size_t)l;
+                ch = (unichar_t)w;
+                if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
             }
-            l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
-            if (l < 1) {
-                w = (uint8_t)s[j];
-                if (w == 0 || l == 0) break;
-                l = 1;
-            }
-            j += (size_t)l;
-            ch = (unichar_t)w;
-            if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
+            data[p] = 0;
+        } else {
+            memcpy(data, s, len);
         }
-        data[p] = 0;
         uargv[i] = (char *)data;
     }
     r = main2(&argc, &uargv);

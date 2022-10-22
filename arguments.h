@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2706 2021-09-18 16:22:20Z soci $
+    $Id: arguments.h 2823 2022-10-19 20:16:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 typedef enum Output_types {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX,
-    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC
+    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC, OUTPUT_MHEX
 } Output_types;
 
 typedef enum Symbollist_types {

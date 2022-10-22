@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.c 2626 2021-05-02 07:08:22Z soci $
+    $Id: wchar.c 2838 2022-10-22 16:59:38Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -318,21 +318,21 @@ static const wchar_t cp874[128] = {
 };
 
 static int compcp(const void *a, const void *b) {
-    return *(uint32_t *)a - *(uint32_t *)b;
+    return (int)*(uint32_t *)a - (int)*(uint32_t *)b;
 }
 
 static int compcp2(const void *a, const void *b) {
-    return (*(uint32_t *)a & ~0xff) - (*(uint32_t *)b & ~0xff);
+    return (int)(*(uint32_t *)a & ~0xffu) - (int)(*(uint32_t *)b & ~0xffu);
 }
 
 static void set_cp(void) {
     uint16_t dcp;
-    int i;
+    unsigned int i;
     __dpmi_regs regs;
     regs.x.ax = 0x440c;
     regs.x.bx = 1;
     regs.x.cx = 0x36a;
-    regs.x.ds = __tb >> 4;
+    regs.x.ds = (__tb >> 4) & 0xffff;
     regs.x.dx = __tb & 0xf;
     regs.x.flags |= 1;
     __dpmi_int(0x21, &regs);
@@ -364,7 +364,7 @@ static void set_cp(void) {
     case 437: cp = cp437; break;
     }
     for (i = 0; i < 128; i++) {
-        revcp[i] = (cp[i] << 8) | i | 0x80;
+        revcp[i] = (cp[i] * 0x100u) | i | 0x80;
     }
     qsort(revcp, lenof(revcp), sizeof *revcp, compcp);
 }
@@ -373,7 +373,7 @@ int iswprint(wint_t wc) {
     uint32_t *ch, c;
     if (wc < 0x80) return isprint(wc);
     if (cp == NULL) set_cp();
-    c = wc << 8;
+    c = (uint32_t)wc * 0x100u;
     ch = (uint32_t *)bsearch(&c, revcp, lenof(revcp), sizeof *revcp, compcp2);
     return (ch != NULL) ? 1 : 0;
 }
@@ -382,7 +382,7 @@ size_t mbrtowc(wchar_t *wc, const char *s, size_t n, mbstate_t *UNUSED(ps)) {
     uint8_t ch;
     wchar_t w;
     if (n == 0) return (size_t)-2;
-    ch = *s;
+    ch = (uint8_t)*s;
     if (ch < 0x80) {
         if (!ch) return 0;
         *wc = ch;
@@ -398,14 +398,14 @@ size_t mbrtowc(wchar_t *wc, const char *s, size_t n, mbstate_t *UNUSED(ps)) {
 size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
     uint32_t *ch, c;
     if (wc < 0x80) {
-        *s = wc;
+        *s = (char)wc;
         return 1;
     }
     if (cp == NULL) set_cp();
-    c = wc << 8;
+    c = wc * 0x100u;
     ch = (uint32_t *)bsearch(&c, revcp, lenof(revcp), sizeof *revcp, compcp2);
     if (ch != NULL) {
-        *s = *ch;
+        *s = (char)*ch;
         return 1;
     }
     errno = EILSEQ;

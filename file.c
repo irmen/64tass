@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2786 2022-05-25 04:08:01Z soci $
+    $Id: file.c 2834 2022-10-22 10:23:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ static struct file_s *file_table_update(struct file_s *p) {
     offs = hash & mask;
     while (file_table.data[offs] != NULL) {
         struct file_s *d = file_table.data[offs];
-        if (p->hash == d->hash && p->baselen == d->baselen && strcmp(p->name, d->name) == 0) {
+        if (p->hash == d->hash && strcmp(p->name, d->name) == 0) {
             return d;
         }
         hash >>= 5;
@@ -244,8 +244,7 @@ static void file_free_static(struct file_s *a)
 static void file_free(struct file_s *a)
 {
     file_free_static(a);
-    if (a->name != a->realname) free((char *)a->name);
-    free((char *)a->realname);
+    free((char *)a->name);
     free(a);
 }
 
@@ -640,143 +639,160 @@ failed:
 static void file_read_message(const struct file_s *file, File_open_type ftype) {
     if (arguments.quiet) {
         fputs((ftype == FILE_OPEN_BINARY) ? "Reading file:      " : "Assembling file:   ", stdout);
-        argv_print(file->realname, stdout);
+        argv_print(file->name, stdout);
         putchar('\n');
         fflush(stdout);
     }
 }
 
+static FILE *file_fopen(struct file_s *file) {
+    FILE *f = fopen_utf8(file->name, "rb");
+    if (signal_received) {
+        if (f != NULL) {
+            fclose(f);
+            f = NULL;
+        }
+        errno = EINTR;
+    }
+    if (f == NULL) {
+        file->err_no = errno;
+        file->read_error = false;
+    }
+    return f;
+}
+
+static struct file_s *lastfi;
+static struct file_s *file_lookup(const str_t *name, const char *base) {
+    struct file_s *file;
+    str_t n;
+    if (lastfi == NULL) new_instance(&lastfi);
+    lastfi->name = get_path(name, base);
+    n.data = (const uint8_t *)lastfi->name;
+    n.len = strlen(lastfi->name);
+    lastfi->hash = str_hash(&n);
+    file = file_table_update(lastfi);
+    if (file == NULL) { /* new file */
+        file = lastfi;
+        lastfi = NULL;
+        file->nomacro = NULL;
+        file->line = NULL;
+        file->lines = 0;
+        file->source.data = NULL;
+        file->source.len = 0;
+        file->source.read = false;
+        file->binary.data = NULL;
+        file->binary.len = 0;
+        file->binary.read = false;
+        file->open = 0;
+        file->err_no = 0;
+        file->read_error = false;
+        file->portable = false;
+        file->cmdline = false;
+        file->pass = 0;
+        file->uid = 0;
+        file->entercount = 0;
+        file->encoding = E_UNKNOWN;
+    } else {
+        free((char *)lastfi->name);
+    }
+    return file;
+}
+
 static struct file_s file_defines;
 static struct file_s file_stdin;
-static struct file_s *lastfi;
-struct file_s *file_open(const str_t *name, const char *base, File_open_type ftype, linepos_t epoint) {
+struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, File_open_type ftype, linepos_t epoint) {
+    int err = 0;
     struct file_s *file;
     switch (ftype) {
     case FILE_OPEN_STDIN:
         file = &file_stdin;
         break;
-    case FILE_OPEN_COMMAND_LINE:
+    case FILE_OPEN_DEFINES:
         file = &file_defines;
-        if (!file->binary.read && arguments.defines.data == NULL) return NULL;
-        break;
-    default:
-        {
-            str_t n;
-            if (lastfi == NULL) new_instance(&lastfi);
-            if (base == NULL) {
-                lastfi->name = get_path(name, "");
-                lastfi->baselen = get_base(lastfi->name);
-            } else {
-                lastfi->name = get_path(name, base);
-                lastfi->baselen = get_base(base);
-            }
-            n.data = (const uint8_t *)lastfi->name;
-            n.len = strlen(lastfi->name);
-            lastfi->hash = ((unsigned int)str_hash(&n) + (unsigned int)lastfi->baselen) & ((~0U) >> 1);
-            file = file_table_update(lastfi);
-        }
-        if (file == NULL) { /* new file */
-            file = lastfi;
-            lastfi = NULL;
-            file->nomacro = NULL;
-            file->line = NULL;
-            file->lines = 0;
-            file->source.data = NULL;
-            file->source.len = 0;
-            file->source.read = false;
-            file->binary.data = NULL;
-            file->binary.len = 0;
-            file->binary.read = false;
-            file->open = 0;
-            file->err_no = 0;
-            file->read_error = false;
-            file->portable = false;
-            file->pass = 0;
-            file->uid = 0;
-            file->entercount = 0;
-            file->encoding = E_UNKNOWN;
-            file->realname = file->name;
-            file->cmdline = false;
-        } else {
-            free((char *)lastfi->name);
-        }
-    }
-
-    if (file->err_no == 0 && !(ftype == FILE_OPEN_BINARY ? file->binary.read : file->source.read)) {
-        int err = 1;
-        if (ftype == FILE_OPEN_COMMAND_LINE) { 
-            file->read_error = true;
+        if (!file->binary.read) {
+            if (arguments.defines.data == NULL) return NULL;
             file->binary.data = (uint8_t *)arguments.defines.data;
             arguments.defines.data = NULL;
             file->binary.len = (arguments.defines.len & ~(size_t)~(filesize_t)0) == 0 ? (filesize_t)arguments.defines.len : ~(filesize_t)0;
             arguments.defines.len = 0;
+            file->read_error = true;
             file->binary.read = true;
         }
-        if (ftype != FILE_OPEN_BINARY && file->binary.read) {
-            if (ftype != FILE_OPEN_COMMAND_LINE) file_read_message(file, ftype);
-            err = read_source(file, NULL);
-            if (err != 0) errno = ENOMEM;
-        } else {
-            FILE *f;
+        break;
+    default:
+        file = file_lookup(name, cfile != NULL ? cfile->file->name : "");
+    }
+    if (!(file->binary.read || (ftype != FILE_OPEN_BINARY && file->source.read))) {
+        FILE *f = NULL;
+        if (file->err_no == 0) {
             if (ftype == FILE_OPEN_STDIN) {
                 f = stdin;
             } else {
-                f = fopen_utf8(file->realname, "rb");
-                if (f == NULL && (errno == ENOENT || errno == ENOTDIR) && base != NULL && !is_absolute(name)) {
-                    struct include_list_s *i;
-                    for (i = arguments.include; i != NULL; i = i->next) {
-                        char *path = get_path(name, i->path);
-                        f = fopen_utf8(path, "rb");
-                        if (f != NULL || (errno != ENOENT && errno != ENOTDIR)) {
-                            file->realname = path;
-                            break;
-                        }
-                        free(path);
-                    }
-                }
-            }
-            file_read_message(file, ftype);
-            if (f != NULL) {
-                file->read_error = true;
-                if (ftype == FILE_OPEN_BINARY) {
-                    err = read_binary(&file->binary, f);
-                } else {
-                    err = read_source(file, f);
-                }
-                if (err != 0) errno = ENOMEM;
-                err |= ferror(f);
-                if (f != stdin) err |= fclose(f);
+                f = file_fopen(file);
             }
         }
-        if (signal_received) err = errno = EINTR;
-        if (err != 0 && errno != 0) {
-            file->err_no = errno;
-            if (ftype == FILE_OPEN_BINARY) {
-                free(file->binary.data);
-                file->binary.data = NULL;
-                file->binary.len = 0;
-            } else {
-                free(file->source.data);
-                file->source.data = NULL;
-                file->source.len = 0;
-                free(file->line);
-                file->line = NULL;
-                file->lines = 0;
+        if (f == NULL && (file->err_no == ENOENT || file->err_no == ENOTDIR) && cfile != NULL && !is_absolute(name)) {
+            struct include_list_s *i;
+            for (i = arguments.include; i != NULL; i = i->next) {
+                struct file_s *file2 = file_lookup(name, i->path);
+                if (file2->err_no == ENOENT || file2->err_no == ENOTDIR) continue;
+                if (file2->err_no == 0 && !(file2->binary.read || (ftype != FILE_OPEN_BINARY && file2->source.read))) {
+                    f = file_fopen(file2);
+                    if (f == NULL) {
+                        if (file2->err_no == ENOENT || errno == ENOTDIR) continue;
+                    }
+                }
+                file = file2;
+                break;
             }
+        }
+        if (f != NULL) {
+            file_read_message(file, ftype);
+            file->read_error = true;
+            if (ftype == FILE_OPEN_BINARY) {
+                err = read_binary(&file->binary, f);
+            } else {
+                err = read_source(file, f);
+            }
+            if (err != 0) errno = ENOMEM;
+            err |= ferror(f);
+            if (f != stdin) err |= fclose(f);
+            if (err != 0) file->err_no = errno;
+            if (signal_received) err = file->err_no = EINTR;
+        }
+    }
+    if (ftype != FILE_OPEN_BINARY && !file->source.read && file->binary.read && file->err_no == 0) {
+        if (file != &file_defines) file_read_message(file, ftype);
+        err = read_source(file, NULL);
+        if (err != 0) file->err_no = ENOMEM;
+        if (signal_received) err = file->err_no = EINTR;
+    }
+    if (err != 0) {
+        if (ftype == FILE_OPEN_BINARY) {
+            free(file->binary.data);
+            file->binary.data = NULL;
+            file->binary.len = 0;
+        } else {
+            free(file->source.data);
+            file->source.data = NULL;
+            file->source.len = 0;
+            free(file->line);
+            file->line = NULL;
+            file->lines = 0;
         }
     }
 
     if (file->err_no != 0) {
         if (file->pass != pass) {
             errno = file->err_no;
-            err_msg_file(file->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, file->realname, epoint);
+            err_msg_file(file->read_error ? ERROR__READING_FILE : ERROR_CANT_FINDFILE, file->name, current_file_list, epoint);
             file->pass = pass;
         }
         return NULL;
     }
-    if (!file->portable && base != NULL && diagnostics.portable) {
+    if (!file->portable && cfile != NULL && diagnostics.portable) {
 #ifdef _WIN32
-        file->portable = portability2(name, file->realname, epoint);
+        file->portable = portability2(name, file->name, epoint);
 #else
         file->portable = portability(name, epoint);
 #endif
@@ -869,9 +885,10 @@ void init_file(void) {
     file_table.mask = 0;
     file_table.data = NULL;
     file_table.uid = 0;
-    file_stdin.name = file_stdin.realname = "-";
-    file_defines.name = ""; 
-    file_defines.realname = "<command line>";
+    file_stdin.name = "-";
+    file_stdin.portable = true;
+    file_defines.name = "<command line>";
+    file_defines.portable = true;
     new_instance(&stars);
     stars->next = NULL;
     starsp = 0;
@@ -896,13 +913,12 @@ static size_t wrap_print(const char *txt, FILE *f, size_t len) {
 
 void makefile(int argc, char *argv[], bool make_phony) {
     FILE *f;
-    struct linepos_s nopoint = {0, 0};
     size_t len = 0, j;
     int i, err;
 
     f = dash_name(arguments.make) ? stdout : fopen_utf8(arguments.make, "wt");
     if (f == NULL) {
-        err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
+        err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
         return;
     }
     clearerr(f); errno = 0;
@@ -934,8 +950,8 @@ void makefile(int argc, char *argv[], bool make_phony) {
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
-                if (a->cmdline) continue;
-                len = wrap_print(a->realname, f, len);
+                if (a->cmdline || a->err_no != 0) continue;
+                len = wrap_print(a->name, f, len);
             }
         }
         putc('\n', f);
@@ -945,8 +961,8 @@ void makefile(int argc, char *argv[], bool make_phony) {
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
-                if (a->cmdline) continue;
-                len = wrap_print(a->realname, f, len);
+                if (a->cmdline || a->err_no != 0) continue;
+                len = wrap_print(a->name, f, len);
             }
             if (len != 0) fputs(":\n", f);
         }
@@ -954,5 +970,5 @@ void makefile(int argc, char *argv[], bool make_phony) {
 
     err = ferror(f);
     err |= (f != stdout) ? fclose(f) : fflush(f);
-    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_MAK, arguments.make, &nopoint);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
 }

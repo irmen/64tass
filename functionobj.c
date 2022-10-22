@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2808 2022-10-17 04:49:11Z soci $
+    $Id: functionobj.c 2833 2022-10-22 10:01:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -433,7 +433,7 @@ static MUST_CHECK Obj *function_binary(oper_t op) {
 
     err = Error(tostr2(&v[0], &filename));
     if (err != NULL) return Obj(err);
-    cfile2 = file_open(&filename, current_file_list->file->realname, FILE_OPEN_BINARY, &v[0].epoint);
+    cfile2 = file_open(&filename, current_file_list, FILE_OPEN_BINARY, &v[0].epoint);
 
     switch (vals->len) {
     case 3:

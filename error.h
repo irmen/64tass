@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2808 2022-10-17 04:49:11Z soci $
+    $Id: error.h 2834 2022-10-22 10:23:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,10 +43,12 @@ struct Namespace;
 struct oper_s;
 struct str_t;
 struct error_output_s;
+struct values_s;
 
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
 extern void err_msg_wrong_type2(const struct Obj *, struct Type *, linepos_t);
+extern void err_msg_invalid_namespace_conv(const struct values_s *);
 extern void err_msg_cant_unpack(size_t, size_t, linepos_t);
 extern void err_msg_cant_calculate(const struct str_t *, linepos_t);
 extern void err_msg_cant_calculate2(const struct str_t *, const struct file_list_s *, linepos_t);
@@ -70,7 +72,8 @@ extern void err_msg_symbol_case(const struct str_t *, const struct Label *, line
 extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);
 extern void err_msg_address_mismatch(unsigned int, unsigned int, linepos_t);
-extern void err_msg_file(Error_types, const char *, linepos_t);
+extern void err_msg_file(Error_types, const char *, const struct file_list_s *, linepos_t);
+extern void err_msg_file2(Error_types, const char *);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
 extern void err_msg_argnum(argcount_t, argcount_t, argcount_t, linepos_t);

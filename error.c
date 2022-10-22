@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2808 2022-10-17 04:49:11Z soci $
+    $Id: error.c 2834 2022-10-22 10:23:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -965,13 +965,16 @@ void err_msg_output_and_destroy(Error *val) {
 }
 
 void err_msg_wrong_type2(const Obj *val, Type *expected, linepos_t epoint) {
-    if (val->obj == ADDRESS_OBJ) {
-        const Obj *val2 = Address(val)->val;
-        if (val2 == none_value || val2->obj == ERROR_OBJ) val = val2;
-    }
     if (val->obj == ERROR_OBJ) err_msg_output(Error(val));
     else if (val == none_value) err_msg_still_none(NULL, epoint);
     else err_msg_wrong_type(val->obj, expected, epoint);
+}
+
+void err_msg_invalid_namespace_conv(const struct values_s *vs) {
+    Obj *val = vs->val;
+    if (val->obj == ERROR_OBJ) err_msg_output(Error(val));
+    else if (val == none_value) err_msg_still_none(NULL, &vs->epoint);
+    else err_msg_output_and_destroy(Error(new_error_conv(val, NAMESPACE_OBJ, &vs->epoint)));
 }
 
 void err_msg_cant_unpack(size_t expect, size_t got, linepos_t epoint) {
@@ -1429,7 +1432,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
             while (included_from->parent != &file_list) {
                 fputs((&included_from->flist == cflist) ? "In file included from " : "                      ", f);
                 if (console_use_color) console_bold(f);
-                printable_print((const uint8_t *)included_from->parent->flist.file->realname, f);
+                printable_print((const uint8_t *)included_from->parent->flist.file->name, f);
                 printline(&included_from->parent->flist, &included_from->flist.epoint, NULL, f);
                 included_from = included_from->parent;
                 if (console_use_color) console_default(f);
@@ -1438,7 +1441,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
             included_from = (const struct file_listnode_s *)cflist;
         }
         if (console_use_color) console_bold(f);
-        printable_print((const uint8_t *)cflist->file->realname, f);
+        printable_print((const uint8_t *)cflist->file->name, f);
         line = printline(cflist, epoint, (err->line_len != 0) ? (const uint8_t *)(err + 1) : NULL, f);
     } else {
         if (console_use_color) console_bold(f);
@@ -1505,7 +1508,6 @@ void error_print(const struct error_output_s *output) {
     size_t pos, end;
     bool noneerr = false, anyerr = false, usenote;
     FILE *ferr;
-    struct linepos_s nopoint = {0, 0};
 
     if (error_list.header_pos != 0) {
         avltree_destroy(&file_list.members, walkfilelist);
@@ -1514,7 +1516,7 @@ void error_print(const struct error_output_s *output) {
     if (output->name != NULL) {
         ferr = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
         if (ferr == NULL) {
-            err_msg_file(ERROR_CANT_WRTE_ERR, output->name, &nopoint);
+            err_msg_file2(ERROR_CANT_WRTE_ERR, output->name);
             ferr = stderr;
         }
     } else ferr = output->no_output ? NULL : stderr;
@@ -1607,7 +1609,6 @@ void err_init(const char *name) {
     file_listsp = 0;
     lastfl = &file_lists->file_lists[file_listsp];
     file_list_file.name = "";
-    file_list_file.realname = file_list_file.name;
     file_list_file.source.data = (uint8_t *)0;
     file_list_file.source.len = ~(filesize_t)0;
     file_list.flist.file = &file_list_file;
@@ -1667,7 +1668,7 @@ void err_msg_signal(void)
     }
 }
 
-void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
+void err_msg_file(Error_types no, const char *prm, const struct file_list_s *cfile, linepos_t epoint) {
     mbstate_t ps;
     const char *s;
     wchar_t w;
@@ -1679,7 +1680,7 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
     s = strerror(errno);
     n = strlen(s);
 
-    more = new_error_msg(SV_FATAL, current_file_list, epoint);
+    more = new_error_msg(SV_FATAL, cfile, epoint);
     adderror(terr_fatal[no - 0xc0]);
     adderror(" '");
     adderror(prm);
@@ -1702,6 +1703,11 @@ void err_msg_file(Error_types no, const char *prm, linepos_t epoint) {
         i += (size_t)l;
     }
     if (more) new_error_msg_more();
+}
+
+void err_msg_file2(Error_types no, const char *prm) {
+    static const struct linepos_s nopoint = {0, 0};
+    err_msg_file(no, prm, current_file_list, &nopoint);
 }
 
 static void error_status_val(const char *head, unsigned int val) {

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2709 2021-09-18 18:40:01Z soci $
+    $Id: arguments.c 2823 2022-10-19 20:16:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -337,7 +337,7 @@ enum {
     VICE_LABELS_NUMERIC, VICE_LABELS, EXPORT_LABELS, NORMAL_LABELS,
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
-    INTEL_HEX, APPLE_II, ATARI_XEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
+    INTEL_HEX, APPLE_II, ATARI_XEX, MOS_HEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND
 };
 
@@ -354,6 +354,7 @@ static const struct my_option long_options[] = {
     {"atari-xex"        , my_no_argument      , NULL,  ATARI_XEX},
     {"apple-ii"         , my_no_argument      , NULL,  APPLE_II},
     {"intel-hex"        , my_no_argument      , NULL,  INTEL_HEX},
+    {"mos-hex"          , my_no_argument      , NULL,  MOS_HEX},
     {"s-record"         , my_no_argument      , NULL,  S_RECORD},
     {"cbm-prg"          , my_no_argument      , NULL,  CBM_PRG},
     {"no-ascii"         , my_no_argument      , NULL,  NO_ASCII},
@@ -483,6 +484,7 @@ static address_t get_all_mem2(void) {
         case OUTPUT_IHEX:
         case OUTPUT_SREC:
         case OUTPUT_FLAT: min &= 0xffffffff; break;
+        case OUTPUT_MHEX:
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
         }
@@ -546,6 +548,7 @@ int testarg(int *argc2, char **argv2[]) {
             case ATARI_XEX:output.mode = OUTPUT_XEX;break;
             case APPLE_II:output.mode = OUTPUT_APPLE;break;
             case INTEL_HEX:output.mode = OUTPUT_IHEX;break;
+            case MOS_HEX:output.mode = OUTPUT_MHEX;break;
             case S_RECORD:output.mode = OUTPUT_SREC;break;
             case CBM_PRG:output.mode = OUTPUT_CBM;break;
             case 'b':output.mode = OUTPUT_RAW;break;
@@ -633,8 +636,8 @@ int testarg(int *argc2, char **argv2[]) {
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
-               "        [--atari-xex] [--apple-ii] [--intel-hex] [--s-record] [--nonlinear]\n"
-               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
+               "        [--atari-xex] [--apple-ii] [--intel-hex] [--mos-hex] [--s-record]\n"
+               "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
                "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
                "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
@@ -721,6 +724,7 @@ int testarg(int *argc2, char **argv2[]) {
                "      --atari-xex        Output Atari XEX file\n"
                "      --apple-ii         Output Apple II file\n"
                "      --intel-hex        Output Intel HEX file\n"
+               "      --mos-hex          Output MOS Technology file\n"
                "      --s-record         Output Motorola S-record file\n"
                "\n"
                " Target CPU selection:\n"

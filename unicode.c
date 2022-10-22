@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2804 2022-09-09 14:04:26Z soci $
+    $Id: unicode.c 2836 2022-10-22 14:49:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -794,41 +794,48 @@ FILE *fopen_utf8(const char *name, const char *mode) {
     f = _wfopen(wname, wmode);
     free(wname);
 #else
-    size_t len = 0, max = strlen(name) + 1;
-    char *newname = allocate_array(char, max);
-    const uint8_t *c = (const uint8_t *)name;
-    unichar_t ch;
-    mbstate_t ps;
-    errno = ENOMEM;
-    f = NULL;
-    if (newname == NULL || max < 1) goto failed;
-    memset(&ps, 0, sizeof ps);
-    do {
-        char temp[64];
-        ssize_t l;
-        ch = *c;
-        if ((ch & 0x80) != 0) {
-            c += utf8in(c, &ch);
-            if (ch == 0) {errno = ENOENT; goto failed;}
-        } else c++;
-        l = (ssize_t)wcrtomb(temp, (wchar_t)ch, &ps);
-        if (l <= 0) goto failed;
-        len += (size_t)l;
-        if (len < (size_t)l) goto failed;
-        if (len > max) {
-            char *d;
-            if (add_overflow(len, 64, &max)) goto failed;
-            d = reallocate_array(newname, max);
-            if (d == NULL) goto failed;
-            newname = d;
-        }
-        memcpy(newname + len - l, temp, (size_t)l);
-    } while (ch != 0);
+    size_t len = 1, max;
+    char *newname = NULL;
+    for (max = 0; name[max] != '\0'; max++) {
+        if ((uint8_t)name[max] > '~') len = 0;
+    }
+    if (len == 0) {
+        const uint8_t *c = (const uint8_t *)name;
+        unichar_t ch;
+        mbstate_t ps;
+        if (!inc_overflow(&max, 32)) newname = allocate_array(char, max);
+        errno = ENOMEM;
+        f = NULL;
+        if (newname == NULL) goto failed;
+        memset(&ps, 0, sizeof ps);
+        do {
+            char temp[64];
+            ssize_t l;
+            ch = *c;
+            if ((ch & 0x80) != 0) {
+                c += utf8in(c, &ch);
+                if (ch == 0) {errno = ENOENT; goto failed;}
+            } else c++;
+            l = (ssize_t)wcrtomb(temp, (wchar_t)ch, &ps);
+            if (l <= 0) goto failed;
+            len += (size_t)l;
+            if (len < (size_t)l) goto failed;
+            if (len > max) {
+                char *d;
+                if (add_overflow(len, 64, &max)) goto failed;
+                d = reallocate_array(newname, max);
+                if (d == NULL) goto failed;
+                newname = d;
+            }
+            memcpy(newname + len - l, temp, (size_t)l);
+        } while (ch != 0);
+        name = newname;
+    }
     errno = 0;
-    f = fopen(newname, mode);
+    f = fopen(name, mode);
     if (f == NULL && errno == 0) errno = (mode[0] == 'r') ? ENOENT : EINVAL;
 failed:
-    free(newname);
+    if (newname != NULL) free(newname);
 #endif
     return f;
 }

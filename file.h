@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2781 2022-05-23 02:45:59Z soci $
+    $Id: file.h 2833 2022-10-22 10:01:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,14 +22,12 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
-struct str_t;
-
 typedef enum Encoding_types {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO, E_RAW
 } Encoding_types;
 
 typedef enum File_open_type {
-    FILE_OPEN_STDIN, FILE_OPEN_BINARY, FILE_OPEN_SOURCE, FILE_OPEN_COMMAND_LINE
+    FILE_OPEN_STDIN, FILE_OPEN_BINARY, FILE_OPEN_DEFINES, FILE_OPEN_SOURCE
 } File_open_type;
 
 typedef uint32_t filesize_t;
@@ -42,8 +40,6 @@ struct file_data_s {
 
 struct file_s {
     const char *name;
-    const char *realname;
-    size_t baselen;
     int hash;
     uint8_t *nomacro;
     filesize_t *line;
@@ -69,7 +65,10 @@ struct star_s {
     uint8_t pass;
 };
 
-extern struct file_s *file_open(const struct str_t *, const char *, File_open_type, linepos_t);
+struct str_t;
+struct file_list_s;
+
+extern struct file_s *file_open(const struct str_t *, const struct file_list_s *, File_open_type, linepos_t);
 extern struct star_s *new_star(linenum_t);
 extern struct star_s *init_star(linenum_t);
 extern void destroy_file(void);

@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2761 2021-10-16 08:27:15Z soci $
+    $Id: variables.c 2835 2022-10-22 14:16:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -413,7 +413,7 @@ Label *find_anonlabel2(ssize_t count, Namespace *context) {
 }
 
 /* --------------------------------------------------------------------------- */
-Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *exists, const struct file_list_s *cflist) {
+Label *new_label(const str_t *name, Namespace *context, uint8_t strength, const struct file_list_s *cflist) {
     Label *b;
     if (lastlb == NULL) lastlb = Label(val_alloc(LABEL_OBJ));
 
@@ -434,13 +434,11 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, bool *
         lastlb->update_after = false;
         lastlb->usepass = 0;
         lastlb->fwpass = 0;
+        lastlb->value = NULL;
         lastlb->defpass = pass;
-        *exists = false;
         b = lastlb;
         lastlb = NULL;
-        return b;
     }
-    *exists = true;
     return b;
 }
 
@@ -636,7 +634,7 @@ static void labeldump(Namespace *names, FILE *flab) {
                     const Str *str = Str(val);
                     const struct file_s *file = l2->file_list->file;
                     linepos_t epoint = &l2->epoint;
-                    printable_print((const uint8_t *)file->realname, flab);
+                    printable_print((const uint8_t *)file->name, flab);
                     fprintf(flab, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, ((file->encoding == E_UTF8) ? (linecpos_t)calcpos(get_line(file, epoint->line), epoint->pos) : epoint->pos) + 1);
                     labelname_print(l2, flab, '.');
                     fputs(l2->constant ? " = " : " := ", flab);
@@ -699,7 +697,7 @@ void labelprint(const struct symbol_output_s *output) {
 
     flab = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
     if (flab == NULL) {
-        err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
+        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
         return;
     }
     clearerr(flab); errno = 0;
@@ -720,7 +718,7 @@ void labelprint(const struct symbol_output_s *output) {
     err = ferror(flab);
     err |= (flab != stdout) ? fclose(flab) : fflush(flab);
     if (err != 0 && errno != 0) {
-        err_msg_file(ERROR_CANT_WRTE_LBL, output->name, &nopoint);
+        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
     }
 }
 
@@ -759,10 +757,9 @@ void new_builtin(const char *symbol, Obj *val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     Label *label;
-    bool label_exists;
     name.len = strlen(symbol);
     name.data = (const uint8_t *)symbol;
-    label = new_label(&name, builtin_namespace, 0, &label_exists, dummy_file_list);
+    label = new_label(&name, builtin_namespace, 0, dummy_file_list);
     label->constant = true;
     label->owner = true;
     label->value = val;
@@ -771,9 +768,15 @@ void new_builtin(const char *symbol, Obj *val) {
 
 void init_variables(void)
 {
+    enum { BUILTIN_SIZE = 128 };
     struct linepos_s nopoint = {0, 0};
 
     builtin_namespace = new_namespace(NULL, &nopoint);
+    builtin_namespace->data = allocate_array(Label *, BUILTIN_SIZE);
+    if (builtin_namespace->data != NULL) {
+        memset(builtin_namespace->data, 0, BUILTIN_SIZE * sizeof *builtin_namespace->data);
+        builtin_namespace->mask = BUILTIN_SIZE - 1;
+    }
     root_namespace = new_namespace(NULL, &nopoint);
     cheap_context = ref_namespace(root_namespace);
 

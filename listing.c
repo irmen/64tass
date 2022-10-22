@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2790 2022-05-25 06:31:18Z soci $
+    $Id: listing.c 2834 2022-10-22 10:23:14Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -143,14 +143,13 @@ static Listing *listing;
 void listing_open(const char *filename, int argc, char *argv[]) {
     static Listing listing2;
     Listing *ls;
-    struct linepos_s nopoint = {0, 0};
     time_t t;
     int i;
     FILE *flist;
 
     flist = dash_name(filename) ? stdout : fopen_utf8(filename, "wt");
     if (flist == NULL) {
-        err_msg_file(ERROR_CANT_WRTE_LST, filename, &nopoint);
+        err_msg_file2(ERROR_CANT_WRTE_LST, filename);
         listing = NULL;
         return;
     }
@@ -209,14 +208,13 @@ void listing_open(const char *filename, int argc, char *argv[]) {
 
 void listing_close(void) {
     Listing *const ls = listing;
-    struct linepos_s nopoint = {0, 0};
     int err;
     if (ls == NULL) return;
 
     fputs("\n;******  End of listing\n", ls->flist);
     err = ferror(ls->flist);
     err |= (ls->flist != stdout) ? fclose(ls->flist) : fflush(ls->flist);
-    if (err != 0 && errno != 0) err_msg_file(ERROR_CANT_WRTE_LST, ls->filename, &nopoint);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_LST, ls->filename);
     listing = NULL;
 }
 
@@ -615,7 +613,7 @@ void listing_file(const char *txt, const struct file_s *file) {
         flushbuf(ls);
     };
     fputs(txt, ls->flist);
-    if (file != NULL) argv_print(file->realname, ls->flist);
+    if (file != NULL) argv_print(file->name, ls->flist);
     newline(ls);
     newline(ls);
 }

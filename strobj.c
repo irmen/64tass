@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2808 2022-10-17 04:49:11Z soci $
+    $Id: strobj.c 2818 2022-10-19 04:29:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 #include "typeobj.h"
 #include "noneobj.h"
 #include "errorobj.h"
-#include "addressobj.h"
 
 static Type obj;
 
@@ -135,9 +134,6 @@ MUST_CHECK Obj *tostr2(const struct values_s *v1, str_t *out) {
         out->len = Str(val)->len;
         out->data = Str(val)->data;
         return NULL;
-    case T_ADDRESS:
-        if (Address(val)->val == none_value || Address(val)->val->obj == ERROR_OBJ) return val_reference(Address(val)->val);
-        FALL_THROUGH; /* fall through */
     default:
         err = new_error(ERROR____WRONG_TYPE, &v1->epoint);
         err->u.otype.t1 = val->obj;

@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2793 2022-05-26 06:40:09Z soci $
+    $Id: bitsobj.c 2825 2022-10-20 16:10:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -308,6 +308,7 @@ static MUST_CHECK Obj *truth(Obj *o1, Truth_types type, linepos_t UNUSED(epoint)
         for (i = 0; i < sz2; i++) {
             if (v1->data[i] != inv) return ref_false();
         }
+        if ((v1->bits % SHIFT) == 0) return ref_true();
         b = (i >= sz) ? 0 : v1->data[i];
         b ^= inv;
         b <<= SHIFT - v1->bits % SHIFT;

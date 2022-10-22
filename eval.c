@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2804 2022-09-09 14:04:26Z soci $
+    $Id: eval.c 2829 2022-10-20 20:34:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -499,7 +499,7 @@ rest:
             llen = (linecpos_t)get_label(pline + lpoint.pos);
             if (llen == 0) {
                 if (opr.p != opr.data) epoint.pos = opr.p[-1].pos;
-                if (ch < ' ' || ch > '~') {
+                if ((ch < ' ' && ch != 0) || ch > '~') {
                     if (err_msg_wrong_character(&lpoint)) goto error;
                 }
                 err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
@@ -840,7 +840,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
     return true;
 }
 
-static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am, bool inplace) {
+static MUST_CHECK Obj *apply_addressing(Obj *o1, atype_t addrtype, bool inplace) {
     if (o1->obj->iterable) {
         struct iter_s iter;
         size_t i;
@@ -858,7 +858,7 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am, bool inplace)
         v = List(val_alloc(o1->obj == TUPLE_OBJ ? TUPLE_OBJ : LIST_OBJ));
         vals = list_create_elements(v, iter.len);
         for (i = 0; i < iter.len && (o1 = iter.next(&iter)) != NULL; i++) {
-            vals[i] = apply_addressing(o1, am, inplace);
+            vals[i] = apply_addressing(o1, addrtype, inplace);
         }
         iter_destroy(&iter);
         v->len = i;
@@ -868,12 +868,12 @@ static MUST_CHECK Obj *apply_addressing(Obj *o1, Address_types am, bool inplace)
     if (o1->obj == ADDRESS_OBJ) {
         Address *v1 = Address(o1);
         if (inplace && o1->refcount == 1) {
-            v1->type = am | (v1->type << 4);
+            v1->type = addrtype | (v1->type << 4);
             return val_reference(o1);
         }
-        return new_address(val_reference(v1->val), am | (v1->type << 4));
+        return new_address(val_reference(v1->val), addrtype | (v1->type << 4));
     }
-    return new_address(val_reference(o1), am);
+    return new_address(val_reference(o1), addrtype);
 }
 
 static bool get_val2(struct eval_context_s *ev) {
@@ -996,13 +996,13 @@ static bool get_val2(struct eval_context_s *ev) {
                 }
                 if (args == 2 && stop && !expc) {
                     if (out + 1 == ev->out.end && v[2].val->obj == REGISTER_OBJ && Register(v[2].val)->len == 1) {
-                        am = (op == O_BRACKET) ? A_LI: A_I;
-                        am |= register_to_indexing(Register(v[2].val)->data[0]) << 4;
+                        atype_t addrtype = (op == O_BRACKET) ? A_LI: A_I;
+                        addrtype |= register_to_indexing(Register(v[2].val)->data[0]) << 4;
                         val_destroy(v[2].val);
                         if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
-                            v[0].val = new_address(v[1].val, am);
+                            v[0].val = new_address(v[1].val, addrtype);
                         } else {
-                            v[0].val = apply_addressing(v[1].val, am, true);
+                            v[0].val = apply_addressing(v[1].val, addrtype, true);
                             val_destroy(v[1].val);
                         }
                         v[1].val = NULL;
@@ -1600,7 +1600,7 @@ static bool get_exp2(int stop) {
                 }
                 epoint.pos = opr.p[-1].pos;
             }
-            if (ch < ' ' || ch > '~') {
+            if ((ch < ' ' && ch != 0) || ch > '~') {
                 if (err_msg_wrong_character(&lpoint)) goto error;
             }
             err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
@@ -1818,9 +1818,6 @@ static bool get_exp2(int stop) {
             if (get_label(pline + lpoint.pos + 1) == 2 && 
                 (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'i' &&
                 (pline[epoint.pos + 2] | arguments.caseinsensitive) == 'n') {op = O_NOTIN;goto push2;}
-            if (ch < ' ' || ch > '~') {
-                if (err_msg_wrong_character(&epoint)) goto error;
-            }
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         case ')':

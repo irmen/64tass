@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2788 2022-05-25 04:29:24Z soci $
+    $Id: macro.c 2813 2022-10-18 18:28:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -477,7 +477,6 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
     }
     for (i = 0; i < mfunc->argc; i++) {
         const struct mfunc_param_s *param = &mfunc->param[i];
-        bool labelexists;
         if (param->init == default_value) {
             argcount_t j, len = get_val_remaining();
             tuple = new_tuple(len);
@@ -518,8 +517,8 @@ Obj *mfunc_recurse(Mfunc *mfunc, Namespace *context, uint8_t strength, linepos_t
                 } else val = val_reference(val);
             }
         }
-        label = new_label(&param->name, context, strength, &labelexists, mfunc->file_list);
-        if (labelexists) {
+        label = new_label(&param->name, context, strength, mfunc->file_list);
+        if (label->value != NULL) {
             if (label->constant) {
                 err_msg_double_defined(label, &param->name, &param->epoint); /* not possible in theory */
                 val_destroy(val);
@@ -854,7 +853,6 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
     for (i = 0; i < mfunc->argc; i++) {
         Obj *val;
         const struct mfunc_param_s *param = &mfunc->param[i];
-        bool labelexists;
         if (param->init == default_value) {
             if (i < args) {
                 argcount_t j = i;
@@ -903,8 +901,8 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
                 } else val_reference(val);
             }
         }
-        label = new_label(&param->name, context, 0, &labelexists, mfunc->file_list);
-        if (labelexists) {
+        label = new_label(&param->name, context, 0, mfunc->file_list);
+        if (label->value != NULL) {
             if (label->constant) {
                 err_msg_double_defined(label, &param->name, &param->epoint);
                 val_destroy(val);

@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: dictobj.c 2830 2022-10-20 20:41:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ static Type obj;
 
 Type *const DICT_OBJ = &obj;
 
-static Dict null_dictval = { { &obj, 1 }, 0, null_dictval.u.val, { { { 0 } } }, NULL };
+static Dict null_dictval = { { &obj, 1 }, 0, null_dictval.u.val, { { { 0, NULL, NULL } } }, NULL };
 
 Obj *const null_dict = &null_dictval.v;
 

@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: codeobj.c 2826 2022-10-20 16:10:37Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -106,6 +106,10 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
 
 static inline address_t code_address(const Code *v1) {
     return v1->offs < 0 ? v1->addr - -(uval_t)v1->offs : v1->addr + (uval_t)v1->offs;
+}
+
+static inline address_t code_memaddress(const Code *v1) {
+    return v1->offs < 0 ? v1->memaddr - -(uval_t)v1->offs : v1->memaddr + (uval_t)v1->offs;
 }
 
 static MUST_CHECK Obj *get_code_address(const Code *v1, linepos_t epoint) {
@@ -513,6 +517,7 @@ static MUST_CHECK Obj *contains(oper_t op) {
             op->v2 = o1;
             op->inplace = NULL;
             result = tmp->obj->calc2(op);
+            val_destroy(tmp);
             if (result == good) {
                 val_destroy(result);
                 continue;
@@ -586,7 +591,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 str_cfcpy(&cf, &v2->name);
                 if (str_cmp(&cf, &of) == 0) {
                     if (diagnostics.case_symbol && str_cmp(&v2->name, &cf) != 0) err_msg_symbol_case(&v2->name, NULL, op->epoint2);
-                    return int_from_uval(code_address(v1) & all_mem2);
+                    return int_from_uval(code_memaddress(v1) & all_mem2);
                 }
             }
         }

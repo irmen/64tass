@@ -1,4 +1,4 @@
-# $Id: Makefile.win 2808 2022-10-17 04:49:11Z soci $
+# $Id: Makefile.win 2818 2022-10-19 04:29:28Z soci $
 CC = x86_64-w64-mingw32-gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -182,7 +182,7 @@ str.o: str.c str.h inttypes.h unicode.h attributes.h stdbool.h error.h \
 strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
  eval.h oper_e.h unicode.h error.h errors_e.h variables.h arguments.h \
  str.h boolobj.h bytesobj.h intobj.h bitsobj.h listobj.h values.h \
- typeobj.h noneobj.h errorobj.h addressobj.h
+ typeobj.h noneobj.h errorobj.h
 symbolobj.o: symbolobj.c symbolobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h eval.h oper_e.h unicode.h error.h errors_e.h file.h values.h \
  arguments.h typeobj.h strobj.h
