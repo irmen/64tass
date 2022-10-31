@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 2766 2021-10-16 20:57:45Z soci $
+    $Id: encobj.c 2885 2022-10-31 13:53:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 #include "errorobj.h"
+#include "functionobj.h"
 
 Enc *actual_encoding;
 size_t efwcount;
@@ -404,21 +405,38 @@ next:
     return 256 + '?';
 }
 
+static MUST_CHECK Obj *convert(oper_t op) {
+    Error *err;
+    Obj *o2 = op->v2;
+    switch (o2->obj->type) {
+    case T_NONE:
+    case T_ERROR: return val_reference(o2);
+    case T_STR: return bytes_from_str(Str(o2), op->epoint2, BYTES_MODE_TEXT);
+    default: break;
+    }
+    err = new_error(ERROR____WRONG_TYPE, op->epoint2);
+    err->u.otype.t1 = o2->obj;
+    err->u.otype.t2 = STR_OBJ;
+    return Obj(err);
+}
+
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
     switch (o2->obj->type) {
     case T_FUNCARGS:
         if (op->op == O_FUNC) {
-            Funcargs *v2 = Funcargs(o2);
             Enc *oldenc;
-            if (v2->len != 1) {
-                return new_error_argnum(v2->len, 1, 1, op->epoint2);
+            Funcargs *v2 = Funcargs(o2);
+            struct values_s *v = v2->val;
+            argcount_t args = v2->len;
+            if (args != 1) {
+                return new_error_argnum(args, 1, 1, op->epoint2);
             }
-            o2 = v2->val[0].val;
-            if (o2->obj != STR_OBJ) break;
             oldenc = actual_encoding;
             actual_encoding = Enc(op->v1);
-            o2 = bytes_from_str(Str(o2), op->epoint2, BYTES_MODE_TEXT);
+            op->v2 = v->val;
+            op->inplace = NULL;
+            o2 = apply_function(op, convert);
             actual_encoding = oldenc;
             return o2;
         }

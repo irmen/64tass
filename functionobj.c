@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2833 2022-10-22 10:01:11Z soci $
+    $Id: functionobj.c 2884 2022-10-31 13:29:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -98,9 +98,7 @@ static MUST_CHECK Obj *str(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     return Obj(v);
 }
 
-typedef MUST_CHECK Obj *(*func_t)(oper_t op);
-
-static MUST_CHECK Obj *gen_broadcast(oper_t op, func_t f) {
+static MUST_CHECK Obj *gen_broadcast(oper_t op, apply_func_t f) {
     Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     argcount_t args = vals->len;
@@ -592,7 +590,7 @@ failed:
     return new_error_obj(err, op->v2, op->epoint2);
 }
 
-static MUST_CHECK Obj *apply_func(oper_t op, func_t f) {
+static MUST_CHECK Obj *apply_func(oper_t op, apply_func_t f) {
     Obj *o2 = op->v2;
     const Type *typ = o2->obj;
 
@@ -847,8 +845,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-MUST_CHECK Obj *apply_convert(oper_t op) {
-    return apply_func(op, Type(op->v1)->convert);
+MUST_CHECK Obj *apply_function(oper_t op, apply_func_t f) {
+    return apply_func(op, f);
 }
 
 MUST_CHECK Obj *apply_convert2(oper_t op) {

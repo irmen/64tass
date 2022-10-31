@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2808 2022-10-17 04:49:11Z soci $
+    $Id: errors_e.h 2880 2022-10-31 04:56:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -135,6 +135,7 @@ typedef enum Error_types {
     ERROR_CANT_WRTE_LBL,
     ERROR_CANT_WRTE_MAK,
     ERROR_CANT_WRTE_ERR,
+    ERROR_CANT_WRTE_MAP,
     ERROR_FILERECURSION,
     ERROR__MACRECURSION,
     ERROR__FUNRECURSION,

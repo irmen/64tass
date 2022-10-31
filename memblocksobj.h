@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: memblocksobj.h 2858 2022-10-25 19:16:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
+struct section_s;
+struct output_s;
+
 extern struct Type *const MEMBLOCKS_OBJ;
 
 struct memblock_s { /* starts and sizes */
@@ -41,6 +44,7 @@ typedef struct Memblocks {
     address_t lastaddr;
     bool flattened, merged, enumeration;
     struct memblock_s *data;
+    const struct section_s *section;
 } Memblocks;
 
 #define Memblocks(a) OBJ_CAST(Memblocks, a)
@@ -53,4 +57,5 @@ static inline Memblocks *ref_memblocks(Memblocks *v1) {
 
 extern MALLOC Memblocks *new_memblocks(address_t, size_t);
 extern MALLOC Memblocks *copy_memblocks(Memblocks *);
+extern void memorymapfile(const Memblocks *, const struct output_s *);
 #endif

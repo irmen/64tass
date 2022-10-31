@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2834 2022-10-22 10:23:14Z soci $
+    $Id: mem.c 2878 2022-10-30 20:27:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,6 @@ static void memcomp(Memblocks *memblocks, bool nomerge) {
     size_t i, j, k;
     if (!memblocks->flattened) {
         memblocks->flattened = true;
-        memjmp(memblocks, 0);
 
         for (j = 0; j < memblocks->p; j++) { /* replace references with real copies */
             Memblocks *b = memblocks->data[j].ref;
@@ -131,40 +130,28 @@ void memjmp(Memblocks *memblocks, address_t adr) {
     memblocks->lastaddr = adr;
 }
 
-void memref(Memblocks *memblocks, Memblocks *ref) {
+void memclose(Memblocks *memblocks) {
+    size_t j;
+    for (j = 0; j < memblocks->p; j++) {
+        Memblocks *b = memblocks->data[j].ref;
+        if (b != NULL) memclose(b);
+    }
+    memjmp(memblocks, 0);
+}
+
+void memref(Memblocks *memblocks, Memblocks *ref, address_t addr, address_t ln) {
     struct memblock_s *block;
     if (memblocks->p >= memblocks->len) extend_array(&memblocks->data, &memblocks->len, 64);
     block = &memblocks->data[memblocks->p++];
-    block->len = 0;
+    block->len = ln;
     block->p = memblocks->lastp;
     block->ref = Memblocks(val_reference(Obj(ref)));
-    block->addr = memblocks->lastaddr;
-}
-
-void memprint(Memblocks *memblocks, FILE *f) {
-    size_t i;
-    char temp[10], temp2[10];
-
-    memcomp(memblocks, false);
-
-    for (i = 0; i < memblocks->p;) {
-        const struct memblock_s *block = &memblocks->data[i];
-        address_t start = block->addr;
-        address_t size = block->len;
-        for (i++; i < memblocks->p; i++) {
-            const struct memblock_s *b = &memblocks->data[i];
-            address_t addr = start + size;
-            if (b->addr != addr || addr < start) break;
-            size += b->len;
-        }
-        sprintf(temp, "$%04" PRIaddress, start);
-        sprintf(temp2, "$%04" PRIaddress, start + size - 1U);
-        fprintf(f, "Memory range: %10s-%-7s $%04" PRIaddress "\n", temp, temp2, size);
-    }
+    block->addr = addr;
 }
 
 static MUST_CHECK bool padding(address_t size, FILE *f) {
-    unsigned char nuls[256];
+    uint8_t nuls[256];
+#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
     while (size >= 0x80000000) {
         if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
         size -= 0x40000000;
@@ -173,6 +160,7 @@ static MUST_CHECK bool padding(address_t size, FILE *f) {
         return false;
     }
 err:
+#endif
     nuls[0] = 1;
     while (size != 0) {
         address_t db = size < sizeof nuls ? size : sizeof nuls;
@@ -604,10 +592,6 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     int oldmode = -1;
 #endif
 
-    memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC || output->mode == OUTPUT_MHEX);
-
-    if (output->name == NULL) return;
-
     if (dash_name(output->name)) {
 #if defined _WIN32 || defined __MSDOS__ || defined __DOS__
         if (binary) oldmode = setmode(STDOUT_FILENO, O_BINARY);
@@ -620,6 +604,8 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
         err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name);
         return;
     }
+    memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC || output->mode == OUTPUT_MHEX);
+
     clearerr(fout); errno = 0;
     switch (output->mode) {
     case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;

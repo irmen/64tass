@@ -1,5 +1,5 @@
 .TH 64tass 1 "Apr 25 2021" "64tass 1.56" "64tass 1.56"
-\" $Id: 64tass.1 2641 2021-05-08 22:27:24Z soci $
+\" $Id: 64tass.1 2866 2022-10-26 18:38:53Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -13,9 +13,10 @@ only describing the command line options. The many features are described in the
 .sp 1
 .SS Output options
 .TP 0.5i
-\fB\-o\fR \fIfilename\fR, \fB\--output\fR \fIfilename\fR
+\fB\-o\fR \fIfilename\fR, \fB\-\-output\fR \fIfilename\fR
 Place output into \fIfilename\fR. The default output filename is \(aqa.out\(aq,
-this option changes it. May be used multiple times. The format is remembered but section reverts to global after each file.
+this option changes it. May be used multiple times. The format is remembered
+but section and memory map file reverts to global after each file.
 .TP 0.5i
 \fB\-\-output\-append\fR \fIfilename\fR
 Append to output file instead of overwriting it.
@@ -23,7 +24,16 @@ Append to output file instead of overwriting it.
 \fB\-\-no\-output\fR
 Same as output but no file will be written.
 .TP 0.5i
-\fB\--output\-section\fR \fIsectionname\fR
+\fB\-\-map\fR \fIfilename\fR
+Place memory map into \fIfilename\fR instead of displaying it.
+.TP 0.5i
+\fB\-\-map\-append\fR \fIfilename\fR
+Append memory map to a file instead of displaying it.
+.TP 0.5i
+\fB\-\-no\-map\fR
+The memory map won't be displayed or recorded.
+.TP 0.5i
+\fB\-\-output\-section\fR \fIsectionname\fR
 Output this section instead of everything
 .TP 0.5i
 \fB\-X\fR, \fB\-\-long\-address\fR
@@ -68,12 +78,12 @@ Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory before the first and after the last
 valid bytes are not saved. Up to 64 KiB.
 .TP 0.5i
-\fB\-\-intel-hex\fR
+\fB\-\-intel\-hex\fR
 Use Intel HEX output file format.
 Overlapping blocks are kept, data is stored in the definition order, and
 uninitialized areas are skipped. I8HEX up to 64 KiB, I32HEX up to 4 GiB.
 .TP 0.5i
-\fB\-\-s-record\fR
+\fB\-\-s\-record\fR
 Use Motorola S-record output file format.
 Overlapping blocks are kept, data is stored in the definition order, and
 uninitialized memory areas are skipped. S19 up to 64 KiB, S28 up to 16
@@ -209,7 +219,7 @@ Don't warn about deprecated features.
 Unfortunately there were some features added previously which shouldn't
 have been included. This option disables warnings about their uses.
 .TP 0.5i
-\fB-Wno\-float\-compare\fR
+\fB\-Wno\-float\-compare\fR
 Don't warn if floating point comparisons are only approximate.
 Floating point numbers have a finite precision and comparing them might
 give unexpected results.
@@ -236,7 +246,7 @@ first column.
 \fB\-Wno\-page\fR
 Don't do an error for page crossing.
 .TP 0.5i
-\fB-Wno\-pitfalls\fR
+\fB\-Wno\-pitfalls\fR
 Don't note on common pitfalls.
 Experts don't need notes about how to fix things ;)
 .TP 0.5i
@@ -293,16 +303,16 @@ Boolean values can be interpreted as numeric 0/1 and other types as booleans. Th
 \fB\-Wunused\fR
 Warn about unused constant symbols, any type.
 .TP 0.5i
-\fB\-Wunused-const\fR
+\fB\-Wunused\-const\fR
 Warn about unused constants.
 .TP 0.5i
-\fB\-Wunused-label\fR
+\fB\-Wunused\-label\fR
 Warn about unused labels.
 .TP 0.5i
-\fB\-Wunused-macro\fR
+\fB\-Wunused\-macro\fR
 Warn about unused macros.
 .TP 0.5i
-\fB\-Wunused-variable\fR
+\fB\-Wunused\-variable\fR
 Warn about unused variables.
 .SS Target selection options
 .TP 0.5i
@@ -367,6 +377,9 @@ List labels for debugging.
 List into \fIfile\fR. Dumps source code and compiled code into file. Useful for
 debugging, it's much easier to identify the code in memory within the
 source files.
+.TP 0.5i
+\fB\-\-list\-append\fR=\fIfile\fR
+Append list to \fIfile\fR instead of overwriting it.
 .TP 0.5i
 \fB\-m\fR, \fB\-\-no\-monitor\fR
 Don't put monitor code into listing. There won't be any monitor listing

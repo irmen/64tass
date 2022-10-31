@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2834 2022-10-22 10:23:14Z soci $
+    $Id: error.c 2880 2022-10-31 04:56:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -420,6 +420,7 @@ static const char *const terr_fatal[] = {
     "can't write label file",
     "can't write make file",
     "can't write error file",
+    "can't write map file",
     "file recursion",
     "macro recursion too deep",
     "function recursion too deep",
@@ -1325,7 +1326,7 @@ void err_msg_branch_page(int by, linepos_t epoint) {
 void err_msg_page(address_t adr, address_t adr2, linepos_t epoint) {
     char line[256];
     new_error_msg2(diagnostic_errors.page, epoint);
-    sprintf(line,"different start and end page $%04" PRIaddress " and $%04" PRIaddress " [-Wpage]", adr, adr2);
+    sprintf(line,"different start and end page $%04" PRIxaddress " and $%04" PRIxaddress " [-Wpage]", adr, adr2);
     adderror(line);
 }
 

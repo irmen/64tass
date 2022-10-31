@@ -1,4 +1,4 @@
-# $Id: Makefile.amigaos4 2818 2022-10-19 04:29:28Z soci $
+# $Id: Makefile.amigaos4 2885 2022-10-31 13:53:33Z soci $
 CC = SDK:gcc/bin/gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -67,7 +67,7 @@ dictobj.o: dictobj.c dictobj.h obj.h attributes.h inttypes.h eval.h \
 encobj.o: encobj.c encobj.h obj.h attributes.h inttypes.h stdbool.h avl.h \
  errors_e.h values.h ternary.h str.h error.h 64tass.h wait_e.h encoding.h \
  unicode.h eval.h oper_e.h typeobj.h strobj.h bytesobj.h bitsobj.h \
- errorobj.h
+ errorobj.h functionobj.h
 encoding.o: encoding.c encoding.h stdbool.h error.h attributes.h \
  errors_e.h inttypes.h ternary.h values.h 64tass.h wait_e.h str.h \
  encobj.h obj.h avl.h
@@ -139,8 +139,9 @@ main.o: main.c main.h stdbool.h wchar.h inttypes.h error.h attributes.h \
  errors_e.h unicode.h console.h 64tass.h wait_e.h
 math.o: math.c math.h
 memblocksobj.o: memblocksobj.c memblocksobj.h obj.h attributes.h \
- inttypes.h stdbool.h values.h error.h errors_e.h typeobj.h
-mem.o: mem.c mem.h attributes.h stdbool.h inttypes.h error.h errors_e.h \
+ inttypes.h stdbool.h values.h error.h errors_e.h section.h avl.h str.h \
+ unicode.h arguments.h version.h typeobj.h
+mem.o: mem.c mem.h attributes.h inttypes.h error.h stdbool.h errors_e.h \
  unicode.h 64tass.h wait_e.h listing.h arguments.h values.h \
  memblocksobj.h obj.h
 mfuncobj.o: mfuncobj.c mfuncobj.h obj.h attributes.h inttypes.h str.h \
@@ -174,8 +175,7 @@ registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
  errorobj.h errors_e.h addressobj.h intobj.h error.h
 section.o: section.c section.h avl.h attributes.h stdbool.h str.h \
  inttypes.h unicode.h error.h errors_e.h 64tass.h wait_e.h values.h \
- intobj.h obj.h longjump.h optimizer.h eval.h oper_e.h mem.h \
- memblocksobj.h
+ intobj.h obj.h longjump.h optimizer.h eval.h oper_e.h memblocksobj.h
 str.o: str.c str.h inttypes.h unicode.h attributes.h stdbool.h error.h \
  errors_e.h arguments.h
 strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \

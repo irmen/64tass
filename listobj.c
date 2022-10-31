@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2778 2021-10-17 21:11:15Z soci $
+    $Id: listobj.c 2868 2022-10-26 21:43:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,10 +113,10 @@ static Obj **lextend(List *v, size_t len) {
         return v->u.val;
     }
     if (v->u.val != v->data) {
-        size_t len2;
-        if (len <= v->u.s.max) return v->data;
-        len2 = len + (len < 1024 ? len : 1024);
-        if (len2 > len) len = len2;
+        if (len <= v->u.s.max) {
+            v->u.s.hash = -1;
+            return v->data;
+        }
         tmp = reallocate_array(v->data, len);
         if (tmp != NULL) {
             v->data = tmp;
@@ -533,13 +533,23 @@ static MUST_CHECK Obj *calc2_list(oper_t op) {
             }
             if (add_overflow(v1->len, v2->len, &ln)) goto failed;
             if (op->inplace == Obj(v1)) {
-                vals = lextend(v1, ln);
+                size_t ln2;
+                if (ln > sizeof v1->u.val && v1->u.val != v1->data && ln > v1->u.s.max) {
+                    ln2 = ln + (ln < 1024 ? ln : 1024);
+                    if (ln2 < ln) ln2 = ln;
+                } else ln2 = ln;
+                vals = lextend(v1, ln2);
                 if (vals == NULL) goto failed;
                 i = v1->len;
                 v1->len = ln;
                 v = ref_list(List(o1));
             } else if (o1->obj == o2->obj && op->inplace == Obj(v2)) {
-                vals = lextend(v2, ln);
+                size_t ln2;
+                if (ln > sizeof v2->u.val && v2->u.val != v2->data && ln > v2->u.s.max) {
+                    ln2 = ln + (ln < 1024 ? ln : 1024);
+                    if (ln2 < ln) ln2 = ln;
+                } else ln2 = ln;
+                vals = lextend(v2, ln2);
                 if (vals == NULL) goto failed;
                 memmove(vals + v1->len, v2->data, v2->len * sizeof *v2->data);
                 v2->len = ln;
@@ -578,18 +588,39 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
 
     if (v1->len == 0 || rep == 0) return val_reference((o1->obj == TUPLE_OBJ) ? null_tuple : null_list);
     do {
-        size_t i = 0, j, ln;
+        size_t i, sz, ln;
         if (rep == 1) {
             return val_reference(o1);
         }
-        if (v1->len > SIZE_MAX / rep) break; /* overflow */
-        v = List(val_alloc(o1->obj));
-        ln = v1->len * rep;
-        vals = lnew(v, ln);
-        if (vals == NULL) break;
-        while ((rep--) != 0) {
-            for (j = 0;j < v1->len; j++, i++) {
-                vals[i] = val_reference(v1->data[j]);
+        ln = v1->len;
+        if (ln > SIZE_MAX / rep) break; /* overflow */
+        sz = ln * rep;
+        if (op->inplace == Obj(v1)) {
+            vals = lextend(v1, sz);
+            if (vals == NULL) break;
+            v = ref_list(v1);
+            v->len = sz;
+            rep--;
+        } else {
+            v = List(val_alloc(o1->obj));
+            vals = lnew(v, sz);
+            if (vals == NULL) break;
+        }
+        if (ln == 1) {
+            for (i = 0; i < sz; i++) {
+                vals[i] = v1->data[0];
+            }
+            vals[0]->refcount += rep;
+        } else {
+            for (i = 0; i < ln; i++) {
+                vals[i] = v1->data[i];
+                vals[i]->refcount += rep;
+            }
+            while (sz > ln) {
+                size_t oln = ln;
+                if (ln > sz - ln) ln = sz - ln;
+                memcpy(vals + oln, vals, ln * sizeof *vals);
+                ln += oln;
             }
         }
         return Obj(v);
@@ -701,9 +732,9 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
 
         if (iter.len == 0) {
             iter_destroy(&iter);
-            return val_reference(null_list);
+            return val_reference((v1->v.obj == TUPLE_OBJ) ? null_tuple : null_list);
         }
-        v = List(val_alloc(LIST_OBJ));
+        v = List(val_alloc(v1->v.obj));
         vals = lnew(v, iter.len);
         if (vals == NULL) {
             iter_destroy(&iter);

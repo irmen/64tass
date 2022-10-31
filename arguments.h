@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2823 2022-10-19 20:16:33Z soci $
+    $Id: arguments.h 2880 2022-10-31 04:56:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,9 +37,11 @@ typedef enum Caret_types {
 struct output_s {
     const char *name;
     const char *section;
+    const char *mapname;
     Output_types mode;
     bool append;
     bool longaddr;
+    bool mapappend;
 };
 
 struct error_output_s {
@@ -63,6 +65,7 @@ struct list_output_s {
     bool source;
     bool linenum;
     bool verbose;
+    bool append;
 };
 
 struct cmdline_defines_s {

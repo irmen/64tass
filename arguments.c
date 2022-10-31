@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2823 2022-10-19 20:16:33Z soci $
+    $Id: arguments.c 2880 2022-10-31 04:56:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +46,8 @@ struct arguments_s arguments = {
         true,    /* monitor */
         true,    /* source */
         false,   /* linenum */
-        false    /* verbose */
+        false,   /* verbose */
+        false    /* append */
     },
     NULL,        /* make */
     {
@@ -338,7 +339,8 @@ enum {
     OUTPUT_SECTION, M4510, MW65C02, MR65C02, M65CE02, M65XX, NO_LONG_BRANCH,
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
     INTEL_HEX, APPLE_II, ATARI_XEX, MOS_HEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
-    OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND
+    OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND, MAP,
+    NO_MAP, MAP_APPEND, LIST_APPEND
 };
 
 static const struct my_option long_options[] = {
@@ -381,6 +383,9 @@ static const struct my_option long_options[] = {
     {"no-output"        , my_no_argument      , NULL,  NO_OUTPUT},
     {"output-append"    , my_required_argument, NULL,  OUTPUT_APPEND},
     {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
+    {"map"              , my_required_argument, NULL,  MAP},
+    {"no-map"           , my_no_argument      , NULL,  NO_MAP},
+    {"map-append"       , my_required_argument, NULL,  MAP_APPEND},
     {"error"            , my_required_argument, NULL, 'E'},
     {"no-error"         , my_no_argument      , NULL,  NO_ERROR},
     {"error-append"     , my_required_argument, NULL,  ERROR_APPEND},
@@ -391,6 +396,7 @@ static const struct my_option long_options[] = {
     {"dump-labels"      , my_no_argument      , NULL,  DUMP_LABELS},
     {"labels-root"      , my_required_argument, NULL,  LABELS_ROOT},
     {"list"             , my_required_argument, NULL, 'L'},
+    {"list-append"      , my_required_argument, NULL, LIST_APPEND},
     {"dependencies"     , my_required_argument, NULL, 'M'},
     {"no-make-phony"    , my_no_argument      , NULL,  NO_MAKE_PHONY},
     {"make-phony"       , my_no_argument      , NULL,  MAKE_PHONY},
@@ -471,7 +477,7 @@ static MUST_CHECK char *read_one(FILE *f) {
     return (char *)data;
 }
 
-static address_t get_all_mem2(void) {
+static address_t check_outputs(const char *defmap) {
     size_t i;
     bool tostdout = false;
     address_t min = 0xffffffff;
@@ -488,10 +494,29 @@ static address_t get_all_mem2(void) {
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
         }
+        if (tostdout) continue;
         if (output->name != NULL && dash_name(output->name)) tostdout = true;
+        if (output->mapname != NULL && dash_name(output->mapname)) tostdout = true;
+    }
+    if (arguments.list.name != NULL && dash_name(arguments.list.name)) tostdout = true;
+    if (arguments.make != NULL && dash_name(arguments.make)) tostdout = true;
+    if (!tostdout) {
+        for (i = 0; i < arguments.symbol_output_len; i++) {
+            struct symbol_output_s *symbol_output = &arguments.symbol_output[i];
+            if (dash_name(symbol_output->name)) {
+                tostdout = true;
+                break;
+            }
+        }
     }
     if (tostdout) arguments.quiet = false;
     else setvbuf(stdout, NULL, _IOLBF, 1024);
+    for (i = 0; i < arguments.output_len; i++) {
+        struct output_s *output = &arguments.output[i];
+        if (output->mapname != defmap) continue;
+        output->mapname = arguments.quiet ? "-" : NULL;
+        output->mapappend = false;
+    }
     return min;
 }
 
@@ -525,8 +550,10 @@ int testarg(int *argc2, char **argv2[]) {
     size_t defines_p = 0;
     int max = 10;
     bool again;
+    char defmap = 0;
     struct symbol_output_s symbol_output = { NULL, NULL, LABEL_64TASS, false };
-    struct output_s output = { "a.out", NULL, OUTPUT_CBM, false, false };
+    struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false };
+    output.mapname = &defmap;
 
     do {
         int i;
@@ -564,8 +591,12 @@ int testarg(int *argc2, char **argv2[]) {
                       extend_array(&arguments.output, &arguments.output_len, 1);
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;
+                      output.mapname = &defmap;
                       break;
             case OUTPUT_SECTION:output.section = my_optarg; break;
+            case MAP_APPEND:
+            case MAP: output.mapname = my_optarg; output.mapappend = (opt == MAP_APPEND); break;
+            case NO_MAP:output.mapname = NULL; break;
             case CARET_DIAG:arguments.error.caret = CARET_ALWAYS;break;
             case MACRO_CARET_DIAG:arguments.error.caret = CARET_MACRO;break;
             case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
@@ -609,7 +640,8 @@ int testarg(int *argc2, char **argv2[]) {
             case NO_ERROR: arguments.error.name = NULL; arguments.error.no_output = true; arguments.error.append = false; break;
             case ERROR_APPEND:
             case 'E': arguments.error.name = my_optarg; arguments.error.no_output = false; arguments.error.append = (opt == ERROR_APPEND); break;
-            case 'L': arguments.list.name = my_optarg;break;
+            case LIST_APPEND:
+            case 'L': arguments.list.name = my_optarg; arguments.list.append = (opt == LIST_APPEND); break;
             case 'M': arguments.make = my_optarg;break;
             case 'I': include_list_add(my_optarg);break;
             case 'm': arguments.list.monitor = false;break;
@@ -641,11 +673,12 @@ int testarg(int *argc2, char **argv2[]) {
                "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
                "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
                "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
-               "        [--vice-labels-numeric] [--dump-labels] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
-               "        [--dependencies=<file>] [--make-phony] [-W<option>] [--errors=<file>]\n"
-               "        [--output=<file>] [--output-append=<file>] [--no-output] [--help]\n"
-               "        [--usage] [--version] SOURCES");
+               "        [--vice-labels-numeric] [--dump-labels] [--list=<file>]\n"
+               "        [--list-append=<file>] [--no-monitor] [--no-source] [--line-numbers]\n"
+               "        [--tab-size=<value>] [--verbose-list] [--dependencies=<file>]\n"
+               "        [--make-phony] [-W<option>] [--errors=<file>] [--output=<file>]\n"
+               "        [--output-append=<file>] [--no-output] [--map=<file>]\n"
+               "        [--map-append=<file>] [--no-map] [--help] [--usage] [--version] SOURCES\n");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -716,6 +749,9 @@ int testarg(int *argc2, char **argv2[]) {
                "      --output-append=<f> Append output to <file>\n"
                "      --no-output        Do not create an output file\n"
                "      --output-section=<n> Output this section only\n"
+               "      --map=<f>          Place output map into <file>\n"
+               "      --map-append=<f>   Append output map to <file>\n"
+               "      --no-map           Do not create a map file\n"
                "  -b, --nostart          Strip starting address\n"
                "  -f, --flat             Generate flat output file\n"
                "  -n, --nonlinear        Generate nonlinear output file\n"
@@ -749,6 +785,7 @@ int testarg(int *argc2, char **argv2[]) {
                "      --dump-labels      Dump for debugging\n"
                "      --labels-root=<l>  List from scope <l> only\n"
                "  -L, --list=<file>      List into <file>\n"
+               "      --list-append=<f>  Append list to <file>\n"
                "  -m, --no-monitor       Don't put monitor code into listing\n"
                "  -s, --no-source        Don't put source code into listing\n"
                "      --line-numbers     Put line numbers into listing\n"
@@ -824,12 +861,15 @@ int testarg(int *argc2, char **argv2[]) {
         arguments.output[0] = output;
         arguments.output_len = 1;
     } else {
-        arguments.output[arguments.output_len - 1].mode = output.mode;
-        if (output.section != NULL) arguments.output[arguments.output_len - 1].section = NULL;
-        arguments.output[arguments.output_len - 1].longaddr = output.longaddr;
+        struct output_s *lastoutput = &arguments.output[arguments.output_len - 1];
+        lastoutput->mode = output.mode;
+        if (output.section != NULL) lastoutput->section = output.section;
+        lastoutput->longaddr = output.longaddr;
+        if (output.mapname != &defmap) lastoutput->mapname = output.mapname;
+        lastoutput->mapappend = output.mapappend;
     }
 
-    all_mem2 = get_all_mem2();
+    all_mem2 = check_outputs(&defmap);
     if (arguments.caseinsensitive == 0) {
         diagnostics.case_symbol = false;
     }

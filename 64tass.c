@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2833 2022-10-22 10:01:11Z soci $
+    $Id: 64tass.c 2880 2022-10-31 04:56:55Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -800,7 +800,6 @@ static void byterecursion_gaps(struct byterecursion_s *brec) {
 
 static void byterecursion(struct byterecursion_s *brec, Obj *val) {
     struct iter_s iter;
-    Obj *val2;
     uint32_t ch2;
     uval_t uv;
     ival_t iv;
@@ -814,16 +813,15 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
         }
         iter.data = NULL;
         if (type == NONE_OBJ) goto donone;
-        val2 = val;
         goto doit;
     }
     iter.data = val; type->getiter(&iter);
-    while ((val2 = iter.next(&iter)) != NULL) {
-        if (val2->obj->iterable) {
-            byterecursion(brec, val2);
+    while ((val = iter.next(&iter)) != NULL) {
+        if (val->obj->iterable) {
+            byterecursion(brec, val);
             continue;
         }
-        switch (val2->obj->type) {
+        switch (val->obj->type) {
         case T_GAP:
             if (brec->p > 0) byterecursion_flush(brec);
             brec->gaps += (unsigned int)abs(brec->bits) / 8;
@@ -831,15 +829,15 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
         default:
         doit:
             if (brec->prm == CMD_RTA || brec->prm == CMD_ADDR) {
-                atype_t am = val2->obj->address(val2);
-                if (touaddress(val2, &uv, (am == A_KR) ? 16 : all_mem_bits, brec->epoint)) {
+                atype_t am = val->obj->address(val);
+                if (touaddress(val, &uv, (am == A_KR) ? 16 : all_mem_bits, brec->epoint)) {
                     ch2 = 0;
                     break;
                 }
                 uv &= all_mem;
                 switch (am) {
                 case A_NONE:
-                    if ((current_address->l_address ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val2, brec->epoint);
+                    if ((current_address->l_address ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, val, brec->epoint);
                     break;
                 case A_KR:
                     break;
@@ -850,12 +848,12 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
                 break;
             }
             if (brec->bits >= 0) {
-                if (touval(val2, &uv, (unsigned int)brec->bits, brec->epoint)) {
+                if (touval(val, &uv, (unsigned int)brec->bits, brec->epoint)) {
                     if (diagnostics.pitfalls) {
                         static unsigned int once;
-                        if (brec->prm == CMD_BYTE && val2->obj == STR_OBJ) err_msg_byte_note(brec->epoint2);
+                        if (brec->prm == CMD_BYTE && val->obj == STR_OBJ) err_msg_byte_note(brec->epoint2);
                         else if (brec->prm != CMD_RTA && brec->prm != CMD_ADDR && once != pass) {
-                            Error *err = val2->obj->ival(val2, &iv, (unsigned int)brec->bits, brec->epoint2);
+                            Error *err = val->obj->ival(val, &iv, (unsigned int)brec->bits, brec->epoint2);
                             if (err != NULL) val_destroy(Obj(err));
                             else {
                                 const char *txt;
@@ -875,7 +873,7 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
                 }
                 ch2 = uv;
             } else {
-                if (toival(val2, &iv, (unsigned int)-brec->bits, brec->epoint)) iv = 0;
+                if (toival(val, &iv, (unsigned int)-brec->bits, brec->epoint)) iv = 0;
                 ch2 = (uint32_t)iv;
             }
             break;
@@ -1054,6 +1052,7 @@ static const char *check_waitfor(void) {
     case W_ENDS3:
     case W_ENDSEGMENT2:
     case W_ENDMACRO2:
+    case W_ENDF2:
     case W_ENDF3:
     case W_ENDFOR2:
     case W_ENDREPT2:
@@ -1089,6 +1088,7 @@ static bool section_start(linepos_t epoint) {
         val_destroy(Obj(tmp->address.mem));
         tmp->address.mem = new_memblocks(ln, ln2);
         tmp->address.mem->lastaddr = tmp->address.address;
+        tmp->address.mem->section = tmp;
         if (diagnostics.optimize) cpu_opt_invalidate();
     } else if (tmp->usepass != pass) {
         address_t ln = tmp->address.mem->mem.p;
@@ -1106,6 +1106,7 @@ static bool section_start(linepos_t epoint) {
         val_destroy(Obj(tmp->address.mem));
         tmp->address.mem = new_memblocks(ln, ln2);
         tmp->address.mem->lastaddr = tmp->address.address;
+        tmp->address.mem->section = tmp;
         if (diagnostics.optimize) cpu_opt_invalidate();
     }
     tmp->usepass = pass;
@@ -3331,7 +3332,7 @@ MUST_CHECK Obj *compile(void)
                     }
                     close_waitfor(W_ENDF);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(epoint.pos);
-                } else if (waitfor->what==W_ENDF3) { /* not closed here */
+                } else if (waitfor->what==W_ENDF2 || waitfor->what==W_ENDF3) { /* not closed here */
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -4386,12 +4387,15 @@ MUST_CHECK Obj *compile(void)
                             }
                         }
                     }
-                    while ((wp--) != 0) {
-                        switch (waitfors[wp].what) {
+                    while (wp != 0) {
+                        switch (waitfors[--wp].what) {
                         case W_ENDFOR2:
                         case W_ENDREPT2:
                         case W_ENDWHILE2:
                             break;
+                        case W_ENDF3:
+                            wp = 0;
+                            continue;
                         default:
                             continue;
                         }
@@ -4609,6 +4613,7 @@ MUST_CHECK Obj *compile(void)
                             val_destroy(Obj(tmp3->address.mem));
                             tmp3->address.mem = new_memblocks(ln, ln2);
                             tmp3->address.mem->lastaddr = tmp3->address.address;
+                            tmp3->address.mem->section = tmp3;
                             if (diagnostics.optimize) cpu_opt_invalidate();
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
@@ -4663,14 +4668,15 @@ MUST_CHECK Obj *compile(void)
                             val_destroy(Obj(tmp3->address.mem));
                             tmp3->address.mem = new_memblocks(ln, ln2);
                             tmp3->address.mem->lastaddr = tmp3->address.address;
+                            tmp3->address.mem->section = tmp3;
                             if (diagnostics.optimize) cpu_opt_invalidate();
                         }
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
+                        memref(current_address->mem, tmp3->address.mem, current_address->address, t);
                         if (t != 0) {
                             memskip(t, &epoint);
                         }
-                        memref(current_address->mem, tmp3->address.mem);
                     }
                 }
                 break;
@@ -4912,7 +4918,7 @@ static void one_pass(int argc, char **argv, int opts) {
     }
     ref_labels();
     if (fwcount != 0 || efwcount != 0) fixeddig = false;
-    if (fixeddig) section_sizecheck();
+    if (fixeddig && root_section.members.root != NULL) section_sizecheck(root_section.members.root);
     /*garbage_collect();*/
 }
 
@@ -4958,7 +4964,7 @@ int main2(int *argc2, char **argv2[]) {
             nolisting = 0;
 
             max_pass = pass; pass++;
-            listing_open(arguments.list.name, argc, argv);
+            listing_open(&arguments.list, argc, argv);
             one_pass(argc, argv, opts);
             listing_close();
 
@@ -4973,21 +4979,38 @@ int main2(int *argc2, char **argv2[]) {
         failed = error_serious();
     }
     if (!failed) {
+        memclose(root_section.address.mem);
         for (j = 0; j < arguments.output_len; j++) {
             const struct output_s *output = &arguments.output[j];
-            struct section_s *section = find_this_section(output->section);
+            struct section_s *section, *parent;
+            section = find_this_section(output->section);
             if (section == NULL) {
                 str_t sectionname;
                 sectionname.data = pline;
                 sectionname.len = lpoint.pos;
                 err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
-            } else if (j == arguments.output_len - 1) { 
-                output_mem(section->address.mem, output);
-            } else {
-                Memblocks *tmp = copy_memblocks(section->address.mem);
-                output_mem(tmp, output);
-                val_destroy(Obj(tmp));
+                continue;
+            } 
+            if (arguments.quiet && output->name != NULL) {
+                fputs("Output file:       ", stdout);
+                argv_print(output->name, stdout);
+                putc('\n', stdout);
             }
+            parent = section->parent;
+            section->parent = NULL;
+            memorymapfile(section->address.mem, output);
+            if (output->name != NULL) {
+                if (j == arguments.output_len - 1) {
+                    output_mem(section->address.mem, output);
+                } else {
+                    Memblocks *tmp = section->address.mem;
+                    section->address.mem = copy_memblocks(tmp);
+                    output_mem(tmp, output);
+                    val_destroy(Obj(section->address.mem));
+                    section->address.mem = tmp;
+                }
+            }
+            section->parent = parent;
         }
         failed = error_serious();
     }
@@ -4995,8 +5018,7 @@ int main2(int *argc2, char **argv2[]) {
     error_print(&arguments.error);
     if (arguments.quiet) {
         error_status();
-        printf("Passes:            %u\n",pass);
-        if (!failed) sectionprint(stdout);
+        printf("Passes:            %u\n", pass);
         fflush(stdout);
     }
     compile_destroy();

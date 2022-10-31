@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2818 2022-10-19 04:29:28Z soci $
+    $Id: strobj.c 2843 2022-10-23 07:42:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -165,10 +165,10 @@ static uint8_t *extend_str(Str *v, size_t ln) {
         return v->u.val;
     }
     if (v->u.val != v->data) {
-        size_t ln2;
-        if (ln <= v->u.s.max) return v->data;
-        ln2 = ln + (ln < 1024 ? ln : 1024);
-        if (ln2 > ln) ln = ln2;
+        if (ln <= v->u.s.max) {
+            v->u.s.hash = -1;
+            return v->data;
+        }
         tmp = reallocate_array(v->data, ln);
         if (tmp != NULL) {
             v->data = tmp;
@@ -370,6 +370,12 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, linecpos_t *ln, linepos_t epoint)
     *ln = i;
     j = (i > 1) ? (i - 2) : 0;
     if (j == r) return val_reference(null_str);
+    if (j - r == 1) {
+        v = new_str(1);
+        v->chars = 1;
+        v->data[0] = s[1];
+        return Obj(v);
+    }
     v = new_str2(j - r);
     if (v == NULL) return new_error_mem(epoint);
     v->chars = i2;
@@ -526,28 +532,43 @@ static MUST_CHECK Obj *calc2_str(oper_t op) {
             if (add_overflow(v1->len, v2->len, &ln)) break;
 
             if (op->inplace == Obj(v1)) {
-                s = extend_str(v1, ln);
+                size_t ln2;
+                if (ln > sizeof v1->u.val && v1->u.val != v1->data && ln > v1->u.s.max) {
+                    ln2 = ln + (ln < 1024 ? ln : 1024);
+                    if (ln2 < ln) ln2 = ln;
+                } else ln2 = ln;
+                s = extend_str(v1, ln2);
                 if (s == NULL) break;
-                memcpy(s + v1->len, v2->data, v2->len);
+                s += v1->len;
                 v1->len = ln;
                 v1->chars += v2->chars;
-                return val_reference(Obj(v1));
-            }
-            if (op->inplace == Obj(v2)) {
-                s = extend_str(v2, ln);
+                v = ref_str(v1);
+            } else if (op->inplace == Obj(v2)) {
+                size_t ln2;
+                if (ln > sizeof v2->u.val && v2->u.val != v2->data && ln > v2->u.s.max) {
+                    ln2 = ln + (ln < 1024 ? ln : 1024);
+                    if (ln2 < ln) ln2 = ln;
+                } else ln2 = ln;
+                s = extend_str(v2, ln2);
                 if (s == NULL) break;
                 memmove(s + v1->len, v2->data, v2->len);
                 memcpy(s, v1->data, v1->len);
                 v2->len = ln;
                 v2->chars += v1->chars;
                 return val_reference(Obj(v2));
+            } else {
+                v = new_str2(ln);
+                if (v == NULL) break;
+                v->chars = v1->chars + v2->chars;
+                s = v->data;
+                memcpy(s, v1->data, v1->len);
+                s += v1->len;
             }
-            v = new_str2(ln);
-            if (v == NULL) break;
-            v->chars = v1->chars + v2->chars;
-            s = v->data;
-            memcpy(s, v1->data, v1->len);
-            memcpy(s + v1->len, v2->data, v2->len);
+            if (v2->len == 1) {
+                s[0] = v2->data[0];
+            } else {
+                memcpy(s, v2->data, v2->len);
+            }
             return Obj(v);
         } while (false);
         return new_error_mem(op->epoint3);
@@ -566,20 +587,32 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
 
     if (v1->len == 0 || rep == 0) return val_reference(null_str);
     do {
-        uint8_t *s;
-        size_t ln;
+        size_t ln, sz;
         if (rep == 1) {
             return Obj(ref_str(v1));
         }
         ln = v1->len;
         if (ln > SIZE_MAX / rep) break; /* overflow */
-        v = new_str2(ln * rep);
-        if (v == NULL) break;
+        sz = ln * rep;
+        if (op->inplace == Obj(v1)) {
+            if (extend_str(v1, sz) == NULL) break;
+            v = ref_str(v1);
+            v->len = sz;
+        } else {
+            v = new_str2(sz);
+            if (v == NULL) break;
+        }
         v->chars = v1->chars * rep;
-        s = v->data;
-        while ((rep--) != 0) {
-            memcpy(s, v1->data, ln);
-            s += ln;
+        if (ln == 1) {
+            memset(v->data, v1->data[0], sz);
+        } else {
+            if (v->data != v1->data) memcpy(v->data, v1->data, ln);
+            while (sz > ln) {
+                size_t oln = ln;
+                if (ln > sz - ln) ln = sz - ln;
+                memcpy(v->data + oln, v->data, ln);
+                ln += oln;
+            }
         }
         return Obj(v);
     } while (false);

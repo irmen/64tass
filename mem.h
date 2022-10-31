@@ -1,5 +1,5 @@
 /*
-    $Id: mem.h 2523 2021-03-14 20:58:12Z soci $
+    $Id: mem.h 2853 2022-10-25 06:30:43Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,9 +18,7 @@
 */
 #ifndef MEM_H
 #define MEM_H
-#include <stdio.h>
 #include "attributes.h"
-#include "stdbool.h"
 #include "inttypes.h"
 
 struct Memblocks;
@@ -35,9 +33,9 @@ struct mem_mark_s {
 extern void mark_mem(struct mem_mark_s *, const struct Memblocks *, address_t, address_t);
 extern void write_mark_mem(const struct mem_mark_s *, struct Memblocks *, unsigned int);
 extern void list_mem(const struct mem_mark_s *, const struct Memblocks *);
+extern void memclose(struct Memblocks *);
 extern void memjmp(struct Memblocks *, address_t);
-extern void memref(struct Memblocks *, struct Memblocks *);
-extern void memprint(struct Memblocks *, FILE *);
+extern void memref(struct Memblocks *, struct Memblocks *, address_t, address_t);
 extern void output_mem(struct Memblocks *, const struct output_s *);
 extern FAST_CALL uint8_t *alloc_mem(struct Memblocks *, address_t);
 extern int read_mem(const struct Memblocks *, address_t, size_t, address_t);

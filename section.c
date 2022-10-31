@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2708 2021-09-18 18:12:25Z soci $
+    $Id: section.c 2855 2022-10-25 06:56:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,14 +25,12 @@
 #include "longjump.h"
 #include "optimizer.h"
 #include "eval.h"
-#include "mem.h"
 
 #include "memblocksobj.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
 struct section_address_s *current_address = &root_section.address;
-static struct section_s *prev_section;
 
 static FAST_CALL int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
@@ -106,11 +104,9 @@ struct section_s *new_section(const str_t *name) {
         lastsc->address.moved = false;
         lastsc->address.wrapwarn = false;
         lastsc->address.bankwarn = false;
-        lastsc->next = NULL;
         lastsc->optimizer = NULL;
-        prev_section->next = lastsc;
-        prev_section = lastsc;
         lastsc->address.mem = new_memblocks(0, 0);
+        lastsc->address.mem->section = lastsc;
         avltree_init(&lastsc->members);
         avltree_init(&lastsc->longjump);
         tmp = lastsc;
@@ -160,13 +156,11 @@ void init_section(void) {
     root_section.name.len = 0;
     root_section.cfname.data = NULL;
     root_section.cfname.len = 0;
-    root_section.next = NULL;
     root_section.optimizer = NULL;
     root_section.address.mem = new_memblocks(0, 0);
     root_section.address.l_address_val = val_reference(int_value[0]);
     avltree_init(&root_section.members);
     avltree_init(&root_section.longjump);
-    prev_section = &root_section;
 }
 
 void destroy_section(void) {
@@ -180,57 +174,28 @@ void destroy_section(void) {
     root_section.optimizer = NULL;
 }
 
-static void sectionprint2(const struct section_s *l, FILE *f) {
-    if (l->name.data != NULL) {
-        sectionprint2(l->parent, f);
-        printable_print2(l->name.data, f, l->name.len);
-        putc('.', f);
-    }
-}
-
-static void printrange(const struct section_s *l, FILE *f) {
-    char temp[10], temp2[10], temp3[10];
-    sprintf(temp, "$%04" PRIaddress, l->address.start);
-    temp2[0] = 0;
-    if (l->size != 0) {
-        sprintf(temp2, "-$%04" PRIaddress, l->address.start + l->size - 1U);
-    }
-    sprintf(temp3, "$%04" PRIaddress, l->size);
-    fprintf(f, "Section: %15s%-8s %-7s", temp, temp2, temp3);
-}
-
-void sectionprint(FILE *f) {
-    struct section_s *l = &root_section;
-
-    if (l->size != 0) {
-        printrange(l, f);
-        putc('\n', f);
-    }
-    memprint(l->address.mem, f);
-    l = root_section.next;
-    while (l != NULL) {
-        if (l->defpass == pass) {
-            printrange(l, f);
-            putc(' ', f);
-            sectionprint2(l->parent, f);
-            printable_print2(l->name.data, f, l->name.len);
-            putc('\n', f);
-            memprint(l->address.mem, f);
-        }
-        l = l->next;
-    }
-}
-
-void section_sizecheck(void) {
-    struct section_s *l = root_section.next;
-    while (l != NULL) {
+void section_sizecheck(const struct avltree_node *b) {
+    do {
+        const struct section_s *l = cavltree_container_of(b, struct section_s, node);
         if (l->defpass == pass) {
             if (l->size != ((!l->address.moved && l->address.end < l->address.address) ? l->address.address : l->address.end) - l->address.start) {
                 if (pass > max_pass) err_msg_cant_calculate2(&l->name, l->file_list, &l->epoint);
                 fixeddig = false;
                 return;
             }
+            if (l->members.root != NULL) {
+                section_sizecheck(l->members.root);
+                if (!fixeddig) return;
+            }
         }
-        l = l->next;
-    }
+        if (b->left != NULL) {
+            if (b->right == NULL) {
+                b = b->left;
+                continue;
+            }
+            section_sizecheck(b->left);
+            if (!fixeddig) return;
+        } 
+        b = b->right;
+    } while (b != NULL);
 }

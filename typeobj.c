@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: typeobj.c 2884 2022-10-31 13:29:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (v1->iterable || v1 == TYPE_OBJ) {
                 return v1->convert(op);
             }
-            return apply_convert(op);
+            return apply_function(op, v1->convert);
         }
         break;
     case T_NONE:

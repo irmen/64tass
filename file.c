@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2834 2022-10-22 10:23:14Z soci $
+    $Id: file.c 2882 2022-10-31 07:43:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <locale.h>
 #include <windows.h>
 #endif
-#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
+#if defined _POSIX_C_SOURCE || defined __unix__
 #include <sys/stat.h>
 #endif
 #include "64tass.h"
@@ -307,12 +307,17 @@ static inline unichar_t fromiso(unichar_t c) {
 }
 
 static filesize_t fsize(FILE *f) {
-#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
+#if defined _POSIX_C_SOURCE || defined __unix__
     struct stat st;
     if (fstat(fileno(f), &st) == 0) {
         if (S_ISREG(st.st_mode) && st.st_size > 0) {
             return (st.st_size & ~(off_t)~(filesize_t)0) == 0 ? (filesize_t)st.st_size : ~(filesize_t)0;
         }
+    }
+#elif defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+    long len = filelength(fileno(f));
+    if (len > 0) {
+        return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
     }
 #else
     if (fseek(f, 0, SEEK_END) == 0) {
@@ -739,7 +744,7 @@ struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, Fil
                 if (file2->err_no == 0 && !(file2->binary.read || (ftype != FILE_OPEN_BINARY && file2->source.read))) {
                     f = file_fopen(file2);
                     if (f == NULL) {
-                        if (file2->err_no == ENOENT || errno == ENOTDIR) continue;
+                        if (file2->err_no == ENOENT || file2->err_no == ENOTDIR) continue;
                     }
                 }
                 file = file2;

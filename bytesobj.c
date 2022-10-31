@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2807 2022-10-17 03:58:02Z soci $
+    $Id: bytesobj.c 2843 2022-10-23 07:42:59Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -996,6 +996,24 @@ static MUST_CHECK Obj *concat(oper_t op) {
         s = extend_bytes(v1, ln2);
         if (s == NULL) goto failed;
         v = ref_bytes(v1);
+    } else if (op->inplace == Obj(v2)) {
+        size_t ln2;
+        bool inv = (v2->len ^ v1->len) < 0;
+        if (ln > sizeof v2->u.val && v2->u.val != v2->data && ln > v2->u.s.max) {
+            ln2 = ln + (ln < 1024 ? ln : 1024);
+            if (ln2 < ln) ln2 = ln;
+        } else ln2 = ln;
+        s = extend_bytes(v2, ln2);
+        if (s == NULL) goto failed;
+        if (inv) {
+            for (i = len2; i != 0;) {
+                i--;
+                s[i + len1] = (uint8_t)~v2->data[i];
+            }
+        } else memmove(s + len1, v2->data, len2);
+        memcpy(s, v1->data, len1);
+        v2->len = (ssize_t)(v1->len < 0 ? ~ln : ln);
+        return val_reference(Obj(v2));
     } else {
         v = new_bytes2(ln);
         if (v == NULL) goto failed;
@@ -1004,7 +1022,11 @@ static MUST_CHECK Obj *concat(oper_t op) {
     }
     if ((v2->len ^ v1->len) < 0) {
         for (i = 0; i < len2; i++) s[i + len1] = (uint8_t)~v2->data[i];
-    } else memcpy(s + len1, v2->data, len2);
+    } else if (len2 == 1) {
+        s[len1] = v2->data[0];
+    } else {
+        memcpy(s + len1, v2->data, len2);
+    }
     v->len = (ssize_t)(v1->len < 0 ? ~ln : ln);
     return Obj(v);
 failed:
@@ -1140,20 +1162,31 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
 
     if (len1 == 0 || rep == 0) return val_reference((v1->len < 0) ? inv_bytes : null_bytes);
     do {
-        uint8_t *s;
+        size_t sz;
         if (rep == 1) {
             return Obj(ref_bytes(v1));
         }
         if (len1 > SSIZE_MAX / rep) break; /* overflow */
-        v = new_bytes2(len1 * rep);
-        if (v == NULL) break;
-        s = v->data;
-        v->len = 0;
-        while ((rep--) != 0) {
-            memcpy(s + v->len, v1->data, len1);
-            v->len += (ssize_t)len1;
+        sz = len1 * rep;
+        if (op->inplace == Obj(v1)) {
+            if (extend_bytes(v1, sz) == NULL) break;
+            v = ref_bytes(v1);
+        } else {
+            v = new_bytes2(sz);
+            if (v == NULL) break;
         }
-        if (v1->len < 0) v->len = ~v->len;
+        v->len = (ssize_t)(v1->len < 0 ? ~sz : sz);
+        if (len1 == 1) {
+            memset(v->data, v1->data[0], sz);
+        } else {
+            if (v->data != v1->data) memcpy(v->data, v1->data, len1);
+            while (sz > len1) {
+                size_t oln = len1;
+                if (len1 > sz - len1) len1 = sz - len1;
+                memcpy(v->data + oln, v->data, len1);
+                len1 += oln;
+            }
+        }
         return Obj(v);
     } while (false);
     return new_error_mem(op->epoint3);

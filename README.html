@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2823 2022-10-19 20:16:33Z soci $ -->
+<!-- $Id: README.html 2880 2022-10-31 04:56:55Z soci $ -->
 <head>
 <title>64tass v1.56 r2625 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -3431,9 +3431,9 @@ different formats of a single compilation.</p>
 
 <p>For multiple outputs the format options and output section selection must be
 placed before this option. The format selection will be unchanged if no new
-selection was made but the output section selection must be repeated for each
-output. The maximum image size will be the smallest of all selected
-formats. Using the same name multiple times is not a good idea.</p>
+selection was made but the output section selection and the map file must be
+repeated for each output. The maximum image size will be the smallest of all
+selected formats. Using the same name multiple times is not a good idea.</p>
 
 <dt><b>--output-append</b> &lt;filename&gt;<a name="o_output-append" href="#o_output-append"></a>
 <dd>Same as the --output option but appends instead of overwrites.
@@ -3444,6 +3444,19 @@ formats. Using the same name multiple times is not a good idea.</p>
 <dd>No output file will be written.
 
 <p>Useful for test compiles.</p>
+
+<dt><b>--map</b> &lt;file&gt;<a name="o_map" href="#o_map"></a>
+<dd>Specify memory map output file.
+
+<p>Normally the memory map is displayed on the standard output together with
+other messages. It's possible to write it to a file or to the standard output
+by using <q>-</q> as the file name.</p>
+
+<dt><b>--map-append</b> &lt;filename&gt;<a name="o_map-append" href="#o_map-append"></a>
+<dd>Same as the --map option but appends instead of overwrites.
+
+<dt><b>--no-map</b><a name="o_no_map" href="#o_no_map"></a>
+<dd>Do not display or record the memory map.
 
 <dt><b>--output-section</b> &lt;sectionname&gt;<a name="o_output-section" href="#o_output-section"></a>
 <dd>By default all sections go into the output file. Using this option
@@ -4389,6 +4402,9 @@ the source files.
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  End of listing
 </pre>
 
+<dt><b>--list-append</b>=&lt;file&gt;<a name="o_list-append" href="#o_list-append"></a>
+<dd>Same as the --list option but appends instead of overwrites.
+
 <dt><b>-m</b>, <b>--no-monitor</b><a name="o_no-monitor" href="#o_no-monitor"></a>
 <dd>Don't put monitor code into listing. There won't be any monitor listing in the list file.
 
@@ -4696,11 +4712,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 
 <dl class="errorlist">
 <dt>can't open file<dd>cannot open file
-<dt>can't write error file<dd>cannot write the error file
-<dt>can't write label file<dd>cannot write the label file
-<dt>can't write listing file<dd>cannot write the list file
-<dt>can't write make file<dd>cannot write the make rule file
-<dt>can't write object file<dd>cannot write the result
+<dt>can't write ? file '?'<dd>cannot write an output file
 <dt>compilation was interrupted<dd>shows the line where the interruption happened
 <dt>error reading file<dd>error while reading
 <dt>file recursion<dd>wrong nesting of .include

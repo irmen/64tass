@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2834 2022-10-22 10:23:14Z soci $
+    $Id: listing.c 2866 2022-10-26 18:38:53Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,16 +140,16 @@ static void out_txt(Listing *ls, const char *s) {
 
 static Listing *listing;
 
-void listing_open(const char *filename, int argc, char *argv[]) {
+void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
     static Listing listing2;
     Listing *ls;
     time_t t;
     int i;
     FILE *flist;
 
-    flist = dash_name(filename) ? stdout : fopen_utf8(filename, "wt");
+    flist = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
     if (flist == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_LST, filename);
+        err_msg_file2(ERROR_CANT_WRTE_LST, output->name);
         listing = NULL;
         return;
     }
@@ -158,7 +158,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     ls = &listing2;
 
     memcpy(ls->hex, "0123456789abcdef", 16);
-    ls->filename = filename;
+    ls->filename = output->name;
     ls->flist = flist;
     ls->linenum = arguments.list.linenum;
     ls->pccolumn = listing_pccolumn;
@@ -174,7 +174,8 @@ void listing_open(const char *filename, int argc, char *argv[]) {
     ls->lastfile = 0;
     ls->s = ls->buf;
 
-    fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
+    if (!output->append) fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file", flist);
+    fputs("\n;", flist);
     for (i = 0; i < argc; i++) {
         putc(' ', flist);
         argv_print(argv[i], flist);
