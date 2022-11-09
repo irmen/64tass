@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2882 2022-10-31 07:43:05Z soci $
+    $Id: file.c 2898 2022-11-05 08:08:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -239,6 +239,12 @@ static void file_free_static(struct file_s *a)
     free(a->binary.data);
     free(a->line);
     free(a->nomacro);
+    a->source.data = NULL;
+    a->source.read = false;
+    a->binary.data = NULL;
+    a->binary.read = false;
+    a->line = NULL;
+    a->nomacro = NULL;
 }
 
 static void file_free(struct file_s *a)
@@ -299,11 +305,11 @@ static unichar_t fromiso2(unichar_t c) {
     return (unichar_t)w;
 }
 
+static unichar_t fromiso_conv[128];
 static inline unichar_t fromiso(unichar_t c) {
-    static unichar_t conv[128];
     c &= 0x7f;
-    if (conv[c] == 0) conv[c] = fromiso2(c);
-    return conv[c];
+    if (fromiso_conv[c] == 0) fromiso_conv[c] = fromiso2(c);
+    return fromiso_conv[c];
 }
 
 static filesize_t fsize(FILE *f) {
@@ -902,6 +908,7 @@ void init_file(void) {
     last_ubuff.len = 16;
     lastfi = NULL;
     avltree_init(&star_root.tree);
+    memset(fromiso_conv, 0, sizeof fromiso_conv);
 }
 
 static size_t wrap_print(const char *txt, FILE *f, size_t len) {

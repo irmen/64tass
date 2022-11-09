@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: values.c 2898 2022-11-05 08:08:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ typedef struct Slotcoll {
     struct Slotcoll *next;
 } Slotcoll;
 
-static Slotcoll *slotcoll[32];
+static Slotcoll *slotcoll[MAXIMUM_TYPE_LENGTH];
 
 static void value_free(Obj *val) {
     Slot *slot = (Slot *)val, **c = val->obj->slot;
@@ -187,10 +187,12 @@ void destroy_values(void)
 
     for (j = 0; j < lenof(slotcoll); j++) {
         Slotcoll *s = slotcoll[j];
-        while (s != NULL) {
+        if (s == NULL) continue;
+        slotcoll[j] = NULL;
+        do {
             Slotcoll *old = s;
             s = s->next;
             free(old);
-        }
+        } while (s != NULL);
     }
 }

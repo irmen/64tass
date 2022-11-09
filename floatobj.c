@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2761 2021-10-16 08:27:15Z soci $
+    $Id: floatobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -435,6 +435,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static Float pi_value = { { &obj, 2 }, M_PI };
+
 void floatobj_init(void) {
     Type *type = new_type(&obj, T_FLOAT, "float", sizeof(Float));
     type->convert = convert;
@@ -452,9 +454,8 @@ void floatobj_init(void) {
     type->calc1 = calc1;
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
+    pi_value.v.refcount = 2;
 }
-
-static Float pi_value = { { &obj, 2 }, M_PI };
 
 void floatobj_names(void) {
     new_builtin("float", val_reference(Obj(FLOAT_OBJ)));

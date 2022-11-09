@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2880 2022-10-31 04:56:55Z soci $
+    $Id: 64tass.c 2898 2022-11-05 08:08:41Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -88,6 +88,7 @@ bool fixeddig, constcreated;
 uint32_t outputeor = 0; /* EOR value for final output (usually 0, unless changed by .eor) */
 bool referenceit = true;
 const struct cpu_s *current_cpu;
+static unsigned int err_msg_char_note_once;
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
@@ -168,6 +169,9 @@ static struct waitfor_s {
             Label *label;
             size_t membp;
         } cmd_if;
+        struct {
+            Enc *enc;
+        } cmd_encode;
     } u;
 } *waitfors, *waitfor;
 
@@ -212,10 +216,12 @@ static const char *const command[] = { /* must be sorted, first char is the ID *
     "\x15" "else",
     "\x17" "elsif",
     "\x2c" "enc",
+    "\x6f" "encode",
     "\x3f" "end",
     "\x3a" "endblock",
     "\x1c" "endc",
     "\x1c" "endcomment",
+    "\x70" "endencode",
     "\x52" "endf",
     "\x6c" "endfor",
     "\x52" "endfunction",
@@ -286,6 +292,7 @@ static const char *const command[] = { /* must be sorted, first char is the ID *
     "\x09" "sint",
     "\x45" "struct",
     "\x53" "switch",
+    "\x71" "tdef",
     "\x00" "text",
     "\x48" "union",
     "\x42" "var",
@@ -317,17 +324,26 @@ typedef enum Command_types {
     CMD_MANSIZ, CMD_SEED, CMD_NAMESPACE, CMD_ENDN, CMD_VIRTUAL, CMD_ENDV,
     CMD_BREPT, CMD_BFOR, CMD_WHILE, CMD_BWHILE, CMD_BREAKIF, CMD_CONTINUEIF,
     CMD_WITH, CMD_ENDWITH, CMD_ENDMACRO, CMD_ENDSEGMENT, CMD_ENDFOR,
-    CMD_ENDREPT, CMD_ENDWHILE
+    CMD_ENDREPT, CMD_ENDWHILE, CMD_ENCODE, CMD_ENDENCODE, CMD_TDEF 
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
 static void compile_init(const char *name) {
     err_init(name);
+    init_type();
     objects_init();
     init_section();
     init_file();
     init_variables();
     init_eval();
+    init_ternary();
+    init_opt_bit();
+    waitfors = NULL;
+    waitfor_p = 0;
+    waitfor_len = 0;
+    pass = 0;
+    err_msg_char_note_once = 0;
+    max_pass = MAX_PASS;
 }
 
 static void compile_destroy(void) {
@@ -850,9 +866,8 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
             if (brec->bits >= 0) {
                 if (touval(val, &uv, (unsigned int)brec->bits, brec->epoint)) {
                     if (diagnostics.pitfalls) {
-                        static unsigned int once;
                         if (brec->prm == CMD_BYTE && val->obj == STR_OBJ) err_msg_byte_note(brec->epoint2);
-                        else if (brec->prm != CMD_RTA && brec->prm != CMD_ADDR && once != pass) {
+                        else if (brec->prm != CMD_RTA && brec->prm != CMD_ADDR && err_msg_char_note_once != pass) {
                             Error *err = val->obj->ival(val, &iv, (unsigned int)brec->bits, brec->epoint2);
                             if (err != NULL) val_destroy(Obj(err));
                             else {
@@ -865,7 +880,7 @@ static void byterecursion(struct byterecursion_s *brec, Obj *val) {
                                 case CMD_WORD:  txt = ".sint"; break;
                                 }
                                 err_msg_char_note(txt, brec->epoint2);
-                                once = pass;
+                                err_msg_char_note_once = pass;
                             }
                         }
                     }
@@ -966,6 +981,11 @@ static void union_close(linepos_t epoint) {
     }
 }
 
+static void encode_close(void) {
+    val_destroy(Obj(actual_encoding));
+    actual_encoding = waitfor->u.cmd_encode.enc;
+}
+
 static const char *check_waitfor(void) {
     switch (waitfor->what) {
     case W_FI2:
@@ -1027,6 +1047,10 @@ static const char *check_waitfor(void) {
     case W_ENDWITH:
         if (waitfor->u.cmd_with.label != NULL) {set_size(waitfor->u.cmd_with.label, current_address->address - waitfor->u.cmd_with.addr, current_address->mem, waitfor->u.cmd_with.addr, waitfor->u.cmd_with.membp);val_destroy(Obj(waitfor->u.cmd_with.label));}
         return ".endwith";
+    case W_ENDENCODE2:
+        encode_close();
+        FALL_THROUGH; /* fall through */
+    case W_ENDENCODE: return ".endencode";
     case W_ENDC: return ".endcomment";
     case W_ENDS:
         if ((waitfor->skip & 1) != 0) current_address->unionmode = waitfor->u.cmd_struct.unionmode;
@@ -1853,6 +1877,205 @@ static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
     return i;
 }
 
+
+static bool cdef_command(linepos_t epoint) {
+    Obj *val;
+    struct character_range_s tmp;
+    Enc *old = actual_encoding;
+    bool rc;
+    argcount_t len;
+    listing_line(epoint->pos);
+    actual_encoding = NULL;
+    rc = get_exp(0, 2, 0, epoint);
+    actual_encoding = old;
+    len = get_val_remaining();
+    if (!rc) return true;
+    for (;;) {
+        bool endok = false;
+        size_t i;
+        bool tryit = true;
+        uval_t uval;
+        struct values_s *vs;
+        linepos_t opoint;
+
+        vs = get_val();
+        if (vs == NULL) break;
+
+        opoint = &vs->epoint;
+        val = vs->val;
+        if (val->obj == STR_OBJ) {
+            Str *str = Str(val);
+            if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
+            else {
+                unichar_t ch = str->data[0];
+                if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
+                tmp.start = ch;
+                if (str->len > i) {
+                    ch = str->data[i];
+                    if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
+                    tmp.end = ch & 0xffffff;
+                    endok = true;
+                    if (str->len > i) {err_msg2(ERROR_NOT_TWO_CHARS, NULL, &vs->epoint); tryit = false;}
+                }
+            }
+        } else {
+            if (touval2(vs, &uval, 24)) tryit = false;
+            else tmp.start = uval & 0xffffff;
+        }
+        if (!endok) {
+            vs = get_val();
+            if (vs == NULL) { err_msg_argnum(len, len + 2, 0, epoint); return true; }
+
+            val = vs->val;
+            if (val->obj == STR_OBJ) {
+                Str *str = Str(val);
+                if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
+                else {
+                    unichar_t ch = str->data[0];
+                    if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
+                    tmp.end = ch & 0xffffff;
+                    if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
+                }
+            } else {
+                if (touval2(vs, &uval, 24)) tryit = false;
+                else tmp.end = uval & 0xffffff;
+            }
+        }
+        vs = get_val();
+        if (vs == NULL) { err_msg_argnum(len, len + 1, 0, epoint); return true;}
+        if (touval2(vs, &uval, 8)) {}
+        else if (tryit) {
+            tmp.offset = uval & 0xff;
+            if (tmp.start > tmp.end) {
+                unichar_t tmpe = tmp.start;
+                tmp.start = tmp.end;
+                tmp.end = tmpe & 0xffffff;
+            }
+            if (enc_trans_add(actual_encoding, &tmp, epoint)) {
+                err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool edef_command(linepos_t epoint) {
+    Obj *val;
+    Enc *old = actual_encoding;
+    bool rc;
+    argcount_t len;
+    listing_line(epoint->pos);
+    actual_encoding = NULL;
+    rc = get_exp(0, 2, 0, epoint);
+    actual_encoding = old;
+    if (!rc) return true;
+    len = get_val_remaining();
+    for (;;) {
+        struct values_s *vs, *vs2;
+        bool tryit;
+        str_t escape;
+
+        vs = get_val();
+        if (vs == NULL) break;
+        tryit = !tostr(vs, &escape);
+
+        if (tryit && (escape.len == 0 || escape.len > 1024)) {
+            err_msg2(escape.len == 0 ? ERROR__EMPTY_STRING : ERROR_OUT_OF_MEMORY, NULL, &vs->epoint);
+            tryit = false;
+        }
+        vs2 = get_val();
+        if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, epoint); return true; }
+        val = vs2->val;
+        if (val == none_value) err_msg_still_none(NULL, &vs2->epoint);
+        else if (tryit && enc_escape_add(actual_encoding, &escape, val, &vs2->epoint)) {
+            err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); return true;
+        }
+    }
+    return false;
+}
+
+static bool tdef_command(linepos_t epoint) {
+    Obj *val;
+    Enc *old = actual_encoding;
+    bool rc;
+    argcount_t len;
+    listing_line(epoint->pos);
+    actual_encoding = NULL;
+    rc = get_exp(0, 2, 0, epoint);
+    actual_encoding = old;
+    if (!rc) return true;
+    len = get_val_remaining();
+    for (;;) {
+        struct character_range_s tmp;
+        struct iter_s iter, iter2;
+        struct values_s *vs, *vs2;
+        bool doublerange;
+        uval_t uval;
+
+        vs = get_val();
+        if (vs == NULL) break;
+        val = vs->val;
+
+        vs2 = get_val();
+        if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, epoint); return true; }
+        if (vs2->val->obj->iterable) {
+            iter2.data = vs2->val; iter2.data->obj->getiter(&iter2);
+        } else if (touval2(vs2, &uval, 8)) {
+            continue;
+        } else {
+            uval &= 0xff;
+            iter2.data = NULL;
+        }
+        doublerange = false;
+        iter.data = val; 
+        if (val->obj->iterable || val->obj == STR_OBJ) {
+            val->obj->getiter(&iter);
+        } else {
+            DEFAULT_OBJ->getiter(&iter);
+        }
+        if (iter2.data != NULL && iter.len != iter2.len) {
+            Error *err = new_error(ERROR_CANT_BROADCAS, &vs->epoint);
+            err->u.broadcast.v1 = iter.len;
+            err->u.broadcast.v2 = iter2.len;
+            err_msg_output_and_destroy(err);
+        }
+        while ((val = iter.next(&iter)) != NULL) {
+            uval_t uval2;
+            bool ret;
+            actual_encoding = NULL;
+            ret = touval(val, &uval2, 24, &vs->epoint);
+            if (iter2.data != NULL) {
+                val = iter2.next(&iter2);
+                if (val != NULL) {
+                    if (touval(val, &uval, 8, &vs2->epoint)) ret = true;
+                }
+            } else if (uval > 255) {
+                if (uval == 256) {
+                    val = int_from_uval(uval);
+                    if (touval(val, &uval, 8, &vs2->epoint)) ret = true;
+                    val_destroy(val);
+                }
+                ret = true;
+            }
+            actual_encoding = old;
+            if (val == NULL) break;
+            if (!ret) {
+                tmp.offset = uval & 0xff;
+                tmp.end = uval2 & 0xffffff;
+                tmp.start = tmp.end;
+                if (enc_trans_add(actual_encoding, &tmp, &vs2->epoint)) doublerange = true;
+            }
+            uval++;
+        }
+        iter_destroy(&iter);
+        if (iter2.data != NULL) iter_destroy(&iter2);
+        if (doublerange) {
+            err_msg2(ERROR__DOUBLE_RANGE, NULL, &vs->epoint);
+        }
+    }
+    return false;
+}
+
 static Namespace *anonlabel(Namespace *mycontext, uint8_t type, linepos_t epoint) {
     struct {
         uint8_t type;
@@ -2448,6 +2671,73 @@ MUST_CHECK Obj *compile(void)
                                 push_context(Namespace(label->value));
                                 waitfor->what = W_ENDN2;
                             } else push_context(current_context);
+                            goto finish;
+                        }
+                    case CMD_ENCODE:
+                        { /* encode */
+                            Label *label = new_label(&labelname, mycontext, strength, current_file_list);
+                            bool labelexists = label->value != NULL;
+                            if (labelexists) {
+                                if (label->defpass == pass) {
+                                    err_msg_double_defined(label, &labelname, &epoint);
+                                    epoint = cmdpoint;
+                                    goto as_command;
+                                }
+                                if (label->fwpass == pass) fwcount--;
+                                if (!constcreated && label->defpass != pass - 1) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = true;
+                                }
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
+                            } else {
+                                if (!constcreated) {
+                                    if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                    constcreated = true;
+                                }
+                                label->owner = true;
+                                label->value = none_value;
+                            }
+                            label->constant = true;
+                            label->epoint = epoint;
+                            label->ref = false;
+                            listing_line(0);
+                            new_waitfor(W_ENDENCODE, &cmdpoint);
+                            if (get_exp(0, 0, 1, &cmdpoint)) {
+                                struct values_s *vs = get_val();
+                                if (vs != NULL) {
+                                    val = vs->val;
+                                    if (val->obj != ENC_OBJ) {
+                                        val = NULL;
+                                        err_msg_wrong_type2(vs->val, ENC_OBJ, &vs->epoint);
+                                    }
+                                } else val = NULL;
+                            } else val = NULL;
+                            label->owner = (val == NULL);
+                            if (labelexists) {
+                                if (val != NULL) const_assign(label, val_reference(val));
+                                else {
+                                    label->defpass = pass;
+                                    if (label->value->obj != ENC_OBJ) {
+                                        val_destroy(label->value);
+                                        label->value = new_enc(current_file_list, &epoint);
+                                    } else {
+                                        Enc *enc = Enc(label->value);
+                                        enc->file_list = current_file_list;
+                                        enc->epoint = epoint;
+                                    }
+                                }
+                            } else {
+                                label->value = (val != NULL) ? val_reference(val) : new_enc(current_file_list, &epoint);
+                            }
+                            if (label->value->obj == ENC_OBJ) {
+                                waitfor->u.cmd_encode.enc = actual_encoding;
+                                actual_encoding = Enc(val_reference(label->value));
+                                waitfor->what = W_ENDENCODE2;
+                            } else {
+                                waitfor->u.cmd_encode.enc = NULL;
+                            }
                             goto finish;
                         }
                     case CMD_MACRO:/* .macro */
@@ -3512,6 +3802,14 @@ MUST_CHECK Obj *compile(void)
                     close_waitfor(W_ENDN2);
                 } else {err_msg2(ERROR__MISSING_OPEN, ".namespace", &epoint); goto breakerr;}
                 break;
+            case CMD_ENDENCODE: /* .endencode */
+                if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
+                if (close_waitfor(W_ENDENCODE)) {
+                } else if (waitfor->what==W_ENDENCODE2) {
+                    encode_close();
+                    close_waitfor(W_ENDENCODE2);
+                } else {err_msg2(ERROR__MISSING_OPEN, ".encode", &epoint); goto breakerr;}
+                break;
             case CMD_ENDWITH: /* .endwith */
                 if ((waitfor->skip & 1) != 0) listing_line(epoint.pos);
                 if ((waitfor->what==W_ENDWITH || waitfor->what==W_ENDWITH2) && waitfor->u.cmd_with.label != NULL) {
@@ -3832,6 +4130,53 @@ MUST_CHECK Obj *compile(void)
                     } else push_context(current_context);
                 } else {push_dummy_context(); new_waitfor(W_ENDN, &epoint);}
                 break;
+            case CMD_ENCODE: if ((waitfor->skip & 1) != 0)
+                { /* .encode */
+                    listing_line(epoint.pos);
+                    new_waitfor(W_ENDENCODE, &epoint);
+                    if (get_exp(0, 0, 1, &epoint)) {
+                        struct values_s *vs = get_val();
+                        if (vs != NULL) {
+                            val = vs->val;
+                            if (val->obj != ENC_OBJ) {
+                                val = NULL;
+                                err_msg_wrong_type2(vs->val, ENC_OBJ, &vs->epoint);
+                            }
+                        } else val = NULL;
+                    } else val = NULL;
+                    if (val == NULL) {
+                        Label *label = new_anonlabel(mycontext);
+                        if (label->value != NULL) {
+                            if (label->defpass == pass) err_msg_double_defined(label, &label->name, &epoint);
+                            else if (label->fwpass == pass) fwcount--;
+                            label->constant = true;
+                            label->owner = true;
+                            label->defpass = pass;
+                            if (label->value->obj != ENC_OBJ) {
+                                val_destroy(label->value);
+                                label->value = new_enc(current_file_list, &epoint);
+                            } else {
+                                Enc *enc = Enc(label->value);
+                                enc->file_list = current_file_list;
+                                enc->epoint = epoint;
+                            }
+                        } else {
+                            label->constant = true;
+                            label->owner = true;
+                            label->value = new_enc(current_file_list, &epoint);
+                            label->epoint = epoint;
+                        }
+                        val = label->value;
+                    }
+                    if (val->obj == ENC_OBJ) {
+                        waitfor->u.cmd_encode.enc = actual_encoding;
+                        actual_encoding = Enc(val_reference(val));
+                        waitfor->what = W_ENDENCODE2;
+                    } else {
+                        waitfor->u.cmd_encode.enc = NULL;
+                    }
+                } else new_waitfor(W_ENDENCODE, &epoint);
+                break;
             case CMD_WITH: if ((waitfor->skip & 1) != 0)
                 { /* .with */
                     struct values_s *vs;
@@ -4073,137 +4418,36 @@ MUST_CHECK Obj *compile(void)
                 break;
             case CMD_ENC: if ((waitfor->skip & 1) != 0)
                 { /* .enc */
-                    str_t encname;
+                    struct values_s *vs;
+                    Enc *newenc;
                     listing_line(epoint.pos);
-                    encname.len = 0;
-                    if (pline[lpoint.pos] != '"' && pline[lpoint.pos] != '\'') { /* will be removed to allow variables */
-                        if (diagnostics.deprecated) err_msg2(ERROR_______OLD_ENC, NULL, &lpoint);
-                        encname.data = pline + lpoint.pos; encname.len = get_label(encname.data);
-                        lpoint.pos += (linecpos_t)encname.len;
-                    }
-                    if (encname.len == 0) {
-                        struct values_s *vs;
-                        if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
-                        vs = get_val();
+                    if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
+                    vs = get_val();
+                    if (vs->val->obj == ENC_OBJ) {
+                        newenc = Enc(vs->val);
+                    } else {
+                        str_t encname;
                         if (tostr(vs, &encname)) break;
                         if (encname.len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); break;}
+                        newenc = new_encoding(&encname, &epoint);
                     }
                     val_destroy(Obj(actual_encoding));
-                    actual_encoding = ref_enc(new_encoding(&encname, &epoint));
+                    actual_encoding = ref_enc(newenc);
                 }
                 break;
             case CMD_CDEF: if ((waitfor->skip & 1) != 0)
                 { /* .cdef */
-                    struct character_range_s tmp;
-                    Enc *old = actual_encoding;
-                    bool rc;
-                    argcount_t len;
-                    listing_line(epoint.pos);
-                    actual_encoding = NULL;
-                    rc = get_exp(0, 2, 0, &epoint);
-                    actual_encoding = old;
-                    len = get_val_remaining();
-                    if (!rc) goto breakerr;
-                    for (;;) {
-                        bool endok = false;
-                        size_t i;
-                        bool tryit = true;
-                        uval_t uval;
-                        struct values_s *vs;
-                        linepos_t opoint;
-
-                        vs = get_val();
-                        if (vs == NULL) break;
-
-                        opoint = &vs->epoint;
-                        val = vs->val;
-                        if (val->obj == STR_OBJ) {
-                            Str *str = Str(val);
-                            if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
-                            else {
-                                unichar_t ch = str->data[0];
-                                if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
-                                tmp.start = ch;
-                                if (str->len > i) {
-                                    ch = str->data[i];
-                                    if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
-                                    tmp.end = ch & 0xffffff;
-                                    endok = true;
-                                    if (str->len > i) {err_msg2(ERROR_NOT_TWO_CHARS, NULL, &vs->epoint); tryit = false;}
-                                }
-                            }
-                        } else {
-                            if (touval2(vs, &uval, 24)) tryit = false;
-                            else tmp.start = uval & 0xffffff;
-                        }
-                        if (!endok) {
-                            vs = get_val();
-                            if (vs == NULL) { err_msg_argnum(len, len + 2, 0, &epoint); goto breakerr; }
-
-                            val = vs->val;
-                            if (val->obj == STR_OBJ) {
-                                Str *str = Str(val);
-                                if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
-                                else {
-                                    unichar_t ch = str->data[0];
-                                    if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
-                                    tmp.end = ch & 0xffffff;
-                                    if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
-                                }
-                            } else {
-                                if (touval2(vs, &uval, 24)) tryit = false;
-                                else tmp.end = uval & 0xffffff;
-                            }
-                        }
-                        vs = get_val();
-                        if (vs == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr;}
-                        if (touval2(vs, &uval, 8)) {}
-                        else if (tryit) {
-                            tmp.offset = uval & 0xff;
-                            if (tmp.start > tmp.end) {
-                                unichar_t tmpe = tmp.start;
-                                tmp.start = tmp.end;
-                                tmp.end = tmpe & 0xffffff;
-                            }
-                            if (enc_trans_add(actual_encoding, &tmp, &epoint)) {
-                                err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); goto breakerr;
-                            }
-                        }
-                    }
+                    if (cdef_command(&epoint)) goto breakerr;
                 }
                 break;
             case CMD_EDEF: if ((waitfor->skip & 1) != 0)
                 { /* .edef */
-                    Enc *old = actual_encoding;
-                    bool rc;
-                    argcount_t len;
-                    listing_line(epoint.pos);
-                    actual_encoding = NULL;
-                    rc = get_exp(0, 2, 0, &epoint);
-                    actual_encoding = old;
-                    if (!rc) goto breakerr;
-                    len = get_val_remaining();
-                    for (;;) {
-                        struct values_s *vs, *vs2;
-                        bool tryit;
-                        str_t escape;
-
-                        vs = get_val();
-                        if (vs == NULL) break;
-                        tryit = !tostr(vs, &escape);
-
-                        if (tryit && (escape.len == 0 || escape.len > 1024)) {
-                            err_msg2(escape.len == 0 ? ERROR__EMPTY_STRING : ERROR_OUT_OF_MEMORY, NULL, &vs->epoint);
-                            tryit = false;
-                        }
-                        vs2 = get_val();
-                        if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, &epoint); goto breakerr; }
-                        val = vs2->val;
-                        if (val == none_value) err_msg_still_none(NULL, &vs2->epoint);
-                        else if (tryit && enc_escape_add(actual_encoding, &escape, val, &vs2->epoint)) {
-                            err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &vs->epoint); goto breakerr;
-                        }
-                    }
+                    if (edef_command(&epoint)) goto breakerr;
+                }
+                break;
+            case CMD_TDEF: if ((waitfor->skip & 1) != 0)
+                { /* .tdef */
+                    if (tdef_command(&epoint)) goto breakerr;
                 }
                 break;
             case CMD_CPU: if ((waitfor->skip & 1) != 0)

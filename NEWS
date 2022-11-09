@@ -1,3 +1,119 @@
+r2900 (2022-11-05)
+==================
+
+It's time to release a version now. People are looking for fixes which were in
+trunk for a long time now.
+
+**Fixes**
+
+* Paths with parent references don't give bogus portability warnings any more
+  On Windows the due to an oversight parent referencing paths incorrectly
+  triggered the portability warning originally intended for detecting a
+  filename case mismatch.
+* Arbitrary length int right shift was wrong in some cases.
+  Now it's correct.
+* .bfor didn't accepted .endfor closing in some cases
+  Now it's correct. Did always work with .next and I didn't transitioned the
+  test sources...
+* (0, x) is now recognized as indexed indirect for opcodes
+  The parser of course did recognize (0,x) just fine for opcodes. However
+  writing (0, x) is a tuple and so does something else.  There's a workaround
+  now to recognize such a construct as indexed indirect instead. This should
+  avoid bad surprises for those unaware that the indexing operator should not
+  have a white space there.
+* Writing to standard output suppresses messages in all cases
+  This only worked for output files but now for everything (e.g. listing
+  to "-" didn't suppressed messages while --output "-" did).
+* The TASM compatibility text macro parameter expansion was wrong
+  It didn't remove the quotes from strings. It broke quite long ago, now
+  works again.
+* Output append didn't reproduce gaps working correctly in some cases
+  Padding was corrected and now it does.
+* Output could have garbage in gaps on non-POSIX conforming systems
+  Unlikely anyone got that far in porting but gaps should be correctly
+  filled with zeros now
+
+**Changes**
+
+* JMP and JML are distinct now
+  JMP could be unexpectedly upgraded to JML in some cases (e.g. bank 0 address in
+  another program bank) which is bad as the program bank will be changed when
+  that happens. Now it's consistent with JSR/JSL.
+* label = 1,2,3 is the tuple (1,2,3) now
+  That makes it actually useful for something. Before it was an object
+  with one couldn't do much with.
+* .switch and .if blocks labels have size now
+  Everything else with regular code blocks worked that way already.
+* %c in format() applies padding now
+  For consistency with the rest of the format parameters.
+* Oversize integer diagnostic in bytes and bits now
+  It was in bits all the time but if the limit was set in bytes it makes
+  sense to give the error in bytes as well.
+* Compound assignments can now change variables in parent scope
+  Without this using .bwhile is a pain as the loop condition variable is
+  usually declared out of the loop (and so the scope).
+* The memory map was improved or at least is different now.
+  With the former memory map there were lots of redundancy if one used
+  sections. It was even worse with nested sections. The new memory map
+  tries to display overlaps more compact. However for most people with simple
+  projects the difference would be the length display in decimal on the left
+  and that gaps between data areas are shown now.
+* Per output memory map, also writable to file.
+  The memory map was global before. Now if a specific section is output
+  then only the relevant parts of the map is shown. This also means that
+  if there are multiple output files then there are as many memory maps.
+  As a side effect .virtual blocks aren't displayed any more as these
+  don't really belong to an output file.
+* The .enc directive now requires an expression
+  In the past one could write the name of encodings without quotes. Soon there
+  was a need to allow labels to hold a name so there was a warning to quote the
+  names for the past 5 years or so. Now that custom encodings can be assigned
+  to labels there's an even greater need to be able to use labels. Therefore
+  the old style unquoted encoding names will be now interpreted as labels and
+  will likely fail to be found. Please quote the old name or as a workaround
+  define the missing labels with a string of the encoding name (e.g screen =
+  "screen").
+
+**New**
+
+* .symbol in namespace
+  Now it's possible to check if a variable exists in a namespace. May be useful
+  to check if a variable is defined. No, this does not work with constant
+  definitions.
+* Function parameter conversion
+  This allows to have a parameter like "data : binary" which calls
+  binary() and its result is assigned to the parameter. This allows to
+  load data relative to the caller's file and not relative to the file the
+  function is located in.
+* !in and !== operator
+  Instead of !(a in b) now it's possible to write a !in b. Also the ===
+  operator got its !== pair.
+* Multi operand opcodes do broadcast now
+  It was only working for single operand ones so far, now it's consistent.
+* Bit strings can be iterated now
+  Just like character and byte strings did already
+* ::= reassign operator
+  This can change a variable in parent scope. Unlike := which instead
+  would create/update a variable in the current scope instead.
+* Better reporting of unexpected characters
+  Strings should be quoted with straight quotes. Using fancy quotes did
+  result in an error but it was difficult to make sense of it as the
+  difference is hard to spot. Now the diagnostic is more clear.
+* --mos-hex for MOS Technology HEX format
+  There was Intel and Motorola before but not MOS yet. There are 6502 platforms
+  needing this.
+* --list-append added
+  Now listing can be appended too, just in case.
+* .encode/.endencode encoding area
+  This allows to have local encoding definitions. Such definitions can be
+  assigned to a label to allow reuse in other areas. Can be used as string
+  conversion function as well.
+* Added .tdef for easier encoding definition
+  It was not easy to define translation for randomly scattered Unicode
+  characters so far as .cdef was made for ranges like A-Z. One had to
+  define a bunch of single character ranges but such a workaround can be
+  replaced now.
+
 r2625 (2021-04-25)
 ==================
 

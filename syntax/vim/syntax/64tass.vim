@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2729 2021-10-03 21:31:42Z soci $
+" $Id: 64tass.vim 2888 2022-11-01 13:14:42Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -122,11 +122,11 @@ endif
 
 " Assembler directives
 syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|endblock|cdef|cpu)>/ contained
-syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|enc|end|endpage|endp)>/ contained
+syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|encode|enc|end|endpage|endp)>/ contained
 syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|endlogical|hidemac)>/ contained
 syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|endfor|endrept|endwhile|virtual|endv|endvirtual)>/ contained
 syn match tass64PreProc /\v\.%(offs|option|page|pend|proc|endproc|proff|pron|rept|brept|while|bwhile|section|endsection)>/ contained
-syn match tass64PreProc /\v\.%(seed|send|showmac|var|weak|xl|xs|namespace|endnamespace|endn|with|endwith)>/ contained
+syn match tass64PreProc /\v\.%(seed|send|showmac|tdef|var|weak|xl|xs|namespace|endnamespace|endn|with|endwith|endencode)>/ contained
 syn match tass64Define  /\v\.%(segment|endsegment|macro|endmacro|endm|function|endfunction|endf|sfunction)>/ contained
 syn match tass64Include /\v\.%(include|binclude)>/ contained
 syn match tass64PreCondit /\v\.%(elsif|ifmi|ifne|ifpl|else|fi|if|ifeq|endif|switch|endswitch|case|default|comment|endcomment|endc|breakif|continueif|break|continue)>/ contained

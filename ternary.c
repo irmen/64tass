@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 2666 2021-05-15 15:23:42Z soci $
+   $Id: ternary.c 2896 2022-11-05 05:33:41Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -35,12 +35,12 @@ static MALLOC ternary_node *tern_alloc(void) {
 static union tern_u {
     ternary_node tern;
     union tern_u *next;
-} *terns_free = NULL;
+} *terns_free;
 
 static struct terns_s {
     union tern_u terns[255];
     struct terns_s *next;
-} *terns = NULL;
+} *terns;
 
 static void tern_free(union tern_u *tern) {
     tern->next = terns_free;
@@ -161,6 +161,13 @@ void *ternary_search(const ternary_node *curr, const uint8_t *s, size_t *len)
     }
     *len = (size_t)(prev - start);
     return (last != NULL) ? (void *)last->eqkid : NULL;
+}
+
+void init_ternary(void) {
+#ifndef DEBUG
+    terns_free = NULL;
+    terns = NULL;
+#endif
 }
 
 void destroy_ternary(void)

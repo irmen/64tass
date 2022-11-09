@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 2590 2021-04-18 08:46:50Z soci $
+	$Id: jedit-assembly-64tass.xml 2888 2022-11-01 13:14:42Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -69,10 +69,12 @@
                         <KEYWORD3>.else</KEYWORD3>
                         <KEYWORD3>.elsif</KEYWORD3>
                         <KEYWORD3>.enc</KEYWORD3>
+                        <KEYWORD3>.encode</KEYWORD3>
                         <KEYWORD3>.end</KEYWORD3>
                         <KEYWORD3>.endblock</KEYWORD3>
                         <KEYWORD3>.endc</KEYWORD3>
                         <KEYWORD3>.endcomment</KEYWORD3>
+                        <KEYWORD3>.endencode</KEYWORD3>
                         <KEYWORD3>.endf</KEYWORD3>
                         <KEYWORD3>.endfor</KEYWORD3>
                         <KEYWORD3>.endfunction</KEYWORD3>
@@ -135,6 +137,7 @@
                         <KEYWORD3>.showmac</KEYWORD3>
                         <KEYWORD3>.struct</KEYWORD3>
                         <KEYWORD3>.switch</KEYWORD3>
+                        <KEYWORD3>.tdef</KEYWORD3>
                         <KEYWORD3>.union</KEYWORD3>
                         <KEYWORD3>.var</KEYWORD3>
                         <KEYWORD3>.virtual</KEYWORD3>

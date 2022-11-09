@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2878 2022-10-30 20:27:35Z soci $
+    $Id: mem.c 2895 2022-11-05 05:30:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -149,15 +149,17 @@ void memref(Memblocks *memblocks, Memblocks *ref, address_t addr, address_t ln) 
     block->addr = addr;
 }
 
-static MUST_CHECK bool padding(address_t size, FILE *f) {
+static MUST_CHECK bool padding(FILE *f, address_t size, bool append) {
     uint8_t nuls[256];
 #if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
-    while (size >= 0x80000000) {
-        if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
-        size -= 0x40000000;
-    }
-    if ((long)size > 256 && fseek(f, (long)size, SEEK_CUR) == 0) {
-        return false;
+    if (!append) {
+        while (size >= 0x80000000) {
+            if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
+            size -= 0x40000000;
+        }
+        if ((long)size > 256 && fseek(f, (long)size, SEEK_CUR) == 0) {
+            return false;
+        }
     }
 err:
 #endif
@@ -203,7 +205,7 @@ static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct 
     if (i != 0 && fwrite(header, i, 1, fout) == 0) return;
     for (i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
-        if (padding(block->addr - pos, fout)) return;
+        if (padding(fout, block->addr - pos, output->append)) return;
         if (fwrite(memblocks->mem.data + block->p, block->len, 1, fout) == 0) return;
         pos = block->addr + block->len;
     }
@@ -243,13 +245,13 @@ static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool lo
     fwrite(header, longaddr ? 3 : 2, 1, fout);
 }
 
-static void output_mem_flat(FILE *fout, const Memblocks *memblocks) {
+static void output_mem_flat(FILE *fout, const Memblocks *memblocks, bool append) {
     address_t pos = 0;
     size_t i;
 
     for (i = 0; i < memblocks->p; i++) {
         const struct memblock_s *block = &memblocks->data[i];
-        if (padding(block->addr - pos, fout)) return;
+        if (padding(fout, block->addr - pos, append)) return;
         if (fwrite(memblocks->mem.data + block->p, block->len, 1, fout) == 0) return;
         pos = block->addr + block->len;
     }
@@ -608,7 +610,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 
     clearerr(fout); errno = 0;
     switch (output->mode) {
-    case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
+    case OUTPUT_FLAT: output_mem_flat(fout, memblocks, output->append); break;
     case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
     case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
     case OUTPUT_RAW:

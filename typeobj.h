@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2737 2021-10-06 20:50:52Z soci $
+    $Id: typeobj.h 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -72,8 +72,11 @@ typedef struct Type {
     void (*getriter)(struct iter_s *);
 } Type;
 
+enum { MAXIMUM_TYPE_LENGTH = 33 };
+
 #define Type(a) OBJ_CAST(Type, a)
 
+extern void init_type(void);
 extern void typeobj_init(void);
 extern void typeobj_names(void);
 extern Type *new_type(Type *, Type_types, const char *, size_t);

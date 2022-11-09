@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 2855 2022-10-25 06:56:13Z soci $
+    $Id: section.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -169,9 +169,7 @@ void destroy_section(void) {
     longjump_destroy(&root_section.longjump);
     val_destroy(Obj(root_section.address.mem));
     val_destroy(root_section.address.l_address_val);
-    root_section.address.l_address_val = NULL;
     cpu_opt_destroy(root_section.optimizer);
-    root_section.optimizer = NULL;
 }
 
 void section_sizecheck(const struct avltree_node *b) {

@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2784 2022-05-25 03:44:55Z soci $
+    $Id: instruction.c 2898 2022-11-05 08:08:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -407,7 +407,6 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
 
 MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t epoint) {
     Adrgen adrgen;
-    static unsigned int once;
     Adr_types opr;
     Reg_types reg;
     const uint8_t *cnmemonic; /* current nmemonic */
@@ -581,15 +580,15 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                                 }
                             }
                         }
-                        cpu_opt_long_branch(cnmemonic[ADR_REL]);
+                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL]);
                         if (s == NULL) s = new_star(vline + 1);
                         dump_instr(cnmemonic[ADR_REL] ^ 0x20, s->pass != 0 ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
                         lj->dest = current_address->l_address;
                         lj->defpass = pass;
                         if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                        cpu_opt_long_branch(0xea);
+                        if (diagnostics.optimize) cpu_opt_long_branch(0xea);
                         err = instruction((current_cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? current_cpu->brl : current_cpu->jmp, w, vals, epoint);
-                        cpu_opt_long_branch(0);
+                        if (diagnostics.optimize) cpu_opt_long_branch(0);
                         goto branchend;
                     }
                     if (opr == ADR_BIT_ZP_REL) {
@@ -608,22 +607,22 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                                 }
                             }
                         }
-                        cpu_opt_long_branch(cnmemonic[ADR_BIT_ZP_REL] ^ longbranch);
+                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_BIT_ZP_REL] ^ longbranch);
                         dump_instr(cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch, xadr | 0x300, 2, epoint);
                         lj->dest = current_address->l_address;
                         lj->defpass = pass;
                         if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                        cpu_opt_long_branch(0xea);
+                        if (diagnostics.optimize) cpu_opt_long_branch(0xea);
                         err = instruction(current_cpu->jmp, w, vals, epoint);
-                        cpu_opt_long_branch(0);
+                        if (diagnostics.optimize) cpu_opt_long_branch(0);
                         goto branchend;
                     } else {/* bra */
                         if (current_cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
                         asbrl:
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                             err = instruction(current_cpu->brl, w, vals, epoint);
-                            cpu_opt_long_branch(0);
+                            if (diagnostics.optimize) cpu_opt_long_branch(0);
                             goto branchend;
                         } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
                             int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
@@ -633,9 +632,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         } else { /* bra -> jmp */
                         asjmp:
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                             err = instruction(current_cpu->jmp, w, vals, epoint);
-                            cpu_opt_long_branch(0);
+                            if (diagnostics.optimize) cpu_opt_long_branch(0);
                         branchend:
                             if (s != NULL) {
                                 address_t st = current_address->l_address;
@@ -676,25 +675,25 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     }
                     if (adr == 1) {
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                             dump_instr(cnmemonic[ADR_REL] ^ 0x20, 1, 0, epoint);
-                            cpu_opt_long_branch(0);
+                            if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
                             goto branchend;
                         }
                         if (cnmemonic[ADR_REL] == 0x80 && (opcode == r65c02.opcode || opcode == w65c02.opcode)) {
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                             dump_instr(0x82, 1, 0, epoint);
-                            cpu_opt_long_branch(0);
+                            if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
                             goto branchend;
                         }
                     }
                     if (adr == 2 && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                            cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
                             dump_instr(cnmemonic[ADR_REL] ^ 0x23, 2, 0, epoint);
-                            cpu_opt_long_branch(0);
+                            if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
                             goto branchend;
                         }
@@ -972,10 +971,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 if (adrgen == AG_SBYTE && diagnostics.pitfalls && val != none_value) {
                     err = val->obj->iaddress(val, (ival_t *)&uval, 8, epoint2);
                     if (err != NULL) val_destroy(Obj(err));
-                    else if (once != pass) {
-                        err_msg_immediate_note(epoint2);
-                        once = pass;
-                    }
+                    else err_msg_immediate_note(epoint2);
                 }
                 break;
             }
@@ -1099,10 +1095,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 if (adrgen == AG_SWORD && diagnostics.pitfalls && val != none_value) {
                     err = val->obj->iaddress(val, (ival_t *)&uval, 16, epoint2);
                     if (err != NULL) val_destroy(Obj(err));
-                    else if (once != pass) {
-                        err_msg_immediate_note(epoint2);
-                        once = pass;
-                    }
+                    else err_msg_immediate_note(epoint2);
                 }
                 break;
             }

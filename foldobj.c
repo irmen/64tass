@@ -1,5 +1,5 @@
 /*
-    $Id: foldobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: foldobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -138,6 +138,7 @@ void foldobj_init(void) {
     type->repr = repr;
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
+    foldval.repr = NULL;
 }
 
 void foldobj_destroy(void) {

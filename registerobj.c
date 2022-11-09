@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2690 2021-09-08 09:56:34Z soci $
+    $Id: registerobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -221,6 +221,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static uint32_t register_names;
+
 void registerobj_init(void) {
     Type *type = new_type(&obj, T_REGISTER, "register", sizeof(Register));
     type->convert = convert;
@@ -231,13 +233,12 @@ void registerobj_init(void) {
     type->str = str;
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
+    register_names = 0;
 }
 
 void registerobj_names(void) {
     new_builtin("register", val_reference(Obj(REGISTER_OBJ)));
 }
-
-static uint32_t register_names;
 
 bool registerobj_createnames(uint32_t registers) {
     uint32_t regs = registers & ~register_names;

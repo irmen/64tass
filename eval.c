@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2829 2022-10-20 20:34:08Z soci $
+    $Id: eval.c 2892 2022-11-04 07:35:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -2033,6 +2033,7 @@ void eval_leave(void) {
 }
 
 void init_eval(void) {
+    evx = NULL;
     evxnum = 0;
     evx_p = ~(size_t)0;
     eval_enter();

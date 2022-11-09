@@ -4,11 +4,11 @@
         <!ENTITY opcode    "\b(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpa|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?:\s+(a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY iopcode   "\b(ahx|alr|anc|ane|arr|asr|axs|dcm|dcp|ins|isb|isc|jam|lae|las|lax|lds|lxa|rla|rra|sax|sbx|sha|shs|shx|shy|slo|sre|tas|xaa)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY datadef   "\.(byte|char|[lsd]int|rta|long|d?word|fill|p?text|null|shiftl?|dstruct|dunion|binary|addr)\b">
-        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|breakif|continueif|break|continue|sfunction)\b">
+        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|autsiz|mansiz|pron|proff|hidemac|showmac|offs|align|assert|check|[cet]def|databank|dpage|cpu|enc|option|var|end|eor|seed|dsection|breakif|continueif|break|continue|sfunction)\b">
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 2729 2021-10-03 21:31:42Z soci $
+ $Id: katepart-asm6502.xml 2888 2022-11-01 13:14:42Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -109,6 +109,8 @@
         <RegExpr endRegion="proc" String="\.(pend|endproc)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="block" String="\.block\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="block" String="\.(bend|endblock)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="encode" String="\.encode\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="encode" String="\.endencode\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="section" String="\.section\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="section" String="\.(send|endsection)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="struct" String="\.struct\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>

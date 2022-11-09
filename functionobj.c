@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2884 2022-10-31 13:29:58Z soci $
+    $Id: functionobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -919,6 +919,7 @@ void functionobj_names(void) {
     unsigned int i;
     for (i = 0; i < lenof(builtin_functions); i++) {
         builtin_functions[i].v.obj = &obj;
+        builtin_functions[i].v.refcount = 2;
         new_builtin(builtin_functions[i].name, Obj(builtin_functions + i));
     }
 }

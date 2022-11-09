@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.c 2884 2022-10-31 13:29:58Z soci $
+    $Id: typeobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ static Type obj;
 
 Type *const TYPE_OBJ = &obj;
 
-static struct Slot *values_free[33];
+static struct Slot *values_free[MAXIMUM_TYPE_LENGTH];
 
 #define ALIGN sizeof(int *)
 
@@ -128,6 +128,9 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+void init_type(void) {
+    memset(values_free, 0, sizeof values_free);
+}
 
 void typeobj_init(void) {
     Type *type = new_type(&obj, T_TYPE, "type", sizeof(Type));

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2880 2022-10-31 04:56:55Z soci $
+    $Id: arguments.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,11 @@
 #include "wchar.h"
 #include "version.h"
 
-struct arguments_s arguments = {
+struct arguments_s arguments;
+struct diagnostics_s diagnostics;
+struct diagnostics_s diagnostic_errors;
+
+static const struct arguments_s arguments_default = {
     true,        /* quiet */
     false,       /* to_ascii */
     false,       /* longbranch */
@@ -64,7 +68,7 @@ struct arguments_s arguments = {
     8,           /* tab_size */
 };
 
-struct diagnostics_s diagnostics = {
+static const struct diagnostics_s diagnostics_default = {
     false,       /* shadow */
     false,       /* strict_bool */
     false,       /* optimize */
@@ -105,7 +109,7 @@ struct diagnostics_s diagnostics = {
     true         /* size_larger */
 };
 
-struct diagnostics_s diagnostic_errors = {
+static const struct diagnostics_s diagnostic_errors_default = {
     false,       /* shadow */
     false,       /* strict_bool */
     false,       /* optimize */
@@ -147,7 +151,9 @@ struct diagnostics_s diagnostic_errors = {
 };
 
 static struct diagnostics_s diagnostic_no_all;
-static struct diagnostics_s diagnostic_all = {
+static struct diagnostics_s diagnostic_all;
+
+static const struct diagnostics_s diagnostic_all_default = {
     true,        /* shadow */
     true,        /* strict_bool */
     false,       /* optimize */
@@ -189,7 +195,9 @@ static struct diagnostics_s diagnostic_all = {
 };
 
 static struct diagnostics_s diagnostic_no_error_all;
-static struct diagnostics_s diagnostic_error_all = {
+static struct diagnostics_s diagnostic_error_all;
+
+static const struct diagnostics_s diagnostic_error_all_default = {
     true,        /* shadow */
     true,        /* strict_bool */
     true,        /* optimize */
@@ -520,13 +528,12 @@ static address_t check_outputs(const char *defmap) {
     return min;
 }
 
-static void include_list_add(const char *path)
+static struct include_list_s **include_list_add(struct include_list_s **lastil, const char *path)
 {
-    static struct include_list_s **last = &arguments.include;
     struct include_list_s *include; 
     size_t i, j, len;
     j = i = strlen(path);
-    if (i == 0) return;
+    if (i == 0) return lastil;
 #if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
     if (path[i - 1] != '/' && path[i-1] != '\\') j++;
 #else
@@ -539,8 +546,8 @@ static void include_list_add(const char *path)
     include->next = NULL;
     memcpy(include->path, path, i + 1);
     if (i != j) memcpy(include->path + i, "/", 2);
-    *last = include;
-    last = &include->next;
+    *lastil = include;
+    return &include->next;
 }
 
 int testarg(int *argc2, char **argv2[]) {
@@ -551,10 +558,19 @@ int testarg(int *argc2, char **argv2[]) {
     int max = 10;
     bool again;
     char defmap = 0;
+    struct include_list_s **lastil = &arguments.include;
     struct symbol_output_s symbol_output = { NULL, NULL, LABEL_64TASS, false };
     struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false };
     output.mapname = &defmap;
+    memcpy(&arguments, &arguments_default, sizeof arguments);
+    memcpy(&diagnostics, &diagnostics_default, sizeof diagnostics);
+    memcpy(&diagnostic_errors, &diagnostic_errors_default, sizeof diagnostic_errors);
+    memset(&diagnostic_no_all, 0, sizeof diagnostic_no_all);
+    memcpy(&diagnostic_all, &diagnostic_all_default, sizeof diagnostic_all);
+    memset(&diagnostic_no_error_all, 0, sizeof diagnostic_no_error_all);
+    memcpy(&diagnostic_error_all, &diagnostic_error_all_default, sizeof diagnostic_error_all);
 
+    my_optind = 1;
     do {
         int i;
         again = false;
@@ -643,7 +659,7 @@ int testarg(int *argc2, char **argv2[]) {
             case LIST_APPEND:
             case 'L': arguments.list.name = my_optarg; arguments.list.append = (opt == LIST_APPEND); break;
             case 'M': arguments.make = my_optarg;break;
-            case 'I': include_list_add(my_optarg);break;
+            case 'I': lastil = include_list_add(lastil, my_optarg);break;
             case 'm': arguments.list.monitor = false;break;
             case MONITOR: arguments.list.monitor = true;break;
             case 's': arguments.list.source = false;break;

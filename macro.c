@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 2884 2022-10-31 13:29:58Z soci $
+    $Id: macro.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1051,4 +1051,6 @@ void free_macro(void) {
         free(macro_parameters.params[i].param);
     }
     free(macro_parameters.params);
+    macro_parameters.len = 0;
+    macro_parameters.params = NULL;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2733 2021-10-04 21:31:55Z soci $
+    $Id: boolobj.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -235,6 +235,10 @@ void boolobj_init(void) {
     type->function = function;
     type->calc1 = calc1;
     type->calc2 = calc2;
+    falseval.v.refcount = 2;
+    falseval.repr = NULL;
+    trueval.v.refcount = 2;
+    trueval.repr = NULL;
 }
 
 void boolobj_names(void) {

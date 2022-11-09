@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2880 2022-10-31 04:56:55Z soci $
+    $Id: errors_e.h 2887 2022-11-01 09:07:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@ typedef enum Error_types {
     ERROR_______OLD_NEQ,
     ERROR______OLD_GOTO,
     ERROR____OLD_STRING,
-    ERROR_______OLD_ENC,
     ERROR__CONST_RESULT,
     ERROR____IND_RESULT,
 #ifdef _WIN32

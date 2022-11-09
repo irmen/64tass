@@ -3,7 +3,7 @@ Upstream-Name: 64tass
 Source: <http://tass64.sourceforge.net>
 
 Files: *
-Copyright: 2015 Zsolt Kajtar <soci@c64.rulez.org>
+Copyright: 2022 Zsolt Kajtar <soci@c64.rulez.org>
 License: GPL-2+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -105,7 +105,7 @@ License: GPL-2+
 
 
 Files: debian/*
-Copyright: 2015 Kajtár Zsolt <soci@c64.rulez.org>
+Copyright: 2022 Kajtar Zsolt <soci@c64.rulez.org>
 License: GPL-2+
  This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

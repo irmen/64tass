@@ -1,8 +1,8 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2880 2022-10-31 04:56:55Z soci $ -->
+<!-- $Id: README.html 2900 2022-11-05 12:25:47Z soci $ -->
 <head>
-<title>64tass v1.56 r2625 reference manual</title>
+<title>64tass v1.57 r2900 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -81,7 +81,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.56 r2625 reference manual</h1>
+<h1>64tass v1.57 r2900 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -2132,13 +2132,25 @@ string (pascal style string). Therefore it can't do more than 255 bytes.
 
 <p>64tass supports sources written in UTF-8, UTF-16 (be/le) and RAW 8&nbsp;bit encoding. To take
 advantage of this capability custom encodings can be defined to map Unicode characters
-to 8&nbsp;bit values in strings.
+to 8&nbsp;bit values in strings. Even in plain ASCII sources it could be
+useful to define escape sequences for control codes.
 
 <dl class="dir">
-<dt><b>.enc</b> "&lt;name&gt;"<a name="d_enc" href="#d_enc"></a>
-<dd>Selects text encoding, predefined encodings are <q>none</q> and
-<q>screen</q> (screen code), anything else is user defined. All user encodings
-start without any character or escape definitions, add some as required.
+<dt><b>.enc</b> &lt;expression&gt;<a name="d_enc" href="#d_enc"></a>
+<dd>Selects text encoding by a character string name or from an encoding object
+
+<p>Predefined encodings names are <q>none</q> and <q>screen</q> (screen code),
+anything else is user defined. All user encodings start without any character
+or escape definitions, add some as required. Please note that the encoding names
+are global.
+
+<p>This directive changes the text encoding after it therefore it's usually
+placed somewhere at the beginning of the source to make sure everything is
+covered.
+
+<p>While it is possible to juggle with multiple encodings throughout the source
+code using the <code>.enc</code> directive this is not recommended. For such
+use case <a href="#d_encode"><code>.encode</code></a> is better suited.</p>
 
 <pre width="80">
                                 <b class="k">.enc</b> <span class="s">"screen"</span><i>;screen code mode</i>
@@ -2149,18 +2161,72 @@ start without any character or escape definitions, add some as required.
 .100e  c9 55     cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
 </pre>
 
+<dt><b>.encode</b> [&lt;expression&gt;]<a name="d_encode" href="#d_encode"></a>
+<dd>Encoding area start
+<dt><b>.endencode</b><a name="d_endencode" href="#d_endencode"></a>
+<dd>Encoding area end
+
+<p>This directive either creates a new text encoding (if used without a
+parameter) or makes the one in the parameter effective within the enclosed
+area.
+
+<p>The text encoding can be assigned to a symbol in front of the directive so
+it can be reused whenever it's needed. This symbol can also act as a conversion
+function which converts a character string to a byte string using the encoding.
+
+<pre width="80">
+        <b class="k">.encode</b>     <i>;starts anonymous local encoding scope</i>
+        <b class="k">.enc</b> <span class="s">"titlefont"</span><i>;special character set</i>
+        <b class="d">.text</b> <span class="s">"game title"</span>
+        <b class="k">.endencode</b>  <i>;restores original encoding</i>
+
+vt100   <b class="k">.encode</b>     <i>;define custom encoding</i>
+        <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>
+        <b class="k">.edef</b> <span class="s">"{esc}"</span>, <span>27</span><i>;add escape codes</i>
+        <b class="k">.edef</b> <span class="s">"{moff}"</span>, [<span>27</span>, <span class="s">"["</span>, <span class="s">"m"</span>]
+        <b class="k">.edef</b> <span class="s">"{bold}"</span>, [<span>27</span>, <span class="s">"["</span>, <span class="s">"1"</span>, <span class="s">"m"</span>]
+        <b class="k">.endencode</b>
+
+        <b class="k">.encode</b> <u>vt100</u><i>;use custom encoding from here</i>
+        <b class="d">.text</b> <span class="s">"<span>{bold}</span>bold<span>{moff}</span> text"</span>
+        <b>lda</b> #<span class="s">"<span>{esc}"</span></span>
+        <b class="k">.endencode</b>  <i>;restores original encoding</i>
+        <b>cmp</b> #<u>vt100</u>(<span class="s">"<span>{esc}</span>"</span>)<i>;conversion when not in scope</i>
+        <b class="k">.enc</b> <u>vt100</u><i>;select custom encoding (at start of source)</i>
+</pre>
+
 <dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]<a name="d_cdef" href="#d_cdef"></a>
 <dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
 <dd>Assigns characters in a range to single bytes.
 
-<p>This is a simple single character to byte translation definition. It is
-applied to a range as characters and bytes are usually assigned sequentially.
-The start and end positions are Unicode character codes either by numbers or by
-typing them. Overlapping ranges are not allowed.</p>
+<p>This is a simple single character to byte translation definition. It's
+useful to map a range of Unicode characters to a range of bytes. The start and
+end positions are Unicode character codes either by numbers or by typing them.
+Overlapping ranges are not allowed.</p>
 
 <pre width="80">
         <b class="k">.enc</b> <span class="s">"ascii"</span>    <i>;define an ascii encoding</i>
-        <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity for printable</i>
+        <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>  <i>;identity mapping for printable</i>
+</pre>
+
+<dt><b>.tdef</b> &lt;expression&gt;, &lt;expression&gt; [, &lt;expression&gt;, &lt;expression&gt;, &hellip;]<a name="d_tdef" href="#d_tdef"></a>
+<dd>Assign single characters to byte values.
+
+<p>Similar to <a href="#d_cdef"><code>.cdef</code></a> it is a single character to byte translation
+definition. It's easier to use when the character codes are not consecutive.
+Overlapping ranges with the former and itself are not allowed.
+
+<p>It tries to assign Unicode character codes from the first expression to byte
+values from the second. More than one pair of such assignments can be given.
+
+<p>If the byte value expression is not iterable then it will get incremented
+for each character definition. This allows easy assignment of randomly
+scattered Unicode values to a consecutive range of bytes values.</p>
+
+<pre width="80">
+        <b class="k">.mdef</b> <span class="s">"A"</span>, <span>65</span><i>;A -> 65</i>
+        <b class="k">.mdef</b> <span class="s">"ACX"</span>, <span>65</span><i>;A -> 65, C-> 66, X -> 67</i>
+        <b class="k">.mdef</b> <span class="s">"ACX"</span>, [<span>65</span>, <span>33</span>, <span>11</span>]<i>;A -> 65, C-> 33, X -> 11</i>
 </pre>
 
 <dt><b>.edef</b> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
@@ -2168,27 +2234,45 @@ typing them. Overlapping ranges are not allowed.</p>
 
 <p>When these substrings are found in a text they are replaced by bytes defined here.
 When strings with common prefixes are used the longest match wins. Useful for defining
-non-typeable control code aliases, or as a simple tokenizer.</p>
-</dl>
+non-typeable control code aliases, or as a simple tokeniser.</p>
 
 <pre width="80">
-        <b class="k">.enc</b> <span class="s">"petscii"</span>  <i>;define an ascii-&gt;petscii encoding</i>
-        <b class="k">.cdef</b> <span class="s">" @"</span>, <span>32</span>  <i>;characters</i>
-        <b class="k">.cdef</b> <span class="s">"AZ"</span>, <span>$c1</span>
-        <b class="k">.cdef</b> <span class="s">"az"</span>, <span>$41</span>
-        <b class="k">.cdef</b> <span class="s">"[["</span>, <span>$5b</span>
-        <b class="k">.cdef</b> <span class="s">"&pound;&pound;"</span>, <span>$5c</span>
-        <b class="k">.cdef</b> <span class="s">"]]"</span>, <span>$5d</span>
-        <b class="k">.cdef</b> <span class="s">"&pi;&pi;"</span>, <span>$5e</span>
-        <b class="k">.cdef</b> <span>$2190</span>, <span>$2190</span>, <span>$1f</span><i>;left arrow</i>
-
         <b class="k">.edef</b> <span class="s">"\n"</span>, <span>13</span>  <i>;one byte control codes</i>
         <b class="k">.edef</b> <span class="s">"{clr}"</span>, <span>147</span>
         <b class="k">.edef</b> <span class="s">"{crlf}"</span>, [<span>13</span>, <span>10</span>]<i>;two byte control code</i>
         <b class="k">.edef</b> <span class="s">"&lt;nothing&gt;"</span>, []<i>;replace with no bytes</i>
+</pre>
+</dl>
 
-&gt;1000  93 d4 45 58 54 20 49 4e     <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
+<p>The example below shows how all this fits together:
+
+<pre width="80">
+petscii <b class="k">.namespace</b>
+common  <b class="k">.segment</b><i>;common definitions</i>
+        <b class="k">.cdef</b> <span class="s">" @"</span>, <span>$20</span><i>;32-64 is identical</i>
+        <b class="k">.tdef</b> <span class="s">"[£]↑←"</span>, <span>$5b</span>, <span class="s">"┼🮌🭳"</span>, <span>$db</span>
+        <b class="k">.edef</b> <span class="s">"{clr}"</span>, <span>147</span>, <span class="s">"{cr}"</span>, <span>13</span>
+        <b class="k">.endsegment</b>
+upper   <b class="k">.encode</b><i>;uppercase PETSCII</i>
+        <b class="k">#common</b>
+        <b class="k">.cdef</b> <span class="s">"AZ"</span>, <span>$41</span>
+        <b class="k">.tdef</b> <span class="s">"▌▄▔▁▏▒▕🮏◤🮇├▗└┐▂┌┴┬┤▎▍🮈🮂🮃▃🭿▖▝┘▘▚🭹"</span>, <span>$a1</span>
+        <b class="k">.tdef</b> <span class="s">"♠🭲🭸🭷🭶🭺🭱🭴╮╰╯🭼╲╱🭽🭾●🭻♥🭰╭╳○♣🭵♦"</span>, <span>$c1</span>
+        <b class="k">.tdef</b> <span class="s">"◥π─│"</span>, [<span>$df</span>, <span>$ff</span>, <span>$c0</span>, <span>$dd</span>]
+        <b class="k">.endencode</b>
+
+lower   <b class="k">.encode</b><i>;lowercase PETSCII</i>
+        <b class="k">#common</b>
+        <b class="k">.cdef</b> <span class="s">"az"</span>, <span>$41</span>, <span class="s">"AZ"</span>, <span>$c1</span><i>;the easy ranges</i>
+        <b class="k">.tdef</b> <span class="s">"▌▄▔▁▏▒▕🮏🮙🮇├▗└┐▂┌┴┬┤▎▍🮈🮂🮃▃✓▖▝┘▘▚🭹"</span>, <span>$a1</span>
+        <b class="k">.tdef</b> <span class="s">"🮘🮕─│"</span>, [<span>$df</span>, <span>$ff</span>, <span>$c0</span>, <span>$dd</span>]<i>;random one to ones</i>
+        <b class="k">.endencode</b>
+        <b class="k">.endnamespace</b>
+
+                                    <b class="k">.encode</b> <u>petscii</u>.<u>lower</u>
+&gt;1000  93 d4 45 58 54 20 49 4e     <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>{cr}</span>"</span>
 &gt;1008  20 d0 c5 d4 d3 c3 c9 c9 0d
+                                    <b class="k">.endencode</b>
 </pre>
 
 <h3>Structured data<a name="structures" href="#structures"></a></h3>
@@ -2817,7 +2901,7 @@ count   <b>ldx</b> #<span>0</span>
         <b class="k">.bend</b>
 </pre>
 
-<dt><b>.namespace</b> [&lt;symbol&gt;]<a name="d_namespace" href="#d_namespace"></a>
+<dt><b>.namespace</b> [&lt;expression&gt;]<a name="d_namespace" href="#d_namespace"></a>
 <dd>Namespace area start
 <dt><b>.endn</b><a name="d_endn" href="#d_endn"></a>
 <dt><b>.endnamespace</b><a name="d_endnamespace" href="#d_endnamespace"></a>
@@ -2825,9 +2909,17 @@ count   <b>ldx</b> #<span>0</span>
 
 <p>This directive either creates a new scope (if used without a parameter) or activates the one in the parameter.</p>
 
-<p>The scope can be assigned to a symbol in front of the directive so that it can be reactivated later.</p>
+<p>The scope can be assigned to a symbol in front of the directive so that it
+can be reactivated later. This enables label definitions into the same scope in
+different files.</p>
 
-<p>This enabled label definitions into the same scope in different files.</p>
+<pre width="80">
+colors  <b class="k">.namespace</b>
+red     <b>=</b> <span>2</span>
+blue    <b>=</b> <span>6</span>
+        <b class="k">.endnamespace</b>
+        <b>lda</b> #<u>colors</u>.<u>red</u>
+</pre>
 
 <dt><b>.weak</b><a name="d_weak" href="#d_weak"></a>
 <dt><b>.endweak</b><a name="d_endweak" href="#d_endweak"></a>
@@ -2862,7 +2954,7 @@ scope is of course not allowed and it results in double definition error.</p>
 left out from 64tass for of technical reasons, so don't wait for them to appear
 anytime soon.</p>
 
-<dt><b>.with</b> &lt;symbol&gt;<a name="d_with" href="#d_with"></a>
+<dt><b>.with</b> &lt;expression&gt;<a name="d_with" href="#d_with"></a>
 <dt><b>.endwith</b><a name="d_endwith" href="#d_endwith"></a>
 <dd>Namespace access
 
@@ -4613,7 +4705,6 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>long branch used<dd>branch distance was too long so long branch was used (bxx &lowast;+5 jmp)
 <dt>memory location address overflow<dd>the calculated memory location address ended up outside of the processors address space
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources
-<dt>please use quotes now to allow expressions in future<dd>the directive will allow expressions later and the parameter will be a string
 <dt>possible jmp ($xxff) bug<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility was detected
@@ -4697,8 +4788,8 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>some operation '?' of type '?' and type '?' not possible<dd>can't do this calculation with these values
 <dt>square root of negative number<dd>can't calculate the square root of a negative number
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
-<dt>unexpected character '?'<dd>unexpected control or unicode character
-<dt>unknown processor '?'<dd>unknown cpu name
+<dt>unexpected character '?'<dd>unexpected control or Unicode character
+<dt>unknown processor '?'<dd>unknown CPU name
 <dt>unknown argument name '?'<dd>no parameter argument known like this
 <dt>unknown format character '?'<dd>no format character known like this
 <dt>use '?' instead of '?'<dd>wrong sort of character was used. For example a left double quotation mark was used instead of a regular quotation mark.
@@ -5801,10 +5892,12 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_else">.else</a>
 <a href="#d_elsif">.elsif</a>
 <a href="#d_enc">.enc</a>
+<a href="#d_encode">.encode</a>
 <a href="#d_end">.end</a>
 <a href="#d_endblock">.endblock</a>
 <a href="#d_endc">.endc</a>
 <a href="#d_endcomment">.endcomment</a>
+<a href="#d_endencode">.endencode</a>
 <a href="#d_endf">.endf</a>
 <a href="#d_endfor">.endfor</a>
 <a href="#d_endfunction">.endfunction</a>
@@ -5875,6 +5968,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_sint">.sint</a>
 <a href="#d_struct">.struct</a>
 <a href="#d_switch">.switch</a>
+<a href="#d_tdef">.tdef</a>
 <a href="#d_text">.text</a>
 <a href="#d_union">.union</a>
 <a href="#d_var">.var</a>

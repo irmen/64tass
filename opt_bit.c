@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.c 2666 2021-05-15 15:23:42Z soci $
+    $Id: opt_bit.c 2896 2022-11-05 05:33:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,12 +43,12 @@ static MALLOC Bit *bit_alloc(void) {
 static union bit_u {
     struct Bit bit;
     union bit_u *next;
-} *bits_free = NULL;
+} *bits_free;
 
 static struct bits_s {
     union bit_u bits[255];
     struct bits_s *next;
-} *bits = NULL;
+} *bits;
 
 static void bit_free(union bit_u *bit) {
     bit->next = bits_free;
@@ -492,6 +492,13 @@ Bit *v_bit(Bit *a, Bit *b, Bit *c) {
         }
         return new_bitu();         /* u+u+u = ? */
     }
+}
+
+void init_opt_bit(void) {
+#ifndef DEBUG
+    bits_free = NULL;
+    bits = NULL;
+#endif
 }
 
 void destroy_opt_bit(void)

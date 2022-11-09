@@ -1,4 +1,4 @@
-# $Id: Makefile 2885 2022-10-31 13:53:33Z soci $
+# $Id: Makefile 2900 2022-11-05 12:25:47Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -9,7 +9,7 @@ OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  foldobj.o main.o console.o encobj.o
 LDLIBS = -lm
 LANG = C
-VERSION = 1.56
+VERSION = 1.57
 CFLAGS = -O2 -march=core2 -mtune=core2
 CFLAGS += -g -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS =
@@ -239,7 +239,7 @@ install-man:
 
 install-doc:
 	-$(INSTALL) -d $(DESTDIR)$(docdir)
-	-$(INSTALL_DATA) LICENSE-GPL-2.0 LICENSE-LGPL-2.0 LICENSE-LGPL-2.1 LICENSE-my_getopt README README.html NEWS $(DESTDIR)$(docdir)
+	-$(INSTALL_DATA) LICENSE-GPL-2.0 LICENSE-LGPL-2.0 LICENSE-LGPL-2.1 LICENSE-my_getopt README README.md README.html NEWS $(DESTDIR)$(docdir)
 
 install: $(TARGET) install-man install-doc
 	-$(INSTALL) -d $(DESTDIR)$(bindir)
@@ -258,6 +258,7 @@ uninstall:
 	-$(RM) $(DESTDIR)$(docdir)/LICENSE-LGPL-2.1
 	-$(RM) $(DESTDIR)$(docdir)/LICENSE-my_getopt
 	-$(RM) $(DESTDIR)$(docdir)/README
+	-$(RM) $(DESTDIR)$(docdir)/README.md
 	-$(RM) $(DESTDIR)$(docdir)/README.html
 	-$(RM) $(DESTDIR)$(docdir)/NEWS
 	-$(RMDIR) $(DESTDIR)$(docdir)

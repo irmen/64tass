@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2843 2022-10-23 07:42:59Z soci $
+    $Id: bytesobj.c 2898 2022-11-05 08:08:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1497,6 +1497,8 @@ void bytesobj_destroy(void) {
 #endif
 
     for (i = 0; i < 256; i++) {
-        if (bytes_value[i] != NULL) val_destroy(Obj(bytes_value[i]));
+        if (bytes_value[i] == NULL) continue;
+        val_destroy(Obj(bytes_value[i]));
+        bytes_value[i] = NULL;
     }
 }

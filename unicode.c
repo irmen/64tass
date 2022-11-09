@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2836 2022-10-22 14:49:49Z soci $
+    $Id: unicode.c 2898 2022-11-05 08:08:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -256,6 +256,8 @@ MUST_CHECK bool unfc(struct ubuff_s *b) {
     static struct ubuff_s dbuf;
     if (b == NULL) {
         free(dbuf.data);
+        dbuf.data = NULL;
+        dbuf.len = 0;
         return false;
     }
     for (dbuf.p = i = 0; i < b->p; i++) {
@@ -274,6 +276,10 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     if (s2 == NULL) {
         free(dbuf.data);
         free(dbuf2.data);
+        dbuf.data = NULL;
+        dbuf2.data = NULL;
+        dbuf.len = 0;
+        dbuf2.len = 0;
         return false;
     }
     mode = ((mode != 0) ? U_CASEFOLD : 0) | U_COMPAT;

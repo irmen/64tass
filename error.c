@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2880 2022-10-31 04:56:55Z soci $
+    $Id: error.c 2899 2022-11-05 11:51:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -138,19 +138,19 @@ static FAST_CALL int duplicate_compare(const struct avltree_node *aa, const stru
     return memcmp(aerr, berr, a->error_len);
 }
 
+static bool close_error_duplicate;
 static void close_error(void) {
-    static bool duplicate;
     if (error_list.header_pos < error_list.len) {
         struct errorentry_s *err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
         err->error_len = error_list.len - error_list.header_pos - (sizeof *err) - err->line_len;
         switch (err->severity) {
         case SV_NOTE:
-            if (!duplicate) memset(&err->node, 0, sizeof err->node);
+            if (!close_error_duplicate) memset(&err->node, 0, sizeof err->node);
             break;
         default:
-            duplicate = avltree_insert(&err->node, &error_list.members, duplicate_compare) != NULL;
+            close_error_duplicate = avltree_insert(&err->node, &error_list.members, duplicate_compare) != NULL;
         }
-        if (duplicate) {
+        if (close_error_duplicate) {
             error_list.len = error_list.header_pos;
         }
         error_list.header_pos = ALIGN(error_list.len);
@@ -339,7 +339,6 @@ static const char *const terr_warning[] = {
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
     "please use format(\"%d\", ...) as '^' will change it's meaning",
-    "please use quotes now to allow expressions in future",
     "constant result, possibly changeable to 'lda'",
     "independent result, possibly changeable to 'lda'",
 #ifdef _WIN32
@@ -491,7 +490,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_______OLD_NEQ:
         case ERROR____OLD_MODULO:
         case ERROR____OLD_STRING:
-        case ERROR_______OLD_ENC:
             new_error_msg2(diagnostic_errors.deprecated, epoint);
             adderror(terr_warning[no]);
             adderror(" [-Wdeprecated]");
@@ -1043,21 +1041,21 @@ void err_msg_star_assign(linepos_t epoint) {
     adderror("label defined instead of variable multiplication for compatibility [-Wstar-assign]");
 }
 
+static unsigned int err_msg_compound_note_once;
 void err_msg_compound_note(linepos_t epoint) {
-    static unsigned once;
-    if (once != pass) {
+    if (err_msg_compound_note_once != pass) {
+        err_msg_compound_note_once = pass;
         new_error_msg(SV_NOTE, current_file_list, epoint);
         adderror("for reserving space use '.fill x' or '.byte ?' [-Wpitfalls]");
-        once = pass;
     }
 }
 
+static unsigned int err_msg_byte_note_once;
 void err_msg_byte_note(linepos_t epoint) {
-    static unsigned int once;
-    if (once != pass) {
+    if (err_msg_byte_note_once != pass) {
+        err_msg_byte_note_once = pass;
         new_error_msg(SV_NOTE, current_file_list, epoint);
         adderror("for long strings mixed with bytes please use the '.text' directive [-Wpitfalls]");
-        once = pass;
     }
 }
 
@@ -1068,9 +1066,13 @@ void err_msg_char_note(const char *directive, linepos_t epoint) {
     adderror("' is a better fit [-Wpitfalls]");
 }
 
+static unsigned int err_msg_immediate_note_once;
 void err_msg_immediate_note(linepos_t epoint) {
-    new_error_msg(SV_NOTE, current_file_list, epoint);
-    adderror("to accept signed values use the '#+' operator [-Wpitfalls]");
+    if (err_msg_immediate_note_once != pass) {
+        err_msg_immediate_note_once = pass;
+        new_error_msg(SV_NOTE, current_file_list, epoint);
+        adderror("to accept signed values use the '#+' operator [-Wpitfalls]");
+    }
 }
 
 void err_msg_symbol_case(const str_t *labelname1, const Label *l, linepos_t epoint) {
@@ -1622,6 +1624,10 @@ void err_init(const char *name) {
     included_from = &file_list;
     avltree_init(&notdefines);
     lastnd = NULL;
+    close_error_duplicate = false;
+    err_msg_compound_note_once = 0;
+    err_msg_byte_note_once = 0;
+    err_msg_immediate_note_once = 0;
 }
 
 void err_destroy(void) {
@@ -1711,14 +1717,9 @@ void err_msg_file2(Error_types no, const char *prm) {
     err_msg_file(no, prm, current_file_list, &nopoint);
 }
 
-static void error_status_val(const char *head, unsigned int val) {
-    fputs(head, stdout);
-    if (val != 0) printf("%u\n", val); else puts("None");
-}
-
 void error_status(void) {
-    error_status_val("Error messages:    ", errors);
-    error_status_val("Warning messages:  ", warnings);
+    if (errors != 0) printf("Error messages:    %u\n", errors);
+    if (warnings!= 0) printf("Warning messages:  %u\n", warnings);
 }
 
 linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i) {

@@ -6,16 +6,32 @@ processors.
 
 ## Installation
 
+Executables for released versions are not difficult to come by.
+
+On Linux there's a good chance it is already included in the package manager of
+the distribution. It's also in ports for the BSDs. For Mac it's in the ports or
+brew. If the packaged version is not up to date compilation from source is
+always an option.
+
+For Windows the release binaries are hosted by Sourceforge. For these the
+minimum requirements is XP running on a 586. This 32 bit version should work on
+X64 without any drawbacks. Manual compilation for older windows versions, for
+X64 or even 32 bit DOS is possible.
+
+## Compilation
+
+The only dependencies are a working C compiler and Make.
+
 The Makefile was written to support both GNU Make and BSD Make.
 
-The code was written in C and GCC or Clang can compile it without a problem.
-Other C compilers may work but compile flags might need adjustments.
+GCC or Clang can compile it without a problem. Other C compilers may work but
+compile flags might need adjustments.
 
 The regular "Makefile" is for producing binaries for the host platform. So
 running "make" should build a "64tass" binary. I've heard that might not always
 work on OSX where instead make CPPFLAGS="-D_XOPEN_SOURCE" might be needed.
 
-There's a "Makefile.win" for cross compiling using Mingw. The name of the
+There's a "Makefile.win" for cross compiling with Mingw. The name of the
 compiler needs to be adjusted if it's not the same what I use. Of course one
 might try to use MSVC natively and there's a good chance it will work. However
 that's not actively tested and needs to be reported in case it's accidentally
@@ -59,7 +75,19 @@ Sample syntax highlight configuration files are included for these editors:
 - Sublime
 - VIM
 
-I saw that there exists a VSCode extension as well.
+I saw that there exists a VSCode extension as well. Last time I've checked it
+didn't display warning messages and so may need manual tweaking at source
+level.
+
+Relaunch64 directly supports 64tass and can even do code completion for simple
+projects.
+
+64tass is normally used as a part of a build system. For example it's invoked
+from a Makefile, script or batch file. Some text editors may be configured to
+invoke binary for compilation which might be handy.
+
+Diagnostic messages are printed to console by default but may be saved to a
+file. There are various output formats for the results.
 
 ## Support
 
@@ -68,8 +96,8 @@ Bug reports and feature requests:
 https://sourceforge.net/p/tass64/bugs/
 https://sourceforge.net/p/tass64/feature-requests/
 
-The current reference manual is in the README and README.html files but can be
-also read online at:
+The current reference manual is in the README and README.html files. For the
+last release it can be read online at:
 
 https://tass64.sourceforge.net/
 
