@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 2868 2022-10-26 21:43:56Z soci $
+    $Id: listobj.c 2921 2022-12-21 22:14:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -651,14 +651,14 @@ MUST_CHECK Obj *indexoffs(struct indexoffs_s *io) {
 MUST_CHECK Obj *sliceparams(struct sliceparam_s *s, const struct indexoffs_s *io) {
     const Colonlist *v2 = Colonlist(io->val);
     Obj *err;
-    ival_t len, offs, end, step = 1;
+    ival_t length, offs, end, step = 1;
 
     if (io->len >= (1U << (8 * sizeof(ival_t) - 1))) return new_error_mem(io->epoint); /* overflow */
-    len = (ival_t)io->len;
+    length = (ival_t)io->len;
     if (v2->len > 3 || v2->len < 1) {
         return new_error_argnum(v2->len <= ~(argcount_t)0 ? (argcount_t)v2->len : ~(argcount_t)0, 1, 3, io->epoint);
     }
-    end = len;
+    end = length;
     if (v2->len > 2) {
         if (v2->data[2] != default_value) {
             err = Obj(v2->data[2]->obj->ival(v2->data[2], &step, 8 * sizeof step, io->epoint));
@@ -669,28 +669,28 @@ MUST_CHECK Obj *sliceparams(struct sliceparam_s *s, const struct indexoffs_s *io
         }
     }
     if (v2->len > 1) {
-        if (v2->data[1] == default_value) end = (step > 0) ? len : -1;
+        if (v2->data[1] == default_value) end = (step > 0) ? length : -1;
         else {
             err = Obj(v2->data[1]->obj->ival(v2->data[1], &end, 8 * sizeof end, io->epoint));
             if (err != NULL) return err;
             if (end >= 0) {
-                if (end > len) end = len;
+                if (end > length) end = length;
             } else {
-                end += len;
+                end += length;
                 if (end < -1) end = -1;
             }
         }
-    } else end = len;
-    if (v2->data[0] == default_value) offs = (step > 0) ? 0 : len - 1;
+    } else end = length;
+    if (v2->data[0] == default_value) offs = (step > 0) ? 0 : length - 1;
     else {
         ival_t minus;
         err = Obj(v2->data[0]->obj->ival(v2->data[0], &offs, 8 * sizeof offs, io->epoint));
         if (err != NULL) return err;
         minus = (step < 0) ? -1 : 0;
         if (offs >= 0) {
-            if (offs > len + minus) offs = len + minus;
+            if (offs > length + minus) offs = length + minus;
         } else {
-            offs += len;
+            offs += length;
         }
         if (offs < minus) offs = minus;
     }

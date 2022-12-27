@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2899 2022-11-05 11:51:27Z soci $
+    $Id: error.c 2923 2022-12-22 07:39:20Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include "error.h"
 #include <string.h>
 #include <errno.h>
-#include "wchar.h"
 #include "file.h"
 #include "64tass.h"
 #include "unicode.h"
@@ -344,7 +343,7 @@ static const char *const terr_warning[] = {
 #ifdef _WIN32
     "the file's real name is not '",
 #endif
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     "use '/' as path separation '",
 #else
     "this name uses reserved characters '",
@@ -532,7 +531,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
 #ifdef _WIN32
         case ERROR___INSENSITIVE:
 #endif
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
         case ERROR_____BACKSLASH:
 #else
         case ERROR__RESERVED_CHR:
@@ -1676,39 +1675,15 @@ void err_msg_signal(void)
 }
 
 void err_msg_file(Error_types no, const char *prm, const struct file_list_s *cfile, linepos_t epoint) {
-    mbstate_t ps;
-    const char *s;
-    wchar_t w;
-    uint8_t s2[10];
-    size_t n, i = 0;
-    ssize_t l;
-    bool more;
-
-    s = strerror(errno);
-    n = strlen(s);
-
-    more = new_error_msg(SV_FATAL, cfile, epoint);
+    const char *s = strerror(errno);
+    uint8_t *msg = char_to_utf8(s);
+    bool more = new_error_msg(SV_FATAL, cfile, epoint);
     adderror(terr_fatal[no - 0xc0]);
     adderror(" '");
     adderror(prm);
     adderror("': ");
-    memset(&ps, 0, sizeof ps);
-    while (i < n) {
-        if (s[i] != 0 && (s[i] & 0x80) == 0) {
-            adderror2((const uint8_t *)s + i, 1);
-            i++;
-            continue;
-        }
-        l = (ssize_t)mbrtowc(&w, s + i, n - i,  &ps);
-        if (l < 1) {
-            w = (uint8_t)s[i];
-            if (w == 0 || l == 0) break;
-            l = 1;
-        }
-        s2[utf8out((unichar_t)w, s2)] = 0;
-        adderror((char *)s2);
-        i += (size_t)l;
-    }
+    adderror(msg != NULL ? (char *)msg : "Out of memory error");
+    if (msg != NULL && (char *)msg != s) free(msg);
     if (more) new_error_msg_more();
 }
 

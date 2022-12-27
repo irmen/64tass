@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2864 2022-10-26 18:13:04Z soci $
+    $Id: memblocksobj.c 2924 2022-12-22 08:52:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,15 +86,15 @@ MALLOC Memblocks *copy_memblocks(Memblocks *m) {
         memcpy(val->mem.data, m->mem.data, m->mem.len);
     }
     val->p = m->p;
-    val->len = m->len;
+    val->len = m->p;
     val->lastp = m->lastp;
     val->lastaddr = m->lastaddr;
-    if (m->len == 0) val->data = NULL; else new_array(&val->data, m->len);
+    if (m->p == 0) val->data = NULL; else new_array(&val->data, m->p);
     val->flattened = m->flattened;
     val->merged = m->merged;
     val->enumeration = m->enumeration;
     val->section = m->section;
-    for (i = 0; i < m->len; i++) {
+    for (i = 0; i < m->p; i++) {
         const struct memblock_s *b = &m->data[i];
         val->data[i] = m->data[i];
         if (b->ref != NULL) val->data[i].ref = copy_memblocks(b->ref);
@@ -242,6 +242,7 @@ void memorymapfile(const Memblocks *mem, const struct output_s *output) {
         err_msg_file2(ERROR_CANT_WRTE_MAP, output->mapname);
         return;
     }
+    if (state.f == stdout && fflush(state.f) != 0) setvbuf(state.f, NULL, _IOLBF, 1024);
     clearerr(state.f); errno = 0;
 
     if (!arguments.quiet || state.f != stdout) {

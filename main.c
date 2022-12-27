@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2837 2022-10-22 15:48:56Z soci $
+    $Id: main.c 2931 2022-12-23 08:10:09Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -30,8 +30,14 @@
 #include "main.h"
 #include <string.h>
 #include <signal.h>
+#include <locale.h>
 #ifdef SIGALRM
 #include <unistd.h>
+#endif
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
 #endif
 
 #include "wchar.h"
@@ -97,15 +103,81 @@ static inline void install_signal_handler(void) {
 #endif
 }
 
-#ifdef _WIN32
-static const wchar_t *prgname(const wchar_t *name) {
-    const wchar_t *p = name;
-    while (*p != 0) p++;
-    while (p != name) {
-        p--;
-        if (*p == '/' || *p == '\\' || *p == ':') return p + 1;
+static const char *prgname(const char *name) {
+    const char *newp = name;
+    while (*name != '\0') {
+        char c = *name++;
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+        if (c == '/' || c == '\\' || c == ':') newp = name;
+#else
+        if (c == '/') newp = name;
+#endif
     }
-    return p;
+    return newp;
+}
+
+#ifdef _WIN32
+static const wchar_t *wprgname(const wchar_t *name) {
+    const wchar_t *newp = name;
+    while (*name != '\0') {
+        wchar_t c = *name++;
+        if (c == L'/' || c == L'\\' || c == L':') newp = name;
+    }
+    return newp;
+}
+
+static unsigned int get_codepage(const char *locale) {
+    unsigned int cp = 0;
+    while (*locale != '\0' && *locale != '.') locale++;
+    if (*locale == '.') {
+        locale++;
+        if (*locale >= '0' && *locale <= '9') {
+            char *s;
+            unsigned long int ncp = strtoul(locale, &s, 10);
+            if (ncp > 0 && ncp <= 65535) {
+                cp = (unsigned int)ncp;
+            }
+            locale = s;
+        } else if ((*locale | 0x20) == 'u' && (locale[1] | 0x20) == 't' && (locale[2] | 0x20) == 'f') {
+            locale += 3;
+            if (*locale == '-') locale++;
+            if (*locale == '8') {
+                locale++;
+                cp = CP_UTF8;
+            }
+        }
+    }
+    return (*locale == '\0' || *locale == '@') ? cp : 0;
+}
+
+static unsigned int locale_init(void) {
+    char temp[16];
+    const char *env = getenv("LC_ALL");
+    unsigned int cp;
+    if (env == NULL) env = getenv("LC_TYPE");
+    if (env == NULL) env = getenv("LANG");
+    if (env == NULL) env = ".ACP";
+    if (strcmp(env, ".ACP") == 0) {
+        cp = GetACP();
+    } else if (strcmp(env, ".OCP") == 0) {
+        cp = GetOEMCP();
+    } else { 
+        cp = 0;
+    }
+    if (cp != 0) {
+        sprintf(temp, ".%u", cp);
+        env = temp;
+    } else {
+        cp = get_codepage(env);
+        if (!IsValidCodePage(cp)) cp = 0;
+    }
+    env = setlocale(LC_CTYPE, env);
+    if (cp == 0) {
+        if (env == NULL) env = setlocale(LC_CTYPE, NULL);
+        if (env != NULL) cp = get_codepage(env);
+    }
+    if (!IsValidCodePage(cp)) cp = 0;
+    return cp != 0 ? cp : GetACP();
 }
 
 #ifdef __MINGW32__
@@ -116,8 +188,10 @@ int wmain(int argc, wchar_t *argv2[]) {
     char **argv;
 
     install_signal_handler();
-    console_init();
+    codepage = locale_init();
+    console_init(codepage);
     atexit(console_destroy);
+    unicode_init();
 
     if (argc < 1) {
         static wchar_t *argvd[1] = { (wchar_t *)L"64tass" };
@@ -127,7 +201,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     new_array(&argv, (unsigned int)argc);
     for (i = 0; i < argc; i++) {
         unichar_t c = 0, lastchar;
-        const wchar_t *s = (i == 0) ? prgname(*argv2) : argv2[i];
+        const wchar_t *s = (i == 0) ? wprgname(*argv2) : argv2[i];
         const wchar_t *p = s;
         uint8_t *c2;
         size_t l;
@@ -167,15 +241,50 @@ int wmain(int argc, wchar_t *argv2[]) {
 }
 
 #ifdef __MINGW32__
-#include <windows.h>
-#include <shellapi.h>
-
-int main(void)
+int main(int argc, char *argv[])
 {
   LPWSTR commandLine = GetCommandLineW();
   int result, argcw = 0;
   LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
-  if (argvw == NULL) return EXIT_FAILURE;
+  if (argvw == NULL) {
+      int i, r;
+      char **uargv;
+
+      install_signal_handler();
+      codepage = locale_init();
+      console_init(codepage);
+      atexit(console_destroy);
+      unicode_init();
+
+      if (argc < 1) {
+          static char *argvd[1] = { (char *)"64tass" };
+          argv = argvd;
+          argc = 1;
+      }
+      new_array(&uargv, (unsigned int)argc);
+      for (i = 0; i < argc; i++) {
+          const char *s = (i == 0) ? prgname(*argv) : argv[i];
+          uint8_t *data;
+          unsigned int cp = codepage;
+          codepage = GetACP();
+          data = char_to_utf8(s);
+          codepage = cp;
+          if (data == (uint8_t *)s) {
+              size_t len = strlen(s);
+              data = inc_overflow(&len, 1) ? NULL : allocate_array(uint8_t, len);
+              if (data != NULL) {
+                  memcpy(data, s, len);
+              }
+          }
+          if (data == NULL) err_msg_out_of_memory();
+          uargv[i] = (char *)data;
+      }
+      r = main2(&argc, &uargv);
+
+      for (i = 0; i < argc; i++) free(uargv[i]);
+      free(uargv);
+      return r;
+  }
   result = wmain(argcw, argvw);
   LocalFree(argvw);
   return result;
@@ -183,23 +292,10 @@ int main(void)
 #endif /* __MINGW32__ */
 
 #else /* _WIN32 */
-#include <locale.h>
 #include <unistd.h>
 #if _POSIX_VERSION >= 200112L
 #include <sys/resource.h>
 #endif
-
-static const char *prgname(const char *name) {
-    const char *newp = strrchr(name, '/');
-    if (newp != NULL) return newp + 1;
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
-    newp = strrchr(name, '\\');
-    if (newp != NULL) return newp + 1;
-    newp = strrchr(name, ':');
-    if (newp != NULL) return newp + 1;
-#endif
-    return name;
-}
 
 int main(int argc, char *argv[]) {
     int i, r;
@@ -225,40 +321,15 @@ int main(int argc, char *argv[]) {
     new_array(&uargv, (unsigned int)argc);
     for (i = 0; i < argc; i++) {
         const char *s = (i == 0) ? prgname(*argv) : argv[i];
-        size_t p = 65, n, len;
-        uint8_t *data;
-        for (n = 0; s[n] != '\0'; n++) {
-            if ((uint8_t)s[n] > '~') p = 0;
-        }
-        if (add_overflow(n, p ^ 64, &len)) err_msg_out_of_memory();
-        new_array(&data, len);
-
-        if (p == 0) {
-            mbstate_t ps;
-            size_t j = 0;
-            memset(&ps, 0, sizeof ps);
-            for (;;) {
-                ssize_t l;
-                wchar_t w;
-                unichar_t ch;
-                if (p + 6*6 + 1 > len) {
-                    if (inc_overflow(&len, 1024)) err_msg_out_of_memory();
-                    resize_array(&data, len);
-                }
-                l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
-                if (l < 1) {
-                    w = (uint8_t)s[j];
-                    if (w == 0 || l == 0) break;
-                    l = 1;
-                }
-                j += (size_t)l;
-                ch = (unichar_t)w;
-                if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
+        uint8_t *data = char_to_utf8(s);
+        if (data == (uint8_t *)s) {
+            size_t len = strlen(s);
+            data = inc_overflow(&len, 1) ? NULL : allocate_array(uint8_t, len);
+            if (data != NULL) {
+                memcpy(data, s, len);
             }
-            data[p] = 0;
-        } else {
-            memcpy(data, s, len);
         }
+        if (data == NULL) err_msg_out_of_memory();
         uargv[i] = (char *)data;
     }
     r = main2(&argc, &uargv);

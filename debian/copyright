@@ -65,7 +65,7 @@ License: LGPL-2.1+
 
 Files: my_getopt.c my_getopt.h
 Copyright: 2001 Benjamin Sittler
-License: mygetopt
+License: MIT
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
  files (the "Software"), to deal in the Software without

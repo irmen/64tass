@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 2835 2022-10-22 14:16:09Z soci $
+    $Id: variables.c 2924 2022-12-22 08:52:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -700,6 +700,7 @@ void labelprint(const struct symbol_output_s *output) {
         err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
         return;
     }
+    if (flab == stdout && fflush(flab) != 0) setvbuf(flab, NULL, _IOLBF, 1024);
     clearerr(flab); errno = 0;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;

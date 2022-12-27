@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: file.c 2933 2022-12-23 10:52:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 */
 #include "file.h"
 #include <string.h>
-#include "wchar.h"
 #include <errno.h>
 #ifdef _WIN32
-#include <locale.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#else
+#include "wchar.h"
 #endif
 #if defined _POSIX_C_SOURCE || defined __unix__
 #include <sys/stat.h>
@@ -81,14 +82,14 @@ static struct file_s *file_table_update(struct file_s *p) {
     return NULL;
 }
 
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
 static inline bool is_driveletter(const char *name) {
     return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
 
 static inline bool is_absolute(const str_t *v) {
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     return (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) || (v->len > 1 && is_driveletter((const char *)v->data));
 #else
     return v->len != 0 && v->data[0] == '/';
@@ -96,7 +97,7 @@ static inline bool is_absolute(const str_t *v) {
 }
 
 static size_t get_base(const char *base) {
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     size_t i, j = is_driveletter(base) ? 2 : 0;
     for (i = j; base[i] != '\0'; i++) {
         if (base[i] == '/' || base[i] == '\\') j = i + 1;
@@ -112,7 +113,7 @@ static char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
 
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = is_driveletter(base) ? 2 : 0;
     else i = (v->len > 1 && is_driveletter((const char *)v->data)) ? 0 : get_base(base);
 #else
@@ -130,7 +131,7 @@ static char *get_path(const str_t *v, const char *base) {
 static bool portability(const str_t *name, linepos_t epoint) {
     struct linepos_s epoint2;
     const uint8_t *pos;
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     if (name->len == 0) return true;
     pos = (const uint8_t *)memchr(name->data, '\\', name->len);
     if (pos != NULL) {
@@ -290,21 +291,6 @@ static bool flush_ubuff(struct ubuff_s *ubuff, filesize_t *p2, struct file_data_
     return false;
 }
 
-static unichar_t fromiso2(unichar_t c) {
-    mbstate_t ps;
-    wchar_t w;
-    int olderrno;
-    ssize_t l;
-    uint8_t c2 = (uint8_t)(c | 0x80);
-
-    memset(&ps, 0, sizeof ps);
-    olderrno = errno;
-    l = (ssize_t)mbrtowc(&w, (char *)&c2, 1,  &ps);
-    errno = olderrno;
-    if (l < 0) return c2;
-    return (unichar_t)w;
-}
-
 static unichar_t fromiso_conv[128];
 static inline unichar_t fromiso(unichar_t c) {
     c &= 0x7f;
@@ -320,7 +306,7 @@ static filesize_t fsize(FILE *f) {
             return (st.st_size & ~(off_t)~(filesize_t)0) == 0 ? (filesize_t)st.st_size : ~(filesize_t)0;
         }
     }
-#elif defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#elif defined _WIN32 || defined __MSDOS__ || defined __DOS__
     long len = filelength(fileno(f));
     if (len > 0) {
         return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
@@ -404,9 +390,6 @@ static int read_source(struct file_s *file, FILE *f) {
         bl = (filesize_t)fread(buffer, 1, BUFSIZ, f);
     }
     if (encoding == E_UNKNOWN && bl != 0 && buffer[0] == 0) encoding = E_UTF16BE; /* most likely */
-#ifdef _WIN32
-    setlocale(LC_CTYPE, "");
-#endif
     ubuff.p = 0;
     do {
         filesize_t p;
@@ -632,9 +615,6 @@ static int read_source(struct file_s *file, FILE *f) {
     } while (bp != bl);
     err = 0;
 failed:
-#ifdef _WIN32
-    setlocale(LC_CTYPE, "C");
-#endif
     last_ubuff = ubuff;
     file->lines = lines;
     if (lines != max_lines) {
@@ -652,7 +632,7 @@ static void file_read_message(const struct file_s *file, File_open_type ftype) {
         fputs((ftype == FILE_OPEN_BINARY) ? "Reading file:      " : "Assembling file:   ", stdout);
         argv_print(file->name, stdout);
         putchar('\n');
-        fflush(stdout);
+        if (fflush(stdout) != 0) setvbuf(stdout, NULL, _IOLBF, 1024);
     }
 }
 
@@ -911,51 +891,57 @@ void init_file(void) {
     memset(fromiso_conv, 0, sizeof fromiso_conv);
 }
 
-static size_t wrap_print(const char *txt, FILE *f, size_t len) {
-    if (len != 0) {
-        if (len > 64) {
-            fputs(" \\\n", f);
-            len = 0;
+struct makefile_s {
+    FILE *f;
+    size_t len;
+};
+
+static void wrap_print(struct makefile_s *m, const char *name) {
+    if (m->len != 0) {
+        if (m->len > 64) {
+            fputs(" \\\n", m->f);
+            m->len = 0;
         }
-        len++;
-        putc(' ', f);
+        m->len++;
+        putc(' ', m->f);
     }
-    return len + makefile_print(txt, f);
+    m->len += makefile_print(name, m->f);
+}
+
+static void wrap_print_nodash(struct makefile_s *m, const char *name) {
+    if (name == NULL || dash_name(name)) return;
+    wrap_print(m, name);
 }
 
 void makefile(int argc, char *argv[], bool make_phony) {
-    FILE *f;
-    size_t len = 0, j;
+    struct makefile_s m;
+    size_t j;
     int i, err;
 
-    f = dash_name(arguments.make) ? stdout : fopen_utf8(arguments.make, "wt");
-    if (f == NULL) {
+    m.f = dash_name(arguments.make) ? stdout : fopen_utf8(arguments.make, "wt");
+    if (m.f == NULL) {
         err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
         return;
     }
-    clearerr(f); errno = 0;
+    if (m.f == stdout && fflush(m.f) != 0) setvbuf(m.f, NULL, _IOLBF, 1024);
+    clearerr(m.f); errno = 0; m.len = 0;
     for (j = 0; j < arguments.output_len; j++) {
-        const struct output_s *output = &arguments.output[j];
-        if (dash_name(output->name)) continue;
-        len = wrap_print(output->name, f, len);
+        wrap_print_nodash(&m, arguments.output[j].name);
     }
-    if (arguments.list.name != NULL) {
-        if (!dash_name(arguments.list.name)) {
-            len = wrap_print(arguments.list.name, f, len);
-        }
-    }
+    wrap_print_nodash(&m, arguments.list.name);
     for (j = 0; j < arguments.symbol_output_len; j++) {
-        const struct symbol_output_s *output = &arguments.symbol_output[j];
-        if (dash_name(output->name)) continue;
-        len = wrap_print(output->name, f, len);
+        wrap_print_nodash(&m, arguments.symbol_output[j].name);
     }
-    if (len != 0) {
-        len++;
-        putc(':', f);
+    for (j = 0; j < arguments.output_len; j++) {
+        wrap_print_nodash(&m, arguments.output[j].mapname);
+    }
+    wrap_print_nodash(&m, arguments.error.name);
+    if (m.len != 0) {
+        m.len++;
+        putc(':', m.f);
 
         for (i = 0; i < argc; i++) {
-            if (dash_name(argv[i])) continue;
-            len = wrap_print(argv[i], f, len);
+            wrap_print_nodash(&m, argv[i]);
         }
 
         if (file_table.data != NULL) {
@@ -963,24 +949,24 @@ void makefile(int argc, char *argv[], bool make_phony) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
                 if (a->cmdline || a->err_no != 0) continue;
-                len = wrap_print(a->name, f, len);
+                wrap_print(&m, a->name);
             }
         }
-        putc('\n', f);
+        putc('\n', m.f);
 
         if (file_table.data != NULL && make_phony) {
-            len = 0;
+            m.len = 0;
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
                 if (a == NULL) continue;
                 if (a->cmdline || a->err_no != 0) continue;
-                len = wrap_print(a->name, f, len);
+                wrap_print(&m, a->name);
             }
-            if (len != 0) fputs(":\n", f);
+            if (m.len != 0) fputs(":\n", m.f);
         }
     }
 
-    err = ferror(f);
-    err |= (f != stdout) ? fclose(f) : fflush(f);
+    err = ferror(m.f);
+    err |= (m.f != stdout) ? fclose(m.f) : fflush(m.f);
     if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
 }

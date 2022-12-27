@@ -1,5 +1,5 @@
 /*
-    $Id: unicodedata.h 2648 2021-05-09 17:10:15Z soci $
+    $Id: unicodedata.h 2934 2022-12-23 22:04:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,15 +29,14 @@
 struct properties_s {
     int16_t decompose;
     int16_t casefold;
+    int16_t diarbase;
     uint8_t combclass;
-    int8_t diar;
-    int16_t base;
     uint8_t property;
 };
 
 extern const int16_t usequences[];
 extern const int32_t usequences2[];
-extern const uint8_t upropshash1[763];
+extern const uint8_t upropshash1[788];
 extern const uint16_t upropshash2[][256];
 extern const struct properties_s uproperties[];
 extern const uint32_t ucomposed[];

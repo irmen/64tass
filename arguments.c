@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: arguments.c 2928 2022-12-22 17:29:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "my_getopt.h"
 #include "error.h"
 #include "unicode.h"
-#include "wchar.h"
 #include "version.h"
 
 struct arguments_s arguments;
@@ -429,10 +428,8 @@ static const struct my_option long_options[] = {
 static MUST_CHECK char *read_one(FILE *f) {
     bool q, q2, q3;
     char *line;
-    size_t i, ln, j, len;
+    size_t i, ln;
     int c;
-    mbstate_t ps;
-    size_t p;
     uint8_t *data;
 
     do {
@@ -460,28 +457,9 @@ static MUST_CHECK char *read_one(FILE *f) {
     }
     line[i] = 0;
 
-    if (add_overflow(i, 64, &len)) err_msg_out_of_memory();
-    new_array(&data, len);
-
-    memset(&ps, 0, sizeof ps);
-    p = 0; j = 0;
-    for (;;) {
-        ssize_t l;
-        wchar_t w;
-        unichar_t ch;
-        if (p + 6*6 + 1 > len) extend_array(&data, &len, 1024);
-        l = (ssize_t)mbrtowc(&w, line + j, i - j,  &ps);
-        if (l < 1) {
-            w = (uint8_t)line[j];
-            if (w == 0 || l == 0) break;
-            l = 1;
-        }
-        j += (size_t)l;
-        ch = (unichar_t)w;
-        if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
-    }
-    data[p] = 0;
-    free(line);
+    data = char_to_utf8(line);
+    if (data == NULL) err_msg_out_of_memory();
+    if ((char *)data != line) free(line);
     return (char *)data;
 }
 
@@ -534,7 +512,7 @@ static struct include_list_s **include_list_add(struct include_list_s **lastil, 
     size_t i, j, len;
     j = i = strlen(path);
     if (i == 0) return lastil;
-#if defined _WIN32 || defined __WIN32__ || defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     if (path[i - 1] != '/' && path[i-1] != '\\') j++;
 #else
     if (path[i - 1] != '/') j++;
@@ -603,7 +581,7 @@ int testarg(int *argc2, char **argv2[]) {
             case NO_OUTPUT:
             case OUTPUT_APPEND:
             case 'o': output.name = (opt == NO_OUTPUT) ? NULL : my_optarg;
-                      output.append = (opt == OUTPUT_APPEND);
+                      output.append = (opt == OUTPUT_APPEND) || (output.name != NULL && dash_name(output.name));
                       extend_array(&arguments.output, &arguments.output_len, 1);
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;

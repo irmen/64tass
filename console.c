@@ -1,5 +1,5 @@
 /*
-    $Id: console.c 2522 2021-03-14 20:16:55Z soci $
+    $Id: console.c 2931 2022-12-23 08:10:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,30 +49,31 @@ static bool terminal_detect(FILE *f) {
 }
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 static bool use_ansi;
-static BOOL utf8_console;
 static UINT old_consoleoutputcp;
 static UINT old_consolecp;
 static HANDLE console_handle;
 static int old_attributes, current_attributes;
 
-void console_init(void) {
-    utf8_console = IsValidCodePage(CP_UTF8);
-    if (utf8_console) {
-        old_consoleoutputcp = GetConsoleOutputCP();
-        old_consolecp = GetConsoleCP();
-        SetConsoleCP(CP_UTF8);
-        SetConsoleOutputCP(CP_UTF8);
+void console_init(unsigned int ansicp) {
+    UINT consoleoutputcp = GetConsoleOutputCP();
+    UINT consolecp = GetConsoleCP();
+    old_consoleoutputcp = 0;
+    old_consolecp = 0;
+    if (consolecp != ansicp) {
+        if (SetConsoleCP(ansicp)) old_consolecp = consolecp;
+    }
+    if (consoleoutputcp != ansicp) {
+        if (SetConsoleOutputCP(ansicp)) old_consoleoutputcp = consoleoutputcp;
     }
 }
 
 void console_destroy(void) {
-    if (utf8_console) {
-        SetConsoleCP(old_consolecp);
-        SetConsoleOutputCP(old_consoleoutputcp);
-    }
+    if (old_consolecp != 0) SetConsoleCP(old_consolecp);
+    if (old_consoleoutputcp != 0) SetConsoleOutputCP(old_consoleoutputcp);
 }
 
 void console_use(FILE *f) {
@@ -113,7 +114,7 @@ void console_attribute(int c, FILE *f) {
         fputs(ansi_sequences[c], f);
         return;
     }
-    fflush(f);
+    if (fflush(f) != 0) setvbuf(f, NULL, _IOLBF, 1024);
     switch (c) {
     case 0: current_attributes |= FOREGROUND_INTENSITY; break;
     case 1: current_attributes = old_attributes | FOREGROUND_INTENSITY; break;

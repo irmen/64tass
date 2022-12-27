@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2900 2022-11-05 12:25:47Z soci $ -->
+<!-- $Id: README.html 2905 2022-11-12 06:44:15Z soci $ -->
 <head>
 <title>64tass v1.57 r2900 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -2079,14 +2079,14 @@ The last byte can't be uninitialized or missing of course.</p>
 <pre width="80">
 .1000  a2 00          ldx #$00                <b>ldx</b> #<span>0</span>
 .1002  bd 0d 10       lda $100d,x     loop    <b>lda</b> <u>txt</u>,x
-.1005  4a             lsr a                   <b>lsr</b>
+.1005  4a             lsr a                   <b>lsr</b> <b>a</b>
 .1006  9d 00 04       sta $0400,x             <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
 .1009  e8             inx                     <b>inx</b>
 .100a  90 f6          bcc $1002               <b>bcc</b> <u>loop</u>
 .100c  60             rts                     <b>rts</b>
                                               <b class="k">.enc</b> <span class="s">"screen"</span>
-&gt;100d  a6 92 9c 8e 98 8a 40 a6                <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-&gt;1015  a8 a4 92 9c 8f                 txt     <b class="k">.enc</b> <span class="s">"none"</span>
+&gt;100d  a6 92 9c 8e 98 8a 40 a6        txt     <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;1015  a8 a4 92 9c 8f                         <b class="k">.enc</b> <span class="s">"none"</span>
 </pre>
 
 <dt><b>.null</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_null" href="#d_null"></a>

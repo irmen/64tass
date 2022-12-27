@@ -1,4 +1,4 @@
-# $Id: Makefile 2900 2022-11-05 12:25:47Z soci $
+# $Id: Makefile 2928 2022-12-22 17:29:05Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -58,7 +58,7 @@ anonsymbolobj.o: anonsymbolobj.c anonsymbolobj.h obj.h attributes.h \
  inttypes.h eval.h stdbool.h oper_e.h values.h typeobj.h strobj.h
 arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
  attributes.h wait_e.h opcodes.h my_getopt.h error.h errors_e.h unicode.h \
- wchar.h version.h
+ version.h
 avl.o: avl.c avl.h attributes.h stdbool.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h oper_e.h \
  math.h eval.h stdbool.h variables.h unicode.h error.h errors_e.h \
@@ -93,10 +93,10 @@ encoding.o: encoding.c encoding.h stdbool.h error.h attributes.h \
  errors_e.h inttypes.h ternary.h values.h 64tass.h wait_e.h str.h \
  encobj.h obj.h avl.h
 error.o: error.c error.h attributes.h stdbool.h errors_e.h inttypes.h \
- wchar.h file.h 64tass.h wait_e.h unicode.h eval.h oper_e.h arguments.h \
- opcodes.h section.h avl.h str.h macro.h strobj.h obj.h addressobj.h \
- values.h registerobj.h namespaceobj.h operobj.h typeobj.h labelobj.h \
- errorobj.h noneobj.h symbolobj.h anonsymbolobj.h console.h
+ file.h 64tass.h wait_e.h unicode.h eval.h oper_e.h arguments.h opcodes.h \
+ section.h avl.h str.h macro.h strobj.h obj.h addressobj.h values.h \
+ registerobj.h namespaceobj.h operobj.h typeobj.h labelobj.h errorobj.h \
+ noneobj.h symbolobj.h anonsymbolobj.h console.h
 errorobj.o: errorobj.c errorobj.h obj.h attributes.h inttypes.h \
  errors_e.h oper_e.h stdbool.h eval.h values.h error.h 64tass.h wait_e.h \
  file.h macro.h typeobj.h registerobj.h namespaceobj.h

@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.h 2804 2022-09-09 14:04:26Z soci $
+    $Id: unicode.h 2933 2022-12-23 10:52:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "inttypes.h"
 #include "stdbool.h"
 
+extern unsigned int codepage;
+
 struct ubuff_s {
     unichar_t *data;
     uint32_t len, p;
@@ -41,9 +43,12 @@ extern void printable_print(const uint8_t *, FILE *);
 extern size_t printable_print2(const uint8_t *, FILE *, size_t);
 extern void caret_print(const uint8_t *, FILE *, size_t);
 extern size_t calcpos(const uint8_t *, size_t);
+extern unichar_t fromiso2(unichar_t);
 extern MUST_CHECK wchar_t *utf8_to_wchar(const char *, size_t);
+extern uint8_t *char_to_utf8(const char *);
 extern FILE *fopen_utf8(const char *, const char *);
 extern const char *unicode_character_name(unichar_t);
+extern void unicode_init(void);
 
 static inline bool dash_name(const char *name) {
     return (name[0] == '-' && name[1] == 0);

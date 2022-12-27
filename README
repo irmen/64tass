@@ -1700,14 +1700,14 @@ using the current encoding.
 
     .1000  a2 00          ldx #$00                ldx #0
     .1002  bd 0d 10       lda $100d,x     loop    lda txt,x
-    .1005  4a             lsr a                   lsr
+    .1005  4a             lsr a                   lsr a
     .1006  9d 00 04       sta $0400,x             sta $400,x      ;screen memory
     .1009  e8             inx                     inx
     .100a  90 f6          bcc $1002               bcc loop
     .100c  60             rts                     rts
                                                   .enc "screen"
-    >100d  a6 92 9c 8e 98 8a 40 a6                .shiftl "single", 32, "string"
-    >1015  a8 a4 92 9c 8f                 txt     .enc "none"
+    >100d  a6 92 9c 8e 98 8a 40 a6        txt     .shiftl "single", 32, "string"
+    >1015  a8 a4 92 9c 8f                         .enc "none"
 
 .null <expression>[, <expression>, ...]
     Same as .text, but adds a zero byte to the end. An existing zero byte is an

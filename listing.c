@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2866 2022-10-26 18:38:53Z soci $
+    $Id: listing.c 2924 2022-12-22 08:52:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -153,6 +153,7 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
         listing = NULL;
         return;
     }
+    if (flist == stdout && fflush(flist) != 0) setvbuf(flist, NULL, _IOLBF, 1024);
     clearerr(flist); errno = 0;
 
     ls = &listing2;

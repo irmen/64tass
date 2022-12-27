@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.h 2626 2021-05-02 07:08:22Z soci $
+    $Id: wchar.h 2938 2022-12-25 09:47:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #define WCHAR_H
 #include "inttypes.h"
 
-#ifdef __DJGPP__
+#if defined __DJGPP__ || (defined __WATCOMC__ && !defined _WIN32)
 #include <wchar.h>
 extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
@@ -40,6 +40,6 @@ extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
 #endif
 
-extern int wcwidth_v9(unichar_t);
+extern int wcwidth_v13(unichar_t);
 
 #endif

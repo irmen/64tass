@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: 64tass.c 2925 2022-12-22 09:15:42Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -5239,6 +5239,7 @@ int main2(int *argc2, char **argv2[]) {
                 fputs("Output file:       ", stdout);
                 argv_print(output->name, stdout);
                 putc('\n', stdout);
+                if (fflush(stdout) != 0) setvbuf(stdout, NULL, _IOLBF, 1024);
             }
             parent = section->parent;
             section->parent = NULL;

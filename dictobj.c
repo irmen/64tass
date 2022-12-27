@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2830 2022-10-20 20:41:30Z soci $
+    $Id: dictobj.c 2921 2022-12-21 22:14:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -595,15 +595,15 @@ static MUST_CHECK Obj *indexof(const Dict *v1, Obj *o2, ival_t *r, linepos_t epo
 
 static MUST_CHECK Obj *dictsliceparams(const Dict *v1, const Colonlist *v2, struct sliceparam_s *s, linepos_t epoint) {
     Obj *err;
-    ival_t len, offs, end, step = 1;
+    ival_t length, offs, end, step = 1;
 
     s->length = 0;
     if (v1->len >= (1U << (8 * sizeof(ival_t) - 1))) return new_error_mem(epoint); /* overflow */
-    len = (ival_t)v1->len;
+    length = (ival_t)v1->len;
     if (v2->len > 3 || v2->len < 1) {
         return new_error_argnum(v2->len <= ~(argcount_t)0 ? (argcount_t)v2->len : ~(argcount_t)0, 1, 3, epoint);
     }
-    end = len;
+    end = length;
     if (v2->len > 2) {
         if (v2->data[2] != default_value) {
             err = Obj(v2->data[2]->obj->ival(v2->data[2], &step, 8 * sizeof step, epoint));
@@ -614,13 +614,13 @@ static MUST_CHECK Obj *dictsliceparams(const Dict *v1, const Colonlist *v2, stru
         }
     }
     if (v2->len > 1) {
-        if (v2->data[1] == default_value) end = (step > 0) ? len : -1;
+        if (v2->data[1] == default_value) end = (step > 0) ? length : -1;
         else {
             err = indexof(v1, v2->data[1], &end, epoint);
             if (err != NULL) return err;
         }
-    } else end = len;
-    if (v2->data[0] == default_value) offs = (step > 0) ? 0 : len - 1;
+    } else end = length;
+    if (v2->data[0] == default_value) offs = (step > 0) ? 0 : length - 1;
     else {
         err = indexof(v1, v2->data[0], &offs, epoint);
         if (err != NULL) return err;

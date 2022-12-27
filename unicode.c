@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: unicode.c 2942 2022-12-25 20:13:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,10 +22,26 @@
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#ifndef WC_NO_BEST_FIT_CHARS
+#define WC_NO_BEST_FIT_CHARS 0x400
+#endif
+#endif
 #include "unicodedata.h"
 #include "str.h"
 #include "console.h"
 #include "error.h"
+
+#ifdef _WIN32
+static DWORD wide_flags;
+static DWORD wide_flags_acp;
+static DWORD multibyte_flags;
+static BOOL use_default_char;
+static BOOL use_default_char_acp;
+unsigned int codepage;
+#endif
 
 enum { U_CASEFOLD = 1, U_COMPAT = 2 };
 
@@ -101,9 +117,7 @@ static inline unsigned int utf8outlen(unichar_t i) {
 
 MUST_CHECK bool extend_ubuff(struct ubuff_s *d) {
     uint32_t len;
-    unichar_t *data;
-    if (add_overflow(d->len, 16, &len)) return true;
-    data = reallocate_array(d->data, len);
+    unichar_t *data = add_overflow(d->len, 16, &len) ? NULL : reallocate_array(d->data, len);
     if (data == NULL) return true;
     d->data = data;
     d->len = len;
@@ -227,8 +241,8 @@ static MUST_CHECK bool ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
                 continue;
             }
             if (sprop == NULL) sprop = uget_property(sc);
-            if (sprop->base >= 0 && prop->diar >= 0) {
-                int16_t comp = ucomposing[sprop->base + prop->diar];
+            if (sprop->diarbase > 0 && prop->diarbase < 0) {
+                int16_t comp = ucomposing[sprop->diarbase - prop->diarbase - 2];
                 if (comp != 0) {
                     d->data[sp] = (comp > 0) ? (uint16_t)comp : ucomposed[-comp];
                     sprop = NULL;
@@ -322,6 +336,55 @@ MUST_CHECK bool unfkc(str_t *s1, const str_t *s2, int mode) {
     return false;
 }
 
+unichar_t fromiso2(unichar_t c) {
+    uint8_t c2 = (uint8_t)(c | 0x80);
+    wchar_t w;
+#ifdef _WIN32
+    int l = (codepage == CP_UTF8) ? -1 : MultiByteToWideChar(codepage, multibyte_flags, (const char *)&c2, 1, &w, 1);
+    if (l < 1) return c2;
+#else
+    mbstate_t ps;
+    int olderrno;
+    ssize_t l;
+
+    memset(&ps, 0, sizeof ps);
+    olderrno = errno;
+    l = (ssize_t)mbrtowc(&w, (char *)&c2, 1,  &ps);
+    errno = olderrno;
+    if (l < 0) return c2;
+#endif
+    return (unichar_t)w;
+}
+
+
+static size_t utf8_to_chars(char *dest, size_t destlen, unichar_t ch) {
+#ifdef _WIN32
+    if (codepage == CP_UTF8) {
+        return utf8out(ch, (uint8_t *)dest);
+    } else {
+        wchar_t temp[2];
+        BOOL used_default = false;
+        int j = 0;
+        if (ch < 0x10000) {
+        } else if (ch < 0x110000) {
+            temp[j++] = (wchar_t)((ch >> 10) + 0xd7c0);
+            ch = (ch & 0x3ff) | 0xdc00;
+        } else return 0;
+        temp[j++] = (wchar_t)ch;
+        j = WideCharToMultiByte(codepage, wide_flags, temp, j, dest, (int)destlen, NULL, use_default_char ? &used_default : NULL);
+        return !used_default && j >= 0 ? (size_t)j : 0;
+    }
+#else
+    mbstate_t ps;
+    size_t ln;
+    (void)destlen;
+    if (ch != (unichar_t)(wchar_t)ch) return 0;
+    memset(&ps, 0, sizeof ps);
+    ln = wcrtomb(dest, (wchar_t)ch, &ps);
+    return (ln != (size_t)-1) ? ln : 0;
+#endif
+}
+
 size_t argv_print(const char *line, FILE *f) {
     size_t len = 0;
     const uint8_t *i = (const uint8_t *)line;
@@ -351,19 +414,19 @@ size_t argv_print(const char *line, FILE *f) {
             unichar_t ch2 = (uint8_t)ch;
             unsigned int ln = utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
-                int ln2;
-                char tmp[64];
-                memcpy(tmp, i, ln);
-                tmp[ln] = 0;
-                ln2 = fwprintf(f, L"%S", tmp);
-                if (ln2 > 0) {
-                    i += ln;
-                    len += (unsigned int)ln2;
-                    continue;
+                char temp[64];
+                size_t l = utf8_to_chars(temp, sizeof temp, ch2);
+                if (l != 0) {
+                    len += fwrite(temp, l, 1, f);
+                } else {
+                    putc('?', f); 
+                    len++;
                 }
+            } else {
+                putc('?', f);
+                len++;
             }
             i += ln;
-            len++;putc('?', f);
             continue;
         }
         if (ch == 0) break;
@@ -398,6 +461,38 @@ size_t argv_print(const char *line, FILE *f) {
         if (quote) {len++;putc('^', f);}
         len++;putc('"', f);
     }
+#elif defined __MSDOS__ || defined __DOS__
+    bool quote = strpbrk(line, " <>|") != NULL;
+
+    if (quote) {len++;putc('"', f);}
+    for (;;) {
+        int ch = *i;
+        if ((ch & 0x80) != 0) {
+            unichar_t ch2 = (uint8_t)ch;
+            i += utf8in(i, &ch2);
+            if (iswprint((wint_t)ch2) != 0) {
+                char temp[64];
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch2);
+                if (ln != 0) {
+                    len += fwrite(temp, ln, 1, f);
+                    continue;
+                }
+            }
+            putc('?', f);
+            len++;
+            continue;
+        }
+        if (ch == 0) break;
+        i++;
+        if (isprint(ch) == 0) {
+            putc('?', f);
+            len++;
+            continue;
+        }
+        if (ch == '%') {len++;putc('%', f);}
+        len++;putc(ch, f);
+    }
+    if (quote) {len++;putc('"', f);}
 #else
     bool quote = strchr(line, '!') == NULL && strpbrk(line, " \"$&()*;<>'?[\\]`{|}") != NULL;
 
@@ -415,12 +510,9 @@ size_t argv_print(const char *line, FILE *f) {
             int ln2;
             i += utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
-                mbstate_t ps;
                 char temp[64];
-                size_t ln;
-                memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, (wchar_t)ch2, &ps);
-                if (ln != (size_t)-1) {
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch2);
+                if (ln != 0) {
                     len += fwrite(temp, ln, 1, f);
                     continue;
                 }
@@ -460,39 +552,17 @@ size_t makefile_print(const char *line, FILE *f) {
         int ch = *i;
         if ((ch & 0x80) != 0) {
             unichar_t ch2 = (uint8_t)ch;
-#ifdef _WIN32
-            unsigned int ln = utf8in(i, &ch2);
-            if (iswprint((wint_t)ch2) != 0) {
-                int ln2;
-                char tmp[64];
-                memcpy(tmp, i, ln);
-                tmp[ln] = 0;
-                ln2 = fwprintf(f, L"%S", tmp);
-                if (ln2 > 0) {
-                    i += ln;
-                    len += (unsigned int)ln2;
-                    bl = 0;
-                    continue;
-                }
-            }
-            i += ln;
-#else
+            bl = 0;
             i += utf8in(i, &ch2);
             if (iswprint((wint_t)ch2) != 0) {
-                mbstate_t ps;
                 char temp[64];
-                size_t ln;
-                memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, (wchar_t)ch2, &ps);
-                if (ln != (size_t)-1) {
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch2);
+                if (ln != 0) {
                     len += fwrite(temp, ln, 1, f);
-                    bl = 0;
                     continue;
                 }
             }
-#endif
             len++;putc('?', f);
-            bl = 0;
             continue;
         }
         if (ch == 0) break;
@@ -540,35 +610,6 @@ static int unknown_print(FILE *f, unichar_t ch) {
 }
 
 void printable_print(const uint8_t *l, FILE *f) {
-#ifdef _WIN32
-    const uint8_t *i = l;
-    for (;;) {
-        unichar_t ch;
-        if ((*i >= 0x20 && *i <= 0x7e) || *i == 0x09) {
-            i++;
-            continue;
-        }
-        if (l != i) fwrite(l, 1, (size_t)(i - l), f);
-        if (*i == 0) break;
-        ch = *i;
-        if ((ch & 0x80) != 0) {
-            unsigned int ln = utf8in(i, &ch);
-            if (iswprint((wint_t)ch) != 0) {
-                char tmp[64];
-                memcpy(tmp, i, ln);
-                tmp[ln] = 0;
-                if (fwprintf(f, L"%S", tmp) > 0) {
-                    i += ln;
-                    l = i;
-                    continue;
-                }
-            }
-            i += ln;
-        } else i++;
-        l = i;
-        unknown_print(f, ch);
-    }
-#else
     const uint8_t *i = l;
     for (;;) {
         unichar_t ch;
@@ -582,12 +623,9 @@ void printable_print(const uint8_t *l, FILE *f) {
         if ((ch & 0x80) != 0) {
             i += utf8in(i, &ch);
             if (iswprint((wint_t)ch) != 0) {
-                mbstate_t ps;
                 char temp[64];
-                size_t ln;
-                memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, (wchar_t)ch, &ps);
-                if (ln != (size_t)-1) {
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch);
+                if (ln != 0) {
                     fwrite(temp, ln, 1, f);
                     l = i;
                     continue;
@@ -597,49 +635,9 @@ void printable_print(const uint8_t *l, FILE *f) {
         unknown_print(f, ch);
         l = i;
     }
-#endif
 }
 
 size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
-#ifdef _WIN32
-    size_t i, l = 0, len = 0;
-    int err;
-    for (i = 0; i < max;) {
-        unichar_t ch = line[i];
-        if ((ch & 0x80) != 0) {
-            unsigned int ln;
-            if (l != i) len += fwrite(line + l, 1, i - l, f);
-            ln = utf8in(line + i, &ch);
-            if (iswprint((wint_t)ch) != 0) {
-                char tmp[64];
-                memcpy(tmp, line + i, ln);
-                tmp[ln] = 0;
-                if (fwprintf(f, L"%S", tmp) >= 0) {
-                    i += ln;
-                    l = i;
-                    len++;
-                    continue;
-                }
-            }
-            i += ln;
-            l = i;
-            err = unknown_print(f, ch);
-            if (err > 0) len += (unsigned int)err;
-            continue;
-        }
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
-            if (l != i) len += fwrite(line + l, 1, i - l, f);
-            i++;
-            l = i;
-            err = unknown_print(f, ch);
-            if (err > 0) len += (unsigned int)err;
-            continue;
-        }
-        i++;
-    }
-    if (i != l) len += fwrite(line + l, 1, i - l, f);
-    return len;
-#else
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
@@ -649,12 +647,9 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             i += utf8in(line + i, &ch);
             l = i;
             if (iswprint((wint_t)ch) != 0) {
-                mbstate_t ps;
                 char temp[64];
-                size_t ln;
-                memset(&ps, 0, sizeof ps);
-                ln = wcrtomb(temp, (wchar_t)ch, &ps);
-                if (ln != (size_t)-1) {
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch);
+                if (ln != 0) {
                     len += fwrite(temp, ln, 1, f); /* 1 character */
                     continue;
                 }
@@ -675,7 +670,6 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     }
     if (i != l) len += fwrite(line + l, 1, i - l, f);
     return len;
-#endif
 }
 
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
@@ -684,34 +678,16 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
     for (i = 0; i < max;) {
         unichar_t ch = line[i];
         if ((ch & 0x80) != 0) {
-#ifdef _WIN32
-            unsigned int ln = utf8in(line + i, &ch);
-            if (iswprint((wint_t)ch) != 0) {
-                char tmp[64];
-                wchar_t tmp2[64];
-                memcpy(tmp, line + i, ln);
-                tmp[ln] = 0;
-                if (swprintf(tmp2, lenof(tmp2), L"%S", tmp) > 0) {
-                    int width = wcwidth_v9(ch);
-                    if (width > 0) l += (unsigned int)width;
-                    i += ln;
-                    continue;
-                }
-            }
-            i += ln;
-#else
             i += utf8in(line + i, &ch);
             if (iswprint((wint_t)ch) != 0) {
                 char temp[64];
-                mbstate_t ps;
-                memset(&ps, 0, sizeof ps);
-                if (wcrtomb(temp, (wchar_t)ch, &ps) != (size_t)-1) {
-                    int width = wcwidth_v9(ch);
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch);
+                if (ln != 0) {
+                    int width = wcwidth_v13(ch);
                     if (width > 0) l += (unsigned int)width;
                     continue;
                 }
             }
-#endif
             err = unknown_print(NULL, ch);
             if (err > 0) l += (unsigned int)err;
             continue;
@@ -750,6 +726,23 @@ size_t calcpos(const uint8_t *line, size_t pos) {
 }
 
 #ifdef _WIN32
+void unicode_init(void) {
+    wchar_t w;
+    char c = '?';
+    BOOL used_default;
+    int ln = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, &w, 1, &c, 1, NULL, NULL);
+    wide_flags_acp = (ln <= 0) ? 0 : WC_NO_BEST_FIT_CHARS;
+    ln = WideCharToMultiByte(codepage, WC_NO_BEST_FIT_CHARS, &w, 1, &c, 1, NULL, NULL);
+    wide_flags = (ln <= 0) ? 0 : WC_NO_BEST_FIT_CHARS;
+    ln = WideCharToMultiByte(CP_ACP, 0, &w, 1, &c, 1, NULL, &used_default);
+    use_default_char_acp = (ln > 0);
+    ln = WideCharToMultiByte(codepage, 0, &w, 1, &c, 1, NULL, &used_default);
+    use_default_char = (ln > 0);
+    w = L'?';
+    ln = MultiByteToWideChar(codepage, MB_ERR_INVALID_CHARS, &c, 1, &w, 1);
+    multibyte_flags = (ln <= 0) ? 0 : MB_ERR_INVALID_CHARS;
+}
+
 MUST_CHECK wchar_t *utf8_to_wchar(const char *name, size_t max) {
     enum { REPLACEMENT_CHARACTER = 0xfffd };
     wchar_t *wname;
@@ -764,9 +757,7 @@ MUST_CHECK wchar_t *utf8_to_wchar(const char *name, size_t max) {
             if (ch == 0) ch = REPLACEMENT_CHARACTER;
         } else i++;
         if (j + 3 > len) {
-            wchar_t *d;
-            if (inc_overflow(&len, 64)) goto failed;
-            d = reallocate_array(wname, len);
+            wchar_t *d = inc_overflow(&len, 64) ? NULL : reallocate_array(wname, len);
             if (d == NULL) goto failed;
             wname = d;
         }
@@ -783,22 +774,134 @@ failed:
     free(wname);
     return NULL;
 }
+
+uint8_t *char_to_utf8(const char *s) {
+    size_t p, n, len;
+    int l;
+    uint8_t *data;
+    for (n = 0; s[n] != '\0'; n++) {
+        if ((uint8_t)s[n] > '~') break;
+    }
+    if (s[n] == '\0') {
+        return (uint8_t *)s;
+    }
+    while (s[n] != '\0') n++;
+
+    data = add_overflow(n, 64, &len) ? NULL : allocate_array(uint8_t, len);
+    if (data == NULL) return NULL;
+
+    p = 0;
+    l = n <= ((~(unsigned int)0) >> 1) ? MultiByteToWideChar(codepage, multibyte_flags, s, (int)n, NULL, 0) : -1;
+    if (l > 0) {
+        wchar_t *w = allocate_array(wchar_t, (unsigned int)l);
+        if (w == NULL) {
+            free(data);
+            return NULL;
+        }
+        l = MultiByteToWideChar(codepage, multibyte_flags, s, (int)n, w, l);
+        if (l > 0) {
+            int j;
+            for (j = 0; j < l; j++) {
+                unichar_t ch;
+                if (p + 6 + 1 > len) {
+                    uint8_t *d = inc_overflow(&len, 1024) ? NULL : reallocate_array(data, len);
+                    if (d == NULL) {
+                        free(w);
+                        free(data);
+                        return NULL;
+                    }
+                    data = d;
+                }
+                ch = (unichar_t)w[j];
+                if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
+            }
+        }
+        free(w);
+    }
+    data[p] = 0;
+    return data;
+}
+#else
+uint8_t *char_to_utf8(const char *s) {
+    mbstate_t ps;
+    size_t p, n, len, j;
+    uint8_t *data;
+    for (n = 0; s[n] != '\0'; n++) {
+        if ((uint8_t)s[n] > '~') break;
+    }
+    if (s[n] == '\0') {
+        return (uint8_t *)s;
+    }
+    while (s[n] != '\0') n++;
+        
+    data = add_overflow(n, 64, &len) ? NULL : allocate_array(uint8_t, len);
+    if (data == NULL) return NULL;
+
+    memset(&ps, 0, sizeof ps);
+    p = 0; j = 0;
+    for (;;) {
+        ssize_t l;
+        wchar_t w;
+        unichar_t ch;
+        if (p + 6 + 1 > len) {
+            uint8_t *d = inc_overflow(&len, 1024) ? NULL : reallocate_array(data, len);
+            if (d == NULL) {
+                free(data);
+                return NULL;
+            }
+            data = d;
+        }
+        l = (ssize_t)mbrtowc(&w, s + j, n - j,  &ps);
+        if (l < 1) {
+            w = (uint8_t)s[j];
+            if (w == 0 || l == 0) break;
+            l = 1;
+        }
+        j += (size_t)l;
+        ch = (unichar_t)w;
+        if (ch != 0 && ch < 0x80) data[p++] = (uint8_t)ch; else p += utf8out(ch, data + p);
+    }
+    data[p] = 0;
+    return data;
+}
 #endif
 
 FILE *fopen_utf8(const char *name, const char *mode) {
     FILE *f;
 #ifdef _WIN32
-    wchar_t *wname, *c2, wmode[3];
-    const uint8_t *c;
-    wname = utf8_to_wchar(name, SIZE_MAX);
-    if (wname == NULL) {
-        errno = ENOMEM;
-        return NULL;
+    size_t max;
+    for (max = 0; name[max] != '\0'; max++) {
+        if ((uint8_t)name[max] > '~') break;
     }
-    c2 = wmode; c = (uint8_t *)mode;
-    while ((*c2++=(wchar_t)*c++) != 0);
-    f = _wfopen(wname, wmode);
-    free(wname);
+    if (name[max] != '\0') {
+        wchar_t *c2, wmode[3];
+        const uint8_t *c;
+        wchar_t *wname = utf8_to_wchar(name, SIZE_MAX);
+        if (wname == NULL) {
+            errno = ENOMEM;
+            return NULL;
+        }
+        c2 = wmode; c = (uint8_t *)mode;
+        while ((*c2++ = (wchar_t)*c++) != 0);
+        f = _wfopen(wname, wmode);
+        if (f == NULL && errno == EBADF) {
+            BOOL used_default = false;
+            int l = WideCharToMultiByte(CP_ACP, wide_flags_acp, wname, -1, NULL, 0, NULL, use_default_char_acp ? &used_default : NULL);
+            if (l > 0 && !used_default) {
+                char *name2 = allocate_array(char, (unsigned int)l);
+                if (name2 != NULL) {
+                    l = WideCharToMultiByte(CP_ACP, wide_flags_acp, wname, -1, name2, l, NULL, use_default_char_acp ? &used_default : NULL);
+                    if (l > 0 && !used_default) {
+                        f = fopen(name2, mode);
+                    } else errno = EILSEQ;
+                    free(name2);
+                } else errno = ENOMEM;
+            } else errno = EILSEQ;
+        }
+        free(wname);
+    } else {
+        f = fopen(name, mode);
+    }
 #else
     size_t len = 1, max;
     char *newname = NULL;
@@ -820,16 +923,12 @@ FILE *fopen_utf8(const char *name, const char *mode) {
             ch = *c;
             if ((ch & 0x80) != 0) {
                 c += utf8in(c, &ch);
-                if (ch == 0) {errno = ENOENT; goto failed;}
+                if (ch == 0) {errno = EILSEQ; goto failed;}
             } else c++;
             l = (ssize_t)wcrtomb(temp, (wchar_t)ch, &ps);
-            if (l <= 0) goto failed;
-            len += (size_t)l;
-            if (len < (size_t)l) goto failed;
+            if (l <= 0 || inc_overflow(&len, (size_t)l)) goto failed;
             if (len > max) {
-                char *d;
-                if (add_overflow(len, 64, &max)) goto failed;
-                d = reallocate_array(newname, max);
+                char *d = add_overflow(len, 64, &max) ? NULL : reallocate_array(newname, max);
                 if (d == NULL) goto failed;
                 newname = d;
             }

@@ -1,5 +1,5 @@
 /*
-    $Id: console.h 2620 2021-04-25 12:05:16Z soci $
+    $Id: console.h 2931 2022-12-23 08:10:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ extern bool console_use_bold;
 extern void console_use(FILE *);
 
 #ifdef _WIN32
-extern void console_init(void);
+extern void console_init(unsigned int);
 extern void console_destroy(void);
 extern void console_attribute(int c, FILE *f);
 #define console_bold(f) console_attribute(0, (f))

@@ -14,7 +14,7 @@ brew. If the packaged version is not up to date compilation from source is
 always an option.
 
 For Windows the release binaries are hosted by Sourceforge. For these the
-minimum requirements is XP running on a 586. This 32 bit version should work on
+minimum requirements is XP running on a 686. This 32 bit version should work on
 X64 without any drawbacks. Manual compilation for older windows versions, for
 X64 or even 32 bit DOS is possible.
 

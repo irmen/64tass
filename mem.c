@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2895 2022-11-05 05:30:04Z soci $
+    $Id: mem.c 2924 2022-12-22 08:52:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -151,7 +151,7 @@ void memref(Memblocks *memblocks, Memblocks *ref, address_t addr, address_t ln) 
 
 static MUST_CHECK bool padding(FILE *f, address_t size, bool append) {
     uint8_t nuls[256];
-#if defined _POSIX_C_SOURCE || defined __unix__ || defined __MINGW32__
+#if defined _POSIX_C_SOURCE || defined __unix__
     if (!append) {
         while (size >= 0x80000000) {
             if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
@@ -162,6 +162,8 @@ static MUST_CHECK bool padding(FILE *f, address_t size, bool append) {
         }
     }
 err:
+#else
+    (void)append;
 #endif
     nuls[0] = 1;
     while (size != 0) {
@@ -608,6 +610,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     }
     memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC || output->mode == OUTPUT_MHEX);
 
+    if (fout == stdout && fflush(fout) != 0) setvbuf(fout, NULL, binary ? _IOFBF : _IOLBF, 1024);
     clearerr(fout); errno = 0;
     switch (output->mode) {
     case OUTPUT_FLAT: output_mem_flat(fout, memblocks, output->append); break;
