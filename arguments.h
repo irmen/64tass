@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2880 2022-10-31 04:56:55Z soci $
+    $Id: arguments.h 2954 2023-01-07 10:22:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ struct output_s {
     bool append;
     bool longaddr;
     bool mapappend;
+    bool mapfile;
 };
 
 struct error_output_s {

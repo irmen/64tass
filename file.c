@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2933 2022-12-23 10:52:39Z soci $
+    $Id: file.c 2954 2023-01-07 10:22:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,9 @@
 #else
 #include "wchar.h"
 #endif
-#if defined _POSIX_C_SOURCE || defined __unix__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#include <io.h>
+#elif defined _POSIX_C_SOURCE || defined __unix__
 #include <sys/stat.h>
 #endif
 #include "64tass.h"
@@ -299,17 +301,17 @@ static inline unichar_t fromiso(unichar_t c) {
 }
 
 static filesize_t fsize(FILE *f) {
-#if defined _POSIX_C_SOURCE || defined __unix__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+    long len = filelength(fileno(f));
+    if (len > 0) {
+        return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
+    }
+#elif defined _POSIX_C_SOURCE || defined __unix__
     struct stat st;
     if (fstat(fileno(f), &st) == 0) {
         if (S_ISREG(st.st_mode) && st.st_size > 0) {
             return (st.st_size & ~(off_t)~(filesize_t)0) == 0 ? (filesize_t)st.st_size : ~(filesize_t)0;
         }
-    }
-#elif defined _WIN32 || defined __MSDOS__ || defined __DOS__
-    long len = filelength(fileno(f));
-    if (len > 0) {
-        return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
     }
 #else
     if (fseek(f, 0, SEEK_END) == 0) {
@@ -631,7 +633,7 @@ static void file_read_message(const struct file_s *file, File_open_type ftype) {
     if (arguments.quiet) {
         fputs((ftype == FILE_OPEN_BINARY) ? "Reading file:      " : "Assembling file:   ", stdout);
         argv_print(file->name, stdout);
-        putchar('\n');
+        putc('\n', stdout);
         if (fflush(stdout) != 0) setvbuf(stdout, NULL, _IOLBF, 1024);
     }
 }

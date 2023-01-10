@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2924 2022-12-22 08:52:34Z soci $
+    $Id: mem.c 2967 2023-01-08 22:50:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,13 +18,12 @@
 */
 #include "mem.h"
 #include <string.h>
-#ifdef _WIN32
-#include <fcntl.h>
-#include <unistd.h>
-#endif
-#if defined __MSDOS__ || defined __DOS__
+#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
 #include <io.h>
 #include <fcntl.h>
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
 #endif
 #include <errno.h>
 #include "error.h"
@@ -33,7 +32,6 @@
 #include "listing.h"
 #include "arguments.h"
 #include "values.h"
-
 #include "memblocksobj.h"
 
 static int memblockcomp(const void *a, const void *b) {
@@ -149,7 +147,12 @@ void memref(Memblocks *memblocks, Memblocks *ref, address_t addr, address_t ln) 
     block->addr = addr;
 }
 
-static MUST_CHECK bool padding(FILE *f, address_t size, bool append) {
+#if defined _POSIX_C_SOURCE || defined __unix__
+static MUST_CHECK bool padding(FILE *f, address_t size, bool append)
+#else
+static MUST_CHECK bool padding(FILE *f, address_t size, bool UNUSED(append))
+#endif
+{
     uint8_t nuls[256];
 #if defined _POSIX_C_SOURCE || defined __unix__
     if (!append) {
@@ -162,8 +165,6 @@ static MUST_CHECK bool padding(FILE *f, address_t size, bool append) {
         }
     }
 err:
-#else
-    (void)append;
 #endif
     nuls[0] = 1;
     while (size != 0) {
@@ -597,6 +598,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 #endif
 
     if (dash_name(output->name)) {
+        if (fflush(stdout) != 0 || binary) setvbuf(stdout, NULL, binary ? _IOFBF : _IOLBF, binary ? BUFSIZ : 1024);
 #if defined _WIN32 || defined __MSDOS__ || defined __DOS__
         if (binary) oldmode = setmode(STDOUT_FILENO, O_BINARY);
 #endif
@@ -610,7 +612,6 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     }
     memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC || output->mode == OUTPUT_MHEX);
 
-    if (fout == stdout && fflush(fout) != 0) setvbuf(fout, NULL, binary ? _IOFBF : _IOLBF, 1024);
     clearerr(fout); errno = 0;
     switch (output->mode) {
     case OUTPUT_FLAT: output_mem_flat(fout, memblocks, output->append); break;
@@ -629,6 +630,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
 #if defined _WIN32 || defined __MSDOS__ || defined __DOS__
     if (oldmode >= 0) setmode(STDOUT_FILENO, oldmode);
 #endif
+    if (fout == stdout && binary) setvbuf(stdout, NULL, _IOLBF, 1024);
 }
 
 FAST_CALL uint8_t *alloc_mem(Memblocks *memblocks, address_t len) {

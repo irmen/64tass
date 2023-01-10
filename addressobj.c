@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2733 2021-10-04 21:31:55Z soci $
+    $Id: addressobj.c 2965 2023-01-08 19:50:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -555,7 +555,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     case A_ZR:
                     case A_RR:
                     case A_SR:
-                        if (amc == am2) {
+                        if ((Address_types)amc == am2) {
                             am2 = A_NONE;
                             continue;
                         }

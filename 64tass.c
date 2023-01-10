@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2925 2022-12-22 09:15:42Z soci $
+    $Id: 64tass.c 2954 2023-01-07 10:22:44Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -5235,15 +5235,20 @@ int main2(int *argc2, char **argv2[]) {
                 err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
                 continue;
             } 
-            if (arguments.quiet && output->name != NULL) {
-                fputs("Output file:       ", stdout);
-                argv_print(output->name, stdout);
-                putc('\n', stdout);
-                if (fflush(stdout) != 0) setvbuf(stdout, NULL, _IOLBF, 1024);
-            }
             parent = section->parent;
             section->parent = NULL;
-            memorymapfile(section->address.mem, output);
+            if (arguments.quiet) { 
+                if (output->name != NULL) {
+                    fputs("Output file:       ", stdout);
+                    argv_print(output->name, stdout);
+                    putc('\n', stdout);
+                }
+                if (!output->mapfile) printmemorymap(section->address.mem);
+                if (output->name != NULL || !output->mapfile) {
+                    if (fflush(stdout) != 0) setvbuf(stdout, NULL, _IOLBF, 1024);
+                }
+            }
+            if (output->mapname != NULL) memorymapfile(section->address.mem, output);
             if (output->name != NULL) {
                 if (j == arguments.output_len - 1) {
                     output_mem(section->address.mem, output);

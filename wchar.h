@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.h 2938 2022-12-25 09:47:26Z soci $
+    $Id: wchar.h 2966 2023-01-08 21:28:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <wchar.h>
 extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
-#elif defined __GNUC__ || _MSC_VER >= 1400 || defined __WATCOMC__
+#elif defined __GNUC__ || defined _MSC_VER || defined __WATCOMC__
 #include <wchar.h>
 #elif __STDC_VERSION__ >= 199901L && !defined __VBCC__
 #include <wchar.h>
@@ -41,5 +41,6 @@ extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
 #endif
 
 extern int wcwidth_v13(unichar_t);
+extern int isprint_v13(unichar_t);
 
 #endif

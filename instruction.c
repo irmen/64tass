@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: instruction.c 2959 2023-01-08 10:32:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -661,7 +661,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     }
                 }
             } else if (!invalid) { /* short */
-                if (((uint16_t)(current_address->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
+                if (((current_address->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                     int diff = (int8_t)oadr;
                     if (diff >= 0) diff++;
                     if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, &diff, epoint2);

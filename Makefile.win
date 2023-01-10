@@ -1,11 +1,11 @@
-# $Id: Makefile.win 2928 2022-12-22 17:29:05Z soci $
+# $Id: Makefile.win 2948 2022-12-29 14:34:42Z soci $
 CC = x86_64-w64-mingw32-gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
  intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o \
  registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o \
- longjump.o wctype.o wchar.o math.o arguments.o optimizer.o opt_bit.o labelobj.o \
+ longjump.o wchar.o math.o arguments.o optimizer.o opt_bit.o labelobj.o \
  errorobj.o macroobj.o mfuncobj.o symbolobj.o anonsymbolobj.o memblocksobj.o \
  foldobj.o main.o console.o encobj.o
 LDLIBS = -lm
@@ -190,9 +190,9 @@ ternary.o: ternary.c ternary.h stdbool.h inttypes.h unicode.h \
  attributes.h error.h errors_e.h
 typeobj.o: typeobj.c typeobj.h obj.h attributes.h inttypes.h stdbool.h \
  variables.h eval.h oper_e.h strobj.h functionobj.h
-unicodedata.o: unicodedata.c unicodedata.h inttypes.h
+unicodedata.o: unicodedata.c unicodedata.h inttypes.h attributes.h
 unicode.o: unicode.c unicode.h attributes.h inttypes.h stdbool.h wchar.h \
- wctype.h unicodedata.h str.h console.h error.h errors_e.h
+ unicodedata.h str.h console.h error.h errors_e.h
 values.o: values.c values.h attributes.h obj.h inttypes.h unicode.h \
  stdbool.h error.h errors_e.h strobj.h typeobj.h
 variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
@@ -202,7 +202,6 @@ variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
  bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h noneobj.h labelobj.h \
  str.h errorobj.h mfuncobj.h
 wchar.o: wchar.c wchar.h inttypes.h
-wctype.o: wctype.c wctype.h
 
 .PHONY: clean distclean
 

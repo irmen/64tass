@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2928 2022-12-22 17:29:05Z soci $
+    $Id: arguments.c 2954 2023-01-07 10:22:44Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -463,7 +463,7 @@ static MUST_CHECK char *read_one(FILE *f) {
     return (char *)data;
 }
 
-static address_t check_outputs(const char *defmap) {
+static address_t check_outputs(void) {
     size_t i;
     bool tostdout = false;
     address_t min = 0xffffffff;
@@ -497,12 +497,6 @@ static address_t check_outputs(const char *defmap) {
     }
     if (tostdout) arguments.quiet = false;
     else setvbuf(stdout, NULL, _IOLBF, 1024);
-    for (i = 0; i < arguments.output_len; i++) {
-        struct output_s *output = &arguments.output[i];
-        if (output->mapname != defmap) continue;
-        output->mapname = arguments.quiet ? "-" : NULL;
-        output->mapappend = false;
-    }
     return min;
 }
 
@@ -535,11 +529,9 @@ int testarg(int *argc2, char **argv2[]) {
     size_t defines_p = 0;
     int max = 10;
     bool again;
-    char defmap = 0;
     struct include_list_s **lastil = &arguments.include;
     struct symbol_output_s symbol_output = { NULL, NULL, LABEL_64TASS, false };
-    struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false };
-    output.mapname = &defmap;
+    struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false, false };
     memcpy(&arguments, &arguments_default, sizeof arguments);
     memcpy(&diagnostics, &diagnostics_default, sizeof diagnostics);
     memcpy(&diagnostic_errors, &diagnostic_errors_default, sizeof diagnostic_errors);
@@ -585,12 +577,13 @@ int testarg(int *argc2, char **argv2[]) {
                       extend_array(&arguments.output, &arguments.output_len, 1);
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;
-                      output.mapname = &defmap;
+                      output.mapname = NULL;
+                      output.mapfile = false;
                       break;
             case OUTPUT_SECTION:output.section = my_optarg; break;
             case MAP_APPEND:
-            case MAP: output.mapname = my_optarg; output.mapappend = (opt == MAP_APPEND); break;
-            case NO_MAP:output.mapname = NULL; break;
+            case MAP: output.mapname = my_optarg; output.mapappend = (opt == MAP_APPEND); output.mapfile = true; break;
+            case NO_MAP:output.mapname = NULL; output.mapfile = true; break;
             case CARET_DIAG:arguments.error.caret = CARET_ALWAYS;break;
             case MACRO_CARET_DIAG:arguments.error.caret = CARET_MACRO;break;
             case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
@@ -859,11 +852,14 @@ int testarg(int *argc2, char **argv2[]) {
         lastoutput->mode = output.mode;
         if (output.section != NULL) lastoutput->section = output.section;
         lastoutput->longaddr = output.longaddr;
-        if (output.mapname != &defmap) lastoutput->mapname = output.mapname;
+        if (!lastoutput->mapfile) {
+            lastoutput->mapname = output.mapname;
+            lastoutput->mapfile = output.mapfile;
+        }
         lastoutput->mapappend = output.mapappend;
     }
 
-    all_mem2 = check_outputs(&defmap);
+    all_mem2 = check_outputs();
     if (arguments.caseinsensitive == 0) {
         diagnostics.case_symbol = false;
     }

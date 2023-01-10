@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2924 2022-12-22 08:52:34Z soci $
+    $Id: memblocksobj.c 2968 2023-01-08 23:08:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -154,6 +154,7 @@ static int memblockprintcomp(const void *a, const void *b) {
     const struct memblock_s *bb = *(const struct memblock_s **)b;
     if (aa->addr != bb->addr) return (aa->addr > bb->addr) ? 1 : -1;
     if ((aa->ref == NULL) == (bb->ref == NULL) && aa->len != bb->len) return (aa->len > bb->len) ? 1 : -1;
+    if (aa == bb) return 0;
     return aa > bb ? 1 : -1;
 }
 
@@ -172,7 +173,7 @@ static bool memblockprint(const Memblocks *mem, struct memblocks_print_s *state)
     }
     ln = mem->p;
     if (ln != 0) {
-        const struct memblock_s **memblocks;
+        struct memblock_s **memblocks;
         size_t i;
         new_array(&memblocks, ln);
         for (i = 0; i < ln; i++) memblocks[i] = mem->data + i;
@@ -232,10 +233,18 @@ static unsigned int memblocklevel(const Memblocks *mem, unsigned int level) {
     return ret;
 }
 
+void printmemorymap(const Memblocks *mem) {
+    struct memblocks_print_s state;
+    state.f = stdout;
+    state.level = 0;
+    state.max = memblocklevel(mem, 0);
+    state.section = NULL;
+    memblockprint(mem, &state);
+}
+
 void memorymapfile(const Memblocks *mem, const struct output_s *output) {
     struct memblocks_print_s state;
     int err;
-    if (output->mapname == NULL) return;
 
     state.f = dash_name(output->mapname) ? stdout : fopen_utf8(output->mapname, output->mapappend ? "at" : "wt");
     if (state.f == NULL) {
@@ -245,12 +254,10 @@ void memorymapfile(const Memblocks *mem, const struct output_s *output) {
     if (state.f == stdout && fflush(state.f) != 0) setvbuf(state.f, NULL, _IOLBF, 1024);
     clearerr(state.f); errno = 0;
 
-    if (!arguments.quiet || state.f != stdout) {
-        if (!output->mapappend) fputs("\n64tass Turbo Assembler Macro V" VERSION " memory map file\n", state.f);
-        fputs("\nMemory map for output file: ", state.f);
-        argv_print(output->name, state.f);
-        fputs("\n\nType        Size      Range      Size    Name\n", state.f);
-    }
+    if (!output->mapappend) fputs("\n64tass Turbo Assembler Macro V" VERSION " memory map file\n", state.f);
+    fputs("\nMemory map for output file: ", state.f);
+    argv_print(output->name, state.f);
+    fputs("\n\nType        Size      Range      Size    Name\n", state.f);
 
     state.level = 0;
     state.max = memblocklevel(mem, 0);

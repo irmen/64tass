@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 2623 2021-04-25 15:21:43Z soci $
+ *  $Id: my_getopt.c 2951 2023-01-05 21:21:16Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -81,7 +81,7 @@ static int my_getopt(int argc, char *argv[], const char *opts)
       goto my_getopt_ok;
     }
     if (my_opterr) {fatal_error("option '-");
-                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len((unsigned int)my_optopt) : 1);
+                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, ((my_optopt & 0x80) != 0) ? utf8len((unsigned char)my_optopt) : 1);
                     fputs("' not recognized", stderr); fatal_error(NULL); }
     opt = '?';
     if (argv[my_optind][++charind] == '\0') {

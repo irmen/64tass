@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2931 2022-12-23 08:10:09Z soci $
+    $Id: main.c 2967 2023-01-08 22:50:27Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -48,22 +48,22 @@
 
 bool signal_received = false;
 
-static void signal_reset(int signum) {
 #if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L
 #ifdef SA_RESETHAND
-    (void)signum;
+#define signal_reset(signum) do {} while (false)
 #else
+static void signal_reset(int signum) {
     struct sigaction sa;
     sa.sa_handler = SIG_DFL;
     sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
     sigaction(signum, &sa, NULL);
+}
 #define SA_RESETHAND 0
 #endif
 #else
-    signal(signum, SIG_DFL);
+#define signal_reset(signum) signal((signum), SIG_DFL)
 #endif
-}
 
 static void signal_set(int signum, void (*handler)(int)) {
 #if defined _POSIX_C_SOURCE || _POSIX_VERSION >= 199506L
@@ -136,8 +136,8 @@ static unsigned int get_codepage(const char *locale) {
             unsigned long int ncp = strtoul(locale, &s, 10);
             if (ncp > 0 && ncp <= 65535) {
                 cp = (unsigned int)ncp;
+                locale = s;
             }
-            locale = s;
         } else if ((*locale | 0x20) == 'u' && (locale[1] | 0x20) == 't' && (locale[2] | 0x20) == 'f') {
             locale += 3;
             if (*locale == '-') locale++;
@@ -249,10 +249,11 @@ int main(int argc, char *argv[])
   if (argvw == NULL) {
       int i, r;
       char **uargv;
+      unsigned int cp;
 
       install_signal_handler();
-      codepage = locale_init();
-      console_init(codepage);
+      cp = locale_init();
+      console_init(cp);
       atexit(console_destroy);
       unicode_init();
 
@@ -262,13 +263,11 @@ int main(int argc, char *argv[])
           argc = 1;
       }
       new_array(&uargv, (unsigned int)argc);
+      codepage = GetACP();
       for (i = 0; i < argc; i++) {
           const char *s = (i == 0) ? prgname(*argv) : argv[i];
           uint8_t *data;
-          unsigned int cp = codepage;
-          codepage = GetACP();
           data = char_to_utf8(s);
-          codepage = cp;
           if (data == (uint8_t *)s) {
               size_t len = strlen(s);
               data = inc_overflow(&len, 1) ? NULL : allocate_array(uint8_t, len);
@@ -279,6 +278,7 @@ int main(int argc, char *argv[])
           if (data == NULL) err_msg_out_of_memory();
           uargv[i] = (char *)data;
       }
+      codepage = cp;
       r = main2(&argc, &uargv);
 
       for (i = 0; i < argc; i++) free(uargv[i]);
@@ -312,6 +312,7 @@ int main(int argc, char *argv[]) {
 
     install_signal_handler();
     setlocale(LC_CTYPE, "");
+    console_init();
 
     if (argc < 1) {
         static char *argvd[1] = { (char *)"64tass" };

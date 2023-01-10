@@ -1,5 +1,5 @@
 /*
-    $Id: unicodedata.h 2934 2022-12-23 22:04:58Z soci $
+    $Id: unicodedata.h 2946 2022-12-28 22:59:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #ifndef UNICODEDATA_H
 #define UNICODEDATA_H
 #include "inttypes.h"
+#include "attributes.h"
 
 #define pr_compat 1
 #define id_Start 2
