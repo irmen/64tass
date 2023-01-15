@@ -1,3 +1,55 @@
+r2973 (2023-01-11)
+==================
+
+This is a bugfix release due to the broken multi file output. There were
+a bunch of encoding related work meanwhile so these are included as well.
+
+**Fixes**
+
+* There was a mistake which could cause crashes (usually on Windows)
+  when outputting sections to multiple files.
+* Linking to older versions of MS C library could result in unexpected
+  behaviour when Unicode characters were attempted to be output due to
+  differences to ISO-C. Such functions are not used anymore. The
+  precompiled binary used a recent enough toolchain and so was not
+  affected.
+* Map file output not written to a file could still report a file open
+  error if the standard output was redirected and that couldn't be written.
+* In some cases ANSI colour sequences could end up in text output to files.
+  This shouldn't happen now.
+* Memory maps written to files were not added to makefile as outputs.
+* The Notepad++ syntax file was incompatible with dark-mode as it set the
+  text background to white instead of transparent.
+* When running on DOS the code page was not detected with some versions
+  of the OS.
+* Attempting to use it on Windows versions without wide character
+  support resulted in immediate exit. Now it can be used as normal.
+* When trying to use options with non-ASCII characters the error message
+  showed garbage.
+* Coloured diagnostic messages only worked in console window but not in
+  mintty (unless compiled for Cygwin). Now it should work with the
+  native version as well.
+* Depending on the C library memory map output could hang due to a
+  mistake. (e.g. on Amiga)
+
+**Changes**
+
+* On Windows the file encoding for "ANSI" files were assumed to use the
+  encoding from the current locale. However this can be different from
+  the active code page what text editors are using. Now such files are
+  assumed to use the active code page unless the locale is set differently
+  in the environment. Regardless UTF-8 sources are best for portability.
+* On Windows text output (e.g. listing) was UTF-8 or ASCII depending on
+  the toolchain used. Now the default encoding is the active code page.
+  This can be UTF-8 on recent systems but in any case it can be forced by
+  setting an UTF-8 locale through the environment.
+* Depending on C library version printable Unicode characters showed
+  placeholders even if the encoding would allow for it (e.g. UTF-8).
+  This is now determined internally to be consistent across platforms.
+* The subset of Unicode characters usable in identifiers got more strict
+  now.
+* Updated to Unicode 13.
+
 r2900 (2022-11-05)
 ==================
 
