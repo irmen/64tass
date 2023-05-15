@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2924 2022-12-22 08:52:34Z soci $
+    $Id: listing.c 2975 2023-01-18 21:13:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -255,7 +255,7 @@ static void printfile(Listing *ls) {
 
 static void printline(Listing *ls) {
     uint16_t curfile = current_file_list->file->uid;
-    if (curfile < 2) return;
+    if (current_file_list->file->notfile) return;
     printdec(ls, lpoint.line);
     if (ls->lastfile == curfile) return;
     ls->lastfile = curfile;

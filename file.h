@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2833 2022-10-22 10:01:11Z soci $
+    $Id: file.h 2975 2023-01-18 21:13:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ struct file_s {
     bool read_error;
     bool portable;
     bool cmdline;
+    bool notfile;
     uint8_t pass;
     uint8_t entercount;
     uint16_t uid;

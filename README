@@ -1542,7 +1542,7 @@ Storing numeric values
 
 Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
-on the directives used.
+on the directives used. Signed numbers are stored as two's complement.
 
 When using lists or tuples their content will be used one by one. Uninitialized
 data (`?') creates holes of different sizes. Character string constants are
@@ -1625,7 +1625,7 @@ which accepts strings of any length.
     >102a  32 03 01 92 05 02         jumps   .long routine1, routine2
 
 .dword <expression>[, <expression>, ...]
-    Create bytes from 32 bit constants (0-4294967295)
+    Create bytes from 32 bit unsigned constants (0-4294967295)
 .dint <expression>[, <expression>, ...]
     Create bytes from 32 bit signed constants (-2147483648-2147483647)
 
@@ -1635,6 +1635,16 @@ which accepts strings of any length.
     ;Store 16.16 signed fixed point constants
     >100c  5d 8f fc ff 66 66 03 00  .dint (-3.44, 3.4, 3.52) * 1p16
     >1014  1e 85 03 00
+
+.text bytes(<expression>, <byte count expression>)
+    Create bytes from arbitrary precision unsigned and signed numbers.
+.text bits(<expression>, <byte count expression>)
+    Create bytes from arbitrary precision unsigned and signed numbers.
+
+    For cases not covered by the numeric store directives above it's possible
+    to convert numbers to byte or bit strings and store the resulting string.
+    If the count expression of bytes() and bits() is negative then the stored
+    number is signed otherwise unsigned.
 
 Storing string values
 

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2974 2023-01-11 07:16:37Z soci $ -->
+<!-- $Id: README.html 2976 2023-02-19 20:09:12Z soci $ -->
 <head>
 <title>64tass v1.58 r2974 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -1906,7 +1906,7 @@ change the way the alignment works.</p>
 
 <p>Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
-on the directives used.
+on the directives used. Signed numbers are stored as two's complement.
 
 <p>When using lists or tuples their content will be used one by one.
 Uninitialized data (<q><a href="#uninitialized"><code>?</code></a></q>) creates holes of different sizes. Character string constants
@@ -1997,7 +1997,7 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 </pre>
 
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dword" href="#d_dword"></a>
-<dd>Create bytes from 32&nbsp;bit constants (0&ndash;4294967295)
+<dd>Create bytes from 32&nbsp;bit unsigned constants (0&ndash;4294967295)
 <dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dint" href="#d_dint"></a>
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 
@@ -2009,6 +2009,17 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;100c  5d 8f fc ff 66 66 03 00  <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
 &gt;1014  1e 85 03 00
 </pre>
+
+<dt><b>.text</b> bytes(&lt;expression&gt;, &lt;byte count expression&gt;)
+<dd>Create bytes from arbitrary precision unsigned and signed numbers.
+<dt><b>.text</b> bits(&lt;expression&gt;, &lt;byte count expression&gt;)
+<dd>Create bytes from arbitrary precision unsigned and signed numbers.
+
+<p>For cases not covered by the numeric store directives above it's possible to
+convert numbers to byte or bit strings and store the resulting string. If the
+count expression of bytes() and bits() is negative then the stored number is
+signed otherwise unsigned.
+
 </dl>
 
 <h4>Storing string values<a name="data-text" href="#data-text"></a></h4>

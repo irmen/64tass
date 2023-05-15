@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2954 2023-01-07 10:22:44Z soci $
+    $Id: file.c 2975 2023-01-18 21:13:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -681,6 +681,7 @@ static struct file_s *file_lookup(const str_t *name, const char *base) {
         file->read_error = false;
         file->portable = false;
         file->cmdline = false;
+        file->notfile = false;
         file->pass = 0;
         file->uid = 0;
         file->entercount = 0;
@@ -703,7 +704,10 @@ struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, Fil
     case FILE_OPEN_DEFINES:
         file = &file_defines;
         if (!file->binary.read) {
-            if (arguments.defines.data == NULL) return NULL;
+            if (arguments.defines.data == NULL) {
+                if (file_table.uid == 0) file_table.uid = 1;
+                return NULL;
+            }
             file->binary.data = (uint8_t *)arguments.defines.data;
             arguments.defines.data = NULL;
             file->binary.len = (arguments.defines.len & ~(size_t)~(filesize_t)0) == 0 ? (filesize_t)arguments.defines.len : ~(filesize_t)0;
@@ -882,6 +886,7 @@ void init_file(void) {
     file_stdin.portable = true;
     file_defines.name = "<command line>";
     file_defines.portable = true;
+    file_defines.notfile = true;
     new_instance(&stars);
     stars->next = NULL;
     starsp = 0;

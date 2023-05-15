@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 2954 2023-01-07 10:22:44Z soci $
+    $Id: 64tass.c 2980 2023-04-08 14:10:45Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1316,7 +1316,7 @@ static MUST_CHECK Obj *tuple_scope_light(Obj **o, linepos_t epoint) {
     return nf;
 }
 
-static void update_code(Label *newlabel, Code *code) {
+static void update_code(const Label *newlabel, Code *code) {
     Obj *tmp;
     if (current_address->bankwarn) {err_msg_pc_bank(&newlabel->epoint);current_address->bankwarn = false;}
     tmp = current_address->l_address_val;
@@ -1361,7 +1361,7 @@ static MUST_CHECK Code *create_code(linepos_t epoint) {
     return code;
 }
 
-static MUST_CHECK Obj *tuple_scope(Label *newlabel, Obj **o) {
+static MUST_CHECK Obj *tuple_scope(const Label *newlabel, Obj **o) {
     Obj *nf;
     address_t size;
     Code *code;
@@ -1412,7 +1412,7 @@ static MUST_CHECK bool list_extend2(List *lst) {
     return false;
 }
 
-static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
+static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
     int wht;
     linenum_t lin;
     int nopos = -1;
@@ -1756,7 +1756,7 @@ static size_t for_command(Label *newlabel, List *lst, linepos_t epoint) {
     return i;
 }
 
-static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
+static size_t rept_command(const Label *newlabel, List *lst, linepos_t epoint) {
     uval_t cnt;
     Obj *nf;
     size_t i = 0;
@@ -1809,7 +1809,7 @@ static size_t rept_command(Label *newlabel, List *lst, linepos_t epoint) {
     return i;
 }
 
-static size_t while_command(Label *newlabel, List *lst, linepos_t epoint) {
+static size_t while_command(const Label *newlabel, List *lst, linepos_t epoint) {
     uint8_t *expr;
     Obj *nf = NULL;
     struct star_s *s, *stree_old;
@@ -3607,6 +3607,7 @@ MUST_CHECK Obj *compile(void)
                     close_waitfor(waitfor->what);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(epoint.pos);
                 } else if ((prm != CMD_ENDSEGMENT && waitfor->what == W_ENDMACRO2) || (prm != CMD_ENDMACRO && waitfor->what==W_ENDSEGMENT2)) { /* not closed here */
+                    if ((waitfor->skip & 1) != 0) listing_line_cut(epoint.pos);
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -3623,6 +3624,7 @@ MUST_CHECK Obj *compile(void)
                     close_waitfor(W_ENDF);
                     if ((waitfor->skip & 1) != 0) listing_line_cut2(epoint.pos);
                 } else if (waitfor->what==W_ENDF2 || waitfor->what==W_ENDF3) { /* not closed here */
+                    if ((waitfor->skip & 1) != 0) listing_line_cut(epoint.pos);
                     nobreak = false;
                     if (here() != 0 && here() != ';' && get_exp(0, 0, 0, NULL)) {
                         retval = get_vals_tuple();
@@ -4519,7 +4521,7 @@ MUST_CHECK Obj *compile(void)
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
-                    if (newlabel != NULL && prm == CMD_BINCLUDE && (f == NULL || f->open) && newlabel->value->obj == CODE_OBJ) {
+                    if (newlabel != NULL && prm == CMD_BINCLUDE && (f == NULL || f->open) && (newlabel->value->obj == CODE_OBJ || newlabel->value->obj == NONE_OBJ)) {
                         newlabel->update_after = true;
                         const_assign(newlabel, ref_none());
                     }
