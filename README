@@ -1926,11 +1926,21 @@ x       .byte \col      ;labels are not visible
 y       .byte \row      ;no content is compiled here
         .endstruct      ;it's just a definition
 
-nn      .dstruct nn_s, 1, 2;structure instance, content here
+nn      .dstruct nn_s, 1, 2;structure instance (within label)
 
         lda nn.x        ;direct field access
         ldy #nn_s.x     ;get offset of field
         lda nn,y        ;and use it indirectly
+
+nnarray .brept 4        ;4 element "array" here
+        .dstruct nn_s   ;fields directly here (without a label)
+        .endrept
+
+        lda nnarray[0].y;access of "array" field
+
+coords2 .bfor x2, y2 in (1,3),(4,2),(7,5)
+        .dstruct nn_s, x2, y2
+        .next           ;initialized "array" from list
 
 Union
 

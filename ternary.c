@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 2896 2022-11-05 05:33:41Z soci $
+   $Id: ternary.c 2981 2023-05-16 19:30:41Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -71,7 +71,7 @@ static MALLOC ternary_node *tern_alloc(void) {
 /* Non-recursive so we don't waste stack space/time on large
    insertions. */
 
-ternary_tree *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_t *end)
+void *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_t *end)
 {
     unichar_t spchar;
     ternary_tree curr;

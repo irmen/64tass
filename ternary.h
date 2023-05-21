@@ -1,5 +1,5 @@
 /* ternary.h - Ternary Search Trees
-   $Id: ternary.h 2896 2022-11-05 05:33:41Z soci $
+   $Id: ternary.h 2981 2023-05-16 19:30:41Z soci $
 
    Copyright 2001 Free Software Foundation, Inc.
 
@@ -45,7 +45,7 @@ extern void destroy_ternary(void);
    already there, and replace is 0.
    Otherwise, replaces if it it exists, inserts if it doesn't, and
    returns the data you passed in. */
-extern ternary_tree *ternary_insert(ternary_tree *, const uint8_t *, const uint8_t *);
+extern void *ternary_insert(ternary_tree *, const uint8_t *, const uint8_t *);
 
 typedef void (*ternary_free_fn_t)(void *);
 

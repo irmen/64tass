@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2976 2023-02-19 20:09:12Z soci $ -->
+<!-- $Id: README.html 2984 2023-05-17 17:52:26Z soci $ -->
 <head>
 <title>64tass v1.58 r2974 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -2326,11 +2326,21 @@ x       <b class="d">.byte</b> <span class="k">\col</span>      <i>;labels are n
 y       <b class="d">.byte</b> <span class="k">\row</span>      <i>;no content is compiled here</i>
         <b class="k">.endstruct</b>      <i>;it's just a definition</i>
 
-nn      <b class="d">.dstruct</b> <u>nn_s</u>, <span>1</span>, <span>2</span><i>;structure instance, content here</i>
+nn      <b class="d">.dstruct</b> <u>nn_s</u>, <span>1</span>, <span>2</span><i>;structure instance (within label)</i>
 
         <b>lda</b> <u>nn</u>.<u>x</u>        <i>;direct field access</i>
         <b>ldy</b> #<u>nn_s</u>.<u>x</u>     <i>;get offset of field</i>
         <b>lda</b> <u>nn</u>,y        <i>;and use it indirectly</i>
+
+nnarray <b class="k">.brept</b> <span>4</span>        <i>;4 element "array" here</i>
+        <b class="d">.dstruct</b> <u>nn_s</u>   <i>;fields directly here (without a label)</i>
+        <b class="k">.endrept</b>
+
+        <b>lda</b> <u>nnarray</u>[<span>0</span>].<u>y</u><i>;access of "array" field</i>
+
+coords2 <b class="k">.bfor</b> <u>x2</u>, <u>y2</u> <span class="k">in</span> (<span>1</span>,<span>3</span>),(<span>4</span>,<span>2</span>),(<span>7</span>,<span>5</span>)
+        <b class="d">.dstruct</b> <u>nn_s</u>, <u>x2</u>, <u>y2</u>
+        <b class="k">.next</b>           <i>;initialized "array" from list</i>
 </pre>
 
 <h4>Union<a name="union" href="#union"></a></h4>

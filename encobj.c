@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: encobj.c 2981 2023-05-16 19:30:41Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -191,7 +191,7 @@ struct escape_s {
 
 static void escape_free(void *e) {
     struct escape_s *esc;
-    size_t i = (size_t)((const uint8_t *)e - identmap);
+    size_t i = (size_t)((const char *)e - identmap);
     if (i < 256) return;
     esc = (struct escape_s *)e;
     if (esc->data != esc->val) free(esc->data);
@@ -255,14 +255,14 @@ bool enc_escape_add(Enc *enc, const str_t *v, Obj *val, linepos_t epoint)
                 enc->escape_char = 257;
             }
         }
-        
+
         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
         fixeddig = false;
         return false;
     }
     *b2 = b;
     if (i == 1) {
-        size_t j = (size_t)((const uint8_t *)b - identmap);
+        size_t j = (size_t)((const char *)b - identmap);
         if (j < 256) {
             return b != (struct escape_s *)(identmap + tmp.val[0]);
         }
@@ -342,7 +342,7 @@ next:
         size_t len = encoder->len - encoder->i;
         struct escape_s *e = (struct escape_s *)ternary_search(enc->escapes, encoder->data + encoder->i, &len);
         if (e != NULL) {
-            size_t i = (size_t)((const uint8_t *)e - identmap);
+            size_t i = (size_t)((const char *)e - identmap);
             if (i < 256) {
                 encoder->i += len;
                 return (int)i;
