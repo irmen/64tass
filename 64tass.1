@@ -1,5 +1,5 @@
 .TH 64tass 1 "Jan 11 2023" "64tass 1.58" "64tass 1.58"
-\" $Id: 64tass.1 2974 2023-01-11 07:16:37Z soci $
+\" $Id: 64tass.1 2991 2023-08-06 06:22:07Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -176,6 +176,9 @@ For example \(aq-Werror=implied-reg\(aq makes this check an error. The \(aq-Wno-
 \fB\-Walias\fR
 Warns about alias opcodes.
 .TP 0.5i
+\fB\-Walign\fR
+Warns whenever padding bytes were added for an alignment.
+.TP 0.5i
 \fB\-Waltmode\fR
 Warn about alternative address modes.
 Sometimes alternative addressing modes are used as the fitting one is not
@@ -256,6 +259,10 @@ Don't warn about source portability problems.
 \fB\-Wno\-size\-larger\fR
 Don't warn if size is larger due to negative offset
 Negative offsets add space in front of memory area that's out of bound. Sometimes this may be fine.
+.TP 0.5i
+\fB\-Wno\-priority\fR
+Don't warn about operator priority problems.
+Not all of the unary operators are strongly binding and this may cause surprises.
 .TP 0.5i
 \fB\-Wno\-star\-assign\fR
 Don't warn about ignored compound multiply.

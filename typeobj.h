@@ -1,5 +1,5 @@
 /*
-    $Id: typeobj.h 2896 2022-11-05 05:33:41Z soci $
+    $Id: typeobj.h 2992 2023-08-06 16:21:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ typedef enum Type_types {
     T_SYMBOL, T_ANONSYMBOL, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
     T_DEFAULT, T_REGISTER, T_FUNCTION, T_FUNCARGS, T_TYPE, T_LABEL,
-    T_NAMESPACE, T_MEMBLOCKS, T_FOLD, T_SFUNC, T_ENC
+    T_NAMESPACE, T_MEMBLOCKS, T_FOLD, T_SFUNC, T_ENC, T_CALIGN
 } Type_types;
 
 typedef struct Type {

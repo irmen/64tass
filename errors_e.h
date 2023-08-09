@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2887 2022-11-01 09:07:24Z soci $
+    $Id: errors_e.h 2992 2023-08-06 16:21:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -116,6 +116,7 @@ typedef enum Error_types {
     ERROR__BRANCH_CROSS,
     ERROR_BRANCH_TOOFAR,
     ERROR____PTEXT_LONG,
+    ERROR___CALIGN_LONG,
     ERROR______EXPECTED,
     ERROR_RESERVED_LABL,
     ERROR___UNKNOWN_CPU,

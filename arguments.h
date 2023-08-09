@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2954 2023-01-07 10:22:44Z soci $
+    $Id: arguments.h 2991 2023-08-06 06:22:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,13 +140,15 @@ struct diagnostics_s {
     bool ignored;
     bool long_branch;
     bool altmode;
+    bool align;
     bool page;
     bool macro_prefix;
     bool float_round;
     bool size_larger;
+    bool priority;
 };
 
-extern int testarg(int *, char ***);
+extern int init_arguments(int *, char ***);
 extern void destroy_arguments(void);
 extern struct arguments_s arguments;
 extern struct diagnostics_s diagnostics, diagnostic_errors;

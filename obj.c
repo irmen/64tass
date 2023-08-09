@@ -1,5 +1,5 @@
 /*
-    $Id: obj.c 2774 2021-10-17 10:27:33Z soci $
+    $Id: obj.c 2992 2023-08-06 16:21:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,10 +51,12 @@
 static Type lbl_obj;
 static Type default_obj;
 static Type funcargs_obj;
+static Type calign_obj;
 
 Type *const LBL_OBJ = &lbl_obj;
 Type *const DEFAULT_OBJ = &default_obj;
 Type *const FUNCARGS_OBJ = &funcargs_obj;
+Type *const CALIGN_OBJ = &calign_obj;
 
 static Default defaultval = { { &default_obj, 1} };
 
@@ -276,6 +278,11 @@ static FAST_CALL bool funcargs_same(const Obj *o1, const Obj *o2) {
     return o1->obj == o2->obj && v1->val == v2->val && v1->len == v2->len;
 }
 
+static FAST_CALL bool calign_same(const Obj *o1, const Obj *o2) {
+    const Calign *v1 = Calign(o1), *v2 = Calign(o2);
+    return o1->obj == o2->obj && v1->size == v2->size;
+}
+
 void obj_init(Type *obj) {
     obj->iterable = false;
     obj->convert = invalid_convert;
@@ -343,6 +350,9 @@ void objects_init(void) {
 
     type = new_type(&funcargs_obj, T_FUNCARGS, "funcargs", sizeof(Funcargs));
     type->same = funcargs_same;
+
+    type = new_type(&calign_obj, T_CALIGN, "calign", sizeof(Calign));
+    type->same = calign_same;
 }
 
 void objects_destroy(void) {

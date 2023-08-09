@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2984 2023-05-17 17:52:26Z soci $ -->
+<!-- $Id: README.html 2995 2023-08-07 06:34:01Z soci $ -->
 <head>
 <title>64tass v1.58 r2974 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -20,6 +20,9 @@ pre {border:1px dotted #eee;background-color:#ffe;padding:2px; border-radius: 4p
 pre.make b {color:inherit;}
 pre.make span {color:navy;}
 pre.make span.cmd {color:green;}
+pre.diag span.error {color:red;}
+pre.diag span.note {color:darkcyan;}
+pre.diag span.caret {color:green;}
 pre b, code b {color:navy;}
 pre b.d, code b.d {color:#f80;}
 pre b.k, pre span.k, code b.k, code span.k {color:blue;}
@@ -36,7 +39,7 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.errorlist > dt, dl.dir > dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, tt {font-family:monospace,monospace;}
+dl.errorlist > dt, dl.dir > dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.trans2 td {font-family:monospace,monospace;}
 dl.errorlist > dt {font-weight:bold;}
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
@@ -162,6 +165,7 @@ difficult to get everything <q>right</q> first time.</b>
  <li><a href="#compiler-directives">Compiler directives</a>
  <ul>
   <li><a href="#program-counter">Controlling the compile offset and program counter</a>
+  <li><a href="#alignment">Aligning data or code</a>
   <li><a href="#data-dumping">Dumping data</a>
   <ul>
    <li><a href="#data-numeric">Storing numeric values</a>
@@ -729,7 +733,7 @@ scrhi   <b class="d">.byte</b> &gt;<u>_</u>
 <h3>Dictionaries<a name="dictionaries" href="#dictionaries"></a></h3>
 
 <p>Dictionaries hold key and value pairs. Definition is done by collecting
-key:value pairs separated by comma between braces <code>{"key":"value", 
+key:value pairs separated by comma between braces <code>{"key":"value",
 :"default value"}</code>.
 
 <p>Looking up a non-existing key is normally an error
@@ -1879,25 +1883,81 @@ tmp     <b class="d">.byte</b> <span>?</span>         <i>; at #3,s</i>
         <b class="k">.endvirtual</b>
         <b>lda</b> (<u>p1</u>),y      <i>; lda ($01,s),y</i>
 </pre>
+</dl>
 
-<dt><b>.align</b> &lt;expression&gt;[, &lt;fill&gt;]<a name="d_align" href="#d_align"></a>
+<h3>Aligning data or code<a name="alignment" href="#alignment"></a></h3>
+
+<p>Limitations of hardware often impose alignment requirements like the address of
+something needs to be divisible by a certain amount.
+
+<dl class="dir">
+<dt><b>.align</b> &lt;alignment&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]<a name="d_align" href="#d_align"></a>
 <dd>Align the program counter to a dividable address by inserting uninitialized memory or repeated bytes.
 
-<p>Usually used to page align data or code to avoid penalty cycles when indexing or branching.</p>
+<p>This directive is useful when data needs to be placed at regular intervals.
+For example if the video chip can only place the screen memory to an address divisible by
+1024 and the next such location is need.</p>
 
 <pre width="80">
-<i>;Offset PC       Bytes          Disassembly     Source</i>
-                                                *       <b>=</b> <span>$ffc</span>
-&gt;0ffc                                                   <b class="k">.align</b> <span>$100</span>
-.1000            ee 19 d0       inc $d019       irq     <b>inc</b> <span>$d019</span>
-&gt;1003            ea                                     <b class="k">.align</b> <span>4</span>, <span>$ea</span>
-.1004            69 01          adc #$01        loop    <b>adc</b> #<span>1</span>
+        <b class="k">.align</b> <span>$40</span>      <i>; sprite bitmap (64 byte aligned)</i>
+sprite  <b class="d">.fill</b> <span>63</span>
+        <b class="k">.align</b> <span>$400</span>     <i>; screen memory (1024 byte aligned)</i>
+screen  <b class="d">.fill</b> <span>1000</span>
+        <b class="k">.align</b> <span>$400</span>, <span>?</span>, <span>-8</span><i>; sprite pointers (last 8 bytes)</i>
+spritep <b class="d">.fill</b> <span>8</span>
+        <b class="k">.align</b> <span>$100</span>     <i>; page sized buffer at page boundary</i>
+sendbuf <b class="d">.fill</b> <span>256</span>       <i>; to avoid indexing penalty cycles</i>
 </pre>
 
 <p>When alignment is done within named structures then it's relative to the start
 of the structure. This means the structure layout will be always the same
 independent which address it's instantiated at. Anonymous structures do not
 change the way the alignment works.</p>
+
+<p>The <a href="#o_Walign">-Walign</a> command line option can warn about
+places were padding was necessary for alignment.</p>
+
+<dt><b>.calign</b> &lt;alignment&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]<a name="d_calign" href="#d_calign"></a>
+<dd>Starts non-crossing data alignment block.
+<dt><b>.endcalign</b><a name="d_endcalign" href="#d_endcalign"></a>
+<dd>Ends a non-crossing data alignment block.
+
+<p>Often it does not matter if the data starts at a divisible address only that it
+doesn't cross one. So there's a potential for space saving compared to aligning the
+data with regular <code>.align</code> to the start of a divisible boundary.
+
+<p>If the data is short in many cases no padding will be added as there's a good
+chance that it does not cross a boundary. If padding is necessary then this directive works
+the same as <a href="#d_align"><code>.align</code></a> including alignment within structures.
+
+<p>It's typically used with 256 as a parameter to place tables so that absolute indexed
+read accesses won't suffer page crossing cycle penalties.
+
+<pre width="80">
+        <b class="k">.calign</b> <span>$100</span>
+table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
+        <b class="k">.endcalign</b>
+        <b>lda</b> <u>table</u>,x     <i>; No cycles wasted on access</i>
+</pre>
+
+<p>Please note that this directive can't guarantee that a relative branch as a
+last instruction won't get slower due to the boundary. Also if the enclosed data size
+varies based on its memory location then doing the alignment may become
+impossible.</p>
+
+<dt><b>.fill</b> &lt;length&gt;
+<dd>Usually the <a href="#d_fill"><code>.fill</code></a> directive is used to
+reserve space but it may be useful to do alignments as well.
+
+<pre width="80">
+<i>; Replacement for a .cerror overrun check and *= combo</i>
+        <b class="d">.fill</b> <u>start_address</u> - <u>*</u>
+<i>; Align the vectors "block" so it ends at end_address</i>
+        <b class="d">.fill</b> <u>end_address</u> - size(<u>vectors</u>) - <u>*</u>
+vectors <b class="k">.logical</b> <u>*</u>      <i>; Dummy non-scoped block for size()</i>
+...
+</pre>
+
 </dl>
 
 <h3>Dumping data<a name="data-dumping" href="#data-dumping"></a></h3>
@@ -2052,7 +2112,7 @@ are converted using the current encoding.
 ...
 &gt;5100  55 aa 55  <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
 ...
-&gt;7040  ff ff ff  <b class="d">.fill</b> <span>$7100</span> - <u>*</u>, <span>$ff</span><i>;fill until $7100 with $ff</i>
+&gt;7040  ff ff ff  <b class="d">.fill</b> <span>$8000</span> - <u>*</u>, <span>$ff</span><i>;fill up rest of EPROM with $ff</i>
 ...
 </pre>
 
@@ -3217,13 +3277,23 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <dt><b>.endpage</b><a name="d_endpage" href="#d_endpage"></a>
 <dd>End of page check block
 
-<p>Gives an error on page boundary crossing, e.g. for timing sensitive code.</p>
+<p>Checks page boundary crossings, e.g. for timing sensitive code.<p>
+
+<p>Normally a page mismatch results in an error but the <a
+href="#o_Wpage">-Wno-error=page</a> command line option can reduce it into a
+warning.</p>
 
 <pre width="80">
+        <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
         <b class="k">.page</b>
-table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
+-       <b>dex</b>             <i>;16 cycles for sure</i>
+        <b>bne</b> <u>-</u>
         <b class="k">.endpage</b>
 </pre>
+
+<p>This directive will guarantee that a relative branch as a last instruction
+won't cross a page. On the other hand it will give an error for data ending
+right before the boundary. For aligning data please consider using <a href="#d_calign"><code>.calign</code></a> instead.</p>
 
 <dt><b>.option</b> allow_branch_across_page<a name="d_option" href="#d_option"></a>
 <dd>Switches error generation on page boundary crossing during relative branch.
@@ -3954,6 +4024,11 @@ duplicate what's in the source editor window will be not.</p>
 
 <p>There are several opcodes for the same task, especially for the "6502i" target.</p>
 
+<dt><b>-Walign</b><a name="o_Walign" href="#o_Walign"></a>
+<dd>Warns when padding bytes were used for alignment.
+
+<p>Can be used to see where space is wasted for alignment.</p>
+
 <dt><b>-Waltmode</b><a name="o_Waltmode" href="#o_Waltmode"></a>
 <dd>Warn about alternative address modes.
 
@@ -4066,6 +4141,13 @@ explicit rounding was done.</p>
 <p>With this option it's fine that the high byte is read from the <q>wrong</q>
 address on a 6502, NMOS 6502 and 65DTV02.</p>
 
+<pre width="80">
+        <b class="k">.calign</b> <span>$100</span>    <i>; jmp bug workaround</i>
+vector  <b class="d">.addr</b> <span>?</span>         <i>; by avoiding page</i>
+        <b class="k">.endcalign</b>      <i>; crossing of vector</i>
+        <b>jmp</b> (<u>vector</u>)
+</pre>
+
 <dt><b>-Wno-label-left</b><a name="o_Wlabel-left" href="#o_Wlabel-left"></a>
 <dd>Don't warn about certain labels not being on left side.
 
@@ -4112,6 +4194,17 @@ need extra notes about them. These are:</p>
 <li>Absolute paths
 </ul>
 
+<dt><b>-Wno-priority</b><a name="o_Wpriority" href="#o_Wpriority"></a>
+<dd>Don't warn about operator priority problems.
+
+<p>Not all of the unary operators are strongly binding and this may cause
+surprises. This warning is intended to catch mistakes like this:</p>
+
+<pre width="80">
+        <b class="k">.cerror</b> &gt;<u>start</u> != &gt;<u>end</u><i>; possibly wrong it's &gt;(start != (&gt;end))</i>
+        <b class="k">.cerror</b> (&gt;<u>start</u>) != &gt;<u>end</u><i>; correct high byte check</i>
+</pre>
+
 <dt><b>-Wno-size-larger</b><a name="o_Wsize-larger" href="#o_Wsize-larger"></a>
 <dd>Don't warn if size is larger due to negative offset
 
@@ -4119,7 +4212,7 @@ need extra notes about them. These are:</p>
 Normally there's no offset used but a positive offset may be used to reduce
 available space up until nothing remains.</p>
 
-<p>On the other hand if a negative offset is used then more space will be 
+<p>On the other hand if a negative offset is used then more space will be
 available (ahead of the area) which may or may not be desired.</p>
 
 <pre width="80">
@@ -4407,7 +4500,7 @@ options must be placed before this option. Using the same name multiple times is
 <q>export</q> into <q>myexport.inc</q>.</p>
 
 <dt><b>--labels-append</b>=&lt;file&gt;<a name="o_labels-append" href="#o_labels-append"></a>
-<dd>Same as the --labels option but appends instead of overwrites. 
+<dd>Same as the --labels option but appends instead of overwrites.
 
 <dt><b>--labels-root</b>=&lt;path&gt;<a name="o_labels-root" href="#o_labels-root"></a>
 <dd>Specify the scope to list labels from
@@ -4668,11 +4761,11 @@ line option. The message format is the following:
 the error location unless this is disabled by using <q><a
 href="#o_no-caret-diag"><code>--no-caret-diag</code></a></q> option.
 
-<pre width="80">
-<strong>a.asm:3:21: <span style="color:red">error:</span> not defined symbol 'label'</strong>
+<pre width="80" class="diag">
+<strong>a.asm:3:21: <span class="error">error:</span> not defined symbol 'label'</strong>
                  lda label
-                     <strong><span style="color:green">^</span></strong>
-<strong>a.asm:3:21: <span style="color:darkcyan">note:</span></strong> searched in the global scope
+                     <strong><span class="caret">^</span></strong>
+<strong>a.asm:3:21: <span class="note">note:</span></strong> searched in the global scope
 </pre>
 
 <p>This is helpful for macro expansions as it displays the processed line which usually
@@ -4681,16 +4774,16 @@ looks different to the one in the original source file.
 <p>Error buried deep in included files or macros display a backtrace of files after an <q>In
 file included from</q> text where all the files and positions involved are listed down to the main file.
 
-<pre width="80">
+<pre width="80" class="diag">
 In file included from <strong>main.asm:3:3</strong>:
-<strong>included.asm:2:11: <span style="color:red">error:</span> not defined symbol 'test'</strong>
+<strong>included.asm:2:11: <span class="error">error:</span> not defined symbol 'test'</strong>
                 #macro1 test
-                        <strong><span style="color:green">^</span></strong>
+                        <strong><span class="caret">^</span></strong>
 In file included from <strong>included.asm:2:3</strong>,
                       <strong>main.asm:3:3</strong>:
-<strong>macros.asm:3:7: <span style="color:darkcyan">note:</span></strong> original location in an expanded macro was here
+<strong>macros.asm:3:7: <span class="note">note:</span></strong> original location in an expanded macro was here
                 lda test
-                    <strong><span style="color:green">^</span></strong>
+                    <strong><span class="caret">^</span></strong>
 </pre>
 
 <p>Messages ending with <q><code>[-Wxxx]</code></q> are user controllable. This means
@@ -4701,6 +4794,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 
 <dl class="errorlist">
+<dt>aligned by ? bytes<dd>alignment was necessary
 <dt>approximate floating point<dd>floating point comparisons are not exact and the numbers were close but maybe not quite
 <dt>bank 0 address overflow<dd>the calculated memory location address ended up outside of bank 0 and is now wrapped.
 <dt>case ignored, value already handled<dd>this value was already used in an earlier case so here it's ignored
@@ -4725,6 +4819,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant and don't denote an octal number
 <dt>long branch used<dd>branch distance was too long so long branch was used (bxx &lowast;+5 jmp)
 <dt>memory location address overflow<dd>the calculated memory location address ended up outside of the processors address space
+<dt>over the boundary by ? bytes, aligned by ? bytes<dd>crossed boundary so alignment was necessary
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources
 <dt>possible jmp ($xxff) bug<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed
@@ -4878,7 +4973,7 @@ This mode is for compiling sources which are already PETSCII.
 
 <p>The following translation table applies, no escape sequences.
 
-<div><table width="100%">
+<div><table width="100%" class="trans2">
 <caption>Built-in PETSCII to PETSCII screen code translation table</caption>
 <thead>
 <tr><th>Input<th>Byte
@@ -5891,6 +5986,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_brept">.brept</a>
 <a href="#d_bwhile">.bwhile</a>
 <a href="#d_byte">.byte</a>
+<a href="#d_calign">.calign</a>
 <a href="#d_case">.case</a>
 <a href="#d_cdef">.cdef</a>
 <a href="#d_cerror">.cerror</a>
@@ -5917,6 +6013,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_end">.end</a>
 <a href="#d_endblock">.endblock</a>
 <a href="#d_endc">.endc</a>
+<a href="#d_endcalign">.endcalign</a>
 <a href="#d_endcomment">.endcomment</a>
 <a href="#d_endencode">.endencode</a>
 <a href="#d_endf">.endf</a>

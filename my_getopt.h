@@ -1,7 +1,7 @@
 /*
  *  my_getopt.h - interface to my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.h 1539 2017-06-06 18:27:36Z soci $
+ *  $Id: my_getopt.h 2990 2023-07-26 21:17:10Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -30,8 +30,6 @@
 #include "stdbool.h"
 
 /* UNIX-style short-argument parser */
-/*extern int my_getopt(int argc, char *argv[], const char *opts);*/
-
 extern int my_optind, my_optopt;
 extern bool my_opterr;
 extern char *my_optarg;
@@ -51,10 +49,4 @@ struct my_option {
 /* GNU-style long-argument parsers */
 extern int my_getopt_long(int argc, char *argv[], const char *shortopts,
                        const struct my_option *longopts, int *longind);
-
-/*
-extern int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
-                            const struct my_option *longopts, int *longind);
-
-*/
 #endif

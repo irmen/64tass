@@ -71,6 +71,7 @@ Table of Contents
           o Slicing and indexing
   * Compiler directives
       + Controlling the compile offset and program counter
+      + Aligning data or code
       + Dumping data
           o Storing numeric values
           o Storing string values
@@ -1517,24 +1518,74 @@ it does not need to be.
             .endvirtual
             lda (p1),y      ; lda ($01,s),y
 
-.align <expression>[, <fill>]
+Aligning data or code
+
+Limitations of hardware often impose alignment requirements like the address of
+something needs to be divisible by a certain amount.
+
+.align <alignment>[, <fill>[, <offset>]]
     Align the program counter to a dividable address by inserting uninitialized
     memory or repeated bytes.
 
-    Usually used to page align data or code to avoid penalty cycles when
-    indexing or branching.
+    This directive is useful when data needs to be placed at regular intervals.
+    For example if the video chip can only place the screen memory to an
+    address divisible by 1024 and the next such location is need.
 
-    ;Offset PC       Bytes          Disassembly     Source
-                                                    *       = $ffc
-    >0ffc                                                   .align $100
-    .1000            ee 19 d0       inc $d019       irq     inc $d019
-    >1003            ea                                     .align 4, $ea
-    .1004            69 01          adc #$01        loop    adc #1
+            .align $40      ; sprite bitmap (64 byte aligned)
+    sprite  .fill 63
+            .align $400     ; screen memory (1024 byte aligned)
+    screen  .fill 1000
+            .align $400, ?, -8; sprite pointers (last 8 bytes)
+    spritep .fill 8
+            .align $100     ; page sized buffer at page boundary
+    sendbuf .fill 256       ; to avoid indexing penalty cycles
 
     When alignment is done within named structures then it's relative to the
     start of the structure. This means the structure layout will be always the
     same independent which address it's instantiated at. Anonymous structures
     do not change the way the alignment works.
+
+    The -Walign command line option can warn about places were padding was
+    necessary for alignment.
+
+.calign <alignment>[, <fill>[, <offset>]]
+    Starts non-crossing data alignment block.
+.endcalign
+    Ends a non-crossing data alignment block.
+
+    Often it does not matter if the data starts at a divisible address only
+    that it doesn't cross one. So there's a potential for space saving compared
+    to aligning the data with regular .align to the start of a divisible
+    boundary.
+
+    If the data is short in many cases no padding will be added as there's a
+    good chance that it does not cross a boundary. If padding is necessary then
+    this directive works the same as .align including alignment within
+    structures.
+
+    It's typically used with 256 as a parameter to place tables so that
+    absolute indexed read accesses won't suffer page crossing cycle penalties.
+
+            .calign $100
+    table   .byte 0, 1, 2, 3, 4, 5, 6, 7
+            .endcalign
+            lda table,x     ; No cycles wasted on access
+
+    Please note that this directive can't guarantee that a relative branch as a
+    last instruction won't get slower due to the boundary. Also if the enclosed
+    data size varies based on its memory location then doing the alignment may
+    become impossible.
+
+.fill <length>
+    Usually the .fill directive is used to reserve space but it may be useful
+    to do alignments as well.
+
+    ; Replacement for a .cerror overrun check and *= combo
+            .fill start_address - *
+    ; Align the vectors "block" so it ends at end_address
+            .fill end_address - size(vectors) - *
+    vectors .logical *      ; Dummy non-scoped block for size()
+    ...
 
 Dumping data
 
@@ -1673,7 +1724,7 @@ using the current encoding.
     ...
     >5100  55 aa 55  .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
     ...
-    >7040  ff ff ff  .fill $7100 - *, $ff;fill until $7100 with $ff
+    >7040  ff ff ff  .fill $8000 - *, $ff;fill up rest of EPROM with $ff
     ...
 
 .shift <expression>[, <expression>, ...]
@@ -2727,11 +2778,21 @@ Controlling errors
 .endpage
     End of page check block
 
-    Gives an error on page boundary crossing, e.g. for timing sensitive code.
+    Checks page boundary crossings, e.g. for timing sensitive code.
 
+    Normally a page mismatch results in an error but the -Wno-error=page
+    command line option can reduce it into a warning.
+
+            ldx #3          ;now this will execute in
             .page
-    table   .byte 0, 1, 2, 3, 4, 5, 6, 7
+    -       dex             ;16 cycles for sure
+            bne -
             .endpage
+
+    This directive will guarantee that a relative branch as a last instruction
+    won't cross a page. On the other hand it will give an error for data ending
+    right before the boundary. For aligning data please consider using .calign
+    instead.
 
 .option allow_branch_across_page
     Switches error generation on page boundary crossing during relative branch.
@@ -3379,6 +3440,11 @@ default, the others are disabled.
     There are several opcodes for the same task, especially for the "6502i"
     target.
 
+-Walign
+    Warns when padding bytes were used for alignment.
+
+    Can be used to see where space is wasted for alignment.
+
 -Waltmode
     Warn about alternative address modes.
 
@@ -3490,6 +3556,11 @@ default, the others are disabled.
     With this option it's fine that the high byte is read from the `wrong'
     address on a 6502, NMOS 6502 and 65DTV02.
 
+            .calign $100    ; jmp bug workaround
+    vector  .addr ?         ; by avoiding page
+            .endcalign      ; crossing of vector
+            jmp (vector)
+
 -Wno-label-left
     Don't warn about certain labels not being on left side.
 
@@ -3535,6 +3606,15 @@ default, the others are disabled.
       + Use of backslashes for path separation instead of forward slashes.
       + Use of reserved characters in file names.
       + Absolute paths
+-Wno-priority
+    Don't warn about operator priority problems.
+
+    Not all of the unary operators are strongly binding and this may cause
+    surprises. This warning is intended to catch mistakes like this:
+
+            .cerror >start != >end; possibly wrong it's >(start != (>end))
+            .cerror (>start) != >end; correct high byte check
+
 -Wno-size-larger
     Don't warn if size is larger due to negative offset
 
@@ -4061,6 +4141,8 @@ them it into a fault. See Diagnostic options for more details.
 
 Warnings
 
+aligned by ? bytes
+    alignment was necessary
 approximate floating point
     floating point comparisons are not exact and the numbers were close but
     maybe not quite
@@ -4124,6 +4206,8 @@ long branch used
 memory location address overflow
     the calculated memory location address ended up outside of the processors
     address space
+over the boundary by ? bytes, aligned by ? bytes
+    crossed boundary so alignment was necessary
 please use format("%d", ...) as '^' will change it's meaning
     this operator will be changed to mean the bank byte later, please update
     your sources
@@ -4886,18 +4970,18 @@ Appendix
 Assembler directives
 
 .addr .al .align .as .assert .autsiz .bend .binary .binclude .bfor .block
-.break .breakif .brept .bwhile .byte .case .cdef .cerror .char .check .comment
-.continue .continueif .cpu .cwarn .databank .default .dint .dpage .dsection
-.dstruct .dunion .dword .edef .else .elsif .enc .encode .end .endblock .endc
-.endcomment .endencode .endf .endfor .endfunction .endif .endlogical .endm
-.endmacro .endn .endnamespace .endp .endpage .endproc .endrept .ends
-.endsection .endsegment .endstruct .endswitch .endu .endunion .endv .endvirtual
-.endweak .endwhile .endwith .eor .error .fi .fill .for .function .goto .here
-.hidemac .if .ifeq .ifmi .ifne .ifpl .include .lbl .lint .logical .long .macro
-.mansiz .namespace .next .null .offs .option .page .pend .proc .proff .pron
-.ptext .rept .rta .section .seed .segment .send .sfunction .shift .shiftl
-.showmac .sint .struct .switch .tdef .text .union .var .virtual .warn .weak
-.while .with .word .xl .xs
+.break .breakif .brept .bwhile .byte .calign .case .cdef .cerror .char .check
+.comment .continue .continueif .cpu .cwarn .databank .default .dint .dpage
+.dsection .dstruct .dunion .dword .edef .else .elsif .enc .encode .end
+.endblock .endc .endcalign .endcomment .endencode .endf .endfor .endfunction
+.endif .endlogical .endm .endmacro .endn .endnamespace .endp .endpage .endproc
+.endrept .ends .endsection .endsegment .endstruct .endswitch .endu .endunion
+.endv .endvirtual .endweak .endwhile .endwith .eor .error .fi .fill .for
+.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .lbl .lint
+.logical .long .macro .mansiz .namespace .next .null .offs .option .page .pend
+.proc .proff .pron .ptext .rept .rta .section .seed .segment .send .sfunction
+.shift .shiftl .showmac .sint .struct .switch .tdef .text .union .var .virtual
+.warn .weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 

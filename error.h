@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2834 2022-10-22 10:23:14Z soci $
+    $Id: error.h 2992 2023-08-06 16:21:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ struct Label;
 struct Symbol;
 struct Error;
 struct Namespace;
+struct Oper;
 struct oper_s;
 struct str_t;
 struct error_output_s;
@@ -90,7 +91,10 @@ extern void err_msg_bank0_wrap(linepos_t);
 extern void err_msg_pbank_wrap(linepos_t);
 extern void err_msg_label_left(linepos_t);
 extern void err_msg_branch_page(int, linepos_t);
+extern void err_msg_align(address_t, linepos_t);
+extern void err_msg_calign(address_t, address_t, linepos_t);
 extern void err_msg_page(address_t, address_t, linepos_t);
+extern void err_msg_priority(const struct Oper *, linepos_t);
 extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
 extern void err_msg_unknown_char(unichar_t, linepos_t);

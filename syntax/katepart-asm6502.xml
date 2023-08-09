@@ -8,7 +8,7 @@
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 2888 2022-11-01 13:14:42Z soci $
+ $Id: katepart-asm6502.xml 2992 2023-08-06 16:21:07Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -141,6 +141,8 @@
         <RegExpr endRegion="virtual" String="\.(endv|endvirtual)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="weak" String="\.weak\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="weak" String="\.endweak\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="calign" String="\.calign\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="calign" String="\.endcalign\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.elsif\b)" context="elsif" insensitive="TRUE"/>
         <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.else\b)" context="else" insensitive="TRUE"/>

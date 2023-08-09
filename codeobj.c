@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2826 2022-10-20 16:10:37Z soci $
+    $Id: codeobj.c 2993 2023-08-06 21:21:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -665,8 +665,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         v->typ = val_reference(v1->typ);
                     }
                     if (op->op == O_ADD) { v->offs += iv; } else { v->offs -= iv; }
-                    if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
-                    if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
+                    if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, o2, op->epoint2); v->offs = 1073741823; }
+                    if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, o2, op->epoint2); v->offs = -1073741824; }
                     return Obj(v);
                 }
             default: break;
@@ -706,8 +706,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
                 v->names = ref_namespace(v2->names);
                 v->typ = val_reference(v2->typ);
                 v->offs += iv;
-                if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = 1073741823; }
-                if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, NULL, op->epoint2); v->offs = -1073741824; }
+                if (v->offs >= 1073741824) { err_msg2(ERROR__OFFSET_RANGE, o1, op->epoint2); v->offs = 1073741823; }
+                if (v->offs < -1073741824) { err_msg2(ERROR__OFFSET_RANGE, o1, op->epoint2); v->offs = -1073741824; }
                 return Obj(v);
             }
             result = access_check(v2, op->epoint2);

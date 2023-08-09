@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2892 2022-11-04 07:35:54Z soci $
+    $Id: eval.c 2985 2023-07-19 06:20:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1431,11 +1431,24 @@ static bool get_exp2(int stop) {
         case '*': op = O_SPLAT; break;
         case '!': op = O_LNOT;break;
         case '~': op = O_INV; break;
-        case '<': if (pline[lpoint.pos + 1] == '>') {lpoint.pos++;op = O_WORD;} else op = O_LOWER; break;
-        case '>': if (pline[lpoint.pos + 1] == '`') {lpoint.pos++;op = O_HWORD;} else if (pline[lpoint.pos + 1] == '<') {lpoint.pos++;op = O_BSWORD;} else op = O_HIGHER; break;
-        case '#': op = (pline[lpoint.pos + 1] == '+' || pline[lpoint.pos + 1] == '-') ? O_HASH_SIGNED : O_HASH; break;
-        case '`': op = O_BANK; break;
-        case '^': op = O_STRING; if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint); break;
+        case '<': if (pline[lpoint.pos + 1] == '>') {lpoint.pos++;op = O_WORD;} else op = O_LOWER; goto priocheck;
+        case '>': if (pline[lpoint.pos + 1] == '`') {lpoint.pos++;op = O_HWORD;} else if (pline[lpoint.pos + 1] == '<') {lpoint.pos++;op = O_BSWORD;} else op = O_HIGHER; goto priocheck;
+        case '#': op = (pline[lpoint.pos + 1] == '+' || pline[lpoint.pos + 1] == '-') ? O_HASH_SIGNED : O_HASH; goto priocheck;
+        case '`': op = O_BANK; goto priocheck;
+        case '^': 
+            op = O_STRING;
+            if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint); 
+        priocheck:
+            if (diagnostics.priority && opr.p != opr.data && opr.p - 1 != opr.data && op == opr.p[-2].op) {
+                unsigned int prio = operators[opr.p[-1].op].prio;
+                if (prio > operators[op].prio && prio != operators[O_NEG].prio && prio != operators[O_SPLAT].prio) {
+                    struct linepos_s epoint2;
+                    epoint2.line = lpoint.line;
+                    epoint2.pos = opr.p[-2].pos;
+                    err_msg_priority(&operators[op], &epoint2);
+                }
+            }
+            break;
         case '$': val = get_hex(&epoint); goto push_other;
         case '%': 
             if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { 

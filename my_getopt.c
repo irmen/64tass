@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 2951 2023-01-05 21:21:16Z soci $
+ *  $Id: my_getopt.c 2990 2023-07-26 21:17:10Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -136,9 +136,8 @@ static int my_getopt(int argc, char *argv[], const char *opts)
  * expecting GNU libc getopt call it.
  */
 
-static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
-                     const struct my_option *longopts, int *longind,
-                     bool long_only)
+int my_getopt_long(int argc, char *argv[], const char *shortopts,
+                     const struct my_option *longopts, int *longind)
 {
   char mode, colon_mode;
   int shortoff = 0, opt = -1;
@@ -173,9 +172,8 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
     for (i = j = my_optind; i < argc; i++) if ((argv[i][0] == '-') &&
                                     (argv[i][1] != '\0')) {
       my_optind = i;
-      opt = my_getopt_internal(argc, argv, shortopts,
-                               longopts, longind,
-                               long_only);
+      opt = my_getopt_long(argc, argv, shortopts,
+                           longopts, longind);
       while (i > j) {
         tmp = argv[--i];
         for (k = i; k + 1 < my_optind; k++)
@@ -184,7 +182,7 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
       }
       break;
     }
-  } else if ((!long_only) && (argv[my_optind][1] != '-'))
+  } else if (argv[my_optind][1] != '-')
     opt = my_getopt(argc, argv, shortopts);
   else {
     size_t charind, offset;
@@ -265,17 +263,3 @@ static int my_getopt_internal(int argc, char *argv[], const char *shortopts,
   if (my_optind > argc) my_optind = argc;
   return opt;
 }
-
-int my_getopt_long(int argc, char *argv[], const char *shortopts,
-                const struct my_option *longopts, int *longind)
-{
-  return my_getopt_internal(argc, argv, shortopts, longopts, longind, false);
-}
-
-/*
-int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
-                const struct my_option *longopts, int *longind)
-{
-  return _my_getopt_internal(argc, argv, shortopts, longopts, longind, true);
-}
-*/

@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 2791 2022-05-25 17:55:02Z soci $
+    $Id: obj.h 2992 2023-08-06 16:21:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,6 +57,14 @@ typedef struct Default {
 
 #define Default(a) OBJ_CAST(Default, a)
 
+typedef struct Calign {
+    Obj v;
+    address_t size;
+    uint8_t pass;
+} Calign;
+
+#define Calign(a) OBJ_CAST(Calign, a)
+
 static inline Obj *val_reference(Obj *v1) {
     v1->refcount++; return v1;
 }
@@ -70,6 +78,7 @@ extern void objects_destroy(void);
 extern struct Type *const LBL_OBJ;
 extern struct Type *const DEFAULT_OBJ;
 extern struct Type *const FUNCARGS_OBJ;
+extern struct Type *const CALIGN_OBJ;
 extern Obj *const default_value;
 
 static inline Obj *ref_default(void) {
