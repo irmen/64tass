@@ -13,10 +13,10 @@ the distribution. It's also in ports for the BSDs. For Mac it's in the ports or
 brew. If the packaged version is not up to date compilation from source is
 always an option.
 
-For Windows the release binaries are hosted by Sourceforge. For these the
-minimum requirements is XP running on a 686. This 32 bit version should work on
-X64 without any drawbacks. Manual compilation for older windows versions, for
-X64 or even 32 bit DOS is possible.
+For Windows 64tass is packaged in MSYS2 for a variety of target architectures
+including Aarch64. For old versions of Windows (down to XP running on a 686)
+Sourceforge hosts binaries. Manual compilation for even older Windows versions
+or 32 bit DOS should be possible for those who dare.
 
 ## Compilation
 

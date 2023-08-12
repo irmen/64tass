@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 2992 2023-08-06 16:21:07Z soci $
+    $Id: errors_e.h 2998 2023-08-12 16:35:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,6 +109,7 @@ typedef enum Error_types {
     ERROR__MISSING_OPEN,
     ERROR__MISSING_LOOP,
     ERROR_NEGATIVE_SIZE,
+    ERROR__DEFINE_LATER,
     ERROR__USER_DEFINED,
     ERROR_NO_ADDRESSING,
     ERROR___NO_REGISTER,
@@ -116,7 +117,7 @@ typedef enum Error_types {
     ERROR__BRANCH_CROSS,
     ERROR_BRANCH_TOOFAR,
     ERROR____PTEXT_LONG,
-    ERROR___CALIGN_LONG,
+    ERROR____ALIGN_LONG,
     ERROR______EXPECTED,
     ERROR_RESERVED_LABL,
     ERROR___UNKNOWN_CPU,

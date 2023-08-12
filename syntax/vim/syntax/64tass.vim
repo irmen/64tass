@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 2992 2023-08-06 16:21:07Z soci $
+" $Id: 64tass.vim 2998 2023-08-12 16:35:11Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -121,7 +121,7 @@ if exists("tass64_4510")
 endif
 
 " Assembler directives
-syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|endblock|calign|endcalign|cdef|cpu)>/ contained
+syn match tass64PreProc /\v\.%(al|align|as|autsiz|bend|block|endblock|alignb|endalignb|alignpage|alignthis|cdef|cpu)>/ contained
 syn match tass64PreProc /\v\.%(databank|dpage|dsection|edef|encode|enc|end|endpage|endp)>/ contained
 syn match tass64PreProc /\v\.%(endweak|eor|for|bfor|goto|here|endlogical|hidemac)>/ contained
 syn match tass64PreProc /\v\.%(lbl|logical|mansiz|next|endfor|endrept|endwhile|virtual|endv|endvirtual)>/ contained

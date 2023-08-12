@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 2995 2023-08-07 06:34:01Z soci $ -->
+<!-- $Id: README.html 2998 2023-08-12 16:35:11Z soci $ -->
 <head>
 <title>64tass v1.58 r2974 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -1887,75 +1887,195 @@ tmp     <b class="d">.byte</b> <span>?</span>         <i>; at #3,s</i>
 
 <h3>Aligning data or code<a name="alignment" href="#alignment"></a></h3>
 
-<p>Limitations of hardware often impose alignment requirements like the address of
-something needs to be divisible by a certain amount.
+<p>Alignment is about constraining data/code placement in memory. 
+
+<p>The processor architecture doesn't have hard constraints on instruction or
+data placement still pages (256 bytes) come up quite often in instruction cycle
+times tables. Or even in errata like the indirect JMP bug which happens only
+if the word of the vector is crossing such page.
+
+<p>Other components like video chips can only display object if placed at an
+address divisible by 64 for example.
+
+<p>For code half of an address table might be spared if it's known that all the
+addresses have the same high bytes. Or if all interrupt routines are on the
+same page then it's enough to change the low byte of the vector when selecting
+another one.
+
+<p>Now it shouldn't come as a surprise that the following directives are mainly
+concerned about how dividing the program counter address gives a certain remainder.
+
+<p>The divisor in this context is called the alignment interval and is
+usually a number which is a power of two. Quite often 256, so that's the
+default.
+
+<p>The remainder is called offset and is by default 0. Negative offsets are a
+convenience feature and are internally corrected by adding the interval to it.
+
+<p>An interval sized memory area is called a page. It's boundary is at it's
+start. If data spans more than one page it's known as a page boundary cross.
+
+<p>Having a non-zero offset effectively shifts the boundary of a page in memory
+further up or down (if negative). An interval of 256 with offset of 8 gives page
+boundaries of <code>$1008</code>, <code>$1108</code> or <code>$1208</code> for
+example.
+
+<p>If the alignment is not good enough some alignment directives might try to
+correct it by adding padding. This is by default <a
+href="#uninitialized">uninitialized</a> (skip forward) but may be a fixed byte
+or anything more complex similarly to what the <a
+href="#d_fill"><code>.fill</code></a> directive accepts.</p>
+
+<p>The <a href="#o_Walign">-Walign</a> command line option can be used to emit
+warnings on where and how much padding was necessary for alignment.</p>
 
 <dl class="dir">
-<dt><b>.align</b> &lt;alignment&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]<a name="d_align" href="#d_align"></a>
-<dd>Align the program counter to a dividable address by inserting uninitialized memory or repeated bytes.
+<dt><b>.page</b> [&lt;interval&gt;[, &lt;offset&gt;]]<a name="d_page" href="#d_page"></a>
+<dd>Start of page check block
+<dt><b>.endp</b><a name="d_endp" href="#d_endp"></a>
+<dt><b>.endpage</b><a name="d_endpage" href="#d_endpage"></a>
+<dd>End of page check block
 
-<p>This directive is useful when data needs to be placed at regular intervals.
-For example if the video chip can only place the screen memory to an address divisible by
-1024 and the next such location is need.</p>
+<p>This directive is a passive assertion and checks for a page difference or page
+crossing.
+
+<p>By default or with a negative interval parameter it verifies that the
+start and end directives are on the same page. This is what's needed to guard
+relative branches against jumping across pages:<p>
 
 <pre width="80">
-        <b class="k">.align</b> <span>$40</span>      <i>; sprite bitmap (64 byte aligned)</i>
+        <b>ldx</b> #<span>3</span>
+        <b class="k">.page</b>           <i>;now this will execute</i>
+-       <b>dex</b>             <i>;in 14 cycles for sure</i>
+        <b>bne</b> <u>-</u>
+        <b class="k">.endpage</b>
+</pre>
+
+<p>With a positive size parameter it verifies that there's no page cross in the
+memory range between the directives. This is what's needed to guard against
+indexed access page cross cycle penalties:<p>
+
+<pre width="80">
+*       <b>=</b> <span>$1c0</span>
+        <b class="k">.page</b> <span>256</span>
+table   <b class="d">.fill</b> <span>$40</span>       <i>;table within the same page</i>
+        <b class="k">.endpage</b>        <i>;different page here but no crossing</i>
+</pre>
+
+<p>Normally a page check results in an error but the <a
+href="#o_Wpage">-Wno-error=page</a> command line option can reduce it into a
+warning.
+
+<p>Once this directive reports an error it's time to rearrange the source in
+a way that the check passes. Or alternatively the alignment
+directives below can be used to avoid violating the assertion.</p>
+
+<dt><b>.align</b> [&lt;interval&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]]<a name="d_align" href="#d_align"></a>
+<dd>Align the program counter to a page boundary
+
+<p>This directive is useful when code/data needs to be placed exactly to a page
+boundary. If that's not already the case sufficient padding is added until the
+next one is reached.</p>
+
+<pre width="80">
+        <b class="k">.align</b> <span>$40</span>      <i>;sprite bitmap (64 byte aligned)</i>
 sprite  <b class="d">.fill</b> <span>63</span>
-        <b class="k">.align</b> <span>$400</span>     <i>; screen memory (1024 byte aligned)</i>
+        <b class="k">.align</b> <span>$400</span>     <i>;screen memory (1024 byte aligned)</i>
 screen  <b class="d">.fill</b> <span>1000</span>
-        <b class="k">.align</b> <span>$400</span>, <span>?</span>, <span>-8</span><i>; sprite pointers (last 8 bytes)</i>
+        <b class="k">.align</b> <span>$400</span>, <span>?</span>, <span>-8</span><i>;sprite pointers (last 8 bytes)</i>
 spritep <b class="d">.fill</b> <span>8</span>
-        <b class="k">.align</b> <span>$100</span>     <i>; page sized buffer at page boundary</i>
-sendbuf <b class="d">.fill</b> <span>256</span>       <i>; to avoid indexing penalty cycles</i>
+        <b class="k">.align</b>          <i>; page sized buffer at page boundary</i>
+sendbuf <b class="d">.fill</b> <span>256</span>       <i>;to avoid indexing penalty cycles</i>
 </pre>
 
 <p>When alignment is done within named structures then it's relative to the start
-of the structure. This means the structure layout will be always the same
-independent which address it's instantiated at. Anonymous structures do not
+of the structure. This means the structure layout will always be the same
+independent of which address it's instantiated at. Anonymous structures do not
 change the way the alignment works.</p>
 
-<p>The <a href="#o_Walign">-Walign</a> command line option can warn about
-places were padding was necessary for alignment.</p>
+<dt><b>.alignb</b> [&lt;interval&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]]<a name="d_alignb" href="#d_alignb"></a>
+<dd>Starts alignment block.
+<dt><b>.endalignb</b><a name="d_endalignb" href="#d_endalignb"></a>
+<dd>Ends alignment block.
 
-<dt><b>.calign</b> &lt;alignment&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]<a name="d_calign" href="#d_calign"></a>
-<dd>Starts non-crossing data alignment block.
-<dt><b>.endcalign</b><a name="d_endcalign" href="#d_endcalign"></a>
-<dd>Ends a non-crossing data alignment block.
+<p>Often the start address is not important only avoiding the page boundary matters.
 
-<p>Often it does not matter if the data starts at a divisible address only that it
-doesn't cross one. So there's a potential for space saving compared to aligning the
-data with regular <code>.align</code> to the start of a divisible boundary.
-
-<p>If the data is short in many cases no padding will be added as there's a good
-chance that it does not cross a boundary. If padding is necessary then this directive works
+<p>This often can be achieved without any padding at all. If padding is necessary then this directive works
 the same as <a href="#d_align"><code>.align</code></a> including alignment within structures.
 
-<p>It's typically used with 256 as a parameter to place tables so that absolute indexed
-read accesses won't suffer page crossing cycle penalties.
+<p>It's typically used to place tables so that absolute indexed read accesses
+won't suffer page crossing cycle penalties.</p>
 
 <pre width="80">
-        <b class="k">.calign</b> <span>$100</span>
+        <b class="k">.alignb</b>         <i>;avoid page cross</i>
 table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
-        <b class="k">.endcalign</b>
-        <b>lda</b> <u>table</u>,x     <i>; No cycles wasted on access</i>
+        <b class="k">.endalignb</b>
+        <b>lda</b> <u>table</u>,x     <i>;no cycles wasted on access</i>
 </pre>
 
-<p>Please note that this directive can't guarantee that a relative branch as a
-last instruction won't get slower due to the boundary. Also if the enclosed data size
-varies based on its memory location then doing the alignment may become
-impossible.</p>
+<p>In case the stronger guarantee of having both the start and the end directives in
+the same page is required then the alignment interval needs to be given as a negative number (e.g. &minus;256).
+This may be necessary for aligning code with relative branches.
+
+<p>If the enclosed data size varies based on its memory location then doing the
+alignment may become impossible.
+
+<dt><b>.alignpage</b> &lt;target&gt;[, &lt;interval&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]]<a name="d_alignpage" href="#d_alignpage"></a>
+<dd>Alignment of a page block indirectly.
+
+<p>If page boundary control is needed within executable code padding right
+there may not be an option. This directive can add the alignment padding outside of the
+execution flow.
+
+<pre width="80">
+        <b>rts</b>
+        <b class="k">.alignpage</b> <u>pageblk</u><i>;add alignment padding here</i>
+wait    <b>ldx</b> #<span>3</span>
+pageblk <b class="k">.page</b>           <i>;now this will execute</i>
+-       <b>dex</b>             <i>;in 14 cycles for sure</i>
+        <b>bne</b> <u>-</u>
+        <b class="k">.endpage</b>
+</pre>
+
+<p>It is assumed that the padding inserted will move the target block
+as if it'd be right in front of it. If this isn't the case the alignment
+will fail.</p>
+
+<dt><b>.alignthis</b> &lt;target&gt;[&lt;interval&gt;[, &lt;fill&gt;[, &lt;offset&gt;]]]<a name="d_alignthis" href="#d_alignthis"></a>
+<dd>Align the target location to a page boundary indirectly
+
+<p>This directive tries to align the target to a page boundary. If not already
+on one then sufficient padding will be added until the next one is
+reached. 
+
+<pre width="80">
+<i>;Align "pos" to page boundary. It must come right after "neg".</i>
+        <b class="k">.alignthis</b> <u>pos</u>
+neg     <b class="d">.fill</b> <span>8</span>
+pos     <b class="d">.fill</b> <span>8</span>
+        <b class="k">.cerror</b> (&lt;<u>pos</u>) != <span>0</span>, <span class="s">"pos should be page aligned"</span>
+        <b class="k">.cerror</b> <u>pos</u> - <u>neg</u> != size(<u>neg</u>), <span class="s">"there should be no gap"</span>
+</pre>
+
+<p>It is assumed that the padding inserted will move the target block
+as if it'd be right in front of it. If this isn't the case the alignment
+will fail.</p>
 
 <dt><b>.fill</b> &lt;length&gt;
 <dd>Usually the <a href="#d_fill"><code>.fill</code></a> directive is used to
 reserve space but it may be useful to do alignments as well.
 
 <pre width="80">
-<i>; Replacement for a .cerror overrun check and *= combo</i>
+<i>;replacement for a .cerror overrun check and *= combo</i>
         <b class="d">.fill</b> <u>start_address</u> - <u>*</u>
-<i>; Align the vectors "block" so it ends at end_address</i>
+<i>;align the vectors "block" so it ends at end_address</i>
         <b class="d">.fill</b> <u>end_address</u> - size(<u>vectors</u>) - <u>*</u>
-vectors <b class="k">.logical</b> <u>*</u>      <i>; Dummy non-scoped block for size()</i>
+vectors <b class="k">.logical</b> <u>*</u>      <i>;dummy non-scoped block for size()</i>
 ...
+<i>;screen memory is needed but if at $9xxx then take $a000 instead</i>
+        <b class="k">.align</b> <span>$400</span>     <i>;next 1024 byte alignment</i>
+        <b class="d">.fill</b> (<u>*</u> &gt;&gt; <span>12</span>) == <span>$9</span> ? (<span>$a000</span> - <u>*</u>) : <span>0</span>
+screen  <b class="d">.fill</b> <span>1000</span>
 </pre>
 
 </dl>
@@ -3271,30 +3391,6 @@ into a specific 256 byte address range. The default is 0, which is the first pag
 <h3>Controlling errors<a name="compiletime-checks" href="#compiletime-checks"></a></h3>
 
 <dl class="dir">
-<dt><b>.page</b><a name="d_page" href="#d_page"></a>
-<dd>Start of page check block
-<dt><b>.endp</b><a name="d_endp" href="#d_endp"></a>
-<dt><b>.endpage</b><a name="d_endpage" href="#d_endpage"></a>
-<dd>End of page check block
-
-<p>Checks page boundary crossings, e.g. for timing sensitive code.<p>
-
-<p>Normally a page mismatch results in an error but the <a
-href="#o_Wpage">-Wno-error=page</a> command line option can reduce it into a
-warning.</p>
-
-<pre width="80">
-        <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
-        <b class="k">.page</b>
--       <b>dex</b>             <i>;16 cycles for sure</i>
-        <b>bne</b> <u>-</u>
-        <b class="k">.endpage</b>
-</pre>
-
-<p>This directive will guarantee that a relative branch as a last instruction
-won't cross a page. On the other hand it will give an error for data ending
-right before the boundary. For aligning data please consider using <a href="#d_calign"><code>.calign</code></a> instead.</p>
-
 <dt><b>.option</b> allow_branch_across_page<a name="d_option" href="#d_option"></a>
 <dd>Switches error generation on page boundary crossing during relative branch.
 Such a condition on 6502 adds 1 extra cycle to the execution time, which
@@ -3302,10 +3398,11 @@ can ruin the timing of a carefully cycle counted code.
 
 <pre width="80">
         <b class="k">.option</b> allow_branch_across_page = <span>0</span>
-        <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
--       <b>dex</b>             <i>;16 cycles for sure</i>
-        <b>bne</b> <u>-</u>
-        <b class="k">.option</b> allow_branch_across_page = <span>1</span>
+        <b>bcc</b> <u>+</u>           <i>;same execution time</i>
+        <b>inx</b>             <i>;needed in both cases</i>
++       <b>bcs</b> <u>+</u>
+        <b>dex</b>
++       <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
 <dt><b>.error</b> &lt;message&gt; [, &lt;message&gt;, &hellip;]<a name="d_error" href="#d_error"></a>
@@ -4142,10 +4239,9 @@ explicit rounding was done.</p>
 address on a 6502, NMOS 6502 and 65DTV02.</p>
 
 <pre width="80">
-        <b class="k">.calign</b> <span>$100</span>    <i>; jmp bug workaround</i>
-vector  <b class="d">.addr</b> <span>?</span>         <i>; by avoiding page</i>
-        <b class="k">.endcalign</b>      <i>; crossing of vector</i>
         <b>jmp</b> (<u>vector</u>)
+        <b class="k">.alignpage</b> <u>vector</u>, <span>256</span><i>; jmp bug workaround</i>
+vector  <b class="d">.addr</b> <span>?</span>         <i>; by avoiding page cross</i>
 </pre>
 
 <dt><b>-Wno-label-left</b><a name="o_Wlabel-left" href="#o_Wlabel-left"></a>
@@ -4159,11 +4255,11 @@ column.</p>
 unknown aliases and not for enforcing label placement.</p>
 
 <dt><b>-Wno-page</b><a name="o_Wpage" href="#o_Wpage"></a>
-<dd>Don't do an error for page crossing
+<dd>Ignore page assertion failures
 
-<p>Normally the <a href="#d_page"><code>.page</code></a> directive gives an
-error on page crossing, this directive can disable it. Using
-<q><code>-Wno-error=page</code></q> can turn it into a warning only.</p>
+<p>Can be used to ignore <a href="#d_page"><code>.page</code></a> assertion
+block failures. As a middle ground <q><code>-Wno-error=page</code></q> can turn
+the assertion to a warning only.</p>
 
 <dt><b>-Wno-pitfalls</b><a name="o_Wpitfalls" href="#o_Wpitfalls"></a>
 <dd>Don't note about common pitfalls.
@@ -4844,6 +4940,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>address out of section<dd>moving the address around is fine as long as it does not end up before the start of the section
 <dt>addressing mode too complex<dd>too much indexing or indirection for a valid address
 <dt>at least one byte is needed<dd>the expression didn't yield any bytes but it's needed here
+<dt>block to long for alignment by ? bytes<dd>impossible to align if larger than or equals alignment interval
 <dt>branch crosses page by ? bytes<dd>page crossing was on branch was detected
 <dt>branch too far by ? bytes<dd>branches have limited range and this went over by some bytes
 <dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
@@ -4858,6 +4955,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>closing/opening directive '?' not found<dd>couldn't find the other half of block directive pair
 <dt>conflict<dd>at least one feature is provided, which shouldn't be there
 <dt>conversion of ? '?' to ? is not possible<dd>this type conversion can't be done
+<dt>crossing of ? byte page by ? bytes<dd>the page directive detected a page cross between start and end directives
 <dt>division by zero<dd>dividing with zero can't be done
 <dt>double defined escape<dd>escape sequence already defined in another .edef differently
 <dt>double defined range<dd>part of a character range was already defined by another .cdef and these ranges can't overlap
@@ -4882,6 +4980,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>more than two characters<dd>no more than two characters are allowed
 <dt>most significant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>must be used within a loop<dd>.break or .continue must be used within a loop
+<dt>must be defined later<dd>remote alignment must placed before the aligned label
 <dt>negative number raised on fractional power<dd>can't calculate this
 <dt>no ? addressing mode for opcode 'xxx'<dd>this addressing mode is not valid for this instruction
 <dt>not a bank 0 address<dd>value must be a bank zero address
@@ -4896,13 +4995,13 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>not measurable as start offset beyond size of original<dd>the applied offset was larger than the original size. For example if size(data) is 2 then size(data + 1) is 1. However size(data + 3) makes no sense as there's no such thing as a negative size.
 <dt>offset out of range<dd>code offset too much
 <dt>operands could not be broadcast together with shapes ? and ?<dd>list length must match or must have a single element only
-<dt>different start and end page $xxxx and $xxxx<dd>page crossing was detected
 <dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
 <dt>requirements not met<dd>not all features are provided, at least one is missing
 <dt>reserved symbol name '?'<dd>do not use this symbol name
 <dt>shadow definition<dd>symbol is defined in an upper scope as well and is used ambiguously
 <dt>some operation '?' of type '?' and type '?' not possible<dd>can't do this calculation with these values
 <dt>square root of negative number<dd>can't calculate the square root of a negative number
+<dt>start ? not on same ? byte page as end ?<dd>the endpage directive detected a mismatch of page to the page directive
 <dt>too large for a ? bit signed/unsigned integer<dd>value out of range
 <dt>unexpected character '?'<dd>unexpected control or Unicode character
 <dt>unknown processor '?'<dd>unknown CPU name
@@ -5973,6 +6072,8 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_addr">.addr</a>
 <a href="#d_al">.al</a>
 <a href="#d_align">.align</a>
+<a href="#d_alignb">.alignb</a>
+<a href="#d_alignpage">.alignpage</a>
 <a href="#d_as">.as</a>
 <a href="#d_assert">.assert</a>
 <a href="#d_autsiz">.autsiz</a>
@@ -5986,7 +6087,6 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_brept">.brept</a>
 <a href="#d_bwhile">.bwhile</a>
 <a href="#d_byte">.byte</a>
-<a href="#d_calign">.calign</a>
 <a href="#d_case">.case</a>
 <a href="#d_cdef">.cdef</a>
 <a href="#d_cerror">.cerror</a>
@@ -6013,7 +6113,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_end">.end</a>
 <a href="#d_endblock">.endblock</a>
 <a href="#d_endc">.endc</a>
-<a href="#d_endcalign">.endcalign</a>
+<a href="#d_endalignb">.endalignb</a>
 <a href="#d_endcomment">.endcomment</a>
 <a href="#d_endencode">.endencode</a>
 <a href="#d_endf">.endf</a>

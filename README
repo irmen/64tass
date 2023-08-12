@@ -1520,72 +1520,179 @@ it does not need to be.
 
 Aligning data or code
 
-Limitations of hardware often impose alignment requirements like the address of
-something needs to be divisible by a certain amount.
+Alignment is about constraining data/code placement in memory.
 
-.align <alignment>[, <fill>[, <offset>]]
-    Align the program counter to a dividable address by inserting uninitialized
-    memory or repeated bytes.
+The processor architecture doesn't have hard constraints on instruction or data
+placement still pages (256 bytes) come up quite often in instruction cycle
+times tables. Or even in errata like the indirect JMP bug which happens only if
+the word of the vector is crossing such page.
 
-    This directive is useful when data needs to be placed at regular intervals.
-    For example if the video chip can only place the screen memory to an
-    address divisible by 1024 and the next such location is need.
+Other components like video chips can only display object if placed at an
+address divisible by 8, 64, 1024, 2048, 8192 for example.
 
-            .align $40      ; sprite bitmap (64 byte aligned)
+For code half of an address table might be spared if it's known that all the
+addresses have the same high bytes. Or if all interrupt routines are on the
+same page then it's enough to change the low byte of the vector when selecting
+another one.
+
+Now it shouldn't come as a surprise that the following directives are mainly
+concerned about how dividing the program counter address gives a certain
+remainder.
+
+The divisor in this context is called the alignment interval and is usually a
+number which is a power of two. Quite often 256, so that's the default.
+
+The remainder is called offset and is by default 0. Negative offsets are a
+convenience feature and are internally corrected by adding the interval to it.
+
+An interval sized memory area is called a page. It's boundary is at it's start.
+If data spans more than one page it's known as a page boundary cross.
+
+Having a non-zero offset effectively shifts the boundary of a page in memory
+further up or down (if negative). An interval of 256 with offset of 8 gives
+page boundaries of $1008, $1108 or $1208 for example.
+
+If the alignment is not good enough some alignment directives might try to
+correct it by adding padding. This is by default uninitialized (skip forward)
+but may be a fixed byte or anything more complex similarly to what the .fill
+directive accepts.
+
+The -Walign command line option can be used to emit warnings on where and how
+much padding was necessary for alignment.
+
+.page [<interval>[, <offset>]]
+    Start of page check block
+.endp
+.endpage
+    End of page check block
+
+    This directive is a passive assertion and checks for a page difference or
+    page crossing.
+
+    By default or with a negative interval parameter it verifies that the start
+    and end directives are on the same page. This is what's needed to guard
+    relative branches against jumping across pages:
+
+            ldx #3
+            .page           ;now this will execute
+    -       dex             ;in 14 cycles for sure
+            bne -
+            .endpage
+
+    With a positive size parameter it verifies that there's no page cross in
+    the memory range between the directives. This is what's needed to guard
+    against indexed access page cross cycle penalties:
+
+    *       = $1c0
+            .page 256
+    table   .fill $40       ;table within the same page
+            .endpage        ;different page here but no crossing
+
+    Normally a page check results in an error but the -Wno-error=page command
+    line option can reduce it into a warning.
+
+    Once this directive reports an error it's time to rearrange the source in a
+    way that the check passes. Or alternatively the alignment directives below
+    can be used to avoid violating the assertion.
+
+.align [<interval>[, <fill>[, <offset>]]]
+    Align the program counter to a page boundary
+
+    This directive is useful when code/data needs to be placed exactly to a
+    page boundary. If that's not already the case sufficient padding is added
+    until the next one is reached.
+
+            .align $40      ;sprite bitmap (64 byte aligned)
     sprite  .fill 63
-            .align $400     ; screen memory (1024 byte aligned)
+            .align $400     ;screen memory (1024 byte aligned)
     screen  .fill 1000
-            .align $400, ?, -8; sprite pointers (last 8 bytes)
+            .align $400, ?, -8;sprite pointers (last 8 bytes)
     spritep .fill 8
-            .align $100     ; page sized buffer at page boundary
-    sendbuf .fill 256       ; to avoid indexing penalty cycles
+            .align          ; page sized buffer at page boundary
+    sendbuf .fill 256       ;to avoid indexing penalty cycles
 
     When alignment is done within named structures then it's relative to the
-    start of the structure. This means the structure layout will be always the
-    same independent which address it's instantiated at. Anonymous structures
-    do not change the way the alignment works.
+    start of the structure. This means the structure layout will always be the
+    same independent of which address it's instantiated at. Anonymous
+    structures do not change the way the alignment works.
 
-    The -Walign command line option can warn about places were padding was
-    necessary for alignment.
+.alignb [<interval>[, <fill>[, <offset>]]]
+    Starts alignment block.
+.endalignb
+    Ends alignment block.
 
-.calign <alignment>[, <fill>[, <offset>]]
-    Starts non-crossing data alignment block.
-.endcalign
-    Ends a non-crossing data alignment block.
+    Often the start address is not important only avoiding the page boundary
+    matters.
 
-    Often it does not matter if the data starts at a divisible address only
-    that it doesn't cross one. So there's a potential for space saving compared
-    to aligning the data with regular .align to the start of a divisible
-    boundary.
+    This often can be achieved without any padding at all. If padding is
+    necessary then this directive works the same as .align including alignment
+    within structures.
 
-    If the data is short in many cases no padding will be added as there's a
-    good chance that it does not cross a boundary. If padding is necessary then
-    this directive works the same as .align including alignment within
-    structures.
+    It's typically used to place tables so that absolute indexed read accesses
+    won't suffer page crossing cycle penalties.
 
-    It's typically used with 256 as a parameter to place tables so that
-    absolute indexed read accesses won't suffer page crossing cycle penalties.
-
-            .calign $100
+            .alignb         ;avoid page cross
     table   .byte 0, 1, 2, 3, 4, 5, 6, 7
-            .endcalign
-            lda table,x     ; No cycles wasted on access
+            .endalignb
+            lda table,x     ;no cycles wasted on access
 
-    Please note that this directive can't guarantee that a relative branch as a
-    last instruction won't get slower due to the boundary. Also if the enclosed
-    data size varies based on its memory location then doing the alignment may
-    become impossible.
+    In case the stronger guarantee of having both the start and the end
+    directives in the same page is required then the alignment interval needs
+    to be given as a negative number (e.g. -256). This may be necessary for
+    aligning code with relative branches.
+
+    If the enclosed data size varies based on its memory location then doing
+    the alignment may become impossible.
+.alignpage <target>[, <interval>[, <fill>[, <offset>]]]
+    Alignment of a page block indirectly.
+
+    If page boundary control is needed within executable code padding right
+    there may not be an option. This directive can add the alignment padding
+    outside of the execution flow.
+
+            rts
+            .alignpage pageblk;add alignment padding here
+    wait    ldx #3
+    pageblk .page           ;now this will execute
+    -       dex             ;in 14 cycles for sure
+            bne -
+            .endpage
+
+    It is assumed that the padding inserted will move the target block as if
+    it'd be right in front of it. If this isn't the case the alignment will
+    fail.
+
+.alignthis <target>[<interval>[, <fill>[, <offset>]]]
+    Align the target location to a page boundary indirectly
+
+    This directive tries to align the target to a page boundary. If not already
+    on one then sufficient padding will be added until the next one is reached.
+
+    ;Align "pos" to page boundary. It must come right after "neg".
+            .alignthis pos
+    neg     .fill 8
+    pos     .fill 8
+            .cerror (<pos) != 0, "pos should be page aligned"
+            .cerror pos - neg != size(neg), "there should be no gap"
+
+    It is assumed that the padding inserted will move the target block as if
+    it'd be right in front of it. If this isn't the case the alignment will
+    fail.
 
 .fill <length>
     Usually the .fill directive is used to reserve space but it may be useful
     to do alignments as well.
 
-    ; Replacement for a .cerror overrun check and *= combo
+    ;replacement for a .cerror overrun check and *= combo
             .fill start_address - *
-    ; Align the vectors "block" so it ends at end_address
+    ;align the vectors "block" so it ends at end_address
             .fill end_address - size(vectors) - *
-    vectors .logical *      ; Dummy non-scoped block for size()
+    vectors .logical *      ;dummy non-scoped block for size()
     ...
+    ;screen memory is needed but if at $9xxx then take $a000 instead
+            .align $400     ;next 1024 byte alignment
+            .fill (* >> 12) == $9 ? ($a000 - *) : 0
+    screen  .fill 1000
 
 Dumping data
 
@@ -2772,38 +2879,17 @@ routine .addr print
 
 Controlling errors
 
-.page
-    Start of page check block
-.endp
-.endpage
-    End of page check block
-
-    Checks page boundary crossings, e.g. for timing sensitive code.
-
-    Normally a page mismatch results in an error but the -Wno-error=page
-    command line option can reduce it into a warning.
-
-            ldx #3          ;now this will execute in
-            .page
-    -       dex             ;16 cycles for sure
-            bne -
-            .endpage
-
-    This directive will guarantee that a relative branch as a last instruction
-    won't cross a page. On the other hand it will give an error for data ending
-    right before the boundary. For aligning data please consider using .calign
-    instead.
-
 .option allow_branch_across_page
     Switches error generation on page boundary crossing during relative branch.
     Such a condition on 6502 adds 1 extra cycle to the execution time, which
     can ruin the timing of a carefully cycle counted code.
 
             .option allow_branch_across_page = 0
-            ldx #3          ;now this will execute in
-    -       dex             ;16 cycles for sure
-            bne -
-            .option allow_branch_across_page = 1
+            bcc +           ;same execution time
+            inx             ;needed in both cases
+    +       bcs +
+            dex
+    +       .option allow_branch_across_page = 1
 
 .error <message> [, <message>, ...]
 .cerror <condition>, <message> [, <message>, ...]
@@ -3556,10 +3642,9 @@ default, the others are disabled.
     With this option it's fine that the high byte is read from the `wrong'
     address on a 6502, NMOS 6502 and 65DTV02.
 
-            .calign $100    ; jmp bug workaround
-    vector  .addr ?         ; by avoiding page
-            .endcalign      ; crossing of vector
             jmp (vector)
+            .alignpage vector, 256; jmp bug workaround
+    vector  .addr ?         ; by avoiding page cross
 
 -Wno-label-left
     Don't warn about certain labels not being on left side.
@@ -3572,11 +3657,10 @@ default, the others are disabled.
     unknown aliases and not for enforcing label placement.
 
 -Wno-page
-    Don't do an error for page crossing
+    Ignore page assertion failures
 
-    Normally the .page directive gives an error on page crossing, this
-    directive can disable it. Using `-Wno-error=page' can turn it into a
-    warning only.
+    Can be used to ignore .page assertion block failures. As a middle ground
+    `-Wno-error=page' can turn the assertion to a warning only.
 
 -Wno-pitfalls
     Don't note about common pitfalls.
@@ -4258,6 +4342,8 @@ addressing mode too complex
     too much indexing or indirection for a valid address
 at least one byte is needed
     the expression didn't yield any bytes but it's needed here
+block to long for alignment by ? bytes
+    impossible to align if larger than or equals alignment interval
 branch crosses page by ? bytes
     page crossing was on branch was detected
 branch too far by ? bytes
@@ -4286,6 +4372,8 @@ conflict
     at least one feature is provided, which shouldn't be there
 conversion of ? '?' to ? is not possible
     this type conversion can't be done
+crossing of ? byte page by ? bytes
+    the page directive detected a page cross between start and end directives
 division by zero
     dividing with zero can't be done
 double defined escape
@@ -4336,6 +4424,8 @@ most significant bit must be clear in byte
     for .shift and .shiftl only 7 bit "bytes" are valid
 must be used within a loop
     .break or .continue must be used within a loop
+must be defined later
+    remote alignment must placed before the aligned label
 negative number raised on fractional power
     can't calculate this
 no ? addressing mode for opcode 'xxx'
@@ -4366,8 +4456,6 @@ offset out of range
     code offset too much
 operands could not be broadcast together with shapes ? and ?
     list length must match or must have a single element only
-different start and end page $xxxx and $xxxx
-    page crossing was detected
 ptext too long by ? bytes
     .ptext is limited to 255 bytes maximum
 requirements not met
@@ -4380,6 +4468,8 @@ some operation '?' of type '?' and type '?' not possible
     can't do this calculation with these values
 square root of negative number
     can't calculate the square root of a negative number
+start ? not on same ? byte page as end ?
+    the endpage directive detected a mismatch of page to the page directive
 too large for a ? bit signed/unsigned integer
     value out of range
 unexpected character '?'
@@ -4969,11 +5059,11 @@ Appendix
 
 Assembler directives
 
-.addr .al .align .as .assert .autsiz .bend .binary .binclude .bfor .block
-.break .breakif .brept .bwhile .byte .calign .case .cdef .cerror .char .check
-.comment .continue .continueif .cpu .cwarn .databank .default .dint .dpage
-.dsection .dstruct .dunion .dword .edef .else .elsif .enc .encode .end
-.endblock .endc .endcalign .endcomment .endencode .endf .endfor .endfunction
+.addr .al .align .alignb .alignpage .as .assert .autsiz .bend .binary .binclude
+.bfor .block .break .breakif .brept .bwhile .byte .case .cdef .cerror .char
+.check .comment .continue .continueif .cpu .cwarn .databank .default .dint
+.dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .encode .end
+.endblock .endc .endalignb .endcomment .endencode .endf .endfor .endfunction
 .endif .endlogical .endm .endmacro .endn .endnamespace .endp .endpage .endproc
 .endrept .ends .endsection .endsegment .endstruct .endswitch .endu .endunion
 .endv .endvirtual .endweak .endwhile .endwith .eor .error .fi .fill .for
