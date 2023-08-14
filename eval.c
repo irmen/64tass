@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 2985 2023-07-19 06:20:58Z soci $
+    $Id: eval.c 3009 2023-08-13 18:38:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -996,17 +996,21 @@ static bool get_val2(struct eval_context_s *ev) {
                 }
                 if (args == 2 && stop && !expc) {
                     if (out + 1 == ev->out.end && v[2].val->obj == REGISTER_OBJ && Register(v[2].val)->len == 1) {
-                        atype_t addrtype = (op == O_BRACKET) ? A_LI: A_I;
-                        addrtype |= register_to_indexing(Register(v[2].val)->data[0]) << 4;
-                        val_destroy(v[2].val);
-                        if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
-                            v[0].val = new_address(v[1].val, addrtype);
-                        } else {
-                            v[0].val = apply_addressing(v[1].val, addrtype, true);
-                            val_destroy(v[1].val);
+                        am = register_to_indexing(Register(v[2].val)->data[0]);
+                        if (am != A_NONE) {
+                            atype_t addrtype = (op == O_BRACKET) ? A_LI: A_I;
+                            addrtype |= am << 4;
+                            val_destroy(v[2].val);
+                            v[2].val = NULL;
+                            if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
+                                v[0].val = new_address(v[1].val, addrtype);
+                            } else {
+                                v[0].val = apply_addressing(v[1].val, addrtype, true);
+                                val_destroy(v[1].val);
+                            }
+                            v[1].val = NULL;
+                            continue;
                         }
-                        v[1].val = NULL;
-                        continue;
                     }
                 }
                 if (args != 0) {

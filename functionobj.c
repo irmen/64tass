@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: functionobj.c 3011 2023-08-13 19:08:52Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ static MUST_CHECK Obj *gen_broadcast(oper_t op, apply_func_t f) {
     Funcargs *vals = Funcargs(op->v2);
     struct values_s *v = vals->val;
     argcount_t args = vals->len;
-    argcount_t j, k;
+    argcount_t j, k = 0;
     size_t ln = 1;
     List *vv;
     struct elements_s {

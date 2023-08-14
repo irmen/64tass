@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 2991 2023-08-06 06:22:07Z soci $
+    $Id: arguments.c 3006 2023-08-13 14:34:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -357,7 +357,7 @@ enum {
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
     INTEL_HEX, APPLE_II, ATARI_XEX, MOS_HEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND, MAP,
-    NO_MAP, MAP_APPEND, LIST_APPEND
+    NO_MAP, MAP_APPEND, LIST_APPEND, SIMPLE_LABELS
 };
 
 static const struct my_option long_options[] = {
@@ -411,6 +411,7 @@ static const struct my_option long_options[] = {
     {"vice-labels"      , my_no_argument      , NULL,  VICE_LABELS},
     {"vice-labels-numeric",my_no_argument     , NULL,  VICE_LABELS_NUMERIC},
     {"dump-labels"      , my_no_argument      , NULL,  DUMP_LABELS},
+    {"simple-labels"    , my_no_argument      , NULL,  SIMPLE_LABELS},
     {"labels-root"      , my_required_argument, NULL,  LABELS_ROOT},
     {"list"             , my_required_argument, NULL, 'L'},
     {"list-append"      , my_required_argument, NULL, LIST_APPEND},
@@ -633,6 +634,7 @@ int init_arguments(int *argc2, char **argv2[]) {
             case VICE_LABELS: symbol_output.mode = LABEL_VICE; break;
             case VICE_LABELS_NUMERIC: symbol_output.mode = LABEL_VICE_NUMERIC; break;
             case DUMP_LABELS: symbol_output.mode = LABEL_DUMP; break;
+            case SIMPLE_LABELS: symbol_output.mode = LABEL_SIMPLE; break;
             case LABELS_ROOT: symbol_output.space = my_optarg; break;
             case NO_ERROR: arguments.error.name = NULL; arguments.error.no_output = true; arguments.error.append = false; break;
             case ERROR_APPEND:
@@ -670,11 +672,11 @@ int init_arguments(int *argc2, char **argv2[]) {
                "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
                "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
                "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
-               "        [--vice-labels-numeric] [--dump-labels] [--list=<file>]\n"
-               "        [--list-append=<file>] [--no-monitor] [--no-source] [--line-numbers]\n"
-               "        [--tab-size=<value>] [--verbose-list] [--dependencies=<file>]\n"
-               "        [--make-phony] [-W<option>] [--errors=<file>] [--output=<file>]\n"
-               "        [--output-append=<file>] [--no-output] [--map=<file>]\n"
+               "        [--vice-labels-numeric] [--dump-labels] [--simple-labels]\n"
+               "        [--list=<file>] [--list-append=<file>] [--no-monitor] [--no-source]\n"
+               "        [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
+               "        [--dependencies=<file>] [--make-phony] [-W<option>] [--errors=<file>]\n"
+               "        [--output=<file>] [--output-append=<file>] [--no-output] [--map=<file>]\n"
                "        [--map-append=<file>] [--no-map] [--help] [--usage] [--version] SOURCES\n");
                    return 0;
 
@@ -782,6 +784,7 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --vice-labels      Labels in VICE format\n"
                "      --vice-labels-numeric Labels for VICE with numeric constants\n"
                "      --dump-labels      Dump for debugging\n"
+               "      --simple-labels    Simple hexadecimal labels\n"
                "      --labels-root=<l>  List from scope <l> only\n"
                "  -L, --list=<file>      List into <file>\n"
                "      --list-append=<f>  Append list to <file>\n"

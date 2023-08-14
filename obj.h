@@ -1,5 +1,5 @@
 /*
-    $Id: obj.h 2996 2023-08-10 20:59:34Z soci $
+    $Id: obj.h 3000 2023-08-13 05:26:27Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,13 +57,14 @@ typedef struct Default {
 
 #define Default(a) OBJ_CAST(Default, a)
 
-typedef struct Alignb {
+typedef struct Alignblk {
     Obj v;
+    address_t addr;
     address_t size;
     uint8_t pass;
-} Alignb;
+} Alignblk;
 
-#define Alignb(a) OBJ_CAST(Alignb, a)
+#define Alignblk(a) OBJ_CAST(Alignblk, a)
 
 static inline Obj *val_reference(Obj *v1) {
     v1->refcount++; return v1;
@@ -78,7 +79,7 @@ extern void objects_destroy(void);
 extern struct Type *const LBL_OBJ;
 extern struct Type *const DEFAULT_OBJ;
 extern struct Type *const FUNCARGS_OBJ;
-extern struct Type *const ALIGNB_OBJ;
+extern struct Type *const ALIGNBLK_OBJ;
 extern Obj *const default_value;
 
 static inline Obj *ref_default(void) {

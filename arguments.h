@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 2991 2023-08-06 06:22:07Z soci $
+    $Id: arguments.h 3006 2023-08-13 14:34:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@ typedef enum Output_types {
 } Output_types;
 
 typedef enum Symbollist_types {
-    LABEL_64TASS, LABEL_VICE, LABEL_VICE_NUMERIC, LABEL_DUMP, LABEL_EXPORT
+    LABEL_64TASS, LABEL_VICE, LABEL_VICE_NUMERIC, LABEL_DUMP, LABEL_EXPORT,
+    LABEL_SIMPLE
 } Symbollist_types;
 
 typedef enum Caret_types {

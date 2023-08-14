@@ -1,5 +1,5 @@
 .TH 64tass 1 "Jan 11 2023" "64tass 1.58" "64tass 1.58"
-\" $Id: 64tass.1 2991 2023-08-06 06:22:07Z soci $
+\" $Id: 64tass.1 3006 2023-08-13 14:34:56Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -378,6 +378,9 @@ List labels in a VICE readable format, including numeric constants.
 .TP 0.5i
 \fB\-\-dump\-labels\fR
 List labels for debugging.
+.TP 0.5i
+\fB\-\-simple\-labels\fR
+List labels in a simple label = $x fashion for interoperatibility.
 .SS Assembly listing options
 .TP 0.5i
 \fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR

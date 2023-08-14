@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2998 2023-08-12 16:35:11Z soci $
+    $Id: error.c 2999 2023-08-12 21:46:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1342,7 +1342,7 @@ void err_msg_align(address_t by, linepos_t epoint) {
     adderror(msg2);
 }
 
-void err_msg_alignb(address_t by, address_t by2, linepos_t epoint) {
+void err_msg_alignblk(address_t by, address_t by2, linepos_t epoint) {
     char msg2[256];
     new_error_msg2(diagnostic_errors.align, epoint);
     sprintf(msg2, "over the boundary by %" PRIuaddress " bytes, aligned by %" PRIuaddress " bytes [-Walign]", by, by2);

@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2998 2023-08-12 16:35:11Z soci $
+    $Id: error.h 2999 2023-08-12 21:46:25Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ extern void err_msg_pbank_wrap(linepos_t);
 extern void err_msg_label_left(linepos_t);
 extern void err_msg_branch_page(int, linepos_t);
 extern void err_msg_align(address_t, linepos_t);
-extern void err_msg_alignb(address_t, address_t, linepos_t);
+extern void err_msg_alignblk(address_t, address_t, linepos_t);
 extern void err_msg_page(address_t, address_t, uval_t, linepos_t);
 extern void err_msg_page_cross(address_t, address_t, uval_t, linepos_t);
 extern void err_msg_priority(const struct Oper *, linepos_t);

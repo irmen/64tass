@@ -1528,7 +1528,7 @@ times tables. Or even in errata like the indirect JMP bug which happens only if
 the word of the vector is crossing such page.
 
 Other components like video chips can only display object if placed at an
-address divisible by 8, 64, 1024, 2048, 8192 for example.
+address divisible by 64 for example.
 
 For code half of an address table might be spared if it's known that all the
 addresses have the same high bytes. Or if all interrupt routines are on the
@@ -1557,6 +1557,11 @@ correct it by adding padding. This is by default uninitialized (skip forward)
 but may be a fixed byte or anything more complex similarly to what the .fill
 directive accepts.
 
+When alignment is done within named structures then it's relative to the start
+of the structure. This means the structure layout will always be the same
+independent of which address it's instantiated at. Anonymous structures do not
+change the way the alignment works.
+
 The -Walign command line option can be used to emit warnings on where and how
 much padding was necessary for alignment.
 
@@ -1583,7 +1588,7 @@ much padding was necessary for alignment.
     the memory range between the directives. This is what's needed to guard
     against indexed access page cross cycle penalties:
 
-    *       = $1c0
+    *       = $10c0
             .page 256
     table   .fill $40       ;table within the same page
             .endpage        ;different page here but no crossing
@@ -1611,14 +1616,9 @@ much padding was necessary for alignment.
             .align          ; page sized buffer at page boundary
     sendbuf .fill 256       ;to avoid indexing penalty cycles
 
-    When alignment is done within named structures then it's relative to the
-    start of the structure. This means the structure layout will always be the
-    same independent of which address it's instantiated at. Anonymous
-    structures do not change the way the alignment works.
-
-.alignb [<interval>[, <fill>[, <offset>]]]
+.alignblk [<interval>[, <fill>[, <offset>]]]
     Starts alignment block.
-.endalignb
+.endalignblk
     Ends alignment block.
 
     Often the start address is not important only avoiding the page boundary
@@ -1631,9 +1631,9 @@ much padding was necessary for alignment.
     It's typically used to place tables so that absolute indexed read accesses
     won't suffer page crossing cycle penalties.
 
-            .alignb         ;avoid page cross
+            .alignblk       ;avoid page cross
     table   .byte 0, 1, 2, 3, 4, 5, 6, 7
-            .endalignb
+            .endalignblk
             lda table,x     ;no cycles wasted on access
 
     In case the stronger guarantee of having both the start and the end
@@ -1641,43 +1641,50 @@ much padding was necessary for alignment.
     to be given as a negative number (e.g. -256). This may be necessary for
     aligning code with relative branches.
 
-    If the enclosed data size varies based on its memory location then doing
-    the alignment may become impossible.
-.alignpage <target>[, <interval>[, <fill>[, <offset>]]]
+    If the block size varies based on its memory location then doing the
+    alignment may become impossible.
+
+.alignpageind <target>[, <interval>[, <fill>[, <offset>]]]
     Alignment of a page block indirectly.
 
-    If page boundary control is needed within executable code padding right
-    there may not be an option. This directive can add the alignment padding
-    outside of the execution flow.
+    Using .alignblk in the middle of executable code is usually problematic as
+    the alignment is done there as well. This directive can do the alignment
+    padding outside of the execution flow.
 
             rts
-            .alignpage pageblk;add alignment padding here
+            .alignpageind pageblk;add alignment padding here
     wait    ldx #3
     pageblk .page           ;now this will execute
     -       dex             ;in 14 cycles for sure
             bne -
             .endpage
 
+    By default and with a negative interval it tries to avoids page
+    differences. With positive intervals page crosses. Same as the .page
+    assertion block.
+
     It is assumed that the padding inserted will move the target block as if
     it'd be right in front of it. If this isn't the case the alignment will
     fail.
 
-.alignthis <target>[<interval>[, <fill>[, <offset>]]]
+    If the block size varies based on its memory location then doing the
+    alignment may become impossible.
+
+.alignind <target>[, <interval>[, <fill>[, <offset>]]]
     Align the target location to a page boundary indirectly
 
     This directive tries to align the target to a page boundary. If not already
     on one then sufficient padding will be added until the next one is reached.
 
     ;Align "pos" to page boundary. It must come right after "neg".
-            .alignthis pos
+            .alignind pos
     neg     .fill 8
     pos     .fill 8
             .cerror (<pos) != 0, "pos should be page aligned"
             .cerror pos - neg != size(neg), "there should be no gap"
 
-    It is assumed that the padding inserted will move the target block as if
-    it'd be right in front of it. If this isn't the case the alignment will
-    fail.
+    It is assumed that the padding inserted will move the target as if it'd be
+    right in front of it. If this isn't the case the alignment will fail.
 
 .fill <length>
     Usually the .fill directive is used to reserve space but it may be useful
@@ -3643,7 +3650,7 @@ default, the others are disabled.
     address on a 6502, NMOS 6502 and 65DTV02.
 
             jmp (vector)
-            .alignpage vector, 256; jmp bug workaround
+            .alignpageind vector, 256; jmp bug workaround
     vector  .addr ?         ; by avoiding page cross
 
 -Wno-label-left
@@ -4039,6 +4046,12 @@ Symbol listing
     List labels for debugging.
 
     The output will contain symbol locations and paths.
+
+--simple-labels
+    List labels in a simple label = $x fashion for interoperatibility.
+
+    Somewhat limited but much easier to parse than the normal output with all
+    it's data types.
 
 Assembly listing
 
@@ -5059,19 +5072,19 @@ Appendix
 
 Assembler directives
 
-.addr .al .align .alignb .alignpage .as .assert .autsiz .bend .binary .binclude
-.bfor .block .break .breakif .brept .bwhile .byte .case .cdef .cerror .char
-.check .comment .continue .continueif .cpu .cwarn .databank .default .dint
-.dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .encode .end
-.endblock .endc .endalignb .endcomment .endencode .endf .endfor .endfunction
-.endif .endlogical .endm .endmacro .endn .endnamespace .endp .endpage .endproc
-.endrept .ends .endsection .endsegment .endstruct .endswitch .endu .endunion
-.endv .endvirtual .endweak .endwhile .endwith .eor .error .fi .fill .for
-.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .lbl .lint
-.logical .long .macro .mansiz .namespace .next .null .offs .option .page .pend
-.proc .proff .pron .ptext .rept .rta .section .seed .segment .send .sfunction
-.shift .shiftl .showmac .sint .struct .switch .tdef .text .union .var .virtual
-.warn .weak .while .with .word .xl .xs
+.addr .al .align .alignblk .alignind .alignpageind .as .assert .autsiz .bend
+.binary .binclude .bfor .block .break .breakif .brept .bwhile .byte .case .cdef
+.cerror .char .check .comment .continue .continueif .cpu .cwarn .databank
+.default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
+.encode .end .endblock .endc .endalignblk .endcomment .endencode .endf .endfor
+.endfunction .endif .endlogical .endm .endmacro .endn .endnamespace .endp
+.endpage .endproc .endrept .ends .endsection .endsegment .endstruct .endswitch
+.endu .endunion .endv .endvirtual .endweak .endwhile .endwith .eor .error .fi
+.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
+.lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs .option
+.page .pend .proc .proff .pron .ptext .rept .rta .section .seed .segment .send
+.sfunction .shift .shiftl .showmac .sint .struct .switch .tdef .text .union
+.var .virtual .warn .weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 
