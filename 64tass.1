@@ -1,5 +1,5 @@
 .TH 64tass 1 "Jan 11 2023" "64tass 1.58" "64tass 1.58"
-\" $Id: 64tass.1 3006 2023-08-13 14:34:56Z soci $
+\" $Id: 64tass.1 3049 2023-08-21 20:35:45Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -136,6 +136,9 @@ one is used.
 Specify make rule output \fIfile\fR.
 Writes a dependency rule suitable for \(aqmake\(aq from the list of files
 used during compilation.
+.TP 0.5i
+\fB\-\-dependencies\-append\fR \fIfile\fR
+Append to dependencies file instead of overwriting it.
 .TP 0.5i
 \fB\-\-make\-phony\fR
 Enable phony target generation for dependencies.
@@ -364,6 +367,12 @@ Append labels to \fIfile\fR instead of overwriting it.
 \fB\-\-labels\-root\fR=\fI<path>\fR
 Specify the scope to list labels from.
 .TP 0.5i
+\fB\-\-labels\-section\fR=\fI<sectionname>\fR
+Specify the section to list labels from.
+.TP 0.5i
+\fB\-\-labels\-add\-prefix\fR=\fI<prefix>\fR
+Adds a prefix for some output formats.
+.TP 0.5i
 \fB\-\-normal\-labels\fR
 Lists labels in a 64tass readable format. (default)
 .TP 0.5i
@@ -381,6 +390,9 @@ List labels for debugging.
 .TP 0.5i
 \fB\-\-simple\-labels\fR
 List labels in a simple label = $x fashion for interoperatibility.
+.TP 0.5i
+\fB\-\-mesen\-labels\fR
+List labels in Mesen format.
 .SS Assembly listing options
 .TP 0.5i
 \fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR

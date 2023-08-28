@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 3006 2023-08-13 14:34:56Z soci $
+    $Id: arguments.c 3049 2023-08-21 20:35:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ static const struct arguments_s arguments_default = {
     false,       /* to_ascii */
     false,       /* longbranch */
     false,       /* tasmcomp */
-    false,       /* make_phony */
     0x20,        /* caseinsensitive */
     NULL,        /* output */
     0,           /* output_len */
@@ -52,8 +51,12 @@ static const struct arguments_s arguments_default = {
         false,   /* verbose */
         false    /* append */
     },
-    NULL,        /* make */
-    {
+    {            /* make */
+        NULL,    /* name */
+        false,   /* phony */
+        false    /* append */
+    },
+    {            /* defines */
         NULL,    /* data */
         0,       /* len */
     },
@@ -357,7 +360,8 @@ enum {
     NO_CASE_SENSITIVE, NO_TASM_COMPATIBLE, NO_ASCII, CBM_PRG, S_RECORD,
     INTEL_HEX, APPLE_II, ATARI_XEX, MOS_HEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND, MAP,
-    NO_MAP, MAP_APPEND, LIST_APPEND, SIMPLE_LABELS
+    NO_MAP, MAP_APPEND, LIST_APPEND, SIMPLE_LABELS, LABELS_SECTION,
+    MESEN_LABELS, LABELS_ADD_PREFIX, MAKE_APPEND
 };
 
 static const struct my_option long_options[] = {
@@ -412,10 +416,14 @@ static const struct my_option long_options[] = {
     {"vice-labels-numeric",my_no_argument     , NULL,  VICE_LABELS_NUMERIC},
     {"dump-labels"      , my_no_argument      , NULL,  DUMP_LABELS},
     {"simple-labels"    , my_no_argument      , NULL,  SIMPLE_LABELS},
+    {"mesen-labels"     , my_no_argument      , NULL,  MESEN_LABELS},
+    {"labels-add-prefix", my_required_argument, NULL,  LABELS_ADD_PREFIX},
     {"labels-root"      , my_required_argument, NULL,  LABELS_ROOT},
+    {"labels-section"   , my_required_argument, NULL,  LABELS_SECTION},
     {"list"             , my_required_argument, NULL, 'L'},
-    {"list-append"      , my_required_argument, NULL, LIST_APPEND},
+    {"list-append"      , my_required_argument, NULL,  LIST_APPEND},
     {"dependencies"     , my_required_argument, NULL, 'M'},
+    {"dependencies-append", my_required_argument, NULL, MAKE_APPEND},
     {"no-make-phony"    , my_no_argument      , NULL,  NO_MAKE_PHONY},
     {"make-phony"       , my_no_argument      , NULL,  MAKE_PHONY},
     {"no-verbose-list"  , my_no_argument      , NULL,  NO_VERBOSE_LIST},
@@ -496,7 +504,7 @@ static address_t check_outputs(void) {
         if (output->mapname != NULL && dash_name(output->mapname)) tostdout = true;
     }
     if (arguments.list.name != NULL && dash_name(arguments.list.name)) tostdout = true;
-    if (arguments.make != NULL && dash_name(arguments.make)) tostdout = true;
+    if (arguments.make.name != NULL && dash_name(arguments.make.name)) tostdout = true;
     if (!tostdout) {
         for (i = 0; i < arguments.symbol_output_len; i++) {
             struct symbol_output_s *symbol_output = &arguments.symbol_output[i];
@@ -541,7 +549,7 @@ int init_arguments(int *argc2, char **argv2[]) {
     int max = 10;
     bool again;
     struct include_list_s **lastil = &arguments.include;
-    struct symbol_output_s symbol_output = { NULL, NULL, LABEL_64TASS, false };
+    struct symbol_output_s symbol_output = { NULL, NULL, NULL, NULL, LABEL_64TASS, false };
     struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false, false };
     memcpy(&arguments, &arguments_default, sizeof arguments);
     memcpy(&diagnostics, &diagnostics_default, sizeof diagnostics);
@@ -628,6 +636,8 @@ int init_arguments(int *argc2, char **argv2[]) {
                       extend_array(&arguments.symbol_output, &arguments.symbol_output_len, 1);
                       arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
                       symbol_output.space = NULL;
+                      symbol_output.section = NULL;
+                      symbol_output.add_prefix = NULL;
                       break;
             case NORMAL_LABELS: symbol_output.mode = LABEL_64TASS; break;
             case EXPORT_LABELS: symbol_output.mode = LABEL_EXPORT; break;
@@ -635,13 +645,17 @@ int init_arguments(int *argc2, char **argv2[]) {
             case VICE_LABELS_NUMERIC: symbol_output.mode = LABEL_VICE_NUMERIC; break;
             case DUMP_LABELS: symbol_output.mode = LABEL_DUMP; break;
             case SIMPLE_LABELS: symbol_output.mode = LABEL_SIMPLE; break;
+            case MESEN_LABELS: symbol_output.mode = LABEL_MESEN; break;
             case LABELS_ROOT: symbol_output.space = my_optarg; break;
+            case LABELS_SECTION: symbol_output.section = my_optarg; break;
+            case LABELS_ADD_PREFIX: symbol_output.add_prefix = my_optarg; break;
             case NO_ERROR: arguments.error.name = NULL; arguments.error.no_output = true; arguments.error.append = false; break;
             case ERROR_APPEND:
             case 'E': arguments.error.name = my_optarg; arguments.error.no_output = false; arguments.error.append = (opt == ERROR_APPEND); break;
             case LIST_APPEND:
             case 'L': arguments.list.name = my_optarg; arguments.list.append = (opt == LIST_APPEND); break;
-            case 'M': arguments.make = my_optarg;break;
+            case MAKE_APPEND:
+            case 'M': arguments.make.name = my_optarg; arguments.make.append = (opt == MAKE_APPEND); break;
             case 'I': lastil = include_list_add(lastil, my_optarg);break;
             case 'm': arguments.list.monitor = false;break;
             case MONITOR: arguments.list.monitor = true;break;
@@ -653,8 +667,8 @@ int init_arguments(int *argc2, char **argv2[]) {
             case NO_CASE_SENSITIVE: arguments.caseinsensitive = 0x20;break;
             case VERBOSE_LIST: arguments.list.verbose = true;break;
             case NO_VERBOSE_LIST: arguments.list.verbose = false;break;
-            case MAKE_PHONY: arguments.make_phony = true;break;
-            case NO_MAKE_PHONY: arguments.make_phony = false;break;
+            case MAKE_PHONY: arguments.make.phony = true;break;
+            case NO_MAKE_PHONY: arguments.make.phony = false;break;
             case TAB_SIZE:
                 {
                     char *s;
@@ -674,10 +688,11 @@ int init_arguments(int *argc2, char **argv2[]) {
                "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
                "        [--vice-labels-numeric] [--dump-labels] [--simple-labels]\n"
                "        [--list=<file>] [--list-append=<file>] [--no-monitor] [--no-source]\n"
-               "        [--line-numbers] [--tab-size=<value>] [--verbose-list]\n"
-               "        [--dependencies=<file>] [--make-phony] [-W<option>] [--errors=<file>]\n"
+               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
+               "        [--dependencies=<file>] [--dependencies-append=<file>] [--make-phony]\n"
                "        [--output=<file>] [--output-append=<file>] [--no-output] [--map=<file>]\n"
-               "        [--map-append=<file>] [--no-map] [--help] [--usage] [--version] SOURCES\n");
+               "        [--map-append=<file>] [--no-map] [--errors=<file>] [--help] [--usage]\n"
+               "        [--version] SOURCES\n");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
@@ -696,6 +711,7 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --no-error         Do not output any errors\n"
                "  -I <path>              Include search path\n"
                "  -M, --dependencies=<f> Makefile dependencies to <file>\n"
+               "      --dependencies-append=<f> Append dependencies to <file>\n"
                "  -q, --quiet            Do not output summary and header\n"
                "  -T, --tasm-compatible  Enable TASM compatible mode\n"
                "  -w, --no-warn          Suppress warnings\n"
@@ -786,6 +802,8 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --dump-labels      Dump for debugging\n"
                "      --simple-labels    Simple hexadecimal labels\n"
                "      --labels-root=<l>  List from scope <l> only\n"
+               "      --labels-section=<n> List from section <n> only\n"
+               "      --labels-add-prefix=<n> Set label prefix\n"
                "  -L, --list=<file>      List into <file>\n"
                "      --list-append=<f>  Append list to <file>\n"
                "  -m, --no-monitor       Don't put monitor code into listing\n"
@@ -856,6 +874,8 @@ int init_arguments(int *argc2, char **argv2[]) {
     if (arguments.symbol_output_len != 0) {
         arguments.symbol_output[arguments.symbol_output_len - 1].mode = symbol_output.mode;
         if (symbol_output.space != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].space = symbol_output.space;
+        if (symbol_output.section != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].section = symbol_output.section;
+        if (symbol_output.add_prefix != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].add_prefix = symbol_output.add_prefix;
     }
 
     if (arguments.output == NULL) {

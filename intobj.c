@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 2761 2021-10-16 08:27:15Z soci $
+    $Id: intobj.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -353,7 +353,8 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     case 0: *uv = 0; return NULL;
     default: break;
     }
-    v = new_error(v1->len < 0 ? ERROR______NOT_UVAL : ERROR_____CANT_UVAL, epoint);
+    if (v1->len < 0) return Error(new_error_obj(ERROR______NOT_UVAL, o1, epoint));
+    v = new_error(ERROR_____CANT_UVAL, epoint);
     v->u.intconv.bits = bits;
     v->u.intconv.val = val_reference(o1);
     return v;
@@ -621,7 +622,7 @@ static MUST_CHECK Obj *idivrem(oper_t op, bool divrem) {
 
     len2 = intlen(vv2);
     if (len2 == 0) {
-        return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint3);
+        return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint2);
     }
     len1 = intlen(vv1);
     v1 = vv1->data;
@@ -888,8 +889,8 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
             bool c2 = true;
             for (i = 0; i < sz - 1; i++) {
                 if (c) {
-                    v[i] = (v1[i] - 1) >> bit;
                     c = (v1[i] == 0);
+                    v[i] = (v1[i] - 1) >> bit;
                 } else v[i] = v1[i] >> bit;
                 if (c) v[i] |= (v1[i + 1] - 1) << (SHIFT - bit);
                 else v[i] |= v1[i + 1] << (SHIFT - bit);
@@ -1463,7 +1464,7 @@ failed:
     return new_error_mem(epoint);
 }
 
-MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
+MUST_CHECK Obj *int_from_str(Str *v1, linepos_t epoint) {
     struct encoder_s *encoder;
     int ch;
     Int *v;
@@ -1472,13 +1473,14 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     size_t i, j, sz, osz;
     digit_t *d;
 
-    if (actual_encoding == NULL) {
+    if (actual_encoding->updating) {
         if (v1->chars == 1) {
             unichar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return int_from_uval(ch2);
         }
-        return Obj(new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint));
+        if (v1->chars != 0) return new_error_obj(ERROR__NOT_ONE_CHAR, Obj(v1), epoint);
+        return Obj(new_error(ERROR__EMPTY_STRING, epoint));
     }
 
     i = v1->len;

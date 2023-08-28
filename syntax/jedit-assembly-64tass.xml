@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 2999 2023-08-12 21:46:25Z soci $
+	$Id: jedit-assembly-64tass.xml 3016 2023-08-17 17:17:50Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -108,6 +108,7 @@
                         <KEYWORD3>.error</KEYWORD3>
                         <KEYWORD3>.fi</KEYWORD3>
                         <KEYWORD3>.for</KEYWORD3>
+                        <KEYWORD3>.from</KEYWORD3>
                         <KEYWORD3>.function</KEYWORD3>
                         <KEYWORD3>.goto</KEYWORD3>
                         <KEYWORD3>.here</KEYWORD3>

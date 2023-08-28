@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 2975 2023-01-18 21:13:28Z soci $
+    $Id: file.h 3049 2023-08-21 20:35:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -72,8 +72,9 @@ struct file_list_s;
 extern struct file_s *file_open(const struct str_t *, const struct file_list_s *, File_open_type, linepos_t);
 extern struct star_s *new_star(linenum_t);
 extern struct star_s *init_star(linenum_t);
+extern bool get_latest_file_time(void *);
 extern void destroy_file(void);
 extern void init_file(void);
-extern void makefile(int, char *[], bool);
+extern void makefile(int, char *[]);
 
 #endif

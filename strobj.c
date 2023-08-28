@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 2843 2022-10-23 07:42:59Z soci $
+    $Id: strobj.c 3063 2023-08-27 09:19:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ MALLOC Str *new_str2(size_t ln) {
     return v;
 }
 
-static uint8_t *extend_str(Str *v, size_t ln) {
+uint8_t *extend_str(Str *v, size_t ln) {
     uint8_t *tmp;
     if (ln <= sizeof v->u.val) {
         return v->u.val;
@@ -261,7 +261,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     return ret;
 }
 
-MUST_CHECK Obj *float_from_str(const Str *v1, linepos_t epoint) {
+MUST_CHECK Obj *float_from_str(Str *v1, linepos_t epoint) {
     Obj *tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     Obj *ret;
     if (tmp->obj != BYTES_OBJ) return tmp;

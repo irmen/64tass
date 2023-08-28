@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 3006 2023-08-13 14:34:56Z soci $
+    $Id: arguments.h 3049 2023-08-21 20:35:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ typedef enum Output_types {
 
 typedef enum Symbollist_types {
     LABEL_64TASS, LABEL_VICE, LABEL_VICE_NUMERIC, LABEL_DUMP, LABEL_EXPORT,
-    LABEL_SIMPLE
+    LABEL_SIMPLE, LABEL_MESEN
 } Symbollist_types;
 
 typedef enum Caret_types {
@@ -57,6 +57,8 @@ struct error_output_s {
 struct symbol_output_s {
     const char *name;
     const char *space;
+    const char *section;
+    const char *add_prefix;
     Symbollist_types mode;
     bool append;
 };
@@ -67,6 +69,12 @@ struct list_output_s {
     bool source;
     bool linenum;
     bool verbose;
+    bool append;
+};
+
+struct make_output_s {
+    const char *name;
+    bool phony;
     bool append;
 };
 
@@ -91,7 +99,6 @@ struct arguments_s {
     bool to_ascii;
     bool longbranch;
     bool tasmcomp;
-    bool make_phony;
     uint8_t caseinsensitive;
     struct output_s *output;
     size_t output_len;
@@ -100,7 +107,7 @@ struct arguments_s {
     size_t symbol_output_len;
     struct include_list_s *include;
     struct list_output_s list;
-    const char *make;
+    struct make_output_s make;
     struct cmdline_defines_s defines;
     struct error_output_s error;
     unsigned int tab_size;

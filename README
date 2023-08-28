@@ -233,7 +233,7 @@ wrbyte  sta $ffff       ;quick byte writer at $02
         bne +
         inc wrbyte+2
 +       rts
-        .here
+        .endlogical
 
 The assembler supports lists and tuples, which does not seems interesting at
 first as it sound like something which is only useful when heavy scripting is
@@ -601,7 +601,7 @@ a[s]    reverse, as tuple       label[::-1]
 mydata  .word 1, 4, 3
 mycode  .block
 local   lda #0
-        .bend
+        .endblock
 
         ldx #size(mydata) ;6 bytes (3*2)
         ldx #len(mydata)  ;3 elements
@@ -790,10 +790,10 @@ Bit and byte string conversions can take a second parameter to specify and
 exact size. Values which can fit in shorter space will be padded but longer
 ones give an error.
 
-bits(<expression>, <bits count expression>)
+bits(<expression>[, <bit count>])
     Convert to the specific number of bits. If the number of bits is negative
     then it's a signed.
-bytes(<expression>, <byte count expression>)
+bytes(<expression>[, <byte count>])
     Convert to the specific number of bytes. If the number of bits is negative
     then it's a signed.
 
@@ -830,7 +830,7 @@ is used as a constant as there can be only one definition for them.
 Duplicate names in parent scopes are not a problem and this gives the ability
 to override names defined in lower scopes. However this can just as well lead
 to mistakes if a lower scoped symbol with the same name was meant so there's a
--Wshadow command line option to warn if such ambiguity exists.
+`-Wshadow' command line option to warn if such ambiguity exists.
 
 Case sensitivity can be enabled with the `-C' command line option, otherwise
 all symbols are matched case insensitive.
@@ -844,8 +844,8 @@ until the global scope is reached.
 f       .block
 g        .block
 n        nop            ;jump here
-         .bend
-        .bend
+         .endblock
+        .endblock
 
         jsr f.g.n       ;reference from a scope
 f.x     = 3             ;create x in scope f with value 3
@@ -1451,7 +1451,7 @@ it does not need to be.
     .0800   1000                                    label2
                                                     *       = $1200
     .0a00   1200                                    label3
-                                                            .here
+                                                            .endlogical
     .0a00                                           label4
 
 .offs <expression>
@@ -1488,7 +1488,7 @@ it does not need to be.
     .1000   0300     a9 80          lda #$80        drive   lda #$80
     .1002   0302     85 00          sta $00                 sta $00
     .1004   0304     4c 00 03       jmp $0300               jmp drive
-                                                            .here
+                                                            .endlogical
 
 .virtual [<expression>]
     Starts a virtual block
@@ -1507,7 +1507,7 @@ it does not need to be.
     control .byte ?         ; control
     ad      .byte ?         ; attack/decay
     sr      .byte ?         ; sustain/release
-            .bend
+            .endblock
             .endvirtual
 
     Or to define stack "allocated" variables on 65816.
@@ -1562,7 +1562,7 @@ of the structure. This means the structure layout will always be the same
 independent of which address it's instantiated at. Anonymous structures do not
 change the way the alignment works.
 
-The -Walign command line option can be used to emit warnings on where and how
+The `-Walign' command line option can be used to emit warnings on where and how
 much padding was necessary for alignment.
 
 .page [<interval>[, <offset>]]
@@ -1593,7 +1593,7 @@ much padding was necessary for alignment.
     table   .fill $40       ;table within the same page
             .endpage        ;different page here but no crossing
 
-    Normally a page check results in an error but the -Wno-error=page command
+    Normally a page check results in an error but the `-Wno-error=page' command
     line option can reduce it into a warning.
 
     Once this directive reports an error it's time to rearrange the source in a
@@ -1801,15 +1801,20 @@ which accepts strings of any length.
     >100c  5d 8f fc ff 66 66 03 00  .dint (-3.44, 3.4, 3.52) * 1p16
     >1014  1e 85 03 00
 
-.text bytes(<expression>, <byte count expression>)
+.text bits(<expression>[, <bit count>])
     Create bytes from arbitrary precision unsigned and signed numbers.
-.text bits(<expression>, <byte count expression>)
+.text bytes(<expression>[, <byte count>])
     Create bytes from arbitrary precision unsigned and signed numbers.
 
     For cases not covered by the numeric store directives above it's possible
     to convert numbers to byte or bit strings and store the resulting string.
     If the count expression of bytes() and bits() is negative then the stored
     number is signed otherwise unsigned.
+
+    >1000  74 65 78 74 00 00 00 00  .text bytes("text", 8);pad up to 8 bytes
+    >1008  f4 ff ff ff ff ff ff ff  .text bytes(-12, -8)  ;8 bytes signed
+    >1010  00 04 00 00 00 00        .text bits(1024, 48)  ;48 bits unsigned
+    >1016  f4 ff ff ff ff ff        .text bits(-12, -48)  ;48 bits signed
 
 Storing string values
 
@@ -1962,24 +1967,24 @@ sources it could be useful to define escape sequences for control codes.
     conversion function which converts a character string to a byte string
     using the encoding.
 
-            .encode     ;starts anonymous local encoding scope
+            .encode         ;starts anonymous local encoding scope
             .enc "titlefont";special character set
             .text "game title"
-            .endencode  ;restores original encoding
+            .endencode      ;restores original encoding
 
-    vt100   .encode     ;define custom encoding
+    vt100   .encode         ;define custom encoding
             .cdef " ~", 32
             .edef "{esc}", 27;add escape codes
             .edef "{moff}", [27, "[", "m"]
             .edef "{bold}", [27, "[", "1", "m"]
             .endencode
 
-            .encode vt100;use custom encoding from here
+            .encode vt100   ;use custom encoding from here
             .text "{bold}bold{moff} text"
             lda #"{esc}"
-            .endencode  ;restores original encoding
+            .endencode      ;restores original encoding
             cmp #vt100("{esc}");conversion when not in scope
-            .enc vt100;select custom encoding (at start of source)
+            .enc vt100      ;select custom encoding (at start of source)
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
@@ -2008,9 +2013,9 @@ sources it could be useful to define escape sequences for control codes.
     for each character definition. This allows easy assignment of randomly
     scattered Unicode values to a consecutive range of bytes values.
 
-            .mdef "A", 65;A -> 65
-            .mdef "ACX", 65;A -> 65, C-> 66, X -> 67
-            .mdef "ACX", [65, 33, 11];A -> 65, C-> 33, X -> 11
+            .tdef "A", 65   ;A -> 65
+            .tdef "ACX", 65 ;A -> 65, C-> 66, X -> 67
+            .tdef "ACX", [65, 33, 11];A -> 65, C-> 33, X -> 11
 
 .edef "<escapetext>", <value> [, "<escapetext>", <value>, ...]
     Assigns strings to byte sequences as a translated value.
@@ -2620,7 +2625,7 @@ ctable  .byte colors.(red, green, blue)
             .block
             inc count + 1
     count   ldx #0
-            .bend
+            .endblock
 
 .namespace [<expression>]
     Namespace area start
@@ -2679,7 +2684,7 @@ ctable  .byte colors.(red, green, blue)
     scope's variables without leaving the current scope. May be useful to allow
     a short hand access in some situations.
 
-    It's advised to use the -Wshadow command line option to warn about any
+    It's advised to use the `-Wshadow' command line option to warn about any
     unexpected symbol ambiguity.
 
 Sections
@@ -2694,7 +2699,8 @@ offset and program counters for each defined section.
 .endsection [<name>]
     Ends a segment block
 
-    Defines a section fragment. The name at .send must match but it's optional.
+    Defines a section fragment. The name at .endsection must match but it's
+    optional.
 
 .dsection <name>
     Collect the section fragments here.
@@ -2732,10 +2738,10 @@ ss      .word 0
 start   sei
         .section zp     ;declare some new zero page variables
 p2      .addr ?         ;a pointer
-        .send zp
+        .endsection zp
         .section bss    ;new variables
 buffer  .fill 10        ;temporary area
-        .send bss
+        .endsection bss
 
         lda (p2),y
         lda #<label
@@ -2744,13 +2750,13 @@ buffer  .fill 10        ;temporary area
 
         .section data   ;some data
 label   .null "message"
-        .send data
+        .endsection data
 
         jmp error
         .section zp     ;declare some more zero page variables
 p3      .addr ?         ;a pointer
-        .send zp
-        .send code
+        .endsection zp
+        .endsection code
 
 The compiled code will look like:
 
@@ -2787,7 +2793,7 @@ and `data' sections they use, while the `bss' section is shared for all banks.
         .logical $8000
         .dsection bank1
         .cerror * > $a000, "Bank1 too long"
-        .here
+        .endlogical
 
 bank1   .block          ;Make all symbols local
         .section bank1
@@ -2796,16 +2802,16 @@ bank1   .block          ;Make all symbols local
         .section code   ;Pre-open code section
         .include "code.asm"; see below
         .include "iter.asm"
-        .send code
-        .send bank1
-        .bend
+        .endsection code
+        .endsection bank1
+        .endblock
 
 ;Second 8K bank at $2000, PC at $8000
 *       = $2000
         .logical $8000
         .dsection bank2
         .cerror * > $a000, "Bank2 too long"
-        .here
+        .endlogical
 
 bank2   .block          ;Make all symbols local
         .section bank2
@@ -2813,9 +2819,9 @@ bank2   .block          ;Make all symbols local
         .dsection data
         .section code   ;Pre-open code section
         .include "scr.asm"
-        .send code
-        .send bank2
-        .bend
+        .endsection code
+        .endsection bank2
+        .endblock
 
 ;Common data, avoid initialized variables here!
 *       = $c000
@@ -2826,11 +2832,11 @@ code    sei
 
         .section bss   ;Common data section
 buffer  .fill 10
-        .send bss
+        .endsection bss
 
         .section data  ;Data section (in bank1)
 routine .addr print
-        .send bss
+        .endsection bss
 
 65816 related
 
@@ -2927,7 +2933,7 @@ Target
             .cpu "r65c02"   ;R65C02
             .cpu "w65c02"   ;W65C02
             .cpu "4510"     ;CSG 4510
-            .cpu "default"  ;cpu set on commandline
+            .cpu "default"  ;cpu set on command line
 
 Misc
 
@@ -2942,6 +2948,25 @@ Misc
 .var <expression>
     Defines a variable identified by the label preceding, which is set to the
     value of expression or reference of variable.
+
+    counter .var 0                ;define, same as :=
+    counter .var counter + 1      ;redefine, same as += 1
+
+.from <scope>
+    Defines a symbol to the value of the same symbol from another scope.
+
+    This directive looks up the symbol name to be defined in the other scope
+    for its value. Useful for shorthand definitions without repeating the name
+    if it's unchanged.
+
+    red     .from vic.colors      ;same as red = vic.colors.red
+
+    init    .from +               ;expose these symbols publicly
+    play    .from +
+    +       .block                ;other symbols hidden in block
+    init    sei
+    ...
+
 .assert
 .check
     Do not use these, the syntax will change in next version!
@@ -3455,6 +3480,8 @@ Operation options
     Please choose source file names which are compatible with Makefiles as
     there are very little escaping possibilities.
 
+--dependencies-append <file>
+    Same as the --dependencies option but appends instead of overwrites.
 --make-phony
     Enable phony targets for dependencies
 
@@ -3880,7 +3907,7 @@ default, the others are disabled.
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
-using the .cpu directive in the source.
+using the `.cpu' directive in the source.
 
 --m65xx
     Standard 65xx (default). For writing compatible code, no extra codes. This
@@ -3978,6 +4005,17 @@ Symbol listing
     This option can be used to limit the output to only a subset of labels. The
     parameter is a dot separated path to a scope started from the global scope.
 
+--labels-section=<sectionname>
+    Specify the section to list labels from
+
+    This option can be used to limit the output to a section which code labels
+    refer to.
+
+--labels-add-prefix=<string>
+    Add prefix to labels
+
+    If defined adds a prefix to labels for some formats.
+
 --normal-labels
     Lists labels in a 64tass readable format. (default)
 
@@ -4052,6 +4090,33 @@ Symbol listing
 
     Somewhat limited but much easier to parse than the normal output with all
     it's data types.
+
+--mesen-labels
+    List labels in Mesen format
+
+    It's a text file in the following format:
+
+    <type>:<range>:<name>
+
+      + type: the prefix set by the --labels-add-prefix command line option
+      + range: a single hexadecimal number or two with a dash for a multibyte
+        range
+      + label: name of the label
+
+    If the --labels-section command line option was given then the range is
+    relative to the section start.
+
+    If more than one type of labels need to be listed then the --labels-append
+    command line option can be used to append them.
+
+    64tass --mesen-labels @labeloptions.txt a.asm
+
+    Option file (labeloptions.txt):
+    --labels-section=rom --labels-add-prefix=P --labels labels.mlb
+    --labels-section=ram --labels-add-prefix=R --labels-append labels.mlb
+    --labels-section=save --labels-add-prefix=S --labels-append labels.mlb
+    --labels-section=work --labels-add-prefix=W --labels-append labels.mlb
+    --labels-section=registers --labels-add-prefix=G --labels-append labels.mlb
 
 Assembly listing
 
@@ -5080,11 +5145,11 @@ Assembler directives
 .endfunction .endif .endlogical .endm .endmacro .endn .endnamespace .endp
 .endpage .endproc .endrept .ends .endsection .endsegment .endstruct .endswitch
 .endu .endunion .endv .endvirtual .endweak .endwhile .endwith .eor .error .fi
-.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
-.lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs .option
-.page .pend .proc .proff .pron .ptext .rept .rta .section .seed .segment .send
-.sfunction .shift .shiftl .showmac .sint .struct .switch .tdef .text .union
-.var .virtual .warn .weak .while .with .word .xl .xs
+.fill .for .from .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl
+.include .lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs
+.option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
+.segment .send .sfunction .shift .shiftl .showmac .sint .struct .switch .tdef
+.text .union .var .virtual .warn .weak .while .with .word .xl .xs
 
 -------------------------------------------------------------------------------
 

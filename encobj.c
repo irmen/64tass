@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 2981 2023-05-16 19:30:41Z soci $
+    $Id: encobj.c 3066 2023-08-27 20:52:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ MALLOC Obj *new_enc(const struct file_list_s *file_list, linepos_t epoint) {
     enc->escape_length = SIZE_MAX;
     enc->escape_char = 256;
     enc->epass = 0;
+    enc->updating = false;
     avltree_init(&enc->ranges);
     new_array(&enc->map, 128);
     memset(enc->map, 0, 128 * sizeof *enc->map);
@@ -213,7 +214,10 @@ bool enc_escape_add(Enc *enc, const str_t *v, Obj *val, linepos_t epoint)
     *b2 = NULL;
 
     if (val->obj == STR_OBJ || val->obj == BITS_OBJ) {
+        bool old = actual_encoding->updating;
+        actual_encoding->updating = true;
         val2 = bytes_from_obj(val, epoint);
+        actual_encoding->updating = old;
         iter.data = val2; val2->obj->getiter(&iter); 
         val_destroy(val2);
     } else {

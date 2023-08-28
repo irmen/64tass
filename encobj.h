@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: encobj.h 3066 2023-08-27 20:52:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ typedef struct Enc {
     Obj v;
     uint16_t escape_char;
     uint8_t epass;
+    bool updating;
     struct ternary_node_def *escapes;
     size_t escape_length;
     struct avltree ranges;

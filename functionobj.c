@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 3011 2023-08-13 19:08:52Z soci $
+    $Id: functionobj.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -244,7 +244,6 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         else if (v->obj == ERROR_OBJ) err_msg_output(Error(v));
     } else {
         Int *v1 = Int(v);
-        Error *err;
 
         state[0] = (((uint64_t)0x5229a30f) << 32) | (uint64_t)0x996ad7eb;
         state[1] = (((uint64_t)0xc03bbc75) << 32) | (uint64_t)0x3f671f6f;
@@ -256,10 +255,14 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         case 1: state[0] ^= v1->data[0]; FALL_THROUGH; /* fall through */
         case 0: break;
         default:
-            err = new_error(v1->len < 0 ? ERROR______NOT_UVAL : ERROR_____CANT_UVAL, epoint);
-            err->u.intconv.bits = 128;
-            err->u.intconv.val = val_reference(o1);
-            err_msg_output_and_destroy(err);
+            if (v1->len < 0) {
+                err_msg2(ERROR______NOT_UVAL, o1, epoint);
+            } else {
+                Error *err = new_error(ERROR_____CANT_UVAL, epoint);
+                err->u.intconv.bits = 128;
+                err->u.intconv.val = val_reference(o1);
+                err_msg_output_and_destroy(err);
+            }
         }
     }
     val_destroy(v);
@@ -275,7 +278,7 @@ static MUST_CHECK Obj *function_random(oper_t op) {
 
     switch (vals->len) {
     default:
-        return new_float((double)(random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
+        return new_float((double)(int64_t)(random64() & (((uint64_t)1 << 53) - 1)) * ldexp(1, -53));
     case 1:
         err = v[0].val->obj->ival(v[0].val, &end, 8 * sizeof end, &v[0].epoint);
         break;
@@ -678,10 +681,10 @@ static MUST_CHECK Obj *function_pow(oper_t op) {
     val = to_real(&v[1], &real2);
     if (val != NULL) return val;
     if (real2 < 0.0 && real == 0.0) {
-        return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint3);
+        return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint2);
     }
     if (real < 0.0 && floor(real2) != real2) {
-        return Obj(new_error(ERROR_NEGFRAC_POWER, op->epoint));
+        return Obj(new_error(ERROR_NEGFRAC_POWER, op->epoint2));
     }
     return float_from_double(pow(real, real2), op->epoint);
 }
@@ -769,42 +772,42 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 switch (func) {
                 case F_HYPOT:
                     if (args != 2) {
-                        return new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint3);
                     }
                     return gen_broadcast(op, function_hypot);
                 case F_ATAN2:
                     if (args != 2) {
-                        return new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint3);
                     }
                     return gen_broadcast(op, function_atan2);
                 case F_POW:
                     if (args != 2) {
-                        return new_error_argnum(args, 2, 2, op->epoint2);
+                        return new_error_argnum(args, 2, 2, op->epoint3);
                     }
                     return gen_broadcast(op, function_pow);
                 case F_RANGE:
                     if (args < 1 || args > 3) {
-                        return new_error_argnum(args, 1, 3, op->epoint2);
+                        return new_error_argnum(args, 1, 3, op->epoint3);
                     }
                     return gen_broadcast(op, function_range);
                 case F_BINARY:
                     if (args < 1 || args > 3) {
-                        return new_error_argnum(args, 1, 3, op->epoint2);
+                        return new_error_argnum(args, 1, 3, op->epoint3);
                     }
                     return gen_broadcast(op, function_binary);
                 case F_FORMAT:
                     if (args < 1) {
-                        return new_error_argnum(args, 1, 0, op->epoint2);
+                        return new_error_argnum(args, 1, 0, op->epoint3);
                     }
                     return gen_broadcast(op, isnprintf);
                 case F_RANDOM:
                     if (args > 3) {
-                        return new_error_argnum(args, 0, 3, op->epoint2);
+                        return new_error_argnum(args, 0, 3, op->epoint3);
                     }
                     return gen_broadcast(op, function_random);
                 default:
                     if (args != 1) {
-                        return new_error_argnum(args, 1, 1, op->epoint2);
+                        return new_error_argnum(args, 1, 1, op->epoint3);
                     }
                     switch (func) {
                     case F_ANY:

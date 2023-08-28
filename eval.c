@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3009 2023-08-13 18:38:32Z soci $
+    $Id: eval.c 3061 2023-08-26 17:07:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -499,10 +499,8 @@ rest:
             llen = (linecpos_t)get_label(pline + lpoint.pos);
             if (llen == 0) {
                 if (opr.p != opr.data) epoint.pos = opr.p[-1].pos;
-                if ((ch < ' ' && ch != 0) || ch > '~') {
-                    if (err_msg_wrong_character(&lpoint)) goto error;
-                }
-                err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
+                if ((ch < ' ' && ch != 0) || ch > '~') err_msg_wrong_character(&lpoint);
+                else err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
                 goto error;
             }
             lpoint.pos += llen;
@@ -617,10 +615,8 @@ rest:
             }
             break;
         default:
-            if (ch < ' ' || ch > '~') {
-                if (err_msg_wrong_character(&epoint)) goto error;
-            }
-            err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
+            if (ch < ' ' || ch > '~') err_msg_wrong_character(&epoint);
+            else err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         }
         if (opr.p == opr.data) {
@@ -962,22 +958,25 @@ static bool get_val2(struct eval_context_s *ev) {
                     v--;
                 }
                 args -= vsp;
-                if (args == 1) {
-                    if (stop && !expc) {
-                        if (tup && out + 1 != ev->out.end) {
-                            Obj *obj = out[1].val;
-                            if (obj->obj != OPER_OBJ ||
-                                    (Oper(obj)->op != O_RPARENT &&   /* ((3)) */
-                                     Oper(obj)->op != O_RBRACKET &&  /* [(3)] */
-                                     Oper(obj)->op != O_FUNC &&      /* f((3)) */
-                                     Oper(obj)->op != O_LIST &&      /* [(3),] */
-                                     Oper(obj)->op != O_COMMA &&     /* [(3),(3)] */
-                                     !(Oper(obj)->op >= O_COMMAX && Oper(obj)->op <= O_COMMAK) /* (3),y */
-                                    )) {
-                                v[0].val = v[1].val; v[1].val = NULL;
-                                continue;
-                            }
+                if (stop && !expc) {
+                    atype_t am2;
+                    if (out + 1 != ev->out.end) {
+                        Obj *obj = out[1].val;
+                        if (obj->obj != OPER_OBJ ||
+                            (Oper(obj)->op != O_RPARENT &&   /* ((3)) */
+                             Oper(obj)->op != O_RBRACKET &&  /* [(3)] */
+                             Oper(obj)->op != O_RBRACE &&    /* {(3)} */
+                             Oper(obj)->op != O_FUNC &&      /* f((3)) */
+                             Oper(obj)->op != O_INDEX &&     /* m[(3)] */
+                             Oper(obj)->op != O_COMMA &&     /* [(3),(3)] */
+                             !(Oper(obj)->op >= O_COMMAX && Oper(obj)->op <= O_COMMAK) /* (3),y */
+                            )) {
+                            goto nind;
                         }
+                    }
+                    switch (args) {
+                    case 1:
+                    ind1:
                         am = (op == O_BRACKET) ? A_LI : A_I;
                         if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
                             v[0].val = new_address(v[1].val, am);
@@ -987,33 +986,53 @@ static bool get_val2(struct eval_context_s *ev) {
                         }
                         v[1].val = NULL;
                         continue;
+                    case 2:
+                        if (v[2].val->obj != REGISTER_OBJ || Register(v[2].val)->len != 1) goto nind2;
+                        am = register_to_indexing(Register(v[2].val)->data[0]);
+                        if (am == A_NONE) goto nind2;
+                    ind2:
+                        val_destroy(v[2].val);
+                        v[2].val = NULL;
+                        if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
+                            v[1].val = new_address(v[1].val, am);
+                        } else {
+                            Obj *tmp = apply_addressing(v[1].val, am, true);
+                            val_destroy(v[1].val);
+                            v[1].val = tmp;
+                        }
+                        goto ind1;
+                    case 3:
+                        if (v[3].val->obj != REGISTER_OBJ || Register(v[3].val)->len != 1) goto nind2;
+                        am2 = register_to_indexing(Register(v[3].val)->data[0]);
+                        if (am2 == A_NONE) goto nind2;
+                        if (v[2].val->obj != REGISTER_OBJ || Register(v[2].val)->len != 1) goto nind2;
+                        am = register_to_indexing(Register(v[2].val)->data[0]);
+                        if (am == A_NONE) goto nind2;
+                        val_destroy(v[2].val);
+                        v[2].val = v[3].val;
+                        v[3].val = NULL;
+                        if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
+                            v[1].val = new_address(v[1].val, am);
+                        } else {
+                            Obj *tmp = apply_addressing(v[1].val, am, true);
+                            val_destroy(v[1].val);
+                            v[1].val = tmp;
+                        }
+                        am = am2;
+                        goto ind2;
+                    default: break;
                     }
+                }
+            nind:
+                if (args == 1) {
                     if (tup) {
                         v[0].val = v[1].val; v[1].val = NULL;
                         v[0].epoint.pos = v[1].epoint.pos;
                         continue;
                     }
                 }
-                if (args == 2 && stop && !expc) {
-                    if (out + 1 == ev->out.end && v[2].val->obj == REGISTER_OBJ && Register(v[2].val)->len == 1) {
-                        am = register_to_indexing(Register(v[2].val)->data[0]);
-                        if (am != A_NONE) {
-                            atype_t addrtype = (op == O_BRACKET) ? A_LI: A_I;
-                            addrtype |= am << 4;
-                            val_destroy(v[2].val);
-                            v[2].val = NULL;
-                            if (v[1].val->obj != ADDRESS_OBJ && !v[1].val->obj->iterable) {
-                                v[0].val = new_address(v[1].val, addrtype);
-                            } else {
-                                v[0].val = apply_addressing(v[1].val, addrtype, true);
-                                val_destroy(v[1].val);
-                            }
-                            v[1].val = NULL;
-                            continue;
-                        }
-                    }
-                }
                 if (args != 0) {
+            nind2:
                     list = List(val_alloc((op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ));
                     list->len = args;
                     list->data = list_create_elements(list, args);
@@ -1617,10 +1636,8 @@ static bool get_exp2(int stop) {
                 }
                 epoint.pos = opr.p[-1].pos;
             }
-            if ((ch < ' ' && ch != 0) || ch > '~') {
-                if (err_msg_wrong_character(&lpoint)) goto error;
-            }
-            err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
+            if ((ch < ' ' && ch != 0) || ch > '~') err_msg_wrong_character(&lpoint);
+            else err_msg2(ERROR______EXPECTED, "an expression is", &lpoint);
             goto error;
         }
         if (opr.p != opr.data && opr.p[-1].op == O_SPLAT) {
@@ -1933,10 +1950,8 @@ static bool get_exp2(int stop) {
             case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' &&
                         (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = O_IN;goto push2a;} break;
             }
-            if (ch < ' ' || ch > '~') {
-                if (err_msg_wrong_character(&epoint)) goto error;
-            }
-            err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
+            if (ch < ' ' || ch > '~') err_msg_wrong_character(&epoint);
+            else err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
             goto error;
         }
         while (opr.p != opr.data) {

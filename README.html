@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3010 2023-08-13 19:07:56Z soci $ -->
+<!-- $Id: README.html 3062 2023-08-26 20:59:10Z soci $ -->
 <head>
 <title>64tass v1.58 r2974 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -372,7 +372,7 @@ wrbyte  <b>sta</b> <span>$ffff</span>       <i>;quick byte writer at $02</i>
         <b>bne</b> <u>+</u>
         <b>inc</b> <u>wrbyte</u>+<span>2</span>
 +       <b>rts</b>
-        <b class="k">.here</b>
+        <b class="k">.endlogical</b>
 </pre>
 
 <p>The assembler supports lists and tuples, which does not seems interesting at
@@ -611,14 +611,14 @@ in section <q><a href="#slicing_indexing">Slicing and indexing</a></q>.
 
 <pre width="80">
         <b class="k">.enc</b> <span class="s">"screen"</span>   <i>;use screen encoding</i>
-mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes, like .text</i>
+mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes, like <a href="#d_text">.text</a></i>
         <b class="k">.enc</b> <span class="s">"none"</span>     <i>;normal encoding</i>
 
         <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
-        <b class="d">.text</b> <span class="s">s"p1"</span>     <i>;convert to bytes like .shift</i>
-        <b class="d">.text</b> <span class="s">l"p2"</span>     <i>;convert to bytes like .shiftl</i>
-        <b class="d">.text</b> <span class="s">n"p3"</span>     <i>;convert to bytes like .null</i>
-        <b class="d">.text</b> <span class="s">p"p4"</span>     <i>;convert to bytes like .ptext</i>
+        <b class="d">.text</b> <span class="s">s"p1"</span>     <i>;convert to bytes like <a href="#d_shift">.shift</a></i>
+        <b class="d">.text</b> <span class="s">l"p2"</span>     <i>;convert to bytes like <a href="#d_shiftl">.shiftl</a></i>
+        <b class="d">.text</b> <span class="s">n"p3"</span>     <i>;convert to bytes like <a href="#d_null">.null</a></i>
+        <b class="d">.text</b> <span class="s">p"p4"</span>     <i>;convert to bytes like <a href="#d_ptext">.ptext</a></i>
 </pre>
 
 <p>Binary data may be embedded in source code by using hexadecimal byte
@@ -787,7 +787,7 @@ risk for now, you might need to update your code later.</b>
 mydata  <b class="d">.word</b> <span>1</span>, <span>4</span>, <span>3</span>
 mycode  <b class="k">.block</b>
 local   <b>lda</b> #<span>0</span>
-        <b class="k">.bend</b>
+        <b class="k">.endblock</b>
 
         <b>ldx</b> #<span class="k">size</span>(<u>mydata</u>) <i>;6 bytes (3&lowast;2)</i>
         <b>ldx</b> #<span class="k">len</span>(<u>mydata</u>)  <i>;3 elements</i>
@@ -1001,9 +1001,9 @@ exact size. Values which can fit in shorter space will be padded but longer ones
 give an error.
 
 <dl class="dir">
-<dt><b>bits(</b>&lt;expression&gt;, &lt;bits count expression&gt;<b>)</b>
+<dt><b>bits(</b>&lt;expression&gt;[, &lt;bit count&gt;]<b>)</b>
 <dd>Convert to the specific number of bits. If the number of bits is negative then it's a signed.</dd>
-<dt><b>bytes(</b>&lt;expression&gt;, &lt;byte count expression&gt;<b>)</b>
+<dt><b>bytes(</b>&lt;expression&gt;[, &lt;byte count&gt;]<b>)</b>
 <dd>Convert to the specific number of bytes. If the number of bits is negative then it's a signed.</dd>
 </dl>
 
@@ -1041,7 +1041,7 @@ the symbol is used as a constant as there can be only one definition for them.
 <p>Duplicate names in parent scopes are not a problem and this gives the
 ability to override names defined in lower scopes. However this can just as well lead to mistakes if
 a lower scoped symbol with the same name was meant so there's a
-<a href="#o_Wshadow">-Wshadow</a> command line option to warn if such ambiguity exists.
+<q><a href="#o_Wshadow"><code>-Wshadow</code></a></q> command line option to warn if such ambiguity exists.
 
 <p>Case sensitivity can be enabled with the
 <q><a href="#o_case-sensitive"><code>-C</code></a></q> command line option, otherwise all
@@ -1058,8 +1058,8 @@ until the global scope is reached.
 f       <b class="k">.block</b>
 g        <b class="k">.block</b>
 n        <b>nop</b>            <i>;jump here</i>
-         <b class="k">.bend</b>
-        <b class="k">.bend</b>
+         <b class="k">.endblock</b>
+        <b class="k">.endblock</b>
 
         <b>jsr</b> <u>f</u>.<u>g</u>.<u>n</u>       <i>;reference from a scope</i>
 f.x     <b>=</b> <span>3</span>             <i>;create x in scope f with value 3</i>
@@ -1814,7 +1814,7 @@ will match the requested address in the expression.
 .0800   1000                                    label2
                                                 *       = <span>$1200</span>
 .0a00   1200                                    label3
-                                                        <b class="k">.here</b>
+                                                        <b class="k">.endlogical</b>
 .0a00                                           label4
 </pre></dd>
 
@@ -1852,7 +1852,7 @@ to use alternatives below.</p>
 .1000   0300     a9 80          lda #$80        drive   <b>lda</b> #<span>$80</span>
 .1002   0302     85 00          sta $00                 <b>sta</b> <span>$00</span>
 .1004   0304     4c 00 03       jmp $0300               <b>jmp</b> <u>drive</u>
-                                                        <b class="k">.here</b>
+                                                        <b class="k">.endlogical</b>
 </pre></dd>
 
 <dt><b>.virtual</b> [&lt;expression&gt;]<a name="d_virtual" href="#d_virtual"></a>
@@ -1872,7 +1872,7 @@ pulsew  <b class="d">.word</b> <span>?</span>         <i>; pulse width</i>
 control <b class="d">.byte</b> <span>?</span>         <i>; control</i>
 ad      <b class="d">.byte</b> <span>?</span>         <i>; attack/decay</i>
 sr      <b class="d">.byte</b> <span>?</span>         <i>; sustain/release</i>
-        <b class="k">.bend</b>
+        <b class="k">.endblock</b>
         <b class="k">.endvirtual</b>
 </pre>
 
@@ -1933,7 +1933,7 @@ of the structure. This means the structure layout will always be the same
 independent of which address it's instantiated at. Anonymous structures do not
 change the way the alignment works.
 
-<p>The <a href="#o_Walign">-Walign</a> command line option can be used to emit
+<p>The <q><a href="#o_Walign"><code>-Walign</code></a></q> command line option can be used to emit
 warnings on where and how much padding was necessary for alignment.</p>
 
 <dl class="dir">
@@ -1969,9 +1969,9 @@ table   <b class="d">.fill</b> <span>$40</span>       <i>;table within the same 
         <b class="k">.endpage</b>        <i>;different page here but no crossing</i>
 </pre>
 
-<p>Normally a page check results in an error but the <a
-href="#o_Wpage">-Wno-error=page</a> command line option can reduce it into a
-warning.
+<p>Normally a page check results in an error but the <q><a
+href="#o_Wpage"><code>-Wno-error=page</code></a></q> command line option can
+reduce it into a warning.
 
 <p>Once this directive reports an error it's time to rearrange the source in
 a way that the check passes. Or alternatively the alignment
@@ -2199,15 +2199,22 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 &gt;1014  1e 85 03 00
 </pre></dd>
 
-<dt><b>.text</b> bytes(&lt;expression&gt;, &lt;byte count expression&gt;)
-<dd>Create bytes from arbitrary precision unsigned and signed numbers.</dd>
-<dt><b>.text</b> bits(&lt;expression&gt;, &lt;byte count expression&gt;)
+<dt><b>.text</b> bits(&lt;expression&gt;[, &lt;bit count&gt;])
 <dd>Create bytes from arbitrary precision unsigned and signed numbers.
+<dt><b>.text</b> bytes(&lt;expression&gt;[, &lt;byte count&gt;])
+<dd>Create bytes from arbitrary precision unsigned and signed numbers.</dd>
 
 <p>For cases not covered by the numeric store directives above it's possible to
 convert numbers to byte or bit strings and store the resulting string. If the
-count expression of bytes() and bits() is negative then the stored number is
-signed otherwise unsigned.</p></dd>
+count expression of <code>bytes()</code> and <code>bits()</code> is negative then the stored number is
+signed otherwise unsigned.</p>
+
+<pre width="80">
+&gt;1000  74 65 78 74 00 00 00 00  <b class="d">.text</b> <span class="k">bytes</span>(<span class="s">"text"</span>, <span>8</span>)<i>;pad up to 8 bytes</i>
+&gt;1008  f4 ff ff ff ff ff ff ff  <b class="d">.text</b> <span class="k">bytes</span>(<span>-12</span>, <span>-8</span>)  <i>;8 bytes signed</i>
+&gt;1010  00 04 00 00 00 00        <b class="d">.text</b> <span class="k">bits</span>(<span>1024</span>, <span>48</span>)  <i>;48 bits unsigned</i>
+&gt;1016  f4 ff ff ff ff ff        <b class="d">.text</b> <span class="k">bits</span>(<span>-12</span>, <span>-48</span>)  <i>;48 bits signed</i>
+</pre></dd>
 
 </dl>
 
@@ -2375,24 +2382,24 @@ it can be reused whenever it's needed. This symbol can also act as a conversion
 function which converts a character string to a byte string using the encoding.
 
 <pre width="80">
-        <b class="k">.encode</b>     <i>;starts anonymous local encoding scope</i>
+        <b class="k">.encode</b>         <i>;starts anonymous local encoding scope</i>
         <b class="k">.enc</b> <span class="s">"titlefont"</span><i>;special character set</i>
         <b class="d">.text</b> <span class="s">"game title"</span>
-        <b class="k">.endencode</b>  <i>;restores original encoding</i>
+        <b class="k">.endencode</b>      <i>;restores original encoding</i>
 
-vt100   <b class="k">.encode</b>     <i>;define custom encoding</i>
+vt100   <b class="k">.encode</b>         <i>;define custom encoding</i>
         <b class="k">.cdef</b> <span class="s">" ~"</span>, <span>32</span>
         <b class="k">.edef</b> <span class="s">"{esc}"</span>, <span>27</span><i>;add escape codes</i>
         <b class="k">.edef</b> <span class="s">"{moff}"</span>, [<span>27</span>, <span class="s">"["</span>, <span class="s">"m"</span>]
         <b class="k">.edef</b> <span class="s">"{bold}"</span>, [<span>27</span>, <span class="s">"["</span>, <span class="s">"1"</span>, <span class="s">"m"</span>]
         <b class="k">.endencode</b>
 
-        <b class="k">.encode</b> <u>vt100</u><i>;use custom encoding from here</i>
+        <b class="k">.encode</b> <u>vt100</u>   <i>;use custom encoding from here</i>
         <b class="d">.text</b> <span class="s">"<span>{bold}</span>bold<span>{moff}</span> text"</span>
         <b>lda</b> #<span class="s">"<span>{esc}"</span></span>
-        <b class="k">.endencode</b>  <i>;restores original encoding</i>
+        <b class="k">.endencode</b>      <i>;restores original encoding</i>
         <b>cmp</b> #<u>vt100</u>(<span class="s">"<span>{esc}</span>"</span>)<i>;conversion when not in scope</i>
-        <b class="k">.enc</b> <u>vt100</u><i>;select custom encoding (at start of source)</i>
+        <b class="k">.enc</b> <u>vt100</u>      <i>;select custom encoding (at start of source)</i>
 </pre></dd>
 
 <dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]<a name="d_cdef" href="#d_cdef"></a>
@@ -2424,9 +2431,9 @@ for each character definition. This allows easy assignment of randomly
 scattered Unicode values to a consecutive range of bytes values.</p>
 
 <pre width="80">
-        <b class="k">.mdef</b> <span class="s">"A"</span>, <span>65</span><i>;A -> 65</i>
-        <b class="k">.mdef</b> <span class="s">"ACX"</span>, <span>65</span><i>;A -> 65, C-> 66, X -> 67</i>
-        <b class="k">.mdef</b> <span class="s">"ACX"</span>, [<span>65</span>, <span>33</span>, <span>11</span>]<i>;A -> 65, C-> 33, X -> 11</i>
+        <b class="k">.tdef</b> <span class="s">"A"</span>, <span>65</span>   <i>;A -> 65</i>
+        <b class="k">.tdef</b> <span class="s">"ACX"</span>, <span>65</span> <i>;A -> 65, C-> 66, X -> 67</i>
+        <b class="k">.tdef</b> <span class="s">"ACX"</span>, [<span>65</span>, <span>33</span>, <span>11</span>]<i>;A -> 65, C-> 33, X -> 11</i>
 </pre></dd>
 
 <dt><b>.edef</b> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]<a name="d_edef" href="#d_edef"></a>
@@ -3108,7 +3115,7 @@ then local symbols are accessible through that using the dot notation.</p>
         <b class="k">.block</b>
         <b>inc</b> <u>count</u> + <span>1</span>
 count   <b>ldx</b> #<span>0</span>
-        <b class="k">.bend</b>
+        <b class="k">.endblock</b>
 </pre></dd>
 
 <dt><b>.namespace</b> [&lt;expression&gt;]<a name="d_namespace" href="#d_namespace"></a>
@@ -3172,7 +3179,7 @@ anytime soon.</p></dd>
 another scope's variables without leaving the current scope. May be
 useful to allow a short hand access in some situations.</p>
 
-<p>It's advised to use the <a href="#o_Wshadow">-Wshadow</a> command line
+<p>It's advised to use the <q><a href="#o_Wshadow"><code>-Wshadow</code></a></q> command line
 option to warn about any unexpected symbol ambiguity.</p></dd>
 </dl>
 
@@ -3189,7 +3196,7 @@ compile offset and program counters for each defined section.</p>
 <dt><b>.endsection</b> [&lt;name&gt;]<a name="d_endsection" href="#d_endsection"></a>
 <dd>Ends a segment block
 
-<p>Defines a section fragment. The name at <code>.send</code> must match but
+<p>Defines a section fragment. The name at <code>.endsection</code> must match but
 it's optional.</p></dd>
 
 <dt><b>.dsection</b> &lt;name&gt;<a name="d_dsection" href="#d_dsection"></a>
@@ -3231,10 +3238,10 @@ ss      <b class="d">.word</b> <span>0</span>
 start   <b>sei</b>
         <b class="k">.section</b> <u>zp</u>     <i>;declare some new zero page variables</i>
 p2      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
-        <b class="k">.send</b> <u>zp</u>
+        <b class="k">.endsection</b> <u>zp</u>
         <b class="k">.section</b> <u>bss</u>    <i>;new variables</i>
 buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
-        <b class="k">.send</b> <u>bss</u>
+        <b class="k">.endsection</b> <u>bss</u>
 
         <b>lda</b> (<u>p2</u>),y
         <b>lda</b> #&lt;<u>label</u>
@@ -3243,13 +3250,13 @@ buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
 
         <b class="k">.section</b> <u>data</u>   <i>;some data</i>
 label   <b class="d">.null</b> <span class="s">"message"</span>
-        <b class="k">.send</b> <u>data</u>
+        <b class="k">.endsection</b> <u>data</u>
 
         <b>jmp</b> <u>error</u>
         <b class="k">.section</b> <u>zp</u>     <i>;declare some more zero page variables</i>
 p3      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
-        <b class="k">.send</b> <u>zp</u>
-        <b class="k">.send</b> <u>code</u>
+        <b class="k">.endsection</b> <u>zp</u>
+        <b class="k">.endsection</b> <u>code</u>
 </pre>
 
 <p>The compiled code will look like:
@@ -3291,7 +3298,7 @@ shared for all banks.
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank1</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
-        <b class="k">.here</b>
+        <b class="k">.endlogical</b>
 
 bank1   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <u>bank1</u>
@@ -3300,16 +3307,16 @@ bank1   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <u>code</u>   <i>;Pre-open code section</i>
         <b class="k">.include</b> <span class="s">"code.asm"</span><i>; see below</i>
         <b class="k">.include</b> <span class="s">"iter.asm"</span>
-        <b class="k">.send</b> <u>code</u>
-        <b class="k">.send</b> <u>bank1</u>
-        <b class="k">.bend</b>
+        <b class="k">.endsection</b> <u>code</u>
+        <b class="k">.endsection</b> <u>bank1</u>
+        <b class="k">.endblock</b>
 
 <i>;Second 8K bank at $2000, PC at $8000</i>
 *       <b>=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank2</u>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
-        <b class="k">.here</b>
+        <b class="k">.endlogical</b>
 
 bank2   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <u>bank2</u>
@@ -3317,9 +3324,9 @@ bank2   <b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="d">.dsection</b> <u>data</u>
         <b class="k">.section</b> <u>code</u>   <i>;Pre-open code section</i>
         <b class="k">.include</b> <span class="s">"scr.asm"</span>
-        <b class="k">.send</b> <u>code</u>
-        <b class="k">.send</b> <u>bank2</u>
-        <b class="k">.bend</b>
+        <b class="k">.endsection</b> <u>code</u>
+        <b class="k">.endsection</b> <u>bank2</u>
+        <b class="k">.endblock</b>
 
 <i>;Common data, avoid initialized variables here!</i>
 *       <b>=</b> <span>$c000</span>
@@ -3330,11 +3337,11 @@ code    <b>sei</b>
 
         <b class="k">.section</b> <u>bss</u>   <i>;Common data section</i>
 buffer  <b class="d">.fill</b> <span>10</span>
-        <b class="k">.send</b> <u>bss</u>
+        <b class="k">.endsection</b> <u>bss</u>
 
         <b class="k">.section</b> <u>data</u>  <i>;Data section (in bank1)</i>
 routine <b class="d">.addr</b> <u>print</u>
-        <b class="k">.send</b> <u>bss</u>
+        <b class="k">.endsection</b> <u>bss</u>
 </pre>
 
 <h3>65816 related<a name="w65816" href="#w65816"></a></h3>
@@ -3451,7 +3458,7 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.cpu</b> <span class="s">"r65c02"</span>   <i>;R65C02</i>
         <b class="k">.cpu</b> <span class="s">"w65c02"</span>   <i>;W65C02</i>
         <b class="k">.cpu</b> <span class="s">"4510"</span>     <i>;CSG 4510</i>
-        <b class="k">.cpu</b> <span class="s">"default"</span>  <i>;cpu set on commandline</i>
+        <b class="k">.cpu</b> <span class="s">"default"</span>  <i>;cpu set on command line</i>
 </pre></dd>
 </dl>
 
@@ -3471,7 +3478,28 @@ maximum 128 bits to make the generated numbers less boring.</dd>
 
 <dt><b>.var</b> &lt;expression&gt;<a name="d_var" href="#d_var"></a>
 <dd>Defines a variable identified by the label preceding, which
-is set to the value of expression or reference of variable.</dd>
+is set to the value of expression or reference of variable.
+
+<pre width="80">
+counter <b class="k">.var</b> <span>0</span>                <i>;define, same as :=</i>
+counter <b class="k">.var</b> <u>counter</u> + <span>1</span>      <i>;redefine, same as += 1</i>
+</pre></dd>
+
+<dt><b>.from</b> &lt;scope&gt;<a name="d_from" href="#d_from"></a>
+<dd>Defines a symbol to the value of the same symbol from another scope.
+
+<p>This directive looks up the symbol name to be defined in the other scope for
+its value. Useful for shorthand definitions without repeating the name if it's unchanged.</p>
+
+<pre width="80">
+red     <b class="k">.from</b> <u>vic</u>.<u>colors</u>      <i>;same as red = vic.colors.red</i>
+
+init    <b class="k">.from</b> <u>+</u>               <i>;expose these symbols publicly</i>
+play    <b class="k">.from</b> <u>+</u>
++       <b class="k">.block</b>                <i>;other symbols hidden in block</i>
+init    <b>sei</b>
+...
+</pre></dd>
 
 <dt><b>.assert</b><a name="d_assert" href="#d_assert"></a>
 <dt><b>.check</b><a name="d_check" href="#d_check"></a>
@@ -4045,6 +4073,9 @@ by repeating this option. If multiple matches exist the first one is used.</p></
 <p>Please choose source file names which are compatible with Makefiles as there
 are very little escaping possibilities.</p></dd>
 
+<dt><b>--dependencies-append</b> &lt;file&gt;<a name="o_dependencies-append" href="#o_dependencies-append"></a>
+<dd>Same as the --dependencies option but appends instead of overwrites.</dd>
+
 <dt><b>--make-phony</b><a name="o_make-phony" href="#o_make-phony"></a>
 <dd>Enable phony targets for dependencies
 
@@ -4489,7 +4520,7 @@ symbols are treated as used for exporting purposes.</p></dd>
 <h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>
 
 <p>These options will select the default architecture. It can be overridden by
-using the <a href="#d_cpu"><code>.cpu</code></a> directive in the source.</p>
+using the <q><a href="#d_cpu"><code>.cpu</code></a></q> directive in the source.</p>
 
 <dl class="dir">
 <dt><b>--m65xx</b><a name="o_m65xx" href="#o_m65xx"></a>
@@ -4612,6 +4643,16 @@ options must be placed before this option. Using the same name multiple times is
 <p>This option can be used to limit the output to only a subset of labels. The
 parameter is a dot separated path to a scope started from the global scope.</p></dd>
 
+<dt><b>--labels-section</b>=&lt;sectionname&gt;<a name="o_labels-section" href="#o_labels-section"></a>
+<dd>Specify the section to list labels from
+
+<p>This option can be used to limit the output to a section which code labels refer to.</p></dd>
+
+<dt><b>--labels-add-prefix</b>=&lt;string&gt;<a name="o_labels-add-prefix" href="#o_labels-add-prefix"></a>
+<dd>Add prefix to labels
+
+<p>If defined adds a prefix to labels for some formats.</p></dd>
+
 <dt><b>--normal-labels</b><a name="o_normal-labels" href="#o_normal-labels"></a>
 <dd>Lists labels in a 64tass readable format. (default)
 
@@ -4691,6 +4732,36 @@ uses numeric constants for addresses only this may be acceptable.</p></dd>
 
 <p>Somewhat limited but much easier to parse than the normal output with all
 it's data types.</p></dd>
+
+<dt><b>--mesen-labels</b><a name="o_mesen-labels" href="#o_mesen-labels"></a>
+<dd>List labels in Mesen format
+
+<p>It's a text file in the following format:
+
+<p>&lt;type&gt;:&lt;range&gt;:&lt;name&gt;</p>
+
+<ul>
+<li>type: the prefix set by the <a href="o_labels-add-prefix"><code>--labels-add-prefix</code></a> command line option</li>
+<li>range: a single hexadecimal number or two with a dash for a multibyte range</li>
+<li>label: name of the label</li>
+</ul>
+
+<p>If the <a href="o_labels-section"><code>--labels-section</code></a> command
+line option was given then the range is relative to the section start.
+
+<p>If more than one type of labels need to be listed then the <a href="o_labels-append"><code>--labels-append</code></a> command
+line option can be used to append them.</p>
+
+<pre>
+64tass --mesen-labels @labeloptions.txt a.asm
+
+Option file (labeloptions.txt):
+--labels-section=rom --labels-add-prefix=P --labels labels.mlb 
+--labels-section=ram --labels-add-prefix=R --labels-append labels.mlb
+--labels-section=save --labels-add-prefix=S --labels-append labels.mlb
+--labels-section=work --labels-add-prefix=W --labels-append labels.mlb
+--labels-section=registers --labels-add-prefix=G --labels-append labels.mlb
+</pre></dd>
 
 </dl>
 
@@ -6162,6 +6233,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#d_fi">.fi</a>
 <a href="#d_fill">.fill</a>
 <a href="#d_for">.for</a>
+<a href="#d_from">.from</a>
 <a href="#d_function">.function</a>
 <a href="#d_goto">.goto</a>
 <a href="#d_here">.here</a>

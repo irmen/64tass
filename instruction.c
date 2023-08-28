@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 2959 2023-01-08 10:32:44Z soci $
+    $Id: instruction.c 3060 2023-08-26 15:33:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -313,11 +313,10 @@ static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned i
             break;
         }
         return AG_NONE;
-    case (A_IMMEDIATE_SIGNED << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#+$ff,s),y */
     case (A_IMMEDIATE << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,s),y */
     case (A_SR << 8) | (A_I << 4) | A_YR:
         if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
-            adrgen = (opcode == c65ce02.opcode || opcode == c4510.opcode) ? AG_CHAR : AG_BYTE; *opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
+            adrgen = AG_BYTE; *opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
             break;
         }
         return AG_NONE;
@@ -838,6 +837,16 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         epoint2 = &vals->val[0].epoint;
         if (vals->val[0].val->obj->iterable || vals->val[1].val->obj->iterable || vals->val[2].val->obj->iterable) {
             goto broadcast;
+        }
+        if (vals->val[1].val->obj == REGISTER_OBJ && vals->val[2].val->obj == REGISTER_OBJ) {
+            atype_t am2 = Register(vals->val[2].val)->len != 1 ? A_NONE : register_to_indexing(Register(vals->val[2].val)->data[0]);
+            am = Register(vals->val[1].val)->len != 1 ? A_NONE : register_to_indexing(Register(vals->val[1].val)->data[0]);
+            if (am != A_NONE && am2 != A_NONE) {
+                val = vals->val[0].val;
+                am |= val->obj->address(val) << 4;
+                am = (am << 4) | am2;
+                goto retry1;
+            }
         }
         if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);

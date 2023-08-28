@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 2967 2023-01-08 22:50:27Z soci $
+    $Id: mem.c 3029 2023-08-19 10:42:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #if defined _WIN32 || defined __MSDOS__ || defined __DOS__
 #include <io.h>
 #include <fcntl.h>
+#define SETMODE_AVAILABLE
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
 #endif
@@ -148,13 +149,14 @@ void memref(Memblocks *memblocks, Memblocks *ref, address_t addr, address_t ln) 
 }
 
 #if defined _POSIX_C_SOURCE || defined __unix__
+#define USE_HOLES
 static MUST_CHECK bool padding(FILE *f, address_t size, bool append)
 #else
 static MUST_CHECK bool padding(FILE *f, address_t size, bool UNUSED(append))
 #endif
 {
     uint8_t nuls[256];
-#if defined _POSIX_C_SOURCE || defined __unix__
+#ifdef USE_HOLES
     if (!append) {
         while (size >= 0x80000000) {
             if (fseek(f, 0x40000000, SEEK_CUR) != 0) goto err;
@@ -593,13 +595,13 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     FILE* fout;
     bool binary = (output->mode != OUTPUT_IHEX) && (output->mode != OUTPUT_SREC);
     int err;
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef SETMODE_AVAILABLE
     int oldmode = -1;
 #endif
 
     if (dash_name(output->name)) {
         if (fflush(stdout) != 0 || binary) setvbuf(stdout, NULL, binary ? _IOFBF : _IOLBF, binary ? BUFSIZ : 1024);
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef SETMODE_AVAILABLE
         if (binary) oldmode = setmode(STDOUT_FILENO, O_BINARY);
 #endif
         fout = stdout;
@@ -627,7 +629,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     err = ferror(fout);
     err |= (fout != stdout) ? fclose(fout) : fflush(fout);
     if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name);
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef SETMODE_AVAILABLE
     if (oldmode >= 0) setmode(STDOUT_FILENO, oldmode);
 #endif
     if (fout == stdout && binary) setvbuf(stdout, NULL, _IOLBF, 1024);

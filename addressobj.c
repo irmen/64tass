@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 2965 2023-01-08 19:50:05Z soci $
+    $Id: addressobj.c 3055 2023-08-25 04:57:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -171,6 +171,9 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint, size_t maxsize) {
         return NULL;
     }
 
+    if (ind != 0 && str->len != 0 && b2[ind - 1] == '+' && str->data[0] == '-') {
+        ind--; len--; chars--;
+    }
     v = new_str2(len);
     if (v == NULL) goto error;
     v->chars = chars;

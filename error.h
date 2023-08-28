@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 2999 2023-08-12 21:46:25Z soci $
+    $Id: error.h 3046 2023-08-21 16:19:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ extern void err_msg_unused_label(struct Label *);
 extern void err_msg_unused_const(struct Label *);
 extern void err_msg_unused_variable(struct Label *);
 extern void err_msg_not_defined(const struct str_t *, linepos_t);
-extern unsigned int err_msg_unknown_formatchar(const struct Str *, size_t, linepos_t);
+extern void err_msg_unknown_formatchar(const struct Str *, size_t, linepos_t);
 extern void err_msg_not_defined2(const struct str_t *, struct Namespace *, bool, linepos_t);
 extern void err_msg_not_defined2a(ssize_t, struct Namespace *, bool, linepos_t);
 extern void err_msg_symbol_case(const struct str_t *, const struct Label *, linepos_t);
@@ -100,7 +100,7 @@ extern void err_msg_priority(const struct Oper *, linepos_t);
 extern void err_msg_alias(uint32_t, uint32_t, linepos_t);
 extern void err_msg_deprecated(Error_types, linepos_t);
 extern void err_msg_unknown_char(unichar_t, linepos_t);
-extern bool err_msg_wrong_character(linepos_t);
+extern void err_msg_wrong_character(linepos_t);
 extern void err_msg_encode_definition_note(const struct file_list_s *, linepos_t);
 extern void err_msg_star_assign(linepos_t);
 extern void err_msg_compound_note(linepos_t);

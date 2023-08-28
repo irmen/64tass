@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: floatobj.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint), size_t maxsize) {
     char line[100];
     int i = 0;
     size_t len = (size_t)sprintf(line, "%.10g", Float(o1)->real);
-    while (line[i] != 0 && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
+    while (line[i] != 0 && line[i]!='.' && line[i]!='e') i++;
     if (line[i] == 0) {line[i++] = '.';line[i++] = '0';len += 2;}
     if (len > maxsize) return NULL;
     v = new_str2(len);
@@ -130,7 +130,8 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
     double real = floor(Float(o1)->real);
     Error *v;
     if (real <= -1.0 || real >= (double)(~(uval_t)0) + 1.0) {
-        v = new_error(real < 0.0 ? ERROR______NOT_UVAL : ERROR_____CANT_UVAL, epoint);
+        if (real < 0.0) return Error(new_error_obj(ERROR______NOT_UVAL, o1, epoint));
+        v = new_error(ERROR_____CANT_UVAL, epoint);
         v->u.intconv.bits = bits;
         v->u.intconv.val = val_reference(o1);
         return v;
@@ -259,7 +260,9 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
         e2 = 63;
     }
     v1 = (uint64_t)ldexp(r1, e1);
+    if (neg1 && v1 == 0) v1 = 1;
     v2 = (uint64_t)ldexp(r2, e2);
+    if (neg2 && v2 == 0) v2 = 1;
 
     switch (op->op) {
     case O_AND: 
@@ -326,12 +329,12 @@ static MUST_CHECK Obj *calc2_double(oper_t op) {
     case O_MUL: return float_from_double_inplace(v1 * v2, op);
     case O_DIV:
         if (v2 == 0.0) {
-            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint3);
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint2);
         }
         return float_from_double_inplace(v1 / v2, op);
     case O_MOD:
         if (v2 == 0.0) {
-            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint3);
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint2);
         }
         r = fmod(v1, v2);
         if (r != 0.0 && ((v2 < 0.0) != (r < 0))) r += v2;

@@ -1,5 +1,5 @@
 /*
-    $Id: boolobj.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: boolobj.c 3045 2023-08-21 06:38:49Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -171,12 +171,12 @@ static MUST_CHECK Obj *calc2_bool(oper_t op) {
     case O_MUL: return int_from_bool2(v1 && v2);
     case O_DIV:
         if (!v2) {
-            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint3);
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint2);
         }
         return int_from_bool2(v1);
     case O_MOD:
         if (!v2) {
-            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint3);
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->v2, op->epoint2);
         }
         return int_from_bool2(false);
     case O_EXP: return int_from_bool2(v1 || !v2);

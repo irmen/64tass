@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- ex:set ts=2 et:
 
- $Id: GtkSourceView-6502_64tass.lang 2999 2023-08-12 21:46:25Z soci $
+ $Id: GtkSourceView-6502_64tass.lang 3016 2023-08-17 17:17:50Z soci $
 
  GtkSourceView language definition file for 64tass
  Usable with gedit
@@ -221,7 +221,7 @@
     </context>
 
     <context id="preprocessor-misc" end-at-line-end="true">
-      <start>\.((end)?struct|(end)?union|(end)?page|end[uspnv]|d?section|endsection|(end)?block|(end)?proc|[sbp]end|(end)?logical|here|[ax][ls]|autsiz|mansiz|pron|proff|(end)?namespace|(end)?weak|alignpageind|alignind|(end)?alignblk|hidemac|showmac|offs|align|assert|check|[cet]def|databank|dpage|cpu|option|var|end|eor|seed|breakif|continueif|break|continue|(end)?virtual|(end)?with|(end)?encode|enc)(\s|(?=;)|$)</start>
+      <start>\.((end)?struct|(end)?union|(end)?page|end[uspnv]|d?section|endsection|(end)?block|(end)?proc|[sbp]end|(end)?logical|here|[ax][ls]|autsiz|mansiz|pron|proff|(end)?namespace|(end)?weak|alignpageind|alignind|(end)?alignblk|hidemac|showmac|offs|align|assert|check|[cet]def|databank|dpage|cpu|option|var|from|end|eor|seed|breakif|continueif|break|continue|(end)?virtual|(end)?with|(end)?encode|enc)(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>

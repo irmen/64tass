@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 2975 2023-01-18 21:13:28Z soci $
+    $Id: listing.c 3058 2023-08-26 07:53:26Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,8 +49,6 @@ typedef struct Listing {
     char *s;
     char buf[LINE_WIDTH + ADDR_WIDTH + LADDR_WIDTH + 3*16];
     char hex[16];
-    const uint16_t *disasm;
-    const uint32_t *mnemonic;
     struct {
         unsigned int addr, laddr, hex, monitor, source;
     } columns;
@@ -182,7 +180,8 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
         argv_print(argv[i], flist);
     }
     fputs("\n; ", flist);
-    time(&t); fputs(ctime(&t), flist);
+    if (get_latest_file_time((void *)&t)) time(&t); 
+    fputs(ctime(&t), flist);
     newline(ls);
     if (ls->linenum) {
         out_txt(ls, ";Line");
@@ -320,14 +319,14 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     uint32_t mnem;
 
     padding2(ls, ls->columns.monitor);
-    mnem = ls->mnemonic[ls->disasm[cod] & 0xff];
+    mnem = current_cpu->mnemonic[current_cpu->disasm[cod] & 0xff];
     ls->s[0] = (char)(mnem >> 16);
     ls->s[1] = (char)(mnem >> 8);
     ls->s[2] = (char)(mnem);
     ls->s[3] = ' ';
     ls->s += 4;
 
-    type = (Adr_types)(ls->disasm[cod] >> 8);
+    type = (Adr_types)(current_cpu->disasm[cod] >> 8);
     mode = addr_modes[type];
     if (*mode != ' ') *ls->s++ = *mode;
     mode++;
@@ -390,6 +389,7 @@ FAST_CALL void listing_equal2(Obj *val, linecpos_t pos) {
     if (ls->linenum) {
         printline(ls);
         padding2(ls, ls->columns.addr);
+        flushbuf(ls);
     }
     putc('=', ls->flist);
     ls->c += val_print(val, ls->flist, ls->verbose ? SIZE_MAX : ls->columns.source - 2) + 1;
@@ -480,13 +480,6 @@ FAST_CALL void listing_line_cut2(linecpos_t pos) {
         newline(ls);
         llist = NULL;
     }
-}
-
-FAST_CALL void listing_set_cpumode(const struct cpu_s *cpumode) {
-    Listing *const ls = listing;
-    if (ls == NULL) return;
-    ls->disasm = cpumode->disasm;
-    ls->mnemonic = cpumode->mnemonic;
 }
 
 void listing_instr(unsigned int cod, uint32_t adr, int ln) {

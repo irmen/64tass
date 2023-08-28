@@ -1,4 +1,4 @@
-# $Id: Makefile 2974 2023-01-11 07:16:37Z soci $
+# $Id: Makefile 3057 2023-08-25 05:39:51Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -36,7 +36,7 @@ $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 README: README.html
-	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >$@
+	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph -O US-ASCII | sed -e 's/\s\+$$//' >$@
 
 version.h:
 	echo "#define VERSION \"$(VERSION).$(SVNVERSION:sh)$(shell $(SVNVERSION))\"" >$@
@@ -49,7 +49,7 @@ version.h:
  addressobj.h boolobj.h bytesobj.h intobj.h bitsobj.h functionobj.h \
  namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h registerobj.h \
  labelobj.h errorobj.h macroobj.h mfuncobj.h memblocksobj.h symbolobj.h \
- dictobj.h encobj.h
+ anonsymbolobj.h dictobj.h encobj.h
 addressobj.o: addressobj.c addressobj.h obj.h attributes.h inttypes.h \
  values.h stdbool.h error.h errors_e.h eval.h oper_e.h variables.h \
  arguments.h instruction.h boolobj.h strobj.h intobj.h typeobj.h \
@@ -196,7 +196,8 @@ registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
  errorobj.h errors_e.h addressobj.h intobj.h error.h
 section.o: section.c section.h avl.h attributes.h stdbool.h str.h \
  inttypes.h unicode.h error.h errors_e.h 64tass.h wait_e.h values.h \
- intobj.h obj.h longjump.h optimizer.h eval.h oper_e.h memblocksobj.h
+ intobj.h obj.h longjump.h optimizer.h eval.h oper_e.h memblocksobj.h \
+ mem.h
 str.o: str.c str.h inttypes.h unicode.h attributes.h stdbool.h error.h \
  errors_e.h arguments.h
 strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
@@ -217,10 +218,10 @@ values.o: values.c values.h attributes.h obj.h inttypes.h unicode.h \
  stdbool.h error.h errors_e.h strobj.h typeobj.h
 variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
  attributes.h 64tass.h wait_e.h file.h obj.h error.h errors_e.h values.h \
- arguments.h eval.h oper_e.h boolobj.h floatobj.h namespaceobj.h strobj.h \
- codeobj.h registerobj.h functionobj.h listobj.h intobj.h bytesobj.h \
- bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h noneobj.h labelobj.h \
- str.h errorobj.h mfuncobj.h
+ arguments.h eval.h oper_e.h section.h avl.h str.h boolobj.h floatobj.h \
+ namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h listobj.h \
+ intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h \
+ noneobj.h labelobj.h errorobj.h mfuncobj.h
 wchar.o: wchar.c wchar.h inttypes.h
 
 .PHONY: all clean distclean install install-strip uninstall install-man install-doc

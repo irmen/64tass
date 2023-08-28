@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 3007 2023-08-13 14:56:14Z soci $
+    $Id: variables.c 3015 2023-08-15 06:41:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "values.h"
 #include "arguments.h"
 #include "eval.h"
+#include "section.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -535,7 +536,20 @@ static void labelname_print(const Label *l, FILE *flab, char d) {
     printable_print2(l->name.data, flab, l->name.len);
 }
 
-static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode) {
+static bool section_filter(Obj *obj, const struct section_s *section) {
+    if (obj->obj == ADDRESS_OBJ) obj = Address(obj)->val;
+    if (obj->obj == CODE_OBJ) return Code(obj)->memblocks == section->address.mem;
+    return true;
+}
+
+typedef struct Labelprint {
+    const struct section_s *section;
+    FILE *flab;
+    Symbollist_types mode;
+    str_t add_prefix;
+} Labelprint;
+
+static void labelprint2(const Labelprint *lp, Namespace *names) {
     size_t n, ln;
 
     if (names->len == 0) return;
@@ -556,7 +570,8 @@ static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode
         default:break;
         }
         if (l != namespace_lookup(names, l)) continue;
-        if (labelmode == LABEL_VICE || labelmode == LABEL_VICE_NUMERIC) {
+        if (lp->section != NULL && !section_filter(l->value, lp->section)) continue;
+        if (lp->mode == LABEL_VICE || lp->mode == LABEL_VICE_NUMERIC) {
             Obj *val;
             size_t i, j = l->name.len;
             const uint8_t *d = l->name.data;
@@ -575,37 +590,64 @@ static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode
             if (i != j) continue;
 
             val = l->value;
-            if (val->obj == ADDRESS_OBJ || val->obj == CODE_OBJ || (labelmode == LABEL_VICE_NUMERIC && (val->obj == BITS_OBJ || val->obj == INT_OBJ))) {
+            if (val->obj == ADDRESS_OBJ || val->obj == CODE_OBJ || (lp->mode == LABEL_VICE_NUMERIC && (val->obj == BITS_OBJ || val->obj == INT_OBJ))) {
                 struct linepos_s epoint;
                 uval_t uv;
                 Error *err = val->obj->uval(val, &uv, 24, &epoint);
                 if (err == NULL) {
-                    fprintf(flab, "al %" PRIx32 " .", uv & 0xffffff);
-                    labelname_print(l, flab, ':');
-                    putc('\n', flab);
+                    fprintf(lp->flab, "al %" PRIx32 " .", uv & 0xffffff);
+                    labelname_print(l, lp->flab, ':');
+                    putc('\n', lp->flab);
                 } else val_destroy(Obj(err));
             }
             if (l->owner) {
                 Namespace *ns = get_namespace(val);
                 if (ns != NULL && ns->len != 0) {
                     push_label(l);
-                    labelprint2(ns, flab, labelmode);
+                    labelprint2(lp, ns);
                     pop_label();
                 }
             }
-        } else if (labelmode == LABEL_SIMPLE) {
+        } else if (lp->mode == LABEL_SIMPLE) {
             Obj *val;
             if (!l->constant) continue;
             val = l->value;
-            if (val->obj == ADDRESS_OBJ || val->obj == CODE_OBJ || val->obj == BITS_OBJ || val->obj == INT_OBJ) {
+            if (val->obj == ADDRESS_OBJ || val->obj == CODE_OBJ || (lp->section == NULL && (val->obj == BITS_OBJ || val->obj == INT_OBJ))) {
                 struct linepos_s epoint;
                 ival_t iv;
                 Error *err = val->obj->ival(val, &iv, 8 * sizeof iv, &epoint);
                 if (err == NULL) {
-                    size_t len = printable_print2(l->name.data, flab, l->name.len);
-                    padding(len, EQUAL_COLUMN, flab);
-                    if (len >= EQUAL_COLUMN) putc(' ', flab);
-                    fprintf(flab, iv >= 0 ? "= $%" PRIxval "\n" : "= -$%" PRIxval "\n", (iv >= 0) ? (uval_t)iv: -(uval_t)iv);
+                    size_t len2 = (lp->add_prefix.data != NULL && lp->add_prefix.len != 0) ? printable_print2(lp->add_prefix.data, lp->flab, lp->add_prefix.len) : 0;
+                    size_t len = printable_print2(l->name.data, lp->flab, l->name.len);
+                    if (inc_overflow(&len, len2)) len = ~(size_t)0;
+                    padding(len, EQUAL_COLUMN, lp->flab);
+                    if (len >= EQUAL_COLUMN) putc(' ', lp->flab);
+                    fprintf(lp->flab, iv >= 0 ? "= $%" PRIxval "\n" : "= -$%" PRIxval "\n", (iv >= 0) ? (uval_t)iv: -(uval_t)iv);
+                } else val_destroy(Obj(err));
+            }
+        } else if (lp->mode == LABEL_MESEN) {
+            Obj *val;
+            if (!l->constant) continue;
+            val = l->value;
+            if (val->obj == ADDRESS_OBJ || val->obj == CODE_OBJ || (lp->section == NULL && (val->obj == BITS_OBJ || val->obj == INT_OBJ))) {
+                struct linepos_s epoint;
+                uval_t uv;
+                Error *err = val->obj->uval(val, &uv, 8 * sizeof uv, &epoint);
+                if (err == NULL) {
+                    if (val->obj == ADDRESS_OBJ) val = Address(val)->val;
+                    if (lp->section != NULL) {
+                        if (uv < lp->section->l_restart) continue;
+                        uv -= lp->section->l_restart;
+                        if (uv >= lp->section->size) continue;
+                    }
+                    if (lp->add_prefix.data != NULL && lp->add_prefix.len != 0) printable_print2(lp->add_prefix.data, lp->flab, lp->add_prefix.len);
+                    if (val->obj == CODE_OBJ && Code(val)->size > 0) {
+                        fprintf(lp->flab, ":%" PRIXval "-%" PRIXval ":", uv, uv + (Code(val)->size - 1));
+                    } else {
+                        fprintf(lp->flab, ":%" PRIXval ":", uv);
+                    }
+                    printable_print2(l->name.data, lp->flab, l->name.len);
+                    putc('\n', lp->flab);
                 } else val_destroy(Obj(err));
             }
         } else {
@@ -614,12 +656,14 @@ static void labelprint2(Namespace *names, FILE *flab, Symbollist_types labelmode
             if (val == NULL) continue;
             if (val->obj == STR_OBJ) {
                 const Str *str = Str(val);
-                size_t len = printable_print2(l->name.data, flab, l->name.len);
-                padding(len, EQUAL_COLUMN, flab);
-                if (l->constant) fputs("= ", flab);
-                else fputs(&" := "[len < EQUAL_COLUMN], flab);
-                printable_print2(str->data, flab, str->len);
-                putc('\n', flab);
+                size_t len2 = (lp->add_prefix.data != NULL && lp->add_prefix.len != 0) ? printable_print2(lp->add_prefix.data, lp->flab, lp->add_prefix.len) : 0;
+                size_t len = printable_print2(l->name.data, lp->flab, l->name.len);
+                if (inc_overflow(&len, len2)) len = ~(size_t)0;
+                padding(len, EQUAL_COLUMN, lp->flab);
+                if (l->constant) fputs("= ", lp->flab);
+                else fputs(&" := "[len < EQUAL_COLUMN], lp->flab);
+                printable_print2(str->data, lp->flab, str->len);
+                putc('\n', lp->flab);
             }
             val_destroy(val);
         }
@@ -705,20 +749,32 @@ static Namespace *find_space(const char *here, bool use) {
 }
 
 void labelprint(const struct symbol_output_s *output) {
-    FILE *flab;
+    Labelprint lp;
     struct linepos_s nopoint = {0, 0};
     int err;
     Namespace *space;
 
-    flab = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
-    if (flab == NULL) {
+    lp.flab = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
+    if (lp.flab == NULL) {
         err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
         return;
     }
-    if (flab == stdout && fflush(flab) != 0) setvbuf(flab, NULL, _IOLBF, 1024);
-    clearerr(flab); errno = 0;
+    if (lp.flab == stdout && fflush(lp.flab) != 0) setvbuf(lp.flab, NULL, _IOLBF, 1024);
+    clearerr(lp.flab); errno = 0;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
+    lp.mode = output->mode;
+    lp.add_prefix.data = (const uint8_t *)output->add_prefix;
+    lp.add_prefix.len = (output->add_prefix != NULL) ? strlen(output->add_prefix) : 0;
+    if (output->section != NULL) {
+        lp.section = find_this_section(output->section);
+        if (lp.section == NULL) {
+            str_t sectionname;
+            sectionname.data = pline;
+            sectionname.len = lpoint.pos;
+            err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
+        } 
+    } else lp.section = NULL;
     space = find_space(output->space, false);
     if (space == NULL) {
         str_t labelname;
@@ -726,13 +782,13 @@ void labelprint(const struct symbol_output_s *output) {
         labelname.len = lpoint.pos;
         err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
     } else if (output->mode == LABEL_DUMP) {
-        labeldump(space, flab);
+        labeldump(space, lp.flab);
     } else {
-        labelprint2(space, flab, output->mode);
+        labelprint2(&lp, space);
     }
     free(label_stack.stack);
-    err = ferror(flab);
-    err |= (flab != stdout) ? fclose(flab) : fflush(flab);
+    err = ferror(lp.flab);
+    err |= (lp.flab != stdout) ? fclose(lp.flab) : fflush(lp.flab);
     if (err != 0 && errno != 0) {
         err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
     }

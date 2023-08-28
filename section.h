@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 2853 2022-10-25 06:30:43Z soci $
+    $Id: section.h 3013 2023-08-15 06:36:01Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -74,6 +74,7 @@ extern void init_section(void);
 extern void destroy_section(void);
 extern void reset_section(struct section_s *);
 extern void section_sizecheck(const struct avltree_node *);
+extern void section_memclose(const struct avltree_node *);
 extern struct section_s *current_section, root_section;
 extern struct section_address_s *current_address;
 #endif

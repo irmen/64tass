@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 2825 2022-10-20 16:10:09Z soci $
+    $Id: bitsobj.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -147,9 +147,7 @@ static MUST_CHECK Obj *convert2(oper_t op) {
         len2 = (uval_t)ival;
         if (!inplace && !bytes && bits->len < 0) {
             val_destroy(Obj(bits));
-            err = new_error(ERROR______NOT_UVAL, &v2->val[0].epoint);
-            err->u.intconv.val = val_reference(v2->val[0].val);
-            return Obj(err);
+            return new_error_obj(ERROR______NOT_UVAL, v2->val[0].val, &v2->val[0].epoint);
         }
     } else {
         len2 = (uval_t)-(1 + ival);
@@ -444,11 +442,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
 }
 
 static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    if (Bits(o1)->len < 0) {
-        Error *v = new_error(ERROR______NOT_UVAL, epoint);
-        v->u.intconv.val = val_reference(o1);
-        return v;
-    }
+    if (Bits(o1)->len < 0) return Error(new_error_obj(ERROR______NOT_UVAL, o1, epoint));
     return uval(o1, uv, bits, epoint);
 }
 
@@ -642,7 +636,7 @@ MUST_CHECK Obj *bits_from_binstr(const uint8_t *s, linecpos_t *ln) {
     return normalize(v, j, false);
 }
 
-MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
+MUST_CHECK Obj *bits_from_str(Str *v1, linepos_t epoint) {
     struct encoder_s *encoder;
     int ch;
     Bits *v;
@@ -650,13 +644,14 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     size_t j, sz, osz;
     bdigit_t *d, uv;
 
-    if (actual_encoding == NULL) {
+    if (actual_encoding->updating) {
         if (v1->chars == 1) {
             unichar_t ch2 = v1->data[0];
             if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
             return return_bits(ch2 & 0xffffff, ch2 < 256 ? 8 : ch2 < 65536 ? 16 : 24);
         }
-        return Obj(new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint));
+        if (v1->chars != 0) return new_error_obj(ERROR__NOT_ONE_CHAR, Obj(v1), epoint);
+        return Obj(new_error(ERROR__EMPTY_STRING, epoint));
     }
 
     if (v1->len == 0) {
@@ -991,11 +986,12 @@ static inline MUST_CHECK Obj *concat(oper_t op) {
     bdigit_t inv;
     Bits *vv;
 
-    if (vv1->bits == 0) {
-        return Obj(ref_bits(vv2));
-    }
     if (vv2->bits == 0) {
         return Obj(ref_bits(vv1));
+    }
+    inv = ((vv1->len ^ vv2->len) < 0) ? ~(bdigit_t)0 : 0;
+    if (vv1->bits == 0 && inv == 0) {
+        return Obj(ref_bits(vv2));
     }
     if (add_overflow(vv1->bits, vv2->bits, &blen)) goto failed;
     sz = blen / SHIFT;
@@ -1006,7 +1002,6 @@ static inline MUST_CHECK Obj *concat(oper_t op) {
     vv = new_bits2(sz);
     if (vv == NULL) goto failed;
     v = vv->data;
-    inv = ((vv2->len ^ vv1->len) < 0) ? ~(bdigit_t)0 : 0;
 
     v1 = vv2->data;
     rbits = vv2->bits / SHIFT;

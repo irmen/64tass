@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 2999 2023-08-12 21:46:25Z soci $
+    $Id: error.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ struct file_listnode_s {
 
 static struct file_listnode_s file_list;
 static const struct file_listnode_s *included_from = &file_list;
-static const char *prgname;
+static const char *prgname = "64tass";
 
 struct errorbuffer_s {
     size_t max;
@@ -355,7 +355,7 @@ static const char *const terr_error[] = {
     "double defined range",
     "double defined escape",
     "extra characters on line",
-    "more than two characters",
+    "more than two characters ",
     "floating point overflow",
     "general syntax",
     "expression syntax",
@@ -375,7 +375,7 @@ static const char *const terr_error[] = {
     "empty range not allowed",
     "empty string not allowed",
     "empty list not allowed",
-    "more than a single character",
+    "more than a single character ",
     "requirements not met",
     "conflict",
     "index out of range ",
@@ -388,7 +388,6 @@ static const char *const terr_error[] = {
     "too large for a %u byte signed integer ",
     "too large for a %u byte unsigned integer ",
     "value needs to be non-negative ",
-    "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE,
     "can't get sign of ",
     "can't get absolute value of ",
     "can't get integer value of ",
@@ -591,6 +590,9 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR__NOT_DATABANK:
         case ERROR_CANT_CROSS_BA:
         case ERROR__OFFSET_RANGE:
+        case ERROR_NOT_TWO_CHARS:
+        case ERROR__NOT_ONE_CHAR:
+        case ERROR______NOT_UVAL:
             adderror(terr_error[no - 0x40]);
             if (prm != NULL) err_msg_variable((Obj *)prm);
             break;
@@ -829,7 +831,7 @@ static bool err_msg_no_lot_operand(const Error *err) {
 static bool err_msg_cant_broadcast(const Error *err) {
     char msg2[256];
     bool more = new_error_msg_err(err); 
-    sprintf(msg2, terr_error[err->num - 0x40], err->u.broadcast.v1, err->u.broadcast.v2);
+    sprintf(msg2, "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE, err->u.broadcast.v1, err->u.broadcast.v2);
     adderror(msg2);
     return more;
 }
@@ -915,11 +917,9 @@ void err_msg_output(const Error *val) {
     case ERROR____CANT_IVAL2:
     case ERROR____CANT_UVAL2:
     case ERROR_____CANT_IVAL:
-    case ERROR_____CANT_UVAL:
-    case ERROR______NOT_UVAL: more = err_msg_big_integer(val); break;
+    case ERROR_____CANT_UVAL: more = err_msg_big_integer(val); break;
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
-    case ERROR_NOT_TWO_CHARS:
     case ERROR_NUMERIC_OVERF:
     case ERROR_NEGFRAC_POWER:
     case ERROR___EMPTY_RANGE:
@@ -927,7 +927,6 @@ void err_msg_output(const Error *val) {
     case ERROR____EMPTY_LIST:
     case ERROR__BYTES_NEEDED:
     case ERROR___NO_LAST_GAP:
-    case ERROR__NOT_ONE_CHAR:
     case ERROR_NO_ZERO_VALUE:
     case ERROR_OUT_OF_MEMORY:
     case ERROR__ADDR_COMPLEX:
@@ -939,6 +938,8 @@ void err_msg_output(const Error *val) {
     case ERROR__NO_BYTE_ADDR:
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_opcode(val->u.addresssize.cod); break;
+    case ERROR______NOT_UVAL:
+    case ERROR__NOT_ONE_CHAR:
     case ERROR_DIVISION_BY_Z:
     case ERROR_ZERO_NEGPOWER:
     case ERROR__NOT_KEYVALUE:
@@ -1016,7 +1017,7 @@ void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
 }
 
-unsigned int err_msg_unknown_formatchar(const Str *s, size_t offs, linepos_t epoint) {
+void err_msg_unknown_formatchar(const Str *s, size_t offs, linepos_t epoint) {
     struct linepos_s epoint2 = *epoint;
     unsigned int len;
     bool more;
@@ -1031,7 +1032,6 @@ unsigned int err_msg_unknown_formatchar(const Str *s, size_t offs, linepos_t epo
         adderror("'");
     }
     if (more) new_error_msg_more();
-    return len;
 }
 
 static void err_msg_double_note(const struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
@@ -1424,7 +1424,7 @@ void err_msg_unknown_char(unichar_t ch, linepos_t epoint) {
     if (more) new_error_msg_more();
 }
 
-bool err_msg_wrong_character(linepos_t epoint) {
+void err_msg_wrong_character(linepos_t epoint) {
     unichar_t ch, ch2 = pline[epoint->pos];
     if ((ch2 & 0x80) != 0) utf8in(pline + epoint->pos, &ch2);
     switch (ch2) {
@@ -1440,11 +1440,13 @@ bool err_msg_wrong_character(linepos_t epoint) {
     case 0x201C: case 0x201D: case 0x201E: case 0x201F:
         ch = '"';
         break;
+    case 0x2217:
+        ch = '*';
+        break;
     default:
         ch = 0;
     }
     err_msg_wrong_character2(ch, ch2, epoint);
-    return true;
 }
 
 static const uint8_t *printline(const struct file_list_s *cfile, linepos_t epoint, const uint8_t *line, FILE *f) {
@@ -1684,7 +1686,7 @@ void fatal_error(const char *txt) {
     if (txt != NULL) {
         console_use(stderr);
         if (console_use_color) console_bold(stderr);
-        printable_print((const uint8_t *)((prgname != NULL) ? prgname : "64tass"), stderr);
+        printable_print((const uint8_t *)prgname, stderr);
         fputs(": ", stderr);
         if (console_use_color) console_red(stderr);
         fputs("fatal error: ", stderr);

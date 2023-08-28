@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3005 2023-08-13 13:27:30Z soci $
+    $Id: 64tass.c 3070 2023-08-28 06:51:24Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -73,6 +73,7 @@
 #include "mfuncobj.h"
 #include "memblocksobj.h"
 #include "symbolobj.h"
+#include "anonsymbolobj.h"
 #include "dictobj.h"
 #include "encobj.h"
 
@@ -267,6 +268,7 @@ static const char *const command[] = { /* must be sorted, first char is the ID *
     "\x16" "fi",
     "\x2a" "fill",
     "\x12" "for",
+    "\x76" "from",
     "\x51" "function",
     "\x44" "goto",
     "\x20" "here",
@@ -340,7 +342,7 @@ typedef enum Command_types {
     CMD_BREPT, CMD_BFOR, CMD_WHILE, CMD_BWHILE, CMD_BREAKIF, CMD_CONTINUEIF,
     CMD_WITH, CMD_ENDWITH, CMD_ENDMACRO, CMD_ENDSEGMENT, CMD_ENDFOR,
     CMD_ENDREPT, CMD_ENDWHILE, CMD_ENCODE, CMD_ENDENCODE, CMD_TDEF,
-    CMD_ALIGNBLK, CMD_ENDALIGNBLK, CMD_ALIGNPAGEIND, CMD_ALIGNIND
+    CMD_ALIGNBLK, CMD_ENDALIGNBLK, CMD_ALIGNPAGEIND, CMD_ALIGNIND, CMD_FROM
 } Command_types;
 
 /* --------------------------------------------------------------------------- */
@@ -606,7 +608,6 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     all_mem_bits = (all_mem == 0xffff) ? 16 : 24;
     select_opcodes(cpumode);
-    listing_set_cpumode(cpumode);
     cpu_opt_set_cpumode(cpumode);
     if (registerobj_createnames(cpumode->registers)) constcreated = true;
 }
@@ -1970,7 +1971,7 @@ static size_t while_command(const Label *newlabel, List *lst, linepos_t epoint) 
     waitfor->u.cmd_rept.breakout = false;
     for (;;) {
         bool truth;
-        if (!get_exp(1, 1, 1, &apoint) || tobool(get_val(), &truth) || !truth) {
+        if (!get_exp(0, 1, 1, &apoint) || tobool(get_val(), &truth) || !truth) {
             waitfor->skip = skip;
             break;
         }
@@ -2007,13 +2008,16 @@ static size_t while_command(const Label *newlabel, List *lst, linepos_t epoint) 
 static bool cdef_command(linepos_t epoint) {
     Obj *val;
     struct character_range_s tmp;
-    Enc *old = actual_encoding;
+    Enc *oldenc = ref_enc(actual_encoding);
+    bool old = oldenc->updating;
     bool rc;
     argcount_t len;
     listing_line(epoint->pos);
-    actual_encoding = NULL;
+    oldenc->updating = true;
     rc = get_exp(0, 2, 0, epoint);
-    actual_encoding = old;
+    oldenc->updating = old;
+    val_destroy(Obj(actual_encoding));
+    actual_encoding = oldenc;
     len = get_val_remaining();
     if (!rc) return true;
     for (;;) {
@@ -2031,7 +2035,7 @@ static bool cdef_command(linepos_t epoint) {
         val = vs->val;
         if (val->obj == STR_OBJ) {
             Str *str = Str(val);
-            if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
+            if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); return true;}
             else {
                 unichar_t ch = str->data[0];
                 if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
@@ -2041,7 +2045,7 @@ static bool cdef_command(linepos_t epoint) {
                     if ((ch & 0x80) != 0) i += utf8in(str->data + i, &ch); else i++;
                     tmp.end = ch & 0xffffff;
                     endok = true;
-                    if (str->len > i) {err_msg2(ERROR_NOT_TWO_CHARS, NULL, &vs->epoint); tryit = false;}
+                    if (str->len > i) {err_msg2(ERROR_NOT_TWO_CHARS, str, &vs->epoint); return true;}
                 }
             }
         } else {
@@ -2050,27 +2054,25 @@ static bool cdef_command(linepos_t epoint) {
         }
         if (!endok) {
             vs = get_val();
-            if (vs == NULL) { err_msg_argnum(len, len + 2, 0, epoint); return true; }
+            if (vs == NULL) { err_msg_argnum(len, len + 2, 0, epoint); return true;}
 
-            val = vs->val;
-            if (val->obj == STR_OBJ) {
-                Str *str = Str(val);
-                if (str->len == 0) {err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint); tryit = false;}
-                else {
-                    unichar_t ch = str->data[0];
-                    if ((ch & 0x80) != 0) i = utf8in(str->data, &ch); else i = 1;
-                    tmp.end = ch & 0xffffff;
-                    if (str->len > i) {err_msg2(ERROR__NOT_ONE_CHAR, NULL, &vs->epoint); tryit = false;}
-                }
-            } else {
+            if (tryit) {
+                old = actual_encoding->updating;
+                actual_encoding->updating = true;
                 if (touval2(vs, &uval, 24)) tryit = false;
                 else tmp.end = uval & 0xffffff;
+                actual_encoding->updating = old;
             }
         }
         vs = get_val();
         if (vs == NULL) { err_msg_argnum(len, len + 1, 0, epoint); return true;}
-        if (touval2(vs, &uval, 8)) {}
-        else if (tryit) {
+        if (tryit) {
+            old = actual_encoding->updating;
+            actual_encoding->updating = true;
+            if (touval(vs->val, &uval, 8, &vs->epoint)) tryit = false;
+            actual_encoding->updating = old;
+        }
+        if (tryit) {
             tmp.offset = uval & 0xff;
             if (tmp.start > tmp.end) {
                 unichar_t tmpe = tmp.start;
@@ -2087,13 +2089,16 @@ static bool cdef_command(linepos_t epoint) {
 
 static bool edef_command(linepos_t epoint) {
     Obj *val;
-    Enc *old = actual_encoding;
+    Enc *oldenc = ref_enc(actual_encoding);
+    bool old = oldenc->updating;
     bool rc;
     argcount_t len;
     listing_line(epoint->pos);
-    actual_encoding = NULL;
+    oldenc->updating = true;
     rc = get_exp(0, 2, 0, epoint);
-    actual_encoding = old;
+    oldenc->updating = old;
+    val_destroy(Obj(actual_encoding));
+    actual_encoding = oldenc;
     if (!rc) return true;
     len = get_val_remaining();
     for (;;) {
@@ -2122,13 +2127,16 @@ static bool edef_command(linepos_t epoint) {
 
 static bool tdef_command(linepos_t epoint) {
     Obj *val;
-    Enc *old = actual_encoding;
+    Enc *oldenc = ref_enc(actual_encoding);
+    bool old = oldenc->updating;
     bool rc;
     argcount_t len;
     listing_line(epoint->pos);
-    actual_encoding = NULL;
+    oldenc->updating = true;
     rc = get_exp(0, 2, 0, epoint);
-    actual_encoding = old;
+    oldenc->updating = old;
+    val_destroy(Obj(actual_encoding));
+    actual_encoding = oldenc;
     if (!rc) return true;
     len = get_val_remaining();
     for (;;) {
@@ -2146,9 +2154,13 @@ static bool tdef_command(linepos_t epoint) {
         if (vs2 == NULL) { err_msg_argnum(len, len + 1, 0, epoint); return true; }
         if (vs2->val->obj->iterable) {
             iter2.data = vs2->val; iter2.data->obj->getiter(&iter2);
-        } else if (touval2(vs2, &uval, 8)) {
-            continue;
         } else {
+            bool err;
+            old = actual_encoding->updating;
+            actual_encoding->updating = true;
+            err = touval2(vs2, &uval, 8);
+            actual_encoding->updating = old;
+            if (err) continue;
             uval &= 0xff;
             iter2.data = NULL;
         }
@@ -2168,8 +2180,9 @@ static bool tdef_command(linepos_t epoint) {
         while ((val = iter.next(&iter)) != NULL) {
             uval_t uval2;
             bool ret;
-            actual_encoding = NULL;
-            ret = touval(val, &uval2, 24, &vs->epoint);
+            old = actual_encoding->updating;
+            actual_encoding->updating = true;
+            ret = touval2(vs, &uval2, 24);
             if (iter2.data != NULL) {
                 val = iter2.next(&iter2);
                 if (val != NULL) {
@@ -2183,7 +2196,7 @@ static bool tdef_command(linepos_t epoint) {
                 }
                 ret = true;
             }
-            actual_encoding = old;
+            actual_encoding->updating = old;
             if (val == NULL) break;
             if (!ret) {
                 tmp.offset = uval & 0xff;
@@ -2375,6 +2388,7 @@ MUST_CHECK Obj *compile(void)
                 if (error) {epoint = lpoint; goto jn;} /* skip things if needed */
                 if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
                 while (wht != 0 && !arguments.tasmcomp) {
+                    bool error2;
                     bool minmax;
                     Label *label;
                     struct oper_s tmp;
@@ -2453,17 +2467,13 @@ MUST_CHECK Obj *compile(void)
                     }
                     if (here() == 0 || here() == ';') {
                         err_msg(ERROR______EXPECTED, "an expression is");
-                        if (label == NULL && val != NULL) val_destroy(val);
-                        goto breakerr;
+                        val2 = ref_none();
+                        error2 = true;
                     } else {
                         bool oldreferenceit = referenceit;
                         referenceit &= 1; /* not good... */
-                        if (!get_exp(0, 1, 0, &epoint2)) {
-                            if (label == NULL && val != NULL) val_destroy(val);
-                            referenceit = oldreferenceit;
-                            goto breakerr;
-                        }
-                        val2 = get_vals_tuple();
+                        error2 = !get_exp(0, 1, 0, &epoint2);
+                        val2 = error2 ? ref_none() : get_vals_tuple();
                         referenceit = oldreferenceit;
                     }
                     if (val == NULL) {
@@ -2500,29 +2510,27 @@ MUST_CHECK Obj *compile(void)
                             if (label->constant) {
                                 err_msg_not_variable(label, &labelname, &epoint);
                                 val_destroy(val2);
-                                goto breakerr;
-                            }
-                            if (label->defpass != pass) {
+                            } else if (label->defpass == pass) {
+                                val_destroy(val2);
+                            } else {
                                 label->ref = false;
                                 label->defpass = pass;
-                            } else {
-                                val_destroy(val2);
-                                goto finish;
+                                label->owner = false;
+                                if (label->file_list != current_file_list) {
+                                    label_move(label, &labelname, current_file_list);
+                                }
+                                label->epoint = epoint;
+                                val_destroy(label->value);
+                                label->value = val2;
+                                label->usepass = 0;
                             }
-                            label->owner = false;
-                            if (label->file_list != current_file_list) {
-                                label_move(label, &labelname, current_file_list);
-                            }
-                            label->epoint = epoint;
-                            val_destroy(label->value);
-                            label->value = val2;
-                            label->usepass = 0;
                         } else {
                             label->constant = false;
                             label->owner = false;
                             label->value = val2;
                             label->epoint = epoint;
                         }
+                        if (error2) goto breakerr;
                         goto finish;
                     }
                     if (tmp.op == O_REASSIGN) {
@@ -2552,16 +2560,21 @@ MUST_CHECK Obj *compile(void)
                         label->value = result2;
                     } else {
                         val_destroy(val);
+                        if (error2) {
+                            val_destroy(result2);
+                            goto breakerr;
+                        }
                         starhandle(result2, &epoint, &epoint2);
                     }
+                    if (error2) goto breakerr;
                     goto finish;
                 }
                 switch (wht) {
                 case '=':
                     { /* variable */
+                        bool error2;
                         struct linepos_s opoint;
                         Label *label;
-                        bool labelexists;
                     starassign:
                         if (labelname.data[0] == '*') {
                             label = NULL;
@@ -2571,31 +2584,28 @@ MUST_CHECK Obj *compile(void)
                         opoint = lpoint; /* for no elements! */
                         if (here() == 0 || here() == ';') {
                             err_msg(ERROR______EXPECTED, "an expression is");
-                            goto breakerr;
+                            val = ref_none();
+                            error2 = true;
                         } else {
                             bool oldreferenceit = referenceit;
                             if (label != NULL && !label->ref) {
                                 referenceit = false;
                             }
-                            if (!get_exp(0, 1, 0, &opoint)) {
-                                referenceit = oldreferenceit;
-                                goto breakerr;
-                            }
-                            val = get_vals_tuple();
+                            error2 = !get_exp(0, 1, 0, &opoint);
+                            val = error2 ? ref_none() : get_vals_tuple();
                             referenceit = oldreferenceit;
                         }
                         if (labelname.data[0] == '*') {
+                            if (error2) {
+                                val_destroy(val);
+                                goto breakerr;
+                            }
                             starhandle(val, &epoint, &opoint);
                             goto finish;
                         }
-                        if (label != NULL) {
-                            labelexists = true;
-                        } else {
-                            label = new_label(&labelname, mycontext, strength, current_file_list);
-                            labelexists = label->value != NULL;
-                        }
                         listing_equal(val);
-                        if (labelexists) {
+                        if (label == NULL) label = new_label(&labelname, mycontext, strength, current_file_list);
+                        if (label->value != NULL) {
                             if (label->defpass == pass) {
                                 val_destroy(val);
                                 err_msg_double_defined(label, &labelname, &epoint);
@@ -2625,6 +2635,7 @@ MUST_CHECK Obj *compile(void)
                             label->epoint = epoint;
                             label->ref = false;
                         }
+                        if (error2) goto breakerr;
                         goto finish;
                     }
                 case '.':
@@ -2638,33 +2649,26 @@ MUST_CHECK Obj *compile(void)
                     switch (prm) {
                     case CMD_VAR: /* variable */
                         {
+                            bool error2;
                             Label *label;
-                            bool labelexists;
                         itsvar:
                             label = find_label3(&labelname, mycontext, strength);
                             if (here() == 0 || here() == ';') {
                                 err_msg(ERROR______EXPECTED, "an expression is");
-                                goto breakerr;
+                                val = ref_none();
+                                error2 = true;
                             } else {
                                 bool oldreferenceit = referenceit;
                                 referenceit &= 1; /* not good... */
                                 cmdpoint = lpoint;
-                                if (!get_exp(0, 1, 0, &cmdpoint)) {
-                                    referenceit = oldreferenceit;
-                                    goto breakerr;
-                                }
-                                val = get_vals_tuple();
+                                error2 = !get_exp(0, 1, 0, &cmdpoint);
+                                val = error2 ? ref_none() : get_vals_tuple();
                                 referenceit = oldreferenceit;
                             }
-                            if (label != NULL) {
-                                labelexists = true;
-                                if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
-                            } else {
-                                label = new_label(&labelname, mycontext, strength, current_file_list);
-                                labelexists = label->value != NULL;
-                            }
                             listing_equal(val);
-                            if (labelexists) {
+                            if (label == NULL) label = new_label(&labelname, mycontext, strength, current_file_list);
+                            else if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
+                            if (label->value != NULL) {
                                 if (label->constant) {
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     val_destroy(val);
@@ -2690,6 +2694,7 @@ MUST_CHECK Obj *compile(void)
                                 label->value = val;
                                 label->epoint = epoint;
                             }
+                            if (error2) goto breakerr;
                             goto finish;
                         }
                     case CMD_LBL:
@@ -3018,7 +3023,7 @@ MUST_CHECK Obj *compile(void)
                             uval_t provides = current_section->provides, requires = current_section->requires, conflicts = current_section->conflicts;
                             bool doubledef = false;
                             Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
-
+                            listing_line(0);
                             if (diagnostics.optimize) cpu_opt_invalidate();
                             new_waitfor((prm==CMD_STRUCT) ? W_ENDS : W_ENDU, &cmdpoint);waitfor->skip = 0;
                             label = new_label(&labelname, mycontext, strength, current_file_list);
@@ -3095,7 +3100,6 @@ MUST_CHECK Obj *compile(void)
                                 structure->size = 0;
                                 structure->names = new_namespace(current_file_list, &epoint);
                             }
-                            listing_line(cmdpoint.pos);
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip = 1;
                             val = macro_recurse(W_ENDS, Obj(structure), structure->names, &cmdpoint);
@@ -3286,6 +3290,108 @@ MUST_CHECK Obj *compile(void)
                             }
                             val_destroy(Obj(label));
                             goto breakerr;
+                        }
+                    case CMD_FROM: /* .from */
+                        {
+                            bool error2;
+                            bool constant = true;
+                            bool oldreferenceit = referenceit;
+                            Label *label = find_label3(&labelname, mycontext, strength);
+                            if (label != NULL && !label->ref) {
+                                referenceit = false;
+                            }
+                            error2 = !get_exp(0, 1, 1, &cmdpoint);
+                            if (error2) val = ref_none();
+                            else {
+                                const struct values_s *vs = get_val();
+                                Namespace *context = get_namespace(vs->val);
+                                if (context == NULL) {
+                                    if (vs->val == none_value || vs->val->obj == ERROR_OBJ) {
+                                        val = val_reference(vs->val);
+                                    } else {
+                                        val = new_error_conv(vs->val, NAMESPACE_OBJ, &vs->epoint);
+                                    }
+                                } else {
+                                    Label *l;
+                                    if (labelname.data == (const uint8_t *)&anonsymbol) {
+                                        l = find_anonlabel2((anonsymbol.dir == '-') ? -1 : 0, context);
+                                    } else {
+                                        l = find_label2(&labelname, context);
+                                    }
+                                    if (l != NULL) {
+                                        if (labelname.data != (const uint8_t *)&anonsymbol) {
+                                            if (diagnostics.case_symbol && str_cmp(&labelname, &l->name) != 0) err_msg_symbol_case(&labelname, l, &epoint);
+                                        }
+                                        touch_label(l);
+                                        val = val_reference(l->value);
+                                        constant = l->constant;
+                                    } else if (constcreated && pass < max_pass) {
+                                        val = ref_none();
+                                    } else {
+                                        Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
+                                        if (labelname.data == (const uint8_t *)&anonsymbol) {
+                                            err->u.notdef.symbol = new_anonsymbol((anonsymbol.dir == '-') ? -1 : 0);
+                                        } else {
+                                            err->u.notdef.symbol = new_symbol(&labelname, &epoint);
+                                        }
+                                        err->u.notdef.names = ref_namespace(context);
+                                        err->u.notdef.down = false;
+                                        val = Obj(err);
+                                    }
+                                }
+                            }
+                            referenceit = oldreferenceit;
+                            listing_equal(val);
+                            if (label == NULL) label = new_label(&labelname, mycontext, strength, current_file_list);
+                            if (label->value != NULL) {
+                                if (constant ? (label->defpass == pass) : label->constant) {
+                                    val_destroy(val);
+                                    err_msg_double_defined(label, &labelname, &epoint);
+                                } else {
+                                    if (constant) {
+                                        if (label->fwpass == pass) fwcount--;
+                                        if (!constcreated && label->defpass != pass - 1) {
+                                            if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                            constcreated = true;
+                                        }
+                                        label->constant = true;
+                                    } else {
+                                        if (label->defpass != pass) {
+                                            label->ref = false;
+                                            label->defpass = pass;
+                                        } else {
+                                            if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
+                                        }
+                                    }
+                                    label->owner = false;
+                                    if (label->file_list != current_file_list) {
+                                        label_move(label, &labelname, current_file_list);
+                                    }
+                                    label->epoint = epoint;
+                                    if (constant) {
+                                        label->ref = false;
+                                        const_assign(label, val);
+                                    } else {
+                                        val_destroy(label->value);
+                                        label->value = val;
+                                        label->usepass = 0;
+                                    }
+                                }
+                            } else {
+                                label->constant = constant;
+                                label->owner = false;
+                                label->value = val;
+                                label->epoint = epoint;
+                                if (constant) {
+                                    if (!constcreated) {
+                                        if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
+                                        constcreated = true;
+                                    }
+                                    label->ref = false;
+                                }
+                            }
+                            if (error2) goto breakerr;
+                            goto finish;
                         }
                     }
                     islabel = true;
@@ -4395,7 +4501,7 @@ MUST_CHECK Obj *compile(void)
                         else dpage = uval & 0xffff;
                         break;
                     case CMD_EOR:
-                        if (touval2(vs, &uval, 8)) {}
+                        if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else outputeor = (uval & 0xff) * 0x01010101;
                         break;
                     case CMD_SEED:
@@ -5106,6 +5212,7 @@ MUST_CHECK Obj *compile(void)
                 waitfor->u.cmd_function.val = NULL;
                 waitfor->skip = 0;
                 break;
+            case CMD_FROM: /* .from */
             case CMD_SFUNCTION: /* .sfunction */
             case CMD_VAR: /* .var */
                 if ((waitfor->skip & 1) != 0) {
@@ -5577,12 +5684,13 @@ int main2(int *argc2, char **argv2[]) {
         for (j = 0; j < arguments.symbol_output_len; j++) {
             labelprint(&arguments.symbol_output[j]);
         }
-        if (arguments.make != NULL) makefile(argc - opts, argv + opts, arguments.make_phony);
+        if (arguments.make.name != NULL) makefile(argc - opts, argv + opts);
 
         failed = error_serious();
     }
     if (!failed) {
         memclose(root_section.address.mem);
+        if (root_section.members.root != NULL) section_memclose(root_section.members.root);
         for (j = 0; j < arguments.output_len; j++) {
             const struct output_s *output = &arguments.output[j];
             struct section_s *section, *parent;

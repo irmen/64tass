@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: bytesobj.c 3068 2023-08-28 06:18:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -176,9 +176,7 @@ static MUST_CHECK Obj *convert2(oper_t op) {
         len2 = (uval_t)ival;
         if (!inplace && !bits && bytes->len < 0) {
             val_destroy(Obj(bytes));
-            err = new_error(ERROR______NOT_UVAL, &v2->val[0].epoint);
-            err->u.intconv.val = val_reference(v2->val[0].val);
-            return Obj(err);
+            return new_error_obj(ERROR______NOT_UVAL, v2->val[0].val, &v2->val[0].epoint);
         }
     } else {
         len2 = -(uval_t)ival;
@@ -542,20 +540,21 @@ MUST_CHECK Obj *bytes_from_z85str(const uint8_t *s, linecpos_t *ln, linepos_t ep
     return Obj(v);
 }
 
-MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types mode) {
+MUST_CHECK Obj *bytes_from_str(Str *v1, linepos_t epoint, Textconv_types mode) {
     size_t len = v1->len, len2 = (mode == BYTES_MODE_PTEXT || mode == BYTES_MODE_NULL) ? 1 : 0;
     uint8_t *s;
     Bytes *v;
     if (len != 0 || len2 != 0) {
         struct encoder_s *encoder;
         int ch;
-        if (actual_encoding == NULL) {
+        if (actual_encoding->updating) {
             if (v1->chars == 1) {
                 unichar_t ch2 = v1->data[0];
                 if ((ch2 & 0x80) != 0) utf8in(v1->data, &ch2);
                 return bytes_from_uval(ch2, ch2 < 256 ? 1 : ch2 < 65536 ? 2 : 3);
             }
-            return Obj(new_error((v1->chars == 0) ? ERROR__EMPTY_STRING : ERROR__NOT_ONE_CHAR, epoint));
+            if (v1->chars != 0) return new_error_obj(ERROR__NOT_ONE_CHAR, Obj(v1), epoint);
+            return Obj(new_error(ERROR__EMPTY_STRING, epoint));
         }
         if (len < sizeof v->u.val) len = sizeof v->u.val;
         if (len == 0) {
@@ -617,9 +616,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, Textconv_types m
         v->len = (ssize_t)len2;
         return Obj(v);
     }
-    if (actual_encoding != NULL) {
-        if (mode == BYTES_MODE_SHIFT || mode == BYTES_MODE_SHIFTL) err_msg2(ERROR__EMPTY_STRING, NULL, epoint);
-    }
+    if (mode == BYTES_MODE_SHIFT || mode == BYTES_MODE_SHIFTL) err_msg2(ERROR__EMPTY_STRING, NULL, epoint);
     return val_reference(null_bytes);
 failed2:
     val_destroy(Obj(v));
@@ -791,11 +788,7 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, unsigned int bits, linepos_t 
 }
 
 static MUST_CHECK Error *uval2(Obj *o1, uval_t *uv, unsigned int bits, linepos_t epoint) {
-    if (Bytes(o1)->len < 0) {
-        Error *v = new_error(ERROR______NOT_UVAL, epoint);
-        v->u.intconv.val = val_reference(o1);
-        return v;
-    }
+    if (Bytes(o1)->len < 0) return Error(new_error_obj(ERROR______NOT_UVAL, o1, epoint));
     return uval(o1, uv, bits, epoint);
 }
 
@@ -976,13 +969,15 @@ static inline MUST_CHECK Obj *binary(oper_t op) {
 static MUST_CHECK Obj *concat(oper_t op) {
     Bytes *v1 = Bytes(op->v1), *v2 = Bytes(op->v2), *v;
     uint8_t *s;
+    bool inv;
     size_t ln, i, len1, len2;
 
-    if (v1->len == 0) {
-        return Obj(ref_bytes(v2));
-    }
     if (v2->len == 0 || v2->len == ~(ssize_t)0) {
         return Obj(ref_bytes(v1));
+    }
+    inv = (v1->len ^ v2->len) < 0;
+    if ((v1->len == 0 || v1->len == ~(ssize_t)0) && !inv) {
+        return Obj(ref_bytes(v2));
     }
     len1 = byteslen(v1);
     len2 = byteslen(v2);
@@ -998,7 +993,6 @@ static MUST_CHECK Obj *concat(oper_t op) {
         v = ref_bytes(v1);
     } else if (op->inplace == Obj(v2)) {
         size_t ln2;
-        bool inv = (v2->len ^ v1->len) < 0;
         if (ln > sizeof v2->u.val && v2->u.val != v2->data && ln > v2->u.s.max) {
             ln2 = ln + (ln < 1024 ? ln : 1024);
             if (ln2 < ln) ln2 = ln;
@@ -1020,7 +1014,7 @@ static MUST_CHECK Obj *concat(oper_t op) {
         s = v->data;
         memcpy(s, v1->data, len1);
     }
-    if ((v2->len ^ v1->len) < 0) {
+    if (inv) {
         for (i = 0; i < len2; i++) s[i + len1] = (uint8_t)~v2->data[i];
     } else if (len2 == 1) {
         s[len1] = v2->data[0];

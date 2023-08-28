@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: intobj.h 3063 2023-08-27 09:19:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ struct Float;
 extern MUST_CHECK Obj *int_from_size(size_t);
 extern MUST_CHECK Obj *int_from_uval(uval_t);
 extern MUST_CHECK Obj *int_from_ival(ival_t);
-extern MUST_CHECK Obj *int_from_str(const struct Str *, linepos_t);
+extern MUST_CHECK Obj *int_from_str(struct Str *, linepos_t);
 extern MUST_CHECK Obj *int_from_bytes(const struct Bytes *, linepos_t);
 extern MUST_CHECK Obj *int_from_bits(const struct Bits *, linepos_t);
 extern MUST_CHECK Obj *int_from_decstr(const uint8_t *, linecpos_t *, linecpos_t *);

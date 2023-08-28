@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 2975 2023-01-18 21:13:28Z soci $
+    $Id: file.c 3049 2023-08-21 20:35:45Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,9 +26,16 @@
 #include "wchar.h"
 #endif
 #if defined _WIN32 || defined __MSDOS__ || defined __DOS__
-#include <io.h>
-#elif defined _POSIX_C_SOURCE || defined __unix__
+#include <sys/types.h>
 #include <sys/stat.h>
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
+#endif
+#define STAT_AVAILABLE
+#define DOS_STYLE_PATH
+#elif defined _POSIX_C_SOURCE || defined __unix__ || defined __HAIKU__
+#include <sys/stat.h>
+#define STAT_AVAILABLE
 #endif
 #include "64tass.h"
 #include "unicode.h"
@@ -84,14 +91,14 @@ static struct file_s *file_table_update(struct file_s *p) {
     return NULL;
 }
 
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef DOS_STYLE_PATH
 static inline bool is_driveletter(const char *name) {
     return (uint8_t)((name[0] | 0x20) - 'a') < 26 && name[1] == ':';
 }
 #endif
 
 static inline bool is_absolute(const str_t *v) {
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef DOS_STYLE_PATH
     return (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) || (v->len > 1 && is_driveletter((const char *)v->data));
 #else
     return v->len != 0 && v->data[0] == '/';
@@ -99,7 +106,7 @@ static inline bool is_absolute(const str_t *v) {
 }
 
 static size_t get_base(const char *base) {
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef DOS_STYLE_PATH
     size_t i, j = is_driveletter(base) ? 2 : 0;
     for (i = j; base[i] != '\0'; i++) {
         if (base[i] == '/' || base[i] == '\\') j = i + 1;
@@ -115,7 +122,7 @@ static char *get_path(const str_t *v, const char *base) {
     char *path;
     size_t i, len;
 
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef DOS_STYLE_PATH
     if (v->len != 0 && (v->data[0] == '/' || v->data[0] == '\\')) i = is_driveletter(base) ? 2 : 0;
     else i = (v->len > 1 && is_driveletter((const char *)v->data)) ? 0 : get_base(base);
 #else
@@ -133,7 +140,7 @@ static char *get_path(const str_t *v, const char *base) {
 static bool portability(const str_t *name, linepos_t epoint) {
     struct linepos_s epoint2;
     const uint8_t *pos;
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
+#ifdef DOS_STYLE_PATH
     if (name->len == 0) return true;
     pos = (const uint8_t *)memchr(name->data, '\\', name->len);
     if (pos != NULL) {
@@ -300,16 +307,27 @@ static inline unichar_t fromiso(unichar_t c) {
     return fromiso_conv[c];
 }
 
+static struct {
+    bool valid;
+    bool current;
+    time_t value;
+} latest_file_time;
+
+bool get_latest_file_time(void *time) {
+    if (!latest_file_time.valid || latest_file_time.current) return true;
+    *((time_t *)time) = latest_file_time.value;
+    return false;
+}
+
 static filesize_t fsize(FILE *f) {
-#if defined _WIN32 || defined __MSDOS__ || defined __DOS__
-    long len = filelength(fileno(f));
-    if (len > 0) {
-        return (unsigned long)len < ~(filesize_t)0 ? (filesize_t)len : ~(filesize_t)0;
-    }
-#elif defined _POSIX_C_SOURCE || defined __unix__
+#ifdef STAT_AVAILABLE
     struct stat st;
     if (fstat(fileno(f), &st) == 0) {
         if (S_ISREG(st.st_mode) && st.st_size > 0) {
+            if (!latest_file_time.valid || st.st_mtime > latest_file_time.value) {
+                latest_file_time.value = st.st_mtime;
+                latest_file_time.valid = true;
+            }
             return (st.st_size & ~(off_t)~(filesize_t)0) == 0 ? (filesize_t)st.st_size : ~(filesize_t)0;
         }
     }
@@ -322,6 +340,7 @@ static filesize_t fsize(FILE *f) {
         }
     }
 #endif
+    latest_file_time.current = true;
     return 0;
 }
 
@@ -887,6 +906,8 @@ void init_file(void) {
     file_defines.name = "<command line>";
     file_defines.portable = true;
     file_defines.notfile = true;
+    latest_file_time.valid = false;
+    latest_file_time.current = false;
     new_instance(&stars);
     stars->next = NULL;
     starsp = 0;
@@ -920,14 +941,14 @@ static void wrap_print_nodash(struct makefile_s *m, const char *name) {
     wrap_print(m, name);
 }
 
-void makefile(int argc, char *argv[], bool make_phony) {
+void makefile(int argc, char *argv[]) {
     struct makefile_s m;
     size_t j;
     int i, err;
 
-    m.f = dash_name(arguments.make) ? stdout : fopen_utf8(arguments.make, "wt");
+    m.f = dash_name(arguments.make.name) ? stdout : fopen_utf8(arguments.make.name, arguments.make.append ? "at" : "wt");
     if (m.f == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
+        err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name);
         return;
     }
     if (m.f == stdout && fflush(m.f) != 0) setvbuf(m.f, NULL, _IOLBF, 1024);
@@ -961,7 +982,7 @@ void makefile(int argc, char *argv[], bool make_phony) {
         }
         putc('\n', m.f);
 
-        if (file_table.data != NULL && make_phony) {
+        if (file_table.data != NULL && arguments.make.phony) {
             m.len = 0;
             for (j = 0; j <= file_table.mask; j++) {
                 const struct file_s *a = file_table.data[j];
@@ -975,5 +996,5 @@ void makefile(int argc, char *argv[], bool make_phony) {
 
     err = ferror(m.f);
     err |= (m.f != stdout) ? fclose(m.f) : fflush(m.f);
-    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name);
 }
