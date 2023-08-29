@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3070 2023-08-28 06:51:24Z soci $
+    $Id: 64tass.c 3071 2023-08-29 05:19:26Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -2182,7 +2182,7 @@ static bool tdef_command(linepos_t epoint) {
             bool ret;
             old = actual_encoding->updating;
             actual_encoding->updating = true;
-            ret = touval2(vs, &uval2, 24);
+            ret = touval(val, &uval2, 24, &vs->epoint);
             if (iter2.data != NULL) {
                 val = iter2.next(&iter2);
                 if (val != NULL) {
