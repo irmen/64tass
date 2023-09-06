@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: main.c 2967 2023-01-08 22:50:27Z soci $
+    $Id: main.c 3086 2023-09-03 06:23:08Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -161,7 +161,7 @@ static unsigned int locale_init(void) {
         cp = GetACP();
     } else if (strcmp(env, ".OCP") == 0) {
         cp = GetOEMCP();
-    } else { 
+    } else {
         cp = 0;
     }
     if (cp != 0) {
@@ -181,7 +181,7 @@ static unsigned int locale_init(void) {
 }
 
 #ifdef __MINGW32__
-static 
+static
 #endif
 int wmain(int argc, wchar_t *argv2[]) {
     int i, r;

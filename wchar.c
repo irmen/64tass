@@ -1,5 +1,5 @@
 /*
-    $Id: wchar.c 2966 2023-01-08 21:28:13Z soci $
+    $Id: wchar.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -390,7 +390,7 @@ static int get_codepage(void) {
             return regs.x.bx;
         }
     }
-    regs.x.ax = GET_GLOBAL_CODE_PAGE_TABLE; 
+    regs.x.ax = GET_GLOBAL_CODE_PAGE_TABLE;
     regs.x.bx = 0;
     regs.x.flags = 1;
     if (__dpmi_int(0x21, &regs) == 0 && (regs.x.flags & 1) == 0) {
@@ -917,12 +917,12 @@ int isprint_v13(unichar_t ch) {
     if (ch < 0x10000) {
         if (bsearch(&ch, pr16a, lenof(pr16a), sizeof *pr16a, compw16) != NULL) return 1;
         return 0;
-    } 
+    }
     if (ch < 0x20000) {
         ch &= 0xffff;
         if (bsearch(&ch, pr16b, lenof(pr16b), sizeof *pr16b, compw16) != NULL) return 1;
         return 0;
-    } 
+    }
     if (bsearch(&ch, pr32, lenof(pr32), sizeof *pr32, compw32) != NULL) return 1;
     return 0;
 }

@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 3013 2023-08-15 06:36:01Z soci $
+    $Id: section.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@ void section_sizecheck(const struct avltree_node *b) {
             }
             section_sizecheck(b->left);
             if (!fixeddig) return;
-        } 
+        }
         b = b->right;
     } while (b != NULL);
 }
@@ -214,7 +214,7 @@ void section_memclose(const struct avltree_node *b) {
                 continue;
             }
             section_memclose(b->left);
-        } 
+        }
         b = b->right;
     } while (b != NULL);
 }

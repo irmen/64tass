@@ -55,7 +55,7 @@
 			</dict>
 			<dict>
 				<key>match</key>
-				<string>(^|\s)\.(al|alignpageind|alignind|align|as|assert|bend|endblock|binclude|block|alignblk|endalignblk|cdef|cerror|check|cpu|cwarn|databank|dpage|edef|encode|endencode|enc|end|endpage|endp|eor|error|for|goto|here|endlogical|hidemac|include|lbl|logical|next|endfor|endrept|endwhile|offs|option|page|proff|pron|brept|rept|bfor|showmac|tdef|var|from|warn|xl|xs|proc|if|ifeq|ifne|ifpl|ifmi|else|elsif|switch|default|case|segment|macro|section|function|struct|union|endproc|pend|fi|endif|endswitch|endmacro|endsegment|endm|endsection|send|endfunction|endf|endstruct|ends|endunion|endu|comment|endcomment|endc|breakif|continueif|break|continue|weak|endweak|virtual|endvirtual|endv|namespace|endnamespace|endn|autsiz|mansiz|seed|bwhile|while|with|endwith|sfunction)\b</string>
+				<string>(^|\s)\.(al|alignpageind|alignind|align|as|assert|bend|endblock|binclude|block|alignblk|endalignblk|cdef|cerror|check|cpu|cwarn|databank|dpage|edef|encode|endencode|enc|end|endpage|endp|eor|error|for|goto|here|endlogical|hidemac|include|lbl|logical|next|endfor|endrept|endwhile|offs|option|page|proff|pron|brept|rept|bfor|showmac|tdef|var|from|warn|xl|xs|proc|if|ifeq|ifne|ifpl|ifmi|elif|else|elsif|switch|default|case|segment|macro|section|function|struct|union|endproc|pend|fi|endif|endswitch|endmacro|endsegment|endm|endsection|send|endfunction|endf|endstruct|ends|endunion|endu|comment|endcomment|endc|breakif|continueif|break|continue|weak|endweak|virtual|endvirtual|endv|namespace|endnamespace|endn|autsiz|mansiz|seed|bwhile|while|with|endwith|sfunction)\b</string>
 				<key>name</key>
 				<string>keyword.control</string>
 			</dict>

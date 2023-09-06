@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 3029 2023-08-19 10:42:34Z soci $
+    $Id: mem.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -178,14 +178,22 @@ err:
     return false;
 }
 
-static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
+static void output_mem_raw(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     address_t pos, end;
     size_t i;
-    unsigned char header[4];
+    uint8_t header[8];
 
     if (memblocks->p == 0) return;
     pos = memblocks->data[0].addr;
     switch (output->mode) {
+    case OUTPUT_PGX:
+        memcpy(header, "PGX\x01", 4);
+        header[4] = (uint8_t)pos;
+        header[5] = (uint8_t)(pos >> 8);
+        header[6] = (uint8_t)(pos >> 16);
+        header[7] = (uint8_t)(pos >> 24);
+        i = 8;
+        break;
     case OUTPUT_CBM:
         header[0] = (uint8_t)pos;
         header[1] = (uint8_t)(pos >> 8);
@@ -218,7 +226,7 @@ static void output_mem_c64(FILE *fout, const Memblocks *memblocks, const struct 
 
 static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool longaddr) {
     size_t i, j;
-    unsigned char header[6];
+    uint8_t header[6];
     for (i = 0; i < memblocks->p;) {
         const struct memblock_s *block = &memblocks->data[i];
         address_t start = block->addr;
@@ -250,6 +258,42 @@ static void output_mem_nonlinear(FILE *fout, const Memblocks *memblocks, bool lo
     fwrite(header, longaddr ? 3 : 2, 1, fout);
 }
 
+static void output_mem_c256_pgz(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
+    size_t i, j;
+    uint8_t header[7];
+    unsigned int p = 0;
+    header[0] = 'Z';
+    for (i = 0; i < memblocks->p; p = 1) {
+        const struct memblock_s *block = &memblocks->data[i];
+        address_t start = block->addr;
+        address_t size = block->len;
+        for (j = i + 1; j < memblocks->p; j++) {
+            const struct memblock_s *b = &memblocks->data[j];
+            address_t addr = start + size;
+            if (b->addr != addr || addr < start) break;
+            size += b->len;
+        }
+        header[1] = (uint8_t)start;
+        header[2] = (uint8_t)(start >> 8);
+        header[3] = (uint8_t)(start >> 16);
+        header[4] = (uint8_t)size;
+        header[5] = (uint8_t)(size >> 8);
+        header[6] = (uint8_t)(size >> 16);
+        if (fwrite(header + p, 7 - p, 1, fout) == 0) return;
+        for (;i < j; i++) {
+            const struct memblock_s *b = &memblocks->data[i];
+            if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
+        }
+    }
+    if (output->exec_pos.pos != 0) {
+        header[1] = (uint8_t)output->exec;
+        header[2] = (uint8_t)(output->exec >> 8);
+        header[3] = (uint8_t)(output->exec >> 16);
+        header[6] = header[5] = header[4] = 0;
+        fwrite(header + p, 7 - p, 1, fout);
+    }
+}
+
 static void output_mem_flat(FILE *fout, const Memblocks *memblocks, bool append) {
     address_t pos = 0;
     size_t i;
@@ -262,14 +306,14 @@ static void output_mem_flat(FILE *fout, const Memblocks *memblocks, bool append)
     }
 }
 
-static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
+static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     size_t i, j;
-    unsigned char header[6];
+    uint8_t header[8];
+    unsigned int p = 0;
     header[0] = 0xff;
     header[1] = 0xff;
-    for (i = 0; i < memblocks->p;) {
+    for (i = 0; i < memblocks->p; p = 2) {
         const struct memblock_s *block = &memblocks->data[i];
-        bool special;
         address_t end, start = block->addr;
         address_t size = block->len;
         for (j = i + 1; j < memblocks->p; j++) {
@@ -278,17 +322,26 @@ static void output_mem_atari_xex(FILE *fout, const Memblocks *memblocks) {
             if (b->addr != addr || addr < start) break;
             size += b->len;
         }
-        special = (i == 0 || start == 0xffff);
+        if (start == 0xffff) p = 0;
         header[2] = (uint8_t)start;
         header[3] = (uint8_t)(start >> 8);
         end = start + size - 1;
         header[4] = (uint8_t)end;
         header[5] = (uint8_t)(end >> 8);
-        if (fwrite(special ? header : &header[2], special ? 6 : 4, 1, fout) == 0) return;
+        if (fwrite(header + p, 6 - p, 1, fout) == 0) return;
         for (;i < j; i++) {
             const struct memblock_s *b = &memblocks->data[i];
             if (fwrite(memblocks->mem.data + b->p, b->len, 1, fout) == 0) return;
         }
+    }
+    if (output->exec_pos.pos != 0) {
+        header[2] = 0xe0;
+        header[3] = 0x02;
+        header[4] = 0xe1;
+        header[5] = 0x02;
+        header[6] = (uint8_t)output->exec;
+        header[7] = (uint8_t)(output->exec >> 8);
+        fwrite(header + p, 8 - p, 1, fout);
     }
 }
 
@@ -355,7 +408,7 @@ static MUST_CHECK bool output_mem_ihex_data(struct ihex_s *ihex) {
     return false;
 }
 
-static void output_mem_ihex(FILE *fout, const Memblocks *memblocks) {
+static void output_mem_ihex(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     struct ihex_s ihex;
     size_t i;
 
@@ -396,6 +449,14 @@ static void output_mem_ihex(FILE *fout, const Memblocks *memblocks) {
     }
     if (ihex.length != 0) {
         if (output_mem_ihex_data(&ihex)) return;
+    }
+    if (output->exec_pos.pos != 0) {
+        uint8_t ez[4];
+        ez[0] = (uint8_t)(output->exec >> 24);
+        ez[1] = (uint8_t)(output->exec >> 16);
+        ez[2] = (uint8_t)(output->exec >> 8);
+        ez[3] = (uint8_t)output->exec;
+        if (output_mem_ihex_line(&ihex, sizeof ez, 0, 5, ez)) return;
     }
     if (output_mem_ihex_line(&ihex, 0, 0, 1, NULL)) return;
 }
@@ -521,7 +582,7 @@ static MUST_CHECK bool output_mem_srec_line(struct srecord_s *srec) {
     return fwrite(line, (size_t)(h.line - line), 1, srec->file) == 0;
 }
 
-static void output_mem_srec(FILE *fout, const Memblocks *memblocks) {
+static void output_mem_srec(FILE *fout, const Memblocks *memblocks, const struct output_s *output) {
     struct srecord_s srec;
     size_t i;
     unsigned int addrtype;
@@ -587,7 +648,11 @@ static void output_mem_srec(FILE *fout, const Memblocks *memblocks) {
     }
     srec.addrtype = addrtype;
     srec.rectype = (char)('9' - addrtype);
-    srec.address = (memblocks->p == 0) ? 0 : memblocks->data[0].addr;
+    if (output->exec_pos.pos != 0) {
+        srec.address = output->exec;
+    } else {
+        srec.address = (memblocks->p == 0) ? 0 : memblocks->data[0].addr;
+    }
     if (output_mem_srec_line(&srec)) return;
 }
 
@@ -609,7 +674,7 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
         fout = fopen_utf8(output->name, output->append ? (binary ? "ab" : "at") : (binary ? "wb" : "wt"));
     }
     if (fout == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name);
+        err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name, &output->name_pos);
         return;
     }
     memcomp(memblocks, output->mode == OUTPUT_XEX || output->mode == OUTPUT_IHEX || output->mode == OUTPUT_SREC || output->mode == OUTPUT_MHEX);
@@ -618,17 +683,19 @@ void output_mem(Memblocks *memblocks, const struct output_s *output) {
     switch (output->mode) {
     case OUTPUT_FLAT: output_mem_flat(fout, memblocks, output->append); break;
     case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks, output->longaddr); break;
-    case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
+    case OUTPUT_PGZ: output_mem_c256_pgz(fout, memblocks, output); break;
+    case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks, output); break;
+    case OUTPUT_PGX:
     case OUTPUT_RAW:
     case OUTPUT_APPLE:
-    case OUTPUT_CBM: output_mem_c64(fout, memblocks, output); break;
-    case OUTPUT_IHEX: output_mem_ihex(fout, memblocks); break;
-    case OUTPUT_SREC: output_mem_srec(fout, memblocks); break;
+    case OUTPUT_CBM: output_mem_raw(fout, memblocks, output); break;
+    case OUTPUT_IHEX: output_mem_ihex(fout, memblocks, output); break;
+    case OUTPUT_SREC: output_mem_srec(fout, memblocks, output); break;
     case OUTPUT_MHEX: output_mem_mhex(fout, memblocks); break;
     }
     err = ferror(fout);
     err |= (fout != stdout) ? fclose(fout) : fflush(fout);
-    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_OBJ, output->name, &output->name_pos);
 #ifdef SETMODE_AVAILABLE
     if (oldmode >= 0) setmode(STDOUT_FILENO, oldmode);
 #endif

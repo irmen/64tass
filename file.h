@@ -1,5 +1,5 @@
 /*
-    $Id: file.h 3049 2023-08-21 20:35:45Z soci $
+    $Id: file.h 3103 2023-09-05 06:18:05Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@ typedef enum Encoding_types {
 } Encoding_types;
 
 typedef enum File_open_type {
-    FILE_OPEN_STDIN, FILE_OPEN_BINARY, FILE_OPEN_DEFINES, FILE_OPEN_SOURCE
+    FILE_OPEN_STDIN, FILE_OPEN_BINARY, FILE_OPEN_DEFINES, FILE_OPEN_SOURCE,
+    FILE_OPEN_COMMANDLINE
 } File_open_type;
 
 typedef uint32_t filesize_t;

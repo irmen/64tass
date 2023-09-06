@@ -1,5 +1,5 @@
 /*
-    $Id: memblocksobj.c 2968 2023-01-08 23:08:45Z soci $
+    $Id: memblocksobj.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ MALLOC Memblocks *copy_memblocks(Memblocks *m) {
     size_t i;
     val->mem.p = m->mem.p;
     val->mem.len = m->mem.len;
-    if (m->mem.len == 0) val->mem.data = NULL; 
+    if (m->mem.len == 0) val->mem.data = NULL;
     else {
         new_array(&val->mem.data, m->mem.len);
         memcpy(val->mem.data, m->mem.data, m->mem.len);
@@ -248,7 +248,7 @@ void memorymapfile(const Memblocks *mem, const struct output_s *output) {
 
     state.f = dash_name(output->mapname) ? stdout : fopen_utf8(output->mapname, output->mapappend ? "at" : "wt");
     if (state.f == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_MAP, output->mapname);
+        err_msg_file2(ERROR_CANT_WRTE_MAP, output->mapname, &output->mapname_pos);
         return;
     }
     if (state.f == stdout && fflush(state.f) != 0) setvbuf(state.f, NULL, _IOLBF, 1024);
@@ -266,7 +266,7 @@ void memorymapfile(const Memblocks *mem, const struct output_s *output) {
 
     err = ferror(state.f);
     err |= (state.f != stdout) ? fclose(state.f) : fflush(state.f);
-    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAP, output->mapname);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAP, output->mapname, &output->mapname_pos);
 }
 
 

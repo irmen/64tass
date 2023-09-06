@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: bytesobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ static MUST_CHECK Obj *convert2(oper_t op) {
         }
         bytes2 = inplace ? ref_bytes(bytes) : bytes;
         inplace = true;
-    } else { 
+    } else {
         bytes2 = new_bytes(len2);
         if (blen != 0) memcpy(bytes2->data, bytes->data, blen);
     }

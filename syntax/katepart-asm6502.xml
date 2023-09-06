@@ -8,7 +8,7 @@
 ]>
 <!-- ex:set ts=2 et:
 
- $Id: katepart-asm6502.xml 3016 2023-08-17 17:17:50Z soci $
+ $Id: katepart-asm6502.xml 3093 2023-09-03 08:44:00Z soci $
 
  Katepart language definition file for 64tass
  Usable with kwrite, kate, kdevelop
@@ -37,16 +37,16 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 -->
-<language name="6502 assembly (64tass)" version="1.04" kateversion="2.1" section="Assembler" extensions="*.asm" mimetype="text/x-64tass;application/x-64tass">
+<language name="6502 assembly (64tass)" version="1.05" kateversion="2.1" section="Assembler" extensions="*.asm" mimetype="text/x-64tass;application/x-64tass">
   <highlighting>
     <contexts>
       <context name="Base" attribute="Normal Text" lineEndContext="#stay">
         <IncludeRules context="Opcode"/>
-        <RegExpr String="([a-z][\w_.]*|_\w[\w_.]*):?" context="Opcode2" insensitive="TRUE"/>
+        <RegExpr String="((?![0-9])\w[\w_.]*|_\w[\w_.]*):?" context="Opcode2" insensitive="TRUE"/>
         <RegExpr String="[+\-*](?=(\s|$|=))" context="Opcode2" insensitive="TRUE"/>
       </context>
       <context name="Opcode2" attribute="Normal Text" lineEndContext="Base">
-        <RegExpr String="([&amp;|^*%/\-+.:x]|&amp;&amp;|\|\||^^|\*\*|\.\.|[&lt;&gt;:]\?)?=" attribute="Keyword" context="Miscparam" insensitive="TRUE"/>
+        <RegExpr String="(&lt;&lt;|&gt;&gt;|&amp;&amp;|\|\||\*\*|\.\.|::|[&lt;&gt;:]\?|[-+*%/&amp;|^.:x])?=" attribute="Keyword" context="Miscparam" insensitive="TRUE"/>
         <IncludeRules context="Opcode"/>
       </context>
 
@@ -56,7 +56,7 @@
         <RegExpr String="&datadef;" attribute="Data Type" context="Miscparam" insensitive="TRUE"/>
         <RegExpr String="&preproc;" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
         <RegExpr context="folding" beginRegion="foldingRegion" String="\.comment\b" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr String="#(\\?([a-z][\w_.]*|_\w[\w_.]*)|\\[1-9@])\b" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
+        <RegExpr String="#(\\?((?![0-9])\w[\w_.]*|_\w[\w_.]*)|\\[1-9@])\b" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
         <IncludeRules context="foldstuff"/>
         <RegExpr String=";.*$" attribute="Comment" context="#stay"/>
       </context>
@@ -64,10 +64,10 @@
         <RegExpr String="[\-+]+\s*(?=($|[)},;.\]]))" attribute="Label" context="Miscparam2"/>
         <RegExpr String="[bnlspxz]&quot;" attribute="String" context="string1"/>
         <RegExpr String="[bnlspxz]'" attribute="String" context="string2"/>
-        <RegExpr String="([a-z][\w_]*|_\w[\w_]*)\s*(?=\()" attribute="Normal Text" context="#stay" insensitive="TRUE"/>
-        <RegExpr String="[a-z][\w_]*|_\w[\w_]*" attribute="Label" context="Miscparam2" insensitive="TRUE"/>
-        <RegExpr String="\\([a-z][\w_]*|_\w[\w_]*)" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
-        <RegExpr String="\\\{([a-z][\w_]*|_\w[\w_]*)\}" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
+        <RegExpr String="((?![0-9])\w[\w_]*|_\w[\w_]*)\s*(?=\()" attribute="Normal Text" context="#stay" insensitive="TRUE"/>
+        <RegExpr String="(?![0-9])\w[\w_]*|_\w[\w_]*" attribute="Label" context="Miscparam2" insensitive="TRUE"/>
+        <RegExpr String="\\((?![0-9])\w[\w_]*|_\w[\w_]*)" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
+        <RegExpr String="\\\{((?![0-9])\w[\w_]*|_\w[\w_]*)\}" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
         <RegExpr String="\\[@1-9]" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="%((\.(([01]_+)+[01]|[01])+|(([01]_+)+[01]|[01])+\.(?!\.)(([01]_+)+[01]|[01])*)([ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)?|(([01]_+)+[01]|[01])+[ep][+-]?(([0-9]_+)+[0-9]|[0-9])+)" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="%(([01]_+)+[01]|[01])*" attribute="Bin" context="Miscparam2"/>
@@ -77,6 +77,8 @@
         <RegExpr String="(([0-9]_+)+[0-9]|[0-9])+" attribute="Decimal" context="Miscparam2"/>
         <RegExpr String="\$((\.(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+|(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+\.(?!\.)(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])*)(p[+-]?(([0-9]_+)+[0-9]|[0-9])+)?|(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])+p[+-]?(([0-9]_+)+[0-9]|[0-9])+)" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="\$(([0-9a-f]_+)+[0-9a-f]|[0-9a-f])*" attribute="Hex" context="Miscparam2" insensitive="TRUE"/>
+        <RegExpr String="\.[([]"  attribute="Operator" context="#stay"/>
+        <RegExpr String="\.(?![0-9])(?=\w)"  attribute="Operator" context="#stay"/>
         <RegExpr String="[,({\[+\-!~&lt;&gt;#`\^:]"  attribute="Operator" context="#stay"/>
         <RegExpr String="[)}\]]"  attribute="Operator" context="Miscparam2"/>
         <DetectChar char="&quot;" attribute="String" context="string1"/>
@@ -87,7 +89,7 @@
       <context name="Miscparam2" attribute="Normal Text" lineEndContext="Base">
         <RegExpr String=",[xyzrsdbk]\b"  attribute="Operator" context="#stay"/>
         <RegExpr String="[)}\]]"  attribute="Operator" context="#stay"/>
-        <RegExpr String="&amp;&amp;|\|\||^^|\*\*|\.\.|[=!]==?|&lt;=&gt;|&lt;[&lt;=?]|&gt;[&gt;=?]|\bx\b|!?\bin\b"  attribute="Operator" context="Miscparam"/>
+        <RegExpr String="&amp;&amp;|\|\||^^|\*\*|\.\.|\?\?|[=!]==?|&lt;=&gt;|&lt;[&lt;=?]|&gt;[&gt;=?]|\bx\b|!?\bin\b"  attribute="Operator" context="Miscparam"/>
         <RegExpr String="[,({\[&amp;|^*%/\-+.?:=&lt;&gt;]"  attribute="Operator" context="Miscparam"/>
         <RegExpr String=";.*$" attribute="Comment" context="#pop"/>
         <RegExpr String="[^ \t]" attribute="Error" context="#stay"/>
@@ -117,7 +119,7 @@
         <RegExpr endRegion="struct" String="\.(ends|endstruct)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="union" String="\.union\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="union" String="\.(endu|endunion)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="page" String="\.page\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="page" String="\.page\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="page" String="\.(endp|endpage)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="namespace" String="\.namespace\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="namespace" String="\.(endn|endnamespace)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
@@ -144,25 +146,13 @@
         <RegExpr beginRegion="alignblk" String="\.alignblk\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="alignblk" String="\.endalignblk\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.elsif\b)" context="elsif" insensitive="TRUE"/>
-        <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.else\b)" context="else" insensitive="TRUE"/>
-        <RegExpr endRegion="if" endRegion="elsif" endRegion="else" String="\.(fi|endif)\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="if" beginRegion="if" String="\.els?if\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="if" beginRegion="if" String="\.else\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="if" String="\.(fi|endif)\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="switch" String="\.switch\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="switch" endRegion="case" String="\s?(?=\.case\b)" context="Miscparam" context="case" insensitive="TRUE"/>
-        <RegExpr endRegion="switch" endRegion="case" String="\s?(?=\.default\b)" context="default" insensitive="TRUE"/>
-        <RegExpr endRegion="switch" endRegion="case" endRegion="default" String="\.endswitch\b" attribute="Preprocessor" insensitive="TRUE"/>
-      </context>
-      <context name="elsif" lineEndContext="#pop">
-        <RegExpr beginRegion="elsif" String="\.elsif\b" attribute="Preprocessor" context="Miscparam"/>
-      </context>
-      <context name="else" lineEndContext="#pop">
-        <RegExpr beginRegion="else" String="\.else\b" attribute="Preprocessor"/>
-      </context>
-      <context name="case" lineEndContext="#pop">
-        <RegExpr beginRegion="case" String="\.case\b" attribute="Preprocessor" context="Miscparam"/>
-      </context>
-      <context name="default" lineEndContext="#pop">
-        <RegExpr beginRegion="default" String="\.default\b" attribute="Preprocessor"/>
+        <RegExpr endRegion="switch" beginRegion="switch" String="\.case\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" beginRegion="switch" String="\.default\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" String="\.endswitch\b" context="Error" attribute="Preprocessor" insensitive="TRUE"/>
       </context>
 
       <context attribute="Comment" name="folding" lineEndContext="#stay">

@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 2993 2023-08-06 21:21:04Z soci $
+    $Id: codeobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -341,9 +341,9 @@ MUST_CHECK Obj *bytes_from_code(const Code *v1, linepos_t epoint) {
 }
 
 struct code_item_s {
-    const Code *v1; 
-    address_t offs2; 
-    ival_t offs0; 
+    const Code *v1;
+    address_t offs2;
+    ival_t offs0;
     address_t ln2;
 };
 
@@ -383,7 +383,7 @@ static address_t code_item_prepare(struct code_item_s *ci, const Code *v1) {
         ci->offs0 = (ival_t)(((uval_t)v1->offs + ln2 - 1) / ln2);
         if (v1->size < (uval_t)v1->offs) return 0;
         return (v1->size - (uval_t)v1->offs) / ln2;
-    } 
+    }
     ci->offs0 = -(ival_t)((-(uval_t)v1->offs + ln2 - 1) / ln2);
     if (add_overflow(-(uval_t)v1->offs, v1->size, &ln)) err_msg_out_of_memory();
     return ln / ln2;
@@ -424,7 +424,7 @@ static MUST_CHECK Obj *slice(oper_t op, argcount_t indx) {
     io.len = code_item_prepare(&ci, v1);
     io.epoint = &args->val[indx].epoint;
     io.val = args->val[indx].val;
-  
+
     if (io.val->obj->iterable) {
         struct iter_s iter;
         Tuple *v;

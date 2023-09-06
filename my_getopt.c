@@ -1,7 +1,7 @@
 /*
  *  my_getopt.c - my re-implementation of getopt.
  *  Copyright 1997, 2000, 2001, 2002, Benjamin Sittler
- *  $Id: my_getopt.c 2990 2023-07-26 21:17:10Z soci $
+ *  $Id: my_getopt.c 3111 2023-09-06 04:38:31Z soci $
  *
  *  Permission is hereby granted, free of charge, to any person
  *  obtaining a copy of this software and associated documentation
@@ -222,7 +222,7 @@ int my_getopt_long(int argc, char *argv[], const char *shortopts,
       opt = 0;
 
       if (argv[my_optind][charind] == '=') {
-        if (longopts[found].has_arg == 0) {
+        if (longopts[found].has_arg == my_no_argument) {
           opt = '?';
           if (my_opterr) {fatal_error("option '--");
                          printable_print((const uint8_t *)longopts[found].name, stderr);
@@ -231,7 +231,7 @@ int my_getopt_long(int argc, char *argv[], const char *shortopts,
           my_optarg = argv[my_optind] + ++charind;
           /*charind = 0;*/
         }
-      } else if (longopts[found].has_arg == 1) {
+      } else if (longopts[found].has_arg == my_required_argument) {
         if (++my_optind >= argc) {
           opt = (colon_mode == ':') ? ':' : '?';
           if (my_opterr) {fatal_error("option '--");

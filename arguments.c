@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 3049 2023-08-21 20:35:45Z soci $
+    $Id: arguments.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ static const struct arguments_s arguments_default = {
     0,           /* symbol_output_len */
     NULL,        /* include */
     {            /* list */
+        {0,0,0}, /* name_pos */
         NULL,    /* name */
         true,    /* monitor */
         true,    /* source */
@@ -52,6 +53,7 @@ static const struct arguments_s arguments_default = {
         false    /* append */
     },
     {            /* make */
+        {0,0,0}, /* name_pos */
         NULL,    /* name */
         false,   /* phony */
         false    /* append */
@@ -60,7 +62,12 @@ static const struct arguments_s arguments_default = {
         NULL,    /* data */
         0,       /* len */
     },
+    {            /* commandline */
+        NULL,    /* data */
+        0,       /* len */
+    },
     {            /* error */
+        {0,0,0}, /* name_pos */
         NULL,    /* name */
         CARET_ALWAYS, /* caret */
         true,    /* warning */
@@ -361,7 +368,8 @@ enum {
     INTEL_HEX, APPLE_II, ATARI_XEX, MOS_HEX, NO_LONG_ADDRESS, NO_QUIET, WARN,
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND, MAP,
     NO_MAP, MAP_APPEND, LIST_APPEND, SIMPLE_LABELS, LABELS_SECTION,
-    MESEN_LABELS, LABELS_ADD_PREFIX, MAKE_APPEND
+    MESEN_LABELS, LABELS_ADD_PREFIX, MAKE_APPEND, C256_PGX, C256_PGZ,
+    OUTPUT_EXEC
 };
 
 static const struct my_option long_options[] = {
@@ -380,6 +388,8 @@ static const struct my_option long_options[] = {
     {"mos-hex"          , my_no_argument      , NULL,  MOS_HEX},
     {"s-record"         , my_no_argument      , NULL,  S_RECORD},
     {"cbm-prg"          , my_no_argument      , NULL,  CBM_PRG},
+    {"c256-pgx"         , my_no_argument      , NULL,  C256_PGX},
+    {"c256-pgz"         , my_no_argument      , NULL,  C256_PGZ},
     {"no-ascii"         , my_no_argument      , NULL,  NO_ASCII},
     {"ascii"            , my_no_argument      , NULL, 'a'},
     {"no-tasm-compatible",my_no_argument      , NULL,  NO_TASM_COMPATIBLE},
@@ -404,6 +414,7 @@ static const struct my_option long_options[] = {
     {"no-output"        , my_no_argument      , NULL,  NO_OUTPUT},
     {"output-append"    , my_required_argument, NULL,  OUTPUT_APPEND},
     {"output-section"   , my_required_argument, NULL,  OUTPUT_SECTION},
+    {"output-exec"      , my_required_argument, NULL,  OUTPUT_EXEC},
     {"map"              , my_required_argument, NULL,  MAP},
     {"no-map"           , my_no_argument      , NULL,  NO_MAP},
     {"map-append"       , my_required_argument, NULL,  MAP_APPEND},
@@ -423,7 +434,7 @@ static const struct my_option long_options[] = {
     {"list"             , my_required_argument, NULL, 'L'},
     {"list-append"      , my_required_argument, NULL,  LIST_APPEND},
     {"dependencies"     , my_required_argument, NULL, 'M'},
-    {"dependencies-append", my_required_argument, NULL, MAKE_APPEND},
+    {"dependencies-append",my_required_argument,NULL,  MAKE_APPEND},
     {"no-make-phony"    , my_no_argument      , NULL,  NO_MAKE_PHONY},
     {"make-phony"       , my_no_argument      , NULL,  MAKE_PHONY},
     {"no-verbose-list"  , my_no_argument      , NULL,  NO_VERBOSE_LIST},
@@ -495,6 +506,8 @@ static address_t check_outputs(void) {
         case OUTPUT_IHEX:
         case OUTPUT_SREC:
         case OUTPUT_FLAT: min &= 0xffffffff; break;
+        case OUTPUT_PGX:
+        case OUTPUT_PGZ: min &= 0xffffff; break;
         case OUTPUT_MHEX:
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
@@ -521,7 +534,7 @@ static address_t check_outputs(void) {
 
 static struct include_list_s **include_list_add(struct include_list_s **lastil, const char *path)
 {
-    struct include_list_s *include; 
+    struct include_list_s *include;
     size_t i, j, len;
     j = i = strlen(path);
     if (i == 0) return lastil;
@@ -541,16 +554,48 @@ static struct include_list_s **include_list_add(struct include_list_s **lastil, 
     return &include->next;
 }
 
+struct get_arg_s {
+    char **argv;
+    int optind;
+    uint32_t pos;
+};
+
+static void get_arg(struct get_arg_s *param, struct argpos_s *argpos) {
+    int i;
+    uint8_t *data;
+    uint32_t len = 0;
+    for (i = param->optind; i < my_optind; i++) {
+        if (inc_overflow(&len, strlen(param->argv[i]) + 1)) err_msg_out_of_memory();
+    }
+    argpos->start = param->pos;
+    argpos->line = (linenum_t)my_optind - 1;
+    argpos->pos = (linecpos_t)(len - strlen(my_optarg) - 1);
+    if (inc_overflow(&param->pos, len)) err_msg_out_of_memory();
+    if (param->pos > arguments.commandline.len) {
+        if (add_overflow(param->pos, 1024, &arguments.commandline.len)) err_msg_out_of_memory();
+        resize_array(&arguments.commandline.data, arguments.commandline.len);
+    }
+    data = arguments.commandline.data + (param->pos - len);
+    for (i = param->optind; i < my_optind; i++) {
+        size_t l = strlen(param->argv[i]);
+        memcpy(data, param->argv[i], l);
+        data += l;
+        *data++ = ' ';
+    }
+    data[-1] = 0;
+}
+
 int init_arguments(int *argc2, char **argv2[]) {
     int argc = *argc2;
     char **argv = *argv2;
     int opt;
     size_t defines_p = 0;
+    struct get_arg_s get_args;
     int max = 10;
     bool again;
     struct include_list_s **lastil = &arguments.include;
-    struct symbol_output_s symbol_output = { NULL, NULL, NULL, NULL, LABEL_64TASS, false };
-    struct output_s output = { "a.out", NULL, NULL, OUTPUT_CBM, false, false, false, false };
+    struct symbol_output_s symbol_output = { {0, 0, 0}, NULL, {0, 0, 0}, NULL, NULL, NULL, LABEL_64TASS, false };
+    struct output_s output = { {0, 0, 0}, "a.out", NULL, {0, 0, 0}, NULL, {0, 0, 0}, 0, OUTPUT_CBM, false, false, false, false };
     memcpy(&arguments, &arguments_default, sizeof arguments);
     memcpy(&diagnostics, &diagnostics_default, sizeof diagnostics);
     memcpy(&diagnostic_errors, &diagnostic_errors_default, sizeof diagnostic_errors);
@@ -559,11 +604,14 @@ int init_arguments(int *argc2, char **argv2[]) {
     memset(&diagnostic_no_error_all, 0, sizeof diagnostic_no_error_all);
     memcpy(&diagnostic_error_all, &diagnostic_error_all_default, sizeof diagnostic_error_all);
 
+    get_args.pos = 0;
     my_optind = 1;
     do {
         int i;
+        get_args.argv = argv;
         again = false;
         for (;;) {
+            get_args.optind = my_optind;
             opt = my_getopt_long(argc, argv, short_options, long_options, NULL);
             if (opt == -1) break;
             switch (opt) {
@@ -582,27 +630,36 @@ int init_arguments(int *argc2, char **argv2[]) {
             case INTEL_HEX:output.mode = OUTPUT_IHEX;break;
             case MOS_HEX:output.mode = OUTPUT_MHEX;break;
             case S_RECORD:output.mode = OUTPUT_SREC;break;
-            case CBM_PRG:output.mode = OUTPUT_CBM;break;
+            case CBM_PRG: output.mode = OUTPUT_CBM;break;
+            case C256_PGX: output.mode = OUTPUT_PGX;break;
+            case C256_PGZ: output.mode = OUTPUT_PGZ;break;
             case 'b':output.mode = OUTPUT_RAW;break;
             case 'f':output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
             case NO_ASCII:arguments.to_ascii = false;break;
             case 'T':arguments.tasmcomp = true;break;
             case NO_TASM_COMPATIBLE:arguments.tasmcomp = false;break;
-            case NO_OUTPUT:
+            case NO_OUTPUT: output.name = NULL; output.name_pos.start = 0; output.name_pos.line = 0; output.name_pos.pos = 0; output.append = false; break;
             case OUTPUT_APPEND:
-            case 'o': output.name = (opt == NO_OUTPUT) ? NULL : my_optarg;
-                      output.append = (opt == OUTPUT_APPEND) || (output.name != NULL && dash_name(output.name));
+            case 'o': output.name = my_optarg; get_arg(&get_args, &output.name_pos);
+                      output.append = (opt == OUTPUT_APPEND) || dash_name(output.name);
                       extend_array(&arguments.output, &arguments.output_len, 1);
                       arguments.output[arguments.output_len - 1] = output;
                       output.section = NULL;
                       output.mapname = NULL;
+                      output.mapname_pos.start = 0;
+                      output.mapname_pos.line = 0;
+                      output.mapname_pos.pos = 0;
                       output.mapfile = false;
+                      output.exec_pos.start = 0;
+                      output.exec_pos.line = 0;
+                      output.exec_pos.pos = 0;
                       break;
             case OUTPUT_SECTION:output.section = my_optarg; break;
+            case OUTPUT_EXEC: get_arg(&get_args, &output.exec_pos); break;
             case MAP_APPEND:
-            case MAP: output.mapname = my_optarg; output.mapappend = (opt == MAP_APPEND); output.mapfile = true; break;
-            case NO_MAP:output.mapname = NULL; output.mapfile = true; break;
+            case MAP: output.mapname = my_optarg; get_arg(&get_args, &output.mapname_pos); output.mapappend = (opt == MAP_APPEND); output.mapfile = true; break;
+            case NO_MAP:output.mapname = NULL; output.mapname_pos.start = 0; output.mapname_pos.line = 0; output.mapname_pos.pos = 0; output.mapfile = true; break;
             case CARET_DIAG:arguments.error.caret = CARET_ALWAYS;break;
             case MACRO_CARET_DIAG:arguments.error.caret = CARET_MACRO;break;
             case NO_CARET_DIAG:arguments.error.caret = CARET_NEVER;break;
@@ -633,9 +690,12 @@ int init_arguments(int *argc2, char **argv2[]) {
             case LABELS_APPEND:
             case 'l': symbol_output.name = my_optarg;
                       symbol_output.append = (opt == LABELS_APPEND);
+                      get_arg(&get_args, &symbol_output.name_pos);
                       extend_array(&arguments.symbol_output, &arguments.symbol_output_len, 1);
                       arguments.symbol_output[arguments.symbol_output_len - 1] = symbol_output;
-                      symbol_output.space = NULL;
+                      symbol_output.space_pos.start = 0;
+                      symbol_output.space_pos.line = 0;
+                      symbol_output.space_pos.pos = 0;
                       symbol_output.section = NULL;
                       symbol_output.add_prefix = NULL;
                       break;
@@ -646,16 +706,16 @@ int init_arguments(int *argc2, char **argv2[]) {
             case DUMP_LABELS: symbol_output.mode = LABEL_DUMP; break;
             case SIMPLE_LABELS: symbol_output.mode = LABEL_SIMPLE; break;
             case MESEN_LABELS: symbol_output.mode = LABEL_MESEN; break;
-            case LABELS_ROOT: symbol_output.space = my_optarg; break;
+            case LABELS_ROOT: get_arg(&get_args, &symbol_output.space_pos); break;
             case LABELS_SECTION: symbol_output.section = my_optarg; break;
             case LABELS_ADD_PREFIX: symbol_output.add_prefix = my_optarg; break;
-            case NO_ERROR: arguments.error.name = NULL; arguments.error.no_output = true; arguments.error.append = false; break;
+            case NO_ERROR: arguments.error.name = NULL; arguments.error.name_pos.start = 0; arguments.error.name_pos.line = 0; arguments.error.name_pos.pos = 0; arguments.error.no_output = true; arguments.error.append = false; break;
             case ERROR_APPEND:
-            case 'E': arguments.error.name = my_optarg; arguments.error.no_output = false; arguments.error.append = (opt == ERROR_APPEND); break;
+            case 'E': arguments.error.name = my_optarg; get_arg(&get_args, &arguments.error.name_pos); arguments.error.no_output = false; arguments.error.append = (opt == ERROR_APPEND); break;
             case LIST_APPEND:
-            case 'L': arguments.list.name = my_optarg; arguments.list.append = (opt == LIST_APPEND); break;
+            case 'L': arguments.list.name = my_optarg; get_arg(&get_args, &arguments.list.name_pos); arguments.list.append = (opt == LIST_APPEND); break;
             case MAKE_APPEND:
-            case 'M': arguments.make.name = my_optarg; arguments.make.append = (opt == MAKE_APPEND); break;
+            case 'M': arguments.make.name = my_optarg; get_arg(&get_args, &arguments.make.name_pos); arguments.make.append = (opt == MAKE_APPEND); break;
             case 'I': lastil = include_list_add(lastil, my_optarg);break;
             case 'm': arguments.list.monitor = false;break;
             case MONITOR: arguments.list.monitor = true;break;
@@ -682,15 +742,16 @@ int init_arguments(int *argc2, char **argv2[]) {
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--mos-hex] [--s-record]\n"
-               "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
-               "        [--output-section=<name>] [--m65c02] [--m6502] [--m65xx] [--m65dtv02]\n"
-               "        [--m65816] [--m65el02] [--mr65c02] [--mw65c02] [--m65ce02] [--m4510]\n"
-               "        [--labels=<file>] [--normal-labels] [--export-labels] [--vice-labels]\n"
-               "        [--vice-labels-numeric] [--dump-labels] [--simple-labels]\n"
-               "        [--list=<file>] [--list-append=<file>] [--no-monitor] [--no-source]\n"
-               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
-               "        [--dependencies=<file>] [--dependencies-append=<file>] [--make-phony]\n"
-               "        [--output=<file>] [--output-append=<file>] [--no-output] [--map=<file>]\n"
+               "        [--nonlinear] [--c256-pgx] [--c256-pgz] [--tasm-compatible] [--quiet]\n"
+               "        [--no-warn] [--long-address] [--output-section=<name>] [--m65c02]\n"
+               "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
+               "        [--mw65c02] [--labels=<file>] [--normal-labels] [--export-labels]\n"
+               "        [--vice-labels] [--m65ce02] [--m4510] [--vice-labels-numeric]\n"
+               "        [--dump-labels] [--simple-labels] [--list=<file>] [--list-append=<file>]\n"
+               "        [--no-monitor] [--no-source] [--line-numbers] [--tab-size=<value>]\n"
+               "        [--verbose-list] [-W<option>] [--dependencies=<file>]\n"
+               "        [--dependencies-append=<file>] [--make-phony] [--output=<file>]\n"
+               "        [--output-append=<file>] [--no-output] [--map=<file>]\n"
                "        [--map-append=<file>] [--no-map] [--errors=<file>] [--help] [--usage]\n"
                "        [--version] SOURCES\n");
                    return 0;
@@ -766,6 +827,7 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --output-append=<f> Append output to <file>\n"
                "      --no-output        Do not create an output file\n"
                "      --output-section=<n> Output this section only\n"
+               "      --output-exec=<e>  Output execution address\n"
                "      --map=<f>          Place output map into <file>\n"
                "      --map-append=<f>   Append output map to <file>\n"
                "      --no-map           Do not create a map file\n"
@@ -779,6 +841,8 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --intel-hex        Output Intel HEX file\n"
                "      --mos-hex          Output MOS Technology file\n"
                "      --s-record         Output Motorola S-record file\n"
+               "      --c256-pgx         Output C256 PGX file\n"
+               "      --c256-pgz         Output C256 PGZ file\n"
                "\n"
                " Target CPU selection:\n"
                "      --m65xx            Standard 65xx (default)\n"
@@ -803,7 +867,7 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --simple-labels    Simple hexadecimal labels\n"
                "      --labels-root=<l>  List from scope <l> only\n"
                "      --labels-section=<n> List from section <n> only\n"
-               "      --labels-add-prefix=<n> Set label prefix\n"
+               "      --labels-add-prefix=<p> Set label prefix\n"
                "  -L, --list=<file>      List into <file>\n"
                "      --list-append=<f>  Append list to <file>\n"
                "  -m, --no-monitor       Don't put monitor code into listing\n"
@@ -873,15 +937,17 @@ int init_arguments(int *argc2, char **argv2[]) {
 
     if (arguments.symbol_output_len != 0) {
         arguments.symbol_output[arguments.symbol_output_len - 1].mode = symbol_output.mode;
-        if (symbol_output.space != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].space = symbol_output.space;
+        if (symbol_output.space_pos.pos != 0) arguments.symbol_output[arguments.symbol_output_len - 1].space = symbol_output.space;
         if (symbol_output.section != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].section = symbol_output.section;
         if (symbol_output.add_prefix != NULL) arguments.symbol_output[arguments.symbol_output_len - 1].add_prefix = symbol_output.add_prefix;
     }
 
     if (arguments.output == NULL) {
-        new_instance(&arguments.output);
-        arguments.output[0] = output;
-        arguments.output_len = 1;
+        if (output.name != NULL) {
+            new_instance(&arguments.output);
+            arguments.output[0] = output;
+            arguments.output_len = 1;
+        }
     } else {
         struct output_s *lastoutput = &arguments.output[arguments.output_len - 1];
         lastoutput->mode = output.mode;
@@ -901,7 +967,7 @@ int init_arguments(int *argc2, char **argv2[]) {
     if (defines_p != arguments.defines.len) {
         arguments.defines.len = defines_p;
         if (defines_p != 0) {
-            char *d = reallocate_array(arguments.defines.data, defines_p);
+            uint8_t *d = reallocate_array(arguments.defines.data, defines_p);
             if (d != NULL) arguments.defines.data = d;
         }
     }
@@ -918,6 +984,7 @@ void destroy_arguments(void) {
     free(arguments.output);
     free(arguments.symbol_output);
     free(arguments.defines.data);
+    free(arguments.commandline.data);
     include = arguments.include;
     while (include != NULL) {
         struct include_list_s *tmp = include;

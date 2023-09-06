@@ -1122,14 +1122,15 @@ format(<string expression>[, <expression>, ...])
     flags and minimum field length may follow, before the conversion type
     character. These flags can be used:
 
-             Formatting flags
-    #     alternate form ($a, %10, 10.)
+                  Formatting flags
+    #     alternate form (-$a, ~$a, -%10, ~%10, -10.)
     *     width/precision from list
     .     precision
     0     pad with zeros
     -     left adjusted (default right)
           blank when positive or minus sign
     +     sign even if positive
+    ~     binary and hexadecimal as bits
 
     The following conversion types are implemented:
 
@@ -1732,7 +1733,7 @@ which accepts strings of any length.
     .1008  bd 0f 10  lda $1010,x             lda jumps,x
     .100b  8d 0e 10  sta $100f               sta smod+1
     .100e  d0 fe     bne $100e       smod    bne *
-    ;Routines nearby (-128-127 bytes)
+    ;Routines nearby (-128 to 127 bytes)
     >1010  23 49                     jumps   .char (routine1, routine2)-smod-2
 
 .word <expression>[, <expression>, ...]
@@ -2365,6 +2366,8 @@ If, else if, else
 .fi
 .endif
     End of conditional compilation.
+.elif <condition>
+    Same as .elsif because it's a popular typo and it's difficult to notice.
 
 Switch, case, default
 
@@ -3213,12 +3216,20 @@ Output options
 --no-map
     Do not display or record the memory map.
 --output-section <sectionname>
+    Specify which section to write in the output.
+
     By default all sections go into the output file. Using this option limits
     the output to specific section and it's children. This is useful to split a
     larger program into several files.
 
-    64tass a.asm --output-section main -o main.prg
-    64tass a.asm --output-section loader -o loader.prg
+    64tass a.asm --output-section main -o main.prg \
+                 --output-section loader -o loader.prg
+
+--output-exec <expression>
+    Sets execution address for output formats which support this.
+
+    While it's possible to enter the address as a number it's recommended to
+    use a label instead.
 
 -X, --long-address
     Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
@@ -3229,22 +3240,38 @@ Output options
 --cbm-prg
     Generate CBM format binaries (default)
 
-    The first 2 bytes are the little endian address of the first valid byte
-    (start address). Overlapping blocks are flattened and uninitialized memory
-    is filled up with zeros. Uninitialized memory before the first and after
-    the last valid bytes are not saved. Up to 64 KiB or 16 MiB with long
-    address.
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory before the first and after the last valid bytes
+    are not saved. Up to 64 KiB or 16 MiB with long address.
 
-    Used for C64 binaries.
+    Used for C64 binaries. The first 2 bytes are the little endian address of
+    the first valid byte (load address). This is followed by the data.
+
+    64tass --cbm-prg a.asm
+    *       = $2000
+    start   rts
+
+    Example CBM format binary
+             output
+    00 20          load to $2000
+    60             data
 
 -b, --nostart
-    Output raw data without start address.
+    Output raw binary data.
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
     are not saved. Up to 64 KiB or 16 MiB with long address.
 
     Useful for small ROM files.
+
+    64tass --nostart a.asm
+    *       = $2000
+            rts
+
+      Example raw
+         output
+    60             data
 
 -f, --flat
     Flat address space output mode.
@@ -3261,22 +3288,25 @@ Output options
     Overlapping blocks are flattened. Blocks are saved in sorted order and
     uninitialized memory is skipped. Up to 64 KiB or 16 MiB with long address.
 
-    Used for linkers and downloading.
+    Used for linkers and downloading. Before writing each memory block the
+    length and the memory address is saved in a little endian order. Once
+    everything was saved a zero length block is written without an address or
+    data. These zeros serve as an end marker.
 
     64tass --nonlinear a.asm
-    *       = $1000
+    *       = $1000          ;1st segment
             lda #2
-    *       = $2000
-            nop
+    *       = $2000          ;2nd segment
+            rts
 
-          Result of compilation
-    $02, $00 little endian length, 2 bytes
-    $00, $10 little endian start $1000
-    $a9, $02 code
-    $01, $00 little endian length, 1 byte
-    $00, $20 little endian start $2000
-    $ea      code
-    $00, $00 end marker (length=0)
+      Example 64 KiB nonlinear output
+    02 00          load 2 bytes
+    00 10          to $1000
+    a9 02          data
+    01 00          load 1 byte
+    00 20          to $2000
+    60             data
+    00 00          load 0 bytes, end marker
 
 --atari-xex
     Generate an Atari XEX output file.
@@ -3285,40 +3315,90 @@ Output options
     happens in the definition order without sorting, and uninitialized memory
     is skipped in the output. Up to 64 KiB.
 
-    Used for Atari executables.
+    Used for Atari executables. First 2 bytes of signature is written. Then
+    before saving each memory block the words of load address and last byte
+    address is written in little endian format.
 
-    64tass --atari-xex a.asm
-    *       = $02e0
-            .addr start      ;run address
+    If the --output-exec command line parameter was given then a 6 byte run
+    block is added to the end of the output.
+
+    64tass --output-exec=start --atari-xex a.asm
     *       = $2000
     start   rts
 
-          Result of compilation
-    $ff, $ff header, 2 bytes
-    $e0, $02 little endian start $02e0
-    $e1, $02 little endian last byte $02e1
-    $00, $20 start address word
-    $00, $20 little endian start $2000
-    $00, $20 little endian last byte $2000
-    $60      code
+       Example Atari XEX format
+                output
+    ff ff          header
+    00 20          load to $2000
+    00 20          until $2000
+    60             data
+    e0 02 e1 02    run marker
+    00 20          run address ($2000)
 
---apple2
+--apple-ii
     Generate an Apple II output file (DOS 3.3).
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
     are not saved. Up to 64 KiB.
 
-    Used for Apple II executables.
+    Used for Apple II executables. First the load address and the data length
+    words are written in little endian format. This is followed by the data.
 
     64tass --apple-ii a.asm
     *       = $0c00
             rts
 
-         Result of compilation
-    $00, $0c little endian start $0c00
-    $01, $00 little endian length $0001
-    $60      code
+    Example of Apple II format
+              output
+    00 0c          load to $0c00
+    01 00          length is 1 byte
+    60             data
+
+--c256-pgx
+    Generate C256 Foenix PGX output file.
+
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory before the first and after the last valid bytes
+    are not saved. Up to 16 MiB.
+
+    Used for single segment C256 Foenix executables. After the PGX signature a
+    four byte little endian load address is written. This is followed by the
+    data.
+
+    64tass --c256-pgx a.asm
+    *       = $1000
+            rts
+
+    Example PGX format output
+    50 47 58 01    PGX signature
+    00 10 00 00    load to $1000
+    60             data
+
+--c256-pgz
+    Generate C256 Foenix PGZ output file.
+
+    Overlapping blocks are flattened. Blocks are saved in sorted order and
+    uninitialized memory is skipped. Up to 16 MiB.
+
+    Used for multi segment C256 Foenix binaries. It starts with a single byte
+    signature. Then before each memory block a three byte load address and
+    length is written in little endian format.
+
+    If the --output-exec command line parameter was given then a 6 byte
+    execution block is added to the end of the output.
+
+    64tass --output-exec=start --c256-pgz a.asm
+    *       = $1000
+    start   rts
+
+      Example PGZ format output
+    5a             PGZ signature byte
+    00 10 00       load to $1000
+    01 00 00       length is 1 bytes
+    60             data
+    00 10 00       execute at $1000
+    00 00 00       execution marker
 
 --intel-hex
     Use Intel HEX output file format.
@@ -3326,13 +3406,18 @@ Output options
     Overlapping blocks are kept, data is stored in the definition order, and
     uninitialized areas are skipped. I8HEX up to 64 KiB, I32HEX up to 4 GiB.
 
-    Used for EPROM programming or downloading.
+    Used for EPROM programming or downloading. Data bytes are written using 00
+    records. If the file is larger than 64 KiB then 04 records are used as
+    needed. The output ends with a 01 record.
+
+    If the --output-exec command line parameter was given then a 05 record is
+    added with the execution address right before the end 01 record.
 
     64tass --intel-hex a.asm
     *       = $0c00
             rts
 
-    Result of compilation:
+    Example Intel HEX output:
 
     :010C00006093
     :00000001FF
@@ -3347,7 +3432,7 @@ Output options
     *       = $0c00
             rts
 
-    Result of compilation:
+    Example MOS Technology output:
 
     ;010C0060006D
     ;0000010001
@@ -3359,15 +3444,23 @@ Output options
     uninitialized memory areas are skipped. S19 up to 64 KiB, S28 up to 16 MiB
     and S37 up to 4 GiB.
 
-    Used for EPROM programming or downloading.
+    Used for EPROM programming or downloading. First a S0 header record is
+    written which is followed by S1, S2, or S3 data records. Then an S5 or S6
+    count record comes and a S9, S8 or S7 termination record.
+
+    If the --output-exec command line parameter was given then the termination
+    record will use this address. Without this the address of the first data
+    record is used.
 
     64tass --s-record a.asm
     *       = $0c00
             rts
 
-    Result of compilation:
+    Example Motorola S-record output:
 
+    S00600004844521B
     S1040C00608F
+    S5030001FB
     S9030C00F0
 
 Operation options
@@ -3419,7 +3512,8 @@ Operation options
 
     64tass --long-branch a.asm
     *       = $1000
-            bcc $1233       ;no error, automatically converted to the above one.
+            bcc $1233       ;no error, automatically converted to the one above
+            bcs @b $1233    ;keep this one short regardless and fail if too far
 
 -C, --case-sensitive
     Make all symbols (variables, opcodes, directives, operators, etc.) case
@@ -3558,7 +3652,7 @@ default, the others are disabled.
     Warns about alias opcodes.
 
     There are several opcodes for the same task, especially for the "6502i"
-    target.
+    target. This warning helps to find where their use.
 
 -Walign
     Warns when padding bytes were used for alignment.
@@ -3745,7 +3839,7 @@ default, the others are disabled.
 
     var     .byte ?, ?, ?
     var2    = var - 2       ; start 2 bytes earlier
-            ldx #size(var2) ; size is 6 bytes due to 2 bytes ahead
+            ldx #size(var2) ; size is 5 bytes as it's 2 bytes ahead
 
 -Wno-star-assign
     Don't warn about ignored compound multiply.
@@ -3756,7 +3850,7 @@ default, the others are disabled.
 
     If the symbol was a variable defined earlier then the multiply is performed
     without a warning. If it's a new label definition then this warning is used
-    to note that maybe a variable definition was missed earlier.
+    to note that possibly a variable definition was missed earlier.
 
     If the intention was really a label definition then the `*=' can be moved
     to a separate line, or in case of space allocation it could be improved to
@@ -3999,11 +4093,13 @@ Symbol listing
 
 --labels-append=<file>
     Same as the --labels option but appends instead of overwrites.
---labels-root=<path>
+--labels-root=<expression>
     Specify the scope to list labels from
 
     This option can be used to limit the output to only a subset of labels. The
-    parameter is a dot separated path to a scope started from the global scope.
+    parameter is an expression which must resolve to a namespace. It's usually
+    just the name of a label in the root scope which contains the labels to be
+    listed.
 
 --labels-section=<sectionname>
     Specify the section to list labels from
@@ -4261,8 +4357,8 @@ Forward slashes can be used as a portable path separation on all systems.
 Messages
 
 Faults and warnings encountered are sent to the standard error for logging. To
-redirect them to a file append `2>filename.log' after the command or use the `
--E' command line option. The message format is the following:
+redirect them to a file use the `-E' command line option. The message format is
+the following:
 
 <filename>:<line>:<character>: <severity>: <message>
 
@@ -4370,6 +4466,11 @@ memory location address overflow
     address space
 over the boundary by ? bytes, aligned by ? bytes
     crossed boundary so alignment was necessary
+please separate @b, @w or @l from label or number for future compatibility
+    future versions will have longer symbols after `@' and so will interpret
+    the immediately following numbers and letters as part if the symbol. Please
+    insert a space between @b, @w or @l and the following label or number now
+    to avoid surprises!
 please use format("%d", ...) as '^' will change it's meaning
     this operator will be changed to mean the bank byte later, please update
     your sources
@@ -4461,6 +4562,8 @@ double defined range
     ranges can't overlap
 duplicate definition
     symbol defined more than once
+encoded value ? larger than 8 bit
+    the value for the end of character range for an encoding is too large
 empty list not allowed
     at least one element is required
 empty range not allowed
@@ -4596,8 +4699,6 @@ option '?' requires an argument
     command line option needs an argument
 out of memory
     won't happen ;)
-scope '?' for label listing not found
-    the scope given on command line couldn't be found
 section '?' for output not found
     the section given on command line couldn't be found
 too many passes
@@ -4912,8 +5013,6 @@ LSR 4A                                  ROL 2A
 ROR 6A                                  SHL 06 0A 0E 16 1E
 SHR 46 4A 4E 56 5E
 
--------------------------------------------------------------------------------
-
 6502 illegal opcodes
 
 This processor is a standard 6502 with the NMOS illegal opcodes.
@@ -4937,8 +5036,6 @@ INS E3 E7 EF F3 F7 FB FF                ISC E3 E7 EF F3 F7 FB FF
 LAE BB                                  LAS BB
 LXA AB                                  TAS 9B
 XAA 8B
-
--------------------------------------------------------------------------------
 
 65DTV02 opcodes
 
@@ -4964,8 +5061,6 @@ AHX 93 9F                               AXS CB
 LAE BB                                  LAS BB
 TAS 9B
 
--------------------------------------------------------------------------------
-
 Standard 65C02 opcodes
 
 This processor is an enhanced version of standard 6502.
@@ -4987,8 +5082,6 @@ CLR 64 74 9C 9E                         CPA D2
 DEA 3A                                  GRA 4C 80
 INA 1A
 
--------------------------------------------------------------------------------
-
 R65C02 opcodes
 
 This processor is an enhanced version of standard 65C02.
@@ -5002,8 +5095,6 @@ BBR 0F 1F 2F 3F 4F 5F 6F 7F             BBS 8F 9F AF BF CF DF EF FF
 NOP 44 54 82 DC                         RMB 07 17 27 37 47 57 67 77
 SMB 87 97 A7 B7 C7 D7 E7 F7
 
--------------------------------------------------------------------------------
-
 W65C02 opcodes
 
 This processor is an enhanced version of R65C02.
@@ -5013,8 +5104,6 @@ STP DB                                  WAI CB
 
                               Additional aliases
 HLT DB
-
--------------------------------------------------------------------------------
 
 W65816 opcodes
 
@@ -5047,8 +5136,6 @@ CSP 02                                  HLT DB
 JML 5C DC                               SWA EB
 TAD 5B                                  TAS 1B
 TDA 7B                                  TSA 3B
-
--------------------------------------------------------------------------------
 
 65EL02 opcodes
 
@@ -5084,8 +5171,6 @@ XCE FB                                  ZEA 8F
 CLP C2                                  CPA C3 C7 D3 D7
 HLT DB
 
--------------------------------------------------------------------------------
-
 65CE02 opcodes
 
 This processor is an enhanced version of R65C02.
@@ -5119,8 +5204,6 @@ RTN 62
                             This alias is not valid
 CLR 64 74 9C 9E
 
--------------------------------------------------------------------------------
-
 CSG 4510 opcodes
 
 This processor is an enhanced version of 65CE02.
@@ -5140,18 +5223,17 @@ Assembler directives
 .addr .al .align .alignblk .alignind .alignpageind .as .assert .autsiz .bend
 .binary .binclude .bfor .block .break .breakif .brept .bwhile .byte .case .cdef
 .cerror .char .check .comment .continue .continueif .cpu .cwarn .databank
-.default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
-.encode .end .endblock .endc .endalignblk .endcomment .endencode .endf .endfor
-.endfunction .endif .endlogical .endm .endmacro .endn .endnamespace .endp
-.endpage .endproc .endrept .ends .endsection .endsegment .endstruct .endswitch
-.endu .endunion .endv .endvirtual .endweak .endwhile .endwith .eor .error .fi
-.fill .for .from .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl
-.include .lbl .lint .logical .long .macro .mansiz .namespace .next .null .offs
-.option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
-.segment .send .sfunction .shift .shiftl .showmac .sint .struct .switch .tdef
-.text .union .var .virtual .warn .weak .while .with .word .xl .xs
-
--------------------------------------------------------------------------------
+.default .dint .dpage .dsection .dstruct .dunion .dword .edef .elif .else
+.elsif .enc .encode .end .endblock .endc .endalignblk .endcomment .endencode
+.endf .endfor .endfunction .endif .endlogical .endm .endmacro .endn
+.endnamespace .endp .endpage .endproc .endrept .ends .endsection .endsegment
+.endstruct .endswitch .endu .endunion .endv .endvirtual .endweak .endwhile
+.endwith .eor .error .fi .fill .for .from .function .goto .here .hidemac .if
+.ifeq .ifmi .ifne .ifpl .include .lbl .lint .logical .long .macro .mansiz
+.namespace .next .null .offs .option .page .pend .proc .proff .pron .ptext
+.rept .rta .section .seed .segment .send .sfunction .shift .shiftl .showmac
+.sint .struct .switch .tdef .text .union .var .virtual .warn .weak .while .with
+.word .xl .xs
 
 Built-in functions
 

@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: error.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #include "console.h"
 
 struct file_list_s *current_file_list;
+struct file_list_s *commandline_file_list;
 const struct file_list_s *dummy_file_list;
 
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
@@ -338,6 +339,7 @@ static const char *const terr_warning[] = {
     "deprecated not equal operator, use '!=' instead",
     "deprecated directive, only for TASM compatible mode",
     "please use format(\"%d\", ...) as '^' will change it's meaning",
+    "please separate @b, @w or @l from label or number for future compatibility",
     "constant result, possibly changeable to 'lda'",
     "independent result, possibly changeable to 'lda'",
 #ifdef _WIN32
@@ -489,6 +491,7 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         case ERROR_______OLD_NEQ:
         case ERROR____OLD_MODULO:
         case ERROR____OLD_STRING:
+        case ERROR________OLD_AT:
             new_error_msg2(diagnostic_errors.deprecated, epoint);
             adderror(terr_warning[no]);
             adderror(" [-Wdeprecated]");
@@ -603,9 +606,9 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
             break;
         case ERROR__NO_BYTE_ADDR:
         case ERROR__NO_WORD_ADDR:
-        case ERROR__NO_LONG_ADDR: 
-            adderror(terr_error[no - 0x40]); 
-            err_opcode(*(const uint32_t *)prm); 
+        case ERROR__NO_LONG_ADDR:
+            adderror(terr_error[no - 0x40]);
+            err_opcode(*(const uint32_t *)prm);
             break;
         default:
             adderror(terr_error[no - 0x40]);
@@ -620,11 +623,6 @@ void err_msg2(Error_types no, const void *prm, linepos_t epoint) {
         adderror("unknown option '");
         adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
         adderror("'");
-        break;
-    case ERROR____LABEL_ROOT:
-        adderror("scope '");
-        adderror2(((const str_t *)prm)->data, ((const str_t *)prm)->len);
-        adderror("' for label listing not found");
         break;
     case ERROR__SECTION_ROOT:
         adderror("section '");
@@ -648,6 +646,14 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     if (more) new_error_msg_more();
 }
 
+void err_msg_enc_large(uval_t v, linepos_t epoint) {
+    char msg2[256];
+    bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
+    sprintf(msg2, "encoded value %" PRIuval " larger than 8 bit", v);
+    adderror(msg2);
+    if (more) new_error_msg_more();
+}
+
 void err_msg_big_address(linepos_t epoint) {
     Obj *val = get_star_value(current_address->l_address, current_address->l_address_val);
     bool more = new_error_msg(SV_ERROR, current_file_list, epoint);
@@ -659,7 +665,7 @@ void err_msg_big_address(linepos_t epoint) {
 
 static bool err_msg_big_integer(const Error *err) {
     char msg2[256];
-    bool more = new_error_msg_err(err); 
+    bool more = new_error_msg_err(err);
     sprintf(msg2, terr_error[err->num - 0x40], err->u.intconv.bits);
     adderror(msg2);
     err_msg_variable(err->u.intconv.val);
@@ -810,7 +816,7 @@ static void err_msg_no_addressing(atype_t addrtype, uint32_t cod) {
 }
 
 static bool err_msg_no_register(const Error *err) {
-    bool more = new_error_msg_err(err); 
+    bool more = new_error_msg_err(err);
     Register *val = err->u.reg.reg;
     adderror("no register '");
     adderror2(val->data, val->len);
@@ -821,7 +827,7 @@ static bool err_msg_no_register(const Error *err) {
 
 static bool err_msg_no_lot_operand(const Error *err) {
     char msg2[256];
-    bool more = new_error_msg_err(err); 
+    bool more = new_error_msg_err(err);
     sprintf(msg2, "no %" PRIuSIZE " operand", err->u.opers.num);
     adderror(msg2);
     err_opcode(err->u.opers.cod);
@@ -830,7 +836,7 @@ static bool err_msg_no_lot_operand(const Error *err) {
 
 static bool err_msg_cant_broadcast(const Error *err) {
     char msg2[256];
-    bool more = new_error_msg_err(err); 
+    bool more = new_error_msg_err(err);
     sprintf(msg2, "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE, err->u.broadcast.v1, err->u.broadcast.v2);
     adderror(msg2);
     return more;
@@ -881,7 +887,7 @@ static void err_msg_argnum2(argcount_t num, argcount_t min, argcount_t max) {
     char line[1024];
     adderror("expected ");
     n = min;
-    if (min == max) { if (min != 0) adderror("exactly "); } 
+    if (min == max) { if (min != 0) adderror("exactly "); }
     else if (num < min) adderror("at least ");
     else {n = max; adderror("at most "); }
     switch (n) {
@@ -1394,7 +1400,7 @@ static void err_unicode_character(unichar_t ch) {
     *s++ = quote;
     if (ch != 0 && ch < 0x80) *s++ = (uint8_t)ch; else s += utf8out(ch, s);
     *s++ = quote;
-    sprintf((char *)s, " (U+%04" PRIX32 ")", ch); 
+    sprintf((char *)s, " (U+%04" PRIX32 ")", ch);
     adderror((char *)line);
 }
 
@@ -1501,7 +1507,7 @@ static void print_error(FILE *f, const struct errorentry_s *err, bool caret) {
     }
     if (console_use_color) {
         if (bold) {
-            console_defaultbold(f); 
+            console_defaultbold(f);
 #ifdef COLOR_OUTPUT
             console_use_bold = true;
 #endif
@@ -1559,7 +1565,7 @@ void error_print(const struct error_output_s *output) {
     if (output->name != NULL) {
         ferr = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
         if (ferr == NULL) {
-            err_msg_file2(ERROR_CANT_WRTE_ERR, output->name);
+            err_msg_file2(ERROR_CANT_WRTE_ERR, output->name, &output->name_pos);
             ferr = stderr;
         }
     } else ferr = output->no_output ? NULL : stderr;
@@ -1662,6 +1668,7 @@ void err_init(const char *name) {
     avltree_init(&error_list.members);
     current_file_list = &file_list.flist;
     dummy_file_list = &file_list.flist;
+    commandline_file_list = &file_list.flist;
     included_from = &file_list;
     avltree_init(&notdefines);
     lastnd = NULL;
@@ -1730,9 +1737,10 @@ void err_msg_file(Error_types no, const char *prm, const struct file_list_s *cfi
     if (more) new_error_msg_more();
 }
 
-void err_msg_file2(Error_types no, const char *prm) {
-    static const struct linepos_s nopoint = {0, 0};
-    err_msg_file(no, prm, current_file_list, &nopoint);
+void err_msg_file2(Error_types no, const char *name, const struct argpos_s *prm) {
+    pline = arguments.commandline.data + prm->start;
+    lpoint.pos = prm->pos; lpoint.line = prm->line;
+    err_msg_file(no, name, commandline_file_list, &lpoint);
 }
 
 void error_status(void) {

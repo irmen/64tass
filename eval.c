@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3061 2023-08-26 17:07:02Z soci $
+    $Id: eval.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -371,10 +371,10 @@ static MUST_CHECK Obj *resolv_anonlabel(ssize_t as, linecpos_t pos) {
     if (l != NULL) {
         touch_label(l);
         return val_reference(l->value);
-    } 
+    }
     if (constcreated && pass < max_pass) {
         return ref_none();
-    } 
+    }
     epoint.line = lpoint.line;
     epoint.pos = pos;
     err = new_error(ERROR___NOT_DEFINED, &epoint);
@@ -547,12 +547,12 @@ rest:
                 switch (pline[epoint.pos + 1] | arguments.caseinsensitive) {
                 case 'x':
                     opr.p->op = O_COMMAX;
-                    opr.p->pos = epoint.pos; 
+                    opr.p->pos = epoint.pos;
                     if (++opr.p == opr.max) extend_opr(&opr);
                     goto other;
                 case 'y':
                     opr.p->op = O_COMMAY;
-                    opr.p->pos = epoint.pos; 
+                    opr.p->pos = epoint.pos;
                     if (++opr.p == opr.max) extend_opr(&opr);
                     goto other;
                 default: break;
@@ -582,10 +582,10 @@ rest:
         case '/': op = O_DIV; goto add;
         case '+': op = O_ADD; goto add;
         case '-': op = O_SUB;
-        add: 
+        add:
             lpoint.pos++;
             opr.p->op = op;
-            opr.p->pos = epoint.pos; 
+            opr.p->pos = epoint.pos;
             if (++opr.p == opr.max) extend_opr(&opr);
             continue;
         case ')':
@@ -810,7 +810,7 @@ static bool get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defi
                     v[0].val = int_from_uval(val1);
                     continue;
                 }
-            default: 
+            default:
                 epoint.pos = out->pos;
                 break;
             case T_ERROR:
@@ -1102,7 +1102,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 tmp.v.obj = FUNCARGS_OBJ;
 
                 epoint.pos = out->pos;
-                oper.v1 = none_value; 
+                oper.v1 = none_value;
                 oper.v2 = &tmp.v;
                 oper.epoint = &epoint;
                 oper.epoint2 = &v[0].epoint;
@@ -1246,8 +1246,8 @@ static bool get_val2(struct eval_context_s *ev) {
                 continue;
             }
             continue;
-        case O_IDENTITY: 
-        case O_NIDENTITY: 
+        case O_IDENTITY:
+        case O_NIDENTITY:
             if (vsp < 2) goto syntaxe;
             vsp--;
             v = &values[vsp - 1];
@@ -1458,9 +1458,9 @@ static bool get_exp2(int stop) {
         case '>': if (pline[lpoint.pos + 1] == '`') {lpoint.pos++;op = O_HWORD;} else if (pline[lpoint.pos + 1] == '<') {lpoint.pos++;op = O_BSWORD;} else op = O_HIGHER; goto priocheck;
         case '#': op = (pline[lpoint.pos + 1] == '+' || pline[lpoint.pos + 1] == '-') ? O_HASH_SIGNED : O_HASH; goto priocheck;
         case '`': op = O_BANK; goto priocheck;
-        case '^': 
+        case '^':
             op = O_STRING;
-            if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint); 
+            if (diagnostics.deprecated) err_msg2(ERROR____OLD_STRING, NULL, &lpoint);
         priocheck:
             if (diagnostics.priority && opr.p != opr.data && opr.p - 1 != opr.data && op == opr.p[-2].op) {
                 unsigned int prio = operators[opr.p[-1].op].prio;
@@ -1473,9 +1473,9 @@ static bool get_exp2(int stop) {
             }
             break;
         case '$': val = get_hex(&epoint); goto push_other;
-        case '%': 
-            if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) { 
-                val = get_bin(&epoint); goto push_other; 
+        case '%':
+            if ((pline[lpoint.pos + 1] & 0xfe) == 0x30 || (pline[lpoint.pos + 1] == '.' && (pline[lpoint.pos + 2] & 0xfe) == 0x30)) {
+                val = get_bin(&epoint); goto push_other;
             }
             goto tryanon;
         case '"':
@@ -1510,17 +1510,17 @@ static bool get_exp2(int stop) {
                     val = new_symbol(&symbol, &epoint);
                     goto push_other;
                 case '(':
-                    lpoint.pos++; 
-                    symbollist++; 
+                    lpoint.pos++;
+                    symbollist++;
                     goto tphack2;
                 case '[':
-                    lpoint.pos++; 
-                    symbollist++; 
+                    lpoint.pos++;
+                    symbollist++;
                     goto lshack2;
                 case '.':
                     if (symbol.data[1] == '.') {
-                        lpoint.pos += 3; 
-                        val = ref_fold(); 
+                        lpoint.pos += 3;
+                        val = ref_fold();
                         goto push_other;
                     }
                     FALL_THROUGH; /* fall through */
@@ -1697,7 +1697,7 @@ static bool get_exp2(int stop) {
                         opr.p->pos = epoint.pos;
                         if (++opr.p == opr.max) extend_opr(&opr);
                         goto other;
-                    } 
+                    }
                 }
             } else llen = 0;
             prec = operators[O_COMMA].prio;
@@ -1810,7 +1810,7 @@ static bool get_exp2(int stop) {
                 opr.p->pos = epoint.pos;
                 if (++opr.p == opr.max) extend_opr(&opr);
                 continue;
-            } 
+            }
             op = pline[lpoint.pos + 2] != '=' ? O_EQ : O_IDENTITY;
         push2:
             lpoint.pos += operators[op].len;
@@ -1849,7 +1849,7 @@ static bool get_exp2(int stop) {
             goto push2;
         case '!':
             if (pline[lpoint.pos + 1] == '=') {op = pline[lpoint.pos + 2] != '=' ? O_NE : O_NIDENTITY;goto push2;}
-            if (get_label(pline + lpoint.pos + 1) == 2 && 
+            if (get_label(pline + lpoint.pos + 1) == 2 &&
                 (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'i' &&
                 (pline[epoint.pos + 2] | arguments.caseinsensitive) == 'n') {op = O_NOTIN;goto push2;}
             err_msg2(ERROR______EXPECTED, "an operator is", &epoint);
@@ -2031,7 +2031,7 @@ MUST_CHECK Obj *calc2_lxor(oper_t op, bool i) {
     if (result->obj != BOOL_OBJ) return result;
     if (i == Bool(result)->value) {
         if (i) {
-            val_destroy(result); 
+            val_destroy(result);
             result = ref_false();
         }
         return result;

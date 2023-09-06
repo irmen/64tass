@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.h 2737 2021-10-06 20:50:52Z soci $
+    $Id: listobj.h 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ struct sliceparam_s {
 struct indexoffs_s {
     Obj *val;
     size_t len;
-    size_t offs; 
+    size_t offs;
     linepos_t epoint;
 };
 

@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 3046 2023-08-21 16:19:09Z soci $
+    $Id: error.h 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ struct file_list_s {
 };
 
 extern struct file_list_s *current_file_list;
+extern struct file_list_s *commandline_file_list;
 extern const struct file_list_s *dummy_file_list;
 
 struct Obj;
@@ -45,6 +46,7 @@ struct oper_s;
 struct str_t;
 struct error_output_s;
 struct values_s;
+struct argpos_s;
 
 extern void err_msg(Error_types, const void *);
 extern void err_msg2(Error_types, const void *, linepos_t);
@@ -75,7 +77,7 @@ extern void err_msg_symbol_case2(const struct Symbol *, const struct Symbol *);
 extern void err_msg_macro_prefix(linepos_t);
 extern void err_msg_address_mismatch(unsigned int, unsigned int, linepos_t);
 extern void err_msg_file(Error_types, const char *, const struct file_list_s *, linepos_t);
-extern void err_msg_file2(Error_types, const char *);
+extern void err_msg_file2(Error_types, const char *, const struct argpos_s *);
 extern void err_msg_output(const struct Error *);
 extern void err_msg_output_and_destroy(struct Error *);
 extern void err_msg_argnum(argcount_t, argcount_t, argcount_t, linepos_t);
@@ -107,6 +109,7 @@ extern void err_msg_compound_note(linepos_t);
 extern void err_msg_byte_note(linepos_t);
 extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);
+extern void err_msg_enc_large(uval_t, linepos_t);
 extern void err_msg_big_address(linepos_t);
 extern void error_reset(void);
 extern void error_print(const struct error_output_s *);

@@ -1,5 +1,5 @@
 .TH 64tass 1 "Jan 11 2023" "64tass 1.58" "64tass 1.58"
-\" $Id: 64tass.1 3049 2023-08-21 20:35:45Z soci $
+\" $Id: 64tass.1 3107 2023-09-05 20:46:55Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -35,6 +35,9 @@ The memory map won't be displayed or recorded.
 .TP 0.5i
 \fB\-\-output\-section\fR \fIsectionname\fR
 Output this section instead of everything
+.TP 0.5i
+\fB\-\-output\-exec\fR \fIexpression\fR
+Sets execution address for output formats which support this.
 .TP 0.5i
 \fB\-X\fR, \fB\-\-long\-address\fR
 Use 3 byte address/length for CBM and nonlinear output instead of 2
@@ -77,6 +80,16 @@ Generate a Apple II output file (DOS 3.3).
 Overlapping blocks are flattened and uninitialized memory is filled up
 with zeros. Uninitialized memory before the first and after the last
 valid bytes are not saved. Up to 64 KiB.
+\fB\-\-c256\-pgx\fR
+Generate a C256 Foenix PGX output file.
+Overlapping blocks are flattened and uninitialized memory is filled up
+with zeros. Uninitialized memory before the first and after the last
+valid bytes are not saved. Up to 16 MiB.
+.TP 0.5i
+\fB\-\-c256\-pgz\fR
+Generate a C256 Foenix PGZ output file.
+Overlapping blocks are flattened. Blocks are saved in sorted order and
+uninitialized memory is skipped. Up to 16 MiB.
 .TP 0.5i
 \fB\-\-intel\-hex\fR
 Use Intel HEX output file format.
@@ -364,7 +377,7 @@ List labels into \fIfile\fR. May be used multiple times. The format is remembere
 \fB\-\-labels\-append\fR=\fIfile\fR
 Append labels to \fIfile\fR instead of overwriting it.
 .TP 0.5i
-\fB\-\-labels\-root\fR=\fI<path>\fR
+\fB\-\-labels\-root\fR=\fI<expression>\fR
 Specify the scope to list labels from.
 .TP 0.5i
 \fB\-\-labels\-section\fR=\fI<sectionname>\fR

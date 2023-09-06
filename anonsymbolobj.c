@@ -1,5 +1,5 @@
 /*
-    $Id: anonsymbolobj.c 2761 2021-10-16 08:27:15Z soci $
+    $Id: anonsymbolobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ static inline int icmp(oper_t op) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     Obj *o2 = op->v2;
     switch (o2->obj->type) {
-    case T_ANONSYMBOL: 
+    case T_ANONSYMBOL:
         return obj_oper_compare(op, icmp(op));
     case T_NONE:
     case T_ERROR:

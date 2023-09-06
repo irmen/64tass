@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 3066 2023-08-27 20:52:04Z soci $
+    $Id: encobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -218,10 +218,10 @@ bool enc_escape_add(Enc *enc, const str_t *v, Obj *val, linepos_t epoint)
         actual_encoding->updating = true;
         val2 = bytes_from_obj(val, epoint);
         actual_encoding->updating = old;
-        iter.data = val2; val2->obj->getiter(&iter); 
+        iter.data = val2; val2->obj->getiter(&iter);
         val_destroy(val2);
     } else {
-        iter.data = val; val->obj->getiter(&iter); 
+        iter.data = val; val->obj->getiter(&iter);
     }
 
     if (iter.len <= lenof(tmp.val)) {

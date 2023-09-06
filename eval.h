@@ -1,5 +1,5 @@
 /*
-    $Id: eval.h 2737 2021-10-06 20:50:52Z soci $
+    $Id: eval.h 3107 2023-09-05 20:46:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,6 +39,13 @@ struct oper_s {
 };
 typedef struct oper_s *oper_t;
 
+struct values_s {
+    struct Obj *val;
+    struct linepos_s epoint;
+};
+
+struct argpos_s;
+
 extern bool get_exp(int, argcount_t, argcount_t, linepos_t);
 extern struct values_s *get_val(void);
 extern struct Obj *pull_val(void);
@@ -54,9 +61,4 @@ extern MUST_CHECK struct Obj *get_vals_tuple(void);
 extern void get_vals_funcargs(struct Funcargs *f);
 extern void touch_label(struct Label *);
 extern MUST_CHECK struct Obj *calc2_lxor(oper_t, bool);
-
-struct values_s {
-    struct Obj *val;
-    struct linepos_s epoint;
-};
 #endif

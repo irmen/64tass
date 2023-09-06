@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 3058 2023-08-26 07:53:26Z soci $
+    $Id: listing.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -54,7 +54,6 @@ typedef struct Listing {
     } columns;
     FILE *flist;
     uint16_t lastfile;
-    const char *filename;
     unsigned int tab_size;
     bool linenum, verbose, monitor, pccolumn, source;
 } Listing;
@@ -147,7 +146,7 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
 
     flist = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
     if (flist == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_LST, output->name);
+        err_msg_file2(ERROR_CANT_WRTE_LST, output->name, &output->name_pos);
         listing = NULL;
         return;
     }
@@ -157,7 +156,6 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
     ls = &listing2;
 
     memcpy(ls->hex, "0123456789abcdef", 16);
-    ls->filename = output->name;
     ls->flist = flist;
     ls->linenum = arguments.list.linenum;
     ls->pccolumn = listing_pccolumn;
@@ -180,7 +178,7 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
         argv_print(argv[i], flist);
     }
     fputs("\n; ", flist);
-    if (get_latest_file_time((void *)&t)) time(&t); 
+    if (get_latest_file_time((void *)&t)) time(&t);
     fputs(ctime(&t), flist);
     newline(ls);
     if (ls->linenum) {
@@ -207,7 +205,7 @@ void listing_open(const struct list_output_s *output, int argc, char *argv[]) {
     listing = ls;
 }
 
-void listing_close(void) {
+void listing_close(const struct list_output_s *output) {
     Listing *const ls = listing;
     int err;
     if (ls == NULL) return;
@@ -215,7 +213,7 @@ void listing_close(void) {
     fputs("\n;******  End of listing\n", ls->flist);
     err = ferror(ls->flist);
     err |= (ls->flist != stdout) ? fclose(ls->flist) : fflush(ls->flist);
-    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_LST, ls->filename);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_LST, output->name, &output->name_pos);
     listing = NULL;
 }
 

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 3049 2023-08-21 20:35:45Z soci $
+    $Id: arguments.h 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,9 +21,11 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
+struct Namespace;
+
 typedef enum Output_types {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX,
-    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC, OUTPUT_MHEX
+    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC, OUTPUT_MHEX, OUTPUT_PGX, OUTPUT_PGZ
 } Output_types;
 
 typedef enum Symbollist_types {
@@ -35,10 +37,20 @@ typedef enum Caret_types {
     CARET_ALWAYS, CARET_MACRO, CARET_NEVER
 } Caret_types;
 
+struct argpos_s {
+    uint32_t start;
+    linenum_t line;
+    linecpos_t pos;
+};
+
 struct output_s {
+    struct argpos_s name_pos;
     const char *name;
     const char *section;
+    struct argpos_s mapname_pos;
     const char *mapname;
+    struct argpos_s exec_pos;
+    uval_t exec;
     Output_types mode;
     bool append;
     bool longaddr;
@@ -47,6 +59,7 @@ struct output_s {
 };
 
 struct error_output_s {
+    struct argpos_s name_pos;
     const char *name;
     Caret_types caret;
     bool warning;
@@ -55,8 +68,10 @@ struct error_output_s {
 };
 
 struct symbol_output_s {
+    struct argpos_s name_pos;
     const char *name;
-    const char *space;
+    struct argpos_s space_pos;
+    struct Namespace *space;
     const char *section;
     const char *add_prefix;
     Symbollist_types mode;
@@ -64,6 +79,7 @@ struct symbol_output_s {
 };
 
 struct list_output_s {
+    struct argpos_s name_pos;
     const char *name;
     bool monitor;
     bool source;
@@ -73,13 +89,14 @@ struct list_output_s {
 };
 
 struct make_output_s {
+    struct argpos_s name_pos;
     const char *name;
     bool phony;
     bool append;
 };
 
-struct cmdline_defines_s {
-    char *data;
+struct arguments_data_s {
+    uint8_t *data;
     size_t len;
 };
 
@@ -108,7 +125,8 @@ struct arguments_s {
     struct include_list_s *include;
     struct list_output_s list;
     struct make_output_s make;
-    struct cmdline_defines_s defines;
+    struct arguments_data_s defines;
+    struct arguments_data_s commandline;
     struct error_output_s error;
     unsigned int tab_size;
 };

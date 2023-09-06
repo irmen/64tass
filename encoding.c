@@ -1,5 +1,5 @@
 /*
-    $Id: encoding.c 2983 2023-05-16 20:43:59Z soci $
+    $Id: encoding.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -626,7 +626,7 @@ static void add_esc(Enc *enc, const char *s) {
             len = 9;
             s2 = shift;
             goto abr;
-        case '{': 
+        case '{':
             len = 0;
             while (s[len++] != '}');
             s2 = (char *)s;

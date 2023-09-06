@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3071 2023-08-29 05:19:26Z soci $
+    $Id: 64tass.c 3112 2023-09-06 06:34:22Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -50,6 +50,7 @@
 #include "mem.h"
 #include "unicodedata.h"
 #include "main.h"
+#include "argvalues.h"
 #include "version.h"
 
 #include "listobj.h"
@@ -228,6 +229,7 @@ static const char *const command[] = { /* must be sorted, first char is the ID *
     "\x4a" "dunion",
     "\x0e" "dword",
     "\x4f" "edef",
+    "\x17" "elif",
     "\x15" "else",
     "\x17" "elsif",
     "\x2c" "enc",
@@ -367,6 +369,7 @@ static void compile_init(const char *name) {
 static void compile_destroy(void) {
     destroy_lastlb();
     destroy_eval();
+    destroy_argvalues();
     destroy_variables();
     destroy_section();
     destroy_longjump();
@@ -548,55 +551,66 @@ FAST_CALL uint8_t *pokealloc(address_t db, linepos_t epoint) {
 
 /* --------------------------------------------------------------------------- */
 static int get_command(void) {
+    enum { MASK = 255 };
+    static uint8_t hash[MASK + 1];
     unsigned int no, also, felso, elozo;
     const uint8_t *label;
     uint8_t tmp[13];
+    unsigned int ln, h;
     lpoint.pos++;
     label = pline + lpoint.pos;
-    if (arguments.caseinsensitive) {
-        int i, j;
-        for (i = j = 0; i < (int)sizeof tmp; i++) {
-            if ((uint8_t)(label[i] - 'a') <= ('z' - 'a')) continue;
-            if ((uint8_t)(label[i] - 'A') > ('Z' - 'A')) break;
-            while (j < i) { tmp[j] = label[j]; j++; }
-            tmp[j++] = label[i] | 0x20;
+    for (ln = h = 0; ln < sizeof tmp; ln++) {
+        if ((uint8_t)(label[ln] - 'a') <= ('z' - 'a')) {
+            h *= 7;
+            h ^= tmp[ln] = label[ln];
+            continue;
         }
-        if ((unsigned int)(i - 2) >= (sizeof tmp - 2)) return lenof(command);
-        if (j != 0) {
-            while (j <= i) { tmp[j] = label[j]; j++; }
-            label = tmp;
+        if ((uint8_t)(label[ln] - 'A') > ('Z' - 'A')) break;
+        if (!arguments.caseinsensitive) break;
+        h *= 7;
+        h ^= tmp[ln] = label[ln] | 0x20;
+    }
+    if ((unsigned int)(ln - 2u) >= (sizeof tmp - 2)) return lenof(command);
+    if (label[ln] >= '0') {
+        if ((label[ln] & 0x80) != 0) {
+            if (arguments.to_ascii) {
+                unichar_t ch;
+                utf8in(label + ln, &ch);
+                if ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) return lenof(command);
+            }
+        } else if (label[ln] <= '9' || (uint8_t)(label[ln] - 'A') <= ('Z' - 'A') || label[ln] == '_') return lenof(command);
+    }
+    tmp[ln] = 0;
+    for (;;) {
+        const uint8_t *cmd2;
+        uint8_t h2 = hash[h & MASK];
+        if (h2 == 0) break;
+        cmd2 = (const uint8_t *)command[h2 - 1] + 1;
+        if (tmp[0] == cmd2[0]) {
+            unsigned int i;
+            for (i = 1; tmp[i] == cmd2[i]; i++) {
+                if (tmp[i] != 0) continue;
+                lpoint.pos += ln;
+                return cmd2[-1];
+            }
         }
+        h += 5;
     }
 
     also = 0;
     felso = lenof(command);
     no = lenof(command)/2;
-    do {  /* do binary search */
-        const uint8_t *cmd2 = (const uint8_t *)command[no];
-        int s4 = label[0] - cmd2[1];
-        if (s4 == 0) {
-            unsigned int l = 1;
-            for (;;) {
-                s4 = label[l] - cmd2[l + 1];
-                if (s4 != 0) break;
-                l++;
-                if (cmd2[l + 1] != 0) continue;
-                if (label[l] >= '0') {
-                    if ((uint8_t)(label[l] - 'a') <= ('z' - 'a')) break;
-                    if ((label[l] & 0x80) != 0) {
-                        if (arguments.to_ascii) {
-                            unichar_t ch;
-                            utf8in(pline + lpoint.pos + l, &ch);
-                            if ((uget_property(ch)->property & (id_Continue | id_Start)) != 0) return lenof(command);
-                        }
-                    } else if (label[l] <= '9' || (uint8_t)(label[l] - 'A') <= ('Z' - 'A') || label[l] == '_') return lenof(command);
-                }
-                lpoint.pos += l;
-                return cmd2[0];
-            }
+    do {
+        const uint8_t *cmd2 = (const uint8_t *)command[no] + 1;
+        unsigned int i;
+        for (i = 0; tmp[i] == cmd2[i]; i++) {
+            if (tmp[i] != 0) continue;
+            lpoint.pos += i;
+            hash[h & MASK] = (uint8_t)(no + 1);
+            return cmd2[-1];
         }
         elozo = no;
-        no = ((s4 >= 0) ? (felso + (also = no)) : (also + (felso = no)))/2;
+        no = ((tmp[i] >= cmd2[i]) ? (felso + (also = no)) : (also + (felso = no)))/2;
     } while (elozo != no);
     return lenof(command);
 }
@@ -642,7 +656,7 @@ static void textrecursion_flush(struct textrecursion_s *trec) {
 }
 
 static void textrecursion_gaps(struct textrecursion_s *trec) {
-    memskip(trec->gaps, trec->epoint); 
+    memskip(trec->gaps, trec->epoint);
     trec->gaps = 0;
 }
 
@@ -729,7 +743,7 @@ static void textdump_bytes(struct textrecursion_s *trec, const Bytes *bytes) {
             }
             return;
         }
-    } 
+    }
     for (i = 0; i < ln; i++) {
         textdump(trec, bytes->data[i] ^ inv);
     }
@@ -839,7 +853,7 @@ struct byterecursion_s {
 };
 
 static void byterecursion_flush(struct byterecursion_s *brec) {
-    memcpy(pokealloc(brec->p, brec->epoint), brec->buff, brec->p); 
+    memcpy(pokealloc(brec->p, brec->epoint), brec->buff, brec->p);
     brec->p = 0;
 }
 
@@ -1111,7 +1125,7 @@ static void encode_close(void) {
 static const char *check_waitfor(void) {
     switch (waitfor->what) {
     case W_FI2:
-    case W_FI: 
+    case W_FI:
         if (waitfor->u.cmd_if.label != NULL) {set_size(waitfor->u.cmd_if.label, current_address->address - waitfor->u.cmd_if.addr, current_address->mem, waitfor->u.cmd_if.addr, waitfor->u.cmd_if.membp);val_destroy(Obj(waitfor->u.cmd_if.label));}
         return ".endif";
     case W_SWITCH2:
@@ -1139,7 +1153,7 @@ static const char *check_waitfor(void) {
     case W_ENDMACRO:
         if (waitfor->u.cmd_macro.val != NULL) val_destroy(waitfor->u.cmd_macro.val);
         return ".endmacro";
-    case W_ENDF: 
+    case W_ENDF:
         if (waitfor->u.cmd_function.val != NULL) val_destroy(waitfor->u.cmd_function.val);
         return ".endfunction";
     case W_ENDFOR3:
@@ -1284,7 +1298,6 @@ static bool virtual_start(linepos_t epoint) {
     bool retval = false;
 
     if (diagnostics.optimize) cpu_opt_invalidate();
-    listing_line(epoint->pos);
     new_waitfor(W_ENDV2, epoint); waitfor->u.cmd_virtual.section_address = current_address; waitfor->u.cmd_virtual.label = NULL;
     new_instance(&section_address);
     section_address->wrapwarn = section_address->moved = false;
@@ -1614,6 +1627,7 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
             if (label->constant) {
                 err_msg_double_defined(label, &varname, &epoint2);
                 val_destroy(val);
+                label = NULL;
             } else {
                 if (label->defpass != pass) {
                     label->ref = false;
@@ -1653,7 +1667,7 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
         }
         ignore();
     } while (wht == ',');
-    
+
     if (foreach) {
         if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     } else {
@@ -1685,15 +1699,19 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                 if (nopos < 0) nopos = 0;
                 else if ((waitfor->skip & 1) != 0) listing_line_cut(waitfor->epoint.pos);
                 if (labels.p == 1) {
-                    val_destroy(label->value);
-                    label->value = val_reference(val2);
+                    if (labels.data[0] != NULL) {
+                        val_destroy(labels.data[0]->value);
+                        labels.data[0]->value = val_reference(val2);
+                    }
                 } else {
                     struct iter_s iter2;
                     size_t j;
                     iter2.data = val2; val2->obj->getiter(&iter2);
                     for (j = 0; j < labels.p && (val2 = iter2.next(&iter2)) != NULL; j++) {
-                        val_destroy(labels.data[j]->value);
-                        labels.data[j]->value = val_reference(val2);
+                        if (labels.data[j] != NULL) {
+                            val_destroy(labels.data[j]->value);
+                            labels.data[j]->value = val_reference(val2);
+                        }
                     }
                     if (iter2.len != labels.p) err_msg_cant_unpack(labels.p, iter2.len, epoint);
                     iter_destroy(&iter2);
@@ -1991,7 +2009,7 @@ static size_t while_command(const Label *newlabel, List *lst, linepos_t epoint) 
     }
     pline = oldpline;
     lpoint.line = xlin;
-    
+
     if (nf != NULL) {
         if ((waitfor->skip & 1) != 0) listing_line(waitfor->epoint.pos);
         else listing_line_cut2(waitfor->epoint.pos);
@@ -2070,6 +2088,7 @@ static bool cdef_command(linepos_t epoint) {
             old = actual_encoding->updating;
             actual_encoding->updating = true;
             if (touval(vs->val, &uval, 8, &vs->epoint)) tryit = false;
+            else uval &= 0xff;
             actual_encoding->updating = old;
         }
         if (tryit) {
@@ -2081,6 +2100,11 @@ static bool cdef_command(linepos_t epoint) {
             }
             if (enc_trans_add(actual_encoding, &tmp, epoint)) {
                 err_msg2(ERROR__DOUBLE_RANGE, NULL, opoint); return true;
+            } else {
+                uval += tmp.end - tmp.start;
+                if (uval > 256) {
+                    err_msg_enc_large(uval - 1, &vs->epoint);
+                }
             }
         }
     }
@@ -2142,9 +2166,9 @@ static bool tdef_command(linepos_t epoint) {
     for (;;) {
         struct character_range_s tmp;
         struct iter_s iter, iter2;
-        struct values_s *vs, *vs2;
+        struct values_s *vs, *vs2, vs1;
         bool doublerange;
-        uval_t uval;
+        uval_t uval = 0;
 
         vs = get_val();
         if (vs == NULL) break;
@@ -2158,14 +2182,14 @@ static bool tdef_command(linepos_t epoint) {
             bool err;
             old = actual_encoding->updating;
             actual_encoding->updating = true;
-            err = touval2(vs2, &uval, 8);
+            err = touval(vs2->val, &uval, 8, &vs2->epoint);
             actual_encoding->updating = old;
             if (err) continue;
             uval &= 0xff;
             iter2.data = NULL;
         }
         doublerange = false;
-        iter.data = val; 
+        iter.data = val;
         if (val->obj->iterable || val->obj == STR_OBJ) {
             val->obj->getiter(&iter);
         } else {
@@ -2177,24 +2201,19 @@ static bool tdef_command(linepos_t epoint) {
             err->u.broadcast.v2 = iter2.len;
             err_msg_output_and_destroy(err);
         }
-        while ((val = iter.next(&iter)) != NULL) {
+        vs1.epoint = vs->epoint;
+        while ((vs1.val = iter.next(&iter)) != NULL) {
             uval_t uval2;
             bool ret;
             old = actual_encoding->updating;
             actual_encoding->updating = true;
-            ret = touval(val, &uval2, 24, &vs->epoint);
+            ret = touval2(&vs1, &uval2, 24);
             if (iter2.data != NULL) {
                 val = iter2.next(&iter2);
-                if (val != NULL) {
+                if (!ret && val != NULL) {
                     if (touval(val, &uval, 8, &vs2->epoint)) ret = true;
+                    else uval &= 0xff;
                 }
-            } else if (uval > 255) {
-                if (uval == 256) {
-                    val = int_from_uval(uval);
-                    if (touval(val, &uval, 8, &vs2->epoint)) ret = true;
-                    val_destroy(val);
-                }
-                ret = true;
             }
             actual_encoding->updating = old;
             if (val == NULL) break;
@@ -2210,6 +2229,8 @@ static bool tdef_command(linepos_t epoint) {
         if (iter2.data != NULL) iter_destroy(&iter2);
         if (doublerange) {
             err_msg2(ERROR__DOUBLE_RANGE, NULL, &vs->epoint);
+        } else if (uval > 256) {
+            err_msg_enc_large(uval - 1, &vs2->epoint);
         }
     }
     return false;
@@ -2323,7 +2344,7 @@ MUST_CHECK Obj *compile(void)
         star = current_address->l_address;
         wht = here();
         if (wht >= 'A') {
-            labelname.data = pline + lpoint.pos; 
+            labelname.data = pline + lpoint.pos;
             labelname.len = get_label(labelname.data);
             if (labelname.len != 0) {
                 struct linepos_s cmdpoint;
@@ -3011,7 +3032,7 @@ MUST_CHECK Obj *compile(void)
                             if (prm == CMD_FUNCTION) {
                                 if (!failed && here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                                 waitfor->skip = 0;
-                            } 
+                            }
                             goto breakerr;
                         }
                     case CMD_STRUCT:
@@ -3497,7 +3518,7 @@ MUST_CHECK Obj *compile(void)
                             val_destroy(Obj(newlabel));
                         } else if (!newlabel->ref && Code(newlabel->value)->pass != 0) {
                             listing_line(0);
-                            waitfor->skip = 0; 
+                            waitfor->skip = 0;
                             set_size(newlabel, 0, current_address->mem, oaddr, newmembp);
                             Code(newlabel->value)->pass = 1;
                             push_dummy_context();
@@ -3746,7 +3767,7 @@ MUST_CHECK Obj *compile(void)
                     }
                 }
                 break;
-            case CMD_ELSIF: /* .elsif */
+            case CMD_ELSIF: /* .elsif, .elif */
                 {
                     bool truth;
                     if ((waitfor->skip & 1) != 0) listing_line_cut(epoint.pos);
@@ -4134,10 +4155,10 @@ MUST_CHECK Obj *compile(void)
                         if (!get_exp(0, 0, 0, NULL)) goto breakerr;
                         if (prm == CMD_PTEXT) {
                             trec.buff[0] = (uint8_t)outputeor;
-                            trec.sum = 1; 
+                            trec.sum = 1;
                             trec.p = 1;
                         } else {
-                            trec.sum = 0; 
+                            trec.sum = 0;
                             trec.p = 0;
                         }
                         trec.gaps = 0;
@@ -4243,7 +4264,8 @@ MUST_CHECK Obj *compile(void)
                         if (!get_exp(0, 1, 3, &epoint)) goto breakerr;
                         vs = get_val();
                         if (!tostr(vs, &filename)) {
-                            cfile2 = file_open(&filename, current_file_list, FILE_OPEN_BINARY, &vs->epoint);
+                            if (filename.len == 0) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
+                            else cfile2 = file_open(&filename, current_file_list, FILE_OPEN_BINARY, &vs->epoint);
                         }
                         if ((vs = get_val()) != NULL) {
                             ival_t ival;
@@ -4965,7 +4987,8 @@ MUST_CHECK Obj *compile(void)
                     if (!get_exp(0, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (!tostr(vs, &filename)) {
-                        f = file_open(&filename, current_file_list, FILE_OPEN_SOURCE, &vs->epoint);
+                        if (filename.len == 0) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
+                        else f = file_open(&filename, current_file_list, FILE_OPEN_SOURCE, &vs->epoint);
                     }
                     if (here() != 0 && here() != ';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
@@ -5004,7 +5027,7 @@ MUST_CHECK Obj *compile(void)
                         waitfor->what = what;
                         if (prm == CMD_BINCLUDE) pop_context();
                         if (val != NULL) val_destroy(val);
-                        lpoint.line = lin; 
+                        lpoint.line = lin;
                         s->vline = vline; star_tree = stree_old; vline = star_tree->vline;
                         exitfile();
                         f->open = false;
@@ -5071,8 +5094,8 @@ MUST_CHECK Obj *compile(void)
                     bool nok = true, doit = true;
                     listing_line(epoint.pos);
                     if (prm == CMD_CONTINUEIF || prm == CMD_BREAKIF) {
-                        if (get_exp(0, 1, 1, &epoint)) { 
-                            struct values_s *vs = get_val(); 
+                        if (get_exp(0, 1, 1, &epoint)) {
+                            struct values_s *vs = get_val();
                             bool truth, result = tobool(vs, &truth);
                             if (prm == CMD_BREAKIF) {
                                 if (!result && !truth) doit = false;
@@ -5502,6 +5525,17 @@ MUST_CHECK Obj *compile(void)
                                 case 'l': w = 2;break;
                                 default:err_msg2(ERROR______EXPECTED, "'@b' or '@w' or '@l'", &lpoint);goto breakerr;
                                 }
+                                if (diagnostics.deprecated) {
+                                    bool warn;
+                                    unichar_t ch = pline[lpoint.pos + 2];
+                                    if ((ch & 0x80) != 0) {
+                                        if (arguments.to_ascii) {
+                                            utf8in(pline + lpoint.pos + 2, &ch);
+                                            warn = (uget_property(ch)->property & (id_Continue | id_Start)) != 0;
+                                        } else warn = false;
+                                    } else warn = (uint8_t)((ch | 0x20) - 'a') <= ('z' - 'a') || (uint8_t)(ch - '0') < 10 || ch == '_';
+                                    if (warn) err_msg2(ERROR________OLD_AT, NULL, &lpoint);
+                                }
                                 lpoint.pos += 2;
                             }
                         }
@@ -5550,7 +5584,7 @@ MUST_CHECK Obj *compile(void)
     finish:
         ignore();if (here() != 0 && here() != ';' && (waitfor->skip & 1) != 0) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
-        if (newlabel != NULL) { 
+        if (newlabel != NULL) {
             if (!newlabel->update_after) set_size(newlabel, current_address->address - oaddr, current_address->mem, oaddr, newmembp);
             val_destroy(Obj(newlabel));
         }
@@ -5579,7 +5613,7 @@ static void one_pass(int argc, char **argv, int opts) {
     val_destroy(Obj(root_section.address.mem));
     root_section.address.mem = new_memblocks(0, 0);
     if (diagnostics.optimize) cpu_opt_invalidate();
-    for (i = opts - 1; i < argc; i++) {
+    for (i = opts - 1; i <= argc; i++) {
         set_cpumode(arguments.cpumode); if (pass == 1 && i == opts - 1) constcreated = false;
         star = databank = dpage = strength = 0;longaccu = longindex = autosize = false;
         val_destroy(Obj(actual_encoding));
@@ -5593,19 +5627,27 @@ static void one_pass(int argc, char **argv, int opts) {
         init_macro();
         star_tree = init_star((linenum_t)i);
 
-        if (i == opts - 1) {
-            cfile = file_open(&cmdline_name, NULL, FILE_OPEN_DEFINES, &nopoint);
+        if (i == opts - 1 || i == argc) {
+            cfile = file_open(&cmdline_name, NULL, i == argc ? FILE_OPEN_COMMANDLINE : FILE_OPEN_DEFINES, &nopoint);
             if (cfile != NULL) {
                 cfile->open = true;
                 enterfile(cfile, &nopoint);
-                listing_file(";******  Command line definitions", NULL);
-                val = compile();
-                if (val != NULL) val_destroy(val);
+                if (i == argc) {
+                    commandline_file_list = current_file_list;
+                    update_argvalues();
+                    ref_labels();
+                } else {
+                    listing_file(";******  Command line definitions", NULL);
+                    val = compile();
+                    if (val != NULL) val_destroy(val);
+                }
                 exitfile();
                 cfile->open = false;
-                val_destroy(Obj(root_section.address.mem));
-                root_section.address.mem = new_memblocks(ln, ln2);
-                if (diagnostics.optimize) cpu_opt_invalidate();
+                if (i != argc) {
+                    val_destroy(Obj(root_section.address.mem));
+                    root_section.address.mem = new_memblocks(ln, ln2);
+                    if (diagnostics.optimize) cpu_opt_invalidate();
+                }
                 continue;
             }
             i++;
@@ -5626,7 +5668,6 @@ static void one_pass(int argc, char **argv, int opts) {
             cfile->open = false;
         }
     }
-    ref_labels();
     if (fwcount != 0 || efwcount != 0) fixeddig = false;
     if (fixeddig && root_section.members.root != NULL) section_sizecheck(root_section.members.root);
     /*garbage_collect();*/
@@ -5676,7 +5717,7 @@ int main2(int *argc2, char **argv2[]) {
             max_pass = pass; pass++;
             listing_open(&arguments.list, argc, argv);
             one_pass(argc, argv, opts);
-            listing_close();
+            listing_close(&arguments.list);
 
             if (diagnostics.unused.macro || diagnostics.unused.consts || diagnostics.unused.label || diagnostics.unused.variable) unused_check(root_namespace);
         }
@@ -5701,10 +5742,10 @@ int main2(int *argc2, char **argv2[]) {
                 sectionname.len = lpoint.pos;
                 err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
                 continue;
-            } 
+            }
             parent = section->parent;
             section->parent = NULL;
-            if (arguments.quiet) { 
+            if (arguments.quiet) {
                 if (output->name != NULL) {
                     fputs("Output file:       ", stdout);
                     argv_print(output->name, stdout);

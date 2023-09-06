@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: intobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -427,7 +427,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
                 return Obj(ref_int(v1));
             }
             return return_int(v1->data[0] - 1, false);
-        default: 
+        default:
             break;
         }
         return invert(v1);
@@ -847,21 +847,21 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
     Int *vv;
 
     switch (vv1->len) {
-    case 1: 
+    case 1:
         if (s < SHIFT) {
             digit_t d = vv1->val[0] >> s;
             return op->inplace == Obj(vv1) ? return_int_inplace(vv1, d, false) : return_int(d, false);
         }
         FALL_THROUGH; /* fall through */
-    case 0: 
+    case 0:
         return val_reference(int_value[0]);
-    case -1: 
+    case -1:
         if (s < SHIFT) {
             digit_t d = ((vv1->val[0] - 1) >> s) + 1;
             return op->inplace == Obj(vv1) ? return_int_inplace(vv1, d, true) : return_int(d, true);
         }
         return val_reference(minus1_value);
-    default: 
+    default:
         break;
     }
 
@@ -915,7 +915,7 @@ static MUST_CHECK Obj *rshift(oper_t op, uval_t s) {
             }
         }
         return normalize(vv, sz, true);
-    } 
+    }
     if (bit != 0) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;

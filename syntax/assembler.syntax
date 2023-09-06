@@ -1,5 +1,5 @@
 #64tass mcedit/cooledit syntax
-# $Id: assembler.syntax 3016 2023-08-17 17:17:50Z soci $
+# $Id: assembler.syntax 3083 2023-09-02 21:23:51Z soci $
 #
 # Place it into this folder:
 #
@@ -140,6 +140,7 @@ context default lightgray
     keyword whole .dstruct brightcyan
     keyword whole .dunion brightcyan
     keyword whole .edef brightcyan
+    keyword whole .elif brightcyan
     keyword whole .else brightcyan
     keyword whole .elsif brightcyan
     keyword whole .enc brightcyan

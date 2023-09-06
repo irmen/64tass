@@ -1,5 +1,5 @@
 /*
-    $Id: listing.h 3058 2023-08-26 07:53:26Z soci $
+    $Id: listing.h 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ extern bool listing_pccolumn;
 extern unsigned int nolisting;
 extern const uint8_t *llist;
 extern void listing_open(const struct list_output_s *, int, char *[]);
-extern void listing_close(void);
+extern void listing_close(const struct list_output_s *);
 extern FAST_CALL void listing_equal(struct Obj *);
 extern FAST_CALL void listing_equal2(struct Obj *, linecpos_t);
 extern FAST_CALL void listing_line(linecpos_t);

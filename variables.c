@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 3015 2023-08-15 06:41:46Z soci $
+    $Id: variables.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ static Label *namespace_update(Namespace *ns, Label *p) {
         }
         hash >>= 5;
         offs = (5 * offs + hash + 1) & mask;
-    } 
+    }
     ns->data[offs] = p;
     ns->len++;
     return NULL;
@@ -375,7 +375,7 @@ Label *find_anonlabel(ssize_t count) {
             anonsymbol.count[label.cfname.len - 2] = (uint8_t)count2;
             label.cfname.len++;
             count2 >>= 8;
-        } 
+        }
 
         label.hash = str_hash(&label.cfname);
         c = namespace_lookup(context, &label);
@@ -407,7 +407,7 @@ Label *find_anonlabel2(ssize_t count, Namespace *context) {
         anonsymbol.count[label.cfname.len - 2] = (uint8_t)count2;
         label.cfname.len++;
         count2 >>= 8;
-    } 
+    }
     label.hash = str_hash(&label.cfname);
 
     return namespace_lookup(context, &label);
@@ -718,45 +718,16 @@ static void labeldump(Namespace *names, FILE *flab) {
     names->len = ln;
 }
 
-static Namespace *find_space(const char *here, bool use) {
-    Namespace *space;
-    str_t labelname;
-    Label *l;
-
-    space = root_namespace;
-    if (here == NULL) return space;
-
-    pline = (const uint8_t *)here;
-    lpoint.pos = 0;
-    do {
-        labelname.data = pline + lpoint.pos; labelname.len = get_label(labelname.data);
-        if (labelname.len == 0) return NULL;
-        lpoint.pos += (linecpos_t)labelname.len;
-        l = find_label2(&labelname, space);
-        if (l == NULL) return NULL;
-        space = get_namespace(l->value);
-        if (space == NULL) return NULL;
-        lpoint.pos++;
-    } while (labelname.data[labelname.len] == '.');
-
-    if (labelname.data[labelname.len] != 0) return NULL;
-
-    if (use) {
-        l->usepass = pass;
-        l->ref = true;
-    }
-    return space;
-}
-
 void labelprint(const struct symbol_output_s *output) {
     Labelprint lp;
     struct linepos_s nopoint = {0, 0};
     int err;
-    Namespace *space;
+    Namespace *space = (output->space_pos.pos != 0) ? output->space : root_namespace;
+    if (space == NULL) return;
 
     lp.flab = dash_name(output->name) ? stdout : fopen_utf8(output->name, output->append ? "at" : "wt");
     if (lp.flab == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
+        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name, &output->name_pos);
         return;
     }
     if (lp.flab == stdout && fflush(lp.flab) != 0) setvbuf(lp.flab, NULL, _IOLBF, 1024);
@@ -773,15 +744,9 @@ void labelprint(const struct symbol_output_s *output) {
             sectionname.data = pline;
             sectionname.len = lpoint.pos;
             err_msg2(ERROR__SECTION_ROOT, &sectionname, &nopoint);
-        } 
+        }
     } else lp.section = NULL;
-    space = find_space(output->space, false);
-    if (space == NULL) {
-        str_t labelname;
-        labelname.data = pline;
-        labelname.len = lpoint.pos;
-        err_msg2(ERROR____LABEL_ROOT, &labelname, &nopoint);
-    } else if (output->mode == LABEL_DUMP) {
+    if (output->mode == LABEL_DUMP) {
         labeldump(space, lp.flab);
     } else {
         labelprint2(&lp, space);
@@ -790,19 +755,19 @@ void labelprint(const struct symbol_output_s *output) {
     err = ferror(lp.flab);
     err |= (lp.flab != stdout) ? fclose(lp.flab) : fflush(lp.flab);
     if (err != 0 && errno != 0) {
-        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name);
+        err_msg_file2(ERROR_CANT_WRTE_LBL, output->name, &output->name_pos);
     }
 }
 
 void ref_labels(void) {
     size_t j;
     for (j = 0; j < arguments.symbol_output_len; j++) {
-        const struct symbol_output_s *output = &arguments.symbol_output[j];
+        struct symbol_output_s *output = &arguments.symbol_output[j];
         Namespace *space;
         size_t n;
 
         if (output->mode != LABEL_EXPORT) continue;
-        space = find_space(output->space, true);
+        space = (output->space_pos.pos != 0) ? output->space : root_namespace;
         if (space == NULL || space->len == 0) continue;
 
         for (n = 0; n <= space->mask; n++) {
@@ -880,8 +845,7 @@ void destroy_lastlb(void) {
     }
 }
 
-void destroy_variables(void)
-{
+void destroy_variables(void) {
     val_destroy(Obj(builtin_namespace));
     val_destroy(Obj(root_namespace));
     val_destroy(Obj(cheap_context));

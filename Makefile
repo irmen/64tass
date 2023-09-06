@@ -1,4 +1,4 @@
-# $Id: Makefile 3057 2023-08-25 05:39:51Z soci $
+# $Id: Makefile 3107 2023-09-05 20:46:55Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -6,7 +6,7 @@ OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o \
  longjump.o wchar.o math.o arguments.o optimizer.o opt_bit.o labelobj.o \
  errorobj.o macroobj.o mfuncobj.o symbolobj.o anonsymbolobj.o memblocksobj.o \
- foldobj.o main.o console.o encobj.o
+ foldobj.o main.o console.o encobj.o argvalues.o
 LDLIBS = -lm
 LANG = C
 VERSION = 1.58
@@ -36,7 +36,7 @@ $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 README: README.html
-	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph -O US-ASCII | sed -e 's/\s\+$$//' >$@
+	-command -v w3m >/dev/null 2>/dev/null && sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph -O US-ASCII | sed -e 's/\s\+$$//' >$@
 
 version.h:
 	echo "#define VERSION \"$(VERSION).$(SVNVERSION:sh)$(shell $(SVNVERSION))\"" >$@
@@ -45,11 +45,11 @@ version.h:
  error.h errors_e.h opcodes.h eval.h oper_e.h values.h section.h avl.h \
  str.h encoding.h file.h variables.h macro.h instruction.h unicode.h \
  listing.h optimizer.h arguments.h ternary.h opt_bit.h longjump.h mem.h \
- unicodedata.h main.h version.h listobj.h obj.h codeobj.h strobj.h \
- addressobj.h boolobj.h bytesobj.h intobj.h bitsobj.h functionobj.h \
- namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h registerobj.h \
- labelobj.h errorobj.h macroobj.h mfuncobj.h memblocksobj.h symbolobj.h \
- anonsymbolobj.h dictobj.h encobj.h
+ unicodedata.h main.h argvalues.h version.h listobj.h obj.h codeobj.h \
+ strobj.h addressobj.h boolobj.h bytesobj.h intobj.h bitsobj.h \
+ functionobj.h namespaceobj.h operobj.h gapobj.h typeobj.h noneobj.h \
+ registerobj.h labelobj.h errorobj.h macroobj.h mfuncobj.h memblocksobj.h \
+ symbolobj.h anonsymbolobj.h dictobj.h encobj.h
 addressobj.o: addressobj.c addressobj.h obj.h attributes.h inttypes.h \
  values.h stdbool.h error.h errors_e.h eval.h oper_e.h variables.h \
  arguments.h instruction.h boolobj.h strobj.h intobj.h typeobj.h \
@@ -59,6 +59,9 @@ anonsymbolobj.o: anonsymbolobj.c anonsymbolobj.h obj.h attributes.h \
 arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
  attributes.h wait_e.h opcodes.h my_getopt.h error.h errors_e.h unicode.h \
  version.h
+argvalues.o: argvalues.c argvalues.h arguments.h stdbool.h inttypes.h \
+ 64tass.h attributes.h wait_e.h eval.h oper_e.h error.h errors_e.h \
+ values.h namespaceobj.h obj.h
 avl.o: avl.c avl.h attributes.h stdbool.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h oper_e.h \
  math.h eval.h stdbool.h variables.h unicode.h error.h errors_e.h \
@@ -136,7 +139,7 @@ intobj.o: intobj.c intobj.h obj.h attributes.h inttypes.h math.h \
  encobj.h avl.h
 isnprintf.o: isnprintf.c isnprintf.h attributes.h inttypes.h unicode.h \
  stdbool.h eval.h oper_e.h error.h errors_e.h str.h floatobj.h obj.h \
- values.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h
+ values.h strobj.h intobj.h bitsobj.h typeobj.h noneobj.h errorobj.h
 labelobj.o: labelobj.c labelobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h values.h error.h errors_e.h unicode.h file.h strobj.h \
  typeobj.h

@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 3060 2023-08-26 15:33:51Z soci $
+    $Id: instruction.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -150,9 +150,9 @@ static void dump_instr(unsigned int cod, uint32_t adr, int ln, linepos_t epoint)
     listing_instr(cod, adr, ln);
 }
 
-typedef enum Adrgen { 
+typedef enum Adrgen {
     AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_SBYTE, AG_CHAR, AG_DB3, AG_DB2, AG_WORD,
-    AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE 
+    AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE
 } Adrgen;
 
 static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned int w, Adr_types *opr) {
@@ -454,7 +454,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 case ADR_REL:
                     ln = 1; longbranch = 0;
                     goto justrel2;
-                case ADR_IMMEDIATE: 
+                case ADR_IMMEDIATE:
                     if (cnmemonic[ADR_REL] != ____) {
                         ln = 1; longbranch = 0; opr = ADR_REL;
                         goto immediaterel;
@@ -464,7 +464,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         ln = 2; longbranch = 0; opr = ADR_REL_L;
                         goto immediaterel;
                     }
-                    if (pline[epoint2->pos] == '#') epoint2->pos++; 
+                    if (pline[epoint2->pos] == '#') epoint2->pos++;
                     break;
                 case ADR_ZP_I_Y:
                 case ADR_ZP_S_I_Y:
@@ -473,12 +473,12 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 case ADR_ZP_X_I:
                 case ADR_ADDR_I:
                 case ADR_ZP_I:
-                    if (pline[epoint2->pos] == '(') epoint2->pos++; 
+                    if (pline[epoint2->pos] == '(') epoint2->pos++;
                     break;
                 case ADR_ZP_LI_Y:
                 case ADR_ADDR_LI:
                 case ADR_ZP_LI:
-                    if (pline[epoint2->pos] == '[') epoint2->pos++; 
+                    if (pline[epoint2->pos] == '[') epoint2->pos++;
                     break;
                 default:
                     break;
@@ -1078,13 +1078,13 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     else if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                     break;
                 case 2:
-                    if (adrgen == AG_DB3 && cnmemonic[opr - 2] != ____) { 
+                    if (adrgen == AG_DB3 && cnmemonic[opr - 2] != ____) {
                         adr = uval & all_mem;
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                         break;
                     }
                     FALL_THROUGH; /* fall through */
-                default: 
+                default:
                     return err_addressize(ERROR__NO_LONG_ADDR, epoint2, prm);
                 }
             }

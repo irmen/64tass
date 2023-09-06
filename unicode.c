@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 3034 2023-08-19 20:05:14Z soci $
+    $Id: unicode.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -829,7 +829,7 @@ uint8_t *char_to_utf8(const char *s) {
         return (uint8_t *)s;
     }
     while (s[n] != '\0') n++;
-        
+
     data = add_overflow(n, 64, &len) ? NULL : allocate_array(uint8_t, len);
     if (data == NULL) return NULL;
 

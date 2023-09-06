@@ -1,5 +1,5 @@
 /*
-    $Id: mfuncobj.c 2696 2021-09-12 20:35:03Z soci $
+    $Id: mfuncobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -192,7 +192,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_NONE:
     case T_ERROR:
         return val_reference(op->v2);
-    default: 
+    default:
         if (op->op == O_MEMBER) {
             return namespace_member(op, Mfunc(op->v1)->names);
         }

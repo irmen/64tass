@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: bitsobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     }
     if (bits->v.refcount == 1) {
         bits->bits = len2;
-    } 
+    }
     if (bits->bits == len2) {
         return inplace ? val_reference(Obj(bits)) : Obj(bits);
     }
@@ -232,7 +232,7 @@ static MUST_CHECK Obj *negate(Bits *v1, linepos_t epoint) {
         }
         if (i == v1->bits / SHIFT) {
             if (bs == 0) return NULL;
-            if (v1->data[i] == ~((~(v1->data[i] >> bs)) << bs)) return NULL;
+            if (i < sz && v1->data[i] == ~((~(v1->data[i] >> bs)) << bs)) return NULL;
         }
         v = new_bits2(ext ? sz + 1 : sz);
         if (v == NULL) goto failed;
@@ -810,7 +810,7 @@ MUST_CHECK Obj *bits_calc1(Oper_types op, unsigned int val) {
     switch (op) {
     case O_BANK: val >>= 8; FALL_THROUGH; /* fall through */
     case O_HIGHER: val >>= 8; FALL_THROUGH; /* fall through */
-    case O_LOWER: 
+    case O_LOWER:
     default: return return_bits((uint8_t)val, 8);
     case O_BSWORD: val = (uint16_t)val | (val << 16); FALL_THROUGH; /* fall through */
     case O_HWORD: val >>= 8; FALL_THROUGH; /* fall through */

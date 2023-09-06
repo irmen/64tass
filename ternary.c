@@ -1,5 +1,5 @@
 /* ternary.c - Ternary Search Trees
-   $Id: ternary.c 2981 2023-05-16 19:30:41Z soci $
+   $Id: ternary.c 3086 2023-09-03 06:23:08Z soci $
 
    Copyright (C) 2001 Free Software Foundation, Inc.
 
@@ -75,7 +75,7 @@ void *ternary_insert(ternary_tree *pcurr, const uint8_t *s, const uint8_t *end)
 {
     unichar_t spchar;
     ternary_tree curr;
-  
+
     spchar = *s;
     if ((spchar & 0x80) != 0) s += utf8in(s, &spchar); else s++;
 

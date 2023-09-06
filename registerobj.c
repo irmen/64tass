@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 2896 2022-11-05 05:33:41Z soci $
+    $Id: registerobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ static inline int icmp(oper_t op) {
 static MUST_CHECK Obj *calc2(oper_t op) {
     const Type *t2 = op->v2->obj;
     switch (t2->type) {
-    case T_REGISTER: 
+    case T_REGISTER:
         return obj_oper_compare(op, icmp(op));
     case T_BOOL:
     case T_INT:

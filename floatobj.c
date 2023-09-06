@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: floatobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ static MUST_CHECK Obj *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
     int expo;
     unsigned int h, h1, h2;
     bool neg = (r < 0.0);
-    if (neg) r = -r; 
+    if (neg) r = -r;
 
     r = modf(frexp(r, &expo) * 2147483648.0, &integer) * 2147483648.0;
     h1 = (unsigned int)floor(integer);
@@ -166,7 +166,7 @@ static MUST_CHECK Obj *function(oper_t op) {
     if (op->inplace == Obj(v1)) {
         v1->real = r;
         return val_reference(Obj(v1));
-    } 
+    }
     return new_float(r);
 }
 
@@ -177,11 +177,11 @@ static MUST_CHECK Obj *float_from_double_inplace(double d, oper_t op) {
     if (op->inplace == op->v1) {
         Float(op->v1)->real = d;
         return val_reference(op->v1);
-    } 
+    }
     if (op->inplace == op->v2) {
         Float(op->v2)->real = d;
         return val_reference(op->v2);
-    } 
+    }
     return new_float(d);
 }
 
@@ -205,9 +205,9 @@ static MUST_CHECK Obj *calc1(oper_t op) {
             r = (uint32_t)real;
             return bits_calc1(op->op, neg ? ~r + 1U : r);
         }
-    case O_INV: 
+    case O_INV:
         return float_from_double_inplace(-0.5 / ((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1))) - real, op);
-    case O_NEG: 
+    case O_NEG:
         return float_from_double_inplace(-real, op);
     case O_POS:
         return val_reference(op->v1);
@@ -243,7 +243,7 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
     double r, r1, r2;
 
     r1 = frexp(Float(op->v1)->real, &e1);
-    neg1 = (r1 < 0.0); 
+    neg1 = (r1 < 0.0);
     if (neg1) r1 = -r1;
 
     r2 = frexp(Float(op->v2)->real, &e2);
@@ -265,7 +265,7 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
     if (neg2 && v2 == 0) v2 = 1;
 
     switch (op->op) {
-    case O_AND: 
+    case O_AND:
         if (neg1) {
             if (neg2) {
                 v = ~((~v1 + 1U) & (~v2 + 1U));
@@ -274,12 +274,12 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
             }
         } else if (neg2) {
             v = v1 & (~v2 + 1U);
-        } else { 
+        } else {
             v = v1 & v2;
         }
         neg = neg1 && neg2;
         break;
-    case O_OR: 
+    case O_OR:
         if (neg1) {
             if (neg2) {
                 v = ~((~v1 + 1U) | (~v2 + 1U));
@@ -288,12 +288,12 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
             }
         } else if (neg2) {
             v = ~(v1 | (~v2 + 1U));
-        } else { 
+        } else {
             v = v1 | v2;
         }
         neg = neg1 || neg2;
         break;
-    default: 
+    default:
         if (neg1) {
             if (neg2) {
                 v = (~v1 + 1U) ^ (~v2 + 1U);
@@ -302,7 +302,7 @@ static MUST_CHECK Obj *bitoper(oper_t op) {
             }
         } else if (neg2) {
             v = ~(v1 ^ (~v2 + 1U));
-        } else { 
+        } else {
             v = v1 ^ v2;
         }
         neg = neg1 != neg2;
@@ -340,7 +340,7 @@ static MUST_CHECK Obj *calc2_double(oper_t op) {
         if (r != 0.0 && ((v2 < 0.0) != (r < 0))) r += v2;
         return float_from_double_inplace(r, op);
     case O_AND:
-    case O_OR: 
+    case O_OR:
     case O_XOR: return bitoper(op);
     case O_LSHIFT: return float_from_double_inplace(v1 * pow(2.0, v2), op);
     case O_RSHIFT: return float_from_double_inplace(v1 * pow(2.0, -v2), op);

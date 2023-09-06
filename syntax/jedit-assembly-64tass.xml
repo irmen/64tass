@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 3016 2023-08-17 17:17:50Z soci $
+	$Id: jedit-assembly-64tass.xml 3083 2023-09-02 21:23:51Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -69,6 +69,7 @@
                         <KEYWORD3>.dpage</KEYWORD3>
                         <KEYWORD3>.dsection</KEYWORD3>
                         <KEYWORD3>.edef</KEYWORD3>
+                        <KEYWORD3>.elif</KEYWORD3>
                         <KEYWORD3>.else</KEYWORD3>
                         <KEYWORD3>.elsif</KEYWORD3>
                         <KEYWORD3>.enc</KEYWORD3>

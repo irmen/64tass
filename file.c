@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 3049 2023-08-21 20:35:45Z soci $
+    $Id: file.c 3112 2023-09-06 06:34:22Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ static struct file_s *file_table_update(struct file_s *p) {
         }
         hash >>= 5;
         offs = (5 * offs + hash + 1) & mask;
-    } 
+    }
     file_table.data[offs] = p;
     file_table.len++;
     return NULL;
@@ -192,7 +192,7 @@ static wchar_t *get_real_name(const wchar_t *name) {
     if (ret >= len || ret == 0) {
         free(short_name);
         short_name = (wchar_t *)name;
-    } 
+    }
     ret = GetLongPathNameW(short_name, real_name, len);
     if (ret > len) {
         wchar_t *tmp = reallocate_array(real_name, ret);
@@ -711,6 +711,7 @@ static struct file_s *file_lookup(const str_t *name, const char *base) {
     return file;
 }
 
+static struct file_s file_commandline;
 static struct file_s file_defines;
 static struct file_s file_stdin;
 struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, File_open_type ftype, linepos_t epoint) {
@@ -727,10 +728,17 @@ struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, Fil
                 if (file_table.uid == 0) file_table.uid = 1;
                 return NULL;
             }
-            file->binary.data = (uint8_t *)arguments.defines.data;
+            file->binary.data = arguments.defines.data;
             arguments.defines.data = NULL;
             file->binary.len = (arguments.defines.len & ~(size_t)~(filesize_t)0) == 0 ? (filesize_t)arguments.defines.len : ~(filesize_t)0;
             arguments.defines.len = 0;
+            file->read_error = true;
+            file->binary.read = true;
+        }
+        break;
+    case FILE_OPEN_COMMANDLINE:
+        file = &file_commandline;
+        if (!file->binary.read) {
             file->read_error = true;
             file->binary.read = true;
         }
@@ -778,7 +786,7 @@ struct file_s *file_open(const str_t *name, const struct file_list_s *cfile, Fil
         }
     }
     if (ftype != FILE_OPEN_BINARY && !file->source.read && file->binary.read && file->err_no == 0) {
-        if (file != &file_defines) file_read_message(file, ftype);
+        if (!file->notfile) file_read_message(file, ftype);
         err = read_source(file, NULL);
         if (err != 0) file->err_no = ENOMEM;
         if (signal_received) err = file->err_no = EINTR;
@@ -888,6 +896,7 @@ void destroy_file(void) {
     free(last_ubuff.data);
     file_free_static(&file_stdin);
     file_free_static(&file_defines);
+    file_free_static(&file_commandline);
 
     while (stars != NULL) {
         old = stars;
@@ -906,6 +915,9 @@ void init_file(void) {
     file_defines.name = "<command line>";
     file_defines.portable = true;
     file_defines.notfile = true;
+    file_commandline.name = "<command line>";
+    file_commandline.portable = true;
+    file_commandline.notfile = true;
     latest_file_time.valid = false;
     latest_file_time.current = false;
     new_instance(&stars);
@@ -948,7 +960,7 @@ void makefile(int argc, char *argv[]) {
 
     m.f = dash_name(arguments.make.name) ? stdout : fopen_utf8(arguments.make.name, arguments.make.append ? "at" : "wt");
     if (m.f == NULL) {
-        err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name);
+        err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name, &arguments.make.name_pos);
         return;
     }
     if (m.f == stdout && fflush(m.f) != 0) setvbuf(m.f, NULL, _IOLBF, 1024);
@@ -996,5 +1008,5 @@ void makefile(int argc, char *argv[]) {
 
     err = ferror(m.f);
     err |= (m.f != stdout) ? fclose(m.f) : fflush(m.f);
-    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name);
+    if (err != 0 && errno != 0) err_msg_file2(ERROR_CANT_WRTE_MAK, arguments.make.name, &arguments.make.name_pos);
 }

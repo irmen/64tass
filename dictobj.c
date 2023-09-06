@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 2921 2022-12-21 22:14:05Z soci $
+    $Id: dictobj.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ static void dict_update(Dict *dict, const struct pair_s *p) {
             }
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
-        } 
+        }
         indexes[offs] = (uint8_t)dict->len;
     } else {
         size_t mask = dict->u.s.mask;
@@ -165,7 +165,7 @@ static void dict_update(Dict *dict, const struct pair_s *p) {
             }
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
-        } 
+        }
         indexes[offs] = dict->len;
     }
     d = &dict->data[dict->len];
@@ -190,7 +190,7 @@ static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p
             if (p->key == d->key || pair_same(p, d)) return d;
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
-        } 
+        }
     } else {
         size_t mask = dict->u.s.mask;
         size_t hash = (size_t)p->hash;
@@ -201,7 +201,7 @@ static const struct pair_s *dict_lookup(const Dict *dict, const struct pair_s *p
             if (p->key == d->key || pair_same(p, d)) return d;
             hash >>= 5;
             offs = (5 * offs + hash + 1) & mask;
-        } 
+        }
     }
     return NULL;
 }
@@ -332,7 +332,7 @@ static MUST_CHECK Obj *dict_from_iterable(Obj *v1, linepos_t epoint) {
             }
             v = normalize(dict);
         }
-    } 
+    }
     iter_destroy(&iter);
     return v;
 }
@@ -343,7 +343,7 @@ static MUST_CHECK Obj *dict_from_obj(Obj *o1, linepos_t epoint) {
     case T_ERROR:
     case T_DICT:
         return val_reference(o1);
-    default: 
+    default:
         if (o1->obj->iterable) {
             return dict_from_iterable(o1, epoint);
         }
@@ -839,7 +839,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_NONE:
     case T_ERROR:
         return val_reference(o2);
-    default: 
+    default:
         if (o2->obj->iterable && op->op != O_X) {
             return o2->obj->rcalc2(op);
         }

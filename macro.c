@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 3023 2023-08-17 21:54:19Z soci $
+    $Id: macro.c 3086 2023-09-03 06:23:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -263,7 +263,7 @@ bool mtranslate(void) {
                 param.data = NULL;
                 param.len = 0;
             }
-        } 
+        }
     tasmc:
         if (p + param.len < p) err_msg_out_of_memory(); /* overflow */
         if (p + param.len > mline->len) {
@@ -281,15 +281,15 @@ bool mtranslate(void) {
         mline->rpositions[n].param = j;
         mline->rpositions[n++].len = (linecpos_t)param.len;
         switch (param.len) {
-        case 0: 
+        case 0:
             if (param.data == NULL) {
                 lpoint.pos = (linecpos_t)(last2 - pline) + p - last;
                 err_msg_missing_argument(&lpoint, j);
                 fault = true;
             }
             break;
-        case 1: 
-            mline->data[p++] = *param.data; 
+        case 1:
+            mline->data[p++] = *param.data;
             break;
         default:
             memcpy(mline->data + p, param.data, param.len);
