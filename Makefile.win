@@ -1,4 +1,4 @@
-# $Id: Makefile.win 3107 2023-09-05 20:46:55Z soci $
+# $Id: Makefile.win 3113 2023-09-06 20:49:41Z soci $
 CC = x86_64-w64-mingw32-gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -41,7 +41,7 @@ arguments.o: arguments.c arguments.h stdbool.h inttypes.h 64tass.h \
  version.h
 argvalues.o: argvalues.c argvalues.h arguments.h stdbool.h inttypes.h \
  64tass.h attributes.h wait_e.h eval.h oper_e.h error.h errors_e.h \
- values.h namespaceobj.h obj.h
+ values.h instruction.h namespaceobj.h obj.h
 avl.o: avl.c avl.h attributes.h stdbool.h
 bitsobj.o: bitsobj.c bitsobj.h obj.h attributes.h inttypes.h oper_e.h \
  math.h eval.h stdbool.h variables.h unicode.h error.h errors_e.h \

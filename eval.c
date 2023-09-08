@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: eval.c 3114 2023-09-06 20:55:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -959,7 +959,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 }
                 args -= vsp;
                 if (stop && !expc) {
-                    atype_t am2;
+                    Address_types am2;
                     if (out + 1 != ev->out.end) {
                         Obj *obj = out[1].val;
                         if (obj->obj != OPER_OBJ ||

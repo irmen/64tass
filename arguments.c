@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: arguments.c 3115 2023-09-07 06:06:04Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -742,18 +742,21 @@ int init_arguments(int *argc2, char **argv2[]) {
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--mos-hex] [--s-record]\n"
-               "        [--nonlinear] [--c256-pgx] [--c256-pgz] [--tasm-compatible] [--quiet]\n"
-               "        [--no-warn] [--long-address] [--output-section=<name>] [--m65c02]\n"
-               "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--labels=<file>] [--normal-labels] [--export-labels]\n"
-               "        [--vice-labels] [--m65ce02] [--m4510] [--vice-labels-numeric]\n"
-               "        [--dump-labels] [--simple-labels] [--list=<file>] [--list-append=<file>]\n"
-               "        [--no-monitor] [--no-source] [--line-numbers] [--tab-size=<value>]\n"
-               "        [--verbose-list] [-W<option>] [--dependencies=<file>]\n"
-               "        [--dependencies-append=<file>] [--make-phony] [--output=<file>]\n"
-               "        [--output-append=<file>] [--no-output] [--map=<file>]\n"
-               "        [--map-append=<file>] [--no-map] [--errors=<file>] [--help] [--usage]\n"
-               "        [--version] SOURCES\n");
+               "        [--nonlinear] [--c256-pgx] [--c256-pgz] [--tasm-compatible]\n"
+               "        [--long-address] [--output-section=<name>] [--m65c02] [--m6502]\n"
+               "        [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02] [--mw65c02]\n"
+               "        [--m65ce02] [--m4510] [--labels=<file>] [--labels-append=<file>]\n"
+               "        [--labels-add-prefix=<txt>] [--labels-section=<name>]\n"
+               "        [--labels-root=<expr>] [--export-labels] [--vice-labels-numeric]\n"
+               "        [--vice-labels] [--dump-labels] [--simple-labels] [--mesen-labels]\n"
+               "        [--list=<file>] [--list-append=<file>] [--no-monitor] [--no-source]\n"
+               "        [--line-numbers] [--tab-size=<value>] [--verbose-list] [-W<option>]\n"
+               "        [--dependencies=<file>] [--dependencies-append=<file>] [--make-phony]\n"
+               "        [--output=<file>] [--output-append=<file>] [--output-exec=<expr>]\n"
+               "        [--no-output] [--map=<file>] [--map-append=<file>] [--no-map]\n"
+               "        [--error=<file>] [--error-append=<file>] [--quiet] [--no-warn]\n"
+               "        [--no-caret-diag] [--macro-caret-diag] [--help] [--usage] [--version]\n"
+               "        SOURCES\n");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
