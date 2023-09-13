@@ -1,8 +1,8 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3108 2023-09-05 21:23:13Z soci $ -->
+<!-- $Id: README.html 3120 2023-09-10 16:14:30Z soci $ -->
 <head>
-<title>64tass v1.58 r2974 reference manual</title>
+<title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -85,7 +85,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </head>
 <body>
 <div>
-<h1>64tass v1.58 r2974 reference manual</h1>
+<h1>64tass v1.59 r3120 reference manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -426,9 +426,13 @@ accepted:
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
 </table></div>
 
-<p>Integers are automatically promoted to float as necessary in expressions.
+<p>Integers are automatically promoted to floats as necessary in expressions.
 Other types can be converted to integer using the integer type
 <code>int</code>.
+
+<p>Integer division is a floor division (rounding down) so <code>7 / 4</code>
+is <code>1</code> and not <code>1.75</code>. If ceiling division is required (rounding up) that
+can be done by negating both the divident and the result. Typically it's done like <code>0 - -5 / 4</code> which results in <code>2</code>.
 
 <pre>
         <b class="d">.byte</b> <span>23</span>        <i>; as unsigned</i>

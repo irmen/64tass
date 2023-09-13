@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: 64tass.c 3117 2023-09-10 11:11:55Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -733,13 +733,13 @@ static void textdump_bytes(struct textrecursion_s *trec, const Bytes *bytes) {
             }
             return;
         default:
-            if (inv == 0 && outputeor == 0) {
+            inv = (uint8_t)(inv ^ outputeor);
+            if (inv == 0) {
                 memcpy(d, bytes->data, ln);
                 return;
             }
             for (i = 0; i < ln; i++) {
-                unsigned int uval = bytes->data[i] ^ inv;
-                d[i] = (uint8_t)(uval ^ outputeor);
+                d[i] = (uint8_t)(bytes->data[i] ^ inv);
             }
             return;
         }
@@ -759,7 +759,9 @@ retry:
     switch (val->obj->type) {
     case T_STR:
         val = bytes_from_str(Str(val), trec->epoint, trec->tconv);
-        textrecursion(trec, val);
+    asbytes:
+        if (val->obj != BYTES_OBJ) goto nbytes;
+        textdump_bytes(trec, Bytes(val));
         val_destroy(val);
         return;
     case T_ERROR:
@@ -771,6 +773,7 @@ retry:
         goto doit;
     case T_CODE:
         val = get_code_value(Code(val), trec->epoint);
+    nbytes:
         textrecursion(trec, val);
         val_destroy(val);
         return;
@@ -791,9 +794,7 @@ retry:
             goto doit;
         }
         val = bytes_from_bits(Bits(val), trec->epoint);
-        textrecursion(trec, val);
-        val_destroy(val);
-        return;
+        goto asbytes;
     case T_BYTES:
         iter.data = NULL;
         goto dobytes;

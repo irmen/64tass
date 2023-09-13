@@ -1,4 +1,4 @@
-64tass v1.58 r2974 reference manual
+64tass v1.59 r3120 reference manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -282,8 +282,13 @@ x & y    bitwise and                      2 & 6 is 2
 x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
 
-Integers are automatically promoted to float as necessary in expressions. Other
-types can be converted to integer using the integer type int.
+Integers are automatically promoted to floats as necessary in expressions.
+Other types can be converted to integer using the integer type int.
+
+Integer division is a floor division (rounding down) so 7 / 4 is 1 and not
+1.75. If ceiling division is required (rounding up) that can be done by
+negating both the divident and the result. Typically it's done like 0 - -5 / 4
+which results in 2.
 
         .byte 23        ; as unsigned
         .char -23       ; as signed

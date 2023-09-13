@@ -1,3 +1,88 @@
+r3120 (2023-09-10)
+==================
+
+About time to make another release. There are some fixes for reported
+problems (thanks!) and for some more I've noticed myself. For new
+features check below.
+
+**Fixes**
+
+* Line numbers didn't always show up in listing file when requested.
+  Was a regression, there was a workaround but it's not necessary now
+* Listing file didn't listed labels at the end of functions/macros.
+  Now it does
+* When .binclude failed it could cause an unexpected too many passes error.
+  No such surprises now on filename typos.
+* Some versions of GCC miscompiled the source with LTO optimization
+  It resulted in an immediate crash at startup. It's worked around now.
+* Possible issues fixed with (0, x) style indexed indirect addressing
+  This workaround should have been done more carefully. Should work now.
+* When outputting a specific section the output was incomplete in some cases
+  I usually used complicated arrangements which worked so it was
+  surprising to find that in special a simple one it didn't
+* Parsing errors could cause unnecessary undefined label errors
+  It does not do this any more, so less noise in error messages.
+* Zero length concatenation of inverted bits/bytes was not correct
+  A very special case.
+* The order of indirect parameters in format() was wrong (broke in r2345)
+  Haven't used it until now and was surprised to find this.
+* The line number was at the wrong place in listing in some cases
+  Now it's always in front where it should be.
+* There was a complicated way to cause a crash through encoding definition
+  One of those what would happen if experiments. Unlikely anyone
+  encountered this.
+* Katepart syntax file was incompatible with newer version
+  There were silly mistakes in XML which were accepted in earlier versions.
+* Possible crash fixed related to iterated bfor error handling
+  The error case handling had a mistake.
+
+**Changes**
+
+* .align and .page directives have offset parameters now.
+  It can be useful to shift the page windows up/down
+* Listing time uses file modification times if possible
+  So the time stamp can remain the same across re-compilations
+* Improved documentation
+  .page moved to the new alignment section. And lots of other fixes.
+* Deprecation warning for non-spaced @b, @w and @l
+  It's planned that more than one letter will be used after the @ symbol
+  in the future. Once that's implemented any following non-spaced
+  separated label or number will become part of the symbol! So it's
+  advised now to add the missing spaces to avoid broken code after a
+  future upgrade.
+
+**New**
+
+* Added -Wpriority command line option
+  Common operator priority mistakes like >lbl1 != >lbl2 are reported now.
+* Added -Walign command line option
+  Wasted space on doing alignments can be diagnosed now.
+* Added .alignblk/.endalignblk directives
+  Alignment block for avoiding page crosses without wasting to many bytes
+* Added .alignind and .alignpageind directives
+  It's now possible to align further ahead than the target location
+* Added --simple-labels command line option
+  Label files in traditional label=$1234 style for simple parsing.
+* Added --mesen-labels command line option
+  Experimental Mesen label file output.
+* Added --labels-add-prefix command line option
+  When listing labels it's possible to add a prefix to symbols now
+* Added --labels-section command line option
+  Label listing can be limited to labels pointing to a certain section.
+* Added .from directive
+  For defining a symbol based on an already existing one somewhere else
+* Added --dependencies-append command line option
+  For consistency.
+* Added .elif directive
+  An alias for those who tend to mistype .elsif
+* Added --c256-pgx and --c256-pgz command line options
+  Both are simple formats and a variant of existing ones.
+* Binary and hexadecimal can be bits instead of int.
+  So format("%~#x", ~$2) is "~$2".
+* Added --output-exec command line option
+  Now the execution address can be defined for those output which have
+  such concept
+
 r2974 (2023-01-11)
 ==================
 
