@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 3096 2023-09-03 10:24:03Z soci $
+    $Id: functionobj.c 3121 2023-09-16 06:38:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -674,20 +674,13 @@ static MUST_CHECK Obj *function_atan2(oper_t op) {
 
 static MUST_CHECK Obj *function_pow(oper_t op) {
     struct values_s *v = Funcargs(op->v2)->val;
-    Obj *val;
-    double real, real2;
-
-    val = to_real(&v[0], &real);
-    if (val != NULL) return val;
-    val = to_real(&v[1], &real2);
-    if (val != NULL) return val;
-    if (real2 < 0.0 && real == 0.0) {
-        return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint2);
-    }
-    if (real < 0.0 && floor(real2) != real2) {
-        return Obj(new_error(ERROR_NEGFRAC_POWER, op->epoint2));
-    }
-    return float_from_double(pow(real, real2), op->epoint);
+    op->op = O_EXP;
+    op->epoint3 = op->epoint;
+    op->epoint = &v[0].epoint;
+    op->epoint2 = &v[1].epoint;
+    op->v1 = v[0].val;
+    op->v2 = v[1].val;
+    return op->v1->obj->calc2(op);
 }
 
 static MUST_CHECK Obj *function_all_any(oper_t op, Obj **warn, bool first) {
@@ -785,7 +778,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     if (args != 2) {
                         return new_error_argnum(args, 2, 2, op->epoint3);
                     }
-                    return gen_broadcast(op, function_pow);
+                    return function_pow(op);
                 case F_RANGE:
                     if (args < 1 || args > 3) {
                         return new_error_argnum(args, 1, 3, op->epoint3);

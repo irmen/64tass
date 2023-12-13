@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3114 2023-09-06 20:55:15Z soci $
+    $Id: eval.c 3122 2023-09-16 10:44:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -92,6 +92,32 @@ FAST_CALL size_t get_label(const uint8_t *s) {
         if (l == 0) return (size_t)(i - s);
         i += l;
     }
+}
+
+FAST_CALL size_t get_label2(const uint8_t *s, const uint8_t *e) {
+    const uint8_t *i;
+    if (s >= e) return 0;
+    if likely(((uint8_t)((*s | 0x20) - 'a')) <= 'z' - 'a' || *s == '_') {
+        i = s + 1;
+    } else {
+        unsigned int l;
+        if (*s < 0x80) return 0;
+        l = get_label_start(s);
+        if (l == 0) return 0;
+        i = s + l;
+    }
+    while (i < e) {
+        unsigned int l;
+        if likely(((uint8_t)((*i | 0x20) - 'a')) <= 'z' - 'a' || (*i ^ 0x30) < 10 || *i == '_') {
+            i++;
+            continue;
+        }
+        if (*i < 0x80) return (size_t)(i - s);
+        l = get_label_continue(i);
+        if (l == 0) return (size_t)(i - s);
+        i += l;
+    }
+    return (size_t)(i - s);
 }
 
 static MUST_CHECK Obj *get_dec(linepos_t epoint) {

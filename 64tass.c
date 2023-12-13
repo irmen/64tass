@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3117 2023-09-10 11:11:55Z soci $
+    $Id: 64tass.c 3124 2023-09-17 09:29:06Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1046,7 +1046,7 @@ static address_t rmemalign(uval_t offset, uval_t size, address_t itt) {
     return offset - rem;
 }
 
-static address_t memalign(uval_t offset, uval_t size) {
+static address_t dmemalign(uval_t offset, uval_t size) {
     return rmemalign(offset, size, (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) ? current_address->address : ((current_address->l_address - current_address->l_start) & all_mem));
 }
 
@@ -4745,7 +4745,7 @@ MUST_CHECK Obj *compile(void)
                                 waitfor->u.cmd_alignblk.size = ival;
                                 offset = (vs == NULL) ? 0 : memalign_offset(get_val(), uval);
                                 waitfor->u.cmd_alignblk.offset = offset;
-                                db = memalign(offset, uval);
+                                db = dmemalign(offset, uval);
                                 if ((ival > 0) ? (size <= db) : (size < db)) {}
                                 else if (db != 0) {
                                     if (diagnostics.align) err_msg_alignblk(size - db, db, &epoint);
@@ -4793,7 +4793,7 @@ MUST_CHECK Obj *compile(void)
                     else {
                         address_t db;
                         vs = get_val();
-                        db = memalign((vs == NULL ? 0 : memalign_offset(get_val(), uval)), uval);
+                        db = dmemalign((vs == NULL ? 0 : memalign_offset(get_val(), uval)), uval);
                         if (db != 0) {
                             if (diagnostics.align) err_msg_align(db, &epoint);
                             memskipfill(db, vs, &epoint);

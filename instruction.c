@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: instruction.c 3126 2023-10-06 06:16:09Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -890,10 +890,17 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
     default:
         epoint2 = &vals->val[0].epoint;
     unknown:
-        err = new_error(ERROR___NO_LOT_OPER, epoint2);
-        err->u.opers.num = vals->len;
-        err->u.opers.cod = mnemonic[prm];
-        return err;
+        {
+            argcount_t j, args = vals->len;
+            for (j = 0; j < args; j++) {
+                Obj *v = vals->val[j].val;
+                if (v->obj == ERROR_OBJ) return Error(v);
+            }
+            err = new_error(ERROR___NO_LOT_OPER, epoint);
+            err->u.opers.num = j;
+            err->u.opers.cod = mnemonic[prm];
+            return err;
+        }
     }
     switch (adrgen) {
     case AG_ZP: /* zero page address only */
@@ -903,7 +910,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (w != 3 && w != 0) return err_addressize((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint2, prm);
             ln = 1;
             val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
-            if (val2->obj == CODE_OBJ) {
+            if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
                 if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
@@ -931,7 +938,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
             ln = 2;
             val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
-            if (val2->obj == CODE_OBJ) {
+            if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
                 if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
@@ -954,7 +961,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
             ln = 2;
             val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
-            if (val2->obj == CODE_OBJ) {
+            if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
                 if (tocode_uaddress(val2, &uval, &uval2, epoint2)) break;
             } else {
                 if (touaddress(val, &uval, all_mem_bits, epoint2)) break;
@@ -1006,7 +1013,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             Obj *val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
 
             if (w == 3) {/* auto length */
-                if (val2->obj == CODE_OBJ) {
+                if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
                     if (tocode_uaddress(val2, &uval, &uval2, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
                 } else {
                     if (touaddress(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
@@ -1046,7 +1053,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 }
             } else {
                 uval_t uval3;
-                if (val2->obj == CODE_OBJ) {
+                if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
                     if (tocode_uaddress(val2, &uval, &uval2, epoint2)) goto err;
                 } else {
                     if (touaddress(val, &uval, all_mem_bits, epoint2)) goto err;

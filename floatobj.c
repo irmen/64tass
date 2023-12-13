@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: floatobj.c 3121 2023-09-16 06:38:33Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -347,7 +347,7 @@ static MUST_CHECK Obj *calc2_double(oper_t op) {
     case O_EXP:
         if (v1 == 0.0) {
             if (v2 < 0.0) {
-                return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint3);
+                return new_error_obj(ERROR_ZERO_NEGPOWER, op->v2, op->epoint2);
             }
             return new_float((v2 == 0.0) ? 1.0 : 0.0);
         }

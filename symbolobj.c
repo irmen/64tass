@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 2675 2021-05-20 20:53:26Z soci $
+    $Id: symbolobj.c 3122 2023-09-16 10:44:56Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include "typeobj.h"
 #include "strobj.h"
+#include "errorobj.h"
 
 static Type obj;
 
@@ -42,6 +43,47 @@ Obj *new_symbol(const str_t *name, linepos_t epoint) {
     symbol->file_list = current_file_list;
     symbol->epoint = *epoint;
     return Obj(symbol);
+}
+
+static MUST_CHECK Obj *symbol_from_obj(Obj *o1, linepos_t epoint) {
+    switch (o1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_SYMBOL:
+        return val_reference(o1);
+    case T_STR:
+        if (Str(o1)->len == 0) return Obj(new_error(ERROR__EMPTY_STRING, epoint));
+        else {
+            Str *v1 = Str(o1);
+            uint8_t *s;
+            Symbol *symbol;
+            size_t ln = get_label2(v1->data, v1->data + v1->len);
+            if (ln != v1->len) {
+                struct linepos_s epoint2;
+                epoint2.line = epoint->line;
+                epoint2.pos = interstring_position(epoint, v1->data, ln);
+                return new_error_conv(o1, SYMBOL_OBJ, &epoint2);
+            }
+            s = allocate_array(uint8_t, ln);
+            if (s == NULL) return new_error_mem(epoint);
+            memcpy(s, v1->data, ln);
+            symbol = Symbol(val_alloc(SYMBOL_OBJ));
+            symbol->name.len = ln;
+            symbol->name.data = s;
+            symbol->cfname.data = NULL;
+            symbol->cfname.len = 0;
+            symbol->hash = -1;
+            symbol->file_list = current_file_list;
+            symbol->epoint = *epoint;
+            return Obj(symbol);
+        }
+    default: break;
+    }
+    return new_error_conv(o1, SYMBOL_OBJ, epoint);
+}
+
+static MUST_CHECK Obj *convert(oper_t op) {
+    return symbol_from_obj(op->v2, op->epoint2);
 }
 
 static FAST_CALL NO_INLINE void symbol_destroy(Symbol *v1) {
@@ -186,6 +228,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 
 void symbolobj_init(void) {
     Type *type = new_type(&obj, T_SYMBOL, "symbol", sizeof(Symbol));
+    type->convert = convert;
     type->destroy = destroy;
     type->same = same;
     type->hash = hash;
