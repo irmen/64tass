@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.c 3122 2023-09-16 10:44:56Z soci $
+    $Id: symbolobj.c 3137 2024-06-08 16:10:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "file.h"
 #include "values.h"
 #include "arguments.h"
+#include "variables.h"
 
 #include "typeobj.h"
 #include "strobj.h"
@@ -236,4 +237,8 @@ void symbolobj_init(void) {
     type->str = str;
     type->calc2 = calc2;
     type->rcalc2 = rcalc2;
+}
+
+void symbolobj_names(void) {
+    new_builtin("symbol", val_reference(Obj(SYMBOL_OBJ)));
 }

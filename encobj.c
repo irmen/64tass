@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: encobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     return o1 == o2;
 }
 
-MALLOC Obj *new_enc(const struct file_list_s *file_list, linepos_t epoint) {
+MUST_CHECK Obj *new_enc(const struct file_list_s *file_list, linepos_t epoint) {
     Enc *enc = Enc(val_alloc(ENC_OBJ));
     enc->file_list = file_list;
     enc->epoint = *epoint;
@@ -80,7 +80,7 @@ struct trans_s {
 
 #ifdef DEBUG
 #define trans_free(trans) free(trans)
-static MALLOC struct trans_s *trans_alloc(void) {
+static MUST_CHECK struct trans_s *trans_alloc(void) {
     struct trans_s *r;
     new_instance(&r);
     return r;
@@ -113,7 +113,7 @@ static union trans_u *transs_alloc(void) {
     return &transs->transs[0];
 }
 
-static MALLOC struct trans_s *trans_alloc(void) {
+static MUST_CHECK struct trans_s *trans_alloc(void) {
     struct trans_s *trans;
     if (transs_free == NULL) transs_free = transs_alloc();
     trans = (struct trans_s *)transs_free;

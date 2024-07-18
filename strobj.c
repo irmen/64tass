@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 3063 2023-08-27 09:19:30Z soci $
+    $Id: strobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -400,7 +400,7 @@ MUST_CHECK Obj *str_from_str(const uint8_t *s, linecpos_t *ln, linepos_t epoint)
     return Obj(v);
 }
 
-MALLOC Str *new_str(size_t ln) {
+MUST_CHECK Str *new_str(size_t ln) {
     Str *v = Str(val_alloc(STR_OBJ));
     v->len = ln;
     if (ln > sizeof v->u.val) {

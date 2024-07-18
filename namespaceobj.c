@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.c 2727 2021-10-03 20:21:13Z soci $
+    $Id: namespaceobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -269,7 +269,7 @@ MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
     return obj_oper_error(op);
 }
 
-MALLOC Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
+MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
     Namespace *val = Namespace(val_alloc(NAMESPACE_OBJ));
     val->data = NULL;
     val->mask = 0;

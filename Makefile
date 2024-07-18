@@ -1,4 +1,4 @@
-# $Id: Makefile 3120 2023-09-10 16:14:30Z soci $
+# $Id: Makefile 3137 2024-06-08 16:10:55Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -10,7 +10,7 @@ OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
 LDLIBS = -lm
 LANG = C
 VERSION = 1.59
-CFLAGS = -O2 -march=core2 -mtune=core2
+CFLAGS = -O2
 CFLAGS += -g -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS =
 TARGET = 64tass
@@ -209,7 +209,7 @@ strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
  typeobj.h noneobj.h errorobj.h
 symbolobj.o: symbolobj.c symbolobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h eval.h oper_e.h unicode.h error.h errors_e.h file.h values.h \
- arguments.h typeobj.h strobj.h
+ arguments.h variables.h typeobj.h strobj.h errorobj.h
 ternary.o: ternary.c ternary.h stdbool.h inttypes.h unicode.h \
  attributes.h error.h errors_e.h
 typeobj.o: typeobj.c typeobj.h obj.h attributes.h inttypes.h stdbool.h \
@@ -224,7 +224,7 @@ variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
  arguments.h eval.h oper_e.h section.h avl.h str.h boolobj.h floatobj.h \
  namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h listobj.h \
  intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h \
- noneobj.h labelobj.h errorobj.h mfuncobj.h
+ noneobj.h labelobj.h errorobj.h mfuncobj.h symbolobj.h
 wchar.o: wchar.c wchar.h inttypes.h
 
 .PHONY: all clean distclean install install-strip uninstall install-man install-doc

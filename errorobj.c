@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 3068 2023-08-28 06:18:09Z soci $
+    $Id: errorobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -151,7 +151,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     } else v->refcount++;
 }
 
-MALLOC Error *new_error(Error_types num, linepos_t epoint) {
+MUST_CHECK Error *new_error(Error_types num, linepos_t epoint) {
     Error *v = Error(val_alloc(ERROR_OBJ));
     v->num = num;
     v->file_list = current_file_list;
@@ -167,24 +167,24 @@ MALLOC Error *new_error(Error_types num, linepos_t epoint) {
     return v;
 }
 
-MALLOC Obj *new_error_mem(linepos_t epoint) {
+MUST_CHECK Obj *new_error_mem(linepos_t epoint) {
     return Obj(new_error(ERROR_OUT_OF_MEMORY, epoint));
 }
 
-MALLOC Obj *new_error_obj(Error_types num, Obj *v1, linepos_t epoint) {
+MUST_CHECK Obj *new_error_obj(Error_types num, Obj *v1, linepos_t epoint) {
     Error *v = new_error(num, epoint);
     v->u.obj = val_reference(v1);
     return Obj(v);
 }
 
-MALLOC Obj *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
+MUST_CHECK Obj *new_error_conv(Obj *v1, Type *t, linepos_t epoint) {
     Error *v = new_error(ERROR__INVALID_CONV, epoint);
     v->u.conv.t = t;
     v->u.conv.val = val_reference(v1);
     return Obj(v);
 }
 
-MALLOC Obj *new_error_argnum(argcount_t num, argcount_t min, argcount_t max, linepos_t epoint) {
+MUST_CHECK Obj *new_error_argnum(argcount_t num, argcount_t min, argcount_t max, linepos_t epoint) {
     Error *v = new_error(ERROR__WRONG_ARGNUM, epoint);
     v->u.argnum.num = num;
     v->u.argnum.min = min;

@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.h 3063 2023-08-27 09:19:30Z soci $
+    $Id: strobj.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ extern void strobj_destroy(void);
 
 struct str_t;
 
-extern MALLOC Str *new_str(size_t);
+extern MUST_CHECK Str *new_str(size_t);
 extern MALLOC Str *new_str2(size_t);
 extern uint8_t *extend_str(Str *, size_t);
 extern MUST_CHECK Obj *str_from_str(const uint8_t *, linecpos_t *, linepos_t);

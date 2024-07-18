@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.h 3063 2023-08-27 09:19:30Z soci $
+    $Id: bytesobj.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ typedef enum Textconv_types {
     BYTES_MODE_PTEXT
 } Textconv_types;
 
-extern MALLOC Bytes *new_bytes(size_t);
+extern MUST_CHECK Bytes *new_bytes(size_t);
 
 struct Str;
 struct Bits;

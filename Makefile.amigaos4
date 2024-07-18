@@ -1,4 +1,4 @@
-# $Id: Makefile.amigaos4 3119 2023-09-10 15:35:43Z soci $
+# $Id: Makefile.amigaos4 3137 2024-06-08 16:10:55Z soci $
 CC = SDK:gcc/bin/gcc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -188,7 +188,7 @@ strobj.o: strobj.c strobj.h obj.h attributes.h inttypes.h stdbool.h \
  typeobj.h noneobj.h errorobj.h
 symbolobj.o: symbolobj.c symbolobj.h obj.h attributes.h inttypes.h str.h \
  stdbool.h eval.h oper_e.h unicode.h error.h errors_e.h file.h values.h \
- arguments.h typeobj.h strobj.h
+ arguments.h variables.h typeobj.h strobj.h errorobj.h
 ternary.o: ternary.c ternary.h stdbool.h inttypes.h unicode.h \
  attributes.h error.h errors_e.h
 typeobj.o: typeobj.c typeobj.h obj.h attributes.h inttypes.h stdbool.h \
@@ -203,7 +203,7 @@ variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
  arguments.h eval.h oper_e.h section.h avl.h str.h boolobj.h floatobj.h \
  namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h listobj.h \
  intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h \
- noneobj.h labelobj.h errorobj.h mfuncobj.h
+ noneobj.h labelobj.h errorobj.h mfuncobj.h symbolobj.h
 wchar.o: wchar.c wchar.h inttypes.h
 
 .PHONY: clean distclean

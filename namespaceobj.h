@@ -1,5 +1,5 @@
 /*
-    $Id: namespaceobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: namespaceobj.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ static inline Namespace *ref_namespace(Namespace *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MALLOC Namespace *new_namespace(const struct file_list_s *, linepos_t);
+extern MUST_CHECK Namespace *new_namespace(const struct file_list_s *, linepos_t);
 extern MUST_CHECK Obj *namespace_member(struct oper_s *, Namespace *);
 extern Namespace *get_namespace(const Obj *);
 

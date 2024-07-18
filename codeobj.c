@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: codeobj.c 3131 2024-04-21 07:09:58Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -613,9 +613,10 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     }
     switch (o2->obj->type) {
     case T_CODE:
-        {
+        if (!Code(o2)->memblocks->enumeration || v1->memblocks->enumeration) {
             Obj *tmp1, *tmp2, *result;
             Code *v2 = Code(o2);
+            if (!v2->memblocks->enumeration && v1->memblocks->enumeration) return o2->obj->rcalc2(op);
             result = access_check(v1, op->epoint);
             if (result != NULL) return result;
             result = access_check(v2, op->epoint2);
@@ -635,6 +636,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             val_destroy(tmp1);
             return result;
         }
+        FALL_THROUGH; /* fall through */
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -689,6 +691,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     Code *v2 = Code(op->v2), *v;
     Obj *o1 = op->v1;
     switch (o1->obj->type) {
+    case T_CODE:
     case T_BOOL:
     case T_INT:
     case T_BITS:

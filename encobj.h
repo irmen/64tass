@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.h 3066 2023-08-27 20:52:04Z soci $
+    $Id: encobj.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ static inline Enc *ref_enc(Enc *v1) {
     v1->v.refcount++; return v1;
 }
 
-extern MALLOC Obj *new_enc(const struct file_list_s *, linepos_t);
+extern MUST_CHECK Obj *new_enc(const struct file_list_s *, linepos_t);
 extern bool enc_trans_add(Enc *, const struct character_range_s *, linepos_t);
 extern bool enc_escape_add(Enc *, const struct str_t *, Obj *, linepos_t);
 extern struct encoder_s *enc_string_init(Enc *, const struct Str *, linepos_t);

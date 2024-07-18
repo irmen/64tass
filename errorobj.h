@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.h 2808 2022-10-17 04:49:11Z soci $
+    $Id: errorobj.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,11 +84,11 @@ typedef struct Error {
 
 extern void errorobj_init(void);
 
-extern MALLOC Error *new_error(Error_types, linepos_t);
-extern MALLOC Obj *new_error_mem(linepos_t);
-extern MALLOC Obj *new_error_obj(Error_types, Obj *, linepos_t);
-extern MALLOC Obj *new_error_conv(Obj *, struct Type *, linepos_t);
-extern MALLOC Obj *new_error_argnum(argcount_t, argcount_t, argcount_t, linepos_t);
+extern MUST_CHECK Error *new_error(Error_types, linepos_t);
+extern MUST_CHECK Obj *new_error_mem(linepos_t);
+extern MUST_CHECK Obj *new_error_obj(Error_types, Obj *, linepos_t);
+extern MUST_CHECK Obj *new_error_conv(Obj *, struct Type *, linepos_t);
+extern MUST_CHECK Obj *new_error_argnum(argcount_t, argcount_t, argcount_t, linepos_t);
 extern void error_obj_update(Error *, const Obj *, Obj *);
 
 #endif

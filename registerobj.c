@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 3122 2023-09-16 10:44:56Z soci $
+    $Id: registerobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if unlikely(v1->val != v1->data) register_destroy(v1);
 }
 
-static inline MALLOC Register *new_register(void) {
+static inline MUST_CHECK Register *new_register(void) {
     return Register(val_alloc(REGISTER_OBJ));
 }
 

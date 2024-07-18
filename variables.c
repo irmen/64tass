@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: variables.c 3137 2024-06-08 16:10:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@
 #include "labelobj.h"
 #include "errorobj.h"
 #include "mfuncobj.h"
+#include "symbolobj.h"
 
 static Label *lastlb;
 
@@ -835,6 +836,7 @@ void init_variables(void)
     bytesobj_names();
     typeobj_names();
     namespaceobj_names();
+    symbolobj_names();
 }
 
 void destroy_lastlb(void) {

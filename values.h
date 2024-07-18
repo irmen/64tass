@@ -1,5 +1,5 @@
 /*
-    $Id: values.h 2485 2021-03-08 22:09:28Z soci $
+    $Id: values.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ struct iter_s {
     size_t len;
 };
 
-extern FAST_CALL MALLOC struct Obj *val_alloc(const struct Type *);
+extern FAST_CALL MUST_CHECK struct Obj *val_alloc(const struct Type *);
 extern FAST_CALL void val_destroy(struct Obj *);
 extern FAST_CALL void val_replace(struct Obj **, struct Obj *);
 extern size_t val_print(struct Obj *, FILE *, size_t);

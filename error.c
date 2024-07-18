@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: error.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -794,7 +794,7 @@ static void err_msg_no_addressing(atype_t addrtype, uint32_t cod) {
     adderror("no");
     if (addrtype == A_NONE) adderror(" implied");
     for (; (addrtype & MAX_ADDRESS_MASK) != 0; addrtype <<= 4) {
-        const char *txt = "?";
+        const char *txt;
         switch ((Address_types)((addrtype & 0xf000) >> 12)) {
         case A_NONE: continue;
         case A_IMMEDIATE: txt = " immediate"; break;
@@ -809,6 +809,7 @@ static void err_msg_no_addressing(atype_t addrtype, uint32_t cod) {
         case A_KR: txt = " program bank"; break;
         case A_I: txt = " indirect"; break;
         case A_LI: txt = " long indirect"; break;
+        default: txt = "?"; break;
         }
         adderror(txt);
     }
@@ -1288,9 +1289,11 @@ void err_msg_size_larger(linepos_t epoint) {
     adderror("larger than original due to negative offset [-Wsize-larger]");
 }
 
-void err_msg_jmp_bug(linepos_t epoint) {
+void err_msg_jmp_bug(Obj *val, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.jmp_bug, epoint);
-    adderror("possible jmp ($xxff) bug [-Wjmp-bug]");
+    adderror("possible jmp ($xxff) bug with argument ");
+    err_msg_variable(val);
+    adderror(" [-Wjmp-bug]");
 }
 
 void err_msg_pc_bank(linepos_t epoint) {

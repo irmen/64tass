@@ -1,5 +1,5 @@
 /*
-    $Id: variables.h 2813 2022-10-18 18:28:21Z soci $
+    $Id: variables.h 3105 2023-09-05 15:38:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

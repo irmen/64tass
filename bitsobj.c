@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: bitsobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -268,7 +268,7 @@ failed:
     return new_error_mem(epoint);
 }
 
-static MALLOC Obj *return_bits(bdigit_t c, unsigned int blen) {
+static MUST_CHECK Obj *return_bits(bdigit_t c, unsigned int blen) {
     Bits *vv = Bits(val_alloc(BITS_OBJ));
     vv->data = vv->u.val;
     vv->u.val[0] = c;

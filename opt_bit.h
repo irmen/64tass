@@ -1,5 +1,5 @@
 /*
-    $Id: opt_bit.h 2896 2022-11-05 05:33:41Z soci $
+    $Id: opt_bit.h 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef enum Bit_types {
 
 extern struct Bit *new_bit0(void);
 extern struct Bit *new_bit1(void);
-extern MALLOC struct Bit *new_bitu(void);
+extern struct Bit *new_bitu(void);
 extern struct Bit *new_bit(Bit_types);
 extern void del_bit(struct Bit *);
 extern struct Bit *ref_bit(struct Bit *);

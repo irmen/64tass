@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3124 2023-09-17 09:29:06Z soci $
+    $Id: 64tass.c 3130 2024-04-21 06:35:30Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -3331,7 +3331,22 @@ MUST_CHECK Obj *compile(void)
                                     if (vs->val == none_value || vs->val->obj == ERROR_OBJ) {
                                         val = val_reference(vs->val);
                                     } else {
-                                        val = new_error_conv(vs->val, NAMESPACE_OBJ, &vs->epoint);
+                                        struct oper_s tmp;
+                                        Obj *sym;
+                                        if (labelname.data == (const uint8_t *)&anonsymbol) {
+                                            sym = new_anonsymbol((anonsymbol.dir == '-') ? -1 : 0);
+                                        } else {
+                                            sym = new_symbol(&labelname, &epoint);
+                                        }
+                                        tmp.op = O_MEMBER;
+                                        tmp.epoint = &vs->epoint;
+                                        tmp.epoint2 = &epoint;
+                                        tmp.epoint3 = &cmdpoint;
+                                        tmp.v1 = vs->val;
+                                        tmp.v2 = sym;
+                                        tmp.inplace = NULL;
+                                        val = tmp.v1->obj->calc2(&tmp);
+                                        val_destroy(sym);
                                     }
                                 } else {
                                     Label *l;
@@ -4623,49 +4638,49 @@ MUST_CHECK Obj *compile(void)
                         if (vs2 != NULL && toival(vs2->val, &ival, 8 * sizeof ival, &vs2->epoint)) {}
                         else if (ival == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs2->epoint);
                         else {
+                            address_t db;
+                            address_t itt, oldstar, itt2;
+                            uval_t offset;
                             uval_t uval = (ival >= 0) ? (uval_t)ival : -(uval_t)ival;
-                            if ((ival > 0) ? (size > uval) : (size >= uval)) {
+                            bool error = (ival > 0) ? (size > uval) : (size >= uval);
+                            if (error) {
                                 address_t ln2 = size - uval;
                                 if (ival < 0) ln2++;
                                 ln2 &= all_mem2;
                                 err_msg2(ERROR____ALIGN_LONG, &ln2, &epoint);
+                            }
+                            s = new_star(vline);
+                            if (s->pass != 0) {
+                                oldstar = s->addr;
+                                if (s->addr != star) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    fixeddig = false;
+                                }
+                            } else oldstar = star;
+                            s->addr = star;
+                            s = new_star(vline + 1);
+                            if (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) {
+                                itt = code->offs < 0 ? code->memaddr - -(uval_t)code->offs : code->memaddr + (uval_t)code->offs;
                             } else {
-                                address_t db;
-                                address_t itt, oldstar, itt2;
-                                uval_t offset;
-                                s = new_star(vline);
-                                if (s->pass != 0) {
-                                    oldstar = s->addr;
-                                    if (s->addr != star) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                        fixeddig = false;
-                                    }
-                                } else oldstar = star;
-                                s->addr = star;
-                                s = new_star(vline + 1);
-                                if (all_mem2 == 0xffffffff && current_section->logicalrecursion == 0) {
-                                    itt = code->offs < 0 ? code->memaddr - -(uval_t)code->offs : code->memaddr + (uval_t)code->offs;
-                                } else {
-                                    itt = code->offs < 0 ? code->addr - -(uval_t)code->offs : code->addr + (uval_t)code->offs;
-                                    itt = (itt - current_address->l_start) & all_mem;
-                                }
-                                itt2 = (s->pass != 0) ? itt - (s->addr - oldstar) : itt;
-                                vs2 = get_val();
-                                offset = (vs2 == NULL) ? 0 : memalign_offset(get_val(), uval);
-                                db = rmemalign(offset, uval, itt2);
-                                if ((ival > 0) ? (size <= db) : (size < db)) {}
-                                else if (db != 0) {
-                                    if (diagnostics.align) err_msg_alignblk(size - db, db, &epoint);
-                                    memskipfill(db, vs2, &epoint);
-                                }
-                                if (fixeddig) {
-                                    itt %= uval;
-                                    if (itt >= offset) offset += uval;
-                                    offset -= itt;
-                                    if ((ival >= 0) ? (offset < size) : (offset <= size)) {
-                                        if (pass > max_pass) err_msg_still_align(&vs->epoint);
-                                        fixeddig = false;
-                                    }
+                                itt = code->offs < 0 ? code->addr - -(uval_t)code->offs : code->addr + (uval_t)code->offs;
+                                itt = (itt - current_address->l_start) & all_mem;
+                            }
+                            itt2 = (s->pass != 0) ? itt - (s->addr - oldstar) : itt;
+                            vs2 = get_val();
+                            offset = (vs2 == NULL) ? 0 : memalign_offset(get_val(), uval);
+                            db = rmemalign(offset, uval, itt2);
+                            if ((ival > 0) ? (size <= db) : (size < db)) {}
+                            else if (db != 0) {
+                                if (diagnostics.align && !error) err_msg_alignblk(size - db, db, &epoint);
+                                memskipfill(db, vs2, &epoint);
+                            }
+                            if (fixeddig) {
+                                itt %= uval;
+                                if (itt >= offset) offset += uval;
+                                offset -= itt;
+                                if ((ival >= 0) ? (offset < size) : (offset <= size)) {
+                                    if (pass > max_pass) err_msg_still_align(&vs->epoint);
+                                    fixeddig = false;
                                 }
                             }
                         }
@@ -4732,25 +4747,25 @@ MUST_CHECK Obj *compile(void)
                         if (vs != NULL && toival(vs->val, &ival, 8 * sizeof ival, &vs->epoint)) {}
                         else if (ival == 0) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else {
+                            address_t db;
+                            uval_t offset;
                             uval_t uval = (ival >= 0) ? (uval_t)ival : -(uval_t)ival;
-                            if ((ival > 0) ? (size > uval) : (size >= uval)) {
+                            bool error = (ival > 0) ? (size > uval) : (size >= uval);
+                            if (error) {
                                 address_t ln2 = size - uval;
                                 if (ival < 0) ln2++;
                                 ln2 &= all_mem2;
                                 err_msg2(ERROR____ALIGN_LONG, &ln2, &epoint);
-                            } else {
-                                address_t db;
-                                uval_t offset;
-                                vs = get_val();
-                                waitfor->u.cmd_alignblk.size = ival;
-                                offset = (vs == NULL) ? 0 : memalign_offset(get_val(), uval);
-                                waitfor->u.cmd_alignblk.offset = offset;
-                                db = dmemalign(offset, uval);
-                                if ((ival > 0) ? (size <= db) : (size < db)) {}
-                                else if (db != 0) {
-                                    if (diagnostics.align) err_msg_alignblk(size - db, db, &epoint);
-                                    memskipfill(db, vs, &epoint);
-                                }
+                            }
+                            vs = get_val();
+                            waitfor->u.cmd_alignblk.size = ival;
+                            offset = (vs == NULL) ? 0 : memalign_offset(get_val(), uval);
+                            waitfor->u.cmd_alignblk.offset = offset;
+                            db = dmemalign(offset, uval);
+                            if ((ival > 0) ? (size <= db) : (size < db)) {}
+                            else if (db != 0) {
+                                if (diagnostics.align && !error) err_msg_alignblk(size - db, db, &epoint);
+                                memskipfill(db, vs, &epoint);
                             }
                         }
                     }

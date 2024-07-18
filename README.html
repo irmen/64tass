@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3120 2023-09-10 16:14:30Z soci $ -->
+<!-- $Id: README.html 3137 2024-06-08 16:10:55Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -996,6 +996,7 @@ used for conversions or type checks.
 <tr><td><code><a name="t_int"><u>int</u></a></code><td>Integer type
 <tr><td><code><a name="t_list"><u>list</u></a></code><td>List type
 <tr><td><code><a name="t_str"><u>str</u></a></code><td>Character string type
+<tr><td><code><a name="t_symbol"><u>symbol</u></a></code><td>Symbol type
 <tr><td><code><a name="t_tuple"><u>tuple</u></a></code><td>Tuple type
 <tr><td><code><a name="t_type"><u>type</u></a></code><td>Type type
 </table></div>
@@ -5123,7 +5124,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>over the boundary by ? bytes, aligned by ? bytes<dd>crossed boundary so alignment was necessary</dd>
 <dt>please separate @b, @w or @l from label or number for future compatibility<dd>future versions will have longer symbols after <q><code>@</code></q> and so will interpret the immediately following numbers and letters as part if the symbol. Please insert a space between <code>@b</code>, <code>@w</code> or <code>@l</code> and the following label or number now to avoid surprises!</dd>
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources</dd>
-<dt>possible jmp ($xxff) bug<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected</dd>
+<dt>possible jmp ($xxff) bug with argument ?<dd>some 6502 variants read don't increment the high byte on page cross and this may be unexpected</dd>
 <dt>possibly redundant as ...<dd>according to the optimizer this might not be needed</dd>
 <dt>possibly redundant if last 'jsr' is changed to 'jmp'<dd>tail call elimination possibility was detected</dd>
 <dt>possibly redundant indexing with a constant value<dd>the index register used seems to be constant and there's a way to eliminate indexing by a constant offset</dd>
@@ -6470,6 +6471,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <a href="#t_int">int</a>
 <a href="#t_list">list</a>
 <a href="#t_str">str</a>
+<a href="#t_symbol">symbol</a>
 <a href="#t_tuple">tuple</a>
 <a href="#t_type">type</a>
 </p>

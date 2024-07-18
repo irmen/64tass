@@ -1,5 +1,5 @@
 /*
-    $Id: symbolobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: symbolobj.h 3137 2024-06-08 16:10:55Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ typedef struct Symbol {
 #define Symbol(a) OBJ_CAST(Symbol, a)
 
 extern void symbolobj_init(void);
+extern void symbolobj_names(void);
 
 extern Obj *new_symbol(const str_t *name, linepos_t);
 

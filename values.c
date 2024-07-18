@@ -1,5 +1,5 @@
 /*
-    $Id: values.c 2898 2022-11-05 08:08:41Z soci $
+    $Id: values.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ static FAST_CALL NO_INLINE Obj *value_alloc(const Type *obj) {
     return Obj(slot);
 }
 
-FAST_CALL MALLOC Obj *val_alloc(const Type *obj) {
+FAST_CALL MUST_CHECK Obj *val_alloc(const Type *obj) {
     Slot *slot = *obj->slot;
     if (slot == NULL) return value_alloc(obj);
     slot->v.obj = obj;

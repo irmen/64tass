@@ -788,6 +788,7 @@ gap     Uninitialized memory type
 int     Integer type
 list    List type
 str     Character string type
+symbol  Symbol type
 tuple   Tuple type
 type    Type type
 
@@ -4479,7 +4480,7 @@ please separate @b, @w or @l from label or number for future compatibility
 please use format("%d", ...) as '^' will change it's meaning
     this operator will be changed to mean the bank byte later, please update
     your sources
-possible jmp ($xxff) bug
+possible jmp ($xxff) bug with argument ?
     some 6502 variants read don't increment the high byte on page cross and
     this may be unexpected
 possibly redundant as ...
@@ -5248,5 +5249,5 @@ range repr round rta sign sin sinh sint size sort sqrt tan tanh trunc word
 
 Built-in types
 
-address bits bool bytes code dict float gap int list str tuple type
+address bits bool bytes code dict float gap int list str symbol tuple type
 

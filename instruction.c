@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 3126 2023-10-06 06:16:09Z soci $
+    $Id: instruction.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -888,13 +888,12 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         }
         FALL_THROUGH; /* fall through */
     default:
-        epoint2 = &vals->val[0].epoint;
     unknown:
         {
             argcount_t j, args = vals->len;
             for (j = 0; j < args; j++) {
                 Obj *v = vals->val[j].val;
-                if (v->obj == ERROR_OBJ) return Error(v);
+                if (v->obj == ERROR_OBJ) return Error(val_reference(v));
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
             err->u.opers.num = j;
@@ -920,7 +919,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             uval2 &= all_mem;
             if (uval2 <= 0xffff) {
                 adr = uval - dpage;
-                if (dpage > 0xffff || (uint16_t)(uval2 - dpage) > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                if (dpage > 0xffff || (uint16_t)(uval2 - dpage) > 0xff) err_msg2(ERROR____NOT_DIRECT, val2, epoint2);
                 else if (opcode == c65el02.opcode || opcode == w65816.opcode) {
                     if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                 } else {
@@ -928,7 +927,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 }
                 break;
             }
-            err_msg2(ERROR_____NOT_BANK0, val, epoint2);
+            err_msg2(ERROR_____NOT_BANK0, val2, epoint2);
             break;
         }
     case AG_B0: /* bank 0 address only */
@@ -948,10 +947,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (uval2 <= 0xffff) {
                 adr = uval;
                 if (uval > 0xffff) err_msg_bank0_wrap(epoint2);
-                if (diagnostics.jmp_bug && cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg_jmp_bug(epoint2);/* jmp ($xxff) */
+                if (diagnostics.jmp_bug && cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c4510.opcode && opcode != c65el02.opcode && (~adr & 0xff) == 0) err_msg_jmp_bug(val2, epoint2);/* jmp ($xxff) */
                 break;
             }
-            err_msg2(ERROR_____NOT_BANK0, val, epoint2);
+            err_msg2(ERROR_____NOT_BANK0, val2, epoint2);
             break;
         }
     case AG_PB: /* address in program bank */
@@ -972,7 +971,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 if ((current_address->l_address ^ uval) > 0xffff) err_msg_pbank_wrap(epoint2);
                 break;
             }
-            err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
+            err_msg2(ERROR_CANT_CROSS_BA, val2, epoint2);
             break;
         }
     case AG_CHAR:
@@ -1048,7 +1047,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                     } else {
                         w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
-                        err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
+                        err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val2, epoint2);
                     }
                 }
             } else {
@@ -1067,7 +1066,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     uval3 = (opcode == c65el02.opcode || opcode == w65816.opcode) ? (uval & all_mem) : uval2;
                     if (uval3 <= 0xffff) {
                         adr = uval - dpage;
-                        if (dpage > 0xffff || (uint16_t)(uval3 - dpage) > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                        if (dpage > 0xffff || (uint16_t)(uval3 - dpage) > 0xff) err_msg2(ERROR____NOT_DIRECT, val2, epoint2);
                         else if (opcode == c65el02.opcode || opcode == w65816.opcode) {
                             if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                         } else {
@@ -1075,13 +1074,13 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         }
                         break;
                     }
-                    err_msg2(ERROR_____NOT_BANK0, val, epoint2);
+                    err_msg2(ERROR_____NOT_BANK0, val2, epoint2);
                     break;
                 case 1:
                     if (cnmemonic[opr - 1] == ____) return err_addressize(ERROR__NO_WORD_ADDR, epoint2, prm);
                     uval &= all_mem;
                     adr = uval;
-                    if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
+                    if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val2, epoint2);
                     else if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                     break;
                 case 2:

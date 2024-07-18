@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: bytesobj.c 3136 2024-05-11 09:05:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ static FAST_CALL void destroy(Obj *o1) {
     if unlikely(v1->u.val != v1->data) bytes_destroy(v1);
 }
 
-MALLOC Bytes *new_bytes(size_t ln) {
+MUST_CHECK Bytes *new_bytes(size_t ln) {
     Bytes *v = Bytes(val_alloc(BYTES_OBJ));
     if (ln > sizeof v->u.val) {
         v->u.s.max = ln;
