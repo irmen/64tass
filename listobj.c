@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: listobj.c 3144 2025-03-07 06:52:29Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -187,7 +187,7 @@ static MUST_CHECK Obj *list_from_obj(Obj *o1, Type *typ, linepos_t epoint) {
     case T_TUPLE:
         return tuple_from_list(List(o1), typ, epoint);
     case T_CODE:
-        return tuple_from_code(Code(o1), typ);
+        return tuple_from_code(Code(o1), typ, epoint);
     default:
         if (o1->obj->iterable) {
             return tuple_from_iterable(o1, typ, epoint);

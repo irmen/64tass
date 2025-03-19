@@ -559,13 +559,20 @@ scrhi   .byte >_
 
 Dictionaries
 
-Dictionaries hold key and value pairs. Definition is done by collecting
-key:value pairs separated by comma between braces {"key":"value", :"default
-value"}.
+Dictionaries hold key and value pairs normally but can be used as sets too if
+simple values are used. In the latter case the values are the keys for
+themselves.
+
+A dictionary is defined with coma separated values between curly brackets. An
+empty one is {}. Key and value pairs are separated with colon, like { <key>:
+<value> }. A default value for missing items is can be defined by leaving out
+the key before the colon, like { :<default> }. Simple value don't use a colon {
+<value> }.
 
 Looking up a non-existing key is normally an error unless a default value is
-given. An empty dictionary is {}. This type is immutable. There are limitations
-what may be used as a key but the value can be anything.
+given. Dictionaries are immutable. There are limitations what may be used as a
+key but the value can be anything. As the keys are used for lookups these must
+be unique.
 
                   Dictionary operators and functions
 y .. x combine dictionaries {1:2, 3:4} .. {2:3, 3:1} is {1:2, 2:3, 3:1}
@@ -577,10 +584,23 @@ y in x is a key             1 in {1:2} is true
         .text {1:"one", 2:"two"}[2]; "two"
 ; 16 element "fader" table 1->15->12->11->0
         .byte {1:15, 15:12, 12:11, :0}[range(16)]
+; Variables can be used to build dictionaries incrementally.
+md      := {1:2}
+md      ..= {3:4}
+
+The keys can be symbols as well, this allows simple definition of data
+structures or enumerations.
+
 ; Symbol accessible values. May be useful as a function return value too.
 coords  = {.x: 24, .y: 50}
         ldx #coords.x
         ldy #coords.y
+; Simple enumeration where red = 0, green = 1, blue = 2
+colors  = dict(.(red, green, blue), range(3))
+        lda #color.green
+; Enumerate register bits as %1, %10, %100, ...
+irqbits = dict(.(ta, tb, tod, serial, flag), %1 << range(5))
+        and #irqbits.flag
 
 Code
 
@@ -792,9 +812,9 @@ symbol  Symbol type
 tuple   Tuple type
 type    Type type
 
-Bit and byte string conversions can take a second parameter to specify and
-exact size. Values which can fit in shorter space will be padded but longer
-ones give an error.
+Bit and byte string conversions can take a second parameter to specify an exact
+size. Values which can fit in shorter space will be padded but longer ones give
+an error.
 
 bits(<expression>[, <bit count>])
     Convert to the specific number of bits. If the number of bits is negative
@@ -802,6 +822,13 @@ bits(<expression>[, <bit count>])
 bytes(<expression>[, <byte count>])
     Convert to the specific number of bytes. If the number of bits is negative
     then it's a signed.
+
+Dictionaries can be built from a single iterable of key and value pairs, or
+from two iterables where the keys come from the first and the values from the
+second parameter.
+
+dict(<iterable>[, <values iterable>])
+    Build dictionary from iterables
 
         .cerror type(var) != str, "Not a string!"
         .text str(year)   ; convert to string
@@ -2115,9 +2142,9 @@ nnarray .brept 4        ;4 element "array" here
 
         lda nnarray[0].y;access of "array" field
 
-coords2 .bfor x2, y2 in (1,3),(4,2),(7,5)
+coords2 .bfor x2, y2 in [(1,3),(4,2),(7,5)]
         .dstruct nn_s, x2, y2
-        .next           ;initialized "array" from list
+        .endfor         ;initialized "array" from list
 
 Union
 
@@ -2453,15 +2480,41 @@ within.
             dex
             bne lp
 
-.for <variable>[, <variable>, ...] in <expression>
-.bfor <variable>[, <variable>, ...] in <expression>
+.for <variable>[, <variable>, ...] in <expression>[, <expression>, ...]
+.bfor <variable>[, <variable>, ...] in <expression>[, <expression>, ...]
     Assign variable(s) to values in sequence one-by-one in order.
 
-    The expression is usually the range function or some sort of list.
+    Usually one variable is used to loop through all values. The values can be
+    supplied by range function or some sort of list.
 
+    It's also possible to use more than one variable for each iteration. These
+    can be assigned to a collection of values each time (row oriented) or a
+    single value from each collection (column oriented).
+
+    A row oriented for loop expects collections of the same number of values as
+    the number of variables as each variable gets assigned to one of them. The
+    loop iteration count depends on how many such collections were supplied.
+
+    A column oriented for loop expects the same number of collections (comma
+    separated) as the number of variables. On each iteration a single value is
+    taken from each and is assigned to the matching variable. All collections
+    should have the same length so that all variables can be assigned. This
+    length also determines the loop iteration count.
+
+    ;loop through on iterable or on comma separated values
             .for col in 0, 11, 12, 15, 1
             lda #col         ;0, 11, 12, 15 and 1
             sta $d020
+            .endfor
+    ;row oriented iterating for loop, on list of tuples
+            .for dest, val in [($d011, $3b), ($d020, 0), ($d018, $18)]
+            lda #val
+            sta dest
+            .endfor
+    ;column oriented iterating for loop, one iterable for each variable.
+            .for dest, val in ($d011, $d020, $d018), ($3b, 0, $18)
+            lda #val
+            sta dest
             .endfor
 
 .endfor
@@ -4440,7 +4493,7 @@ direct page address overflow
     is now wrapped.
 directive ignored
     an assembler directive was ignored for compatibility reasons
-expected ? values but got ? to unpack
+for ? variables got ? values in ?
     the number of variables must match the number of values when unpacking
 file name uses reserved character '?'
     do not use \ : * ? " < > | in file names as some operating systems don't
@@ -4470,6 +4523,9 @@ long branch used
 memory location address overflow
     the calculated memory location address ended up outside of the processors
     address space
+not enough values in ?
+    all variables in a column oriented for loop should be fed with the same
+    amount of values
 over the boundary by ? bytes, aligned by ? bytes
     crossed boundary so alignment was necessary
 please separate @b, @w or @l from label or number for future compatibility

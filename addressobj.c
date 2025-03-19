@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: addressobj.c 3153 2025-03-09 06:15:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "eval.h"
 #include "variables.h"
 #include "arguments.h"
-#include "instruction.h"
 
 #include "boolobj.h"
 #include "strobj.h"
@@ -34,6 +33,7 @@
 #include "bitsobj.h"
 #include "bytesobj.h"
 #include "registerobj.h"
+#include "codeobj.h"
 
 static Type obj;
 
@@ -41,6 +41,12 @@ Type *const ADDRESS_OBJ = &obj;
 
 static MUST_CHECK Obj *address_from_obj(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_CODE:
+        if (Code(v1)->typ->obj == ADDRESS_OBJ) {
+            atype_t am = Address(Code(v1)->typ)->type;
+            return new_address(code_remove_address(Code(v1), true), am);
+        }
+        FALL_THROUGH; /* fall through */
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -506,7 +512,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         case O_MAX:
         case O_GT:
         case O_GE:
-            if (am == A_NONE || (am == A_DR && dpage == 0) || (am == A_BR && databank == 0)) {
+            if (am == A_NONE) {
                 op->v1 = v1->val;
                 op->inplace = NULL;
                 return op->v1->obj->calc2(op);
@@ -570,6 +576,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 }
                 if (am2 != A_NONE) break;
                 if (am1 != A_NONE) while ((am1 & 0xf) == A_NONE) am1 >>= 4;
+                if (am1 == A_NONE) return val_reference(v1->val);
                 return new_address(val_reference(v1->val), am1);
             }
         }

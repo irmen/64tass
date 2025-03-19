@@ -1,5 +1,5 @@
 /*
-    $Id: macro.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: macro.c 3162 2025-03-17 05:51:47Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -212,7 +212,7 @@ bool mtranslate(void) {
                     if (macro->param[j].cfname.len != cf.len) continue;
                     data = macro->param[j].cfname.data;
                     if (data[0] != cf.data[0]) continue;
-                    if (memcmp(data, cf.data, cf.len) == 0) break;
+                    if (cf.len == 1 || memcmp(data, cf.data, cf.len) == 0) break;
                 }
                 if (j < macro->argc) break;
                 lpoint.pos = (linecpos_t)(op - pline);
@@ -625,7 +625,6 @@ bool get_func_params(Mfunc *v, bool single) {
             if (single) {
                 const uint8_t *s = pline + lpoint.pos;
                 if (!stard && s[0] != ',' && s[0] != ':' && (s[0] != '=' || s[1] == '=')) {
-                    v->epoint.line = lpoint.line - 1;
                     lpoint.pos = param->epoint.pos;
                     v->epoint.pos = lpoint.pos;
                     break;
@@ -659,7 +658,6 @@ bool get_func_params(Mfunc *v, bool single) {
                     }
                     lpoint.pos++;
                     ignore();
-                    v->epoint.line = lpoint.line - 1;
                     v->epoint.pos = lpoint.pos;
                 }
                 break;
@@ -964,6 +962,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, Funcargs *v2, linepos_t epoint) {
         push_context(context);
         functionrecursion++;
         if (mfunc->v.obj == SFUNC_OBJ) {
+            lpoint.line--;
             if (mtranslate()) {
                 lpoint.pos = mfunc->epoint.pos;
                 if (mfunc->line != NULL) pline = mfunc->line;

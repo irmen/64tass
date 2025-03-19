@@ -1,5 +1,5 @@
 /*
-    $Id: dictobj.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: dictobj.c 3157 2025-03-11 03:41:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -354,6 +354,71 @@ static MUST_CHECK Obj *dict_from_obj(Obj *o1, linepos_t epoint) {
 
 static MUST_CHECK Obj *convert(oper_t op) {
     return dict_from_obj(op->v2, op->epoint2);
+}
+
+static MUST_CHECK Obj *convert2(oper_t op) {
+    Funcargs *vals = Funcargs(op->v2);
+    struct values_s *v = vals->val;
+    argcount_t args = vals->len;
+    size_t i;
+    int j;
+    Dict *dict;
+    struct iter_s iter[2];
+    Obj *v2;
+    size_t len = 0;
+
+    if (args != 2) {
+        return new_error_argnum(args, 1, 2, op->epoint2);
+    }
+    for (j = 0; j < 2; j++) {
+        if (v[j].val->obj->iterable) continue;
+        return new_error_obj(ERROR______NOT_ITER, v[j].val, &v[j].epoint);
+    }
+    for (j = 0; j < 2; j++) {
+        Obj *val = v[j].val;
+        iter[j].data = val; val->obj->getiter(&iter[j]);
+        if (len < iter[j].len) len = iter[j].len;
+    }
+    dict = new_dict(len);
+    if (dict == NULL) {
+        v2 = new_error_mem(op->epoint);
+    } else {
+        dict->def = NULL;
+        v2 = NULL;
+        for (i = 0; i < len; i++) {
+            struct pair_s p;
+            p.key = iter[0].next(&iter[0]);
+            p.data = iter[1].next(&iter[1]);
+            if (p.key == NULL && p.data == NULL) break;
+            if (p.key == NULL || p.data == NULL) {
+                Error *err2 = new_error(ERROR_CANT_BROADCAS, &v[j].epoint);
+                err2->u.broadcast.v1 = len;
+                err2->u.broadcast.v2 = i;
+                v2 = Obj(err2);
+                break;
+            }
+            if (p.key == none_value || p.key->obj == ERROR_OBJ) {
+                v2 = val_reference(p.key);
+                break;
+            }
+            if (p.key != default_value && p.data == default_value) {
+                v2 = new_error_obj(ERROR__NOT_KEYVALUE, p.key, &v[0].epoint);
+                break;
+            }
+            if (p.key == default_value) {
+                if (dict->def != NULL) val_destroy(dict->def);
+                dict->def = (p.data == default_value) ? NULL : val_reference(p.data);
+                continue;
+            }
+            v2 = p.key->obj->hash(p.key, &p.hash, &v[0].epoint);
+            if (v2 != NULL) break;
+            dict_update(dict, &p);
+        }
+        if (v2 == NULL) v2 = normalize(dict);
+        else val_destroy(Obj(dict));
+    }
+    for (j = 0; j < 2; j++) if (iter[j].data != NULL) iter_destroy(&iter[j]);
+    return v2;
 }
 
 static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
@@ -913,6 +978,7 @@ void dictobj_init(void) {
     type->destroy = destroy;
     type->garbage = garbage;
     type->convert = convert;
+    type->convert2 = convert2;
     type->same = same;
     type->hash = hash;
     type->len = len;

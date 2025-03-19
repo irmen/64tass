@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: file.c 3142 2024-10-19 14:04:31Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -186,7 +186,7 @@ static wchar_t *get_real_name(const wchar_t *name) {
         if (tmp != NULL) {
             short_name = tmp;
             len = ret;
-            ret = GetShortPathNameW(name, real_name, len);
+            ret = GetShortPathNameW(name, short_name, len);
         }
     }
     if (ret >= len || ret == 0) {

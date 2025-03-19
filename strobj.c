@@ -1,5 +1,5 @@
 /*
-    $Id: strobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: strobj.c 3143 2024-12-25 23:53:11Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ MUST_CHECK Obj *tostr2(const struct values_s *v1, str_t *out) {
     }
 }
 
-MALLOC Str *new_str2(size_t ln) {
+MUST_CHECK Str *new_str2(size_t ln) {
     Str *v = Str(val_alloc(STR_OBJ));
     v->len = ln;
     if (ln <= sizeof v->u.val) {

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3137 2024-06-08 16:10:55Z soci $ -->
+<!-- $Id: README.html 3160 2025-03-16 19:30:22Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -709,9 +709,9 @@ lst     := <u>lst</u>[:<span>2</span>] .. [<span>4</span>] .. <u>lst</u>[<span>3
 (right). The list must contain at least one element. Here are some folding examples:
 
 <pre>
-minimum <b>=</b> size([<u>part1</u>, <u>part2</u>, <u>part3</u>]) &lt;? ...
-maximum <b>=</b> size([<u>part1</u>, <u>part2</u>, <u>part3</u>]) &gt;? ...
-sum     <b>=</b> size([<u>part1</u>, <u>part2</u>, <u>part3</u>]) + ...
+minimum <b>=</b> <span class="k">size</span>([<u>part1</u>, <u>part2</u>, <u>part3</u>]) &lt;? ...
+maximum <b>=</b> <span class="k">size</span>([<u>part1</u>, <u>part2</u>, <u>part3</u>]) &gt;? ...
+sum     <b>=</b> <span class="k">size</span>([<u>part1</u>, <u>part2</u>, <u>part3</u>]) + ...
 xorall  <b>=</b> <u>list_of_numbers</u> ^ ...
 join    <b>=</b> <u>list_of_strings</u> .. ...
 allbits <b>=</b> <u>sprites</u>.(<u>left</u>, <u>middle</u>, <u>right</u>).<u>bits</u> | ...
@@ -737,14 +737,21 @@ scrhi   <b class="d">.byte</b> &gt;<u>_</u>
 
 <h3>Dictionaries<a name="dictionaries" href="#dictionaries"></a></h3>
 
-<p>Dictionaries hold key and value pairs. Definition is done by collecting
-key:value pairs separated by comma between braces <code>{"key":"value",
-:"default value"}</code>.
+<p>Dictionaries hold key and value pairs normally but can be used as sets too
+if simple values are used. In the latter case the values are the keys for
+themselves.
 
-<p>Looking up a non-existing key is normally an error
-unless a default value is given. An empty dictionary is <code>{}</code>.
-This type is immutable. There are limitations what may be used as a
-key but the value can be anything.
+<p>A dictionary is defined with coma separated values between curly brackets. An
+empty one is <code>{}</code>. Key and value pairs are separated with colon,
+like <code>{ &lt;key&gt;:&lt;value&gt; }</code>. A default value for missing
+items is can be defined by leaving out the key before the colon, like <code>{
+:&lt;default&gt; }</code>. Simple value don't use a colon <code>{
+&lt;value&gt; }</code>.
+
+<p>Looking up a non-existing key is normally an error unless a default value is
+given. Dictionaries are immutable. There are limitations what may be used as a
+key but the value can be anything. As the keys are used for lookups these must
+be unique.
 
 <div><table border="0">
 <caption>Dictionary operators and functions</caption>
@@ -759,10 +766,25 @@ key but the value can be anything.
         <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
 <i>; 16 element "fader" table 1-&gt;15-&gt;12-&gt;11-&gt;0</i>
         <b class="d">.byte</b> {<span>1</span>:<span>15</span>, <span>15</span>:<span>12</span>, <span>12</span>:<span>11</span>, :<span>0</span>}[<span class="k">range</span>(<span>16</span>)]
+<i>; Variables can be used to build dictionaries incrementally.</i>
+md      <b>:=</b> {<span>1</span>:<span>2</span>}
+md      <b>..=</b> {<span>3</span>:<span>4</span>}
+</pre>
+
+<p>The keys can be symbols as well, this allows simple definition of data
+structures or enumerations.</p>
+
+<pre>
 <i>; Symbol accessible values. May be useful as a function return value too.</i>
 coords  <b>=</b> {.<u>x</u>: <span>24</span>, .<u>y</u>: <span>50</span>}
         <b>ldx</b> #<u>coords</u>.<u>x</u>
         <b>ldy</b> #<u>coords</u>.<u>y</u>
+<i>; Simple enumeration where red = 0, green = 1, blue = 2</i>
+colors  <b>=</b> <span class="k">dict</span>(.(<u>red</u>, <u>green</u>, <u>blue</u>), <span class="k">range</span>(<span>3</span>))
+        <b>lda</b> #<u>color</u>.<u>green</u>
+<i>; Enumerate register bits as %1, %10, %100, ...</i>
+irqbits <b>=</b> <span class="k">dict</span>(.(<u>ta</u>, <u>tb</u>, <u>tod</u>, <u>serial</u>, <u>flag</u>), <span>%1</span> &lt;&lt; <span class="k">range</span>(<span>5</span>))
+        <b>and</b> #<u>irqbits</u>.<u>flag</u>
 </pre>
 
 <h3>Code<a name="code" href="#code"></a></h3>
@@ -1001,7 +1023,7 @@ used for conversions or type checks.
 <tr><td><code><a name="t_type"><u>type</u></a></code><td>Type type
 </table></div>
 
-<p>Bit and byte string conversions can take a second parameter to specify and
+<p>Bit and byte string conversions can take a second parameter to specify an
 exact size. Values which can fit in shorter space will be padded but longer ones
 give an error.
 
@@ -1010,6 +1032,15 @@ give an error.
 <dd>Convert to the specific number of bits. If the number of bits is negative then it's a signed.</dd>
 <dt><b>bytes(</b>&lt;expression&gt;[, &lt;byte count&gt;]<b>)</b>
 <dd>Convert to the specific number of bytes. If the number of bits is negative then it's a signed.</dd>
+</dl>
+
+<p>Dictionaries can be built from a single iterable of key and value pairs, or
+from two iterables where the keys come from the first and the values from the
+second parameter.
+
+<dl class="dir">
+<dt><b>dict(</b>&lt;iterable&gt;[, &lt;values iterable&gt;]<b>)</b>
+<dd>Build dictionary from iterables</dd>
 </dl>
 
 <pre>
@@ -2540,9 +2571,9 @@ nnarray <b class="k">.brept</b> <span>4</span>        <i>;4 element "array" here
 
         <b>lda</b> <u>nnarray</u>[<span>0</span>].<u>y</u><i>;access of "array" field</i>
 
-coords2 <b class="k">.bfor</b> <u>x2</u>, <u>y2</u> <span class="k">in</span> (<span>1</span>,<span>3</span>),(<span>4</span>,<span>2</span>),(<span>7</span>,<span>5</span>)
+coords2 <b class="k">.bfor</b> <u>x2</u>, <u>y2</u> <span class="k">in</span> [(<span>1</span>,<span>3</span>),(<span>4</span>,<span>2</span>),(<span>7</span>,<span>5</span>)]
         <b class="d">.dstruct</b> <u>nn_s</u>, <u>x2</u>, <u>y2</u>
-        <b class="k">.next</b>           <i>;initialized "array" from list</i>
+        <b class="k">.endfor</b>         <i>;initialized "array" from list</i>
 </pre>
 
 <h4>Union<a name="union" href="#union"></a></h4>
@@ -2916,16 +2947,43 @@ lp      <b class="k">.for</b> <u>ue</u> := <span>$400</span>, <u>ue</u> &lt; <sp
         <b>bne</b> <u>lp</u>
 </pre></dd>
 
-<dt><b>.for</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
-<dt><b>.bfor</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;
+<dt><b>.for</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><b>.bfor</b> &lt;variable&gt;[, &lt;variable&gt;, &hellip;] <b class="k">in</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Assign variable(s) to values in sequence one-by-one in order.
 
-<p>The expression is usually the <a href="#f_range"><code>range</code></a> function or some sort of <a href="#list-tuples">list</a>.</p>
+<p>Usually one variable is used to loop through all values. The values can be
+supplied by <a href="#f_range"><code>range</code></a> function or some sort of
+<a href="#list-tuples">list</a>.
+
+<p>It's also possible to use more than one variable for each iteration. These
+can be assigned to a collection of values each time (row oriented) or a single
+value from each collection (column oriented).
+
+<p>A row oriented for loop expects collections of the same number of values as
+the number of variables as each variable gets assigned to one of them. The
+loop iteration count depends on how many such collections were supplied.
+
+<p>A column oriented for loop expects the same number of collections (comma
+separated) as the number of variables. On each iteration a single value is
+taken from each and is assigned to the matching variable. All collections should
+have the same length so that all variables can be assigned. This length also
+determines the loop iteration count.</p>
 
 <pre>
+<i>;loop through on iterable or on comma separated values</i>
         <b class="k">.for</b> <u>col</u> <span class="k">in</span> <span>0</span>, <span>11</span>, <span>12</span>, <span>15</span>, <span>1</span>
         <b>lda</b> #<u>col</u>         <i>;0, 11, 12, 15 and 1</i>
         <b>sta</b> <span>$d020</span>
+        <b class="k">.endfor</b>
+<i>;row oriented iterating for loop, on list of tuples</i>
+        <b class="k">.for</b> <u>dest</u>, <u>val</u> <span class="k">in</span> [(<span>$d011</span>, <span>$3b</span>), (<span>$d020</span>, <span>0</span>), (<span>$d018</span>, <span>$18</span>)]
+        <b>lda</b> #<u>val</u>
+        <b>sta</b> <u>dest</u>
+        <b class="k">.endfor</b>
+<i>;column oriented iterating for loop, one iterable for each variable.</i>
+        <b class="k">.for</b> <u>dest</u>, <u>val</u> <span class="k">in</span> (<span>$d011</span>, <span>$d020</span>, <span>$d018</span>), (<span>$3b</span>, <span>0</span>, <span>$18</span>)
+        <b>lda</b> #<u>val</u>
+        <b>sta</b> <u>dest</u>
         <b class="k">.endfor</b>
 </pre></dd>
 
@@ -5110,7 +5168,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>deprecated not equal operator, use '!=' instead<dd>non-standard not equal operators which will stop working in the future, update source</dd>
 <dt>direct page address overflow<dd>the calculated memory location address ended up outside of direct page and is now wrapped.</dd>
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons</dd>
-<dt>expected ? values but got ? to unpack<dd>the number of variables must match the number of values when unpacking</dd>
+<dt>for ? variables got ? values in ?<dd>the number of variables must match the number of values when unpacking</dd>
 <dt>file name uses reserved character '?'<dd>do not use \ : * ? " &lt; &gt; | in file names as some operating systems don't like these</dd>
 <dt>immediate addressing mode suggested<dd>numeric constant was used as an address which was likely meant as an immediate value</dd>
 <dt>implicit floating point rounding<dd>a floating point number with fractional part was used for an integer parameter</dd>
@@ -5121,6 +5179,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>leading zeros ignored<dd>leading zeros in front of decimals are redundant and don't denote an octal number</dd>
 <dt>long branch used<dd>branch distance was too long so long branch was used (<code>bxx *+5 jmp</code>)</dd>
 <dt>memory location address overflow<dd>the calculated memory location address ended up outside of the processors address space</dd>
+<dt>not enough values in ?<dd>all variables in a column oriented for loop should be fed with the same amount of values</dd>
 <dt>over the boundary by ? bytes, aligned by ? bytes<dd>crossed boundary so alignment was necessary</dd>
 <dt>please separate @b, @w or @l from label or number for future compatibility<dd>future versions will have longer symbols after <q><code>@</code></q> and so will interpret the immediately following numbers and letters as part if the symbol. Please insert a space between <code>@b</code>, <code>@w</code> or <code>@l</code> and the following label or number now to avoid surprises!</dd>
 <dt>please use format("%d", ...) as '^' will change it's meaning<dd>this operator will be changed to mean the bank byte later, please update your sources</dd>
