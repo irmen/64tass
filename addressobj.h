@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.h 2651 2021-05-09 19:33:48Z soci $
+    $Id: addressobj.h 3176 2025-03-25 21:25:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -61,10 +61,12 @@ static inline MUST_CHECK Obj *new_address(Obj *val, atype_t type) {
     return Obj(v);
 }
 
+struct Register;
+
 extern MUST_CHECK Obj *int_from_address(Address *, linepos_t);
 extern MUST_CHECK Obj *float_from_address(Address *, linepos_t);
 extern MUST_CHECK Obj *bits_from_address(Address *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_address(Address *, linepos_t);
 extern bool check_addr(atype_t);
-extern Address_types register_to_indexing(unsigned int);
+extern Address_types register_to_indexing(const struct Register *);
 #endif

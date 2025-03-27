@@ -1,5 +1,5 @@
 /*
-    $Id: registerobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: registerobj.c 3176 2025-03-25 21:25:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,13 +21,13 @@
 #include "eval.h"
 #include "variables.h"
 #include "values.h"
+#include "error.h"
 
 #include "strobj.h"
 #include "typeobj.h"
 #include "errorobj.h"
 #include "addressobj.h"
 #include "intobj.h"
-#include "error.h"
 
 static Type obj;
 
@@ -59,14 +59,16 @@ static MUST_CHECK Obj *register_from_obj(Obj *o1, linepos_t epoint) {
             Register *v = new_register();
             v->chars = v1->chars;
             v->len = v1->len;
-            if (v->len != 0) {
-                if (v->len > sizeof v->val) {
-                    s = allocate_array(uint8_t, v->len);
-                    if (s == NULL) return new_error_mem(epoint);
-                } else s = v->val;
-                memcpy(s, v1->data, v->len);
-            } else s = NULL;
+            if (v->len > sizeof v->val) {
+                s = allocate_array(uint8_t, v->len);
+                if (s == NULL) {
+                    v->data = v->val;
+                    val_destroy(Obj(v));
+                    return new_error_mem(epoint);
+                }
+            } else s = v->val;
             v->data = s;
+            if (v->len != 0) memcpy(s, v1->data, v->len);
             return Obj(v);
         }
     default: break;
@@ -165,8 +167,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BYTES:
     case T_STR:
     case T_CODE:
-        if (Register(op->v1)->len == 1) {
-            Address_types am = register_to_indexing(Register(op->v1)->data[0]);
+        {
+            Address_types am = register_to_indexing(Register(op->v1));
             if (am == A_NONE) break;
             if (op->op == O_ADD) {
                 return new_address(val_reference(op->v2), am);
@@ -200,12 +202,10 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_BYTES:
-        if (Register(op->v2)->len == 1) {
-            if (op->op == O_ADD) {
-                Address_types am = register_to_indexing(Register(op->v2)->data[0]);
-                if (am != A_NONE) {
-                    return new_address(val_reference(op->v1), am);
-                }
+        if (op->op == O_ADD) {
+            Address_types am = register_to_indexing(Register(op->v2));
+            if (am != A_NONE) {
+                return new_address(val_reference(op->v1), am);
             }
         }
         break;

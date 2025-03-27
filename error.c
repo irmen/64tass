@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 3164 2025-03-17 19:38:36Z soci $
+    $Id: error.c 3177 2025-03-25 21:54:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1050,6 +1050,7 @@ void err_msg_unknown_formatchar(const Str *s, size_t offs, linepos_t epoint) {
 }
 
 static void err_msg_double_note(const struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2) {
+    if (epoint->line == 0) return;
     new_error_msg(SV_NOTE, cflist, epoint);
     adderror("original definition of");
     str_name(labelname2->data, labelname2->len);

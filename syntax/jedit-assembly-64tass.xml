@@ -3,7 +3,7 @@
 <!DOCTYPE MODE SYSTEM "xmode.dtd">
 
 <!--
-	$Id: jedit-assembly-64tass.xml 3083 2023-09-02 21:23:51Z soci $
+	$Id: jedit-assembly-64tass.xml 3179 2025-03-26 06:31:53Z soci $
 	64tass Assembly mode for jedit by Soci/Singular (soci at c64.rulez.org)
 -->
 
@@ -205,15 +205,19 @@
                         <KEYWORD1>jmp</KEYWORD1>
                         <KEYWORD1>jsr</KEYWORD1>
                         <KEYWORD1>lda</KEYWORD1>
+                        <KEYWORD1>ldr</KEYWORD1>
                         <KEYWORD1>ldx</KEYWORD1>
                         <KEYWORD1>ldy</KEYWORD1>
                         <KEYWORD1>lsr</KEYWORD1>
                         <KEYWORD1>nop</KEYWORD1>
                         <KEYWORD1>ora</KEYWORD1>
+                        <KEYWORD1>orr</KEYWORD1>
                         <KEYWORD1>pha</KEYWORD1>
                         <KEYWORD1>php</KEYWORD1>
                         <KEYWORD1>pla</KEYWORD1>
                         <KEYWORD1>plp</KEYWORD1>
+                        <KEYWORD1>psh</KEYWORD1>
+                        <KEYWORD1>pul</KEYWORD1>
                         <KEYWORD1>rol</KEYWORD1>
                         <KEYWORD1>ror</KEYWORD1>
                         <KEYWORD1>rti</KEYWORD1>
@@ -223,6 +227,7 @@
                         <KEYWORD1>sed</KEYWORD1>
                         <KEYWORD1>sei</KEYWORD1>
                         <KEYWORD1>sta</KEYWORD1>
+                        <KEYWORD1>str</KEYWORD1>
                         <KEYWORD1>stx</KEYWORD1>
                         <KEYWORD1>sty</KEYWORD1>
                         <KEYWORD1>tax</KEYWORD1>

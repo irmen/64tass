@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 3095 2023-09-03 09:00:00Z soci $
+" $Id: 64tass.vim 3179 2025-03-26 06:31:53Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -57,8 +57,8 @@ syn match tass64Array /\v[({[]/ skipwhite contained contains=tass64Oper1 nextgro
 
 " 6502 Mnemonics
 syn match tass64Mne /\v%(adc|and|asl|bcc|bcs|beq|bit|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpa|cpx)>:@!/ skipwhite contained nextgroup=@tass64Expression
-syn match tass64Mne /\v%(cpy|dec|dex|dey|eor|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla)>:@!/ skipwhite contained nextgroup=@tass64Expression
-syn match tass64Mne /\v%(plp|rol|ror|rti|rts|sbc|sec|sed|sei|sta|stx|sty|tax|tay|tsx|txa|txs|tya)>:@!/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Mne /\v%(cpy|dec|dex|dey|eor|inc|inx|iny|jmp|jsr|lda|ldr|ldx|ldy|lsr|nop|ora|orr|pha|php|pla)>:@!/ skipwhite contained nextgroup=@tass64Expression
+syn match tass64Mne /\v%(plp|psh|pul|rol|ror|rti|rts|sbc|sec|sed|sei|sta|str|stx|sty|tax|tay|tsx|txa|txs|tya)>:@!/ skipwhite contained nextgroup=@tass64Expression
 " 6502 Mnemonic aliases
 syn match tass64Mne /\v%(bge|blt|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|shl|shr)>:@!/ skipwhite contained nextgroup=@tass64Expression
 " 6502 registers

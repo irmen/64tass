@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 3153 2025-03-09 06:15:12Z soci $
+    $Id: addressobj.c 3176 2025-03-25 21:25:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -250,8 +250,9 @@ static inline bool check_addr2(atype_t type) {
     return false;
 }
 
-Address_types register_to_indexing(unsigned int c) {
-    switch (c) {
+Address_types register_to_indexing(const Register *reg) {
+    if (reg->len != 1) return A_NONE;
+    switch (reg->data[0]) {
     case 's': return A_SR;
     case 'r': return A_RR;
     case 'z': return A_ZR;
@@ -536,8 +537,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         }
         break;
     case T_REGISTER:
-        if (Register(op->v2)->len == 1) {
-            Address_types am2 = register_to_indexing(Register(op->v2)->data[0]);
+        {
+            Address_types am2 = register_to_indexing(Register(op->v2));
             if (am2 == A_NONE) break;
             if (op->op == O_ADD) {
                 return new_address(val_reference(v1->val), v1->type << 4 | am2);
@@ -628,19 +629,17 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     case T_CODE:
         return t1->calc2(op);
     case T_REGISTER:
-        if (Register(op->v1)->len == 1) {
-            am = register_to_indexing(Register(op->v1)->data[0]);
-            if (am == A_NONE) break;
-            if (op->op == O_ADD) {
-                return new_address(val_reference(v2->val), v2->type << 4 | am);
-            }
-            if (op->op == O_SUB) {
-                if (am == v2->type) {
-                    op->v1 = int_value[0];
-                    op->v2 = v2->val;
-                    op->inplace = NULL;
-                    return INT_OBJ->calc2(op);
-                }
+        am = register_to_indexing(Register(op->v1));
+        if (am == A_NONE) break;
+        if (op->op == O_ADD) {
+            return new_address(val_reference(v2->val), v2->type << 4 | am);
+        }
+        if (op->op == O_SUB) {
+            if (am == v2->type) {
+                op->v1 = int_value[0];
+                op->v2 = v2->val;
+                op->inplace = NULL;
+                return INT_OBJ->calc2(op);
             }
         }
         break;

@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3161 2025-03-17 04:19:59Z soci $
+    $Id: eval.c 3176 2025-03-25 21:25:50Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1017,8 +1017,8 @@ static bool get_val2(struct eval_context_s *ev) {
                         v[1].val = NULL;
                         continue;
                     case 2:
-                        if (v[2].val->obj != REGISTER_OBJ || Register(v[2].val)->len != 1) goto nind2;
-                        am = register_to_indexing(Register(v[2].val)->data[0]);
+                        if (v[2].val->obj != REGISTER_OBJ) goto nind2;
+                        am = register_to_indexing(Register(v[2].val));
                         if (am == A_NONE) goto nind2;
                     ind2:
                         val_destroy(v[2].val);
@@ -1032,11 +1032,11 @@ static bool get_val2(struct eval_context_s *ev) {
                         }
                         goto ind1;
                     case 3:
-                        if (v[3].val->obj != REGISTER_OBJ || Register(v[3].val)->len != 1) goto nind2;
-                        am2 = register_to_indexing(Register(v[3].val)->data[0]);
+                        if (v[3].val->obj != REGISTER_OBJ) goto nind2;
+                        am2 = register_to_indexing(Register(v[3].val));
                         if (am2 == A_NONE) goto nind2;
-                        if (v[2].val->obj != REGISTER_OBJ || Register(v[2].val)->len != 1) goto nind2;
-                        am = register_to_indexing(Register(v[2].val)->data[0]);
+                        if (v[2].val->obj != REGISTER_OBJ) goto nind2;
+                        am = register_to_indexing(Register(v[2].val));
                         if (am == A_NONE) goto nind2;
                         val_destroy(v[2].val);
                         v[2].val = v[3].val;

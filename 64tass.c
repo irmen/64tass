@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3165 2025-03-18 07:14:35Z soci $
+    $Id: 64tass.c 3180 2025-03-26 06:59:06Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1798,7 +1798,8 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                         len = iter2.len;
                         for (j = k = 0; j < labels.p; j++) {
                             val = iter2.next(&iter2);
-                            if (val == NULL) val = none_value; else k++;
+                            if (val == NULL) continue;
+                            k++;
                             if (labels.data[j] != NULL) {
                                 val_destroy(labels.data[j]->value);
                                 labels.data[j]->value = val_reference(val);
@@ -1878,8 +1879,9 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                         val = iters[j].next(&iters[j]);
                         if (val == NULL) {
                             ar = j;
-                            val = none_value;
-                        } else k++;
+                            continue;
+                        }
+                        k++;
                         if (labels.data[j] != NULL) {
                             val_destroy(labels.data[j]->value);
                             labels.data[j]->value = val_reference(val);
@@ -5099,7 +5101,7 @@ MUST_CHECK Obj *compile(void)
                 { /* .cpu */
                     struct values_s *vs;
                     const struct cpu_s **cpui;
-                    static const struct cpu_s default_cpu = {"default", NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0};
+                    static const struct cpu_s default_cpu = {"default", NULL, NULL, NULL, NULL, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
                     static const struct cpu_s *cpus[] = {
                         &c6502, &c65c02, &c65ce02, &c6502i, &w65816, &c65dtv02,
                         &c65el02, &r65c02, &w65c02, &c4510, &default_cpu, NULL

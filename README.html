@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3160 2025-03-16 19:30:22Z soci $ -->
+<!-- $Id: README.html 3179 2025-03-26 06:31:53Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -70,11 +70,11 @@ a[href]:hover { text-decoration: underline; }
 body { counter-reset: countcaption;}
 h1 { counter-reset: counth2; font-size: 2em; margin: 0 0 0.67em 0; }
 
-h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 45pt;display:inline-block;}
+h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 40pt;display:inline-block;margin-right:5pt;}
 h2 { counter-reset: counth3; }
-h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 45pt;display:inline-block;}
+h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 40pt;display:inline-block;margin-right:5pt;}
 h3 { counter-reset: counth4; }
-h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 45pt;display:inline-block;}
+h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 40pt;display:inline-block;margin-right:5pt;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
 h2 a:after, h3 a:after, h4 a:after, dt a[name][href]:after {content: "¶"}
 h2 a, h3 a, h4 a, dt a[name][href] {color:blue;visibility:hidden;text-decoration:none;}
@@ -204,6 +204,7 @@ difficult to get everything <q>right</q> first time.</b>
  <li><a href="#pseudo-instructions">Pseudo instructions</a>
  <ul>
   <li><a href="#aliases">Aliases</a></li>
+  <li><a href="#generic-instruction">Generic instructions</a></li>
   <li><a href="#branch-always">Always taken branches</a></li>
   <li><a href="#branch-long">Long branches</a></li>
  </ul></li>
@@ -2797,7 +2798,7 @@ vicmem  <b class="k">.sfunction</b> <u>_font</u>, <u>_scr</u>=<span>0</span>, ((
         <b>sta</b> <span>$d018</span>
 </pre>
 
-<p>If a multi line macro is used in an expression only the returned result is
+<p>If a multi line function is used in an expression only the returned result is
 used. If multiple values are returned these will form a tuple.
 
 <p>If a multi line function is used as macro, directive or pseudo instruction
@@ -3616,28 +3617,141 @@ reset   <b>cld</b>
 shorthand for <code>LSR A</code>, <code>ROR A</code>, <code>ASL A</code> and
 <code>ROL A</code>. Using the implied form is considered poor coding style.
 
-<p>For compatibility <code>INA</code> and <code>DEA</code> is a shorthand of
+<p>For compatibility <code>INA</code> and <code>DEA</code> are a shorthand of
 <code>INC A</code> and <code>DEC A</code>. Therefore there's no <q>implied</q>
 variants like <code>INC</code> or <code>DEC</code>. The full form with the
 accumulator is preferred.
 
-<p>The longer forms of <code>INC X</code>, <code>DEC X</code>, <code>INC
-Y</code>, <code>DEC Y</code>, <code>INC Z</code> and <code>DEC Z</code> are
-available for <code>INX</code>, <code>DEX</code>, <code>INY</code>,
-<code>DEY</code>, <code>INZ</code> and <code>DEZ</code>. For this to work care
-must be taken to not reuse the <q>x</q>, <q>y</q> and
-<q>z</q> single letter register symbols for other purposes. Same goes for
-<q>a</q> of course.
-
-<p>Load instructions with registers are translated to transfer instructions.
-For example <code>LDA X</code> becomes <code>TXA</code>.
-
-<p>Store instructions with registers are translated to transfer instructions,
-but only if it involves the <q>s</q> or <q>b</q> registers. For example
-<code>STX S</code> becomes <code>TXS</code>.
-
 <p>Many illegal opcodes have aliases for compatibility as there's no standard
 naming convention.
+
+<h3>Generic instructions<a name="generic-instructions" href="#generic-instructions"></a></h3>
+
+<p>Instructions operating on different registers have different mnemonics, for
+example <code>CMP</code> and <code>CPX</code>. That makes writing code fast and
+easy but sometimes it'd be nice to parametrize the register as well not just
+the address. It's not like it's unsolvable through conditional compilation
+directives or macro text replacement but there's a better way.
+
+<p>The processor registers have predefined single letter symbols like
+<code>A</code>, <code>X</code> or <code>Y</code>. These can be assigned to
+symbols with longer names if needed. 
+
+<p>Parametrizing register increment and decrement instructions is
+straightforward by using the register as the address similar like <code>ASL&nbsp;A</code>:</p>
+
+<div><table width="100%" class="opcodes">
+<caption>Register addressing modes of increment and decrement</caption>
+<tr><td width="12%">DEA<td width="12%">DEX<td width="12%">DEY<td width="12%">DEZ<td width="12%">INA<td width="12%">INX<td width="12%">INY<td width="12%">INZ
+<tr><td>DEC&nbsp;A<td>DEC&nbsp;X<td>DEC&nbsp;Y<td>DEC&nbsp;Z<td>INC&nbsp;A<td>INC&nbsp;X<td>INC&nbsp;Y<td>INC&nbsp;Z
+</table></div>
+
+<p>Push and pull instructions have a generic version called
+<code>PSH</code> and <code>PUL</code>. The user stack ones for 65EL02 are
+called <code>RSH</code> and <code>RUL</code>. These can take a register
+address:</p>
+
+<div><table width="100%" class="opcodes">
+<caption>Register parametrized push and pull instructions</caption>
+<tr><td width="12%">PHA<td width="12%">PHB<td width="12%">PHD<td width="12%">PHK<td width="12%">PHP<td width="12%">PHX<td width="12%">PHY<td width="12%">PHZ
+<tr><td>PSH&nbsp;A<td>PSH&nbsp;B<td>PSH&nbsp;D<td>PSH&nbsp;K<td>PSH&nbsp;P<td>PSH&nbsp;X<td>PSH&nbsp;Y<td>PSH&nbsp;Z
+<tr><td>PLA<td>PLB<td>PLD<td>&nbsp;&nbsp;&nbsp;<td>PLP<td>PLX<td>PLY<td>PLZ
+<tr><td>PUL&nbsp;A<td>PUL&nbsp;B<td>PUL&nbsp;D<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>PUL&nbsp;P<td>PUL&nbsp;X<td>PUL&nbsp;Y<td>PUL&nbsp;Z
+<tr><td>RHA<td>RHI<td>RHX<td>RHY<td>RLA<td>RLI<td>RLX<td>RLY
+<tr><td>RSH&nbsp;A<td>RSH&nbsp;I<td>RSH&nbsp;X<td>RSH&nbsp;Y<td>RUL&nbsp;A<td>RUL&nbsp;I<td>RUL&nbsp;X<td>RUL&nbsp;Y
+</table></div>
+
+<p>The parametrized version of load and store instructions are
+<code>LDR</code> and <code>STR</code>, respectively. The first parameter is the
+register to be used and then the regular addressing mode can be written after a coma. For
+example <code>LDX&nbsp;$1000,y</code> is equivalent to <code>LDR&nbsp;x,&nbsp;$1000,y</code>.
+It is recommended to leave a space before the addressing mode.</p>
+
+<div><table width="100%" class="opcodes">
+<caption>Register parametrized load, store and compare instructions</caption>
+<tr><td width="12%">LDA<td width="12%">LDX<td width="12%">LDY<td width="12%">LDZ<td width="12%">STA<td width="12%">STX<td width="12%">STY<td width="12%">STZ
+<tr><td>LDR&nbsp;A,<td>LDR&nbsp;X,<td>LDR&nbsp;Y,<td>LDR&nbsp;Z,<td>STR&nbsp;A,<td>STR&nbsp;X,<td>STR&nbsp;Y,<td>STR&nbsp;Z,
+<tr><td width="12%">CPA<td width="12%">CPX<td width="12%">CPY<td width="12%">CPZ<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;
+<tr><td>CMP&nbsp;A,<td>CMP&nbsp;X,<td>CMP&nbsp;Y,<td>CMP&nbsp;Z,<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</table></div>
+
+<p>Transfer instructions have generic versions as well, actually in two
+variants. The first one is when only one of the registers need to be variable.
+A register address can be used with regular load instructions to get those
+setting the flags, like <code>TAX</code> which is <code>LDA&nbsp;x</code>.
+Store instructions are used for those which don't, like <code>TXS</code> which
+is <code>STX&nbsp;s</code>.</p>
+
+<div><table width="100%" class="opcodes">
+<caption>Register transfer parametrization through load and stores</caption>
+<tr><td width="12%">TBA<td width="12%">TDC<td width="12%">TSC<td width="12%">TXA<td width="12%">TYA<td width="12%">TZA<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;
+<tr><td>LDA&nbsp;B<td>LDA&nbsp;D<td>LDA&nbsp;S<td>LDA&nbsp;X<td>LDA&nbsp;Y<td>LDA&nbsp;Z<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<tr><td>&nbsp;&nbsp;&nbsp;<td>TAX<td>TIX<td>TRX<td>TSX<td>TYX<td>TAY<td>TSY
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>LDX&nbsp;A<td>LDX&nbsp;I<td>LDX&nbsp;R<td>LDX&nbsp;S<td>LDX&nbsp;Y<td>LDY&nbsp;A<td>LDY&nbsp;S
+<tr><td>TXY<td>TAZ<td>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;<td>TAB<td>TCS<td>TXS<td>TYS
+<tr><td>LDY&nbsp;X<td>LDZ&nbsp;A<td>&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;<td>STA&nbsp;B<td>STA&nbsp;S<td>STX&nbsp;S<td>STY&nbsp;S
+</table></div>
+
+<p>The second variant allows parametrizing both the source and target register.
+This can be done with <code>LDR</code> for those setting the flags and
+<code>STR</code> for those which don't. Here it's especially important to leave
+a space after the coma to not create an unintended register indexing
+mode.</code>
+
+<div><table width="100%" class="opcodes">
+<caption>Register transfer fully parametrized form</caption>
+<tr><td width="12%">TBA<td width="12%">TDC<td width="12%">TSC<td width="12%">TXA<td width="12%">TYA<td width="12%">TZA<td width="12%">TCD<td width="12%">TXI
+<tr><td>LDR&nbsp;A,&nbsp;B<td>LDR&nbsp;A,&nbsp;D<td>LDR&nbsp;A,&nbsp;S<td>LDR&nbsp;A,&nbsp;X<td>LDR&nbsp;A,&nbsp;Y<td>LDR&nbsp;A,&nbsp;Z<td>LDR&nbsp;D,&nbsp;A<td>LDR&nbsp;I,&nbsp;X
+<tr><td>TXR<td>TAX<td>TIX<td>TRX<td>TSX<td>TYX<td>TAY<td>TSY
+<tr><td>LDR&nbsp;R,&nbsp;X<td>LDR&nbsp;X,&nbsp;A<td>LDR&nbsp;X,&nbsp;I<td>LDR&nbsp;X,&nbsp;R<td>LDR&nbsp;X,&nbsp;S<td>LDR&nbsp;X,&nbsp;Y<td>LDR&nbsp;Y,&nbsp;A<td>LDR&nbsp;Y,&nbsp;S
+<tr><td>TXY<td>TAZ<td>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;<td>TAB<td>TCS<td>TXS<td>TYS
+<tr><td>LDR&nbsp;Y,&nbsp;X<td>LDR&nbsp;Z,&nbsp;A<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>STR&nbsp;A,&nbsp;B<td>STR&nbsp;A,&nbsp;S<td>STR&nbsp;X,&nbsp;S<td>STR&nbsp;Y,&nbsp;S
+</table></div>
+
+<p>In the following subroutine has input parameters in registers.
+These were given symbols and are used to load them at the call site using
+<code>LDR</code>. The pointer address is a pair of registers in a tuple and is
+stored with <code>STR</code>. The the <code>Y</code> register was named as
+pos to show that it's possible even if it's not very useful in this case.</p>
+
+<pre>
+=$ffd2                                  out     <b>=</b> <span>$ffd2</span>
+
+                                        *       <b>=</b> <span>$1000</span>
+
+.1000                                   print   <b class="k">.proc</b>
+=$02                                    txtp    <b>=</b> <span>$02</span>
+=register("x")                          length  <b>=</b> <u>x</u>
+=(register("y"),register("a"))          txtadr  <b>=</b> (<u>y</u>, <u>a</u>)
+=register("y")                          pos     <b>=</b> <u>y</u>
+
+.1000   84 02           sty $02                 <b>str</b> <u>txtadr</u>, <u>txtp</u>+(<span>0</span>, <span>1</span>)
+.1002   85 03           sta $03
+.1004   a0 00           ldy #$00                <b>ldr</b> <u>pos</u>, #<span>0</span>
+.1006   b1 02           lda ($02),y     -       <b>lda</b> (<u>txtp</u>),<u>pos</u>
+.1008   20 d2 ff        jsr $ffd2               <b>jsr</b> <u>out</u>
+.100b   c8              iny                     <b>inc</b> <u>pos</u>
+.100c   ca              dex                     <b>dec</b> <u>length</u>
+.100d   d0 f7           bne $1006               <b>bne</b> <u>-</u>
+.100f   60              rts                     <b>rts</b>
+                                                <b class="k">.pend</b>
+
+&gt;1011   52 45 41 44 59 2e               text    <b class="d">.text</b> <span class="s">"ready."</span>
+
+.1017   a0 11           ldy #$11                <b>ldr</b> <u>print</u>.<u>txtadr</u>, #(&lt;<u>text</u>, &gt;<u>text</u>)
+.1019   a9 10           lda #$10
+.101b   a2 06           ldx #$06                <b>ldr</b> <u>print</u>.<u>length</u>, #<span class="k">size</span>(<u>text</u>)
+.101d   20 00 10        jsr $1000               <b>jsr</b> <u>print</u>
+</pre>
+
+<p>A simpler example to push and pull multiple registers on a 65C02:</p>
+
+<pre>
+irq     <b>psh</b> (<u>a</u>, <u>x</u>, <u>y</u>,)  <i>;pha, phx, phy</i>
+        ...
+        <b>pul</b> (<u>y</u>, <u>x</u>, <u>a</u>,)  <i>;ply, plx, pla</i>
+        <b>rti</b>
+</pre>
 
 <h3>Always taken branches<a name="branch-always" href="#branch-always"></a></h3>
 
@@ -5937,27 +6051,33 @@ This mode is for compiling sources which are already PETSCII.
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Aliases, pseudo instructions</caption>
+<caption>6502 aliases, pseudo instructions</caption>
 <tr><th width="4%">ASL<td width="46%">0A
 <th width="4%">BGE<td width="46%">B0
 <tr><th>BLT<td>90
-<th>CPA<td>C1 C5 C9 CD D1 D5 D9 DD
-<tr><th>GCC<td>4C 90
-<th>GCS<td>4C B0
-<tr><th>GEQ<td>4C F0
-<th>GGE<td>4C B0
-<tr><th>GLT<td>4C 90
-<th>GMI<td>30 4C
-<tr><th>GNE<td>4C D0
-<th>GPL<td>10 4C
-<tr><th>GVC<td>4C 50
-<th>GVS<td>4C 70
+<th>CMP<td>C0 C4 CC E0 E4 EC
+<tr><th>CPA<td>C1 C5 C9 CD D1 D5 D9 DD
+<th>GCC<td>4C 90
+<tr><th>GCS<td>4C B0
+<th>GEQ<td>4C F0
+<tr><th>GGE<td>4C B0
+<th>GLT<td>4C 90
+<tr><th>GMI<td>30 4C
+<th>GNE<td>4C D0
+<tr><th>GPL<td>10 4C
+<th>GVC<td>4C 50
+<tr><th>GVS<td>4C 70
+<th>LDR<td>8A 98 A0 A1 A2 A4 A5 A6 A8 A9 AA AC AD AE B1 B4 B5 B6 B9 BA BC BD BE
 <tr><th>LSR<td>4A
-<th>ROL<td>2A
-<tr><th>ROR<td>6A
-<th>SHL<td>06 0A 0E 16 1E
-<tr><th>SHR<td>46 4A 4E 56 5E
-<th><td>
+<th>ORR<td>01 05 09 0D 11 15 19 1D
+<tr><th>PSH<td>08 48
+<th>PUL<td>28 68
+<tr><th>ROL<td>2A
+<th>ROR<td>6A
+<tr><th>SHL<td>06 0A 0E 16 1E
+<th>SHR<td>46 4A 4E 56 5E
+<tr><th>STR<td>81 84 85 86 8C 8D 8E 91 94 95 96 99 9A 9D
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <h3>6502 illegal opcodes<a name="opcodes-6502i" href="#opcodes-6502i"></a></h3>
@@ -5965,7 +6085,7 @@ This mode is for compiling sources which are already PETSCII.
 <p>This processor is a standard 6502 with the NMOS illegal opcodes.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional NMOS 6502 opcodes</caption>
 <tr><th width="4%">ANC<td width="46%">0B
 <th width="4%">ANE<td width="46%">8B
 <tr><th>ARR<td>6B
@@ -5989,7 +6109,7 @@ This mode is for compiling sources which are already PETSCII.
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional NMOS 6502 aliases</caption>
 <tr><th width="4%">AHX<td width="46%">93 9F
 <th width="4%">ALR<td width="46%">4B
 <tr><th>AXS<td>CB
@@ -6001,7 +6121,7 @@ This mode is for compiling sources which are already PETSCII.
 <tr><th>LXA<td>AB
 <th>TAS<td>9B
 <tr><th>XAA<td>8B
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <h3>65DTV02 opcodes<a name="opcodes-65dtv02" href="#opcodes-65dtv02"></a></h3>
@@ -6009,17 +6129,17 @@ This mode is for compiling sources which are already PETSCII.
 <p>This processor is an enhanced version of standard 6502 with some illegal opcodes.
 
 <div><table width="100%" class="opcodes">
-<caption>Additionally to 6502 illegal opcodes</caption>
+<caption>Additional 65DTV02 opcodes</caption>
 <tr><th width="4%">BRA<td width="46%">12
 <th width="4%">SAC<td width="46%">32
 <tr><th>SIR<td>42
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional pseudo instruction</caption>
+<caption>Additional 65DTV02 pseudo instructions</caption>
 <tr><th width="4%">GRA<td width="46%">12 4C
-<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">
+<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
@@ -6033,7 +6153,7 @@ This mode is for compiling sources which are already PETSCII.
 <tr><th>SHS<td>9B
 <th>SHX<td>9E
 <tr><th>SHY<td>9C
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
@@ -6043,7 +6163,7 @@ This mode is for compiling sources which are already PETSCII.
 <tr><th>LAE<td>BB
 <th>LAS<td>BB
 <tr><th>TAS<td>9B
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <h3>Standard 65C02 opcodes<a name="opcodes-65c02" href="#opcodes-65c02"></a></h3>
@@ -6051,7 +6171,7 @@ This mode is for compiling sources which are already PETSCII.
 <p>This processor is an enhanced version of standard 6502.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional 65C02 opcodes</caption>
 <tr><th width="4%">ADC<td width="46%">72
 <th width="4%">AND<td width="46%">32
 <tr><th>BIT<td>34 3C 89
@@ -6075,13 +6195,17 @@ This mode is for compiling sources which are already PETSCII.
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases and pseudo instructions</caption>
+<caption>Additional 65C02 aliases and pseudo instructions</caption>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
-<th width="4%">CPA<td>D2
-<tr><th>DEA<td width="46%">3A
+<th width="4%">CPA<td width="46%">D2
+<tr><th>DEA<td>3A
 <th>GRA<td>4C 80
 <tr><th>INA<td>1A
-<th><td>
+<th>LDR<td>B2
+<tr><th>ORR<td>12
+<th>PSH<td>5A DA
+<tr><th>PUL<td>7A FA
+<th>STR<td>64 74 92 9C 9E
 </table></div>
 
 <h3>R65C02 opcodes<a name="opcodes-r65c02" href="#opcodes-r65c02"></a></h3>
@@ -6089,17 +6213,17 @@ This mode is for compiling sources which are already PETSCII.
 <p>This processor is an enhanced version of standard 65C02.
 
 <p>Please note that the bit number is not part of the instruction name (like
-<code>rmb7 $20</code>). Instead it's the first element of coma separated
-parameters (e.g. <code>rmb 7,$20</code>).
+<code>RMB7 $20</code>). Instead it's the first element of coma separated
+parameters (e.g. <code>RMB 7,$20</code>).
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional R65C02 opcodes over 65C02</caption>
 <tr><th width="4%">BBR<td width="46%">0F 1F 2F 3F 4F 5F 6F 7F
 <th width="4%">BBS<td width="46%">8F 9F AF BF CF DF EF FF
 <tr><th>NOP<td>44 54 82 DC
 <th>RMB<td>07 17 27 37 47 57 67 77
 <tr><th>SMB<td>87 97 A7 B7 C7 D7 E7 F7
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <h3>W65C02 opcodes<a name="opcodes-w65c02" href="#opcodes-w65c02"></a></h3>
@@ -6107,13 +6231,13 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <p>This processor is an enhanced version of R65C02.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional W65C02 opcodes over R65C02</caption>
 <tr><th width="4%">STP<td width="46%">DB
 <th width="4%">WAI<td width="46%">CB
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional W65C02 aliases over R65C02</caption>
 <tr><th width="4%">HLT<td width="46%">DB
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
 </table></div>
@@ -6123,7 +6247,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <p>This processor is an enhanced version of 65C02.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional W65816 opcodes over 65C02</caption>
 <tr><th width="4%">ADC<td width="46%">63 67 6F 73 77 7F
 <th width="4%">AND<td width="46%">23 27 2F 33 37 3F
 <tr><th>BRL<td>82
@@ -6161,21 +6285,27 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <tr><th>WDM<td>42
 <th>XBA<td>EB
 <tr><th>XCE<td>FB
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional W65816 aliases over 65C02</caption>
 <tr><th width="4%">CLP<td width="46%">C2
-<th width="4%">CPA<td>C3 C7 CF D3 D7 DF
-<tr><th>CSP<td width="46%">02
-<th>HLT<td width="46%">DB
+<th width="4%">CPA<td width="46%">C3 C7 CF D3 D7 DF
+<tr><th>CSP<td>02
+<th>HLT<td>DB
 <tr><th>JML<td>5C DC
-<th>SWA<td>EB
-<tr><th>TAD<td>5B
-<th>TAS<td>1B
-<tr><th>TDA<td>7B
-<th>TSA<td>3B
+<th>LDR<td>3B 7B 9B A3 A7 AF B3 B7 BB BF
+<tr><th>ORR<td>03 07 0F 13 17 1F
+<th>PSH<td>0B 4B 8B D4 F4
+<tr><th>PUL<td>2B AB
+<th>STR<td>1B 83 87 8F 93 97 9F
+<tr><th>SWA<td>EB
+<th>TAD<td>5B
+<tr><th>TAS<td>1B
+<th>TDA<td>7B
+<tr><th>TSA<td>3B
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <h3>65EL02 opcodes<a name="opcodes-65el02" href="#opcodes-65el02"></a></h3>
@@ -6183,7 +6313,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <p>This processor is an enhanced version of standard 65C02.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional 65EL02 opcodes over 65C02</caption>
 <tr><th width="4%">ADC<td width="46%">63 67 73 77
 <th width="4%">AND<td width="46%">23 27 33 37
 <tr><th>CMP<td>C3 C7 D3 D7
@@ -6235,11 +6365,17 @@ parameters (e.g. <code>rmb 7,$20</code>).
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional 65EL02 aliases over 65C02</caption>
 <tr><th width="4%">CLP<td width="46%">C2
-<th width="4%">CPA<td>C3 C7 D3 D7
-<tr><th>HLT<td width="46%">DB
-<th><td>
+<th width="4%">CPA<td width="46%">C3 C7 D3 D7
+<tr><th>HLT<td>DB
+<th>LDR<td>9B A3 A7 AB AF B3 B7 BB DC
+<tr><th>ORR<td>03 07 13 17
+<th>PSH<td>D4 DF F4
+<tr><th>PUL<td>CF
+<th>RSH<td>0B 1B 44 4B 54 5B
+<tr><th>RUL<td>2B 3B 6B 7B
+<th>STR<td>83 87 93 97
 </table></div>
 
 <h3>65CE02 opcodes<a name="opcodes-65ce02" href="#opcodes-65ce02"></a></h3>
@@ -6247,7 +6383,7 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <p>This processor is an enhanced version of R65C02.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional 65CE02 opcodes over R65C02</caption>
 <tr><th width="4%">ASR<td width="46%">43 44 54
 <th width="4%">ASW<td width="46%">CB
 <tr><th>BCC<td>93
@@ -6285,21 +6421,23 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <tr><th>TSY<td>0B
 <th>TYS<td>2B
 <tr><th>TZA<td>6B
-<th><td>
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional 65CE02 aliases over R65C02</caption>
 <tr><th width="4%">ASR<td width="46%">43
 <th width="4%">BGE<td width="46%">B3
 <tr><th>BLT<td>93
+<th>CMP<td>C2 D4 DC
+<tr><th>LDR<td>0B 4B 6B 7B A3 AB BB E2
 <th>NEG<td>42
 <tr><th>RTN<td>62
-<th><td>
+<th>STR<td>2B 5B 82 8B 9B
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>This alias is not valid</caption>
+<caption>Aliases of R65C02 not valid for 65CE02</caption>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
 </table></div>
@@ -6309,13 +6447,13 @@ parameters (e.g. <code>rmb 7,$20</code>).
 <p>This processor is an enhanced version of 65CE02.
 
 <div><table width="100%" class="opcodes">
-<caption>Additional opcodes</caption>
+<caption>Additional CSG 4510 opcodes over 65CE02</caption>
 <tr><th width="4%">MAP<td width="46%">5C
 <th width="4%"><td width="46%">
 </table></div>
 
 <div><table width="100%" class="opcodes">
-<caption>Additional aliases</caption>
+<caption>Additional CSG 4510 aliases over 65CE02</caption>
 <tr><th width="4%">EOM<td width="46%">EA
 <th width="4%"><td width="46%">
 </table></div>

@@ -99,6 +99,7 @@ Table of Contents
       + Printer control
   * Pseudo instructions
       + Aliases
+      + Generic instructions
       + Always taken branches
       + Long branches
   * Original turbo assembler compatibility
@@ -2342,7 +2343,7 @@ vicmem  .sfunction _font, _scr=0, ((_font >> 10) & $0f) | ((_scr >> 6) & $f0)
         lda #vicmem($2000, $0400); calculate constant
         sta $d018
 
-If a multi line macro is used in an expression only the returned result is
+If a multi line function is used in an expression only the returned result is
 used. If multiple values are returned these will form a tuple.
 
 If a multi line function is used as macro, directive or pseudo instruction and
@@ -3070,23 +3071,122 @@ SHR (SHift Right). This naming however is not very common.
 The implied variants LSR, ROR, ASL and ROL are a shorthand for LSR A, ROR A,
 ASL A and ROL A. Using the implied form is considered poor coding style.
 
-For compatibility INA and DEA is a shorthand of INC A and DEC A. Therefore
+For compatibility INA and DEA are a shorthand of INC A and DEC A. Therefore
 there's no `implied' variants like INC or DEC. The full form with the
 accumulator is preferred.
 
-The longer forms of INC X, DEC X, INC Y, DEC Y, INC Z and DEC Z are available
-for INX, DEX, INY, DEY, INZ and DEZ. For this to work care must be taken to not
-reuse the `x', `y' and `z' single letter register symbols for other purposes.
-Same goes for `a' of course.
-
-Load instructions with registers are translated to transfer instructions. For
-example LDA X becomes TXA.
-
-Store instructions with registers are translated to transfer instructions, but
-only if it involves the `s' or `b' registers. For example STX S becomes TXS.
-
 Many illegal opcodes have aliases for compatibility as there's no standard
 naming convention.
+
+Generic instructions
+
+Instructions operating on different registers have different mnemonics, for
+example CMP and CPX. That makes writing code fast and easy but sometimes it'd
+be nice to parametrize the register as well not just the address. It's not like
+it's unsolvable through conditional compilation directives or macro text
+replacement but there's a better way.
+
+The processor registers have predefined single letter symbols like A, X or Y.
+These can be assigned to symbols with longer names if needed.
+
+Parametrizing register increment and decrement instructions is straightforward
+by using the register as the address similar like ASL A:
+
+             Register addressing modes of increment and decrement
+DEA       DEX       DEY       DEZ       INA       INX       INY       INZ
+DEC A     DEC X     DEC Y     DEC Z     INC A     INC X     INC Y     INC Z
+
+Push and pull instructions have a generic version called PSH and PUL. The user
+stack ones for 65EL02 are called RSH and RUL. These can take a register
+address:
+
+               Register parametrized push and pull instructions
+PHA       PHB       PHD       PHK       PHP       PHX       PHY       PHZ
+PSH A     PSH B     PSH D     PSH K     PSH P     PSH X     PSH Y     PSH Z
+PLA       PLB       PLD                 PLP       PLX       PLY       PLZ
+PUL A     PUL B     PUL D               PUL P     PUL X     PUL Y     PUL Z
+RHA       RHI       RHX       RHY       RLA       RLI       RLX       RLY
+RSH A     RSH I     RSH X     RSH Y     RUL A     RUL I     RUL X     RUL Y
+
+The parametrized version of load and store instructions are LDR and STR,
+respectively. The first parameter is the register to be used and then the
+regular addressing mode can be written after a coma. For example LDX $1000,y is
+equivalent to LDR x, $1000,y. It is recommended to leave a space before the
+addressing mode.
+
+          Register parametrized load, store and compare instructions
+LDA       LDX       LDY       LDZ       STA       STX       STY       STZ
+LDR A,    LDR X,    LDR Y,    LDR Z,    STR A,    STR X,    STR Y,    STR Z,
+CPA       CPX       CPY       CPZ
+CMP A,    CMP X,    CMP Y,    CMP Z,
+
+Transfer instructions have generic versions as well, actually in two variants.
+The first one is when only one of the registers need to be variable. A register
+address can be used with regular load instructions to get those setting the
+flags, like TAX which is LDA x. Store instructions are used for those which
+don't, like TXS which is STX s.
+
+           Register transfer parametrization through load and stores
+TBA       TDC       TSC       TXA       TYA       TZA
+LDA B     LDA D     LDA S     LDA X     LDA Y     LDA Z
+          TAX       TIX       TRX       TSX       TYX       TAY       TSY
+          LDX A     LDX I     LDX R     LDX S     LDX Y     LDY A     LDY S
+TXY       TAZ                           TAB       TCS       TXS       TYS
+LDY X     LDZ A                         STA B     STA S     STX S     STY S
+
+The second variant allows parametrizing both the source and target register.
+This can be done with LDR for those setting the flags and STR for those which
+don't. Here it's especially important to leave a space after the coma to not
+create an unintended register indexing mode.
+
+                   Register transfer fully parametrized form
+TBA       TDC       TSC       TXA       TYA       TZA       TCD       TXI
+LDR A, B  LDR A, D  LDR A, S  LDR A, X  LDR A, Y  LDR A, Z  LDR D, A  LDR I, X
+TXR       TAX       TIX       TRX       TSX       TYX       TAY       TSY
+LDR R, X  LDR X, A  LDR X, I  LDR X, R  LDR X, S  LDR X, Y  LDR Y, A  LDR Y, S
+TXY       TAZ                           TAB       TCS       TXS       TYS
+LDR Y, X  LDR Z, A                      STR A, B  STR A, S  STR X, S  STR Y, S
+
+In the following subroutine has input parameters in registers. These were given
+symbols and are used to load them at the call site using LDR. The pointer
+address is a pair of registers in a tuple and is stored with STR. The the Y
+register was named as pos to show that it's possible even if it's not very
+useful in this case.
+
+=$ffd2                                  out     = $ffd2
+
+                                        *       = $1000
+
+.1000                                   print   .proc
+=$02                                    txtp    = $02
+=register("x")                          length  = x
+=(register("y"),register("a"))          txtadr  = (y, a)
+=register("y")                          pos     = y
+
+.1000   84 02           sty $02                 str txtadr, txtp+(0, 1)
+.1002   85 03           sta $03
+.1004   a0 00           ldy #$00                ldr pos, #0
+.1006   b1 02           lda ($02),y     -       lda (txtp),pos
+.1008   20 d2 ff        jsr $ffd2               jsr out
+.100b   c8              iny                     inc pos
+.100c   ca              dex                     dec length
+.100d   d0 f7           bne $1006               bne -
+.100f   60              rts                     rts
+                                                .pend
+
+>1011   52 45 41 44 59 2e               text    .text "ready."
+
+.1017   a0 11           ldy #$11                ldr print.txtadr, #(<text, >text)
+.1019   a9 10           lda #$10
+.101b   a2 06           ldx #$06                ldr print.length, #size(text)
+.101d   20 00 10        jsr $1000               jsr print
+
+A simpler example to push and pull multiple registers on a 65C02:
+
+irq     psh (a, x, y,)  ;pha, phx, phy
+        ...
+        pul (y, x, a,)  ;ply, plx, pla
+        rti
 
 Always taken branches
 
@@ -5063,23 +5163,28 @@ TAX AA                                  TAY A8
 TSX BA                                  TXA 8A
 TXS 9A                                  TYA 98
 
-                         Aliases, pseudo instructions
+                       6502 aliases, pseudo instructions
 ASL 0A                                  BGE B0
-BLT 90                                  CPA C1 C5 C9 CD D1 D5 D9 DD
-GCC 4C 90                               GCS 4C B0
-GEQ 4C F0                               GGE 4C B0
-GLT 4C 90                               GMI 30 4C
-GNE 4C D0                               GPL 10 4C
-GVC 4C 50                               GVS 4C 70
-LSR 4A                                  ROL 2A
-ROR 6A                                  SHL 06 0A 0E 16 1E
-SHR 46 4A 4E 56 5E
+BLT 90                                  CMP C0 C4 CC E0 E4 EC
+CPA C1 C5 C9 CD D1 D5 D9 DD             GCC 4C 90
+GCS 4C B0                               GEQ 4C F0
+GGE 4C B0                               GLT 4C 90
+GMI 30 4C                               GNE 4C D0
+GPL 10 4C                               GVC 4C 50
+GVS 4C 70                               LDR 8A 98 A0 A1 A2 A4 A5 A6 A8 A9 AA AC
+                                            AD AE B1 B4 B5 B6 B9 BA BC BD BE
+LSR 4A                                  ORR 01 05 09 0D 11 15 19 1D
+PSH 08 48                               PUL 28 68
+ROL 2A                                  ROR 6A
+SHL 06 0A 0E 16 1E                      SHR 46 4A 4E 56 5E
+STR 81 84 85 86 8C 8D 8E 91 94 95 96 99
+    9A 9D
 
 6502 illegal opcodes
 
 This processor is a standard 6502 with the NMOS illegal opcodes.
 
-                              Additional opcodes
+                         Additional NMOS 6502 opcodes
 ANC 0B                                  ANE 8B
 ARR 6B                                  ASR 4B
 DCP C3 C7 CF D3 D7 DB DF                ISB E3 E7 EF F3 F7 FB FF
@@ -5091,7 +5196,7 @@ SHA 93 9F                               SHS 9B
 SHX 9E                                  SHY 9C
 SLO 03 07 0F 13 17 1B 1F                SRE 43 47 4F 53 57 5B 5F
 
-                              Additional aliases
+                         Additional NMOS 6502 aliases
 AHX 93 9F                               ALR 4B
 AXS CB                                  DCM C3 C7 CF D3 D7 DB DF
 INS E3 E7 EF F3 F7 FB FF                ISC E3 E7 EF F3 F7 FB FF
@@ -5104,11 +5209,11 @@ XAA 8B
 This processor is an enhanced version of standard 6502 with some illegal
 opcodes.
 
-                     Additionally to 6502 illegal opcodes
+                          Additional 65DTV02 opcodes
 BRA 12                                  SAC 32
 SIR 42
 
-                         Additional pseudo instruction
+                    Additional 65DTV02 pseudo instructions
 GRA 12 4C
 
                       These illegal opcodes are not valid
@@ -5127,7 +5232,7 @@ Standard 65C02 opcodes
 
 This processor is an enhanced version of standard 6502.
 
-                              Additional opcodes
+                           Additional 65C02 opcodes
 ADC 72                                  AND 32
 BIT 34 3C 89                            BRA 80
 CMP D2                                  DEC 3A
@@ -5139,20 +5244,22 @@ PLY 7A                                  SBC F2
 STA 92                                  STZ 64 74 9C 9E
 TRB 14 1C                               TSB 04 0C
 
-                  Additional aliases and pseudo instructions
+               Additional 65C02 aliases and pseudo instructions
 CLR 64 74 9C 9E                         CPA D2
 DEA 3A                                  GRA 4C 80
-INA 1A
+INA 1A                                  LDR B2
+ORR 12                                  PSH 5A DA
+PUL 7A FA                               STR 64 74 92 9C 9E
 
 R65C02 opcodes
 
 This processor is an enhanced version of standard 65C02.
 
-Please note that the bit number is not part of the instruction name (like rmb7
-$20). Instead it's the first element of coma separated parameters (e.g. rmb
+Please note that the bit number is not part of the instruction name (like RMB7
+$20). Instead it's the first element of coma separated parameters (e.g. RMB
 7,$20).
 
-                              Additional opcodes
+                     Additional R65C02 opcodes over 65C02
 BBR 0F 1F 2F 3F 4F 5F 6F 7F             BBS 8F 9F AF BF CF DF EF FF
 NOP 44 54 82 DC                         RMB 07 17 27 37 47 57 67 77
 SMB 87 97 A7 B7 C7 D7 E7 F7
@@ -5161,17 +5268,17 @@ W65C02 opcodes
 
 This processor is an enhanced version of R65C02.
 
-                              Additional opcodes
+                     Additional W65C02 opcodes over R65C02
 STP DB                                  WAI CB
 
-                              Additional aliases
+                     Additional W65C02 aliases over R65C02
 HLT DB
 
 W65816 opcodes
 
 This processor is an enhanced version of 65C02.
 
-                              Additional opcodes
+                     Additional W65816 opcodes over 65C02
 ADC 63 67 6F 73 77 7F                   AND 23 27 2F 33 37 3F
 BRL 82                                  CMP C3 C7 CF D3 D7 DF
 COP 02                                  EOR 43 47 4F 53 57 5F
@@ -5192,18 +5299,21 @@ TYX BB                                  WAI CB
 WDM 42                                  XBA EB
 XCE FB
 
-                              Additional aliases
+                     Additional W65816 aliases over 65C02
 CLP C2                                  CPA C3 C7 CF D3 D7 DF
 CSP 02                                  HLT DB
-JML 5C DC                               SWA EB
-TAD 5B                                  TAS 1B
-TDA 7B                                  TSA 3B
+JML 5C DC                               LDR 3B 7B 9B A3 A7 AF B3 B7 BB BF
+ORR 03 07 0F 13 17 1F                   PSH 0B 4B 8B D4 F4
+PUL 2B AB                               STR 1B 83 87 8F 93 97 9F
+SWA EB                                  TAD 5B
+TAS 1B                                  TDA 7B
+TSA 3B
 
 65EL02 opcodes
 
 This processor is an enhanced version of standard 65C02.
 
-                              Additional opcodes
+                     Additional 65EL02 opcodes over 65C02
 ADC 63 67 73 77                         AND 23 27 33 37
 CMP C3 C7 D3 D7                         DIV 4F 5F 6F 7F
 ENT 22                                  EOR 43 47 53 57
@@ -5229,15 +5339,18 @@ TXY 9B                                  TYX BB
 WAI CB                                  XBA EB
 XCE FB                                  ZEA 8F
 
-                              Additional aliases
+                     Additional 65EL02 aliases over 65C02
 CLP C2                                  CPA C3 C7 D3 D7
-HLT DB
+HLT DB                                  LDR 9B A3 A7 AB AF B3 B7 BB DC
+ORR 03 07 13 17                         PSH D4 DF F4
+PUL CF                                  RSH 0B 1B 44 4B 54 5B
+RUL 2B 3B 6B 7B                         STR 83 87 93 97
 
 65CE02 opcodes
 
 This processor is an enhanced version of R65C02.
 
-                              Additional opcodes
+                     Additional 65CE02 opcodes over R65C02
 ASR 43 44 54                            ASW CB
 BCC 93                                  BCS B3
 BEQ F3                                  BMI 33
@@ -5258,22 +5371,23 @@ TAZ 4B                                  TBA 7B
 TSY 0B                                  TYS 2B
 TZA 6B
 
-                              Additional aliases
+                     Additional 65CE02 aliases over R65C02
 ASR 43                                  BGE B3
-BLT 93                                  NEG 42
-RTN 62
+BLT 93                                  CMP C2 D4 DC
+LDR 0B 4B 6B 7B A3 AB BB E2             NEG 42
+RTN 62                                  STR 2B 5B 82 8B 9B
 
-                            This alias is not valid
+                    Aliases of R65C02 not valid for 65CE02
 CLR 64 74 9C 9E
 
 CSG 4510 opcodes
 
 This processor is an enhanced version of 65CE02.
 
-                              Additional opcodes
+                    Additional CSG 4510 opcodes over 65CE02
 MAP 5C
 
-                              Additional aliases
+                    Additional CSG 4510 aliases over 65CE02
 EOM EA
 
 -------------------------------------------------------------------------------

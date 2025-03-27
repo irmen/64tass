@@ -1,5 +1,5 @@
 #64tass mcedit/cooledit syntax
-# $Id: assembler.syntax 3083 2023-09-02 21:23:51Z soci $
+# $Id: assembler.syntax 3179 2025-03-26 06:31:53Z soci $
 #
 # Place it into this folder:
 #
@@ -49,15 +49,19 @@ context default lightgray
     keyword whole jmp white
     keyword whole jsr white
     keyword whole lda white
+    keyword whole ldr white
     keyword whole ldx white
     keyword whole ldy white
     keyword whole lsr white
     keyword whole nop white
     keyword whole ora white
+    keyword whole orr white
     keyword whole pha white
     keyword whole php white
     keyword whole pla white
     keyword whole plp white
+    keyword whole psh white
+    keyword whole pul white
     keyword whole rol white
     keyword whole ror white
     keyword whole rti white
@@ -69,6 +73,7 @@ context default lightgray
     keyword whole shl white
     keyword whole shr white
     keyword whole sta white
+    keyword whole str white
     keyword whole stx white
     keyword whole sty white
     keyword whole tax white
