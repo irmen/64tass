@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3179 2025-03-26 06:31:53Z soci $ -->
+<!-- $Id: README.html 3183 2025-03-28 07:00:32Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -1265,8 +1265,8 @@ parameters to functions.
 <dd>Common logarithm. E.g.
 <code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code></dd>
 
-<dt><b>log(</b>&lt;expression&gt;<b>)</b><a name="f_log" href="#f_log"></a>
-<dd>Natural logarithm. E.g.
+<dt><b>log(</b>&lt;expression&gt;[, &lt;expression base&gt;]<b>)</b><a name="f_log" href="#f_log"></a>
+<dd>Logarithm, natural by default. E.g.
 <code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code></dd>
 
 <dt><b>exp(</b>&lt;expression&gt;<b>)</b><a name="f_exp" href="#f_exp"></a>
@@ -1321,8 +1321,8 @@ parameters to functions.
 <dd>Radian to degrees. E.g.
 <code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code></dd>
 
-<dt><b>hypot(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b><a name="f_hypot" href="#f_hypot"></a>
-<dd>Polar distance. E.g.
+<dt><b>hypot(</b>[&lt;expression&gt;, &hellip;]<b>)</b><a name="f_hypot" href="#f_hypot"></a>
+<dd>Euclidean distance, any dimensions. E.g.
 <code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code></dd>
 
 <dt><b>atan2(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b><a name="f_atan2" href="#f_atan2"></a>
@@ -5351,6 +5351,7 @@ href="#commandline-diagnostic">Diagnostic options</a> for more details.
 <dt>format character expected<dd>string ended before a format character was found</dd>
 <dt>general syntax<dd>can't do anything with this</dd>
 <dt>index out of range<dd>not enough elements in list</dd>
+<dt>invalid logarithm base<dd>logarithm base should be positive and not one</dd>
 <dt>key not in dictionary<dd>key not in the dictionary</dd>
 <dt>label required<dd>a label is mandatory for this directive</dd>
 <dt>larger than original due to negative offset<dd>if a negative offset is used the size gets larger than the original as this effectively adds bytes to the front.</dd>

@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 3165 2025-03-18 07:14:35Z soci $
+    $Id: listing.c 3187 2025-03-30 09:48:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -333,6 +333,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     mode++;
     switch (type) {
     case ADR_IMPLIED: ls->s--; return;
+    case ADR_LEN:
     case ADR_REG: return;
     case ADR_IMMEDIATE:
         switch (ln) {
@@ -341,11 +342,12 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
         case 1: out_byte(ls, adr); return;
         case 2: out_word(ls, adr); return;
         }
-    case ADR_ADDR: if (cod == 0x20 || cod == 0x4c) out_pb(ls, adr); else out_db(ls, adr); return;
+    case ADR_ADDR: out_db(ls, adr); return;
+    case ADR_ADDR_K: out_pb(ls, adr); return;
     case ADR_BIT_ZP: out_bit(ls, cod, adr); return;
     case ADR_LONG:
     case ADR_LONG_X: out_long(ls, adr); break;
-    case ADR_ADDR_X_I: out_pb(ls, adr); break;
+    case ADR_ADDR_K_X_I: out_pb(ls, adr); break;
     case ADR_ZP_R:
     case ADR_ZP_R_I_Y:
     case ADR_ZP_S:
@@ -361,8 +363,8 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_ZP_X:
     case ADR_ZP_X_I:
     case ADR_ZP_Y: out_zp(ls, adr); break;
-    case ADR_ADDR_I:
-    case ADR_ADDR_LI: out_word(ls, adr); break;
+    case ADR_ADDR_0_I:
+    case ADR_ADDR_0_LI: out_word(ls, adr); break;
     case ADR_REL: if (ln > 0) out_pb(ls, (address_t)((int8_t)adr + (int)current_address->l_address)); else ls->s--; return;
     case ADR_BIT_ZP_REL:
         out_bit(ls, cod, adr);

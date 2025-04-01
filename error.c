@@ -1,5 +1,5 @@
 /*
-    $Id: error.c 3177 2025-03-25 21:54:28Z soci $
+    $Id: error.c 3185 2025-03-29 08:43:08Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -373,6 +373,7 @@ static const char *const terr_error[] = {
     "zero raised to negative power ",
     "square root of negative number ",
     "logarithm of non-positive number ",
+    "invalid logarithm base ",
     "not in range -1.0 to 1.0 ",
     "empty range not allowed",
     "empty string not allowed",
@@ -960,6 +961,7 @@ void err_msg_output(const Error *val) {
     case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
+    case ERROR______LOG_BASE:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR: more = new_error_msg_err(val); adderror(terr_error[val->num - 0x40]); err_msg_variable(val->u.obj);break;
@@ -1124,43 +1126,12 @@ void err_msg_macro_prefix(linepos_t epoint) {
     adderror("macro call without prefix [-Wmacro-prefix]");
 }
 
-static const char *const opr_names[ADR_LEN] = {
-    "", /* ADR_REG */
-    "", /* ADR_IMPLIED */
-    "", /* ADR_IMMEDIATE */
-    "long", /* ADR_LONG */
-    "data bank", /* ADR_ADDR */
-    "direct page", /* ADR_ZP */
-    "long x indexed", /* ADR_LONG_X */
-    "data bank x indexed", /* ADR_ADDR_X */
-    "direct page x indexed", /* ADR_ZP_X */
-    "", /* ADR_ADDR_X_I */
-    "", /* ADR_ZP_X_I */
-    "", /* ADR_ZP_S */
-    "long y indexed", /* ADR_ZP_S_I_Y */
-    "data bank y indexed", /* ADR_ADDR_Y */
-    "direct page y indexed", /* ADR_ZP_Y */
-    "", /* ADR_ZP_LI_Y */
-    "", /* ADR_ZP_I_Y */
-    "", /* ADR_ADDR_LI */
-    "", /* ADR_ZP_LI */
-    "", /* ADR_ADDR_I */
-    "", /* ADR_ZP_I */
-    "", /* ADR_REL_L */
-    "", /* ADR_REL */
-    "", /* ADR_MOVE */
-    "", /* ADR_ZP_R */
-    "", /* ADR_ZP_R_I_Y */
-    "", /* ADR_BIT_ZP */
-    "", /* ADR_BIT_ZP_REL */
-};
-
 void err_msg_address_mismatch(unsigned int a, unsigned int b, linepos_t epoint) {
     new_error_msg2(diagnostic_errors.altmode, epoint);
     adderror("using ");
-    adderror(opr_names[a]);
+    adderror(addr_names[a]);
     adderror(" addressing instead of ");
-    adderror(opr_names[b]);
+    adderror(addr_names[b]);
     adderror(" [-Waltmode]");
 }
 

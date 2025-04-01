@@ -1,5 +1,5 @@
 /*
-    $Id: functionobj.c 3121 2023-09-16 06:38:33Z soci $
+    $Id: functionobj.c 3184 2025-03-28 07:39:12Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -551,12 +551,6 @@ static MUST_CHECK Obj *function_function(oper_t op) {
         }
         real = log10(real);
         break;
-    case F_LOG:
-        if (real <= 0.0) {
-            err = ERROR_LOG_NON_POSIT; goto failed;
-        }
-        real = log(real);
-        break;
     case F_EXP: real = exp(real);break;
     case F_SIN: real = sin(real);break;
     case F_COS: real = cos(real);break;
@@ -651,13 +645,36 @@ static MUST_CHECK Obj *to_real(struct values_s *v, double *r) {
 static MUST_CHECK Obj *function_hypot(oper_t op) {
     struct values_s *v = Funcargs(op->v2)->val;
     Obj *val;
-    double real, real2;
+    double real, result;
+    argcount_t i, len = Funcargs(op->v2)->len;
 
-    val = to_real(&v[0], &real);
-    if (val != NULL) return val;
-    val = to_real(&v[1], &real2);
-    if (val != NULL) return val;
-    return float_from_double(hypot(real, real2), op->epoint);
+    if (len == 0) {
+        result = 0.0;
+    } else {
+        val = to_real(&v[0], &result);
+        if (val != NULL) return val;
+
+        switch (len) {
+        case 1:
+            if (result < 0) result = -result;
+            break;
+        case 2:
+            val = to_real(&v[1], &real);
+            if (val != NULL) return val;
+            result = hypot(result, real);
+            break;
+        default:
+            result *= result;
+            for (i = 1; i < len; i++) {
+                val = to_real(&v[i], &real);
+                if (val != NULL) return val;
+                result += real * real;
+            }
+            result = sqrt(result);
+            break;
+        }
+    }
+    return float_from_double(result, op->epoint);
 }
 
 static MUST_CHECK Obj *function_atan2(oper_t op) {
@@ -681,6 +698,38 @@ static MUST_CHECK Obj *function_pow(oper_t op) {
     op->v1 = v[0].val;
     op->v2 = v[1].val;
     return op->v1->obj->calc2(op);
+}
+
+static MUST_CHECK Obj *function_log(oper_t op) {
+    struct values_s *v = Funcargs(op->v2)->val;
+    Obj *val;
+    double real, real2;
+
+    val = to_real(&v[0], &real);
+    if (val != NULL) return val;
+    if (real <= 0.0) return new_error_obj(ERROR_LOG_NON_POSIT, v[0].val, &v[0].epoint);
+
+    if (Funcargs(op->v2)->len == 2) {
+        val = to_real(&v[1], &real2);
+        if (val != NULL) return val;
+        if (real2 == 10.0) real = log10(real);
+        else if (real2 == 2.0) {
+            int e;
+            real = frexp(real, &e);
+            if (real < 0.707106781186547524400844362104849039284) {
+                real *= 2.0;
+                e--;
+            }
+            real = (double)e + log(real)*1.44269504088896340735992468100189213743;
+        } else {
+            if (real2 > 0.0) real2 = log(real2); else real2 = 0.0;
+            if (real2 == 0.0 || real2 == HUGE_VAL || real2 == -HUGE_VAL || real2 != real2) {
+                return new_error_obj(ERROR______LOG_BASE, v[1].val, &v[1].epoint);
+            }
+            real = log(real) / real2;
+        }
+    } else real = log(real);
+    return float_from_double(real, op->epoint);
 }
 
 static MUST_CHECK Obj *function_all_any(oper_t op, Obj **warn, bool first) {
@@ -765,9 +814,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                 func = v1->func;
                 switch (func) {
                 case F_HYPOT:
-                    if (args != 2) {
-                        return new_error_argnum(args, 2, 2, op->epoint3);
-                    }
                     return gen_broadcast(op, function_hypot);
                 case F_ATAN2:
                     if (args != 2) {
@@ -779,6 +825,11 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                         return new_error_argnum(args, 2, 2, op->epoint3);
                     }
                     return function_pow(op);
+                case F_LOG:
+                    if (args < 1 || args > 2) {
+                        return new_error_argnum(args, 1, 2, op->epoint3);
+                    }
+                    return gen_broadcast(op, function_log);
                 case F_RANGE:
                     if (args < 1 || args > 3) {
                         return new_error_argnum(args, 1, 3, op->epoint3);

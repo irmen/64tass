@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.c 3181 2025-03-26 07:21:07Z soci $
+    $Id: instruction.c 3190 2025-03-30 14:52:21Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
 #include "eval.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
-static const uint8_t *opcode;       /* opcodes */
+static const uint16_t *opcode;      /* opcodes */
 static unsigned int last_mnem;
 
 bool longaccu, longindex, autosize; /* hack */
@@ -155,253 +155,215 @@ typedef enum Adrgen {
     AG_SWORD, AG_SINT, AG_RELPB, AG_RELL, AG_IMP, AG_NONE
 } Adrgen;
 
-static Adrgen adrmatch(const uint8_t *cnmemonic, int prm, atype_t am, unsigned int w, Adr_types *opr) {
-    Adrgen adrgen;
-    uint8_t cod;
+#define is_amode3(a, b, c, d) (((a) & ((1u << (b)) | (1u << (c)) | (1u << (d)))) != 0)
+#define is_amode2(a, b, c) (((a) & ((1u << (b)) | (1u << (c)))) != 0)
+#define is_amode(a, b) (((a) & (1u << (b))) != 0)
+
+static Adrgen adrmatch(const uint8_t *cnmemonic, uint32_t amode, atype_t am, unsigned int w, Opr_types *opr) {
     switch (am) {
     case A_IMMEDIATE_SIGNED:
     case A_IMMEDIATE:
-        if ((cod = cnmemonic[(*opr = ADR_IMMEDIATE)]) == ____ && prm != 0) { /* 0x69 hack */
-            return AG_NONE;
-        }
-        switch (cod) {
+        if (!is_amode(amode, ADR_IMMEDIATE)) return AG_NONE;
+        switch (cnmemonic[(*opr = OPR_IMMEDIATE)]) {
         case 0xE0:
         case 0xC0:
         case 0xA2:
         case 0xA0:  /* cpx cpy ldx ldy */
-            adrgen = ((longindex && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
-            break;
+            return ((longindex && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
         case 0xF4: /* pea/phw #$ffff */
-            adrgen = (am == A_IMMEDIATE) ? AG_SWORD : AG_SINT;
-            break;
+            return (am == A_IMMEDIATE) ? AG_SWORD : AG_SINT;
         case 0x32:
         case 0x42: /* sac sir/wdm */
             if (opcode == c65dtv02.opcode) {
                 if (am != A_IMMEDIATE) return AG_NONE;
-                adrgen = AG_BYTE;
-                break;
+                return AG_BYTE;
             }
-            adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
-            break;
+            return (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
         case 0xC2:
         case 0xE2:
         case 0xEF:  /* sep rep mmu */
             if (opcode == w65816.opcode || opcode == c65el02.opcode) {
                 if (am != A_IMMEDIATE) return AG_NONE;
-                adrgen = AG_BYTE;
-                break;
+                return AG_BYTE;
             }
             FALL_THROUGH; /* fall through */
         case 0x00:
         case 0x02: /* brk cop */
-            adrgen = (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
-            break;
+            return (am == A_IMMEDIATE) ? AG_SBYTE : AG_CHAR;
         default:
-            if (cnmemonic[ADR_REL] != ____ || cnmemonic[ADR_REL_L] != ____) {
-                adrgen = (am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR;
-                break;
+            if (is_amode2(amode, ADR_REL, ADR_REL_L)) {
+                return (am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR;
             }
-            adrgen = ((longaccu && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
-        }
-        break;
-    case (A_IMMEDIATE << 4) | A_BR: /* lda #$ffff,b */
-    case A_BR:
-        if (cnmemonic[ADR_ADDR] != ____ && cnmemonic[ADR_ADDR] != 0x4C && cnmemonic[ADR_ADDR] != 0x20 && cnmemonic[ADR_ADDR] != 0xF4) {/* jmp $ffff, jsr $ffff, pea */
-            adrgen = AG_WORD; *opr = ADR_ADDR; /* lda $ffff,b */
-            break;
+            return ((longaccu && w != 0) || w == 1) ? ((am == A_IMMEDIATE) ? AG_SWORD : AG_SINT) : ((am == A_IMMEDIATE) ? AG_SBYTE: AG_CHAR);
         }
         return AG_NONE;
-    case (A_IMMEDIATE << 4) | A_KR:
+    case (A_IMMEDIATE << 4) | A_BR: /* lda #$ffff,b */
+    case A_BR:
+        if (is_amode(amode, ADR_ADDR) && cnmemonic[OPR_ADDR] != 0xF4) {/* pea */
+            *opr = OPR_ADDR; return AG_WORD; /* lda $ffff,b */
+        }
+        return AG_NONE;
+    case (A_IMMEDIATE << 4) | A_KR: /* jmp #$ffff,x */
     case A_KR:
-        if (cnmemonic[ADR_REL] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_REL;
-            break;
+        if (is_amode(amode, ADR_REL)) {
+            *opr = OPR_REL; return AG_BYTE; /* bra */
         }
-        if (cnmemonic[ADR_REL_L] != ____) {
-            adrgen = AG_RELPB; *opr = ADR_REL_L; /* brl */
-            break;
+        if (is_amode(amode, ADR_REL_L)) {
+            *opr = OPR_REL_L; return AG_RELPB; /* brl */
         }
-        if (cnmemonic[ADR_ADDR] == 0x4C || cnmemonic[ADR_ADDR] == 0x20) {/* jmp $ffff, jsr $ffff */
-            adrgen = AG_WORD; *opr = ADR_ADDR; /* jmp $ffff */
-            break;
+        if (is_amode(amode, ADR_ADDR_K)) {     /* jmp $ffff, jsr $ffff */
+            *opr = OPR_ADDR; return AG_WORD; /* jmp $ffff */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 4) | A_DR:           /* lda #$ff,d */
     case A_DR:
-        if (cnmemonic[ADR_ZP] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP; /* lda $ff,d */
-            break;
+        if (is_amode(amode, ADR_ZP)) {
+            *opr = OPR_ZP; return AG_BYTE;  /* lda $ff,d */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_BR << 4) | A_XR: /* lda #$ffff,b,x */
     case (A_BR << 4) | A_XR:
-        if (cnmemonic[ADR_ADDR_X] != ____) {
-            adrgen = AG_WORD; *opr = ADR_ADDR_X; /* lda $ffff,b,x */
-            break;
+        if (is_amode(amode, ADR_ADDR_X)) {
+            *opr = OPR_ADDR_X; return AG_WORD; /* lda $ffff,b,x */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_XR: /* lda #$ff,d,x */
     case (A_DR << 4) | A_XR:
-        if (cnmemonic[ADR_ZP_X] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_X; /* lda $ff,d,x */
-            break;
+        if (is_amode(amode, ADR_ZP_X)) {
+            *opr = OPR_ZP_X; return AG_BYTE; /* lda $ff,d,x */
         }
         return AG_NONE;
     case A_XR:
-        if (cnmemonic[ADR_ZP_X] != ____ || cnmemonic[ADR_ADDR_X] != ____ || cnmemonic[ADR_LONG_X] != ____) {
-            adrgen = AG_DB3; *opr = ADR_ZP_X; /* lda $ff,x lda $ffff,x lda $ffffff,x */
-            break;
+        if (is_amode3(amode, ADR_ZP_X, ADR_ADDR_X, ADR_LONG_X)) {
+            *opr = OPR_ZP_X; return AG_DB3; /* lda $ff,x lda $ffff,x lda $ffffff,x */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_BR << 4) | A_YR:/* ldx #$ffff,b,y */
     case (A_BR << 4) | A_YR:
-        if (cnmemonic[ADR_ADDR_Y] != ____) {
-            adrgen = AG_WORD; *opr = ADR_ADDR_Y; /* ldx $ffff,b,y */
-            break;
+        if (is_amode(amode, ADR_ADDR_Y)) {
+            *opr = OPR_ADDR_Y; return AG_WORD; /* ldx $ffff,b,y */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_YR:/* ldx #$ff,d,y */
     case (A_DR << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_Y] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_Y; /* ldx $ff,d,y */
-            break;
+        if (is_amode(amode, ADR_ZP_Y)) {
+            *opr = OPR_ZP_Y; return AG_BYTE; /* ldx $ff,d,y */
         }
         return AG_NONE;
     case A_YR:
-        if (cnmemonic[ADR_ZP_Y] != ____ || cnmemonic[ADR_ADDR_Y] != ____) {
-            adrgen = AG_DB2; *opr = ADR_ZP_Y; /* lda $ff,y lda $ffff,y lda $ffffff,y */
-            break;
+        if (is_amode2(amode, ADR_ZP_Y, ADR_ADDR_Y)) {
+            *opr = OPR_ZP_Y; return AG_DB2; /* lda $ff,y lda $ffff,y */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 4) | A_SR:           /* lda #$ff,s */
     case A_SR:
-        if (cnmemonic[ADR_ZP_S] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_S; /* lda $ff,s */
-            break;
+        if (is_amode(amode, ADR_ZP_S)) {
+            *opr = OPR_ZP_S; return AG_BYTE; /* lda $ff,s */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 4) | A_RR:           /* lda #$ff,r */
     case A_RR:
-        if (cnmemonic[ADR_ZP_R] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_R; /* lda $ff,r */
-            break;
+        if (is_amode(amode, ADR_ZP_R)) {
+            *opr = OPR_ZP_R; return AG_BYTE; /* lda $ff,r */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,d),y */
     case (A_DR << 8) | (A_I << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_I_Y] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_I_Y; /* lda ($ff,d),y */
-            break;
+        if (is_amode(amode, ADR_ZP_I_Y)) {
+            *opr = OPR_ZP_I_Y; return AG_BYTE; /* lda ($ff,d),y */
         }
         return AG_NONE;
     case (A_I << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_I_Y] != ____) {
-            adrgen = AG_ZP; *opr = ADR_ZP_I_Y; /* lda ($ff),y */
-            break;
+        if (is_amode(amode, ADR_ZP_I_Y)) {
+            *opr = OPR_ZP_I_Y; return AG_ZP; /* lda ($ff),y */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_I << 4) | A_ZR:/* lda (#$ff,d),z */
     case (A_DR << 8) | (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I] != ____ && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d),z */
-            break;
+        if (is_amode(amode, ADR_ZP_I_Z)) {
+            *opr = OPR_ZP_I_Z; return AG_BYTE; /* lda ($ff,d),z */
         }
         return AG_NONE;
     case (A_I << 4) | A_ZR:
-        if (cnmemonic[ADR_ZP_I] != ____ && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
-            adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff),z */
-            break;
+        if (is_amode(amode, ADR_ZP_I_Z)) {
+            *opr = OPR_ZP_I_Z; return AG_ZP; /* lda ($ff),z */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_SR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,s),y */
     case (A_SR << 8) | (A_I << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
-            break;
+        if (is_amode(amode, ADR_ZP_S_I_Y)) {
+            *opr = OPR_ZP_S_I_Y; return AG_BYTE; /* lda ($ff,s),y */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_RR << 8) | (A_I << 4) | A_YR:/* lda (#$ff,r),y */
     case (A_RR << 8) | (A_I << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_R_I_Y] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_R_I_Y; /* lda ($ff,r),y */
-            break;
+        if (is_amode(amode, ADR_ZP_R_I_Y)) {
+            *opr = OPR_ZP_R_I_Y; return AG_BYTE; /* lda ($ff,r),y */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_LI << 4) | A_YR:/* lda [#$ff,d],y */
     case (A_DR << 8) | (A_LI << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_LI_Y] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_LI_Y; /* lda [$ff,d],y */
-            break;
+        if (is_amode(amode, ADR_ZP_LI_Y)) {
+            *opr = OPR_ZP_LI_Y; return AG_BYTE; /* lda [$ff,d],y */
         }
         return AG_NONE;
     case (A_LI << 4) | A_YR:
-        if (cnmemonic[ADR_ZP_LI_Y] != ____) {
-            adrgen = AG_ZP; *opr = ADR_ZP_LI_Y; /* lda [$ff],y */
-            break;
+        if (is_amode(amode, ADR_ZP_LI_Y)) {
+            *opr = OPR_ZP_LI_Y; return AG_ZP; /* lda [$ff],y */
         }
         return AG_NONE;
     case (A_XR << 4) | A_I:
-        if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
-            adrgen = AG_PB; *opr = ADR_ADDR_X_I; /* jmp ($ffff,x) */
-            break;
+        if (is_amode(amode, ADR_ADDR_K_X_I)) {/* jmp ($ffff,x) jsr ($ffff,x) */
+            *opr = OPR_ADDR_K_X_I; return AG_PB; /* jmp ($ffff,x) */
         }
-        if (cnmemonic[ADR_ZP_X_I] != ____) {
-            adrgen = AG_ZP; *opr = ADR_ZP_X_I; /* lda ($ff,x) */
-            break;
+        if (is_amode(amode, ADR_ZP_X_I)) {
+            *opr = OPR_ZP_X_I; return AG_ZP; /* lda ($ff,x) */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_KR << 8) | (A_XR << 4) | A_I: /* jmp (#$ffff,k,x) */
     case (A_KR << 8) | (A_XR << 4) | A_I:
-        if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
-            adrgen = AG_WORD; *opr = ADR_ADDR_X_I; /* jmp ($ffff,k,x) */
-            break;
+        if (is_amode(amode, ADR_ADDR_K_X_I)) {/* jmp ($ffff,x) jsr ($ffff,x) */
+            *opr = OPR_ADDR_K_X_I; return AG_WORD; /* jmp ($ffff,k,x) */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 12) | (A_DR << 8) | (A_XR << 4) | A_I:/* lda (#$ff,d,x) */
     case (A_DR << 8) | (A_XR << 4) | A_I:
-        if (cnmemonic[ADR_ZP_X_I] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_X_I; /* lda ($ff,d,x) */
-            break;
+        if (is_amode(amode, ADR_ZP_X_I)) {
+            *opr = OPR_ZP_X_I; return AG_BYTE; /* lda ($ff,d,x) */
         }
         return AG_NONE;
     case A_I:
-        if (cnmemonic[ADR_ADDR_I] == 0x6C || cnmemonic[ADR_ADDR_I] == 0x22) {/* jmp ($ffff), jsr ($ffff) */
-            adrgen = AG_B0; *opr = ADR_ADDR_I; /* jmp ($ffff) */
-            break;
+        if (is_amode(amode, ADR_ADDR_0_I)) {/* jmp ($ffff), jsr ($ffff) */
+            *opr = OPR_ADDR_0_I; return AG_B0; /* jmp ($ffff) */
         }
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode && opcode != c4510.opcode) {
-            adrgen = AG_ZP; *opr = ADR_ZP_I; /* lda ($ff) */
-            break;
+        if (is_amode(amode, ADR_ZP_I)) {
+            *opr = OPR_ZP_I; return AG_ZP; /* lda ($ff) */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_I: /* lda (#$ff,d) */
     case (A_DR << 4) | A_I:
-        if (cnmemonic[ADR_ZP_I] != ____ && opcode != c65ce02.opcode && opcode != c4510.opcode) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_I; /* lda ($ff,d) */
-            break;
+        if (is_amode(amode, ADR_ZP_I)) {
+            *opr = OPR_ZP_I; return AG_BYTE; /* lda ($ff,d) */
         }
         return AG_NONE;
     case A_LI:
-        if (cnmemonic[ADR_ADDR_LI] == 0xDC) { /* jmp [$ffff] */
-            adrgen = AG_B0; *opr = ADR_ADDR_LI; /* jmp [$ffff] */
-            break;
+        if (is_amode(amode, ADR_ADDR_0_LI)) { /* jmp [$ffff] */
+            *opr = OPR_ADDR_0_LI; return AG_B0; /* jmp [$ffff] */
         }
-        if (cnmemonic[ADR_ZP_LI] != ____) {
-            adrgen = AG_ZP; *opr = ADR_ZP_LI; /* lda [$ff] */
-            break;
+        if (is_amode(amode, ADR_ZP_LI)) {
+            *opr = OPR_ZP_LI; return AG_ZP; /* lda [$ff] */
         }
         return AG_NONE;
     case (A_IMMEDIATE << 8) | (A_DR << 4) | A_LI: /* lda [#$ff,d] */
     case (A_DR << 4) | A_LI:
-        if (cnmemonic[ADR_ZP_LI] != ____) {
-            adrgen = AG_BYTE; *opr = ADR_ZP_LI; /* lda [$ff,d] */
-            break;
+        if (is_amode(amode, ADR_ZP_LI)) {
+            *opr = OPR_ZP_LI; return AG_BYTE; /* lda [$ff,d] */
         }
         return AG_NONE;
     default:
         return AG_NONE;
     }
-    return adrgen;
+    return AG_NONE;
 }
 
 static int register_generic(int prm, int c) {
@@ -442,9 +404,10 @@ static int register_generic(int prm, int c) {
 
 MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t epoint) {
     Adrgen adrgen;
-    Adr_types opr;
+    Opr_types opr;
     Reg_types reg;
     const uint8_t *cnmemonic; /* current nmemonic */
+    uint32_t amode;
     unsigned int ln;
     uint8_t cod, longbranch;
     uint32_t adr;
@@ -454,15 +417,16 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
     Error *err;
     atype_t am;
 
-    cnmemonic = opcode_table[opcode[prm]];
+    cnmemonic = opcode_table[opcode[prm] & 0xff];
+    amode = opcode_table_modes[opcode[prm] >> 8];
     longbranch = 0; reg = REG_A; adr = 0;
 
     switch (vals->len) {
     case 0:
     retry0:
-        if (cnmemonic[ADR_IMPLIED] != ____) {
-            if (diagnostics.implied_reg && cnmemonic[ADR_REG] != 0) err_msg_implied_reg(epoint, mnemonic[prm]);
-            adrgen = AG_IMP; opr = ADR_IMPLIED;
+        if (is_amode(amode, ADR_IMPLIED)) {
+            if (diagnostics.implied_reg && is_amode(amode, ADR_REG)) err_msg_implied_reg(epoint, mnemonic[prm]);
+            adrgen = AG_IMP; opr = OPR_IMPLIED;
             break;
         }
         return err_addressing(A_NONE, epoint, prm);
@@ -486,36 +450,32 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         am = val->obj->address(val);
     retry1:
         if (am != A_NONE) {
-            adrgen = adrmatch(cnmemonic, prm, am, w, &opr);
+            adrgen = adrmatch(cnmemonic, amode, am, w, &opr);
             if (adrgen != AG_NONE) {
                 switch (opr) {
-                case ADR_REL:
+                case OPR_REL:
                     ln = 1; longbranch = 0;
                     goto justrel2;
-                case ADR_IMMEDIATE:
-                    if (cnmemonic[ADR_REL] != ____) {
-                        ln = 1; longbranch = 0; opr = ADR_REL;
+                case OPR_IMMEDIATE:
+                    if (is_amode(amode, ADR_REL)) {
+                        ln = 1; longbranch = 0; opr = OPR_REL;
                         goto immediaterel;
                     }
-                    if (cnmemonic[ADR_REL_L] != ____) {
+                    if (is_amode(amode, ADR_REL_L)) {
                         if (w == 0) err_msg2(ERROR__NO_BYTE_ADDR, &mnemonic[prm], epoint2);
-                        ln = 2; longbranch = 0; opr = ADR_REL_L;
+                        ln = 2; longbranch = 0; opr = OPR_REL_L;
                         goto immediaterel;
                     }
                     if (pline[epoint2->pos] == '#') epoint2->pos++;
                     break;
-                case ADR_ZP_I_Y:
-                case ADR_ZP_S_I_Y:
-                case ADR_ZP_R_I_Y:
-                case ADR_ADDR_X_I:
-                case ADR_ZP_X_I:
-                case ADR_ADDR_I:
-                case ADR_ZP_I:
+                case OPR_ZP_I_Y:
+                case OPR_ZP_S_I_Y:
+                case OPR_ZP_X_I:
+                case OPR_ZP_I:
                     if (pline[epoint2->pos] == '(') epoint2->pos++;
                     break;
-                case ADR_ZP_LI_Y:
-                case ADR_ADDR_LI:
-                case ADR_ZP_LI:
+                case OPR_ZP_LI_Y:
+                case OPR_ZP_LI:
                     if (pline[epoint2->pos] == '[') epoint2->pos++;
                     break;
                 default:
@@ -531,7 +491,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (cpureg->len == 1) {
                 const char *ind = strchr(reg_names, cpureg->data[0]);
                 if (ind != NULL) {
-                    cod = cnmemonic[(opr = ADR_REG)];
+                    cod = cnmemonic[(opr = OPR_REG)];
                     if (cod != 0) {
                         reg = (Reg_types)(ind - reg_names);
                         if (regopcode_table[cod][reg] != ____) {
@@ -551,13 +511,13 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             }
             goto noregister;
         }
-        if (cnmemonic[ADR_REL] != ____) {
+        if (is_amode(amode, ADR_REL)) {
             struct star_s *s;
             uint16_t xadr;
             uval_t oadr;
             bool crossbank, invalid;
             Obj *oval;
-            ln = 1; opr = ADR_REL;
+            ln = 1; opr = OPR_REL;
             longbranch = 0;
             if (false) {
         justrel2:
@@ -581,7 +541,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
 
             oadr = uval;
             oval = val->obj == ADDRESS_OBJ ? Address(val)->val : val;
-            if (oval->obj == CODE_OBJ && pass != Code(oval)->apass && cnmemonic[ADR_REL_L] == ____) { /* not for 65CE02! */
+            if (oval->obj == CODE_OBJ && pass != Code(oval)->apass && !is_amode(amode, ADR_REL_L)) { /* not for 65CE02! */
                 s = new_star(vline + 1);
                 adr = s->pass != 0 ? (uint16_t)(uval - s->addr) : (uint16_t)(uval - current_address->l_address - 1 - ln);
             } else {
@@ -591,7 +551,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             if (false) {
                 bool longpossible;
         immediaterel:
-                longpossible = (cnmemonic[ADR_REL_L] != ____) && w != 0;
+                longpossible = is_amode(amode, ADR_REL_L) && w != 0;
                 if (adrgen == AG_SBYTE) {
                     invalid = touaddress(val, &uval, longpossible ? 16 : 8, epoint2);
                 } else {
@@ -608,11 +568,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 adr = (uint16_t)uval;
             }
             if ((adr<0xFF80 && adr>0x007F) || crossbank || w == 1 || w == 2) {
-                if (cnmemonic[ADR_REL_L] != ____ && !crossbank && (w == 3 || w == 1)) { /* 65CE02 long branches */
-                    opr = ADR_REL_L;
+                if (is_amode(amode, ADR_REL_L) && !crossbank && (w == 3 || w == 1)) { /* 65CE02 long branches */
+                    opr = OPR_REL_L;
                     ln = 2;
-                } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____) && w == 3) { /* fake long branches */
-                    if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
+                } else if (arguments.longbranch && !is_amode(amode, ADR_ADDR) && w == 3) { /* fake long branches */
+                    if ((cnmemonic[OPR_REL] & 0x1f) == 0x10) {/* bxx branch */
                         struct longjump_s *lj = new_longjump(&current_section->longjump, uval);
                         if (lj->defpass == pass) {
                             if ((current_address->l_address ^ lj->dest) <= 0xffff) {
@@ -623,9 +583,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                                 }
                             }
                         }
-                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL]);
+                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL]);
                         if (s == NULL) s = new_star(vline + 1);
-                        dump_instr(cnmemonic[ADR_REL] ^ 0x20, s->pass != 0 ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
+                        dump_instr(cnmemonic[OPR_REL] ^ 0x20, s->pass != 0 ? ((uint16_t)(s->addr - current_address->l_address - 2)) : 3, 1, epoint);
                         lj->dest = current_address->l_address;
                         lj->defpass = pass;
                         if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
@@ -634,7 +594,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         if (diagnostics.optimize) cpu_opt_long_branch(0);
                         goto branchend;
                     }
-                    if (opr == ADR_BIT_ZP_REL) {
+                    if (opr == OPR_BIT_ZP_REL) {
                         struct longjump_s *lj;
                         if (crossbank) {
                             err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
@@ -650,8 +610,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                                 }
                             }
                         }
-                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_BIT_ZP_REL] ^ longbranch);
-                        dump_instr(cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch, xadr | 0x300, 2, epoint);
+                        if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_BIT_ZP_REL] ^ longbranch);
+                        dump_instr(cnmemonic[OPR_BIT_ZP_REL] ^ 0x80 ^ longbranch, xadr | 0x300, 2, epoint);
                         lj->dest = current_address->l_address;
                         lj->defpass = pass;
                         if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
@@ -663,11 +623,11 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         if (current_cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
                         asbrl:
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL] | 0x100U);
                             err = instruction(current_cpu->brl, w, vals, epoint);
                             if (diagnostics.optimize) cpu_opt_long_branch(0);
                             goto branchend;
-                        } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
+                        } else if (cnmemonic[OPR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
                             int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
                             if (crossbank) {
                                 err_msg2(ERROR_CANT_CROSS_BA, val, epoint2);
@@ -675,7 +635,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         } else { /* bra -> jmp */
                         asjmp:
                             if (diagnostics.long_branch) err_msg2(ERROR___LONG_BRANCH, NULL, epoint2);
-                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL] | 0x100U);
                             err = instruction(current_cpu->jmp, w, vals, epoint);
                             if (diagnostics.optimize) cpu_opt_long_branch(0);
                         branchend:
@@ -690,7 +650,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                             return err;
                         }
                     }
-                } else if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
+                } else if (is_amode(amode, ADR_ADDR)) { /* gcc */
                     if (current_cpu->brl >= 0 && !longbranchasjmp) goto asbrl; /* gcc -> brl */
                     goto asjmp; /* gcc -> jmp */
                 } else { /* too long */
@@ -710,22 +670,22 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, &diff, epoint2);
                     else if (diagnostics.branch_page) err_msg_branch_page(diff, epoint2);
                 }
-                if (cnmemonic[ADR_ADDR] != ____ && w == 3) { /* gcc */
+                if (is_amode(amode, ADR_ADDR) && w == 3) { /* gcc */
                     if (adr == 0) {
-                        dump_instr(cnmemonic[ADR_REL], 0, -1, epoint);
+                        dump_instr(cnmemonic[OPR_REL], 0, -1, epoint);
                         err = NULL;
                         goto branchend;
                     }
                     if (adr == 1) {
-                        if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
-                            dump_instr(cnmemonic[ADR_REL] ^ 0x20, 1, 0, epoint);
+                        if ((cnmemonic[OPR_REL] & 0x1f) == 0x10) {
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL] | 0x100U);
+                            dump_instr(cnmemonic[OPR_REL] ^ 0x20, 1, 0, epoint);
                             if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
                             goto branchend;
                         }
-                        if (cnmemonic[ADR_REL] == 0x80 && (opcode == r65c02.opcode || opcode == w65c02.opcode)) {
-                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
+                        if (cnmemonic[OPR_REL] == 0x80 && (opcode == r65c02.opcode || opcode == w65c02.opcode)) {
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL] | 0x100U);
                             dump_instr(0x82, 1, 0, epoint);
                             if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
@@ -733,9 +693,9 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         }
                     }
                     if (adr == 2 && (opcode == c65ce02.opcode || opcode == c4510.opcode)) {
-                        if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[ADR_REL] | 0x100U);
-                            dump_instr(cnmemonic[ADR_REL] ^ 0x23, 2, 0, epoint);
+                        if ((cnmemonic[OPR_REL] & 0x1f) == 0x10) {
+                            if (diagnostics.optimize) cpu_opt_long_branch(cnmemonic[OPR_REL] | 0x100U);
+                            dump_instr(cnmemonic[OPR_REL] ^ 0x23, 2, 0, epoint);
                             if (diagnostics.optimize) cpu_opt_long_branch(0);
                             err = NULL;
                             goto branchend;
@@ -752,23 +712,23 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 }
                 s->addr = st;
             }
-            if (opr == ADR_BIT_ZP_REL) adr = xadr | (adr << 8);
+            if (opr == OPR_BIT_ZP_REL) adr = xadr | (adr << 8);
             adrgen = AG_NONE; break;
         }
-        if (cnmemonic[ADR_REL_L] != ____) {
-            adrgen = AG_RELL; opr = ADR_REL_L; /* brl */
+        if (is_amode(amode, ADR_REL_L)) {
+            adrgen = AG_RELL; opr = OPR_REL_L; /* brl */
             break;
         }
-        if (cnmemonic[ADR_ADDR] == 0x20 || cnmemonic[ADR_ADDR] == 0x4C) {
-            adrgen = AG_PB; opr = ADR_ADDR; /* jsr $ffff, jmp */
+        if (is_amode(amode, ADR_ADDR_K)) {
+            adrgen = AG_PB; opr = OPR_ADDR; /* jsr $ffff, jmp */
             break;
         }
-        if (cnmemonic[ADR_ADDR] == 0xF4) {
-            adrgen = AG_WORD; opr = ADR_ADDR; /* pea $ffff */
+        if (cnmemonic[OPR_ADDR] == 0xF4) {
+            adrgen = AG_WORD; opr = OPR_ADDR; /* pea $ffff */
             break;
         }
-        if (cnmemonic[ADR_ZP] != ____ || cnmemonic[ADR_ADDR] != ____ || cnmemonic[ADR_LONG] != ____) {
-            adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
+        if (is_amode3(amode, ADR_ZP, ADR_ADDR, ADR_LONG)) {
+            adrgen = AG_DB3; opr = OPR_ZP; /* lda $ff lda $ffff lda $ffffff */
             break;
         }
         goto unknown;
@@ -844,7 +804,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     val = vals->val[0].val;
                     epoint2 = &vals->val[0].epoint;
                     prm = nprm;
-                    cnmemonic = opcode_table[opcode[prm]];
+                    cnmemonic = opcode_table[opcode[prm] & 0xff];
+                    amode = opcode_table_modes[opcode[prm] >> 8];
                     goto retry1a;
                 }
                 if (vals->val[1].val->obj == REGISTER_OBJ) {
@@ -857,7 +818,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         if (r1name == 'r' && r2name == 'x') nprm = current_cpu->txr;
                         if (nprm >= 0) {
                             prm = nprm;
-                            cnmemonic = opcode_table[opcode[prm]];
+                            cnmemonic = opcode_table[opcode[prm] & 0xff];
+                            amode = opcode_table_modes[opcode[prm] >> 8];
                             goto retry0;
                         }
                         if (prm == current_cpu->str && r1name == r2name && r1name >= 'a' && r1name <= 'z' && ((current_cpu->registers >> (r1name - 'a')) & 1) != 0) {
@@ -878,7 +840,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 goto retry1;
             }
         }
-        if (cnmemonic[ADR_MOVE] != ____) {
+        if (is_amode(amode, ADR_MOVE)) {
             if (w != 3 && w != 1) return err_addressize((w == 0) ? ERROR__NO_BYTE_ADDR : ERROR__NO_LONG_ADDR, epoint2, prm);
             val = vals->val[0].val;
             if (touaddress(val, &uval, 8, epoint2)) {}
@@ -896,10 +858,10 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 else adr |= uval & 0xff;
             }
             ln = 2;
-            adrgen = AG_NONE; opr = ADR_MOVE;
+            adrgen = AG_NONE; opr = OPR_MOVE;
             break;
         }
-        if (cnmemonic[ADR_BIT_ZP] != ____) {
+        if (is_amode(amode, ADR_BIT_ZP)) {
             if (w != 3 && w != 0) return err_addressize((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint2, prm);
             if (touval(vals->val[0].val, &uval, 3, epoint2)) {}
             else longbranch = ((uval & 7) << 4) & 0x70;
@@ -912,7 +874,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 if (am != A_NONE) err_msg_output_and_destroy(err_addressing(am, epoint2, prm));
                 adrgen = AG_ZP;
             }
-            opr = ADR_BIT_ZP;
+            opr = OPR_BIT_ZP;
             break;
         }
         goto unknown;
@@ -930,7 +892,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     vals->val[1] = vals->val[2];
                     vals->val[2] = vs;
                     prm = nprm;
-                    cnmemonic = opcode_table[opcode[prm]];
+                    cnmemonic = opcode_table[opcode[prm] & 0xff];
+                    amode = opcode_table_modes[opcode[prm] >> 8];
                     goto retry2;
                 }
             }
@@ -946,7 +909,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 goto retry1;
             }
         }
-        if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
+        if (is_amode(amode, ADR_BIT_ZP_REL)) {
             if (w != 3 && w != 1) return err_addressize((w != 0) ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint2, prm);
             if (touval(vals->val[0].val, &uval, 3, epoint2)) {}
             else longbranch = ((uval & 7) << 4) & 0x70;
@@ -969,7 +932,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
             }
             val = vals->val[2].val;
             epoint2 = &vals->val[2].epoint;
-            ln = 2; opr = ADR_BIT_ZP_REL;
+            ln = 2; opr = OPR_BIT_ZP_REL;
             am = val->obj->address(val);
             if (am == A_KR) {
                 goto justrel2;
@@ -1000,7 +963,8 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     vals->val[2] = vals->val[3];
                     vals->val[3] = vs;
                     prm = nprm;
-                    cnmemonic = opcode_table[opcode[prm]];
+                    cnmemonic = opcode_table[opcode[prm] & 0xff];
+                    amode = opcode_table_modes[opcode[prm] >> 8];
                     goto retry2;
                 }
             }
@@ -1147,26 +1111,28 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
         {
             uval_t uval2;
             Obj *val2 = (val->obj == ADDRESS_OBJ) ? Address(val)->val : val;
+            if (opr == OPR_ZP_X) amode >>= ADR_ZP_X - ADR_ZP;
+            else if (opr == OPR_ZP_Y) amode >>= ADR_ZP_Y - ADR_ZP;
 
             if (w == 3) {/* auto length */
                 if (val2->obj == CODE_OBJ && !Code(val2)->memblocks->enumeration) {
-                    if (tocode_uaddress(val2, &uval, &uval2, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
+                    if (tocode_uaddress(val2, &uval, &uval2, epoint2)) w = is_amode(amode, ADR_ADDR) ? 1 : 0;
                 } else {
-                    if (touaddress(val, &uval, all_mem_bits, epoint2)) w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
+                    if (touaddress(val, &uval, all_mem_bits, epoint2)) w = is_amode(amode, ADR_ADDR) ? 1 : 0;
                     else uval2 = uval;
                 }
                 if (w == 3) {/* auto length */
                     uval_t uval3;
                     uval2 &= all_mem;
-                    uval3 = (opr == ADR_ZP || opcode == c65el02.opcode || opcode == w65816.opcode) ? (uval & all_mem) : uval2;
+                    uval3 = (opr == OPR_ZP || opcode == c65el02.opcode || opcode == w65816.opcode) ? (uval & all_mem) : uval2;
                     if (diagnostics.altmode) {
                         if (uval3 <= 0xffff && dpage <= 0xffff && (uint16_t)(uval3 - dpage) <= 0xff) w = 0;
                         else if (databank == ((uval & all_mem) >> 16) || adrgen != AG_DB3) w = 1;
                         else w = 2;
                     }
 
-                    if (cnmemonic[opr] != ____ && uval3 <= 0xffff && dpage <= 0xffff && (uint16_t)(uval3 - dpage) <= 0xff) {
-                        if (diagnostics.immediate && opr == ADR_ZP && (cnmemonic[ADR_IMMEDIATE] != ____ || prm == 0) && (val->obj != CODE_OBJ || Code(val)->memblocks->enumeration) && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
+                    if (is_amode(amode, ADR_ZP) && uval3 <= 0xffff && dpage <= 0xffff && (uint16_t)(uval3 - dpage) <= 0xff) {
+                        if (diagnostics.immediate && opr == OPR_ZP && is_amode(amode, ADR_IMMEDIATE) && (val->obj != CODE_OBJ || Code(val)->memblocks->enumeration) && val->obj != ADDRESS_OBJ) err_msg2(ERROR_NONIMMEDCONST, NULL, epoint2);
                         else if (w != 3 && w != 0) err_msg_address_mismatch(opr-0, opr-w, epoint2);
                         adr = uval - dpage; w = 0;
                         if (opcode == c65el02.opcode || opcode == w65816.opcode) {
@@ -1174,16 +1140,16 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                         } else {
                             if (adr > 0xff) err_msg_dpage_wrap(epoint2);
                         }
-                    } else if (cnmemonic[opr - 1] != ____ && databank == ((uval & all_mem) >> 16)) {
+                    } else if (is_amode(amode, ADR_ADDR) && databank == ((uval & all_mem) >> 16)) {
                         if (w != 3 && w != 1) err_msg_address_mismatch(opr-1, opr-w, epoint2);
                         adr = uval; w = 1;
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
-                    } else if (adrgen == AG_DB3 && cnmemonic[opr - 2] != ____) {
+                    } else if (adrgen == AG_DB3 && is_amode(amode, ADR_LONG)) {
                         if (w != 3 && w != 2) err_msg_address_mismatch(opr-2, opr-w, epoint2);
                         adr = uval; w = 2;
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                     } else {
-                        w = (cnmemonic[opr - 1] != ____) ? 1 : 0;
+                        w = is_amode(amode, ADR_ADDR) ? 1 : 0;
                         err_msg2((w != 0) ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val2, epoint2);
                     }
                 }
@@ -1198,7 +1164,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
 
                 switch (w) {
                 case 0:
-                    if (cnmemonic[opr] == ____) return err_addressize(ERROR__NO_BYTE_ADDR, epoint2, prm);
+                    if (!is_amode(amode, ADR_ZP)) return err_addressize(ERROR__NO_BYTE_ADDR, epoint2, prm);
                     uval2 &= all_mem;
                     uval3 = (opcode == c65el02.opcode || opcode == w65816.opcode) ? (uval & all_mem) : uval2;
                     if (uval3 <= 0xffff) {
@@ -1214,14 +1180,14 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                     err_msg2(ERROR_____NOT_BANK0, val2, epoint2);
                     break;
                 case 1:
-                    if (cnmemonic[opr - 1] == ____) return err_addressize(ERROR__NO_WORD_ADDR, epoint2, prm);
+                    if (!is_amode(amode, ADR_ADDR)) return err_addressize(ERROR__NO_WORD_ADDR, epoint2, prm);
                     uval &= all_mem;
                     adr = uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val2, epoint2);
                     else if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                     break;
                 case 2:
-                    if (adrgen == AG_DB3 && cnmemonic[opr - 2] != ____) {
+                    if (adrgen == AG_DB3 && is_amode(amode, ADR_LONG)) {
                         adr = uval & all_mem;
                         if ((uval & all_mem) != uval) err_msg_addr_wrap(epoint2);
                         break;
@@ -1232,7 +1198,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
                 }
             }
         err:
-            opr = (Adr_types)(opr - w); ln = w + 1;
+            opr = (Opr_types)(opr - w); ln = w + 1;
             break;
         }
     case AG_SINT:
@@ -1280,7 +1246,7 @@ MUST_CHECK Error *instruction(int prm, unsigned int w, Funcargs *vals, linepos_t
     }
 
     cod = cnmemonic[opr];
-    if (opr == ADR_REG) cod = regopcode_table[cod][reg];
+    if (opr == OPR_REG) cod = regopcode_table[cod][reg];
     dump_instr(cod ^ longbranch, adr, (int)ln, epoint);
     return NULL;
 }

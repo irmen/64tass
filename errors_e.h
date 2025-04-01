@@ -1,5 +1,5 @@
 /*
-    $Id: errors_e.h 3103 2023-09-05 06:18:05Z soci $
+    $Id: errors_e.h 3183 2025-03-28 07:00:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -73,6 +73,7 @@ typedef enum Error_types {
     ERROR_ZERO_NEGPOWER,
     ERROR_SQUARE_ROOT_N,
     ERROR_LOG_NON_POSIT,
+    ERROR______LOG_BASE,
     ERROR___MATH_DOMAIN,
     ERROR___EMPTY_RANGE,
     ERROR__EMPTY_STRING,

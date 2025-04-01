@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: errorobj.c 3183 2025-03-28 07:00:32Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ static FAST_CALL void destroy(Obj *o1) {
     case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
+    case ERROR______LOG_BASE:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
@@ -129,6 +130,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
+    case ERROR______LOG_BASE:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
@@ -285,6 +287,7 @@ void error_obj_update(Error *err, const Obj *v1, Obj *v2) {
     case ERROR______NOT_ITER:
     case ERROR___MATH_DOMAIN:
     case ERROR_LOG_NON_POSIT:
+    case ERROR______LOG_BASE:
     case ERROR_SQUARE_ROOT_N:
     case ERROR___INDEX_RANGE:
     case ERROR_____KEY_ERROR:
