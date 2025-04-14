@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 3152 2025-03-09 06:02:30Z soci $
+    $Id: codeobj.h 3195 2025-04-09 21:18:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -72,4 +72,5 @@ extern MUST_CHECK Obj *bits_from_code(const Code *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_code(const Code *, linepos_t);
 extern MUST_CHECK Obj *tuple_from_code(Code *, struct Type *, linepos_t);
 extern MUST_CHECK Obj *code_remove_address(Code *, bool);
+extern int code_opcode(Code *);
 #endif

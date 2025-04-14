@@ -1,5 +1,5 @@
 /*
-    $Id: error.h 3164 2025-03-17 19:38:36Z soci $
+    $Id: error.h 3206 2025-04-12 08:52:34Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ extern void err_msg_wrong_character(linepos_t);
 extern void err_msg_encode_definition_note(const struct file_list_s *, linepos_t);
 extern void err_msg_star_assign(linepos_t);
 extern void err_msg_compound_note(linepos_t);
+extern void err_msg_string_expected(linepos_t);
 extern void err_msg_byte_note(linepos_t);
 extern void err_msg_char_note(const char *, linepos_t);
 extern void err_msg_immediate_note(linepos_t);

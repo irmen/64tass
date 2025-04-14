@@ -1,5 +1,5 @@
 "
-" $Id: 64tass.vim 3179 2025-03-26 06:31:53Z soci $
+" $Id: 64tass.vim 3191 2025-04-08 16:42:51Z soci $
 " 
 " Place it into this folder ~/.vim/syntax/
 " Enable with: set syntax=64tass
@@ -15,6 +15,7 @@
 " let tass64_65el02 = 1         " Use 65EL02 opcodes
 " let tass64_65ce02 = 1         " Use 65CE02 opcodes
 " let tass64_4510 = 1           " Use 4510 opcodes
+" let tass64_45gs02 = 1         " Use 45GS02 opcodes
 
 if version < 600
     syntax clear
@@ -108,16 +109,20 @@ if exists("tass64_65el02")
     syn match tass64Reg /\v\.@<!<[dri]>/ contained
 endif
 " 65ce02 opcodes
-if exists("tass64_65ce02") || exists("tass64_4501")
-    syn match tass64Mne /\v%(bra|phx|phy|plx|ply|stz|trb|tsb|asr|asw|bsr|cle|cpz|dew|dez|inw|inz|ldz|neg|phw|phz|plz|row|see|tab|taz|tba|tsy|tys|tza)>:@!/ skipwhite contained nextgroup=@tass64Expression
+if exists("tass64_65ce02") || exists("tass64_4501") || exists("tass64_45gs02")
+    syn match tass64Mne /\v%(bra|phx|phy|plx|ply|stz|trb|tsb|asr|asw|bsr|cle|cpz|dew|dez|inw|inz|ldz|neg|phw|phz|plz|row|see|tad|taz|tda|tsy|tys|tza)>:@!/ skipwhite contained nextgroup=@tass64Expression
     " 65ce02 opcode aliases
-    syn match tass64Mne /\v%(dea|gra|ina|rtn)>:@!/ skipwhite contained nextgroup=@tass64Expression
-    " 65el02 registers
-    syn match tass64Reg /\v\.@<!<[bz]>/ contained
+    syn match tass64Mne /\v%(dea|gra|ina|rtn|rlw|tab|tba)>:@!/ skipwhite contained nextgroup=@tass64Expression
+    " 65ce02 registers
+    syn match tass64Reg /\v\.@<!<[bdz]>/ contained
 endif
 " 4510 opcodes
-if exists("tass64_4510")
+if exists("tass64_4510") || exists("tass64_45gs02")
     syn match tass64Mne /\v%(map|eom)>:@!/ skipwhite contained nextgroup=@tass64Expression
+endif
+" 45gs02 opcodes
+if exists("tass64_45gs02")
+    syn match tass64Mne /\v%(adq|anq|btq|cpq|eoq|ldq|orq|sbq|stq|inq|deq|ard|asd|ded|ind|lsd|rld|rrd)>:@!/ skipwhite contained nextgroup=@tass64Expression
 endif
 
 " Assembler directives

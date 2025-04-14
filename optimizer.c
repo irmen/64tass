@@ -1,5 +1,5 @@
 /*
-    $Id: optimizer.c 2787 2022-05-25 04:26:09Z soci $
+    $Id: optimizer.c 3191 2025-04-08 16:42:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ static bool cputype_65c02, cputype_65ce02;
 void cpu_opt_set_cpumode(const struct cpu_s *cpu) {
     cputype = cpu;
     cputype_65c02 = (cpu == &c65c02 || cpu == &r65c02 || cpu == &w65c02);
-    cputype_65ce02 = (cpu == &c65ce02 || cpu == &c4510);
+    cputype_65ce02 = (cpu == &c65ce02 || cpu == &c4510 || cputype == &c45gs02);
 }
 
 void cpu_opt_long_branch(unsigned int cod) {
@@ -1807,7 +1807,7 @@ void cpu_opt(unsigned int cod, uint32_t adr, int ln, linepos_t epoint) {
                 if (transreg2(cpu, &cpu->z, &cpu->a)) goto remove;
                 break;
             default:
-                if (cputype == &c4510 && cod == 0x5C) { /* MAP */
+                if (cod == 0x5C && (cputype == &c4510 || cputype == &c45gs02)) { /* MAP */
                     break;
                 }
                 cpu_opt_invalidate();

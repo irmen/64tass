@@ -1,5 +1,5 @@
 /*
-    $Id: longjump.h 2687 2021-06-28 04:17:13Z soci $
+    $Id: longjump.h 3209 2025-04-12 14:22:00Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,17 +19,19 @@
 #ifndef LONGJUMP_H
 #define LONGJUMP_H
 #include "avl.h"
-#include "stdbool.h"
 #include "inttypes.h"
 
+struct Code;
+
 struct longjump_s {
+    struct Code *code;
     address_t address;
     address_t dest;
     struct avltree_node node;
     uint8_t defpass;
 };
 
-extern struct longjump_s *new_longjump(struct avltree *, address_t);
+extern struct longjump_s *new_longjump(struct avltree *, address_t, struct Code *);
 extern void destroy_longjump(void);
 extern void longjump_destroy(struct avltree *);
 #endif

@@ -1,5 +1,5 @@
 /*
-    $Id: listing.c 3187 2025-03-30 09:48:17Z soci $
+    $Id: listing.c 3191 2025-04-08 16:42:51Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -360,6 +360,7 @@ static void printmon(Listing *ls, unsigned int cod, int ln, uint32_t adr) {
     case ADR_ZP_I_Z:
     case ADR_ZP_LI:
     case ADR_ZP_LI_Y:
+    case ADR_ZP_LI_Z:
     case ADR_ZP_X:
     case ADR_ZP_X_I:
     case ADR_ZP_Y: out_zp(ls, adr); break;

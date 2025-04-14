@@ -1,5 +1,5 @@
 .TH 64tass 1 "Sep 10 2023" "64tass 1.59" "64tass 1.59"
-\" $Id: 64tass.1 3120 2023-09-10 16:14:30Z soci $
+\" $Id: 64tass.1 3212 2025-04-13 07:53:39Z soci $
 .SH NAME
 64tass \- A multi pass optimizing macro assembler for the 65xx series of processors
 .SH SYNOPSIS
@@ -369,6 +369,9 @@ W65C02. Enables extra opcodes and addressing modes specific to this CPU.
 .TP 0.5i
 \fB\-\-m4510\fR
 CSG 4510. Enables extra opcodes and addressing modes specific to this CPU. Useful for C65 projects.
+.TP 0.5i
+\fB\-\-m45gs02\fR
+45GS02. Enables extra opcodes and addressing modes specific to this CPU. Useful for MEGA65 projects.
 .SS Symbol listing options
 .TP 0.5i
 \fB\-l\fR \fIfile\fR, \fR\-\-labels\fR=\fIfile\fR
@@ -406,6 +409,9 @@ List labels in a simple label = $x fashion for interoperatibility.
 .TP 0.5i
 \fB\-\-mesen\-labels\fR
 List labels in Mesen format.
+.TP 0.5i
+\fB\-\-ctags\-labels\fR
+List labels in ctags format.
 .SS Assembly listing options
 .TP 0.5i
 \fB\-L\fR \fIfile\fR, \fB\-\-list\fR=\fIfile\fR

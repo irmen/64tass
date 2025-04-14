@@ -1,5 +1,5 @@
 /*
-    $Id: addressobj.c 3176 2025-03-25 21:25:50Z soci $
+    $Id: addressobj.c 3211 2025-04-12 18:45:16Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -481,16 +481,6 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     if (am1 == A_NONE) return result;
                     return new_address(result, am1);
                 }
-            case O_XOR:
-                if (check_addr(am)) break;
-                if (check_addr(am2)) break;
-                if (am == am2) {
-                    op->v1 = v1->val;
-                    op->v2 = v2->val;
-                    op->inplace = NULL;
-                    return op->v1->obj->calc2(op);
-                }
-                break;
             default:
                 break;
             }
@@ -534,6 +524,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             op->v1 = v1->val;
             op->inplace = NULL;
             return new_address(op->v1->obj->calc2(op), am);
+        case O_MEMBER:
+        case O_X: break;
         }
         break;
     case T_REGISTER:

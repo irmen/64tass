@@ -1,5 +1,5 @@
 /*
-    $Id: variables.c 3137 2024-06-08 16:10:55Z soci $
+    $Id: variables.c 3212 2025-04-13 07:53:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "arguments.h"
 #include "eval.h"
 #include "section.h"
+#include "version.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -719,6 +720,37 @@ static void labeldump(Namespace *names, FILE *flab) {
     names->len = ln;
 }
 
+static void labelctags(Namespace *names, FILE *flab, bool append) {
+    size_t n;
+
+    if (!append) {
+        fputs("!_TAG_FILE_FORMAT\t1\t/original ctags format/\n"
+              "!_TAG_FILE_SORTED\t0\t/0=unsorted, 1=sorted, 2=foldcase/\n"
+              "!_TAG_PROGRAM_AUTHOR\tZsolt Kajtar\t/soci" "\x40" "c64.rulez.org/\n"
+              "!_TAG_PROGRAM_NAME\t64tass\t/64tass Turbo Assembler Macro/\n"
+              "!_TAG_PROGRAM_URL\thttps://tass64.sourceforge.net\t/official site/\n"
+              "!_TAG_PROGRAM_VERSION\t" VERSION "\t//\n", flab);
+    }
+
+    if (names->len == 0) return;
+    for (n = 0; n <= names->mask; n++) {
+        Label *l2 = names->data[n];
+
+        if (l2 == NULL) continue;
+        if (l2->name.len < 2 || l2->name.data[1] != 0) {
+            const struct file_s *file = l2->file_list->file;
+            if (!file->notfile && file->err_no == 0 && l2->epoint.line != 0) {
+                printable_print2(l2->name.data, flab, l2->name.len);
+                putc('\t', flab);
+                ctagsfile_print(file->name, flab);
+                fputs("\t/^", flab);
+                ctagsline_print(&file->source.data[file->line[l2->epoint.line - 1]], flab);
+                fputs("/\n", flab);
+            }
+        }
+    }
+}
+
 void labelprint(const struct symbol_output_s *output) {
     Labelprint lp;
     struct linepos_s nopoint = {0, 0};
@@ -749,6 +781,8 @@ void labelprint(const struct symbol_output_s *output) {
     } else lp.section = NULL;
     if (output->mode == LABEL_DUMP) {
         labeldump(space, lp.flab);
+    } else if (output->mode == LABEL_CTAGS) {
+        labelctags(space, lp.flab, output->append);
     } else {
         labelprint2(&lp, space);
     }

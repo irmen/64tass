@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 3142 2024-10-19 14:04:31Z soci $
+    $Id: file.c 3204 2025-04-11 20:23:24Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "file.h"
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

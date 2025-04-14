@@ -1,4 +1,4 @@
-# $Id: Makefile.amigaos 3156 2025-03-10 21:32:58Z soci $
+# $Id: Makefile.amigaos 3212 2025-04-13 07:53:39Z soci $
 CC = vc
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
@@ -130,8 +130,8 @@ listing.o: listing.c listing.h attributes.h inttypes.h stdbool.h file.h \
 listobj.o: listobj.c listobj.h obj.h attributes.h inttypes.h values.h \
  stdbool.h eval.h oper_e.h variables.h error.h errors_e.h boolobj.h \
  codeobj.h strobj.h intobj.h typeobj.h noneobj.h errorobj.h foldobj.h
-longjump.o: longjump.c longjump.h avl.h attributes.h stdbool.h inttypes.h \
- error.h errors_e.h
+longjump.o: longjump.c longjump.h avl.h attributes.h inttypes.h error.h \
+ stdbool.h errors_e.h obj.h values.h codeobj.h
 macro.o: macro.c macro.h inttypes.h wait_e.h stdbool.h file.h eval.h \
  attributes.h oper_e.h values.h section.h avl.h str.h variables.h \
  64tass.h listing.h error.h errors_e.h arguments.h optimizer.h main.h \
@@ -176,8 +176,8 @@ optimizer.o: optimizer.c optimizer.h inttypes.h stdbool.h error.h \
  attributes.h errors_e.h section.h avl.h str.h opcodes.h opt_bit.h \
  macro.h wait_e.h
 registerobj.o: registerobj.c registerobj.h obj.h attributes.h inttypes.h \
- stdbool.h eval.h oper_e.h variables.h values.h strobj.h typeobj.h \
- errorobj.h errors_e.h addressobj.h intobj.h error.h
+ stdbool.h eval.h oper_e.h variables.h values.h error.h errors_e.h \
+ strobj.h typeobj.h errorobj.h addressobj.h intobj.h
 section.o: section.c section.h avl.h attributes.h stdbool.h str.h \
  inttypes.h unicode.h error.h errors_e.h 64tass.h wait_e.h values.h \
  intobj.h obj.h longjump.h optimizer.h eval.h oper_e.h memblocksobj.h \
@@ -202,10 +202,10 @@ values.o: values.c values.h attributes.h obj.h inttypes.h unicode.h \
  stdbool.h error.h errors_e.h strobj.h typeobj.h
 variables.o: variables.c variables.h stdbool.h inttypes.h unicode.h \
  attributes.h 64tass.h wait_e.h file.h obj.h error.h errors_e.h values.h \
- arguments.h eval.h oper_e.h section.h avl.h str.h boolobj.h floatobj.h \
- namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h listobj.h \
- intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h typeobj.h \
- noneobj.h labelobj.h errorobj.h mfuncobj.h symbolobj.h
+ arguments.h eval.h oper_e.h section.h avl.h str.h version.h boolobj.h \
+ floatobj.h namespaceobj.h strobj.h codeobj.h registerobj.h functionobj.h \
+ listobj.h intobj.h bytesobj.h bitsobj.h dictobj.h addressobj.h gapobj.h \
+ typeobj.h noneobj.h labelobj.h errorobj.h mfuncobj.h symbolobj.h
 wchar.o: wchar.c wchar.h inttypes.h
 
 .PHONY: all clean distclean install install-strip uninstall

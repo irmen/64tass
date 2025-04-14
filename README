@@ -5,7 +5,8 @@ the 65xx series of processors. Key features:
 
   * Open source portable C with minimal dependencies
   * Familiar syntax to Omicron TASS and TASM
-  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510
+  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510,
+    45GS02
   * Arbitrary-precision integers and bit strings, double precision floating
     point numbers
   * Character and byte strings, array arithmetic
@@ -141,6 +142,7 @@ Table of Contents
       + 65EL02 opcodes
       + 65CE02 opcodes
       + CSG 4510 opcodes
+      + 45GS02 opcodes
   * Appendix
       + Assembler directives
       + Built-in functions
@@ -1792,49 +1794,49 @@ which accepts strings of any length.
     bank)
 
                                             *       = $12000
-    .012000  7c 03 20       jmp ($012003,x)         jmp (jumps,x)
-    >012003  50 20 32 03 92 15              jumps   .addr $12050, routine1, routine2
+    .012000 7c 03 20        jmp ($012003,x)         jmp (jumps,x)
+    >012003 50 20 32 03 92 15               jumps   .addr $12050, routine1, routine2
     ;Computed jumps by using stack (current bank)
                                             *       = $103000
-    .103000  bf 0c 30 10    lda $10300c,x           lda rets+1,x
-    .103004  48             pha                     pha
-    .103005  bf 0b 30 10    lda $10300b,x           lda rets,x
-    .103009  48             pha                     pha
-    .10300a  60             rts                     rts
-    >10300b  ff ef a1 36 f3 42              rets    .rta $10f000, routine1, routine2
+    .103000 bf 0c 30 10     lda $10300c,x           lda rets+1,x
+    .103004 48              pha                     pha
+    .103005 bf 0b 30 10     lda $10300b,x           lda rets,x
+    .103009 48              pha                     pha
+    .10300a 60              rts                     rts
+    >10300b ff ef a1 36 f3 42               rets    .rta $10f000, routine1, routine2
 
 .long <expression>[, <expression>, ...]
     Create bytes from 24 bit unsigned constants (0-16777215)
 .lint <expression>[, <expression>, ...]
     Create bytes from 24 bit signed constants (-8388608-8388607)
 
-    >1000  56 34 12                          .long $123456
+    >1000   56 34 12                         .long $123456
     >1003                                    .long ?        ; reserve 3 bytes
-    >1006  eb fd ff 51 11 00                 .lint -533, 4433
+    >1006   eb fd ff 51 11 00                .lint -533, 4433
     ;Store 8.16 signed fixed point constants
-    >100c  5d 8f fc 66 66 03 1e 85           .lint (-3.44, 3.4, 3.52) * 1p16
-    >1014  03
+    >100c   5d 8f fc 66 66 03 1e 85          .lint (-3.44, 3.4, 3.52) * 1p16
+    >1014   03
     ;Computed long jumps with jump table (65816)
-    .1015  bd 2a 10  lda $102a,x             lda jumps,x
-    .1018  8d 11 03  sta $0311               sta ind
-    .101b  bd 2b 10  lda $102b,x             lda jumps+1,x
-    .101e  8d 12 03  sta $0312               sta ind+1
-    .1021  bd 2c 10  lda $102c,x             lda jumps+2,x
-    .1024  8d 13 03  sta $0313               sta ind+2
-    .1027  dc 11 03  jmp [$0311]             jmp [ind]
-    >102a  32 03 01 92 05 02         jumps   .long routine1, routine2
+    .1015   bd 2a 10        lda $102a,x      lda jumps,x
+    .1018   8d 11 03        sta $0311        sta ind
+    .101b   bd 2b 10        lda $102b,x      lda jumps+1,x
+    .101e   8d 12 03        sta $0312        sta ind+1
+    .1021   bd 2c 10        lda $102c,x      lda jumps+2,x
+    .1024   8d 13 03        sta $0313        sta ind+2
+    .1027   dc 11 03        jmp [$0311]      jmp [ind]
+    >102a   32 03 01 92 05 02        jumps   .long routine1, routine2
 
 .dword <expression>[, <expression>, ...]
     Create bytes from 32 bit unsigned constants (0-4294967295)
 .dint <expression>[, <expression>, ...]
     Create bytes from 32 bit signed constants (-2147483648-2147483647)
 
-    >1000  78 56 34 12              .dword $12345678
+    >1000   78 56 34 12             .dword $12345678
     >1004                           .dword ?        ; reserve 4 bytes
-    >1008  5d 7a 79 e7              .dint -411469219
+    >1008   5d 7a 79 e7             .dint -411469219
     ;Store 16.16 signed fixed point constants
-    >100c  5d 8f fc ff 66 66 03 00  .dint (-3.44, 3.4, 3.52) * 1p16
-    >1014  1e 85 03 00
+    >100c   5d 8f fc ff 66 66 03 00 .dint (-3.44, 3.4, 3.52) * 1p16
+    >1014   1e 85 03 00
 
 .text bits(<expression>[, <bit count>])
     Create bytes from arbitrary precision unsigned and signed numbers.
@@ -1846,10 +1848,10 @@ which accepts strings of any length.
     If the count expression of bytes() and bits() is negative then the stored
     number is signed otherwise unsigned.
 
-    >1000  74 65 78 74 00 00 00 00  .text bytes("text", 8);pad up to 8 bytes
-    >1008  f4 ff ff ff ff ff ff ff  .text bytes(-12, -8)  ;8 bytes signed
-    >1010  00 04 00 00 00 00        .text bits(1024, 48)  ;48 bits unsigned
-    >1016  f4 ff ff ff ff ff        .text bits(-12, -48)  ;48 bits signed
+    >1000   74 65 78 74 00 00 00 00 .text bytes("text", 8);pad up to 8 bytes
+    >1008   f4 ff ff ff ff ff ff ff .text bytes(-12, -8)  ;8 bytes signed
+    >1010   00 04 00 00 00 00       .text bits(1024, 48)  ;48 bits unsigned
+    >1016   f4 ff ff ff ff ff       .text bits(-12, -48)  ;48 bits signed
 
 Storing string values
 
@@ -1864,21 +1866,21 @@ using the current encoding.
 .text <expression>[, <expression>, ...]
     Assemble strings into 8 bit bytes.
 
-    >1000  4f 45 d5  .text "oeU"
-    >1003  4f 45 d5  .text 'oeU'
-    >1006  17 33     .text 23, $33  ; bytes
-    >1008  0d 0a     .text $0a0d    ; $0d, $0a, little endian!
-    >100a  1f        .text %00011111; more bytes
+    >1000   4f 45 d5  .text "oeU"
+    >1003   4f 45 d5  .text 'oeU'
+    >1006   17 33     .text 23, $33  ; bytes
+    >1008   0d 0a     .text $0a0d    ; $0d, $0a, little endian!
+    >100a   1f        .text %00011111; more bytes
 
 .fill <length>[, <fill>]
     Reserve space (using uninitialized data), or fill with repeated bytes.
 
-    >1000            .fill $100      ;no fill, just reserve $100 bytes
-    >1100  00 00 00  .fill $4000, 0  ;16384 bytes of 0
+    >1000             .fill $100      ;no fill, just reserve $100 bytes
+    >1100   00 00 00  .fill $4000, 0  ;16384 bytes of 0
     ...
-    >5100  55 aa 55  .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
+    >5100   55 aa 55  .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
     ...
-    >7040  ff ff ff  .fill $8000 - *, $ff;fill up rest of EPROM with $ff
+    >7040   ff ff ff  .fill $8000 - *, $ff;fill up rest of EPROM with $ff
     ...
 
 .shift <expression>[, <expression>, ...]
@@ -1891,17 +1893,17 @@ using the current encoding.
     The naming comes from old TASM and is a reference to setting the high bit
     of alphabetic letters which results in it's uppercase version in PETSCII.
 
-    .1000  a2 00          ldx #$00                ldx #0
-    .1002  bd 10 10       lda $1010,x     loop    lda txt,x
-    .1005  08             php                     php
-    .1006  29 7f          and #$7f                and #$7f
-    .1008  20 d2 ff       jsr $ffd2               jsr $ffd2
-    .100b  e8             inx                     inx
-    .100c  28             plp                     plp
-    .100d  10 f3          bpl $1002               bpl loop
-    .100f  60             rts                     rts
-    >1010  53 49 4e 47 4c 45 20 53        txt     .shift "single", 32, "string"
-    >1018  54 52 49 4e c7
+    .1000   a2 00         ldx #$00                ldx #0
+    .1002   bd 10 10      lda $1010,x     loop    lda txt,x
+    .1005   08            php                     php
+    .1006   29 7f         and #$7f                and #$7f
+    .1008   20 d2 ff      jsr $ffd2               jsr $ffd2
+    .100b   e8            inx                     inx
+    .100c   28            plp                     plp
+    .100d   10 f3         bpl $1002               bpl loop
+    .100f   60            rts                     rts
+    >1010   53 49 4e 47 4c 45 20 53       txt     .shift "single", 32, "string"
+    >1018   54 52 49 4e c7
 
 .shiftl <expression>[, <expression>, ...]
     Assemble strings of 7 bit bytes shifted to the left once with the last
@@ -1913,50 +1915,50 @@ using the current encoding.
 
     The naming is a reference to left shifting.
 
-    .1000  a2 00          ldx #$00                ldx #0
-    .1002  bd 0d 10       lda $100d,x     loop    lda txt,x
-    .1005  4a             lsr a                   lsr a
-    .1006  9d 00 04       sta $0400,x             sta $400,x      ;screen memory
-    .1009  e8             inx                     inx
-    .100a  90 f6          bcc $1002               bcc loop
-    .100c  60             rts                     rts
+    .1000   a2 00         ldx #$00                ldx #0
+    .1002   bd 0d 10      lda $100d,x     loop    lda txt,x
+    .1005   4a            lsr a                   lsr a
+    .1006   9d 00 04      sta $0400,x             sta $400,x      ;screen memory
+    .1009   e8            inx                     inx
+    .100a   90 f6         bcc $1002               bcc loop
+    .100c   60            rts                     rts
                                                   .enc "screen"
-    >100d  a6 92 9c 8e 98 8a 40 a6        txt     .shiftl "single", 32, "string"
-    >1015  a8 a4 92 9c 8f                         .enc "none"
+    >100d   a6 92 9c 8e 98 8a 40 a6       txt     .shiftl "single", 32, "string"
+    >1015   a8 a4 92 9c 8f                        .enc "none"
 
 .null <expression>[, <expression>, ...]
     Same as .text, but adds a zero byte to the end. An existing zero byte is an
     error as it'd cause a false end marker.
 
-    .1000  a9 07          lda #$07                lda #<txt
-    .1002  a0 10          ldy #$10                ldy #>txt
-    .1004  20 1e ab       jsr $ab1e               jsr $ab1e
-    >1007  53 49 4e 47 4c 45 20 53        txt     .null "single", 32, "string"
-    >100f  54 52 49 4e 47 00
+    .1000   a9 07         lda #$07                lda #<txt
+    .1002   a0 10         ldy #$10                ldy #>txt
+    .1004   20 1e ab      jsr $ab1e               jsr $ab1e
+    >1007   53 49 4e 47 4c 45 20 53       txt     .null "single", 32, "string"
+    >100f   54 52 49 4e 47 00
 
 .ptext <expression>[, <expression>, ...]
     Same as .text, but prepend the number of bytes in front of the string
     (pascal style string). Therefore it can't do more than 255 bytes.
 
-    .1000  a9 1d          lda #$1d                lda #<txt
-    .1002  a2 10          ldx #$10                ldx #>txt
-    .1004  20 08 10       jsr $1008               jsr print
-    .1007  60             rts                     rts
+    .1000   a9 1d         lda #$1d                lda #<txt
+    .1002   a2 10         ldx #$10                ldx #>txt
+    .1004   20 08 10      jsr $1008               jsr print
+    .1007   60            rts                     rts
 
-    .1008  85 fb          sta $fb         print   sta $fb
-    .100a  86 fc          stx $fc                 stx $fc
-    .100c  a0 00          ldy #$00                ldy #0
-    .100e  b1 fb          lda ($fb),y             lda ($fb),y
-    .1010  f0 0a          beq $101c               beq null
-    .1012  aa             tax                     tax
-    .1013  c8             iny             -       iny
-    .1014  b1 fb          lda ($fb),y             lda ($fb),y
-    .1016  20 d2 ff       jsr $ffd2               jsr $ffd2
-    .1019  ca             dex                     dex
-    .101a  d0 f7          bne $1013               bne -
-    .101c  60             rts             null    rts
-    >101d  0d 53 49 4e 47 4c 45 20        txt     .ptext "single", 32, "string"
-    >1025  53 54 52 49 4e 47
+    .1008   85 fb         sta $fb         print   sta $fb
+    .100a   86 fc         stx $fc                 stx $fc
+    .100c   a0 00         ldy #$00                ldy #0
+    .100e   b1 fb         lda ($fb),y             lda ($fb),y
+    .1010   f0 0a         beq $101c               beq null
+    .1012   aa            tax                     tax
+    .1013   c8            iny             -       iny
+    .1014   b1 fb         lda ($fb),y             lda ($fb),y
+    .1016   20 d2 ff      jsr $ffd2               jsr $ffd2
+    .1019   ca            dex                     dex
+    .101a   d0 f7         bne $1013               bne -
+    .101c   60            rts             null    rts
+    >101d   0d 53 49 4e 47 4c 45 20       txt     .ptext "single", 32, "string"
+    >1025   53 54 52 49 4e 47
 
 Text encoding
 
@@ -1981,12 +1983,15 @@ sources it could be useful to define escape sequences for control codes.
     source code using the .enc directive this is not recommended. For such use
     case .encode is better suited.
 
+    In the past the .enc directive accepted an unquoted string but currently it
+    needs to be an expression.
+
                                     .enc "screen";screen code mode
-    >1000  13 03 12 05 05 0e 20 03  .text "screen codes"
-    >1008  0f 04 05 13
-    .100c  c9 15     cmp #$15       cmp #"u"    ;compare screen code
+    >1000   13 03 12 05 05 0e 20 03 .text "screen codes"
+    >1008   0f 04 05 13
+    .100c   c9 15    cmp #$15       cmp #"u"    ;compare screen code
                                     .enc "none" ;normal mode again
-    .100e  c9 55     cmp #$55       cmp #"u"    ;compare PETSCII
+    .100e   c9 55    cmp #$55       cmp #"u"    ;compare PETSCII
 
 .encode [<expression>]
     Encoding area start
@@ -2090,8 +2095,8 @@ lower   .encode;lowercase PETSCII
         .endnamespace
 
                                     .encode petscii.lower
->1000  93 d4 45 58 54 20 49 4e     .text "{clr}Text in PETSCII{cr}"
->1008  20 d0 c5 d4 d3 c3 c9 c9 0d
+>1000   93 d4 45 58 54 20 49 4e    .text "{clr}Text in PETSCII{cr}"
+>1008   20 d0 c5 d4 d3 c3 c9 c9 0d
                                     .endencode
 
 Structured data
@@ -2823,23 +2828,23 @@ p3      .addr ?         ;a pointer
 
 The compiled code will look like:
 
->0801    0b 08 d5 07                            .word ss, 2005
->0805    9e 32 30 36 31 00                      .null $9e, format("%4d", start)
->080b    00 00                          ss      .word 0
+>0801   0b 08 d5 07                             .word ss, 2005
+>0805   9e 32 30 36 31 00                       .null $9e, format("%4d", start)
+>080b   00 00                           ss      .word 0
 
-.080d    78                             start   sei
+.080d   78                              start   sei
 
 >0002                                   p2      .addr ?         ;a pointer
 >0334                                   buffer  .fill 10        ;temporary area
 
-.080e    b1 02                                  lda (p2),y
-.0810    a9 00                                  lda #<label
-.0812    a0 10                                  ldy #>label
-.0814    20 1e ab                               jsr print
+.080e   b1 02                                   lda (p2),y
+.0810   a9 00                                   lda #<label
+.0812   a0 10                                   ldy #>label
+.0814   20 1e ab                                jsr print
 
->1000    6d 65 73 73 61 67 65 00        label   .null "message"
+>1000   6d 65 73 73 61 67 65 00         label   .null "message"
 
-.0817    4c e2 fc                               jmp error
+.0817   4c e2 fc                                jmp error
 
 >0004                                   p2      .addr ?         ;a pointer
 
@@ -2986,6 +2991,9 @@ Target
 .cpu <expression>
     Selects CPU according to the string argument.
 
+    In the past the .cpu directive accepted an unquoted string but currently it
+    needs to be an expression.
+
             .cpu "6502"     ;standard 65xx
             .cpu "65c02"    ;CMOS 65C02
             .cpu "65ce02"   ;CSG 65CE02
@@ -2996,6 +3004,7 @@ Target
             .cpu "r65c02"   ;R65C02
             .cpu "w65c02"   ;W65C02
             .cpu "4510"     ;CSG 4510
+            .cpu "45gs02"   ;45GS02
             .cpu "default"  ;cpu set on command line
 
 Misc
@@ -3097,8 +3106,7 @@ DEA       DEX       DEY       DEZ       INA       INX       INY       INZ
 DEC A     DEC X     DEC Y     DEC Z     INC A     INC X     INC Y     INC Z
 
 Push and pull instructions have a generic version called PSH and PUL. The user
-stack ones for 65EL02 are called RSH and RUL. These can take a register
-address:
+stack ones for 65EL02 are called RSH and RUL. These take a register address:
 
                Register parametrized push and pull instructions
 PHA       PHB       PHD       PHK       PHP       PHX       PHY       PHZ
@@ -3117,8 +3125,8 @@ addressing mode.
           Register parametrized load, store and compare instructions
 LDA       LDX       LDY       LDZ       STA       STX       STY       STZ
 LDR A,    LDR X,    LDR Y,    LDR Z,    STR A,    STR X,    STR Y,    STR Z,
-CPA       CPX       CPY       CPZ
-CMP A,    CMP X,    CMP Y,    CMP Z,
+CPA       CPX       CPY       CPZ                 LDQ       STQ       CPQ
+CMP A,    CMP X,    CMP Y,    CMP Z,              LDR Q,    STR Q,    CMP Q,
 
 Transfer instructions have generic versions as well, actually in two variants.
 The first one is when only one of the registers need to be variable. A register
@@ -3190,70 +3198,102 @@ irq     psh (a, x, y,)  ;pha, phx, phy
 
 Always taken branches
 
-For writing short code there are some special pseudo instructions for always
-taken branches. These are automatically compiled as relative branches when the
-jump distance is short enough and as JMP or BRL when longer.
+Special pseudo instructions exist for using shorter conditional branches in
+place of longer jump instructions. Their names are derived from conditional
+branches and are: GEQ, GNE, GCC, GCS, GPL, GMI, GVC, GVS, GLT and GGE.
+Arranging the flags so that these branch are always taken is the responsibility
+of the programmer of course.
 
-The names are derived from conditional branches and are: GEQ, GNE, GCC, GCS,
-GPL, GMI, GVC, GVS, GLT and GGE.
+The main use case is that these 2 byte branches automatically turn into a 3
+byte JMP or BRL once the target gets too far.
 
-.0000    a9 03          lda #$03        in1     lda #3
-.0002    d0 02          bne $0006               gne at          ;branch always
-.0004    a9 02          lda #$02        in2     lda #2
-.0006    4c 00 10       jmp $1000       at      gne $1000       ;branch farther
+.0000   a9 03           lda #$03        in1     lda #3          ;not zero
+.0002   d0 02           bne $0006               gne at          ;branch always
+.0004   a9 02           lda #$02        in2     lda #2
+.0006   4c 00 10        jmp $1000       at      gne $1000       ;branch farther
+
+If the branch destination is a RTS, RTI or RTL instruction then this opcode
+will used in place of the branch to save space. This only works if the
+destination label is on the same line as the instruction.
+
+.1000   60              rts                     gne exit        ;just return
+.1001   ea              nop                     nop
+.1002   60              rts             exit    rts
+
+There's special support for short forward branches. These only work with labels
+or anonymous labels as *+2 or hardcoded numbers would cause a contradiction.
+
+If the branch pseudo instructions would not skip anything at all then no code
+is generated. This is useful for `fall-through' cases.
+
+.000c                                           geq at2         ;dummy branch
+.000c   ea              nop             at2     nop
 
 If the branch would skip only one byte then the opposite condition is compiled
-and only the first byte is emitted. This is now a never executed jump, and the
-relative distance byte after the opcode is the jumped over byte. If the CPU has
-long conditional branches (65CE02/4510) then the same method is applied to two
-byte skips as well.
+(turns it to never taken) and only a single opcode byte is emitted. As the
+following byte becomes part of the intruction it gets skipped.
 
-There's a pseudo opcode called GRA for CPUs supporting BRA, which is expanded
-to BRL (if available) or JMP. A one byte skip will be shortened to a single
-byte if the CPU has a NOP immediate instruction (R65C02/W65C02).
+.0009   18              clc             in3     clc
+.000a   b0              bcs                     gcc +           ;one byte skip
+.000b   38              sec             in4     sec             ;sec is skipped!
+.000c   ea              nop             +       nop
 
-If the branch would not skip anything at all then no code is generated.
+If the CPU has long conditional branches (65CE02 / 4510 / 45GS02) then the same
+trick above is applied to produce two byte skips as well.
 
-.0009                                           geq in3         ;zero length "branch"
-.0009    18             clc             in3     clc
-.000a    b0             bcs                     gcc at2         ;one byte skip, as bcs
-.000b    38             sec             in4     sec             ;sec is skipped!
-.000c    20 0f 00       jsr $000f       at2     jsr func
-.000f                                   func
+There's a pseudo opcode called GRA for CPUs having BRA which can turn into a
+BRL (if available) or JMP for longer distances. The condition can't be reversed
+for a one byte skip but if the CPU has a NOP immediate instruction (R65C02 /
+W65C02) then that'll be used for this special case.
 
-Please note that expressions like Gxx *+2 or Gxx *+3 are not allowed as the
-compiler can't figure out if it has to create no code at all, the 1 byte
-variant or the 2 byte one. Therefore use normal or anonymous labels defined
-after the jump instruction when jumping forward!
+.1000   82              nop #                   gra skip        ;on r65c02
+.1001   60              rts                     rts
+.1002                                   skip
 
 Long branches
 
-To avoid branch too long errors the assembler also supports long branches. It
-can automatically convert conditional relative branches to it's opposite and a
-JMP or BRL. This can be enabled on the command line using the `--long-branch'
-option.
+Conditional branches usually have limited range. This limitation can be worked
+around by jumping over a JMP or BRL instruction with the opposite condition.
 
-.0000    ea             nop                     nop
-.0001    b0 03          bcs $0006               bcc $1000      ;long branch (6502)
-.0003    4c 00 10       jmp $1000
-.0006    1f 17 03       bbr 1,$17,$000c         bbs 1,23,$1000 ;long branch (R65C02)
-.0009    4c 00 10       jmp $1000
-.000c    d0 04          bne $0012               beq $10000     ;long branch (65816)
-.000e    5c 00 00 01    jmp $010000
-.0012    30 03          bmi $0017               bpl $1000      ;long branch (65816)
-.0014    82 e9 lf       brl $1000
-.0017    ea             nop                     nop
+To avoid hardcoding potentially unnecessary long branches 64tass can apply this
+trick automatically when necessary. This can be enabled with the `--long-branch
+' option.
 
-Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
-*+132 are not allowed as the compiler can't decide between a short/long branch.
-Of course these destinations can be used, but only with normal or anonymous
-labels defined after the jump instruction.
+.0000   ea              nop                     nop
+.0001   b0 03           bcs $0006               bcc $1000       ;long branch
+.0003   4c 00 10        jmp $1000
+.0006   1f 17 03        bbr 1,$17,$000c         bbs 1,23,$1000  ;on R65C02
+.0009   4c 00 10        jmp $1000
+.000c   30 03           bmi $0011               bpl $1000       ;on 65816
+.000e   82 e9 lf        brl $1000
+.0011   ea              nop                     nop
 
-In the above example extra JMP instructions are emitted for each long branch.
-This is suboptimal and wasting space if there are several long branches to the
-same location in close proximity. Therefore the assembler might decide to reuse
-a JMP for more than one long branch to save space.
+In the listing above an extra JMP instructions is shown for each long branch.
+In practice that's not really the case as the assembler can avoid redundant JMP
+instructions if several long branches target the same destination. But for that
+to work a numeric address match alone isn't sufficient.
 
+.1000   b0 03           bcs $1005               bcc target
+.1002   4c 00 20        jmp $2000
+.1003   ea              nop                     nop
+.1006   d0 fb           bne $1002               bne target       ;jump reused
+.2000                                   target
+
+If the branch destination is a RTS, RTI or RTL instruction then this opcode
+will used in place of the jump instruction to save space. This only works if
+the destination label is on the same line as the instruction.
+
+.1000   b0 01           bcs $1003               bcc exit        ;uses rts
+.1002   60              rts
+.1003   ea              nop                     nop
+.2000   60              rts             exit    rts
+
+It's possible to figure out without reading the listing file or disabling the
+long branch function which branches were turned into long ones by using the `
+-Wlong-branch' command line option.
+
+Forcing address size using @b on a branch disables the automatic long branch
+function there.
 -------------------------------------------------------------------------------
 
 Original turbo assembler compatibility
@@ -3392,7 +3432,8 @@ Output options
 
 -X, --long-address
     Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
-    Also increases the size of raw output to 16 MiB.
+    Also increases the size of raw output to 16 MiB and prevent the use of S19
+    for S-record.
 
     64tass --long-address --m65816 a.asm
 
@@ -3401,7 +3442,8 @@ Output options
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
-    are not saved. Up to 64 KiB or 16 MiB with long address.
+    are not saved. Up to 64 KiB normally or 16 MiB with the --long-address
+    command line parameter.
 
     Used for C64 binaries. The first 2 bytes are the little endian address of
     the first valid byte (load address). This is followed by the data.
@@ -3420,7 +3462,8 @@ Output options
 
     Overlapping blocks are flattened and uninitialized memory is filled up with
     zeros. Uninitialized memory before the first and after the last valid bytes
-    are not saved. Up to 64 KiB or 16 MiB with long address.
+    are not saved. Up to 64 KiB normally or 16 MiB with the --long-address
+    command line parameter.
 
     Useful for small ROM files.
 
@@ -3445,7 +3488,8 @@ Output options
     Generate nonlinear output file.
 
     Overlapping blocks are flattened. Blocks are saved in sorted order and
-    uninitialized memory is skipped. Up to 64 KiB or 16 MiB with long address.
+    uninitialized memory is skipped. Up to 64 KiB normally or 16 MiB with the
+    --long-address command line parameter.
 
     Used for linkers and downloading. Before writing each memory block the
     length and the memory address is saved in a little endian order. Once
@@ -3611,6 +3655,9 @@ Output options
     record will use this address. Without this the address of the first data
     record is used.
 
+    The --long-address command line parameter can be used to avoid the use of
+    S19 format.
+
     64tass --s-record a.asm
     *       = $0c00
             rts
@@ -3641,19 +3688,19 @@ Operation options
 
     64tass a.asm
 
-    .0000    a9 61          lda #$61        lda #"a"
+    .0000   a9 61           lda #$61        lda #"a"
 
-    >0002    31 61 41                       .text "1aA"
-    >0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
-    >000e    65 78 74 7b 72 65 74 75
-    >0016    72 6e 7d 6d 6f 72 65
+    >0002   31 61 41                        .text "1aA"
+    >0005   7b 63 6c 65 61 72 7d 74         .text "{clear}text{return}more"
+    >000e   65 78 74 7b 72 65 74 75
+    >0016   72 6e 7d 6d 6f 72 65
 
     64tass --ascii a.asm
 
-    .0000    a9 41          lda #$41        lda #"a"
-    >0002    31 41 c1                       .text "1aA"
-    >0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
-    >000e    52 45
+    .0000   a9 41           lda #$41        lda #"a"
+    >0002   31 41 c1                        .text "1aA"
+    >0005   93 54 45 58 54 0d 4d 4f         .text "{clear}text{return}more"
+    >000e   52 45
 
 -B, --long-branch
     Automatic BXX *+5 JMP xxx. Branch too long messages are usually solved by
@@ -4099,6 +4146,7 @@ default, the others are disabled.
       + Any other method of flow control not involving referenced labels. E.g.
         calculated returns.
       + Register re-mappings on 65DTV02 with SIR and SAC.
+      + 32 bit operations on 45GS02.
 
     It's also rather simple and conservative, so some opportunities will be
     missed. Most CPUs are supported with the notable exception of 65816 and
@@ -4228,6 +4276,13 @@ using the `.cpu' directive in the source.
     64tass --m4510 a.asm
             map
             eom
+
+--m45gs02
+    45GS02. Enables extra opcodes and addressing modes specific to this CPU.
+    Useful for MEGA65 projects.
+
+    64tass --m45gs02 a.asm
+            ldq $1000
 
 Symbol listing
 
@@ -4372,6 +4427,11 @@ Symbol listing
     --labels-section=save --labels-add-prefix=S --labels-append labels.mlb
     --labels-section=work --labels-add-prefix=W --labels-append labels.mlb
     --labels-section=registers --labels-add-prefix=G --labels-append labels.mlb
+
+--ctags-labels
+    List labels in ctags format
+
+    Can be useful to jump to global definitions if the editor supports it.
 
 Assembly listing
 
@@ -5350,7 +5410,16 @@ RUL 2B 3B 6B 7B                         STR 83 87 93 97
 
 65CE02 opcodes
 
-This processor is an enhanced version of R65C02.
+There's a small deviation in the use of TAD and TDA for the base page. That's
+consistent with the direct page addressing mode, .dpage directive and
+convention of other processors. Therefore TAB and TBA mnemonics are aliases
+only.
+
+For similar reason the base page register needs to be referenced as D instead
+of B as the latter is the data bank register on other processors.
+
+As later variants have both left and right rotating multi byte instructions the
+rotate left word ROW mnemonic should be written as RLW if possible.
 
                      Additional 65CE02 opcodes over R65C02
 ASR 43 44 54                            ASW CB
@@ -5365,11 +5434,11 @@ INW E3                                  INZ 1B
 JSR 22 23                               LDA E2
 LDZ A3 AB BB                            NEG 42
 PHW F4 FC                               PHZ DB
-PLZ FB                                  ROW EB
+PLZ FB                                  RLW EB
 RTS 62                                  SEE 03
 STA 82                                  STX 9B
-STY 8B                                  TAB 5B
-TAZ 4B                                  TBA 7B
+STY 8B                                  TAD 5B
+TAZ 4B                                  TDA 7B
 TSY 0B                                  TYS 2B
 TZA 6B
 
@@ -5377,7 +5446,9 @@ TZA 6B
 ASR 43                                  BGE B3
 BLT 93                                  CMP C2 D4 DC
 LDR 0B 4B 6B 7B A3 AB BB E2             NEG 42
-RTN 62                                  STR 2B 5B 82 8B 9B
+ROW EB                                  RTN 62
+STR 2B 5B 82 8B 9B                      TAB 5B
+TBA 7B
 
                     Aliases of R65C02 not valid for 65CE02
 CLR 64 74 9C 9E
@@ -5391,6 +5462,84 @@ MAP 5C
 
                     Additional CSG 4510 aliases over 65CE02
 EOM EA
+
+45GS02 opcodes
+
+Unfortunately the original naming convention couldn't be adopted as it used
+four letter mnemonics for most new operations. If these longer names are
+preferred it's quite easy to define macros named like that using .segment and
+`\@'.
+
+The four letter mnemonics got shortened so that all register Q operations are
+ending with the name of the register. That leaves two letters to describe the
+function which isn't much.
+
+Alternatively the generic instruction syntax can be used with register Q
+parameter to get more descriptive and familiar mnemonics.
+
+                      Q register memory 45GS02 mnemonics
+ ADQ   ADC Q,   Add with carry to register Q           (also known as ADCQ)
+ ANQ   AND Q,   Logical and register Q                 (also known as ANDQ)
+ BTQ   BIT Q,   Bit test register Q                    (also known as BITQ)
+ CPQ   CMP Q,   Compare register Q                     (also known as CMPQ)
+ EOQ   EOR Q,   Exclusive or register Q                (also known as EORQ)
+ LDQ   LDR Q,   Load register Q
+ ORQ   ORR Q,   Logical or register Q
+ SBQ   SBC Q,   Subtract with carry from register Q    (also known as SBCQ)
+ STQ   STR Q,   Store register Q
+
+The Q register modify instructions detach the register from the mnemonic just
+like ASL A. The four letter convention had it in both the mnmemonic and the
+parameter which is redundant.
+
+                      Q register modify 45GS02 mnemonics
+       ASL Q    Arithmetic shift left register Q       (also known as ASRQ Q)
+       ASR Q    Arithmetic shift right register Q      (also known as ASLQ Q)
+ DEQ   DEC Q    Decrement register Q                   (also known as DEQ Q)
+ INQ   INC Q    Increment register Q                   (also known as INQ Q)
+       LSR Q    Logical shift right register Q         (also known as LSRQ Q)
+       ROL Q    Rotate left register Q                 (also known as ROLQ Q)
+       ROR Q    Rotate right register Q                (also known as RORQ Q)
+
+The INQ and DEQ mnemonics have only implied addressing mode just like INX or
+INY. These can't be used on memory as register Q is not involved in the
+operation. No Q register parameter either, the name makes it clear already.
+
+The double word memory modify instructions are ending with the letter D. That's
+consistent with pre-existing word operations like INW, DEW, ASW and others.
+
+                  Double word memory modify 45GS02 mnemonics
+ ARD            Arithmetic shift right double word     (also known as ASRQ)
+ ASD            Arithmetic shift left double word      (also known as ASLQ)
+ DED            Decrement double word                  (also known as DEQ)
+ IND            Increment double word                  (also known as INQ)
+ LSD            Logical shift right double word        (also known as LSRQ)
+ RLD            Rotate left double word                (also known as ROLQ)
+ RRD            Rotate right double word               (also known as RORQ)
+
+                    Additional 45GS02 opcodes over CSG 4510
+ADC 72                                  ADQ 65 6D 72
+AND 32                                  ANQ 25 2D 32
+ARD 43 44 54                            ASD 0A 06 0E 16 1E
+ASL 0A                                  ASR 43
+BTQ 24 2C                               CMP D2
+CPQ C5 CD D2                            DEC 3A
+DED 3A C6 CE D6 DE                      DEQ 3A
+EOQ 45 4D 52                            EOR 52
+INC 1A                                  IND 1A E6 EE F6 FE
+INQ 1A                                  LDA B2
+LDQ A5 AD B2                            LSD 46 4A 4E 56 5E
+LSR 4A                                  ORA 12
+ORQ 05 0D 12                            RLD 26 2A 2E 36 3E
+ROL 2A                                  ROR 6A
+RRD 66 6A 6E 76 7E                      SBC F2
+SBQ E5 ED F2                            STA 92
+STQ 85 8D 92
+
+                    Additional 45GS02 aliases over CSG 4510
+CPA D2                                  LDR A5 AD B2
+ORR 05 0D 12                            SHL 0A
+SHR 4A                                  STR 85 8D 92
 
 -------------------------------------------------------------------------------
 

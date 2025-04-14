@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3183 2025-03-28 07:00:32Z soci $ -->
+<!-- $Id: README.html 3213 2025-04-13 19:58:28Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -93,7 +93,7 @@ the 65xx series of processors. Key features:
 <ul>
 <li>Open source portable C with minimal dependencies</li>
 <li>Familiar syntax to Omicron TASS and TASM</li>
-<li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510</li>
+<li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02, 4510, 45GS02</li>
 <li>Arbitrary-precision integers and bit strings, double precision floating point numbers</li>
 <li>Character and byte strings, array arithmetic</li>
 <li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, Unicode character strings</li>
@@ -204,7 +204,7 @@ difficult to get everything <q>right</q> first time.</b>
  <li><a href="#pseudo-instructions">Pseudo instructions</a>
  <ul>
   <li><a href="#aliases">Aliases</a></li>
-  <li><a href="#generic-instruction">Generic instructions</a></li>
+  <li><a href="#generic-instructions">Generic instructions</a></li>
   <li><a href="#branch-always">Always taken branches</a></li>
   <li><a href="#branch-long">Long branches</a></li>
  </ul></li>
@@ -260,6 +260,7 @@ difficult to get everything <q>right</q> first time.</b>
   <li><a href="#opcodes-65el02">65EL02 opcodes</a></li>
   <li><a href="#opcodes-65ce02">65CE02 opcodes</a></li>
   <li><a href="#opcodes-4510">CSG 4510 opcodes</a></li>
+  <li><a href="#opcodes-45gs02">45GS02 opcodes</a></li>
  </ul></li>
  <li><a href="#appendix">Appendix</a>
  <ul>
@@ -2188,16 +2189,16 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 
 <pre>
                                         *       <b>=</b> <span>$12000</span>
-.012000  7c 03 20       jmp ($012003,x)         <b>jmp</b> (<u>jumps</u>,x)
-&gt;012003  50 20 32 03 92 15              jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
+.012000 7c 03 20        jmp ($012003,x)         <b>jmp</b> (<u>jumps</u>,x)
+&gt;012003 50 20 32 03 92 15               jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
 <i>;Computed jumps by using stack (current bank)</i>
                                         *       <b>=</b> <span>$103000</span>
-.103000  bf 0c 30 10    lda $10300c,x           <b>lda</b> <u>rets</u>+<span>1</span>,x
-.103004  48             pha                     <b>pha</b>
-.103005  bf 0b 30 10    lda $10300b,x           <b>lda</b> <u>rets</u>,x
-.103009  48             pha                     <b>pha</b>
-.10300a  60             rts                     <b>rts</b>
-&gt;10300b  ff ef a1 36 f3 42              rets    <b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
+.103000 bf 0c 30 10     lda $10300c,x           <b>lda</b> <u>rets</u>+<span>1</span>,x
+.103004 48              pha                     <b>pha</b>
+.103005 bf 0b 30 10     lda $10300b,x           <b>lda</b> <u>rets</u>,x
+.103009 48              pha                     <b>pha</b>
+.10300a 60              rts                     <b>rts</b>
+&gt;10300b ff ef a1 36 f3 42               rets    <b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
 </pre></dd>
 
 <dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_long" href="#d_long"></a>
@@ -2206,21 +2207,21 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 <dd>Create bytes from 24&nbsp;bit signed constants (&minus;8388608&ndash;8388607)
 
 <pre>
-&gt;1000  56 34 12                          <b class="d">.long</b> <span>$123456</span>
+&gt;1000   56 34 12                         <b class="d">.long</b> <span>$123456</span>
 &gt;1003                                    <b class="d">.long</b> <span>?</span>        <i>; reserve 3 bytes</i>
-&gt;1006  eb fd ff 51 11 00                 <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
+&gt;1006   eb fd ff 51 11 00                <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
 <i>;Store 8.16 signed fixed point constants</i>
-&gt;100c  5d 8f fc 66 66 03 1e 85           <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
-&gt;1014  03
+&gt;100c   5d 8f fc 66 66 03 1e 85          <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
+&gt;1014   03
 <i>;Computed long jumps with jump table (65816)</i>
-.1015  bd 2a 10  lda $102a,x             <b>lda</b> <u>jumps</u>,x
-.1018  8d 11 03  sta $0311               <b>sta</b> <u>ind</u>
-.101b  bd 2b 10  lda $102b,x             <b>lda</b> <u>jumps</u>+<span>1</span>,x
-.101e  8d 12 03  sta $0312               <b>sta</b> <u>ind</u>+<span>1</span>
-.1021  bd 2c 10  lda $102c,x             <b>lda</b> <u>jumps</u>+<span>2</span>,x
-.1024  8d 13 03  sta $0313               <b>sta</b> <u>ind</u>+<span>2</span>
-.1027  dc 11 03  jmp [$0311]             <b>jmp</b> [<u>ind</u>]
-&gt;102a  32 03 01 92 05 02         jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
+.1015   bd 2a 10        lda $102a,x      <b>lda</b> <u>jumps</u>,x
+.1018   8d 11 03        sta $0311        <b>sta</b> <u>ind</u>
+.101b   bd 2b 10        lda $102b,x      <b>lda</b> <u>jumps</u>+<span>1</span>,x
+.101e   8d 12 03        sta $0312        <b>sta</b> <u>ind</u>+<span>1</span>
+.1021   bd 2c 10        lda $102c,x      <b>lda</b> <u>jumps</u>+<span>2</span>,x
+.1024   8d 13 03        sta $0313        <b>sta</b> <u>ind</u>+<span>2</span>
+.1027   dc 11 03        jmp [$0311]      <b>jmp</b> [<u>ind</u>]
+&gt;102a   32 03 01 92 05 02        jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 </pre></dd>
 
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_dword" href="#d_dword"></a>
@@ -2229,12 +2230,12 @@ Use <a href="#d_text"><code>.text</code></a> instead which accepts strings of an
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 
 <pre>
-&gt;1000  78 56 34 12              <b class="d">.dword</b> <span>$12345678</span>
+&gt;1000   78 56 34 12             <b class="d">.dword</b> <span>$12345678</span>
 &gt;1004                           <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes</i>
-&gt;1008  5d 7a 79 e7              <b class="d">.dint</b> <span>-411469219</span>
+&gt;1008   5d 7a 79 e7             <b class="d">.dint</b> <span>-411469219</span>
 <i>;Store 16.16 signed fixed point constants</i>
-&gt;100c  5d 8f fc ff 66 66 03 00  <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
-&gt;1014  1e 85 03 00
+&gt;100c   5d 8f fc ff 66 66 03 00 <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
+&gt;1014   1e 85 03 00
 </pre></dd>
 
 <dt><b>.text</b> bits(&lt;expression&gt;[, &lt;bit count&gt;])
@@ -2248,10 +2249,10 @@ count expression of <code>bytes()</code> and <code>bits()</code> is negative the
 signed otherwise unsigned.</p>
 
 <pre>
-&gt;1000  74 65 78 74 00 00 00 00  <b class="d">.text</b> <span class="k">bytes</span>(<span class="s">"text"</span>, <span>8</span>)<i>;pad up to 8 bytes</i>
-&gt;1008  f4 ff ff ff ff ff ff ff  <b class="d">.text</b> <span class="k">bytes</span>(<span>-12</span>, <span>-8</span>)  <i>;8 bytes signed</i>
-&gt;1010  00 04 00 00 00 00        <b class="d">.text</b> <span class="k">bits</span>(<span>1024</span>, <span>48</span>)  <i>;48 bits unsigned</i>
-&gt;1016  f4 ff ff ff ff ff        <b class="d">.text</b> <span class="k">bits</span>(<span>-12</span>, <span>-48</span>)  <i>;48 bits signed</i>
+&gt;1000   74 65 78 74 00 00 00 00 <b class="d">.text</b> <span class="k">bytes</span>(<span class="s">"text"</span>, <span>8</span>)<i>;pad up to 8 bytes</i>
+&gt;1008   f4 ff ff ff ff ff ff ff <b class="d">.text</b> <span class="k">bytes</span>(<span>-12</span>, <span>-8</span>)  <i>;8 bytes signed</i>
+&gt;1010   00 04 00 00 00 00       <b class="d">.text</b> <span class="k">bits</span>(<span>1024</span>, <span>48</span>)  <i>;48 bits unsigned</i>
+&gt;1016   f4 ff ff ff ff ff       <b class="d">.text</b> <span class="k">bits</span>(<span>-12</span>, <span>-48</span>)  <i>;48 bits signed</i>
 </pre></dd>
 
 </dl>
@@ -2270,23 +2271,23 @@ are converted using the current encoding.</p>
 <dd>Assemble strings into 8&nbsp;bit bytes.
 
 <pre>
-&gt;1000  4f 45 d5  <b class="d">.text</b> <span class="s">"oeU"</span>
-&gt;1003  4f 45 d5  <b class="d">.text</b> <span class="s">'oeU'</span>
-&gt;1006  17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>  <i>; bytes</i>
-&gt;1008  0d 0a     <b class="d">.text</b> <span>$0a0d</span>    <i>; $0d, $0a, little endian!</i>
-&gt;100a  1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
+&gt;1000   4f 45 d5  <b class="d">.text</b> <span class="s">"oeU"</span>
+&gt;1003   4f 45 d5  <b class="d">.text</b> <span class="s">'oeU'</span>
+&gt;1006   17 33     <b class="d">.text</b> <span>23</span>, <span>$33</span>  <i>; bytes</i>
+&gt;1008   0d 0a     <b class="d">.text</b> <span>$0a0d</span>    <i>; $0d, $0a, little endian!</i>
+&gt;100a   1f        <b class="d">.text</b> <span>%00011111</span><i>; more bytes</i>
 </pre></dd>
 
 <dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]<a name="d_fill" href="#d_fill"></a>
 <dd>Reserve space (using uninitialized data), or fill with repeated bytes.
 
 <pre>
-&gt;1000            <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
-&gt;1100  00 00 00  <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
+&gt;1000             <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
+&gt;1100   00 00 00  <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
 ...
-&gt;5100  55 aa 55  <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
+&gt;5100   55 aa 55  <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
 ...
-&gt;7040  ff ff ff  <b class="d">.fill</b> <span>$8000</span> - <u>*</u>, <span>$ff</span><i>;fill up rest of EPROM with $ff</i>
+&gt;7040   ff ff ff  <b class="d">.fill</b> <span>$8000</span> - <u>*</u>, <span>$ff</span><i>;fill up rest of EPROM with $ff</i>
 ...
 </pre></dd>
 
@@ -2299,17 +2300,17 @@ The last byte can't be uninitialized or missing of course.</p>
 <p>The naming comes from old TASM and is a reference to setting the high bit of alphabetic letters which results in it's uppercase version in PETSCII.</p>
 
 <pre>
-.1000  a2 00          ldx #$00                <b>ldx</b> #<span>0</span>
-.1002  bd 10 10       lda $1010,x     loop    <b>lda</b> <u>txt</u>,x
-.1005  08             php                     <b>php</b>
-.1006  29 7f          and #$7f                <b>and</b> #<span>$7f</span>
-.1008  20 d2 ff       jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
-.100b  e8             inx                     <b>inx</b>
-.100c  28             plp                     <b>plp</b>
-.100d  10 f3          bpl $1002               <b>bpl</b> <u>loop</u>
-.100f  60             rts                     <b>rts</b>
-&gt;1010  53 49 4e 47 4c 45 20 53        txt     <b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-&gt;1018  54 52 49 4e c7
+.1000   a2 00         ldx #$00                <b>ldx</b> #<span>0</span>
+.1002   bd 10 10      lda $1010,x     loop    <b>lda</b> <u>txt</u>,x
+.1005   08            php                     <b>php</b>
+.1006   29 7f         and #$7f                <b>and</b> #<span>$7f</span>
+.1008   20 d2 ff      jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
+.100b   e8            inx                     <b>inx</b>
+.100c   28            plp                     <b>plp</b>
+.100d   10 f3         bpl $1002               <b>bpl</b> <u>loop</u>
+.100f   60            rts                     <b>rts</b>
+&gt;1010   53 49 4e 47 4c 45 20 53       txt     <b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;1018   54 52 49 4e c7
 </pre></dd>
 
 <dt><b>.shiftl</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_shiftl" href="#d_shiftl"></a>
@@ -2322,16 +2323,16 @@ The last byte can't be uninitialized or missing of course.</p>
 <p>The naming is a reference to left shifting.</p>
 
 <pre>
-.1000  a2 00          ldx #$00                <b>ldx</b> #<span>0</span>
-.1002  bd 0d 10       lda $100d,x     loop    <b>lda</b> <u>txt</u>,x
-.1005  4a             lsr a                   <b>lsr</b> <b>a</b>
-.1006  9d 00 04       sta $0400,x             <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
-.1009  e8             inx                     <b>inx</b>
-.100a  90 f6          bcc $1002               <b>bcc</b> <u>loop</u>
-.100c  60             rts                     <b>rts</b>
+.1000   a2 00         ldx #$00                <b>ldx</b> #<span>0</span>
+.1002   bd 0d 10      lda $100d,x     loop    <b>lda</b> <u>txt</u>,x
+.1005   4a            lsr a                   <b>lsr</b> <b>a</b>
+.1006   9d 00 04      sta $0400,x             <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
+.1009   e8            inx                     <b>inx</b>
+.100a   90 f6         bcc $1002               <b>bcc</b> <u>loop</u>
+.100c   60            rts                     <b>rts</b>
                                               <b class="k">.enc</b> <span class="s">"screen"</span>
-&gt;100d  a6 92 9c 8e 98 8a 40 a6        txt     <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-&gt;1015  a8 a4 92 9c 8f                         <b class="k">.enc</b> <span class="s">"none"</span>
+&gt;100d   a6 92 9c 8e 98 8a 40 a6       txt     <b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;1015   a8 a4 92 9c 8f                        <b class="k">.enc</b> <span class="s">"none"</span>
 </pre></dd>
 
 <dt><b>.null</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_null" href="#d_null"></a>
@@ -2339,11 +2340,11 @@ The last byte can't be uninitialized or missing of course.</p>
 zero byte is an error as it'd cause a false end marker.
 
 <pre>
-.1000  a9 07          lda #$07                <b>lda</b> #&lt;<u>txt</u>
-.1002  a0 10          ldy #$10                <b>ldy</b> #&gt;<u>txt</u>
-.1004  20 1e ab       jsr $ab1e               <b>jsr</b> <span>$ab1e</span>
-&gt;1007  53 49 4e 47 4c 45 20 53        txt     <b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-&gt;100f  54 52 49 4e 47 00
+.1000   a9 07         lda #$07                <b>lda</b> #&lt;<u>txt</u>
+.1002   a0 10         ldy #$10                <b>ldy</b> #&gt;<u>txt</u>
+.1004   20 1e ab      jsr $ab1e               <b>jsr</b> <span>$ab1e</span>
+&gt;1007   53 49 4e 47 4c 45 20 53       txt     <b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;100f   54 52 49 4e 47 00
 </pre></dd>
 
 <dt><b>.ptext</b> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]<a name="d_ptext" href="#d_ptext"></a>
@@ -2351,25 +2352,25 @@ zero byte is an error as it'd cause a false end marker.
 string (pascal style string). Therefore it can't do more than 255 bytes.
 
 <pre>
-.1000  a9 1d          lda #$1d                <b>lda</b> #&lt;<u>txt</u>
-.1002  a2 10          ldx #$10                <b>ldx</b> #&gt;<u>txt</u>
-.1004  20 08 10       jsr $1008               <b>jsr</b> <u>print</u>
-.1007  60             rts                     <b>rts</b>
+.1000   a9 1d         lda #$1d                <b>lda</b> #&lt;<u>txt</u>
+.1002   a2 10         ldx #$10                <b>ldx</b> #&gt;<u>txt</u>
+.1004   20 08 10      jsr $1008               <b>jsr</b> <u>print</u>
+.1007   60            rts                     <b>rts</b>
 
-.1008  85 fb          sta $fb         print   <b>sta</b> <span>$fb</span>
-.100a  86 fc          stx $fc                 <b>stx</b> <span>$fc</span>
-.100c  a0 00          ldy #$00                <b>ldy</b> #<span>0</span>
-.100e  b1 fb          lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
-.1010  f0 0a          beq $101c               <b>beq</b> <u>null</u>
-.1012  aa             tax                     <b>tax</b>
-.1013  c8             iny             -       <b>iny</b>
-.1014  b1 fb          lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
-.1016  20 d2 ff       jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
-.1019  ca             dex                     <b>dex</b>
-.101a  d0 f7          bne $1013               <b>bne</b> <u>-</u>
-.101c  60             rts             null    <b>rts</b>
-&gt;101d  0d 53 49 4e 47 4c 45 20        txt     <b class="d">.ptext</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
-&gt;1025  53 54 52 49 4e 47
+.1008   85 fb         sta $fb         print   <b>sta</b> <span>$fb</span>
+.100a   86 fc         stx $fc                 <b>stx</b> <span>$fc</span>
+.100c   a0 00         ldy #$00                <b>ldy</b> #<span>0</span>
+.100e   b1 fb         lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
+.1010   f0 0a         beq $101c               <b>beq</b> <u>null</u>
+.1012   aa            tax                     <b>tax</b>
+.1013   c8            iny             -       <b>iny</b>
+.1014   b1 fb         lda ($fb),y             <b>lda</b> (<span>$fb</span>),y
+.1016   20 d2 ff      jsr $ffd2               <b>jsr</b> <span>$ffd2</span>
+.1019   ca            dex                     <b>dex</b>
+.101a   d0 f7         bne $1013               <b>bne</b> <u>-</u>
+.101c   60            rts             null    <b>rts</b>
+&gt;101d   0d 53 49 4e 47 4c 45 20       txt     <b class="d">.ptext</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+&gt;1025   53 54 52 49 4e 47
 </pre></dd>
 </dl>
 
@@ -2397,13 +2398,16 @@ covered.
 code using the <code>.enc</code> directive this is not recommended. For such
 use case <a href="#d_encode"><code>.encode</code></a> is better suited.</p>
 
+<p>In the past the <code>.enc</code> directive accepted an unquoted string but currently it
+needs to be an expression.</p>
+
 <pre>
                                 <b class="k">.enc</b> <span class="s">"screen"</span><i>;screen code mode</i>
-&gt;1000  13 03 12 05 05 0e 20 03  <b class="d">.text</b> <span class="s">"screen codes"</span>
-&gt;1008  0f 04 05 13
-.100c  c9 15     cmp #$15       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare screen code</i>
+&gt;1000   13 03 12 05 05 0e 20 03 <b class="d">.text</b> <span class="s">"screen codes"</span>
+&gt;1008   0f 04 05 13
+.100c   c9 15    cmp #$15       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare screen code</i>
                                 <b class="k">.enc</b> <span class="s">"none"</span> <i>;normal mode again</i>
-.100e  c9 55     cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
+.100e   c9 55    cmp #$55       <b>cmp</b> #<span class="s">"u"</span>    <i>;compare PETSCII</i>
 </pre></dd>
 
 <dt><b>.encode</b> [&lt;expression&gt;]<a name="d_encode" href="#d_encode"></a>
@@ -2515,8 +2519,8 @@ lower   <b class="k">.encode</b><i>;lowercase PETSCII</i>
         <b class="k">.endnamespace</b>
 
                                     <b class="k">.encode</b> <u>petscii</u>.<u>lower</u>
-&gt;1000  93 d4 45 58 54 20 49 4e     <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>{cr}</span>"</span>
-&gt;1008  20 d0 c5 d4 d3 c3 c9 c9 0d
+&gt;1000   93 d4 45 58 54 20 49 4e    <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>{cr}</span>"</span>
+&gt;1008   20 d0 c5 d4 d3 c3 c9 c9 0d
                                     <b class="k">.endencode</b>
 </pre>
 
@@ -3329,23 +3333,23 @@ p3      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
 <p>The compiled code will look like:
 
 <pre>
-&gt;0801    0b 08 d5 07                            <b class="d">.word</b> <u>ss</u>, <span>2005</span>
-&gt;0805    9e 32 30 36 31 00                      <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
-&gt;080b    00 00                          ss      <b class="d">.word</b> <span>0</span>
+&gt;0801   0b 08 d5 07                             <b class="d">.word</b> <u>ss</u>, <span>2005</span>
+&gt;0805   9e 32 30 36 31 00                       <b class="d">.null</b> <span>$9e</span>, <span class="k">format</span>(<span class="s">"%4d"</span>, <u>start</u>)
+&gt;080b   00 00                           ss      <b class="d">.word</b> <span>0</span>
 
-.080d    78                             start   <b>sei</b>
+.080d   78                              start   <b>sei</b>
 
 &gt;0002                                   p2      <b class="d">.addr</b> <span>?</span>         <i>;a pointer</i>
 &gt;0334                                   buffer  <b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
 
-.080e    b1 02                                  <b>lda</b> (<u>p2</u>),y
-.0810    a9 00                                  <b>lda</b> #&lt;<u>label</u>
-.0812    a0 10                                  <b>ldy</b> #&gt;<u>label</u>
-.0814    20 1e ab                               <b>jsr</b> <u>print</u>
+.080e   b1 02                                   <b>lda</b> (<u>p2</u>),y
+.0810   a9 00                                   <b>lda</b> #&lt;<u>label</u>
+.0812   a0 10                                   <b>ldy</b> #&gt;<u>label</u>
+.0814   20 1e ab                                <b>jsr</b> <u>print</u>
 
-&gt;1000    6d 65 73 73 61 67 65 00        label   <b class="d">.null</b> <span class="s">"message"</span>
+&gt;1000   6d 65 73 73 61 67 65 00         label   <b class="d">.null</b> <span class="s">"message"</span>
 
-.0817    4c e2 fc                               <b>jmp</b> <u>error</u>
+.0817   4c e2 fc                                <b>jmp</b> <u>error</u>
 
 &gt;0004                                   p2      <b class="d">.addr</b> ?         <i>;a pointer</i>
 </pre>
@@ -3514,6 +3518,9 @@ can ruin the timing of a carefully cycle counted code.
 <dt><b>.cpu</b> &lt;expression&gt;<a name="d_cpu" href="#d_cpu"></a>
 <dd>Selects CPU according to the string argument.
 
+<p>In the past the <code>.cpu</code> directive accepted an unquoted string but
+currently it needs to be an expression.</p>
+
 <pre>
         <b class="k">.cpu</b> <span class="s">"6502"</span>     <i>;standard 65xx</i>
         <b class="k">.cpu</b> <span class="s">"65c02"</span>    <i>;CMOS 65C02</i>
@@ -3525,6 +3532,7 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.cpu</b> <span class="s">"r65c02"</span>   <i>;R65C02</i>
         <b class="k">.cpu</b> <span class="s">"w65c02"</span>   <i>;W65C02</i>
         <b class="k">.cpu</b> <span class="s">"4510"</span>     <i>;CSG 4510</i>
+        <b class="k">.cpu</b> <span class="s">"45gs02"</span>   <i>;45GS02</i>
         <b class="k">.cpu</b> <span class="s">"default"</span>  <i>;cpu set on command line</i>
 </pre></dd>
 </dl>
@@ -3648,7 +3656,7 @@ straightforward by using the register as the address similar like <code>ASL&nbsp
 
 <p>Push and pull instructions have a generic version called
 <code>PSH</code> and <code>PUL</code>. The user stack ones for 65EL02 are
-called <code>RSH</code> and <code>RUL</code>. These can take a register
+called <code>RSH</code> and <code>RUL</code>. These take a register
 address:</p>
 
 <div><table width="100%" class="opcodes">
@@ -3671,8 +3679,8 @@ It is recommended to leave a space before the addressing mode.</p>
 <caption>Register parametrized load, store and compare instructions</caption>
 <tr><td width="12%">LDA<td width="12%">LDX<td width="12%">LDY<td width="12%">LDZ<td width="12%">STA<td width="12%">STX<td width="12%">STY<td width="12%">STZ
 <tr><td>LDR&nbsp;A,<td>LDR&nbsp;X,<td>LDR&nbsp;Y,<td>LDR&nbsp;Z,<td>STR&nbsp;A,<td>STR&nbsp;X,<td>STR&nbsp;Y,<td>STR&nbsp;Z,
-<tr><td width="12%">CPA<td width="12%">CPX<td width="12%">CPY<td width="12%">CPZ<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">&nbsp;&nbsp;&nbsp;
-<tr><td>CMP&nbsp;A,<td>CMP&nbsp;X,<td>CMP&nbsp;Y,<td>CMP&nbsp;Z,<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<tr><td width="12%">CPA<td width="12%">CPX<td width="12%">CPY<td width="12%">CPZ<td width="12%">&nbsp;&nbsp;&nbsp;<td width="12%">LDQ<td width="12%">STQ<td width="12%">CPQ
+<tr><td>CMP&nbsp;A,<td>CMP&nbsp;X,<td>CMP&nbsp;Y,<td>CMP&nbsp;Z,<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>LDR&nbsp;Q,<td>STR&nbsp;Q,<td>CMP&nbsp;Q,
 </table></div>
 
 <p>Transfer instructions have generic versions as well, actually in two
@@ -3696,7 +3704,7 @@ is <code>STX&nbsp;s</code>.</p>
 This can be done with <code>LDR</code> for those setting the flags and
 <code>STR</code> for those which don't. Here it's especially important to leave
 a space after the coma to not create an unintended register indexing
-mode.</code>
+mode.
 
 <div><table width="100%" class="opcodes">
 <caption>Register transfer fully parametrized form</caption>
@@ -3755,81 +3763,121 @@ irq     <b>psh</b> (<u>a</u>, <u>x</u>, <u>y</u>,)  <i>;pha, phx, phy</i>
 
 <h3>Always taken branches<a name="branch-always" href="#branch-always"></a></h3>
 
-<p>For writing short code there are some special pseudo instructions for always
-taken branches. These are automatically compiled as relative branches when the
-jump distance is short enough and as <code>JMP</code> or <code>BRL</code> when
-longer.
-
-<p>The names are derived from conditional branches and are:
+<p>Special pseudo instructions exist for using shorter conditional branches in place of
+longer jump instructions. Their names are derived from conditional branches and are:
 <code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>,
 <code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>,
-<code>GLT</code> and <code>GGE</code>.
+<code>GLT</code> and <code>GGE</code>. Arranging the flags so that these
+branch are always taken is the responsibility of the programmer of course.
+
+<p>The main use case is that these 2 byte branches automatically turn into a 3
+byte <code>JMP</code> or <code>BRL</code> once the target gets too far.
 
 <pre>
-.0000    a9 03          lda #$03        in1     <b>lda</b> #<span>3</span>
-.0002    d0 02          bne $0006               <b>gne</b> <u>at</u>          <i>;branch always</i>
-.0004    a9 02          lda #$02        in2     <b>lda</b> #<span>2</span>
-.0006    4c 00 10       jmp $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch farther</i>
+.0000   a9 03           lda #$03        in1     <b>lda</b> #<span>3</span>          <i>;not zero</i>
+.0002   d0 02           bne $0006               <b>gne</b> <u>at</u>          <i>;branch always</i>
+.0004   a9 02           lda #$02        in2     <b>lda</b> #<span>2</span>
+.0006   4c 00 10        jmp $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch farther</i>
+</pre>
+
+<p>If the branch destination is a <code>RTS</code>, <code>RTI</code> or
+<code>RTL</code> instruction then this opcode will used in place of the branch to save space.
+This only works if the destination label is on the same line as the instruction.</p>
+
+<pre>
+.1000   60              rts                     <b>gne</b> <u>exit</u>        <i>;just return</i>
+.1001   ea              nop                     <b>nop</b>
+.1002   60              rts             exit    <b>rts</b>
+</pre>
+
+<p>There's special support for short forward branches. These only work with
+labels or anonymous labels as <code>*+2</code> or hardcoded numbers would cause
+a contradiction.
+
+<p>If the branch pseudo instructions would not skip anything at all then no
+code is generated. This is useful for <q>fall-through</q> cases.
+
+<pre>
+.000c                                           <b>geq</b> <u>at2</u>         <i>;dummy branch</i>
+.000c   ea              nop             at2     <b>nop</b>
 </pre>
 
 <p>If the branch would skip only one byte then the opposite condition is
-compiled and only the first byte is emitted. This is now a never executed jump,
-and the relative distance byte after the opcode is the jumped over byte. If the
-CPU has long conditional branches (65CE02/4510) then the same method is applied
-to two byte skips as well.
-
-<p>There's a pseudo opcode called <code>GRA</code> for CPUs supporting
-<code>BRA</code>, which is expanded to <code>BRL</code> (if available) or
-<code>JMP</code>. A one byte skip will be shortened to a single byte if the
-CPU has a <code>NOP</code> immediate instruction (R65C02/W65C02).
-
-<p>If the branch would not skip anything at all then no code is generated.
-
+compiled (turns it to never taken) and only a single opcode byte is emitted. As
+the following byte becomes part of the intruction it gets skipped.
 <pre>
-.0009                                           <b>geq</b> <u>in3</u>         <i>;zero length "branch"</i>
-.0009    18             clc             in3     <b>clc</b>
-.000a    b0             bcs                     <b>gcc</b> <u>at2</u>         <i>;one byte skip, as bcs</i>
-.000b    38             sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
-.000c    20 0f 00       jsr $000f       at2     <b>jsr</b> <u>func</u>
-.000f                                   func
+.0009   18              clc             in3     <b>clc</b>
+.000a   b0              bcs                     <b>gcc</b> <u>+</u>           <i>;one byte skip</i>
+.000b   38              sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
+.000c   ea              nop             +       <b>nop</b>
 </pre>
 
-<p>Please note that expressions like <code>Gxx *+2</code> or <code>Gxx
-*+3</code> are not allowed as the compiler can't figure out if it has to create
-no code at all, the 1 byte variant or the 2 byte one. Therefore use normal or
-anonymous labels defined after the jump instruction when jumping forward!
+<p>If the CPU has long conditional branches (65CE02 / 4510 / 45GS02) then the
+same trick above is applied to produce two byte skips as well.
+
+<p>There's a pseudo opcode called <code>GRA</code> for CPUs having
+<code>BRA</code> which can turn into a <code>BRL</code> (if available) or
+<code>JMP</code> for longer distances. The condition can't be reversed for a
+one byte skip but if the CPU has a <code>NOP</code> immediate instruction
+(R65C02 / W65C02) then that'll be used for this special case.
+
+<pre>
+.1000   82              nop #                   <b>gra</b> <u>skip</u>        <i>;on r65c02</i>
+.1001   60              rts                     <b>rts</b>
+.1002                                   skip
+</pre>
 
 <h3>Long branches<a name="branch-long" href="#branch-long"></a></h3>
 
-<p>To avoid branch too long errors the assembler also supports long branches.
-It can automatically convert conditional relative branches to it's opposite and
-a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
-line using the <q><a href="#o_long-branch"><code>--long-branch</code></a></q> option.
+<p>Conditional branches usually have limited range. This limitation can be worked around by
+jumping over a <code>JMP</code> or <code>BRL</code> instruction with the opposite condition.
+
+<p>To avoid hardcoding potentially unnecessary long branches 64tass can apply
+this trick automatically when necessary. This can be enabled with the <q><a
+href="#o_long-branch"><code>--long-branch</code></a></q> option.
 
 <pre>
-.0000    ea             nop                     <b>nop</b>
-.0001    b0 03          bcs $0006               <b>bcc</b> <span>$1000</span>      <i>;long branch (6502)</i>
-.0003    4c 00 10       jmp $1000
-.0006    1f 17 03       bbr 1,$17,$000c         <b>bbs</b> <span>1</span>,<span>23</span>,<span>$1000</span> <i>;long branch (R65C02)</i>
-.0009    4c 00 10       jmp $1000
-.000c    d0 04          bne $0012               <b>beq</b> <span>$10000</span>     <i>;long branch (65816)</i>
-.000e    5c 00 00 01    jmp $010000
-.0012    30 03          bmi $0017               <b>bpl</b> <span>$1000</span>      <i>;long branch (65816)</i>
-.0014    82 e9 lf       brl $1000
-.0017    ea             nop                     <b>nop</b>
+.0000   ea              nop                     <b>nop</b>
+.0001   b0 03           bcs $0006               <b>bcc</b> <span>$1000</span>       <i>;long branch</i>
+.0003   4c 00 10        jmp $1000
+.0006   1f 17 03        bbr 1,$17,$000c         <b>bbs</b> <span>1</span>,<span>23</span>,<span>$1000</span>  <i>;on R65C02</i>
+.0009   4c 00 10        jmp $1000
+.000c   30 03           bmi $0011               <b>bpl</b> <span>$1000</span>       <i>;on 65816</i>
+.000e   82 e9 lf        brl $1000
+.0011   ea              nop                     <b>nop</b>
 </pre>
 
-<p>Please note that forward jump expressions like <code>Bxx *+130</code>,
-<code>Bxx *+131</code> and <code>Bxx *+132</code> are not allowed as the
-compiler can't decide between a short/long branch. Of course these destinations
-can be used, but only with normal or anonymous labels defined after the jump
-instruction.
+<p>In the listing above an extra <code>JMP</code> instructions is shown for
+each long branch. In practice that's not really the case as the assembler can
+avoid redundant <code>JMP</code> instructions if several long branches target
+the same destination. But for that to work a numeric address match alone isn't
+sufficient.
 
-<p>In the above example extra <code>JMP</code> instructions are emitted for
-each long branch. This is suboptimal and wasting space if there are several
-long branches to the same location in close proximity. Therefore the assembler
-might decide to reuse a <code>JMP</code> for more than one long branch to save
-space.</p>
+<pre>
+.1000   b0 03           bcs $1005               <b>bcc</b> <u>target</u>
+.1002   4c 00 20        jmp $2000
+.1003   ea              nop                     <b>nop</b>
+.1006   d0 fb           bne $1002               <b>bne</b> <u>target</u>       <i>;jump reused</i>
+.2000                                   target
+</pre>
+
+<p>If the branch destination is a <code>RTS</code>, <code>RTI</code> or
+<code>RTL</code> instruction then this opcode will used in place of the jump instruction to save space.
+This only works if the destination label is on the same line as the instruction.
+
+<pre>
+.1000   b0 01           bcs $1003               <b>bcc</b> <u>exit</u>        <i>;uses rts</i>
+.1002   60              rts
+.1003   ea              nop                     <b>nop</b>
+.2000   60              rts             exit    <b>rts</b>
+</pre>
+
+<p>It's possible to figure out without reading the listing file or disabling
+the long branch function which branches were turned into long ones by using the <q><a
+href="#o_Wlong-branch"><code>-Wlong-branch</code></a></q> command line option.
+
+<p>Forcing address size using <code>@b</code> on a branch disables the
+automatic long branch function there.
 
 <hr>
 <h2>Original turbo assembler compatibility<a name="tasm-compatibility" href="#tasm-compatibility"></a></h2>
@@ -3975,7 +4023,8 @@ a label instead.</p></dd>
 
 <dt><b>-X</b>, <b>--long-address</b><a name="o_long-address" href="#o_long-address"></a>
 <dd>Use 3 byte address/length for CBM and nonlinear output instead of 2
-bytes. Also increases the size of raw output to 16&nbsp;MiB.
+bytes. Also increases the size of raw output to 16&nbsp;MiB and prevent the use
+of S19 for S-record.
 
 <pre>
 64tass --long-address --m65816 a.asm
@@ -3986,7 +4035,8 @@ bytes. Also increases the size of raw output to 16&nbsp;MiB.
 
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with
 zeros.  Uninitialized memory before the first and after the last valid bytes
-are not saved. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.
+are not saved. Up to 64&nbsp;KiB normally or 16&nbsp;MiB with the <a
+href="#o_long-address"><code>--long-address</code></a> command line parameter.
 
 <p>Used for C64 binaries. The first 2 bytes are the little endian address of
 the first valid byte (load address). This is followed by the data.</p>
@@ -4008,7 +4058,8 @@ start   <b>rts</b>
 
 <p>Overlapping blocks are flattened and uninitialized memory is filled up with
 zeros. Uninitialized memory before the first and after the last valid bytes are
-not saved. Up to 64&nbsp;KiB or 16&nbsp;MiB with long address.
+not saved. Up to 64&nbsp;KiB normally or 16&nbsp;MiB with the <a
+href="#o_long-address"><code>--long-address</code></a> command line parameter.
 
 <p>Useful for small ROM files.</p>
 
@@ -4035,8 +4086,8 @@ zeros. Uninitialized memory after the last valid byte is not saved. Up to 4&nbsp
 <dd>Generate nonlinear output file.
 
 <p>Overlapping blocks are flattened. Blocks are saved in sorted order and
-uninitialized memory is skipped. Up to 64&nbsp;KiB or 16&nbsp;MiB with long
-address.
+uninitialized memory is skipped. Up to 64&nbsp;KiB normally or 16&nbsp;MiB with the <a
+href="#o_long-address"><code>--long-address</code></a> command line parameter.
 
 <p>Used for linkers and downloading. Before writing each memory block the
 length and the memory address is saved in a little endian order. Once
@@ -4229,7 +4280,10 @@ record comes and a <code>S9</code>, <code>S8</code> or <code>S7</code> terminati
 
 <p>If the <a href="#o_output-exec"><code>--output-exec</code></a> command line
 parameter was given then the termination record will use this address.
-Without this the address of the first data record is used.</p>
+Without this the address of the first data record is used.
+
+<p>The <a href="#o_long-address"><code>--long-address</code></a> command line
+parameter can be used to avoid the use of S19 format.</p>
 
 <pre>
 64tass --s-record a.asm
@@ -4267,19 +4321,19 @@ PETSCII literals to the default encodings, and enables Unicode letters in symbol
 <pre>
 64tass a.asm
 
-.0000    a9 61          lda #$61        <b>lda</b> #<span class="s">"a"</span>
+.0000   a9 61           lda #$61        <b>lda</b> #<span class="s">"a"</span>
 
-&gt;0002    31 61 41                       <b class="d">.text</b> <span class="s">"1aA"</span>
-&gt;0005    7b 63 6c 65 61 72 7d 74        <b class="d">.text</b> <span class="s">"{clear}text{return}more"</span>
-&gt;000e    65 78 74 7b 72 65 74 75
-&gt;0016    72 6e 7d 6d 6f 72 65
+&gt;0002   31 61 41                        <b class="d">.text</b> <span class="s">"1aA"</span>
+&gt;0005   7b 63 6c 65 61 72 7d 74         <b class="d">.text</b> <span class="s">"{clear}text{return}more"</span>
+&gt;000e   65 78 74 7b 72 65 74 75
+&gt;0016   72 6e 7d 6d 6f 72 65
 
 64tass --ascii a.asm
 
-.0000    a9 41          lda #$41        <b>lda</b> #<span class="s">"a"</span>
-&gt;0002    31 41 c1                       <b class="d">.text</b> <span class="s">"1aA"</span>
-&gt;0005    93 54 45 58 54 0d 4d 4f        <b class="d">.text</b> <span class="s">"<span>{clear}</span>text<span>{return}</span>more"</span>
-&gt;000e    52 45
+.0000   a9 41           lda #$41        <b>lda</b> #<span class="s">"a"</span>
+&gt;0002   31 41 c1                        <b class="d">.text</b> <span class="s">"1aA"</span>
+&gt;0005   93 54 45 58 54 0d 4d 4f         <b class="d">.text</b> <span class="s">"<span>{clear}</span>text<span>{return}</span>more"</span>
+&gt;000e   52 45
 </pre></dd>
 
 <dt><b>-B</b>, <b>--long-branch</b><a name="o_long-branch" href="#o_long-branch"></a>
@@ -4741,6 +4795,7 @@ analysis done. Currently it's easy to fool with these constructs:</p>
 <li>Using <code>*+5</code> and similar tricks to skip instructions, or to loop like <code>*-1</code>.</li>
 <li>Any other method of flow control not involving referenced labels. E.g. calculated returns.</li>
 <li>Register re-mappings on 65DTV02 with SIR and SAC.</li>
+<li>32 bit operations on 45GS02.</li>
 </ul>
 
 <p>It's also rather simple and conservative, so some opportunities will be
@@ -4899,6 +4954,14 @@ disk drive code, etc.
         <b>map</b>
         <b>eom</b>
 </pre></dd>
+
+<dt><b>--m45gs02</b><a name="o_m45gs02" href="#o_m45gs02"></a>
+<dd>45GS02. Enables extra opcodes and addressing modes specific to this CPU. Useful for MEGA65 projects.
+
+<pre>
+64tass --m45gs02 a.asm
+        <b>ldq</b> <span>$1000</span>
+</pre></dd>
 </dl>
 
 <h3>Symbol listing<a name="commandline-symbol" href="#commandline-symbol"></a></h3>
@@ -5055,6 +5118,11 @@ Option file (labeloptions.txt):
 --labels-section=work --labels-add-prefix=W --labels-append labels.mlb
 --labels-section=registers --labels-add-prefix=G --labels-append labels.mlb
 </pre></dd>
+
+<dt><b>--ctags-labels</b><a name="o_ctags-labels" href="#o_ctags-labels"></a>
+<dd>List labels in ctags format
+
+<p>Can be useful to jump to global definitions if the editor supports it.</p>
 
 </dl>
 
@@ -6381,7 +6449,18 @@ parameters (e.g. <code>RMB 7,$20</code>).
 
 <h3>65CE02 opcodes<a name="opcodes-65ce02" href="#opcodes-65ce02"></a></h3>
 
-<p>This processor is an enhanced version of R65C02.
+<p>There's a small deviation in the use of <code>TAD</code> and <code>TDA</code>
+for the base page. That's consistent with the direct page addressing
+mode, <a href="#d_dpage"><code>.dpage</code></a> directive and convention of other
+processors. Therefore <code>TAB</code> and <code>TBA</code> mnemonics are aliases only.
+
+<p>For similar reason the base page register needs to be referenced as
+<code>D</code> instead of <code>B</code> as the latter is the data bank
+register on other processors.
+
+<p>As later variants have both left and right rotating multi byte instructions
+the rotate left word <code>ROW</code> mnemonic should be written as
+<code>RLW</code> if possible.
 
 <div><table width="100%" class="opcodes">
 <caption>Additional 65CE02 opcodes over R65C02</caption>
@@ -6410,15 +6489,15 @@ parameters (e.g. <code>RMB 7,$20</code>).
 <tr><th>PHW<td>F4 FC
 <th>PHZ<td>DB
 <tr><th>PLZ<td>FB
-<th>ROW<td>EB
+<th>RLW<td>EB
 <tr><th>RTS<td>62
 <th>SEE<td>03
 <tr><th>STA<td>82
 <th>STX<td>9B
 <tr><th>STY<td>8B
-<th>TAB<td>5B
+<th>TAD<td>5B
 <tr><th>TAZ<td>4B
-<th>TBA<td>7B
+<th>TDA<td>7B
 <tr><th>TSY<td>0B
 <th>TYS<td>2B
 <tr><th>TZA<td>6B
@@ -6433,8 +6512,12 @@ parameters (e.g. <code>RMB 7,$20</code>).
 <th>CMP<td>C2 D4 DC
 <tr><th>LDR<td>0B 4B 6B 7B A3 AB BB E2
 <th>NEG<td>42
-<tr><th>RTN<td>62
-<th>STR<td>2B 5B 82 8B 9B
+<tr><th>ROW<td>EB
+<th>RTN<td>62
+<tr><th>STR<td>2B 5B 82 8B 9B
+<th>TAB<td>5B
+<tr><th>TBA<td>7B
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
 </table></div>
 
 <div><table width="100%" class="opcodes">
@@ -6457,6 +6540,118 @@ parameters (e.g. <code>RMB 7,$20</code>).
 <caption>Additional CSG 4510 aliases over 65CE02</caption>
 <tr><th width="4%">EOM<td width="46%">EA
 <th width="4%"><td width="46%">
+</table></div>
+
+<h3>45GS02 opcodes<a name="opcodes-45gs02" href="#opcodes-45gs02"></a></h3>
+
+<p>Unfortunately the original naming convention couldn't be adopted as it
+used four letter mnemonics for most new operations. If these longer names are
+preferred it's quite easy to define macros named like that using <a
+href="#d_segment"><code>.segment</code></a> and <q><code>\@</code></q>.
+
+<p>The four letter mnemonics got shortened so that all register
+<code>Q</code> operations are ending with the name of the register. That leaves two
+letters to describe the function which isn't much.
+
+<p>Alternatively the <a href="#generic-instructions">generic instruction</a>
+syntax can be used with register <code>Q</code> parameter to get more
+descriptive and familiar mnemonics.
+
+<div><table border="0" width="100%">
+<caption>Q register memory 45GS02 mnemonics</caption>
+<tr><th width="6%"><code>ADQ</code><th width="12%"><code>ADC&nbsp;Q,</code><td width="50%">Add with carry to register <code>Q</code><td width="32%">(also known as <code>ADCQ</code>)
+<tr><th><code>ANQ</code><th><code>AND&nbsp;Q,</code><td>Logical and register <code>Q</code><td>(also known as <code>ANDQ</code>)
+<tr><th><code>BTQ</code><th><code>BIT&nbsp;Q,</code><td>Bit test register <code>Q</code><td>(also known as <code>BITQ</code>)
+<tr><th><code>CPQ</code><th><code>CMP&nbsp;Q,</code><td>Compare register <code>Q</code><td>(also known as <code>CMPQ</code>)
+<tr><th><code>EOQ</code><th><code>EOR&nbsp;Q,</code><td>Exclusive or register <code>Q</code><td>(also known as <code>EORQ</code>)
+<tr><th><code>LDQ</code><th><code>LDR&nbsp;Q,</code><td>Load register <code>Q</code><td>
+<tr><th><code>ORQ</code><th><code>ORR&nbsp;Q,</code><td>Logical or register <code>Q</code><td>
+<tr><th><code>SBQ</code><th><code>SBC&nbsp;Q,</code><td>Subtract with carry from register <code>Q</code><td>(also known as <code>SBCQ</code>)
+<tr><th><code>STQ</code><th><code>STR&nbsp;Q,</code><td>Store register <code>Q</code><td>
+</table></div>
+
+<p>The <code>Q</code> register modify instructions detach the register from the
+mnemonic just like <code>ASL&nbsp;A</code>. The four letter convention had it
+in both the mnmemonic and the parameter which is redundant.
+
+<div><table border="0" width="100%">
+<caption>Q register modify 45GS02 mnemonics</caption>
+<tr><th width="6%"><code>&nbsp;&nbsp;&nbsp;</code><th width="12%"><code>ASL&nbsp;Q&nbsp;</code><td width="50%">Arithmetic shift left register <code>Q</code><td width="32%">(also known as <code>ASRQ&nbsp;Q</code>)
+<tr><th><code>&nbsp;&nbsp;&nbsp;</code><th><code>ASR&nbsp;Q&nbsp;</code><td>Arithmetic shift right register <code>Q</code><td>(also known as <code>ASLQ&nbsp;Q</code>)
+<tr><th><code>DEQ</code><th><code>DEC&nbsp;Q&nbsp;</code><td>Decrement register <code>Q</code><td>(also known as <code>DEQ&nbsp;Q</code>)
+<tr><th><code>INQ</code><th><code>INC&nbsp;Q&nbsp;</code><td>Increment register <code>Q</code><td>(also known as <code>INQ&nbsp;Q</code>)
+<tr><th><code>&nbsp;&nbsp;&nbsp;</code><th><code>LSR&nbsp;Q&nbsp;</code><td>Logical shift right register <code>Q</code><td>(also known as <code>LSRQ&nbsp;Q</code>)
+<tr><th><code>&nbsp;&nbsp;&nbsp;</code><th><code>ROL&nbsp;Q&nbsp;</code><td>Rotate left register <code>Q</code><td>(also known as <code>ROLQ&nbsp;Q</code>)
+<tr><th><code>&nbsp;&nbsp;&nbsp;</code><th><code>ROR&nbsp;Q&nbsp;</code><td>Rotate right register <code>Q</code><td>(also known as <code>RORQ&nbsp;Q</code>)
+</table></div>
+
+<p>The <code>INQ</code> and <code>DEQ</code> mnemonics have only implied
+addressing mode just like <code>INX</code> or <code>INY</code>. These
+can't be used on memory as register <code>Q</code> is not involved in the
+operation. No <code>Q</code> register parameter either, the name makes it clear
+already.
+
+<p>The double word memory modify instructions are ending with the letter
+<code>D</code>. That's consistent with pre-existing word operations like <code>INW</code>,
+<code>DEW</code>, <code>ASW</code> and others.
+
+<div><table border="0" width="100%">
+<caption>Double word memory modify 45GS02 mnemonics</caption>
+<tr><th width="6%"><code>ARD</code><th width="12%"><td width="50%">Arithmetic shift right double word<td width="32%">(also known as <code>ASRQ</code>)
+<tr><th><code>ASD</code><th><td>Arithmetic shift left double word<td>(also known as <code>ASLQ</code>)
+<tr><th><code>DED</code><th><td>Decrement double word<td>(also known as <code>DEQ</code>)
+<tr><th><code>IND</code><th><td>Increment double word<td>(also known as <code>INQ</code>)
+<tr><th><code>LSD</code><th><td>Logical shift right double word<td>(also known as <code>LSRQ</code>)
+<tr><th><code>RLD</code><th><td>Rotate left double word<td>(also known as <code>ROLQ</code>)
+<tr><th><code>RRD</code><th><td>Rotate right double word<td>(also known as <code>RORQ</code>)
+</table></div>
+
+<div><table width="100%" class="opcodes">
+<caption>Additional 45GS02 opcodes over CSG 4510</caption>
+<tr><th width="4%">ADC<td width="46%">72
+<th width="4%">ADQ<td width="46%">65 6D 72
+<tr><th>AND<td>32
+<th>ANQ<td>25 2D 32
+<tr><th>ARD<td>43 44 54
+<th>ASD<td>0A 06 0E 16 1E
+<tr><th>ASL<td>0A
+<th>ASR<td>43
+<tr><th>BTQ<td>24 2C
+<th>CMP<td>D2
+<tr><th>CPQ<td>C5 CD D2
+<th>DEC<td>3A
+<tr><th>DED<td>3A C6 CE D6 DE
+<th>DEQ<td>3A
+<tr><th>EOQ<td>45 4D 52
+<th>EOR<td>52
+<tr><th>INC<td>1A
+<th>IND<td>1A E6 EE F6 FE
+<tr><th>INQ<td>1A
+<th>LDA<td>B2
+<tr><th>LDQ<td>A5 AD B2
+<th>LSD<td>46 4A 4E 56 5E
+<tr><th>LSR<td>4A
+<th>ORA<td>12
+<tr><th>ORQ<td>05 0D 12
+<th>RLD<td>26 2A 2E 36 3E
+<tr><th>ROL<td>2A
+<th>ROR<td>6A
+<tr><th>RRD<td>66 6A 6E 76 7E
+<th>SBC<td>F2
+<tr><th>SBQ<td>E5 ED F2
+<th>STA<td>92
+<tr><th>STQ<td>85 8D 92
+<th>&nbsp;&nbsp;&nbsp;<td>&nbsp;&nbsp;
+</table></div>
+
+<div><table width="100%" class="opcodes">
+<caption>Additional 45GS02 aliases over CSG 4510</caption>
+<tr><th width="4%">CPA<td width="46%">D2
+<th width="4%">LDR<td width="46%">A5 AD B2
+<tr><th>ORR<td>05 0D 12
+<th>SHL<td>0A
+<tr><th>SHR<td>4A
+<th>STR<td>85 8D 92
 </table></div>
 
 <hr>

@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: unicode.c 3212 2025-04-13 07:53:39Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -588,6 +588,80 @@ size_t makefile_print(const char *line, FILE *f) {
         len++; putc(ch, f);
     }
     return len;
+}
+
+void ctagsfile_print(const char *line, FILE *f) {
+    const uint8_t *i = (const uint8_t *)line;
+
+    for (;;) {
+        int ch = *i;
+        if ((ch & 0x80) != 0) {
+            unichar_t ch2 = (uint8_t)ch;
+            i += utf8in(i, &ch2);
+            if (isprint_v13(ch2) != 0) {
+                char temp[64];
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch2);
+                if (ln != 0) {
+                    fwrite(temp, ln, 1, f);
+                    continue;
+                }
+            }
+            putc('?', f);
+            continue;
+        }
+        if (ch == 0) break;
+
+        i++;
+        if (ch < 0x20 || ch > 0x7e) ch = '?';
+        putc(ch, f);
+    }
+}
+
+void ctagsline_print(const uint8_t *l, FILE *f) {
+    size_t len = 0;
+    const uint8_t *i = l;
+    while (len < 64) {
+        unichar_t ch;
+        switch (*i) {
+        default:
+            if unlikely(*i < 0x20 || *i > 0x7e) break;
+            FALL_THROUGH; /* fall through */
+        case '\t':
+            i++;
+            len++;
+            continue;
+        case '/':
+        case '\\':
+            break;
+        }
+        if (l != i) {
+            fwrite(l, 1, (size_t)(i - l), f);
+            l = i;
+        }
+        if (*i == 0) break;
+        ch = *i;
+        if ((ch & 0x80) != 0) {
+            i += utf8in(i, &ch);
+            if (isprint_v13(ch) != 0) {
+                char temp[64];
+                size_t ln = utf8_to_chars(temp, sizeof temp, ch);
+                if (ln != 0) {
+                    if (len + ln < 64) {
+                        len += fwrite(temp, ln, 1, f);
+                    } else {
+                        len += ln;
+                    }
+                    l = i;
+                    continue;
+                }
+            }
+        } else i++;
+        putc('\\', f);
+        putc((ch == '/' || ch == '\\') ? ch : '.', f);
+        len += 2;
+        l = i;
+    }
+    if (l != i) fwrite(l, 1, (size_t)(i - l), f);
 }
 
 static int unknown_print(FILE *f, unichar_t ch) {

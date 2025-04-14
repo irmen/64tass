@@ -1,5 +1,5 @@
 /*
-    $Id: mem.c 3112 2023-09-06 06:34:22Z soci $
+    $Id: mem.c 3213 2025-04-13 19:58:28Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -597,7 +597,7 @@ static void output_mem_srec(FILE *fout, const Memblocks *memblocks, const struct
     srec.data[1] = 'D';
     srec.data[2] = 'R';
     if (output_mem_srec_line(&srec)) return;
-    addrtype = 0;
+    addrtype = output->longaddr ? 1 : 0;
     for (i = 0; i < memblocks->p; i++) {
         const struct memblock_s *b = &memblocks->data[i];
         address_t end = b->addr + b->len - 1;
