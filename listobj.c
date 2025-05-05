@@ -1,5 +1,5 @@
 /*
-    $Id: listobj.c 3144 2025-03-07 06:52:29Z soci $
+    $Id: listobj.c 3221 2025-04-21 19:48:07Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -880,6 +880,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             vals = lnew(list, v1->len);
             if (vals == NULL) return new_error_mem(op->epoint3);
         }
+        o2->refcount++;
         for (i = 0; i < v1->len; i++) {
             Obj *val;
             Obj *oo1 = v1->data[i];
@@ -894,6 +895,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (inplace) val_destroy(vals[i]);
             vals[i] = val;
         }
+        o2->refcount--;
         return Obj(list);
     }
     return val_reference(o1);
@@ -923,6 +925,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             vals = lnew(v, v2->len);
             if (vals == NULL) return new_error_mem(op->epoint3);
         }
+        o1->refcount++;
         for (i = 0; i < v2->len; i++) {
             Obj *val;
             Obj *oo2 = v2->data[i];
@@ -937,6 +940,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             if (inplace) val_destroy(vals[i]);
             vals[i] = val;
         }
+        o1->refcount--;
         return Obj(v);
     }
     return val_reference(o2);

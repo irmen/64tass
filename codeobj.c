@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 3195 2025-04-09 21:18:02Z soci $
+    $Id: codeobj.c 3235 2025-05-04 15:37:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
 }
 
 static MUST_CHECK Obj *access_check(const Code *v1, linepos_t epoint) {
-    if ((v1->requires & ~current_section->provides) != 0) {
+    if ((v1->required & ~current_section->provides) != 0) {
         return Obj(new_error(ERROR_REQUIREMENTS_, epoint));
     }
     if ((v1->conflicts & current_section->provides) != 0) {
@@ -99,7 +99,7 @@ static FAST_CALL bool same(const Obj *o1, const Obj *o2) {
     const Code *v1 = Code(o1), *v2 = Code(o2);
     return o1->obj == o2->obj && v1->addr == v2->addr && (v1->typ == v2->typ || v1->typ->obj->same(v1->typ, v2->typ))
         && v1->size == v2->size && v1->offs == v2->offs && v1->dtype == v2->dtype
-        && v1->requires == v2->requires && v1->conflicts == v2->conflicts
+        && v1->required == v2->required && v1->conflicts == v2->conflicts
 /*        && (v1->memblocks == v2->memblocks || v1->memblocks->v.obj->same(Obj(v1->memblocks), Obj(v2->memblocks))) */
         && (v1->names == v2->names || v1->names->v.obj->same(Obj(v1->names), Obj(v2->names)));
 }
@@ -542,18 +542,21 @@ static MUST_CHECK Obj *contains(oper_t op) {
     case T_NONE:
     case T_ERROR:
         return val_reference(o1);
-    case T_GAP:
-        o1 = val_reference(o1);
-        break;
     default:
-        o1 = int_from_obj(o1, op->epoint);
-        if (o1->obj != INT_OBJ) return o1;
         break;
     }
+
     if (code_item_prepare(&ci, v2, &ln)) {
         return obj_oper_error(op);
     }
     if (diagnostics.size_larger && v2->offs < 0) err_msg_size_larger(op->epoint2);
+
+    if (o1->obj == GAP_OBJ) {
+        o1 = val_reference(o1);
+    } else {
+        o1 = int_from_obj(o1, op->epoint);
+        if (o1->obj != INT_OBJ) return o1;
+    }
 
     oper = op->op;
     good = (oper == O_IN) ? false_value : true_value;

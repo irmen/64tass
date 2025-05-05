@@ -1,5 +1,5 @@
 /*
-    $Id: intobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: intobj.c 3229 2025-05-04 10:20:30Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1743,6 +1743,7 @@ static MUST_CHECK Obj *calc2_int(oper_t op) {
             val_destroy(vv2);
             return val;
         }
+        if (v1->len == 0) return val_reference(Obj(v1));
         return power(op);
     case O_LSHIFT:
         err = ival(Obj(v2), &shift, 8 * sizeof shift, op->epoint2);

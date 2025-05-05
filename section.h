@@ -1,5 +1,5 @@
 /*
-    $Id: section.h 3013 2023-08-15 06:36:01Z soci $
+    $Id: section.h 3235 2025-05-04 15:37:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ struct section_s {
     str_t cfname;
     struct avltree_node node;
 
-    uval_t requires;
+    uval_t required;
     uval_t conflicts;
     uval_t provides;
     address_t restart;

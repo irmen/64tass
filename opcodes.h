@@ -1,5 +1,5 @@
 /*
-    $Id: opcodes.h 3191 2025-04-08 16:42:51Z soci $
+    $Id: opcodes.h 3226 2025-04-25 05:34:13Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ struct cpu_s {
     unsigned int opcodes;
     address_t max_address;
     int jmp, brl, ldr, lda, ldx, ldy, ldz, str, sta, stx, sty, stz, cmp, cpa;
-    int cpx, cpy, cpz, tcd, txi, txr, adc, sbc, and, orr, eor, bit, ora, tsb, trb;
+    int cpx, cpy, cpz, tcd, txi, txr, adc, sbc, and_, orr, eor, bit, ora, tsb, trb;
     int adq, anq, ard, btq, cpq, ded, eoq, ind, ldq, orq, rld, rrd, sbq, asd, lsd, stq, inq, deq;
 };
 

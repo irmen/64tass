@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<!-- $Id: README.html 3213 2025-04-13 19:58:28Z soci $ -->
+<!-- $Id: README.html 3230 2025-05-04 12:00:50Z soci $ -->
 <head>
 <title>64tass v1.59 r3120 reference manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -750,7 +750,7 @@ items is can be defined by leaving out the key before the colon, like <code>{
 :&lt;default&gt; }</code>. Simple value don't use a colon <code>{
 &lt;value&gt; }</code>.
 
-<p>Looking up a non-existing key is normally an error unless a default value is
+<p>Looking up a non-existing key is an error unless a default value is
 given. Dictionaries are immutable. There are limitations what may be used as a
 key but the value can be anything. As the keys are used for lookups these must
 be unique.
@@ -3639,7 +3639,7 @@ naming convention.
 example <code>CMP</code> and <code>CPX</code>. That makes writing code fast and
 easy but sometimes it'd be nice to parametrize the register as well not just
 the address. It's not like it's unsolvable through conditional compilation
-directives or macro text replacement but there's a better way.
+directives or macro text replacement but this is an alternative.
 
 <p>The processor registers have predefined single letter symbols like
 <code>A</code>, <code>X</code> or <code>Y</code>. These can be assigned to
@@ -3672,7 +3672,7 @@ address:</p>
 <p>The parametrized version of load and store instructions are
 <code>LDR</code> and <code>STR</code>, respectively. The first parameter is the
 register to be used and then the regular addressing mode can be written after a coma. For
-example <code>LDX&nbsp;$1000,y</code> is equivalent to <code>LDR&nbsp;x,&nbsp;$1000,y</code>.
+example <code>LDX&nbsp;$1000,Y</code> is equivalent to <code>LDR&nbsp;X,&nbsp;$1000,Y</code>.
 It is recommended to leave a space before the addressing mode.</p>
 
 <div><table width="100%" class="opcodes">
@@ -3686,9 +3686,9 @@ It is recommended to leave a space before the addressing mode.</p>
 <p>Transfer instructions have generic versions as well, actually in two
 variants. The first one is when only one of the registers need to be variable.
 A register address can be used with regular load instructions to get those
-setting the flags, like <code>TAX</code> which is <code>LDA&nbsp;x</code>.
+setting the flags, like <code>TAX</code> which is <code>LDA&nbsp;X</code>.
 Store instructions are used for those which don't, like <code>TXS</code> which
-is <code>STX&nbsp;s</code>.</p>
+is <code>STX&nbsp;S</code>.</p>
 
 <div><table width="100%" class="opcodes">
 <caption>Register transfer parametrization through load and stores</caption>
@@ -3782,7 +3782,7 @@ byte <code>JMP</code> or <code>BRL</code> once the target gets too far.
 
 <p>If the branch destination is a <code>RTS</code>, <code>RTI</code> or
 <code>RTL</code> instruction then this opcode will used in place of the branch to save space.
-This only works if the destination label is on the same line as the instruction.</p>
+This only works if the destination label is on the same line as the return instruction.</p>
 
 <pre>
 .1000   60              rts                     <b>gne</b> <u>exit</u>        <i>;just return</i>
@@ -3804,7 +3804,7 @@ code is generated. This is useful for <q>fall-through</q> cases.
 
 <p>If the branch would skip only one byte then the opposite condition is
 compiled (turns it to never taken) and only a single opcode byte is emitted. As
-the following byte becomes part of the intruction it gets skipped.
+the following byte becomes part of the instruction it gets skipped.
 <pre>
 .0009   18              clc             in3     <b>clc</b>
 .000a   b0              bcs                     <b>gcc</b> <u>+</u>           <i>;one byte skip</i>
@@ -3863,7 +3863,7 @@ sufficient.
 
 <p>If the branch destination is a <code>RTS</code>, <code>RTI</code> or
 <code>RTL</code> instruction then this opcode will used in place of the jump instruction to save space.
-This only works if the destination label is on the same line as the instruction.
+This only works if the destination label is on the same line as the return instruction.
 
 <pre>
 .1000   b0 01           bcs $1003               <b>bcc</b> <u>exit</u>        <i>;uses rts</i>
@@ -4218,6 +4218,56 @@ start   <b>rts</b>
 <tr><td><code>60</code><td>data
 <tr><td><code>00 10 00</code><td>execute at <code>$1000</code>
 <tr><td><code>00 00 00</code><td>execution marker
+</table></div></dd>
+
+<dt><b>--cody-bin</b><a name="o_cody-bin" href="#o_cody-bin"></a>
+<dd>Generate a Cody binary output file
+
+<p>Overlapping blocks are flattened and uninitialized memory is filled up with
+zeros. Uninitialized memory before the first and after the last valid bytes are
+not saved. Up to 64&nbsp;KiB.
+
+<p>Used for Cody executables. First the load address and last byte's address
+words are written in little endian format. This is followed by the data.</p>
+
+<pre>
+64tass --cody-bin a.asm
+*       <b>=</b> <span>$6300</span>
+        <b>nop</b>
+        <b>rts</b>
+</pre>
+
+<div><table border="0">
+<caption>Example of Cody format output</caption>
+<tr><td width="100"><code>00 63</code><td>load to <code>$6300</code>
+<tr><td><code>01 63</code><td>last byte
+<tr><td><code>EA 60</code><td>data
+</table></div></dd>
+
+<dt><b>--wdc-bin</b><a name="o_wdc-bin" href="#o_wdc-bin"></a>
+<dd>Generate WDC binary output file. Also known as zardoz binary.
+
+<p>Overlapping blocks are flattened. Blocks are saved in sorted order and
+uninitialized memory is skipped. Up to 16&nbsp;MiB.
+
+<p>It starts with a single byte signature. Then before each memory block a
+three byte load address and length is written in little endian format. Ends
+with a zero load and start address.
+
+<pre>
+64tass --output-exec=start --wdc-bin a.asm
+*       <b>=</b> <span>$1000</span>
+start   <b>rts</b>
+</pre>
+
+<div><table border="0">
+<caption>Example WDC binary (zardoz) format output</caption>
+<tr><td width="100"><code>5a</code><td>Z signature byte
+<tr><td><code>00 10 00</code><td>load to <code>$1000</code>
+<tr><td><code>01 00 00</code><td>length is 1 bytes
+<tr><td><code>60</code><td>data
+<tr><td><code>00 00 00</code><td>end
+<tr><td><code>00 00 00</code><td>marker
 </table></div></dd>
 
 <dt><b>--intel-hex</b><a name="o_intel-hex" href="#o_intel-hex"></a>
@@ -6460,7 +6510,7 @@ register on other processors.
 
 <p>As later variants have both left and right rotating multi byte instructions
 the rotate left word <code>ROW</code> mnemonic should be written as
-<code>RLW</code> if possible.
+<code>RLW</code> in new code to avoid a potential confusion.
 
 <div><table width="100%" class="opcodes">
 <caption>Additional 65CE02 opcodes over R65C02</caption>

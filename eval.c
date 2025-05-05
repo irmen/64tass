@@ -1,5 +1,5 @@
 /*
-    $Id: eval.c 3176 2025-03-25 21:25:50Z soci $
+    $Id: eval.c 3235 2025-05-04 15:37:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -341,7 +341,7 @@ static uval_t bitscalc(address_t addr, Bits *val) {
 
 static uval_t bytescalc(address_t addr, Bytes *val) {
     size_t b = val->len < 0 ? (size_t)~val->len : (size_t)val->len;
-    if (b >= 8 * sizeof(addr)) return (uval_t)b;
+    if (b >= sizeof(addr)) return (uval_t)b;
     if ((addr >> (b << 3)) == 0) return (uval_t)b;
     if (addr <= 0xff) return 1;
     if (addr <= 0xffff) return 2;
@@ -375,7 +375,7 @@ MUST_CHECK Obj *get_star(void) {
     code->apass = pass;
     code->memblocks = ref_memblocks(current_address->mem);
     code->names = ref_namespace(current_context);
-    code->requires = current_section->requires;
+    code->required = current_section->required;
     code->conflicts = current_section->conflicts;
     code->memaddr = current_address->address;
     code->membp = 0;
@@ -951,6 +951,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 tmp.val = v + 1;
                 tmp.len = args; /* assumes no referencing */
                 tmp.v.obj = FUNCARGS_OBJ;
+                tmp.v.refcount = 1;
 
                 epoint.pos = out->pos;
                 v--;
@@ -1130,6 +1131,7 @@ static bool get_val2(struct eval_context_s *ev) {
                 tmp.val = v;
                 tmp.len = 3; /* assumes no referencing */
                 tmp.v.obj = FUNCARGS_OBJ;
+                tmp.v.refcount = 1;
 
                 epoint.pos = out->pos;
                 oper.v1 = none_value;

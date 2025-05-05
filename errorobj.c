@@ -1,5 +1,5 @@
 /*
-    $Id: errorobj.c 3183 2025-03-28 07:00:32Z soci $
+    $Id: errorobj.c 3227 2025-05-01 19:19:17Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -73,6 +73,7 @@ static FAST_CALL void destroy(Obj *o1) {
     case ERROR_ZERO_NEGPOWER:
     case ERROR__NOT_ONE_CHAR:
     case ERROR______NOT_UVAL:
+    case ERROR_CANT_CROSS_BA:
         val_destroy(v1->u.obj);
         return;
     case ERROR__INVALID_CONV:
@@ -138,6 +139,7 @@ static FAST_CALL void garbage(Obj *o1, int i) {
     case ERROR_ZERO_NEGPOWER:
     case ERROR__NOT_ONE_CHAR:
     case ERROR______NOT_UVAL:
+    case ERROR_CANT_CROSS_BA:
         v = v1->u.obj;
         break;
     case ERROR__INVALID_CONV:
@@ -295,6 +297,7 @@ void error_obj_update(Error *err, const Obj *v1, Obj *v2) {
     case ERROR_ZERO_NEGPOWER:
     case ERROR__NOT_ONE_CHAR:
     case ERROR______NOT_UVAL:
+    case ERROR_CANT_CROSS_BA:
         if (err->u.obj == v1) {
             val_replace(&err->u.obj, v2);
         }

@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.h 3212 2025-04-13 07:53:39Z soci $
+    $Id: arguments.h 3225 2025-04-24 05:56:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@ struct Namespace;
 
 typedef enum Output_types {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX,
-    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC, OUTPUT_MHEX, OUTPUT_PGX, OUTPUT_PGZ
+    OUTPUT_APPLE, OUTPUT_IHEX, OUTPUT_SREC, OUTPUT_MHEX, OUTPUT_PGX,
+    OUTPUT_PGZ, OUTPUT_CODY, OUTPUT_WDC
 } Output_types;
 
 typedef enum Symbollist_types {

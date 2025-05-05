@@ -1,5 +1,5 @@
 /*
-    $Id: arguments.c 3212 2025-04-13 07:53:39Z soci $
+    $Id: arguments.c 3225 2025-04-24 05:56:46Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -369,7 +369,7 @@ enum {
     OUTPUT_APPEND, NO_OUTPUT, ERROR_APPEND, NO_ERROR, LABELS_APPEND, MAP,
     NO_MAP, MAP_APPEND, LIST_APPEND, SIMPLE_LABELS, LABELS_SECTION,
     MESEN_LABELS, LABELS_ADD_PREFIX, MAKE_APPEND, C256_PGX, C256_PGZ,
-    OUTPUT_EXEC, M45GS02, CTAGS_LABELS
+    OUTPUT_EXEC, M45GS02, CTAGS_LABELS, CODY_BIN, WDC_BIN
 };
 
 static const struct my_option long_options[] = {
@@ -390,6 +390,8 @@ static const struct my_option long_options[] = {
     {"cbm-prg"          , my_no_argument      , NULL,  CBM_PRG},
     {"c256-pgx"         , my_no_argument      , NULL,  C256_PGX},
     {"c256-pgz"         , my_no_argument      , NULL,  C256_PGZ},
+    {"cody-bin"         , my_no_argument      , NULL,  CODY_BIN},
+    {"wdc-bin"          , my_no_argument      , NULL,  WDC_BIN},
     {"no-ascii"         , my_no_argument      , NULL,  NO_ASCII},
     {"ascii"            , my_no_argument      , NULL, 'a'},
     {"no-tasm-compatible",my_no_argument      , NULL,  NO_TASM_COMPATIBLE},
@@ -508,8 +510,10 @@ static address_t check_outputs(void) {
         case OUTPUT_IHEX:
         case OUTPUT_SREC:
         case OUTPUT_FLAT: min &= 0xffffffff; break;
+        case OUTPUT_WDC:
         case OUTPUT_PGX:
         case OUTPUT_PGZ: min &= 0xffffff; break;
+        case OUTPUT_CODY:
         case OUTPUT_MHEX:
         case OUTPUT_APPLE:
         case OUTPUT_XEX: min &= 0xffff; break;
@@ -635,6 +639,8 @@ int init_arguments(int *argc2, char **argv2[]) {
             case CBM_PRG: output.mode = OUTPUT_CBM;break;
             case C256_PGX: output.mode = OUTPUT_PGX;break;
             case C256_PGZ: output.mode = OUTPUT_PGZ;break;
+            case CODY_BIN: output.mode = OUTPUT_CODY;break;
+            case WDC_BIN: output.mode = OUTPUT_WDC;break;
             case 'b':output.mode = OUTPUT_RAW;break;
             case 'f':output.mode = OUTPUT_FLAT;break;
             case 'a':arguments.to_ascii = true;break;
@@ -746,11 +752,11 @@ int init_arguments(int *argc2, char **argv2[]) {
                "        [-E <file>] [-I <path>] [-l <file>] [-L <file>] [-M <file>] [--ascii]\n"
                "        [--nostart] [--long-branch] [--case-sensitive] [--cbm-prg] [--flat]\n"
                "        [--atari-xex] [--apple-ii] [--intel-hex] [--mos-hex] [--s-record]\n"
-               "        [--nonlinear] [--c256-pgx] [--c256-pgz] [--tasm-compatible]\n"
-               "        [--long-address] [--output-section=<name>] [--m65c02] [--m6502]\n"
-               "        [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02] [--mw65c02]\n"
-               "        [--m65ce02] [--m4510] [--m45gs02] [--labels=<file>]\n"
-               "        [--labels-append=<file>] [--labels-add-prefix=<txt>]\n"
+               "        [--nonlinear] [--c256-pgx] [--c256-pgz] [--cody-bin] [--wdc-bin]\n"
+               "        [--tasm-compatible] [--long-address] [--output-section=<name>]\n"
+               "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
+               "        [--mr65c02] [--mw65c02] [--m65ce02] [--m4510] [--m45gs02]\n"
+               "        [--labels=<file>] [--labels-append=<file>] [--labels-add-prefix=<txt>]\n"
                "        [--labels-section=<name>] [--labels-root=<expr>] [--export-labels]\n"
                "        [--vice-labels-numeric] [--vice-labels] [--dump-labels]\n"
                "        [--simple-labels] [--mesen-labels] [--ctags-labels] [--list=<file>]\n"
@@ -851,6 +857,8 @@ int init_arguments(int *argc2, char **argv2[]) {
                "      --s-record         Output Motorola S-record file\n"
                "      --c256-pgx         Output C256 PGX file\n"
                "      --c256-pgz         Output C256 PGZ file\n"
+               "      --cody-bin         Output Cody binary file\n"
+               "      --wdc-bin          Output WDC binary file\n"
                "\n"
                " Target CPU selection:\n"
                "      --m65xx            Standard 65xx (default)\n"

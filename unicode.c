@@ -1,5 +1,5 @@
 /*
-    $Id: unicode.c 3212 2025-04-13 07:53:39Z soci $
+    $Id: unicode.c 3222 2025-04-22 19:15:48Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -657,7 +657,7 @@ void ctagsline_print(const uint8_t *l, FILE *f) {
             }
         } else i++;
         putc('\\', f);
-        putc((ch == '/' || ch == '\\') ? ch : '.', f);
+        putc((ch == '/' || ch == '\\') ? (int)ch : '.', f);
         len += 2;
         l = i;
     }

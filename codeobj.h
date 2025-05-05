@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.h 3195 2025-04-09 21:18:02Z soci $
+    $Id: codeobj.h 3235 2025-05-04 15:37:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ typedef struct Code {
     address_t memaddr;
     size_t membp;
     struct Namespace *names;
-    uval_t requires;
+    uval_t required;
     uval_t conflicts;
 } Code;
 

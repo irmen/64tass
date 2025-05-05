@@ -572,10 +572,10 @@ empty one is {}. Key and value pairs are separated with colon, like { <key>:
 the key before the colon, like { :<default> }. Simple value don't use a colon {
 <value> }.
 
-Looking up a non-existing key is normally an error unless a default value is
-given. Dictionaries are immutable. There are limitations what may be used as a
-key but the value can be anything. As the keys are used for lookups these must
-be unique.
+Looking up a non-existing key is an error unless a default value is given.
+Dictionaries are immutable. There are limitations what may be used as a key but
+the value can be anything. As the keys are used for lookups these must be
+unique.
 
                   Dictionary operators and functions
 y .. x combine dictionaries {1:2, 3:4} .. {2:3, 3:1} is {1:2, 2:3, 3:1}
@@ -3093,7 +3093,7 @@ Instructions operating on different registers have different mnemonics, for
 example CMP and CPX. That makes writing code fast and easy but sometimes it'd
 be nice to parametrize the register as well not just the address. It's not like
 it's unsolvable through conditional compilation directives or macro text
-replacement but there's a better way.
+replacement but this is an alternative.
 
 The processor registers have predefined single letter symbols like A, X or Y.
 These can be assigned to symbols with longer names if needed.
@@ -3118,8 +3118,8 @@ RSH A     RSH I     RSH X     RSH Y     RUL A     RUL I     RUL X     RUL Y
 
 The parametrized version of load and store instructions are LDR and STR,
 respectively. The first parameter is the register to be used and then the
-regular addressing mode can be written after a coma. For example LDX $1000,y is
-equivalent to LDR x, $1000,y. It is recommended to leave a space before the
+regular addressing mode can be written after a coma. For example LDX $1000,Y is
+equivalent to LDR X, $1000,Y. It is recommended to leave a space before the
 addressing mode.
 
           Register parametrized load, store and compare instructions
@@ -3131,8 +3131,8 @@ CMP A,    CMP X,    CMP Y,    CMP Z,              LDR Q,    STR Q,    CMP Q,
 Transfer instructions have generic versions as well, actually in two variants.
 The first one is when only one of the registers need to be variable. A register
 address can be used with regular load instructions to get those setting the
-flags, like TAX which is LDA x. Store instructions are used for those which
-don't, like TXS which is STX s.
+flags, like TAX which is LDA X. Store instructions are used for those which
+don't, like TXS which is STX S.
 
            Register transfer parametrization through load and stores
 TBA       TDC       TSC       TXA       TYA       TZA
@@ -3214,7 +3214,7 @@ byte JMP or BRL once the target gets too far.
 
 If the branch destination is a RTS, RTI or RTL instruction then this opcode
 will used in place of the branch to save space. This only works if the
-destination label is on the same line as the instruction.
+destination label is on the same line as the return instruction.
 
 .1000   60              rts                     gne exit        ;just return
 .1001   ea              nop                     nop
@@ -3231,7 +3231,7 @@ is generated. This is useful for `fall-through' cases.
 
 If the branch would skip only one byte then the opposite condition is compiled
 (turns it to never taken) and only a single opcode byte is emitted. As the
-following byte becomes part of the intruction it gets skipped.
+following byte becomes part of the instruction it gets skipped.
 
 .0009   18              clc             in3     clc
 .000a   b0              bcs                     gcc +           ;one byte skip
@@ -3281,7 +3281,7 @@ to work a numeric address match alone isn't sufficient.
 
 If the branch destination is a RTS, RTI or RTL instruction then this opcode
 will used in place of the jump instruction to save space. This only works if
-the destination label is on the same line as the instruction.
+the destination label is on the same line as the return instruction.
 
 .1000   b0 01           bcs $1003               bcc exit        ;uses rts
 .1002   60              rts
@@ -3602,6 +3602,50 @@ Output options
     60             data
     00 10 00       execute at $1000
     00 00 00       execution marker
+
+--cody-bin
+    Generate a Cody binary output file
+
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory before the first and after the last valid bytes
+    are not saved. Up to 64 KiB.
+
+    Used for Cody executables. First the load address and last byte's address
+    words are written in little endian format. This is followed by the data.
+
+    64tass --cody-bin a.asm
+    *       = $6300
+            nop
+            rts
+
+     Example of Cody format
+             output
+    00 63          load to $6300
+    01 63          last byte
+    EA 60          data
+
+--wdc-bin
+    Generate WDC binary output file. Also known as zardoz binary.
+
+    Overlapping blocks are flattened. Blocks are saved in sorted order and
+    uninitialized memory is skipped. Up to 16 MiB.
+
+    It starts with a single byte signature. Then before each memory block a
+    three byte load address and length is written in little endian format. Ends
+    with a zero load and start address.
+
+    64tass --output-exec=start --wdc-bin a.asm
+    *       = $1000
+    start   rts
+
+    Example WDC binary (zardoz)
+           format output
+    5a             Z signature byte
+    00 10 00       load to $1000
+    01 00 00       length is 1 bytes
+    60             data
+    00 00 00       end
+    00 00 00       marker
 
 --intel-hex
     Use Intel HEX output file format.
@@ -5419,7 +5463,8 @@ For similar reason the base page register needs to be referenced as D instead
 of B as the latter is the data bank register on other processors.
 
 As later variants have both left and right rotating multi byte instructions the
-rotate left word ROW mnemonic should be written as RLW if possible.
+rotate left word ROW mnemonic should be written as RLW in new code to avoid a
+potential confusion.
 
                      Additional 65CE02 opcodes over R65C02
 ASR 43 44 54                            ASW CB

@@ -1,5 +1,5 @@
 /*
-    $Id: instruction.h 2737 2021-10-06 20:50:52Z soci $
+    $Id: instruction.h 3217 2025-04-20 12:19:03Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@ struct cpu_s;
 
 struct Obj;
 struct Funcargs;
+struct values_s;
 
-extern MUST_CHECK struct Error *instruction(int, unsigned int, struct Funcargs *, linepos_t);
+extern MUST_CHECK struct Error *instruction(int, unsigned int, struct values_s *, argcount_t, linepos_t);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const uint8_t *);
 extern MUST_CHECK bool touval(struct Obj *, uval_t *, unsigned int, linepos_t);

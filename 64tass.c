@@ -1,6 +1,6 @@
 /*
     Turbo Assembler 6502/65C02/65816/DTV
-    $Id: 64tass.c 3206 2025-04-12 08:52:34Z soci $
+    $Id: 64tass.c 3237 2025-05-05 06:05:25Z soci $
 
     6502/65C02 Turbo Assembler  Version 1.3
     (c) 1996 Taboo Productions, Marek Matula
@@ -1472,9 +1472,9 @@ static void update_code(const Label *newlabel, Code *code) {
             fixeddig = false;
         }
     }
-    if (code->addr != star || code->requires != current_section->requires || code->conflicts != current_section->conflicts || code->offs != 0) {
+    if (code->addr != star || code->required != current_section->required || code->conflicts != current_section->conflicts || code->offs != 0) {
         code->addr = star;
-        code->requires = current_section->requires;
+        code->required = current_section->required;
         code->conflicts = current_section->conflicts;
         code->offs = 0;
         if (newlabel->usepass >= pass) {
@@ -1501,7 +1501,7 @@ static MUST_CHECK Code *create_code(linepos_t epoint) {
     code->apass = pass;
     code->memblocks = ref_memblocks(current_address->mem);
     code->names = new_namespace(current_file_list, epoint);
-    code->requires = current_section->requires;
+    code->required = current_section->required;
     code->conflicts = current_section->conflicts;
     return code;
 }
@@ -1683,7 +1683,7 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
         if (tmp.op == O_NONE) {
             label = new_label(&varname, context, strength, current_file_list);
             if (label->value != NULL) {
-                if (label->constant) {
+                if (label->defpass == pass && label->constant) {
                     err_msg_double_defined(label, &varname, &epoint2);
                     val_destroy(val);
                     label = NULL;
@@ -1691,6 +1691,7 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                     if (label->defpass != pass) {
                         label->ref = false;
                         label->defpass = pass;
+                        label->constant = false;
                     } else {
                         if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                     }
@@ -1711,8 +1712,8 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
             }
         } else {
             label = (varname.data[0] == '_') ? find_label2(&varname, context) : find_label(&varname, NULL);
-            if (label == NULL) {err_msg_not_defined2(&varname, context, false, &epoint2); break;}
-            if (label->constant) {err_msg_not_variable(label, &varname, &epoint2); break;}
+            if (label == NULL) {err_msg_not_defined2(&varname, context, false, &epoint2); val_destroy(val); break;}
+            if (label->constant) {err_msg_not_variable(label, &varname, &epoint2); val_destroy(val); break;}
             if (diagnostics.case_symbol && str_cmp(&varname, &label->name) != 0) err_msg_symbol_case(&varname, label, &epoint2);
             if (tmp.op != O_REASSIGN) {
                 bool minmax = (tmp.op == O_MIN) || (tmp.op == O_MAX);
@@ -1863,8 +1864,9 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                         } else if (val->obj->getiter == DEFAULT_OBJ->getiter) {
                             if (doerror) {
                                 Funcargs f;
+                                Obj *err;
                                 get_vals_funcargs(&f);
-                                Obj *err = new_error_obj(ERROR______NOT_ITER, val, &f.val[j].epoint);
+                                err = new_error_obj(ERROR______NOT_ITER, val, &f.val[j].epoint);
                                 err_msg_output_and_destroy(Error(err));
                                 doerror = false;
                             }
@@ -1991,11 +1993,12 @@ static size_t for_command(const Label *newlabel, List *lst, linepos_t epoint) {
                     lpoint.pos++;ignore();
                     label = new_label(&varname, context, strength, current_file_list);
                     if (label->value != NULL) {
-                        if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
                         if (label->defpass != pass) {
                             label->ref = false;
                             label->defpass = pass;
+                            label->constant = false;
                         } else {
+                            if (label->constant) { err_msg_double_defined(label, &varname, &bpoint); break; }
                             if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                         }
                         label->owner = false;
@@ -2688,14 +2691,14 @@ MUST_CHECK Obj *compile(void)
                             labelexists = label->value != NULL;
                         }
                         if (labelexists) {
-                            if (label->constant) {
-                                err_msg_not_variable(label, &labelname, &epoint);
-                                val_destroy(val2);
-                            } else if (label->defpass == pass) {
+                            if (label->defpass == pass) {
+                                if (label->constant) err_msg_not_variable(label, &labelname, &epoint);
+                                if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                                 val_destroy(val2);
                             } else {
                                 label->ref = false;
                                 label->defpass = pass;
+                                label->constant = false;
                                 label->owner = false;
                                 if (label->file_list != current_file_list) {
                                     label_move(label, &labelname, current_file_list);
@@ -2850,13 +2853,14 @@ MUST_CHECK Obj *compile(void)
                             if (label == NULL) label = new_label(&labelname, mycontext, strength, current_file_list);
                             else if (diagnostics.case_symbol && str_cmp(&labelname, &label->name) != 0) err_msg_symbol_case(&labelname, label, &epoint);
                             if (label->value != NULL) {
-                                if (label->constant) {
+                                if (label->defpass == pass && label->constant) {
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     val_destroy(val);
                                 } else {
                                     if (label->defpass != pass) {
                                         label->ref = false;
                                         label->defpass = pass;
+                                        label->constant = false;
                                     } else {
                                         if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                     }
@@ -3201,7 +3205,7 @@ MUST_CHECK Obj *compile(void)
                             Label *label;
                             Struct *structure;
                             struct section_address_s section_address, *oldsection_address = current_address;
-                            uval_t provides = current_section->provides, requires = current_section->requires, conflicts = current_section->conflicts;
+                            uval_t provides = current_section->provides, required = current_section->required, conflicts = current_section->conflicts;
                             bool doubledef = false;
                             Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
                             listing_line(0);
@@ -3209,7 +3213,7 @@ MUST_CHECK Obj *compile(void)
                             new_waitfor((prm==CMD_STRUCT) ? W_ENDS : W_ENDU, &cmdpoint);waitfor->skip = 0;
                             label = new_label(&labelname, mycontext, strength, current_file_list);
 
-                            current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
+                            current_section->provides = ~(uval_t)0;current_section->required = current_section->conflicts = 0;
                             section_address.wrapwarn = section_address.moved = false;
                             section_address.bankwarn = false;
                             section_address.unionmode = (prm == CMD_UNION);
@@ -3290,7 +3294,7 @@ MUST_CHECK Obj *compile(void)
                             waitfor->skip = 0;
                             lpoint.line--; vline--;
 
-                            current_section->provides = provides; current_section->requires = requires; current_section->conflicts = conflicts;
+                            current_section->provides = provides; current_section->required = required; current_section->conflicts = conflicts;
                             current_address = oldsection_address;
                             if (current_address->l_address > all_mem) {
                                 err_msg_big_address(&cmdpoint);
@@ -3540,7 +3544,7 @@ MUST_CHECK Obj *compile(void)
                             listing_equal(val);
                             if (label == NULL) label = new_label(&labelname, mycontext, strength, current_file_list);
                             if (label->value != NULL) {
-                                if (constant ? (label->defpass == pass) : label->constant) {
+                                if (label->defpass == pass && (constant || label->constant)) {
                                     val_destroy(val);
                                     err_msg_double_defined(label, &labelname, &epoint);
                                 } else {
@@ -3550,7 +3554,6 @@ MUST_CHECK Obj *compile(void)
                                             if (pass > max_pass) err_msg_cant_calculate(&label->name, &epoint);
                                             constcreated = true;
                                         }
-                                        label->constant = true;
                                     } else {
                                         if (label->defpass != pass) {
                                             label->ref = false;
@@ -3559,6 +3562,7 @@ MUST_CHECK Obj *compile(void)
                                             if (diagnostics.unused.variable && label->usepass != pass) err_msg_unused_variable(label);
                                         }
                                     }
+                                    label->constant = constant;
                                     label->owner = false;
                                     if (label->file_list != current_file_list) {
                                         label_move(label, &labelname, current_file_list);
@@ -4988,8 +4992,8 @@ MUST_CHECK Obj *compile(void)
                     vs = get_val();
                     if (touval2(vs, &uval, 8 * sizeof uval)) current_section->provides = ~(uval_t)0;
                     else current_section->provides = uval;
-                    if (touval2(vs + 1, &uval, 8 * sizeof uval)) current_section->requires = 0;
-                    else current_section->requires = uval;
+                    if (touval2(vs + 1, &uval, 8 * sizeof uval)) current_section->required = 0;
+                    else current_section->required = uval;
                     if (touval2(vs + 2, &uval, 8 * sizeof uval)) current_section->conflicts = 0;
                     else current_section->conflicts = uval;
                 }
@@ -5552,7 +5556,7 @@ MUST_CHECK Obj *compile(void)
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = false;
                         }
-                        tmp3->provides = ~(uval_t)0;tmp3->requires = tmp3->conflicts = 0;
+                        tmp3->provides = ~(uval_t)0;tmp3->required = tmp3->conflicts = 0;
                         tmp3->address.unionmode = current_address->unionmode;
                         tmp3->address.l_start = current_address->l_start;
                         tmp3->address.l_union = current_address->l_union;
@@ -5713,8 +5717,7 @@ MUST_CHECK Obj *compile(void)
                     oldlpoint = lpoint;
                     w = 3; /* 0=byte 1=word 2=long 3=negative/too big */
                     if (here() == 0 || here() == ';') {
-                        tmp.len = 0;
-                        err = instruction(prm, w, &tmp, &epoint);
+                        err = instruction(prm, w, NULL, 0, &epoint);
                     } else {
                         if (arguments.tasmcomp) {
                             if (here() == '!') {w = 1; lpoint.pos++;}
@@ -5742,7 +5745,7 @@ MUST_CHECK Obj *compile(void)
                         }
                         if (!get_exp(3, 0, 0, NULL)) goto breakerr;
                         get_vals_funcargs(&tmp);
-                        err = instruction(prm, w, &tmp, &epoint);
+                        err = instruction(prm, w, tmp.val, tmp.len, &epoint);
                     }
                     if (err == NULL) {
                         if (llist != NULL) listing_instr(0, 0, -1);

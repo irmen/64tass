@@ -1,5 +1,5 @@
 /*
-    $Id: file.c 3204 2025-04-11 20:23:24Z soci $
+    $Id: file.c 3234 2025-05-04 14:29:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -314,9 +314,9 @@ static struct {
     time_t value;
 } latest_file_time;
 
-bool get_latest_file_time(void *time) {
+bool get_latest_file_time(void *ftime) {
     if (!latest_file_time.valid || latest_file_time.current) return true;
-    *((time_t *)time) = latest_file_time.value;
+    *((time_t *)ftime) = latest_file_time.value;
     return false;
 }
 

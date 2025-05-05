@@ -1,5 +1,5 @@
 /*
-    $Id: section.c 3086 2023-09-03 06:23:08Z soci $
+    $Id: section.c 3235 2025-05-04 15:37:02Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ struct section_s *new_section(const str_t *name) {
         if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
         else str_cfcpy(&lastsc->cfname, NULL);
         lastsc->parent = current_section;
-        lastsc->provides = ~(uval_t)0;lastsc->requires = lastsc->conflicts = 0;
+        lastsc->provides = ~(uval_t)0;lastsc->required = lastsc->conflicts = 0;
         lastsc->address.end = lastsc->address.address = lastsc->address.l_address = lastsc->address.l_start = lastsc->address.l_union = lastsc->size = 0;
         lastsc->address.l_address_val = val_reference(int_value[0]);
         lastsc->defpass = 0;
@@ -139,7 +139,7 @@ struct section_s *find_this_section(const char *here) {
 }
 
 void reset_section(struct section_s *section) {
-    section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
+    section->provides = ~(uval_t)0; section->required = section->conflicts = 0;
     section->address.end = section->address.start = section->restart = section->l_restart = section->address.address = section->address.l_address = section->address.l_start = section->address.l_union = 0;
     val_destroy(section->address.l_address_val);
     section->address.l_address_val = val_reference(int_value[0]);
