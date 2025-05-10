@@ -1,5 +1,5 @@
 /*
-    $Id: bitsobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: bitsobj.c 3240 2025-05-06 19:55:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -126,9 +126,9 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     uval_t len2, blen2;
     size_t blen;
     Obj *v;
-    Bits *bits, *bits2;
+    Bits *bits1, *bits2;
     unsigned int m;
-    bool inplace, bytes;
+    bool bits, bytes;
     if (args != 2) {
         return new_error_argnum(args, 1, 2, op->epoint2);
     }
@@ -136,17 +136,17 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     err = v->obj->ival(v, &ival, 8 * sizeof ival, &v2->val[1].epoint);
     if (err != 0) return Obj(err);
     v = v2->val[0].val;
-    inplace = (v->obj == BITS_OBJ);
+    bits = (v->obj == BITS_OBJ);
     bytes = (v->obj == BYTES_OBJ || v->obj == STR_OBJ);
-    if (!inplace) {
+    if (!bits) {
         v = bits_from_obj(v, op->epoint2);
         if (v->obj != BITS_OBJ) return v;
     }
-    bits = Bits(v);
+    bits1 = Bits(v);
     if (ival >= 0) {
         len2 = (uval_t)ival;
-        if (!inplace && !bytes && bits->len < 0) {
-            val_destroy(Obj(bits));
+        if (!bits && !bytes && bits1->len < 0) {
+            val_destroy(Obj(bits1));
             return new_error_obj(ERROR______NOT_UVAL, v2->val[0].val, &v2->val[0].epoint);
         }
     } else {
@@ -155,25 +155,25 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     blen2 = len2 / SHIFT + 1;
     m = len2 % SHIFT;
     if (ival < 0) len2++;
-    blen = bitslen(bits);
-    if (((inplace || bytes) && bits->bits > len2) || blen > blen2 || (blen == blen2 && (bits->data[blen2 - 1] >> m) != 0)) {
-        if (!inplace) val_destroy(Obj(bits));
+    blen = bitslen(bits1);
+    if (((bits || bytes) && bits1->bits > len2) || blen > blen2 || (blen == blen2 && (bits1->data[blen2 - 1] >> m) != 0)) {
+        if (!bits) val_destroy(Obj(bits1));
         err = new_error(ival < 0 ? ERROR_____CANT_IVAL : ERROR_____CANT_UVAL, &v2->val[0].epoint);
         err->u.intconv.bits = len2;
         err->u.intconv.val = val_reference(v2->val[0].val);
         return Obj(err);
     }
-    if (bits->v.refcount == 1) {
-        bits->bits = len2;
+    if (bits1->v.refcount == 1) {
+        bits1->bits = len2;
     }
-    if (bits->bits == len2) {
-        return inplace ? val_reference(Obj(bits)) : Obj(bits);
+    if (bits1->bits == len2) {
+        return bits ? val_reference(Obj(bits1)) : Obj(bits1);
     }
     bits2 = new_bits2(blen);
-    bits2->len = bits->len;
+    bits2->len = bits1->len;
     bits2->bits = len2;
-    if (blen != 0) memcpy(bits2->data, bits->data, blen * sizeof *bits2->data); else bits2->u.val[0] = 0;
-    if (!inplace) val_destroy(Obj(bits));
+    if (blen != 0) memcpy(bits2->data, bits1->data, blen * sizeof *bits2->data); else bits2->u.val[0] = 0;
+    if (!bits) val_destroy(Obj(bits1));
     return Obj(bits2);
 }
 
@@ -1377,7 +1377,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BOOL:
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         op->v2 = tmp = val_reference(bits_value[Bool(o2)->value ? 1 : 0]);
-        if (op->inplace != NULL && op->inplace->refcount != 1) op->inplace = NULL;
+        if (op->inplace == o2) op->inplace = NULL;
         result = calc2(op);
         val_destroy(tmp);
         return result;

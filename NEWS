@@ -1,3 +1,86 @@
+r3243 (2025-05-10)
+==================
+
+Time to make another release as it'd be good to get the fixes out.
+
+**Fixes**
+
+* Rename memalign function
+  Caused compilation failures if such function existed in standard library
+* Struct members offsets were still addresses sometimes
+  This could cause wrong diagnostic messages (#71)
+* Improve indirect alignment directives
+  In some cases they failed even if the alignment was doable
+* Wrong value in addressing limit messages
+  The full address mode was displayed while only the address value is relevant
+* Typo causing various issues on win32 
+  Especially on newer versions. (#75)
+* Listing file error got lost
+  If an error occurred on creation of a listing file it wasn't reported
+* Original definition note message even when location was not known
+  Without the location it's useless, so it's avoided now.
+* BBR and BBS long branches
+  These broke at some point but are working now again.
+
+**Changes**
+
+* pow() now the same as power operator
+  This also means powers of integers remain integer now if possible
+* .from not limited to namespaces
+  Symbols can come from dictionaries as well
+* More specific error messages for some unlikely corner cases
+  Out of memory errors were replaced with better fitting (and less fatal) messages.
+* Improve first parameter of regular for loops
+  Can be a compound assignment now, not just an assignment.
+* hypot(a, b, c)
+  Not restricted to two dimensions anymore
+* log(v, base)
+  The base of the logarithm can be specified now as an optional parameter
+* Long branches can return now
+  If the destination is a return then that'll be used instead of a jump.
+* Hint on .enc and .cpu quoting
+  There's a hint now that the argument needs to be quoted
+* -X applies on s-record now
+  Can be used to avoid S19 and force output to be at least S28.
+* Searched in global scope note was removed
+  Wasn't really useful as there's no source location it could point to.
+
+**New**
+
+* Symbol type
+  Not all that new but it got a built-in name and can be converted from string
+* Dictionaries from separate keys and values. dict(.(a, b, c), (1,2,3))
+  This allows easier creation of enumerations from ranges of values
+* Column oriented iterator .for loop
+  For parallel iteration of several lists without indexing.
+* PSH and PUL (RSH, RUL)
+  Pseudo instructions for generic pushing and pulling (mostly registers)
+* LDR, STR
+  Pseudo instructions for generic load and store based on register parameter
+* New cpu type 45gs02
+  For mega65 projects. Please read the manual for mnemonics.
+* --ctag-labels
+  Some editors support it for jump to definition functionality.
+* --cody-bin
+  Simple output format used by Cody.
+* --wdc-bin
+  Output format used by WDC.
+
+**Possible incompatibilities**
+
+* Column oriented iterator for loop syntax
+  Before the column oriented for loop one could get away with 'in [1,2],[3,4]'
+  as an equivalent of 'in ([1,2],[3,4])'. As the former coma separated
+  version is now the column oriented syntax the tuple must be explicitly
+  written out. The latter version is backwards compatible.
+* New pseudo instructions vs labels
+  The new pseudo instructions might conflict with existing labels without
+  colons. Please add colons in such cases.
+* Long branch and always taken branch pseudo instruction changes
+  The resulting binary might differ due to improvements. The main reason is
+  that these might use returns now in some cases and branch merging got 
+  more conservative now.
+
 r3120 (2023-09-10)
 ==================
 

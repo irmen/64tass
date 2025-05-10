@@ -1,5 +1,5 @@
 /*
-    $Id: codeobj.c 3235 2025-05-04 15:37:02Z soci $
+    $Id: codeobj.c 3240 2025-05-06 19:55:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -626,7 +626,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (diagnostics.strict_bool) err_msg_bool_oper(op);
         v = get_code_address(v1, op->epoint);
         op->v1 = v;
-        op->inplace = (op->inplace == Obj(v1) && v->refcount == 1) ? v : NULL;
+        op->inplace = (v->refcount == 1) ? v : NULL;
         result = op->v1->obj->calc1(op);
         val_destroy(v);
         return result;
@@ -655,7 +655,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
             v = get_star_value(code_address(v1) & all_mem, v1->typ);
         }
         op->v1 = v;
-        op->inplace = (op->inplace == Obj(v1) && v->refcount == 1) ? v : NULL;
+        op->inplace = (v->refcount == 1) ? v : NULL;
         result = op->v1->obj->calc1(op);
         val_destroy(v);
         return result;
@@ -667,7 +667,7 @@ static MUST_CHECK Obj *calc1(oper_t op) {
         if (v != NULL) return v;
         v = get_code_address(v1, op->epoint);
         op->v1 = v;
-        op->inplace = (op->inplace == Obj(v1) && v->refcount == 1) ? v : NULL;
+        op->inplace = (v->refcount == 1) ? v : NULL;
         result = op->v1->obj->calc1(op);
         val_destroy(v);
         return result;
@@ -729,7 +729,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             tmp2 = get_code_address(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
-            op->inplace = (op->inplace == Obj(v1) && tmp->refcount == 1) ? tmp : NULL;
+            op->inplace = (tmp->refcount == 1) ? tmp : NULL;
             result = op->v1->obj->calc2(op);
             val_destroy(tmp2);
             val_destroy(tmp);
@@ -743,15 +743,13 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_STR:
     case T_BYTES:
         if (op->op == O_ADD || op->op == O_SUB) {
-            bool inplace;
             ival_t iv;
             Code *v;
             Error *err = o2->obj->ival(o2, &iv, 30, op->epoint2);
             if (err != NULL) val_destroy(Obj(err));
             else {
                 if (iv == 0) return val_reference(Obj(v1));
-                inplace = (op->inplace == Obj(v1));
-                if (inplace) {
+                if (op->inplace == Obj(v1)) {
                     v = Code(val_reference(Obj(v1)));
                 } else {
                     v = new_code();
@@ -778,7 +776,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         return o2->obj->rcalc2(op);
     }
     op->v1 = tmp;
-    op->inplace = (op->inplace == Obj(v1) && tmp->refcount == 1) ? tmp : NULL;
+    op->inplace = (tmp->refcount == 1) ? tmp : NULL;
     result = op->v1->obj->calc2(op);
     val_destroy(tmp);
     return result;

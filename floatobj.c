@@ -1,5 +1,5 @@
 /*
-    $Id: floatobj.c 3121 2023-09-16 06:38:33Z soci $
+    $Id: floatobj.c 3240 2025-05-06 19:55:15Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -397,6 +397,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             if (err != NULL) return err;
             if (shift == 0) return val_reference(op->v1);
             if (op->op == O_RSHIFT) shift = -shift;
+            if (op->inplace == op->v2) op->inplace = NULL;
             return float_from_double_inplace(ldexp(Float(op->v1)->real, shift), op);
         }
         err = float_from_obj(v2, op->epoint2);

@@ -1,5 +1,5 @@
 /*
-    $Id: encobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: encobj.c 3242 2025-05-07 05:28:54Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -167,6 +167,7 @@ retry:
         }
         if (tmp->fwpass == pass) efwcount--;
         avltree_remove(b, &enc->ranges);
+        trans_free((union trans_u *)tmp);
         goto retry;
     }
     if (tmp->pass >= pass) {
@@ -475,6 +476,7 @@ void encobj_init(void) {
 }
 
 void encobj_destroy(void) {
+    if (lasttr != NULL) trans_free((union trans_u *)lasttr);
     val_destroy(Obj(actual_encoding));
 }
 

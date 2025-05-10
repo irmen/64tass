@@ -1,4 +1,4 @@
-# $Id: Makefile 3212 2025-04-13 07:53:39Z soci $
+# $Id: Makefile 3243 2025-05-10 05:17:11Z soci $
 OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o \
  obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o \
@@ -9,7 +9,7 @@ OBJS = 64tass.o opcodes.o str.o avl.o my_getopt.o eval.o error.o section.o \
  foldobj.o main.o console.o encobj.o argvalues.o
 LDLIBS = -lm
 LANG = C
-VERSION = 1.59
+VERSION = 1.60
 CFLAGS = -O2
 CFLAGS += -g -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS =

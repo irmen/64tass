@@ -1,5 +1,5 @@
 /*
-    $Id: bytesobj.c 3136 2024-05-11 09:05:50Z soci $
+    $Id: bytesobj.c 3239 2025-05-06 18:31:35Z soci $
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -156,8 +156,8 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     uval_t len2;
     size_t blen;
     Obj *v;
-    Bytes *bytes, *bytes2;
-    bool inplace, bits;
+    Bytes *bytes1, *bytes2;
+    bool bytes, bits;
     if (args != 2) {
         return new_error_argnum(args, 1, 2, op->epoint2);
     }
@@ -165,47 +165,47 @@ static MUST_CHECK Obj *convert2(oper_t op) {
     err = v->obj->ival(v, &ival, 8 * sizeof ival - 3, &v2->val[1].epoint);
     if (err != 0) return Obj(err);
     v = v2->val[0].val;
-    inplace = (v->obj == BYTES_OBJ);
+    bytes = (v->obj == BYTES_OBJ);
     bits = (v->obj == BITS_OBJ);
-    if (!inplace) {
+    if (!bytes) {
         v = bytes_from_obj(v, op->epoint2);
         if (v->obj != BYTES_OBJ) return v;
     }
-    bytes = Bytes(v);
+    bytes1 = Bytes(v);
     if (ival >= 0) {
         len2 = (uval_t)ival;
-        if (!inplace && !bits && bytes->len < 0) {
-            val_destroy(Obj(bytes));
+        if (!bytes && !bits && bytes1->len < 0) {
+            val_destroy(Obj(bytes1));
             return new_error_obj(ERROR______NOT_UVAL, v2->val[0].val, &v2->val[0].epoint);
         }
     } else {
         len2 = -(uval_t)ival;
     }
-    blen = byteslen(bytes);
-    if (blen > len2 || (ival < 0 && blen == len2 && bytes->data[len2 - 1] >= 0x80)) {
-        if (!inplace) val_destroy(Obj(bytes));
+    blen = byteslen(bytes1);
+    if (blen > len2 || (ival < 0 && blen == len2 && bytes1->data[len2 - 1] >= 0x80)) {
+        if (!bytes) val_destroy(Obj(bytes1));
         err = new_error(ival < 0 ? ERROR____CANT_IVAL2 : ERROR____CANT_UVAL2, &v2->val[0].epoint);
         err->u.intconv.bits = len2;
         err->u.intconv.val = val_reference(v2->val[0].val);
         return Obj(err);
     }
     if (blen == len2) {
-        return Obj(inplace ? ref_bytes(bytes) : bytes);
+        return Obj(bytes ? ref_bytes(bytes1) : bytes1);
     }
-    if (bytes->v.refcount == 1) {
-        if (extend_bytes(bytes, len2) == NULL) {
-            if (!inplace) val_destroy(Obj(bytes));
+    if (bytes1->v.refcount == 1) {
+        if (extend_bytes(bytes1, len2) == NULL) {
+            if (!bytes) val_destroy(Obj(bytes1));
             return new_error_mem(op->epoint3);
         }
-        bytes2 = inplace ? ref_bytes(bytes) : bytes;
-        inplace = true;
+        bytes2 = bytes ? ref_bytes(bytes1) : bytes1;
+        bytes = true;
     } else {
         bytes2 = new_bytes(len2);
-        if (blen != 0) memcpy(bytes2->data, bytes->data, blen);
+        if (blen != 0) memcpy(bytes2->data, bytes1->data, blen);
     }
     memset(bytes2->data + blen, 0, len2 - blen);
-    bytes2->len = (ssize_t)(bytes->len < 0 ? ~(size_t)len2 : len2);
-    if (!inplace) val_destroy(Obj(bytes));
+    bytes2->len = (ssize_t)(bytes1->len < 0 ? ~(size_t)len2 : len2);
+    if (!bytes) val_destroy(Obj(bytes1));
     return Obj(bytes2);
 }
 
